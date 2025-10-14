@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Baserow Connection Test</title>
+  <style>
+    body {
+      background: #1a1a1a;
+      color: white;
+      font-family: monospace;
+      padding: 20px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    button {
+      background: #2563eb;
+      color: white;
+      padding: 15px 30px;
+      border: none;
+      border-radius: 8px;
+      font-size: 18px;
+      cursor: pointer;
+      margin: 10px 5px;
+    }
+    button:hover {
+      background: #1d4ed8;
+    }
+    #results {
+      background: #2a2a2a;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 20px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .success { color: #10b981; }
+    .error { color: #ef4444; }
+    h1 { color: #60a5fa; }
+  </style>
+</head>
+<body>
+  <h1>🔍 Baserow API Connection Test</h1>
+  <p>Testing connection to your Baserow database...</p>
+  
+  <button onclick="testConnection()">Test API Connection</button>
+  <button onclick="testUsers()">Test Users Table</button>
+  <button onclick="testCreateUser()">Test Create User</button>
+  
+  <div id="results">Waiting for test...</div>
+
+  <script>
+    const BASEROW_TOKEN = 'auS4tqlGQ1Dwb7puHh2ZuPrIHMDOvd2c';
+    const BASEROW_URL = 'https://api.baserow.io';
+    const TABLE_USERS = '1344715';
+    
+    function log(message, type = 'info') {
+      const results = document.getElementById('results');
+      const className = type === 'success' ? 'success' : type === 'error' ? 'error' : '';
+      results.innerHTML += `<div class="${className}">${message}</div>`;
+    }
+    
+    function clearLog() {
+      document.getElementById('results').innerHTML = '';
+    }
+
+    async function testConnection() {
+      clearLog();
+      log('🔄 Testing basic API connection...');
+      
+      try {
+        const response = await fetch(`${BASEROW_URL}/api/user/`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Token ${BASEROW_TOKEN}`
+          }
+        });
+        
+        log(`Response Status: ${response.status}`, response.ok ? 'success' : 'error');
+        
+        const data = await response.json();
+        log(`Response Data: ${JSON.stringify(data, null, 2)}`, 'success');
+        
+        if (response.ok) {
+          log('✅ API Connection Successful!', 'success');
+        } else {
+          log('❌ API returned error', 'error');
+        }
+      } catch (error) {
+        log(`❌ Connection Failed: ${error.message}`, 'error');
+        log(`Error Type: ${error.name}`, 'error');
+        log('This usually means CORS is blocking the request from GitHub Pages.', 'error');
+      }
+    }
+
+    async function testUsers() {
+      clearLog();
+      log('🔄 Testing Users Table access...');
+      
+      try {
+        const url = `${BASEROW_URL}/api/database/rows/table/${TABLE_USERS}/?user_field_names=true`;
+        log(`URL: ${url}`);
+        
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Token ${BASEROW_TOKEN}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        log(`Response Status: ${response.status}`, response.ok ? 'success' : 'error');
+        
+        const data = await response.json();
+        log(`Users found: ${data.results ? data.results.length : 0}`, 'success');
+        log(`Data: ${JSON.stringify(data, null, 2)}`, 'success');
+        
+        if (response.ok) {
+          log('✅ Users Table Access Successful!', 'success');
+        } else {
+          log('❌ Failed to access users table', 'error');
+        }
+      } catch (error) {
+        log(`❌ Failed: ${error.message}`, 'error');
+      }
+    }
+
+    async function testCreateUser() {
+      clearLog();
+      log('🔄 Testing User Creation...');
+      
+      try {
+        const testEmail = 'test' + Date.now() + '@example.com';
+        const url = `${BASEROW_URL}/api/database/rows/table/${TABLE_USERS}/`;
+        
+        log(`Creating test user with email: ${testEmail}`);
+        
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Token ${BASEROW_TOKEN}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            Username: 'TestUser',
+            Email: testEmail,
+            'Password hash': 'test123hash',
+            'Is owner': false,
+            'Created at': new Date().toISOString().split('T')[0]
+          })
+        });
+        
+        log(`Response Status: ${response.status}`, response.ok ? 'success' : 'error');
+        
+        const data = await response.json();
+        log(`Response: ${JSON.stringify(data, null, 2)}`, response.ok ? 'success' : 'error');
+        
+        if (response.ok) {
+          log('✅ User Creation Successful!', 'success');
+          log('You can now delete this test user from Baserow.', 'success');
+        } else {
+          log('❌ User creation failed', 'error');
+          log('Check if field names match exactly in Baserow', 'error');
+        }
+      } catch (error) {
+        log(`❌ Failed: ${error.message}`, 'error');
+      }
+    }
+  </script>
+</body>
+</html>
