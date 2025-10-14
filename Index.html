@@ -1,213 +1,433 @@
-<!DOCTYPE html>
+5<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>8bfr Music Network - Debug</title>
-  <style>
-    /* Existing styles */
-
-    .button {
-      width: 100%;
-      background-color: #1E90FF;
-      color: white;
-      padding: 0.75rem;
-      border-radius: 0.25rem;
-      font-weight: bold;
-      cursor: pointer;
-      transition: background-color 0.3s;
-      margin-bottom: 1rem;
-    }
-    
-    .button span {
-      display: inline-block;
-    }
-    
-    .button:hover {
-      background-color: #0077CC;
-    }
-
-    body {
-      background-color: #333;
-      color: white;
-      font-family: sans-serif;
-      padding: 2rem;
-    }
-    
-    h1 {
-      font-size: 2rem;
-      font-weight: bold;
-      margin-bottom: 1rem;
-    }
-    
-    p {
-      font-size: 1.5rem;
-      margin-bottom: 2rem;
-    }
-    
-    .container {
-      background-color: #444;
-      padding: 1.5rem;
-      border-radius: 0.5rem;
-      margin-bottom: 2rem;
-    }
-    
-    h2 {
-      font-size: 1.25rem;
-      font-weight: bold;
-      margin-bottom: 1rem;
-    }
-    
-    ul {
-      list-style: none;
-      padding: 0;
-    }
-    
-    li {
-      margin-bottom: 0.5rem;
-    }
-    
-    .green {
-      color: #32CD32;
-    }
-    
-    .red {
-      color: #FF6347;
-    }
-    
-    .yellow {
-      color: #FFD700;
-    }
-    
-    .blue {
-      color: #1E90FF;
-    }
-    
-    .input {
-      width: 100%;
-      padding: 0.75rem;
-      border-radius: 0.25rem;
-      background-color: #555;
-      border: 1px solid #666;
-      color: white;
-      margin-bottom: 1rem;
-    }
-    
-    /* Additional styles for login form */
-    .login-form {
-      margin-top: 1rem;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .login-form div {
-      margin-bottom: 1rem;
-    }
-
-    .login-form label {
-      margin-bottom: 0.5rem;
-    }
-
-  </style>
+  <title>8bfr Music Network</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 </head>
-<body>
-  <h1>8bfr Network - Debug Mode</h1>
-  <p>If you can see this, the HTML is loading correctly!</p>
-  
-  <div class="container">
-    <h2>Status Check:</h2>
-    <ul id="checks">
-      <li>⏳ Checking JavaScript...</li>
-    </ul>
-  </div>
-
-  <div id="app" class="container"></div>
+<body class="bg-gray-900 text-white">
+  <div id="app"></div>
 
   <script>
-    console.log('✅ JavaScript is running!');
-    
-    const checks = document.getElementById('checks');
-    checks.innerHTML = '<li class="green">✅ JavaScript is running!</li>';
-    
-    // Test API URL
-    const API_URL = 'https://qjzcoybmcrmonzjctama.supabase.co';
-    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqemNveWJtY3Jtb256amN0YW1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3MjQyNTEsImV4cCI6MjA3NTMwMDI1MX0.tYckuJJLCYr6hMpHCncArhQAGPQk8drsg5EG101fHYY';
-    
-    checks.innerHTML += '<li class="green">✅ API_URL is set: ' + API_URL + '</li>';
-    
-    // Test if we can reach Supabase
-    fetch(API_URL + '/rest/v1/', {
-      method: 'GET',
-      headers: {
-        'apikey': API_KEY
-      }
-    })
-    .then(response => {
-      checks.innerHTML += '<li class="green">✅ Supabase is reachable! Status: ' + response.status + '</li>';
-      return response;
-    })
-    .catch(error => {
-      checks.innerHTML += '<li class="red">❌ Cannot reach Supabase: ' + error.message + '</li>';
-      checks.innerHTML += '<li class="yellow">⚠️ This might be a CORS issue. Check Supabase CORS settings.</li>';
-    });
-    
-    // Now try to render the actual app
-    setTimeout(() => {
-      checks.innerHTML += '<li class="blue">🔄 Attempting to render app...</li>';
+    // Baserow Configuration
+    const BASEROW_TOKEN = '303403';
+    const BASEROW_URL = 'https://api.baserow.io';
+    const TABLE_USERS = '1344715';
+    const TABLE_POSTS = '5884508';
+    const TABLE_PROFILES = '1344720';
+    const OWNER_EMAIL = '8bfr.music@gmail.com';
+
+    window.app = {
+      dark: true,
+      page: 'login',
+      user: null,
+      owner: false,
+      posts: [],
+      mode: 'login',
+      modal: false,
+      type: 'text'
+    };
+
+    // Hash password using SHA256
+    function hashPassword(password) {
+      return CryptoJS.SHA256(password).toString();
+    }
+
+    // Baserow API helper
+    async function baserowApi(tableId, method = 'GET', data = null, rowId = null) {
+      const url = rowId 
+        ? `${BASEROW_URL}/api/database/rows/table/${tableId}/${rowId}/`
+        : `${BASEROW_URL}/api/database/rows/table/${tableId}/`;
       
-      try {
-        document.getElementById('app').innerHTML = `
-          <h2>Login Form Test</h2>
-          <div class="login-form">
-            <div>
-              <label>Email</label>
-              <input type="email" id="email" class="input" placeholder="test@example.com">
-            </div>
-            <div>
-              <label>Password</label>
-              <input type="password" id="pass" class="input" placeholder="password">
-            </div>
-            <button onclick="testLogin()" class="button">
-              <span>Test Login</span>
-            </button>
-          </div>
-        `;
-        checks.innerHTML += '<li class="green">✅ App UI rendered successfully!</li>';
-      } catch (e) {
-        checks.innerHTML += '<li class="red">❌ Error rendering UI: ' + e.message + '</li>';
-      }
-    }, 1000);
-    
-    window.testLogin = async function() {
+      const options = {
+        method,
+        headers: {
+          'Authorization': `Token ${BASEROW_TOKEN}`,
+          'Content-Type': 'application/json'
+        }
+      };
+      
+      if (data) options.body = JSON.stringify(data);
+      
+      const res = await fetch(url, options);
+      return await res.json();
+    }
+
+    // Search for user by email
+    async function findUserByEmail(email) {
+      const response = await fetch(
+        `${BASEROW_URL}/api/database/rows/table/${TABLE_USERS}/?user_field_names=true&search=${encodeURIComponent(email)}`,
+        {
+          headers: {
+            'Authorization': `Token ${BASEROW_TOKEN}`
+          }
+        }
+      );
+      const data = await response.json();
+      return data.results && data.results.length > 0 ? data.results[0] : null;
+    }
+
+    window.doLogin = async function() {
       const email = document.getElementById('email').value;
       const pass = document.getElementById('pass').value;
       
-      alert('Testing login with: ' + email);
-      console.log('Login attempt:', email);
-      
+      if (!email || !pass) {
+        alert('Please enter email and password');
+        return;
+      }
+
       try {
-        const response = await fetch(API_URL + '/auth/v1/token?grant_type=password', {
-          method: 'POST',
-          headers: {
-            'apikey': API_KEY,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ email: email, password: pass })
-        });
+        const user = await findUserByEmail(email);
         
-        const data = await response.json();
-        console.log('Login response:', data);
+        if (!user) {
+          alert('User not found. Please sign up first.');
+          return;
+        }
+
+        const hashedPass = hashPassword(pass);
         
-        if (data.access_token) {
-          alert('✅ Login successful! Token: ' + data.access_token.substring(0, 20) + '...');
+        if (user.password_hash === hashedPass) {
+          window.app.user = user;
+          window.app.owner = user.is_owner || email === OWNER_EMAIL;
+          window.app.page = 'home';
+          localStorage.setItem('user', JSON.stringify(user));
+          await loadPosts();
+          draw();
         } else {
-          alert('❌ Login failed: ' + (data.error_description || JSON.stringify(data)));
+          alert('Invalid password');
         }
       } catch (error) {
-        alert('❌ Error: ' + error.message);
-        console.error(error);
+        console.error('Login error:', error);
+        alert('Login failed: ' + error.message);
       }
     };
+
+    window.doSignup = async function() {
+      const email = document.getElementById('email').value;
+      const pass = document.getElementById('pass').value;
+      const name = document.getElementById('name').value;
+      
+      if (!email || !pass || !name) {
+        alert('Please fill in all fields');
+        return;
+      }
+
+      try {
+        // Check if user exists
+        const existingUser = await findUserByEmail(email);
+        if (existingUser) {
+          alert('User already exists. Please login.');
+          return;
+        }
+
+        const hashedPass = hashPassword(pass);
+        const isOwner = email === OWNER_EMAIL;
+        
+        // Create user
+        const newUser = await baserowApi(TABLE_USERS, 'POST', {
+          username: name,
+          email: email,
+          password_hash: hashedPass,
+          is_owner: isOwner,
+          created_at: new Date().toISOString()
+        });
+
+        // Create profile
+        await baserowApi(TABLE_PROFILES, 'POST', {
+          user_id: newUser.id,
+          username: name,
+          bio: '',
+          avatar_url: '',
+          cover_url: ''
+        });
+
+        alert('Account created! Please login.');
+        window.app.mode = 'login';
+        draw();
+      } catch (error) {
+        console.error('Signup error:', error);
+        alert('Signup failed: ' + error.message);
+      }
+    };
+
+    window.doLogout = function() {
+      localStorage.clear();
+      window.app.user = null;
+      window.app.owner = false;
+      window.app.page = 'login';
+      window.app.posts = [];
+      draw();
+    };
+
+    async function loadPosts() {
+      try {
+        const response = await fetch(
+          `${BASEROW_URL}/api/database/rows/table/${TABLE_POSTS}/?user_field_names=true&order_by=-created_at`,
+          {
+            headers: {
+              'Authorization': `Token ${BASEROW_TOKEN}`
+            }
+          }
+        );
+        const data = await response.json();
+        window.app.posts = data.results || [];
+        draw();
+      } catch (error) {
+        console.error('Load posts error:', error);
+      }
+    }
+
+    window.doPost = async function() {
+      const txt = document.getElementById('txt').value;
+      if (!txt || !txt.trim()) return;
+      
+      try {
+        await baserowApi(TABLE_POSTS, 'POST', {
+          user_id: window.app.user.id,
+          username: window.app.user.username,
+          content: txt,
+          post_type: window.app.type,
+          created_at: new Date().toISOString()
+        });
+        
+        window.app.modal = false;
+        await loadPosts();
+      } catch (error) {
+        console.error('Post error:', error);
+        alert('Failed to create post: ' + error.message);
+      }
+    };
+
+    function init() {
+      const user = localStorage.getItem('user');
+      if (user) {
+        window.app.user = JSON.parse(user);
+        window.app.owner = window.app.user.is_owner || window.app.user.email === OWNER_EMAIL;
+        window.app.page = 'home';
+        loadPosts();
+      }
+      
+      document.addEventListener('click', e => {
+        const act = e.target.getAttribute('data-act');
+        if (!act) return;
+        if (act === 'dark') {
+          window.app.dark = !window.app.dark;
+          document.body.className = window.app.dark ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900';
+          draw();
+        }
+        if (act === 'switch') {
+          window.app.mode = window.app.mode === 'login' ? 'signup' : 'login';
+          draw();
+        }
+        if (act === 'page') {
+          window.app.page = e.target.getAttribute('data-val');
+          draw();
+        }
+        if (act === 'create') {
+          window.app.modal = true;
+          draw();
+        }
+        if (act === 'close') {
+          window.app.modal = false;
+          draw();
+        }
+        if (act === 'type') {
+          window.app.type = e.target.getAttribute('data-val');
+          draw();
+        }
+      });
+      
+      draw();
+    }
+
+    function draw() {
+      const bg = window.app.dark ? 'bg-gray-900' : 'bg-gray-50';
+      const bg2 = window.app.dark ? 'bg-gray-800' : 'bg-white';
+      const txt = window.app.dark ? 'text-white' : 'text-gray-900';
+      const txt2 = window.app.dark ? 'text-gray-400' : 'text-gray-600';
+      const br = window.app.dark ? 'border-gray-700' : 'border-gray-200';
+
+      if (window.app.page === 'login') {
+        document.getElementById('app').innerHTML = `
+          <div class="min-h-screen ${bg} ${txt} flex items-center justify-center p-6">
+            <div class="max-w-7xl w-full grid lg:grid-cols-2 gap-20">
+              <div class="flex flex-col justify-center space-y-16">
+                <div class="flex items-center space-x-4">
+                  <svg class="w-16 h-16 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+                  </svg>
+                  <h1 class="text-5xl font-bold">8bfr Network</h1>
+                </div>
+                
+                <p class="text-2xl ${txt2} leading-relaxed">
+                  The professional social network for the music industry. Connect, collaborate, and create together.
+                </p>
+                
+                <div class="${bg2} p-12 rounded-3xl border-2 ${br} text-center shadow-2xl">
+                  <svg class="w-28 h-28 mx-auto mb-8 text-green-500" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+                  </svg>
+                  <h3 class="text-3xl font-bold mb-4 ${txt}">Listen on Spotify</h3>
+                  <p class="${txt2} mb-8 text-xl">Stream the latest tracks from 8bfr</p>
+                  <a href="https://open.spotify.com/artist/127tw52iDXr7BvgB0IGG2x" target="_blank" 
+                     class="inline-block bg-green-500 text-white px-12 py-5 rounded-full font-bold text-xl hover:bg-green-600 transition transform hover:scale-105 shadow-lg">
+                      Open Spotify
+                  </a>
+                </div>
+
+                <a href="https://www.paypal.com/donate/?business=8bfr.music@gmail.com&item_name=Support+8bfr+Network&currency_code=USD" 
+                   target="_blank" 
+                   class="block w-full bg-blue-600 text-white py-6 rounded-2xl font-bold text-2xl hover:bg-blue-700 transition text-center transform hover:scale-105 shadow-2xl">
+                    ❤️ Support via PayPal
+                </a>
+              </div>
+
+              <div class="${bg2} p-12 rounded-3xl border-2 ${br} shadow-2xl">
+                <div class="flex justify-between items-center mb-10">
+                  <h2 class="text-4xl font-bold">${window.app.mode === 'login' ? 'Welcome Back' : 'Join the Network'}</h2>
+                  <button data-act="dark" class="p-4 rounded-xl ${txt2} hover:bg-gray-700 text-3xl transition">
+                    ${window.app.dark ? '☀️' : '🌙'}
+                  </button>
+                </div>
+                
+                <div class="space-y-7">
+                  ${window.app.mode === 'signup' ? `
+                    <div>
+                      <label class="block text-lg font-medium mb-3 ${txt2}">Username</label>
+                      <input type="text" id="name" 
+                             class="w-full px-6 py-5 rounded-xl ${bg} border-2 ${br} focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none ${txt} text-lg transition" 
+                             placeholder="Choose a username" required>
+                    </div>
+                  ` : ''}
+                  
+                  <div>
+                    <label class="block text-lg font-medium mb-3 ${txt2}">Email</label>
+                    <input type="email" id="email" 
+                           class="w-full px-6 py-5 rounded-xl ${bg} border-2 ${br} focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none ${txt} text-lg transition" 
+                           placeholder="your@email.com" required>
+                  </div>
+                  
+                  <div>
+                    <label class="block text-lg font-medium mb-3 ${txt2}">Password</label>
+                    <input type="password" id="pass" 
+                           class="w-full px-6 py-5 rounded-xl ${bg} border-2 ${br} focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none ${txt} text-lg transition" 
+                           placeholder="••••••••" required>
+                  </div>
+                  
+                  <button onclick="${window.app.mode === 'login' ? 'doLogin()' : 'doSignup()'}" 
+                          class="w-full bg-blue-600 text-white py-6 rounded-xl font-bold text-2xl hover:bg-blue-700 transition transform hover:scale-105 shadow-lg mt-8">
+                    ${window.app.mode === 'login' ? 'Sign In' : 'Create Account'}
+                  </button>
+                </div>
+                
+                <div class="mt-10 text-center">
+                  <button data-act="switch" class="${txt2} hover:text-blue-500 transition text-lg font-medium">
+                    ${window.app.mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      } else {
+        document.getElementById('app').innerHTML = `
+          <div class="min-h-screen ${bg} ${txt}">
+            <nav class="${bg2} border-b-2 ${br} sticky top-0 z-50 shadow-xl backdrop-blur">
+              <div class="max-w-7xl mx-auto px-6">
+                <div class="flex items-center justify-between h-20">
+                  <div class="flex items-center space-x-4">
+                    <svg class="w-10 h-10 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+                    </svg>
+                    <span class="text-2xl font-bold">8bfr</span>
+                    ${window.app.owner ? '<span class="bg-gradient-to-r from-red-500 to-pink-500 text-white text-sm px-3 py-1 rounded-full font-bold animate-pulse">OWNER</span>' : ''}
+                  </div>
+                  <div class="flex items-center space-x-3">
+                    <button data-act="page" data-val="home" class="p-3 rounded-xl ${window.app.page === 'home' ? 'text-blue-500 bg-blue-500 bg-opacity-10' : txt2} hover:bg-gray-700 transition">
+                      <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                    </button>
+                    <button data-act="create" class="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 font-bold transition">Create Post</button>
+                    <button data-act="dark" class="p-3 rounded-xl ${txt2} hover:bg-gray-700 transition text-2xl">
+                      ${window.app.dark ? '☀️' : '🌙'}
+                    </button>
+                    <button onclick="doLogout()" class="p-3 rounded-xl ${txt2} hover:bg-red-600 hover:text-white transition">
+                      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </nav>
+
+            <div class="max-w-4xl mx-auto p-6">
+              <div class="space-y-6 mt-8">
+                ${window.app.posts.map(post => `
+                  <div class="${bg2} rounded-2xl p-8 border-2 ${br} shadow-lg hover:shadow-xl transition-shadow">
+                    <div class="flex items-start space-x-4 mb-6">
+                      <div class="w-14 h-14 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
+                      </div>
+                      <div>
+                        <h4 class="font-bold text-xl">${post.username || 'User'}</h4>
+                        <p class="text-base ${txt2}">${new Date(post.created_at).toLocaleString()}</p>
+                      </div>
+                    </div>
+                    <p class="text-lg leading-relaxed">${post.content}</p>
+                  </div>
+                `).join('')}
+
+                ${window.app.posts.length === 0 ? `
+                  <div class="${bg2} rounded-2xl p-16 border-2 ${br} text-center shadow-lg">
+                    <svg class="w-20 h-20 mx-auto mb-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+                    </svg>
+                    <h3 class="text-3xl font-bold mb-3">No posts yet</h3>
+                    <p class="${txt2} text-xl">Be the first to share something amazing!</p>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+
+          ${window.app.modal ? `
+            <div class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-6 backdrop-blur-sm">
+              <div class="${bg2} rounded-3xl p-8 max-w-3xl w-full border-2 ${br} shadow-2xl">
+                <div class="flex justify-between items-center mb-8">
+                  <h3 class="text-3xl font-bold">Create Post</h3>
+                  <button data-act="close" class="${txt2} hover:text-white text-4xl transition">×</button>
+                </div>
+                <div class="flex space-x-3 mb-6">
+                  <button data-act="type" data-val="text" class="flex-1 px-6 py-4 rounded-xl font-bold text-lg transition ${window.app.type === 'text' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700'}">
+                    Text
+                  </button>
+                  <button data-act="type" data-val="photo" class="flex-1 px-6 py-4 rounded-xl font-bold text-lg transition ${window.app.type === 'photo' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700'}">
+                    Photo
+                  </button>
+                  <button data-act="type" data-val="video" class="flex-1 px-6 py-4 rounded-xl font-bold text-lg transition ${window.app.type === 'video' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700'}">
+                    Video
+                  </button>
+                </div>
+                <textarea id="txt" placeholder="Share your thoughts..." 
+                          class="w-full h-40 px-6 py-4 rounded-xl ${bg} border-2 ${br} focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none text-xl transition"></textarea>
+                <div class="flex justify-end space-x-4 mt-6">
+                  <button data-act="close" class="px-10 py-4 rounded-xl bg-gray-700 hover:bg-gray-600 font-bold text-lg transition">
+                    Cancel
+                  </button>
+                  <button onclick="doPost()" class="px-10 py-4 rounded-xl bg-blue-600 hover:bg-blue-700 font-bold text-lg transition transform hover:scale-105 shadow-lg">
+                    Post
+                  </button>
+                </div>
+              </div>
+            </div>
+          ` : ''}
+        `;
+      }
+    }
+
+    init();
   </script>
 </body>
 </html>
