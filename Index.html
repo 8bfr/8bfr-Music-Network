@@ -12,11 +12,12 @@
 
   <script>
     // Baserow Configuration
-    const BASEROW_TOKEN = '303403';
+    const BASEROW_TOKEN = 'auS4tqlGQ1Dwb7puHh2ZuPrIHMDOvd2c';
     const BASEROW_URL = 'https://api.baserow.io';
-    const TABLE_USERS = '1344715';
-    const TABLE_POSTS = '5884508';
-    const TABLE_PROFILES = '1344720';
+    const CORS_PROXY = 'https://corsproxy.io/?';
+    const TABLE_USERS = '703748';
+    const TABLE_POSTS = '704811';
+    const TABLE_PROFILES = '703753';
     const OWNER_EMAIL = '8bfr.music@gmail.com';
 
     window.app = {
@@ -37,9 +38,14 @@
 
     // Baserow API helper
     async function baserowApi(tableId, method = 'GET', data = null, rowId = null) {
-      const url = rowId 
+      const baseUrl = rowId 
         ? `${BASEROW_URL}/api/database/rows/table/${tableId}/${rowId}/`
         : `${BASEROW_URL}/api/database/rows/table/${tableId}/`;
+      
+      const url = CORS_PROXY + encodeURIComponent(baseUrl);
+      
+      console.log('API Request:', method, baseUrl);
+      console.log('Data:', data);
       
       const options = {
         method,
@@ -51,21 +57,31 @@
       
       if (data) options.body = JSON.stringify(data);
       
-      const res = await fetch(url, options);
-      return await res.json();
+      try {
+        const res = await fetch(url, options);
+        console.log('Response status:', res.status);
+        const json = await res.json();
+        console.log('Response data:', json);
+        return json;
+      } catch (error) {
+        console.error('Fetch error:', error);
+        throw error;
+      }
     }
 
     // Search for user by email
     async function findUserByEmail(email) {
-      const response = await fetch(
-        `${BASEROW_URL}/api/database/rows/table/${TABLE_USERS}/?user_field_names=true&search=${encodeURIComponent(email)}`,
-        {
-          headers: {
-            'Authorization': `Token ${BASEROW_TOKEN}`
-          }
+      const baseUrl = `${BASEROW_URL}/api/database/rows/table/${TABLE_USERS}/?user_field_names=true&filter__field_Email__equal=${encodeURIComponent(email)}`;
+      const url = CORS_PROXY + encodeURIComponent(baseUrl);
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Token ${BASEROW_TOKEN}`
         }
-      );
+      });
+      
       const data = await response.json();
+      console.log('Search response:', data);
       return data.results && data.results.length > 0 ? data.results[0] : null;
     }
 
@@ -88,9 +104,13 @@
 
         const hashedPass = hashPassword(pass);
         
-        if (user.password_hash === hashedPass) {
+        console.log('Login attempt - User found:', user);
+        console.log('Stored hash:', user['Password hash']);
+        console.log('Entered hash:', hashedPass);
+        
+        if (user['Password hash'] === hashedPass) {
           window.app.user = user;
-          window.app.owner = user.is_owner || email === OWNER_EMAIL;
+          window.app.owner = user['Is owner'] || email === OWNER_EMAIL;
           window.app.page = 'home';
           localStorage.setItem('user', JSON.stringify(user));
           await loadPosts();
@@ -127,12 +147,14 @@
         
         // Create user
         const newUser = await baserowApi(TABLE_USERS, 'POST', {
-          username: name,
-          email: email,
-          password_hash: hashedPass,
-          is_owner: isOwner,
-          created_at: new Date().toISOString()
+          Username: name,
+          Email: email,
+          'Password hash': hashedPass,
+          'Is owner': isOwner,
+          'Created at': new Date().toISOString().split('T')[0]
         });
+        
+        console.log('Created user:', newUser);
 
         // Create profile
         await baserowApi(TABLE_PROFILES, 'POST', {
@@ -163,14 +185,14 @@
 
     async function loadPosts() {
       try {
-        const response = await fetch(
-          `${BASEROW_URL}/api/database/rows/table/${TABLE_POSTS}/?user_field_names=true&order_by=-created_at`,
-          {
-            headers: {
-              'Authorization': `Token ${BASEROW_TOKEN}`
-            }
+        const baseUrl = `${BASEROW_URL}/api/database/rows/table/${TABLE_POSTS}/?user_field_names=true&order_by=-created_at`;
+        const url = CORS_PROXY + encodeURIComponent(baseUrl);
+        
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': `Token ${BASEROW_TOKEN}`
           }
-        );
+        });
         const data = await response.json();
         window.app.posts = data.results || [];
         draw();
