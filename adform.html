@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>8BFR Music Network | Create Ad</title>
+
+<style>
+body {
+  margin:0;
+  background: radial-gradient(circle at top, #1a0022, #000);
+  color:#fff;
+  font-family:'Poppins',sans-serif;
+  text-align:center;
+}
+header {
+  background:linear-gradient(90deg,#4a007a,#1b003d);
+  padding:20px;
+  box-shadow:0 0 15px #a020f0;
+}
+h1 { color:#fff; }
+form {
+  max-width:500px;
+  margin:20px auto;
+  background:#150030;
+  padding:20px;
+  border-radius:10px;
+  box-shadow:0 0 15px #5e00aa;
+  text-align:left;
+}
+label {
+  display:block;
+  margin-top:10px;
+  color:#ccc;
+}
+input, textarea, select {
+  width:100%;
+  padding:10px;
+  margin-top:5px;
+  border:none;
+  border-radius:6px;
+  background:#1b003d;
+  color:#fff;
+}
+button {
+  background:linear-gradient(145deg,#a020f0,#5e00aa);
+  border:none;
+  border-radius:10px;
+  color:#fff;
+  padding:12px 24px;
+  font-weight:bold;
+  cursor:pointer;
+  margin-top:20px;
+  width:100%;
+  box-shadow:0 0 10px #a020f0;
+  transition:0.3s;
+}
+button:hover { transform:scale(1.05); background:#7e00ff; }
+.preview {
+  text-align:center;
+  margin-top:20px;
+}
+.preview img {
+  width:100%;
+  max-width:400px;
+  border:3px solid #a020f0;
+  border-radius:8px;
+  margin-top:10px;
+}
+footer {
+  background:#100022;
+  padding:15px;
+  font-size:0.8em;
+  color:#ccc;
+  border-top:1px solid #2b0050;
+  text-align:center;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📢 Create Your Ad</h1>
+</header>
+
+<form id="adForm">
+  <label>Ad Title:</label>
+  <input type="text" id="title" placeholder="Enter your ad title" required>
+
+  <label>Ad Description:</label>
+  <textarea id="description" placeholder="Enter a short description" required></textarea>
+
+  <label>Ad Image (Paste link to image — e.g. Imgur, Drive):</label>
+  <input type="url" id="image" placeholder="https://...">
+
+  <label>Ad Duration:</label>
+  <select id="duration" required>
+    <option value="1">1 Week — $5.00</option>
+    <option value="2">2 Weeks — $9.00</option>
+    <option value="4">1 Month — $17.00</option>
+  </select>
+
+  <label>Discount Code (optional):</label>
+  <input type="text" id="discount" placeholder="Enter discount code">
+
+  <div id="priceDisplay" style="margin-top:10px;color:#a020f0;font-weight:bold;">Final Price: $5.00</div>
+
+  <button type="button" id="previewBtn">Preview Ad</button>
+
+  <div class="preview" id="preview"></div>
+
+  <button type="submit">Proceed to Payment</button>
+</form>
+
+<footer>© 2025 8BFR Music Network | All Rights Reserved</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://js.stripe.com/v3/"></script>
+
+<script>
+// ✅ CONFIG
+const SUPABASE_URL = "https://novbuvwpjnxwwvdekjhr.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0";
+const RECORD_EMAIL = "records.8bfr.music.network@gmail.com";
+const STRIPE_PUBLIC_KEY = "pk_live_51OkBOuEvK9FbOwLilOaOLSHSLx47wT1q7T6xiMuODRF2j4a2DM0BHI16A5z8ovscAfhv83l7d1OFPbUjehHtQIeH00RwDCQ0I1";
+
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const stripe = Stripe(STRIPE_PUBLIC_KEY);
+
+const form = document.getElementById("adForm");
+const previewDiv = document.getElementById("preview");
+const priceDisplay = document.getElementById("priceDisplay");
+
+const prices = {1:5, 2:9, 4:17};
+const discounts = {"FREE":0,"1OFF":1,"2OFF":2,"3OFF":3,"4OFF":4};
+
+function updatePrice(){
+  const dur = document.getElementById("duration").value;
+  const code = document.getElementById("discount").value.trim().toUpperCase();
+  let price = prices[dur];
+  if(discounts[code] !== undefined) price -= discounts[code];
+  if(price < 0) price = 0;
+  priceDisplay.innerText = `Final Price: $${price.toFixed(2)}`;
+  return price;
+}
+document.getElementById("discount").addEventListener("input", updatePrice);
+document.getElementById("duration").addEventListener("change", updatePrice);
+
+document.getElementById("previewBtn").addEventListener("click", () => {
+  const img = document.getElementById("image").value;
+  const title = document.getElementById("title").value;
+  const desc = document.getElementById("description").value;
+  previewDiv.innerHTML = `<h3>${title}</h3><p>${desc}</p>${img ? `<img src="${img}" alt="Ad Preview">` : ""}`;
+});
+
+// ✅ SUBMIT AD
+form.addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const title = document.getElementById("title").value;
+  const description = document.getElementById("description").value;
+  const image = document.getElementById("image").value;
+  const duration = document.getElementById("duration").value;
+  const price = updatePrice();
+
+  // Save record to Supabase
+  const { data, error } = await supabase.from("ads").insert([{title, description, image, duration, price, status:"Pending"}]);
+  if(error) alert("Error saving ad. Try again.");
+
+  // Send email record
+  fetch(`https://formspree.io/f/mwkznzpl`, {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({
+      _subject: "New Ad Submission - 8BFR",
+      title, description, image, duration, price
+    })
+  });
+
+  // Stripe Checkout
+  const session = await fetch("https://api.stripe.com/v1/checkout/sessions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${STRIPE_PUBLIC_KEY}`,
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: new URLSearchParams({
+      success_url: window.location.origin + "/success.html",
+      cancel_url: window.location.origin + "/cancel.html",
+      payment_method_types: ["card"],
+      mode: "payment",
+      line_items: JSON.stringify([{price_data:{currency:'usd',product_data:{name:`Ad: ${title}`},unit_amount:price*100},quantity:1}])
+    })
+  });
+
+  alert("✅ Ad submitted! Awaiting payment approval and admin review.");
+});
+</script>
+</body>
+</html>
