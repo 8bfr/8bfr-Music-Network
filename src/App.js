@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import "./App.css";
 
 function App() {
+  // ------------------- THEMES -------------------
   const themes = {
     dark: {
       background: "radial-gradient(circle at top, #1a0022, #000)",
@@ -18,19 +19,10 @@ function App() {
       text: "#fff",
       accent: "#00c6ff",
     },
-    red: {
-      background: "linear-gradient(180deg, #2b0000, #800000)",
-      text: "#fff",
-      accent: "#ff4d4d",
-    },
-    green: {
-      background: "linear-gradient(180deg, #001a00, #003300)",
-      text: "#fff",
-      accent: "#00ff88",
-    },
   };
 
   const [theme, setTheme] = useState("dark");
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     const colors = themes[theme];
@@ -38,13 +30,14 @@ function App() {
     document.body.style.color = colors.text;
   }, [theme]);
 
+  // ------------------- THEME TOGGLES -------------------
   const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
   const randomTheme = () => {
     const keys = Object.keys(themes);
     setTheme(keys[Math.floor(Math.random() * keys.length)]);
   };
 
-  // 🎧 Default Music AutoPlay (Killa Bees)
+  // ------------------- AUTOPLAY MUSIC -------------------
   useEffect(() => {
     const audio = new Audio(
       "https://p.scdn.co/mp3-preview/b2c74088e7f2c2b64dfd4e44256d77f6e40bcd74"
@@ -58,6 +51,48 @@ function App() {
     document.addEventListener("click", play);
   }, []);
 
+  // ------------------- MENU CATEGORIES -------------------
+  const categories = {
+    "🎵 Music": [
+      "🏠 Home",
+      "📻 Radio",
+      "🎸 Artist-Studio",
+      "🥁 Beats",
+      "📚 Stories",
+    ],
+    "🎮 Games": [
+      "🎱 8BFR Game Hub",
+      "🎱 8-Ball Pool",
+      "🎱 9-Ball Pool",
+      "🔥 Trickshot Pool",
+      "🎵 Game Music",
+      "🎮 Arcade Room",
+    ],
+    "👥 Community": [
+      "💬 Chat",
+      "🖥 Feed",
+      "📚 Blog & Announcements",
+      "🥇 Contest",
+      "👪 Kids Zone",
+    ],
+    "⚙️ Management": [
+      "👑 Owner Panel",
+      "📛 Admin Panel",
+      "⛔ Mod Panel",
+      "📜 Admin Guide",
+    ],
+    "💲 Info": [
+      "💲 Pricing",
+      "🔏 Privacy",
+      "📃 Terms",
+      "📊 Stats",
+      "❔ FAQ",
+      "🚫 Rules & Guidelines",
+      "📨 Contact",
+    ],
+  };
+
+  // ------------------- MAIN APP -------------------
   return (
     <div style={{ fontFamily: "Poppins, sans-serif", textAlign: "center" }}>
       {/* 🔝 Scrolling Banner */}
@@ -89,7 +124,7 @@ function App() {
         </div>
       </div>
 
-      {/* 🔮 Site Header */}
+      {/* 🔮 Header */}
       <header style={{ textAlign: "center", padding: "20px 10px" }}>
         <h1
           style={{
@@ -105,54 +140,6 @@ function App() {
           🎨 Random Theme
         </button>
       </header>
-
-      {/* 🍔 Main Menu */}
-      <nav
-        style={{
-          background: "#150030",
-          display: "flex",
-          flexWrap: "wrap",
-          justifyContent: "center",
-          padding: "10px",
-          gap: "10px",
-          boxShadow: "0 0 10px " + themes[theme].accent,
-        }}
-      >
-        {[
-          "🏠 Home",
-          "📚 Stories",
-          "📻 Radio",
-          "💬 Chat",
-          "🖥 Feed",
-          "🎸 Artist-Studio",
-          "👪 Kids-Zone",
-          "🎮 Game-Hub",
-          "📛 Admin-Panel",
-          "👑 Owner-Panel",
-          "💲 Pricing",
-          "📜 Terms",
-        ].map((page) => (
-          <button
-            key={page}
-            style={{
-              background: "transparent",
-              border: "1px solid " + themes[theme].accent,
-              borderRadius: "8px",
-              color: "white",
-              padding: "8px 14px",
-              cursor: "pointer",
-              transition: "0.3s",
-            }}
-            onClick={() => alert(`Opening ${page} (placeholder)`)}
-            onMouseOver={(e) =>
-              (e.target.style.background = themes[theme].accent)
-            }
-            onMouseOut={(e) => (e.target.style.background = "transparent")}
-          >
-            {page}
-          </button>
-        ))}
-      </nav>
 
       {/* ⭐ Featured Artists */}
       <section style={{ textAlign: "center", padding: "40px 20px" }}>
@@ -211,7 +198,7 @@ function App() {
           ))}
         </div>
 
-        {/* 🎧 Default Track */}
+        {/* 🎧 Now Playing */}
         <div style={{ marginTop: "30px" }}>
           <h3>🎧 Now Playing — “Killa Bees” by 8BFR</h3>
           <video
@@ -253,23 +240,6 @@ function App() {
             ❤️ Donate via PayPal
           </button>
         </form>
-
-        <button
-          style={{
-            marginLeft: "10px",
-            background: "#0072ff",
-            border: "none",
-            borderRadius: "10px",
-            color: "#fff",
-            padding: "12px 24px",
-            fontWeight: "bold",
-            cursor: "pointer",
-            boxShadow: "0 0 10px " + themes[theme].accent,
-          }}
-          onClick={() => alert("Buy Ad Space feature coming soon")}
-        >
-          📢 Buy Ad Space
-        </button>
       </section>
 
       {/* 🔚 Footer */}
@@ -279,22 +249,4 @@ function App() {
           padding: "20px",
           fontSize: "0.8em",
           color: "#ccc",
-          borderTop: "1px solid #2b0050",
-          marginTop: "40px",
-        }}
-      >
-        © 2025 8BFR Music Network | All Rights Reserved | Create • Connect • Collab
-      </footer>
-
-      {/* 🔁 Banner Animation */}
-      <style>
-        {`@keyframes scroll {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }`}
-      </style>
-    </div>
-  );
-}
-
-export default App;
+          borderTop: "1px
