@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import "./App.css";
 
 function App() {
-  // 🎵 THEME SYSTEM
   const themes = {
     dark: {
       background: "radial-gradient(circle at top, #1a0022, #000)",
@@ -32,32 +31,25 @@ function App() {
   };
 
   const [theme, setTheme] = useState("dark");
-  const [customColor, setCustomColor] = useState(null);
 
-  // Apply chosen theme
   useEffect(() => {
-    const body = document.body;
     const colors = themes[theme];
-    body.style.background = colors.background;
-    body.style.color = colors.text;
+    document.body.style.background = colors.background;
+    document.body.style.color = colors.text;
   }, [theme]);
 
-  // 🎨 Random Theme Switcher
+  const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
   const randomTheme = () => {
     const keys = Object.keys(themes);
-    const next = keys[Math.floor(Math.random() * keys.length)];
-    setTheme(next);
-  };
-
-  // 🌓 Toggle Light / Dark
-  const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark");
+    setTheme(keys[Math.floor(Math.random() * keys.length)]);
   };
 
   // 🎧 Default Music AutoPlay (Killa Bees)
   useEffect(() => {
-    const audio = new Audio("https://p.scdn.co/mp3-preview/b2c74088e7f2c2b64dfd4e44256d77f6e40bcd74");
-    audio.volume = 0.2;
+    const audio = new Audio(
+      "https://p.scdn.co/mp3-preview/b2c74088e7f2c2b64dfd4e44256d77f6e40bcd74"
+    );
+    audio.volume = 0.3;
     audio.loop = true;
     const play = () => {
       audio.play().catch(() => {});
@@ -67,21 +59,240 @@ function App() {
   }, []);
 
   return (
-    <div style={{ padding: "20px", textAlign: "center" }}>
-      <h1 style={{ color: themes[theme].accent, textShadow: "0 0 15px " + themes[theme].accent }}>
-        🎵 8BFR Music Network
-      </h1>
+    <div style={{ fontFamily: "Poppins, sans-serif", textAlign: "center" }}>
+      {/* 🔝 Scrolling Banner */}
+      <div
+        style={{
+          background: "#111",
+          color: "#fff",
+          padding: "10px 0",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          borderBottom: "1px solid #333",
+        }}
+      >
+        <div
+          style={{
+            display: "inline-block",
+            animation: "scroll 25s linear infinite",
+          }}
+        >
+          <span style={{ margin: "0 40px", color: themes[theme].accent }}>
+            🔥 Promote your music — Buy Ad Space $5/week 🔥
+          </span>
+          <span style={{ margin: "0 40px", color: themes[theme].accent }}>
+            🎶 Join our Featured Artist Program today! 🎶
+          </span>
+          <span style={{ margin: "0 40px", color: themes[theme].accent }}>
+            💎 Upgrade to Pro — Earn Game Coins and Badges! 💎
+          </span>
+        </div>
+      </div>
 
-      <p>Welcome to 8BFR — Create • Connect • Collab</p>
-
-      <div style={{ margin: "20px 0" }}>
-        <button onClick={toggleTheme}>🌓 Toggle Dark / Light</button>
+      {/* 🔮 Site Header */}
+      <header style={{ textAlign: "center", padding: "20px 10px" }}>
+        <h1
+          style={{
+            color: themes[theme].accent,
+            textShadow: "0 0 15px " + themes[theme].accent,
+          }}
+        >
+          🎵 8BFR Music Network
+        </h1>
+        <p>Create • Connect • Collab</p>
+        <button onClick={toggleTheme}>🌓 Toggle Theme</button>
         <button onClick={randomTheme} style={{ marginLeft: "10px" }}>
           🎨 Random Theme
         </button>
-      </div>
+      </header>
 
-      <p>Loading layout… (Part 2 will add navigation, featured artists, and ad banners)</p>
+      {/* 🍔 Main Menu */}
+      <nav
+        style={{
+          background: "#150030",
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "center",
+          padding: "10px",
+          gap: "10px",
+          boxShadow: "0 0 10px " + themes[theme].accent,
+        }}
+      >
+        {[
+          "🏠 Home",
+          "📚 Stories",
+          "📻 Radio",
+          "💬 Chat",
+          "🖥 Feed",
+          "🎸 Artist-Studio",
+          "👪 Kids-Zone",
+          "🎮 Game-Hub",
+          "📛 Admin-Panel",
+          "👑 Owner-Panel",
+          "💲 Pricing",
+          "📜 Terms",
+        ].map((page) => (
+          <button
+            key={page}
+            style={{
+              background: "transparent",
+              border: "1px solid " + themes[theme].accent,
+              borderRadius: "8px",
+              color: "white",
+              padding: "8px 14px",
+              cursor: "pointer",
+              transition: "0.3s",
+            }}
+            onClick={() => alert(`Opening ${page} (placeholder)`)}
+            onMouseOver={(e) =>
+              (e.target.style.background = themes[theme].accent)
+            }
+            onMouseOut={(e) => (e.target.style.background = "transparent")}
+          >
+            {page}
+          </button>
+        ))}
+      </nav>
+
+      {/* ⭐ Featured Artists */}
+      <section style={{ textAlign: "center", padding: "40px 20px" }}>
+        <h2 style={{ color: themes[theme].accent }}>⭐ Featured Artists</h2>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            gap: "20px",
+            flexWrap: "wrap",
+          }}
+        >
+          {["8BFR (Owner)", "Sample Artist", "Guest Performer"].map((artist) => (
+            <div
+              key={artist}
+              style={{
+                background: "#200040",
+                borderRadius: "12px",
+                width: "200px",
+                padding: "15px",
+                boxShadow: "0 0 10px " + themes[theme].accent,
+              }}
+            >
+              <p style={{ fontWeight: "bold" }}>{artist}</p>
+              <p style={{ fontSize: "0.9em", color: "#ccc" }}>Hip-Hop / Rap</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* 🎵 Featured Songs */}
+      <section style={{ textAlign: "center", padding: "40px 20px" }}>
+        <h2 style={{ color: themes[theme].accent }}>🎵 Featured Songs</h2>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            gap: "20px",
+            flexWrap: "wrap",
+          }}
+        >
+          {["Sample Hit #1", "Sample Hit #2", "Sample Hit #3"].map((song) => (
+            <div
+              key={song}
+              style={{
+                background: "#150030",
+                borderRadius: "12px",
+                width: "200px",
+                padding: "15px",
+                boxShadow: "0 0 10px " + themes[theme].accent,
+              }}
+            >
+              <p style={{ fontWeight: "bold" }}>{song}</p>
+              <p style={{ fontSize: "0.9em", color: "#ccc" }}>Artist Name</p>
+            </div>
+          ))}
+        </div>
+
+        {/* 🎧 Default Track */}
+        <div style={{ marginTop: "30px" }}>
+          <h3>🎧 Now Playing — “Killa Bees” by 8BFR</h3>
+          <video
+            src="https://drive.google.com/uc?export=download&id=17nfr_HNPEhkrhDkpEfnAd18XNOr6egTT"
+            controls
+            autoPlay
+            loop
+            muted={false}
+            style={{
+              width: "320px",
+              borderRadius: "12px",
+              boxShadow: "0 0 15px " + themes[theme].accent,
+            }}
+          ></video>
+        </div>
+      </section>
+
+      {/* ❤️ Donate / Ad Button */}
+      <section style={{ textAlign: "center", padding: "30px 20px" }}>
+        <form
+          action="https://www.paypal.com/donate"
+          method="post"
+          target="_blank"
+        >
+          <input type="hidden" name="business" value="8bfr.music@gmail.com" />
+          <button
+            type="submit"
+            style={{
+              background: themes[theme].accent,
+              border: "none",
+              borderRadius: "10px",
+              color: "#fff",
+              padding: "12px 24px",
+              fontWeight: "bold",
+              cursor: "pointer",
+              boxShadow: "0 0 10px " + themes[theme].accent,
+            }}
+          >
+            ❤️ Donate via PayPal
+          </button>
+        </form>
+
+        <button
+          style={{
+            marginLeft: "10px",
+            background: "#0072ff",
+            border: "none",
+            borderRadius: "10px",
+            color: "#fff",
+            padding: "12px 24px",
+            fontWeight: "bold",
+            cursor: "pointer",
+            boxShadow: "0 0 10px " + themes[theme].accent,
+          }}
+          onClick={() => alert("Buy Ad Space feature coming soon")}
+        >
+          📢 Buy Ad Space
+        </button>
+      </section>
+
+      {/* 🔚 Footer */}
+      <footer
+        style={{
+          background: "#100022",
+          padding: "20px",
+          fontSize: "0.8em",
+          color: "#ccc",
+          borderTop: "1px solid #2b0050",
+          marginTop: "40px",
+        }}
+      >
+        © 2025 8BFR Music Network | All Rights Reserved | Create • Connect • Collab
+      </footer>
+
+      {/* 🔁 Banner Animation */}
+      <style>
+        {`@keyframes scroll {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }`}
+      </style>
     </div>
   );
 }
