@@ -250,3 +250,19 @@ function App() {
           fontSize: "0.8em",
           color: "#ccc",
           borderTop: "1px
+            borderTop: "1px solid #2b0050",
+          boxShadow: "0 -2px 8px rgba(160,32,240,0.3)",
+        }}
+      >
+        <p>© 2025 8BFR Music Network | All Rights Reserved</p>
+        <p>
+          <a href="#top" style={{ color: themes[theme].accent }}>
+            ↑ Back to Top
+          </a>
+        </p>
+      </footer>
+    </div>
+  );
+}
+
+export default App;
