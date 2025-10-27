@@ -29,6 +29,7 @@ jobs:
           find backups/ -type f -name "*.json" -mtime +365 -exec rm {} \; || true
 
       - name: 💾 Commit and push backup
+        id: commit
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -37,3 +38,22 @@ jobs:
           git add backups/
           git commit -m "🧠 Auto-backup chat memory $(date)" || echo "No changes to commit"
           git push origin HEAD:${GITHUB_REF}
+
+      - name: 📧 Send email notification
+        if: always()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.EMAIL_USER }}
+          password: ${{ secrets.EMAIL_PASS }}
+          subject: "🧠 8BFR Backup Status: ${{ job.status }}"
+          to: "records.8bfr.music.network@gmail.com"
+          from: "8BFR Backup Bot <records.8bfr.music.network@gmail.com>"
+          body: |
+            Backup Job: ${{ github.workflow }}
+            Status: ${{ job.status }}
+            Repository: ${{ github.repository }}
+            Run ID: ${{ github.run_id }}
+            Timestamp: $(date)
