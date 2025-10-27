@@ -1,28 +1,32 @@
-name: Auto Backup Chat Logs
+name: 🔁 Auto Backup Chat Memory
 
 on:
   schedule:
-    - cron: "*/10 * * * *"  # every 10 minutes
-  workflow_dispatch:       # allows manual run from Actions tab
+    - cron: "*/10 * * * *"   # Runs every 10 minutes
+  workflow_dispatch:          # Allow manual trigger
 
 jobs:
   backup:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Create backups folder
+      - name: 🕓 Set up timestamp
+        id: timestamp
+        run: echo "NOW=$(date -u +'%Y-%m-%dT%H-%M-%SZ')" >> $GITHUB_ENV
+
+      - name: 📂 Create backup directory if missing
         run: mkdir -p backups
 
-      - name: Generate timestamped backup file
-        run: |
-          echo "Backing up chat memory $(date)" > backups/chat-backup-$(date +'%Y-%m-%dT%H-%M').txt
+      - name: 🧠 Copy chat-memory.json to backups
+        run: cp chat-memory.json backups/chat-backup-${{ env.NOW }}.json
 
-      - name: Commit and push backup
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "🧠 Auto backup chat memory"
-          branch: main
-          push_options: "--force"
+      - name: 💾 Commit backup
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add backups/
+          git commit -m "🧠 Auto backup chat memory (${{ env.NOW }})" || echo "No changes to commit"
+          git push
