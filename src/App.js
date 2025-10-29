@@ -6,7 +6,12 @@ function App() {
 
   useEffect(() => {
     const fetchMessage = async () => {
-      const { data, error } = await supabase.from("test").select("message").limit(1).single();
+      const { data, error } = await supabase
+        .from("test")
+        .select("message")
+        .limit(1)
+        .single();
+
       if (error) {
         console.error("❌ Supabase fetch error:", error.message);
         setMessage("Connection failed.");
@@ -14,6 +19,7 @@ function App() {
         setMessage(data.message);
       }
     };
+
     fetchMessage();
   }, []);
 
