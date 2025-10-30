@@ -1,6 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
 
+console.log("✅ App loaded");
+supabase
+  .from('test')
+  .select('*')
+  .then(r => console.log("✅ Supabase response:", r))
+  .catch(e => console.error("❌ Supabase error:", e));
 function App() {
   const [status, setStatus] = useState("Checking Supabase connection...");
 
