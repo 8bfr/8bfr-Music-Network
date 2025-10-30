@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
-
+console.log("✅ App.js loaded successfully");
 function App() {
   const [message, setMessage] = useState("Loading...");
 
