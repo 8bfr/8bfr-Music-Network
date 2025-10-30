@@ -46,5 +46,5 @@ function App() {
     </div>
   );
 }
-
+console.log("✅ App.js end reached");
 export default App;
