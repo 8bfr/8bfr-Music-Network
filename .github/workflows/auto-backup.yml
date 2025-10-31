@@ -1,42 +1,35 @@
-name: "🧠 Auto Chat Memory Backup"
+name: Daily Memory Backup
 
 on:
   schedule:
-    - cron: "0 * * * *"   # Runs every hour
+    - cron: "0 5 * * *"  # every day at 5 AM UTC
   workflow_dispatch:
 
 jobs:
   backup:
     runs-on: ubuntu-latest
-
     steps:
-      - name: ⬇️ Checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: 💾 Commit chat memory backup
+      - name: Commit and push updated memory file
         run: |
-          echo "Backing up chat memory..." > chat-memory.json
-          git config --local user.email "records.8bfr.music.network@gmail.com"
-          git config --local user.name "8BFR Backup Bot"
-          git add chat-memory.json
-          git commit -m "🧠 Auto backup chat memory [$(date)]" || echo "No changes to commit"
-          git push
+          git config user.name "8BFR Auto Backup"
+          git config user.email "records.8bfr.music.network@gmail.com"
+          git add chat-memory.json || true
+          git commit -m "Auto backup $(date '+%Y-%m-%d %H:%M')" || echo "No changes to commit"
+          git push origin main
 
-      - name: 📧 Send email notification
-        if: always()
+      - name: Send memory backup email via SendGrid
         uses: dawidd6/action-send-mail@v3
         with:
-          server_address: smtp.sendgrid.net
-          server_port: 587
-          secure: false
+          server_address: ${{ secrets.SENDGRID_SMTP_SERVER }}
+          server_port: ${{ secrets.SENDGRID_SMTP_PORT }}
           username: ${{ secrets.SENDGRID_USER }}
           password: ${{ secrets.SENDGRID_PASS }}
-          subject: "🧠 8BFR Backup Status: ${{ job.status }}"
-          to: "records.8bfr.music.network@gmail.com"
-          from: "8BFR Backup Bot <records.8bfr.music.network@gmail.com>"
-          body: |
-            Backup Job: ${{ github.workflow }}
-            Status: ${{ job.status }}
-            Repository: ${{ github.repository }}
-            Run ID: ${{ github.run_id }}
-            Timestamp: $(date)
+          subject: "🧠 8BFR Memory Backup - ${{ github.run_id }}"
+          to: ${{ secrets.SENDGRID_TO }}
+          from: ${{ secrets.SENDGRID_FROM }}
+          secure: true
+          body: "Attached is the latest 8BFR project memory backup."
+          attachments: chat-memory.json
