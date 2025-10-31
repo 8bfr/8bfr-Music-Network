@@ -1,0 +1,70 @@
+name: 📦 Daily Chat Memory Backup
+
+on:
+  schedule:
+    - cron: "0 2 * * *"   # every day at 2 AM UTC
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🧭 Checkout repo
+        uses: actions/checkout@v4
+
+      - name: 📚 Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq curl
+
+      - name: 📨 SendGrid email backup
+        env:
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+          SENDGRID_FROM: ${{ secrets.SENDGRID_FROM }}
+          SENDGRID_TO: ${{ secrets.SENDGRID_TO }}
+        run: |
+          FILE="chat-memory.json"
+          SUBJECT="8BFR Project Memory Backup - $(date '+%Y-%m-%d %H:%M UTC')"
+
+          if [ ! -f "$FILE" ]; then
+            echo '{}' > "$FILE"
+          fi
+
+          curl -s --request POST \
+            --url https://api.sendgrid.com/v3/mail/send \
+            --header "Authorization: Bearer $SENDGRID_API_KEY" \
+            --header "Content-Type: application/json" \
+            --data @<(jq -n --arg from "$SENDGRID_FROM" \
+                         --arg to "$SENDGRID_TO" \
+                         --arg subject "$SUBJECT" \
+                         --arg content "$(base64 -w0 < "$FILE")" \
+                         '{
+                           personalizations: [{ to: [{ email: $to }] }],
+                           from: { email: $from },
+                           subject: $subject,
+                           content: [{
+                             type: "text/plain",
+                             value: "Attached is the latest chat memory backup."
+                           }],
+                           attachments: [{
+                             content: $content,
+                             filename: "chat-memory.json",
+                             type: "application/json",
+                             disposition: "attachment"
+                           }]
+                         }') \
+            && echo "✅ Sent backup email successfully."
+
+      - name: 💾 Push backup to 8bfr-memory repo
+        env:
+          GH_TOKEN: ${{ secrets.GPT_DEPLOY_TOKEN }}
+        run: |
+          git config --global user.name "8BFR Backup Bot"
+          git config --global user.email "records.8bfr.music.network@gmail.com"
+          git clone https://x-access-token:${GH_TOKEN}@github.com/8bfr/8bfr-memory.git backup-repo
+          cp chat-memory.json backup-repo/
+          cd backup-repo
+          git add chat-memory.json
+          git commit -m "Daily backup $(date '+%Y-%m-%d %H:%M')"
+          git push origin main
+          echo "✅ Uploaded backup to 8bfr-memory repo."
