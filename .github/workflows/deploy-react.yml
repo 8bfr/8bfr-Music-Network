@@ -1,29 +1,65 @@
-name: 🚀 Deploy React App
+name: Deploy React App to GitHub Pages + Daily Backup
+
 on:
   push:
-    branches: [ main ]
-  workflow_dispatch:
+    branches: [ "main" ]
+  schedule:
+    - cron: "0 6 * * *" # Daily at 6 AM UTC
 
 jobs:
-  build-deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
+
+    env:
+      REACT_APP_SUPABASE_URL: ${{ secrets.REACT_APP_SUPABASE_URL }}
+      REACT_APP_SUPABASE_ANON_KEY: ${{ secrets.REACT_APP_SUPABASE_ANON_KEY }}
+      SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+      SENDGRID_FROM: ${{ secrets.SENDGRID_FROM }}
+      SENDGRID_TO: ${{ secrets.SENDGRID_TO }}
+
     steps:
-      - name: 📦 Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🧰 Setup Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
 
-      - name: ⚙️ Install dependencies
+      - name: Install dependencies
         run: npm ci
 
-      - name: 🏗️ Build React app
+      - name: Create .env.production
+        run: |
+          echo "REACT_APP_SUPABASE_URL=${{ secrets.REACT_APP_SUPABASE_URL }}" > .env.production
+          echo "REACT_APP_SUPABASE_ANON_KEY=${{ secrets.REACT_APP_SUPABASE_ANON_KEY }}" >> .env.production
+
+      - name: Build project
         run: npm run build
 
-      - name: 🚀 Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./build
+
+      - name: Send chat-memory.json backup via SendGrid
+        if: always()
+        run: |
+          echo "Sending chat memory backup email..."
+          FILE_PATH="./chat-memory.json"
+          CONTENT=$(base64 $FILE_PATH | tr -d '\n')
+          curl -X POST "https://api.sendgrid.com/v3/mail/send" \
+            -H "Authorization: Bearer ${{ secrets.SENDGRID_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"personalizations\": [{\"to\": [{\"email\": \"${{ secrets.SENDGRID_TO }}\"}]}],
+              \"from\": {\"email\": \"${{ secrets.SENDGRID_FROM }}\"},
+              \"subject\": \"8BFR Chat Memory Backup\",
+              \"content\": [{\"type\": \"text/plain\", \"value\": \"Full chat-memory.json attached.\"}],
+              \"attachments\": [{
+                \"content\": \"${CONTENT}\",
+                \"type\": \"application/json\",
+                \"filename\": \"chat-memory.json\"
+              }]
+            }"
