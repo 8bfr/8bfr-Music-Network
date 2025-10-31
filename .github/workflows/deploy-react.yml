@@ -1,65 +1,41 @@
-name: Deploy React App to GitHub Pages + Daily Backup
+name: 🚀 Build & Deploy 8BFR Music Network
 
 on:
   push:
-    branches: [ "main" ]
-  schedule:
-    - cron: "0 6 * * *" # Daily at 6 AM UTC
+    branches: [main]
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
-    env:
-      REACT_APP_SUPABASE_URL: ${{ secrets.REACT_APP_SUPABASE_URL }}
-      REACT_APP_SUPABASE_ANON_KEY: ${{ secrets.REACT_APP_SUPABASE_ANON_KEY }}
-      SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
-      SENDGRID_FROM: ${{ secrets.SENDGRID_FROM }}
-      SENDGRID_TO: ${{ secrets.SENDGRID_TO }}
-
     steps:
-      - name: Checkout repository
+      - name: 🧩 Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: ⚙️ Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 18
 
-      - name: Install dependencies
-        run: npm install
+      - name: 📦 Install dependencies
+        run: npm ci
 
-      - name: Create .env.production
+      - name: 🗝️ Create .env.production
         run: |
-          echo "REACT_APP_SUPABASE_URL=${{ secrets.REACT_APP_SUPABASE_URL }}" > .env.production
+          echo "REACT_APP_SUPABASE_URL=${{ secrets.REACT_APP_SUPABASE_URL }}" >> .env.production
           echo "REACT_APP_SUPABASE_ANON_KEY=${{ secrets.REACT_APP_SUPABASE_ANON_KEY }}" >> .env.production
+          echo "SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }}" >> .env.production
+          echo "SENDGRID_FROM=${{ secrets.SENDGRID_FROM }}" >> .env.production
+          echo "SENDGRID_TO=${{ secrets.SENDGRID_TO }}" >> .env.production
 
-      - name: Build project
+      - name: 🏗️ Build project
         run: npm run build
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./build
+      - name: 🧠 Verify Supabase key presence
+        run: grep -R "${{ secrets.REACT_APP_SUPABASE_URL }}" build/ || echo "⚠️ Supabase URL not found in build output"
 
-      - name: Send chat-memory.json backup via SendGrid
-        if: always()
+      - name: 🚀 Deploy to Supabase Static Hosting
         run: |
-          echo "Sending chat memory backup email..."
-          FILE_PATH="./chat-memory.json"
-          CONTENT=$(base64 $FILE_PATH | tr -d '\n')
-          curl -X POST "https://api.sendgrid.com/v3/mail/send" \
-            -H "Authorization: Bearer ${{ secrets.SENDGRID_API_KEY }}" \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"personalizations\": [{\"to\": [{\"email\": \"${{ secrets.SENDGRID_TO }}\"}]}],
-              \"from\": {\"email\": \"${{ secrets.SENDGRID_FROM }}\"},
-              \"subject\": \"8BFR Chat Memory Backup\",
-              \"content\": [{\"type\": \"text/plain\", \"value\": \"Full chat-memory.json attached.\"}],
-              \"attachments\": [{
-                \"content\": \"${CONTENT}\",
-                \"type\": \"application/json\",
-                \"filename\": \"chat-memory.json\"
-              }]
-            }"
+          npm install -g supabase
+          supabase login --token ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          supabase link --project-ref novbuvwpjnxwwvdekjhr
+          supabase hosting deploy --site 8bfr-music-network --dir ./build
