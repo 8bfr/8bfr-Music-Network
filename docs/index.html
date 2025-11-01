@@ -70,13 +70,9 @@ header p {
   position: relative;
 }
 .banner-content {
-  display: inline-flex;
-  animation: scrollBanner 45s linear infinite;
+  display: flex;
+  transition: transform 0.2s ease;
   will-change: transform;
-}
-@keyframes scrollBanner {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
 }
 .banner-ad {
   flex: 0 0 250px;
@@ -153,7 +149,7 @@ footer p {
   padding: 25px;
   border-radius: 10px;
   width: 90%;
-  max-width: 400px;
+  max-width: 420px;
   box-shadow: 0 0 20px #7000ff;
   text-align: center;
   color: white;
@@ -166,6 +162,11 @@ footer p {
   border-radius: 8px;
   padding: 8px 16px;
   cursor: pointer;
+}
+.popup-content img {
+  width: 100%;
+  border-radius: 10px;
+  margin-bottom: 10px;
 }
 </style>
 </head>
@@ -186,10 +187,10 @@ footer p {
 <div id="topBanner" class="banner">
   <div class="banner-controls"><button id="toggleScroll">⏸ Pause</button></div>
   <div class="banner-content" id="bannerContent">
-    <div class="banner-ad" onclick="openAd('🔥 Dream High Out Now')">🔥 Dream High Out Now</div>
-    <div class="banner-ad" onclick="openAd('💜 Join 8BFR Radio')">💜 Join 8BFR Radio</div>
-    <div class="banner-ad" onclick="openAd('🎵 Promote Your Drop')">🎵 Promote Your Drop</div>
-    <div class="banner-ad" onclick="openAd('⚡ Ad Slots Available')">⚡ Ad Slots Available</div>
+    <div class="banner-ad" data-img="https://via.placeholder.com/400x200/8b00ff/ffffff?text=Dream+High" onclick="openAd(this)">🔥 Dream High Out Now</div>
+    <div class="banner-ad" data-img="https://via.placeholder.com/400x200/6600cc/ffffff?text=8BFR+Radio" onclick="openAd(this)">💜 Join 8BFR Radio</div>
+    <div class="banner-ad" data-img="https://via.placeholder.com/400x200/9900ff/ffffff?text=Promote+Your+Drop" onclick="openAd(this)">🎵 Promote Your Drop</div>
+    <div class="banner-ad" data-img="https://via.placeholder.com/400x200/cc00ff/ffffff?text=Ad+Slots+Available" onclick="openAd(this)">⚡ Ad Slots Available</div>
   </div>
 </div>
 
@@ -212,8 +213,9 @@ footer p {
 <!-- Popup -->
 <div id="adPopup" class="popup">
   <div class="popup-content" id="popupContent">
+    <img id="popupImg" src="" alt="">
     <h3 id="popupTitle"></h3>
-    <p>This is a preview of the ad. You can feature your own content here!</p>
+    <a id="popupLink" href="#" target="_blank" style="color:#b47cff;display:block;margin:10px 0;">Visit Ad Page</a>
     <button onclick="closeAd()">Close</button>
   </div>
 </div>
@@ -224,57 +226,65 @@ function scrollToTop() {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-// Pause / Resume banner
+// Banner animation simulation
 const banner = document.getElementById("bannerContent");
 const toggleBtn = document.getElementById("toggleScroll");
 let isPaused = false;
+let offset = 0;
+let speed = 1;
+let anim;
 
+// auto scroll simulation
+function animateBanner() {
+  if (!isPaused) {
+    offset -= speed;
+    banner.style.transform = `translateX(${offset}px)`;
+    if (Math.abs(offset) > banner.scrollWidth / 2) offset = 0;
+  }
+  anim = requestAnimationFrame(animateBanner);
+}
+animateBanner();
+
+// Pause/Resume
 toggleBtn.addEventListener("click", () => {
   isPaused = !isPaused;
-  banner.style.animationPlayState = isPaused ? "paused" : "running";
   toggleBtn.textContent = isPaused ? "▶️ Resume" : "⏸ Pause";
 });
 
 // Manual drag scroll
 let isDragging = false;
-let startX, scrollLeft;
+let startX, scrollStart;
 
-banner.addEventListener("mousedown", (e) => {
-  if (!isPaused) return; // only drag when paused
+banner.addEventListener("mousedown", e => {
+  if (!isPaused) return;
   isDragging = true;
-  startX = e.pageX - banner.offsetLeft;
-  scrollLeft = banner.scrollLeft;
-  banner.style.cursor = "grabbing";
+  startX = e.pageX;
+  scrollStart = offset;
 });
-
-banner.addEventListener("mouseleave", () => {
-  isDragging = false;
-  banner.style.cursor = "default";
-});
-
-banner.addEventListener("mouseup", () => {
-  isDragging = false;
-  banner.style.cursor = "default";
-});
-
-banner.addEventListener("mousemove", (e) => {
+banner.addEventListener("mouseup", () => isDragging = false);
+banner.addEventListener("mouseleave", () => isDragging = false);
+banner.addEventListener("mousemove", e => {
   if (!isDragging || !isPaused) return;
-  e.preventDefault();
-  const x = e.pageX - banner.offsetLeft;
-  const walk = (x - startX) * 2;
-  banner.scrollLeft = scrollLeft - walk;
+  const move = e.pageX - startX;
+  offset = scrollStart + move;
+  banner.style.transform = `translateX(${offset}px)`;
 });
 
 // Keyboard arrows
-window.addEventListener("keydown", (e) => {
+window.addEventListener("keydown", e => {
   if (!isPaused) return;
-  if (e.key === "ArrowRight") banner.scrollLeft += 50;
-  if (e.key === "ArrowLeft") banner.scrollLeft -= 50;
+  if (e.key === "ArrowRight") offset -= 50;
+  if (e.key === "ArrowLeft") offset += 50;
+  banner.style.transform = `translateX(${offset}px)`;
 });
 
 // Popup
-function openAd(title) {
+function openAd(el) {
+  const img = el.getAttribute("data-img");
+  const title = el.textContent;
+  document.getElementById("popupImg").src = img;
   document.getElementById("popupTitle").innerText = title;
+  document.getElementById("popupLink").href = "https://example.com";
   document.getElementById("adPopup").style.display = "flex";
 }
 function closeAd() {
