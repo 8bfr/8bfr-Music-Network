@@ -1,0 +1,41 @@
+#!/data/data/com.termux/files/usr/bin/bash
+echo "🎵 Generating 8BFR Network site pages..."
+PAGES=(radio chat feed store profile artist author influencer contests admin contact privacy terms kids games about help)
+
+for PAGE in "${PAGES[@]}"; do
+cat > "$PAGE.html" <<HTML
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>8BFR | ${PAGE^}</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>8BFR Network — ${PAGE^} Page</h1>
+    <nav>
+      <a href="index.html">Home</a> •
+      <a href="radio.html">Radio</a> •
+      <a href="feed.html">Feed</a> •
+      <a href="chat.html">Chat</a> •
+      <a href="store.html">Store</a>
+    </nav>
+  </header>
+
+  <main style="padding:2rem;text-align:center;">
+    <h2>🎧 ${PAGE^}</h2>
+    <p>This is a placeholder for the <strong>${PAGE^}</strong> section of 8BFR Music Network.</p>
+    <p>Content will load dynamically through Supabase or local scripts.js later.</p>
+  </main>
+
+  <footer style="text-align:center;padding:1rem;">
+    <a href="index.html">Back to Home</a>
+  </footer>
+</body>
+</html>
+HTML
+done
+
+echo "✅ Created ${#PAGES[@]} pages in $(pwd)"
