@@ -61,18 +61,21 @@ header p {
 
 /* Banner */
 .banner {
+  position: relative;
   overflow: hidden;
-  white-space: nowrap;
   background: #1f0127;
   border-top: 2px solid #5a00c8;
   border-bottom: 2px solid #5a00c8;
   height: 200px;
-  position: relative;
 }
-.banner-content {
+.banner-track {
   display: flex;
-  transition: transform 0.2s ease;
-  will-change: transform;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+}
+.banner-track::-webkit-scrollbar {
+  display: none;
 }
 .banner-ad {
   flex: 0 0 250px;
@@ -103,21 +106,6 @@ header p {
   padding: 5px 10px;
   cursor: pointer;
   font-size: 0.8em;
-}
-
-/* Sections */
-.section {
-  padding: 25px 20px;
-  max-width: 1000px;
-  margin: auto;
-  position: relative;
-}
-.section h2 {
-  color: #b47cff;
-  border-bottom: 2px solid #5a00c8;
-  padding-bottom: 10px;
-  margin-bottom: 10px;
-  text-shadow: 0 0 10px #6200ff;
 }
 
 /* Footer */
@@ -154,19 +142,19 @@ footer p {
   text-align: center;
   color: white;
 }
+.popup-content img {
+  width: 100%;
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
 .popup-content button {
-  margin-top: 10px;
   background: #6200ff;
   border: none;
   color: white;
   border-radius: 8px;
   padding: 8px 16px;
   cursor: pointer;
-}
-.popup-content img {
-  width: 100%;
-  border-radius: 10px;
-  margin-bottom: 10px;
+  margin-top: 8px;
 }
 </style>
 </head>
@@ -184,9 +172,11 @@ footer p {
 </div>
 
 <!-- Banner -->
-<div id="topBanner" class="banner">
-  <div class="banner-controls"><button id="toggleScroll">⏸ Pause</button></div>
-  <div class="banner-content" id="bannerContent">
+<div class="banner">
+  <div class="banner-controls">
+    <button id="toggleScroll">⏸ Pause</button>
+  </div>
+  <div class="banner-track" id="bannerTrack">
     <div class="banner-ad" data-img="https://via.placeholder.com/400x200/8b00ff/ffffff?text=Dream+High" onclick="openAd(this)">🔥 Dream High Out Now</div>
     <div class="banner-ad" data-img="https://via.placeholder.com/400x200/6600cc/ffffff?text=8BFR+Radio" onclick="openAd(this)">💜 Join 8BFR Radio</div>
     <div class="banner-ad" data-img="https://via.placeholder.com/400x200/9900ff/ffffff?text=Promote+Your+Drop" onclick="openAd(this)">🎵 Promote Your Drop</div>
@@ -221,61 +211,27 @@ footer p {
 </div>
 
 <script>
-// Scroll to top
-function scrollToTop() {
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}
-
-// Banner animation simulation
-const banner = document.getElementById("bannerContent");
-const toggleBtn = document.getElementById("toggleScroll");
 let isPaused = false;
-let offset = 0;
-let speed = 1;
-let anim;
+const banner = document.getElementById("bannerTrack");
+const toggleBtn = document.getElementById("toggleScroll");
+let scrollTimer;
 
-// auto scroll simulation
-function animateBanner() {
-  if (!isPaused) {
-    offset -= speed;
-    banner.style.transform = `translateX(${offset}px)`;
-    if (Math.abs(offset) > banner.scrollWidth / 2) offset = 0;
-  }
-  anim = requestAnimationFrame(animateBanner);
+function autoScroll() {
+  if (!isPaused) banner.scrollLeft += 1;
+  scrollTimer = requestAnimationFrame(autoScroll);
 }
-animateBanner();
+autoScroll();
 
-// Pause/Resume
 toggleBtn.addEventListener("click", () => {
   isPaused = !isPaused;
   toggleBtn.textContent = isPaused ? "▶️ Resume" : "⏸ Pause";
 });
 
-// Manual drag scroll
-let isDragging = false;
-let startX, scrollStart;
-
-banner.addEventListener("mousedown", e => {
-  if (!isPaused) return;
-  isDragging = true;
-  startX = e.pageX;
-  scrollStart = offset;
-});
-banner.addEventListener("mouseup", () => isDragging = false);
-banner.addEventListener("mouseleave", () => isDragging = false);
-banner.addEventListener("mousemove", e => {
-  if (!isDragging || !isPaused) return;
-  const move = e.pageX - startX;
-  offset = scrollStart + move;
-  banner.style.transform = `translateX(${offset}px)`;
-});
-
 // Keyboard arrows
-window.addEventListener("keydown", e => {
+window.addEventListener("keydown", (e) => {
   if (!isPaused) return;
-  if (e.key === "ArrowRight") offset -= 50;
-  if (e.key === "ArrowLeft") offset += 50;
-  banner.style.transform = `translateX(${offset}px)`;
+  if (e.key === "ArrowRight") banner.scrollLeft += 50;
+  if (e.key === "ArrowLeft") banner.scrollLeft -= 50;
 });
 
 // Popup
@@ -289,6 +245,10 @@ function openAd(el) {
 }
 function closeAd() {
   document.getElementById("adPopup").style.display = "none";
+}
+
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 </script>
 
