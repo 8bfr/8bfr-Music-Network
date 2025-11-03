@@ -1,29 +1,34 @@
 document.addEventListener("DOMContentLoaded", async () => {
   try {
-    // Detect correct base path (GitHub Pages or local)
-    let base = "/";
-    if (window.location.hostname.includes("github.io")) {
-      base = "/8bfr-Music-Network/";
+    // Auto-detect GitHub Pages base path
+    const base = window.location.pathname.includes("/8bfr-Music-Network/") ? "/8bfr-Music-Network/" : "/";
+    const navCandidates = [base + "partials/menu.html", base + "partials/nav.html"];
+    const footerUrl = base + "partials/footer.html";
+
+    let navHtml = "";
+    for (const url of navCandidates) {
+      const resp = await fetch(url);
+      if (resp.ok) {
+        navHtml = await resp.text();
+        console.log(`✅ Loaded navigation from ${url}`);
+        break;
+      }
     }
 
-    const navUrl = `${base}partials/nav.html`;
-    const footerUrl = `${base}partials/footer.html`;
+    if (!navHtml) throw new Error("❌ Neither menu.html nor nav.html found!");
 
-    console.log("🔍 Trying to load:", navUrl, footerUrl);
-
-    // Load NAV
-    const navResp = await fetch(navUrl);
-    if (!navResp.ok) throw new Error(`Nav fetch failed (${navResp.status})`);
-    const navHtml = await navResp.text();
     document.body.insertAdjacentHTML("afterbegin", navHtml);
 
     // Load FOOTER
-    const footResp = await fetch(footerUrl);
-    if (!footResp.ok) throw new Error(`Footer fetch failed (${footResp.status})`);
-    const footerHtml = await footResp.text();
-    document.body.insertAdjacentHTML("beforeend", footerHtml);
+    const footer = await fetch(footerUrl);
+    if (footer.ok) {
+      const footerHtml = await footer.text();
+      document.body.insertAdjacentHTML("beforeend", footerHtml);
+      console.log(`✅ Loaded footer from ${footerUrl}`);
+    } else {
+      console.warn(`⚠️ Footer not found at ${footerUrl}`);
+    }
 
-    console.log("✅ Loaded nav & footer successfully from:", base);
   } catch (err) {
     console.error("⚠️ Failed to load partials:", err);
   }
