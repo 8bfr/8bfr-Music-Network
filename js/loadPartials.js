@@ -1,28 +1,27 @@
 document.addEventListener("DOMContentLoaded", async () => {
   try {
-    // Detect if hosted on GitHub Pages
-    const base = window.location.pathname.includes("/8bfr-Music-Network/")
-      ? "/8bfr-Music-Network/docs/"
-      : "/docs/";
+    // Detect base path for GitHub Pages
+    const base = window.location.pathname.includes("/8bfr-Music-Network/") ? "/8bfr-Music-Network/docs/" : "/docs/";
 
-    const navUrl = base + "menu.html";
-    const footerUrl = base + "footer.html";
+    // Load the menu (instead of nav.html)
+    const menuUrl = base + "menu.html";
+    const footerUrl = base + "../partials/footer.html";
 
-    // Load NAV
-    const nav = await fetch(navUrl);
-    if (!nav.ok) throw new Error(`Nav fetch failed (${nav.status})`);
-    const navHtml = await nav.text();
-    document.body.insertAdjacentHTML("afterbegin", navHtml);
+    // Fetch and insert menu
+    const menuResp = await fetch(menuUrl);
+    if (!menuResp.ok) throw new Error(`Menu fetch failed (${menuResp.status})`);
+    const menuHtml = await menuResp.text();
+    document.body.insertAdjacentHTML("afterbegin", menuHtml);
 
-    // Load FOOTER
-    const footer = await fetch(footerUrl);
-    if (footer.ok) {
-      const footerHtml = await footer.text();
+    // Fetch and insert footer
+    const footerResp = await fetch(footerUrl);
+    if (footerResp.ok) {
+      const footerHtml = await footerResp.text();
       document.body.insertAdjacentHTML("beforeend", footerHtml);
     }
 
-    console.log("✅ Loaded nav & footer from", base);
+    console.log("✅ Menu and footer loaded successfully");
   } catch (err) {
-    console.error("⚠️ Failed to load partials:", err);
+    console.error("⚠️ Error loading menu/footer:", err);
   }
 });
