@@ -1,19 +1,25 @@
 document.addEventListener("DOMContentLoaded", async () => {
   try {
-    const base = window.location.pathname.includes("/8bfr-Music-Network/") 
-      ? "/8bfr-Music-Network/docs/" 
+    // Detect if we're on GitHub Pages or local
+    const base = window.location.pathname.includes("/8bfr-Music-Network/")
+      ? "/8bfr-Music-Network/docs/"
       : "/docs/";
 
-    const navUrl = base + "menu.html";
+    const menuUrl = base + "menu.html";
     const footerUrl = base + "footer.html";
 
-    const nav = await fetch(navUrl);
-    if (!nav.ok) throw new Error(`Nav load failed: ${nav.status}`);
-    document.body.insertAdjacentHTML("afterbegin", await nav.text());
+    // Load the menu
+    const navResp = await fetch(menuUrl);
+    if (!navResp.ok) throw new Error(`Failed to load menu (${navResp.status})`);
+    const navHtml = await navResp.text();
+    document.body.insertAdjacentHTML("afterbegin", navHtml);
 
-    const footer = await fetch(footerUrl);
-    if (!footer.ok) throw new Error(`Footer load failed: ${footer.status}`);
-    document.body.insertAdjacentHTML("beforeend", await footer.text());
+    // Load footer if exists
+    const footResp = await fetch(footerUrl);
+    if (footResp.ok) {
+      const footHtml = await footResp.text();
+      document.body.insertAdjacentHTML("beforeend", footHtml);
+    }
 
     console.log("✅ Loaded menu & footer from", base);
   } catch (err) {
