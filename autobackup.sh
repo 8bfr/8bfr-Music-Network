@@ -1,22 +1,12 @@
-#!/data/data/com.termux/files/usr/bin/bash
-# 🔁 8BFR Network Auto-Backup Script
+#!/bin/bash
+# 8BFR Network Auto Backup
+MEMORY_FILE="$HOME/8bfr_network/8bfr_network_master_memory.md"
+EMAIL="8bfr.music@gmail.com"
 
-cd ~/8bfr
-
-echo "📦 Pulling latest changes..."
-git pull origin main
-
-echo "💾 Adding all updated files..."
-git add .
-
-echo "🧾 Committing with timestamp..."
-git commit -m "Auto-backup $(date '+%Y-%m-%d %H:%M:%S')"
-
-echo "☁️ Pushing to GitHub..."
-git push origin main
-
-# Optional: send email copy (requires termux-api + mailutils)
-# mail -s "8BFR Backup $(date)" youremail@example.com < 8BFR_MASTER_MEMORY.md
-
-echo "✅ Backup complete!"
-
+if [ -f "$MEMORY_FILE" ]; then
+    echo "📦 Sending backup..."
+    mail -s "8BFR Network Backup $(date)" "$EMAIL" < "$MEMORY_FILE"
+    echo "✅ Backup sent successfully."
+else
+    echo "❌ Memory file not found: $MEMORY_FILE"
+fi
