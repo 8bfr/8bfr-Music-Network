@@ -1,4 +1,4 @@
-// 8BFR global UI v9: floating menu, Carrie avatar, contact/donate/top/bottom bubbles
+// 8BFR global UI v10: floating menu, Carrie avatar, contact/donate/top/bottom bubbles
 (function () {
   function injectGlobalUI() {
     if (document.getElementById("fab")) return; // don't inject twice
@@ -84,12 +84,12 @@
         background:rgba(124,58,237,.14);
       }
 
-      /* Carrie wrapper: under the bubbles */
+      /* Carrie wrapper: bottom-right by default, slides left with menu */
       #carrieWrap{
         position:fixed;
         right:14px;
-        top:320px;
-        bottom:auto;
+        bottom:16px;
+        top:auto;
         z-index:9997;
         transition:transform .25s ease;
         user-select:none;
@@ -166,7 +166,7 @@
       #bubble-contact{ right:14px; top:150px; }
       #bubble-donate{  right:14px; top:204px; }
       #bubble-bottom{  right:14px; top:258px; }
-      #bubble-top{     right:14px; bottom:24px; }
+      #bubble-top{     right:14px; bottom:72px; }
 
       .bubble.aside{
         transform:translateX(-240px);
@@ -187,7 +187,7 @@
       #label-contact{ top:160px; }
       #label-donate{  top:214px; }
       #label-bottom{  top:268px; }
-      #label-top{     bottom:74px; }
+      #label-top{     bottom:82px; }
 
       .bubble-label.aside{
         transform:translateX(-240px);
