@@ -1,4 +1,4 @@
-// 8BFR global UI v11 — floating menu, Carrie avatar, bubbles
+// 8BFR global UI v12 — floating menu, Carrie avatar, bubbles
 (function () {
   function injectGlobalUI() {
     if (document.getElementById("fab")) return; // avoid double inject
@@ -42,7 +42,7 @@
         border:1px solid var(--ring);
         border-radius:12px;
         box-shadow:0 12px 28px rgba(0,0,0,.45);
-        font-size:.78rem;
+        font-size:.75rem;
       }
       #menu.open{ transform:translateX(0); }
 
@@ -69,24 +69,28 @@
       }
       #menu .group summary{
         cursor:pointer;
-        padding:5px 7px;
+        padding:4px 7px;
         background:rgba(124,58,237,.10);
       }
       #menu .group a{
         display:block;
-        padding:3px 7px;
+        margin:2px 6px;
+        padding:3px 8px;
+        border-radius:999px;
+        border:1px solid rgba(124,58,237,.28);
+        background:rgba(8,3,20,.85);
         color:#eae6ff;
         text-decoration:none;
       }
       #menu .group a:hover{
-        background:rgba(124,58,237,.14);
+        background:rgba(124,58,237,.18);
       }
 
-      /* Carrie bottom-right, slides with menu */
+      /* Carrie – bigger and above the up arrow */
       #carrieWrap{
         position:fixed;
         right:14px;
-        bottom:16px;
+        bottom:110px;   /* sits above the up-arrow bubble */
         top:auto;
         z-index:9997;
         transition:transform .25s ease;
@@ -97,7 +101,7 @@
         transform:translateX(-240px);
       }
       #carrie{
-        width:min(90vw,520px);
+        width:min(90vw,520px); /* big avatar */
         height:auto;
         border-radius:0;
         background:transparent!important;
@@ -162,7 +166,7 @@
       #bubble-contact{ right:14px; top:150px; }
       #bubble-donate{  right:14px; top:204px; }
       #bubble-bottom{  right:14px; top:258px; }
-      #bubble-top{     right:14px; bottom:72px; }
+      #bubble-top{     right:14px; bottom:24px; }  /* near bottom edge */
 
       .bubble.aside{
         transform:translateX(-240px);
@@ -183,7 +187,7 @@
       #label-contact{ top:160px; }
       #label-donate{  top:214px; }
       #label-bottom{  top:268px; }
-      #label-top{     bottom:82px; }
+      #label-top{     bottom:70px; }
 
       .bubble-label.aside{
         transform:translateX(-240px);
@@ -194,7 +198,7 @@
     // ---------- HTML SHELL ----------
     const shell = document.createElement("div");
     shell.innerHTML = `
-      <button id="fab" aria-controls="menu" aria-expanded="false" title="Menu (UI v11)">
+      <button id="fab" aria-controls="menu" aria-expanded="false" title="Menu (UI v12)">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#00d9ff" stroke-width="2">
           <path d="M9 18V5l10-2v13" />
           <circle cx="7" cy="18" r="3" />
@@ -396,6 +400,14 @@
 
     let timer = null;
 
+    function snapCarrieHome() {
+      // put her back to the default docked spot
+      carrieWrap.style.left = "";
+      carrieWrap.style.top  = "";
+      carrieWrap.style.right = "14px";
+      carrieWrap.style.bottom = "110px";
+    }
+
     function openMenu() {
       menu.classList.add("open");
       backdrop.classList.add("open");
@@ -425,6 +437,7 @@
       labelDonate.classList.remove("aside");
       labelBottom.classList.remove("aside");
       labelTop.classList.remove("aside");
+      snapCarrieHome();
       clearTimeout(timer);
       timer = null;
     }
@@ -499,7 +512,7 @@
       oy = r.top;
       carrieWrap.style.right = "auto";
       carrieWrap.style.bottom = "auto";
-      e.preventDefault();
+      // no preventDefault here so taps still produce click (for chat)
     }
 
     function onMove(e) {
@@ -508,7 +521,7 @@
       const dx = p.x - sx;
       const dy = p.y - sy;
       carrieWrap.style.left = ox + dx + "px";
-      carrieWrap.style.top = oy + dy + "px";
+      carrieWrap.style.top  = oy + dy + "px";
     }
 
     function onUp() {
@@ -516,7 +529,7 @@
     }
 
     carrieWrap.addEventListener("mousedown", onDown);
-    carrieWrap.addEventListener("touchstart", onDown, { passive: false });
+    carrieWrap.addEventListener("touchstart", onDown, { passive: true });
     window.addEventListener("mousemove", onMove, { passive: false });
     window.addEventListener("touchmove", onMove, { passive: false });
     window.addEventListener("mouseup", onUp);
