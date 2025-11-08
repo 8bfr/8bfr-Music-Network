@@ -1,7 +1,7 @@
-// 8BFR global UI v10: floating menu, Carrie avatar, contact/donate/top/bottom bubbles
+// 8BFR global UI v11 — floating menu, Carrie avatar, bubbles
 (function () {
   function injectGlobalUI() {
-    if (document.getElementById("fab")) return; // don't inject twice
+    if (document.getElementById("fab")) return; // avoid double inject
 
     // ---------- STYLES ----------
     const style = document.createElement("style");
@@ -11,7 +11,6 @@
         --glass: rgba(12,6,24,.80);
       }
 
-      /* Floating main button */
       #fab{
         position:fixed;
         top:86px;
@@ -28,7 +27,6 @@
         box-shadow:0 0 14px rgba(124,58,237,.30),0 0 18px rgba(0,217,255,.18) inset;
       }
 
-      /* Slide menu */
       #menu{
         position:fixed;
         top:144px;
@@ -84,7 +82,7 @@
         background:rgba(124,58,237,.14);
       }
 
-      /* Carrie wrapper: bottom-right by default, slides left with menu */
+      /* Carrie bottom-right, slides with menu */
       #carrieWrap{
         position:fixed;
         right:14px;
@@ -116,7 +114,6 @@
         50%{ transform:translateY(-6px); }
       }
 
-      /* Speech bubble attached to Carrie */
       #carrieTip{
         position:absolute;
         bottom:100%;
@@ -141,7 +138,6 @@
         border-color:rgba(10,6,24,.95) transparent transparent transparent;
       }
 
-      /* Floating bubbles */
       .bubble{
         position:fixed;
         width:46px;
@@ -198,7 +194,7 @@
     // ---------- HTML SHELL ----------
     const shell = document.createElement("div");
     shell.innerHTML = `
-      <button id="fab" aria-controls="menu" aria-expanded="false" title="Menu">
+      <button id="fab" aria-controls="menu" aria-expanded="false" title="Menu (UI v11)">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#00d9ff" stroke-width="2">
           <path d="M9 18V5l10-2v13" />
           <circle cx="7" cy="18" r="3" />
