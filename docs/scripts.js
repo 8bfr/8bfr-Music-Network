@@ -141,12 +141,29 @@
       }
       #bubble-contact{ right:14px; top:150px; }
       #bubble-donate{ right:14px; top:204px; }
-      /* put this one at the bottom of the screen */
+      /* back-to-top bubble near bottom */
       #bubble-top{     right:14px; bottom:24px; }
 
+      .bubble.aside{
+        transform:translateX(-240px);
+      }
+
+      /* Labels for bubbles */
+      .bubble-label{
+        position:fixed;
+        right:68px;
+        font-size:11px;
+        padding:2px 6px;
+        border-radius:999px;
+        background:rgba(5,2,12,.75);
+        color:#eae6ff;
+        opacity:.7;
+        pointer-events:none;
+        z-index:10000;
+      }
       #label-contact{ top:160px; }
       #label-donate{  top:214px; }
-      /* label just above the bottom bubble */
+      /* label above bottom bubble */
       #label-top{     bottom:74px; }
 
       .bubble-label.aside{
