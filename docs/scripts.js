@@ -141,6 +141,15 @@
         border-style:solid;
         border-color:rgba(10,6,24,.95) transparent transparent transparent;
       }
+      #carrieTip::after{
+        content:"";
+        position:absolute;
+        bottom:-7px;             /* tail points downward toward her mouth */
+        right:16px;              /* move this left/right to fine-tune where it points */
+        border-width:7px 7px 0 7px;
+        border-style:solid;
+        border-color:rgba(10,6,24,.95) transparent transparent transparent;
+      }
 
       /* Floating bubbles */
       .bubble{
