@@ -17,7 +17,7 @@
 <body>
 <header class="px-4 py-4 bg-[rgba(15,0,30,.9)] border-b border-purple-500/40">
   <div class="max-w-4xl mx-auto flex items-center justify-between">
-    <a href="index.html" class="btn">← Back</a>
+    <a href="index.html" class="btn">← Home</a>
     <h1 class="text-xl font-bold">8BFR Radio</h1>
     <span></span>
   </div>
@@ -30,18 +30,52 @@
   </div>
 
   <div class="card mt-4">
-    <h3 class="font-bold mb-2">Playlist (demo)</h3>
+    <h3 class="font-bold mb-2">Playlist (auto from profiles)</h3>
     <div id="list" class="space-y-2"></div>
   </div>
 </main>
 
+<!-- Shared menu + Carrie everywhere -->
+<script src="scripts.js" defer></script>
+
 <script>
-const LIST_KEY='radio_list_v1';
-const def=[{title:'Killa Bees (Spotify)', src:'https://open.spotify.com/artist/127tw52iDXr7BvgB0IGG2x'}, {title:'Featured Ad Spot', src:'#'}];
-const $=s=>document.querySelector(s); const read=()=>JSON.parse(localStorage.getItem(LIST_KEY)||'null')||def; const write=v=>localStorage.setItem(LIST_KEY,JSON.stringify(v));
+const $=s=>document.querySelector(s);
 const player=$('#player'), now=$('#now');
-function play(item){ if(!item) return; now.textContent='Now: '+item.title; if(item.src.startsWith('http') && item.src.includes('open.spotify.com')) { alert('This Spotify item opens in a new tab due to autoplay policies.'); window.open(item.src,'_blank'); } else if(item.src==='#'){ now.textContent='Ad slot — visit Home to see rotating ads.'; player.pause(); player.removeAttribute('src'); } else { player.src=item.src; player.play().catch(()=>{}); } }
-function render(){ const list=read(); $('#list').innerHTML=list.map((it,i)=>`<div class="row"><button class="btn" data-i="${i}">Play</button><div>${it.title}</div></div>`).join(''); document.querySelectorAll('#list button').forEach(b=>b.onclick=()=>play(list[b.dataset.i])); }
+
+function collectTracks(){
+  const all=[];
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(!k.startsWith('profile_')) continue;
+    try{
+      const d=JSON.parse(localStorage.getItem(k)||'{}');
+      (d.tracks||[]).forEach(t=> all.push({title:t.title||'Track', src:t.url||'', owner:k}));
+    }catch{}
+  }
+  return all;
+}
+const list=collectTracks();
+
+function play(item){
+  if(!item) return;
+  now.textContent = 'Now: '+item.title;
+  if(/^https?:\/\/open\.spotify\.com/.test(item.src)){
+    alert('Opens in Spotify due to browser autoplay rules.');
+    window.open(item.src,'_blank');
+    return;
+  }
+  player.src = item.src;
+  player.play().catch(()=>{});
+}
+
+function render(){
+  if(list.length===0){
+    $('#list').innerHTML = '<div>No uploaded tracks yet. Add tracks on your profile (artist/beatmaker).</div>';
+    return;
+  }
+  $('#list').innerHTML = list.map((it,i)=>`<div class="row"><button class="btn" data-i="${i}">Play</button><div>${it.title}</div></div>`).join('');
+  document.querySelectorAll('#list button').forEach(b=>b.onclick=()=>play(list[b.dataset.i]));
+}
 render();
 </script>
 </body>
