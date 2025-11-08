@@ -3,7 +3,7 @@
 // - Hero rotating text (index only)
 // - Featured ads carousel + swipe + modals (index only)
 // - Global floating menu (all pages)
-// - Carrie avatar (all pages) – draggable + click opens carrie-chat
+// - Carrie avatar (all pages) – draggable + tap opens carrie-chat
 // - Floating Contact + Donate bubbles (all pages)
 
 (function () {
@@ -72,12 +72,9 @@
       a.appendChild(img);
 
       track.appendChild(a);
-
       requestAnimationFrame(() => a.classList.add("show"));
 
-      if (old) {
-        setTimeout(() => old.remove(), 380);
-      }
+      if (old) setTimeout(() => old.remove(), 380);
     }
 
     function auto() {
@@ -288,8 +285,7 @@
 
   // ---------------- GLOBAL MENU + CARRIE + BUBBLES ----------------
   function injectGlobalUI() {
-    // avoid double-injecting (if script loaded twice)
-    if (document.getElementById("fab")) return;
+    if (document.getElementById("fab")) return; // already injected
 
     const css = document.createElement("style");
     css.textContent = `
@@ -359,8 +355,11 @@
         transform:translateX(-260px);
       }
       #carrie{
-        width:min(42vw,290px); height:auto;
-        border-radius:0; background:transparent!important;
+        /* BIGGER avatar */
+        width:min(70vw,380px);
+        height:auto;
+        border-radius:0;
+        background:transparent!important;
         filter:drop-shadow(0 10px 28px rgba(124,58,237,.35))
                drop-shadow(0 4px 10px rgba(0,0,0,.45));
         display:block;
@@ -404,10 +403,11 @@
       <div id="backdrop"></div>
       <nav id="menu" aria-hidden="true">
         <details class="group" open>
-          <summary>Home</summary>
+          <summary>Home & Main</summary>
           <a href="index.html">Dashboard</a>
           <a href="home.html">Home (alt)</a>
           <a href="featured.html">Featured</a>
+          <a href="featured_songs.html">Featured Songs</a>
           <a href="feed.html">Community Feed</a>
           <a href="radio.html">Radio</a>
           <a href="podcast.html">Podcast</a>
@@ -415,10 +415,12 @@
           <a href="fan-zone.html">Fan Zone</a>
           <a href="stories.html">Stories</a>
           <a href="dedications.html">Dedications</a>
+          <a href="dedication.html">Single Dedication</a>
           <a href="contest.html">Contest</a>
           <a href="contests.html">Contests</a>
           <a href="leaderboard.html">Leaderboards</a>
           <a href="stats.html">Site Stats</a>
+          <a href="awards.html">Awards</a>
           <a href="contact.html">Contact</a>
           <a href="about.html">About</a>
         </details>
@@ -438,7 +440,9 @@
           <a href="master_ai.html">Master AI</a>
           <a href="author.html">Author AI</a>
           <a href="author-hub.html">Author Hub</a>
+          <a href="ai-dashboard.html">AI Dashboard</a>
           <a href="translate.html">Translate</a>
+          <a href="integration.html">Integration</a>
         </details>
 
         <details class="group">
@@ -455,13 +459,19 @@
           <a href="game_pool_8ball.html">8-Ball (alt)</a>
           <a href="game_pool_9ball.html">9-Ball (alt)</a>
           <a href="game_pool_trick.html">Trickshot (alt)</a>
+          <a href="game-coin-shop.html">Game Coin Shop</a>
         </details>
 
         <details class="group">
-          <summary>Profiles</summary>
+          <summary>Profiles & Badges</summary>
           <a href="profiles.html">All Profiles</a>
           <a href="profile.html">My Profile (base)</a>
           <a href="profile_base.html">Profile Template</a>
+          <a href="artist.html">Artist Landing</a>
+          <a href="beatmaker.html">Beatmaker Landing</a>
+          <a href="influencer.html">Influencer Landing</a>
+          <a href="influencer-hub.html">Influencer Hub</a>
+          <a href="artist-studio.html">Artist Studio</a>
           <a href="profile_artist.html">Artist Profile</a>
           <a href="profile_beatmaker.html">Beatmaker Profile</a>
           <a href="profile_author.html">Author Profile</a>
@@ -485,6 +495,8 @@
           <a href="game-coin-shop.html">Game Coin Shop</a>
           <a href="pricing.html">Pricing</a>
           <a href="donate.html">Donate</a>
+          <a href="ads.html">Ads</a>
+          <a href="affiliates.html">Affiliates</a>
         </details>
 
         <details class="group">
@@ -502,6 +514,7 @@
           <a href="owner-studio.html">Owner Studio</a>
           <a href="owner-panel.html">Owner Panel</a>
           <a href="owner_picks.html">Owner Picks</a>
+          <a href="menu.html">Menu (legacy)</a>
           <a href="system.html">System</a>
           <a href="debug.html">Debug</a>
         </details>
@@ -521,7 +534,7 @@
         </details>
 
         <details class="group">
-          <summary>Carrie & Fun</summary>
+          <summary>Carrie, Kids & Fun</summary>
           <a href="carrie-chat.html">Carrie Chat</a>
           <a href="carrie-closet.html">Carrie Closet</a>
           <a href="carrie-concerts.html">Carrie Concerts</a>
@@ -558,7 +571,6 @@
     const menu = document.getElementById("menu");
     const backdrop = document.getElementById("backdrop");
     const carrieWrap = document.getElementById("carrieWrap");
-    const carrieVid = document.getElementById("carrie");
     const bubbleContact = document.getElementById("bubble-contact");
     const bubbleDonate = document.getElementById("bubble-donate");
 
@@ -599,7 +611,7 @@
     menu.addEventListener("pointermove", resetTimer);
     menu.addEventListener("wheel", resetTimer, { passive: true });
 
-    // Bubbles
+    // Floating bubbles
     bubbleContact.addEventListener("click", () => {
       window.location.href = "contact.html";
     });
@@ -609,17 +621,14 @@
       else window.location.href = "donate.html";
     });
 
-    // Carrie: click -> chat
-    carrieVid.addEventListener("click", () => {
-      window.location.href = "carrie-chat.html";
-    });
-
-    // Carrie drag (desktop + touch)
+    // Carrie drag + tap-to-chat
     let dragging = false;
     let sx = 0,
       sy = 0,
       ox = 0,
       oy = 0;
+    let pointerDownTime = 0;
+    let moved = false;
 
     function getPoint(e) {
       if ("touches" in e && e.touches.length) {
@@ -630,6 +639,8 @@
 
     function onDown(e) {
       dragging = true;
+      moved = false;
+      pointerDownTime = Date.now();
       const p = getPoint(e);
       sx = p.x;
       sy = p.y;
@@ -646,12 +657,19 @@
       const p = getPoint(e);
       const dx = p.x - sx;
       const dy = p.y - sy;
+      if (Math.abs(dx) > 5 || Math.abs(dy) > 5) moved = true;
       carrieWrap.style.left = ox + dx + "px";
       carrieWrap.style.top = oy + dy + "px";
     }
 
     function onUp() {
+      if (!dragging) return;
       dragging = false;
+      const dt = Date.now() - pointerDownTime;
+      // Treat as tap if short and not moved much
+      if (!moved && dt < 300) {
+        window.location.href = "carrie-chat.html";
+      }
     }
 
     carrieWrap.addEventListener("mousedown", onDown);
