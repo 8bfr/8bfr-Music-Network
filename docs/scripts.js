@@ -1,8 +1,7 @@
-// 8BFR global UI: floating menu, Carrie avatar, contact/donate/top/bottom bubbles
+// 8BFR global UI v9: floating menu, Carrie avatar, contact/donate/top/bottom bubbles
 (function () {
   function injectGlobalUI() {
-    // don’t inject twice
-    if (document.getElementById("fab")) return;
+    if (document.getElementById("fab")) return; // don't inject twice
 
     // ---------- STYLES ----------
     const style = document.createElement("style");
@@ -85,18 +84,17 @@
         background:rgba(124,58,237,.14);
       }
 
-      /* Carrie */
+      /* Carrie wrapper: under the bubbles */
       #carrieWrap{
         position:fixed;
         right:14px;
-        top:320px;       /* Carrie sits under the menu & bubbles */
+        top:320px;
         bottom:auto;
         z-index:9997;
         transition:transform .25s ease;
         user-select:none;
         touch-action:none;
       }
-      /* when menu open, dock her to the left */
       #carrieWrap.aside{
         transform:translateX(-240px);
       }
@@ -118,11 +116,11 @@
         50%{ transform:translateY(-6px); }
       }
 
-      /* "Chat with me" speech bubble attached to Carrie */
+      /* Speech bubble attached to Carrie */
       #carrieTip{
         position:absolute;
         bottom:100%;
-        right:40px;              /* shift left so it’s over her head */
+        right:40px;
         margin-bottom:8px;
         padding:5px 10px;
         font-size:11px;
@@ -136,8 +134,8 @@
       #carrieTip::after{
         content:"";
         position:absolute;
-        bottom:-7px;             /* tail points downward toward her */
-        right:16px;              /* tweak this if you want the tail more centered */
+        bottom:-7px;
+        right:16px;
         border-width:7px 7px 0 7px;
         border-style:solid;
         border-color:rgba(10,6,24,.95) transparent transparent transparent;
@@ -167,8 +165,8 @@
       }
       #bubble-contact{ right:14px; top:150px; }
       #bubble-donate{  right:14px; top:204px; }
-      #bubble-bottom{  right:14px; top:258px; } /* down arrow */
-      #bubble-top{     right:14px; bottom:24px; } /* up arrow */
+      #bubble-bottom{  right:14px; top:258px; }
+      #bubble-top{     right:14px; bottom:24px; }
 
       .bubble.aside{
         transform:translateX(-240px);
@@ -453,7 +451,7 @@
     menu.addEventListener("pointermove", resetTimer);
     menu.addEventListener("wheel", resetTimer, { passive: true });
 
-    // bubble actions
+    // bubbles
     bubbleContact.addEventListener("click", () => {
       window.location.href = "contact.html";
     });
@@ -528,7 +526,6 @@
     window.addEventListener("mouseup", onUp);
     window.addEventListener("touchend", onUp);
 
-    // ONLY clicking directly on Carrie opens chat
     if (carrieVideo) {
       carrieVideo.addEventListener("click", function (e) {
         e.stopPropagation();
@@ -537,7 +534,6 @@
     }
   }
 
-  // Run when DOM is ready
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", injectGlobalUI);
   } else {
