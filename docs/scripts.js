@@ -11,3 +11,8 @@ window._8bfr={api,getPosts};console.log("8BFR scripts.js loaded");
   s.src = 'global-ui.js'; s.defer = true;
   document.head.appendChild(s);
 })();
+(function(){
+  var s = document.createElement('script');
+  s.src = 'global-ui.js'; s.defer = true;
+  document.head.appendChild(s);
+})();
