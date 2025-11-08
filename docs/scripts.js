@@ -1,34 +1,25 @@
-(function(){
-  if (document.getElementById('fab')) return; // prevent duplicate injection
+(function () {
+  // avoid double-injecting
+  if (document.getElementById('fab')) return;
 
-  // Decide which Carrie animation to use (casual vs business)
+  // decide which Carrie animation to use
   const path = location.pathname.toLowerCase();
   let carrieSrc = 'assets/videos/carrie_casual_animate_3_1.webm';
-
   const businessKeywords = [
-    'admin',
-    'owner',
-    'studio',
-    'panel',
-    'dashboard',
-    'pricing',
-    'shop',
-    'store',
-    'coinshop',
-    'game-coin-shop',
-    'upgrades',
-    'stats',
-    'mod',
-    'integration'
+    'admin', 'owner', 'studio', 'panel',
+    'dashboard', 'pricing', 'shop', 'store',
+    'coinshop', 'game-coin-shop', 'upgrades',
+    'stats', 'mod', 'integration'
   ];
-
   if (businessKeywords.some(k => path.includes(k))) {
     carrieSrc = 'assets/videos/carrie_business_animate.webm';
   }
 
+  // CSS for menu, Carrie, and floating buttons
   const css = document.createElement('style');
   css.textContent = `
   :root{ --ring: rgba(124,58,237,.55); --glass: rgba(12,6,24,.70); }
+
   #fab{
     position:fixed;top:86px;right:14px;z-index:9999;width:56px;height:56px;
     border-radius:9999px;display:grid;place-items:center;cursor:pointer;
@@ -36,6 +27,8 @@
     border:1px solid rgba(124,58,237,.35);
     box-shadow:0 0 14px rgba(124,58,237,.30),0 0 18px rgba(0,217,255,.18) inset
   }
+  #fab svg{display:block}
+
   #menu{
     position:fixed;top:144px;right:14px;width:min(92vw,270px);
     max-height:calc(100vh - 160px);overflow-y:auto;z-index:9998;
@@ -62,6 +55,7 @@
     display:block;padding:6px 9px;color:#eae6ff;text-decoration:none
   }
   .group a:hover{background:rgba(124,58,237,.14)}
+
   #carrieWrap{
     position:fixed;right:14px;bottom:16px;z-index:9997;
     transition:transform .25s ease;user-select:none;touch-action:none
@@ -80,9 +74,27 @@
   }
   .bob{animation:bob 3.5s ease-in-out infinite}
   @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+
+  /* Floating contact & donate circles */
+  .floating-circle{
+    position:fixed;right:14px;z-index:9996;
+    width:48px;height:48px;border-radius:9999px;
+    display:grid;place-items:center;
+    background:radial-gradient(circle at 30% 20%, rgba(0,217,255,.7), rgba(12,0,30,.9));
+    border:1px solid rgba(124,58,237,.6);
+    box-shadow:0 0 14px rgba(124,58,237,.4);
+    cursor:pointer;
+    color:#eae6ff;
+    font-size:0.8rem;
+    text-align:center;
+  }
+  #contactFab{top:150px;}
+  #donateFab{top:210px;}
+  .floating-circle span{padding:0 4px;}
   `;
   document.head.appendChild(css);
 
+  // inject menu, Carrie, and floating buttons
   const shell = document.createElement('div');
   shell.innerHTML = `
     <button id="fab" aria-controls="menu" aria-expanded="false" title="Menu">
@@ -134,6 +146,7 @@
         <a href="kids_stories.html">Kids Stories</a>
       </details>
     </nav>
+
     <div id="carrieWrap" title="Chat with Carrie (drag or tap)">
       <video id="carrie"
              autoplay
@@ -142,39 +155,62 @@
              playsinline
              src="${carrieSrc}"></video>
     </div>
+
+    <button id="contactFab" class="floating-circle" title="Contact">
+      <span>Contact</span>
+    </button>
+    <button id="donateFab" class="floating-circle" title="Donate">
+      <span>Donate</span>
+    </button>
   `;
   document.body.appendChild(shell);
 
-  // Menu logic
   const fab = document.getElementById('fab');
   const menu = document.getElementById('menu');
   const shade = document.getElementById('backdrop');
   const cWrap = document.getElementById('carrieWrap');
+  const contactFab = document.getElementById('contactFab');
+  const donateFab = document.getElementById('donateFab');
 
+  // floating circles actions
+  contactFab.addEventListener('click', () => {
+    location.href = 'contact.html';
+  });
+  donateFab.addEventListener('click', () => {
+    const hasDonate = document.getElementById('donate');
+    if (hasDonate) {
+      location.hash = '#donate';
+    } else {
+      location.href = 'donate.html';
+    }
+  });
+
+  // menu logic
   let timer = null;
-  function openMenu(){
+  function openMenu() {
     menu.classList.add('open');
     shade.classList.add('open');
-    fab.setAttribute('aria-expanded','true');
+    fab.setAttribute('aria-expanded', 'true');
     cWrap.classList.add('aside');
     resetTimer();
   }
-  function closeMenu(){
+  function closeMenu() {
     menu.classList.remove('open');
     shade.classList.remove('open');
-    fab.setAttribute('aria-expanded','false');
+    fab.setAttribute('aria-expanded', 'false');
     cWrap.classList.remove('aside');
     clearTimeout(timer);
     timer = null;
   }
-  function resetTimer(){
+  function resetTimer() {
     clearTimeout(timer);
     timer = setTimeout(closeMenu, 20000);
   }
 
   fab.addEventListener('click', e => {
     e.stopPropagation();
-    if (menu.classList.contains('open')) closeMenu(); else openMenu();
+    if (menu.classList.contains('open')) closeMenu();
+    else openMenu();
   });
   shade.addEventListener('click', closeMenu);
   document.addEventListener('keydown', e => {
@@ -220,7 +256,8 @@
   const up = () => {
     if (!dragging) return;
     dragging = false;
-    if (!moved){
+    if (!moved) {
+      // treat as click: open Carrie chat
       location.href = 'carrie-chat.html';
     }
   };
