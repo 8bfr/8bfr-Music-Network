@@ -54,7 +54,7 @@
   .bob{ animation:bob 3.5s ease-in-out infinite }
   @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 
-  /* Small screens: nudge items slightly */
+  /* Small screens */
   @media (max-width: 420px){
     #fab{ top:90px }
     #contactFab{ top:156px }
@@ -112,4 +112,86 @@
         <a href="contact.html">Contact</a><a href="about.html">About</a>
       </details>
       <details class="group"><summary>Studio & AI</summary>
-        <a href="studio-tools.html">All Tools</a><a href="
+        <a href="studio-tools.html">All Tools</a><a href="creator-tools.html">Creator Tools</a>
+        <a href="lyrics-ai.html">AI Lyrics</a><a href="song-ai.html">AI Song</a><a href="album-ai.html">AI Album</a>
+        <a href="voice-ai.html">Voice / Post VO</a><a href="master_ai.html">Master AI</a><a href="cover_ai.html">Cover AI</a>
+        <a href="author.html">Author</a><a href="author-hub.html">Author Hub</a><a href="translate.html">Translate</a>
+      </details>
+      <details class="group"><summary>Tournaments & Games</summary>
+        <a href="game-hub.html">Game Hub</a><a href="games.html">Games</a><a href="arcade.html">Arcade</a>
+        <a href="game-tournaments.html">Tournaments</a><a href="game-leaderboards.html">Leaderboards</a>
+        <a href="pool-8-ball.html">Pool 8-Ball</a><a href="pool-9-ball.html">Pool 9-Ball</a><a href="trickshot-pool.html">Trickshot</a>
+        <a href="game_pool_8ball.html">8-Ball (alt)</a><a href="game_pool_9ball.html">9-Ball (alt)</a><a href="game_pool_trick.html">Trickshot (alt)</a>
+      </details>
+      <details class="group"><summary>Profiles</summary>
+        <a href="profiles.html">All Profiles</a><a href="profile_artist.html">Artist Profile</a>
+        <a href="profile_beatmaker.html">Beatmaker Profile</a><a href="profile_author.html">Author Profile</a>
+        <a href="profile_dancer.html">Dancer Profile</a><a href="profile_influencer.html">Influencer Profile</a>
+        <a href="profile_fan.html">Fan Profile</a><a href="profile.html">My Profile (generic)</a>
+      </details>
+      <details class="group"><summary>Shop</summary>
+        <a href="shop.html">Store</a><a href="store.html">Store (alt)</a><a href="coinshop.html">Coin Shop</a>
+        <a href="game-coin-shop.html">Game Coin Shop</a><a href="upgrades.html">Upgrades</a><a href="stickers.html">Stickers</a>
+        <a href="shop-stickers.html">Shop Stickers</a><a href="shop-upgrades.html">Shop Upgrades</a>
+        <a href="pricing.html">Pricing</a><a href="donate.html">Donate</a>
+      </details>
+      <details class="group"><summary>Admin / Mod / Owner</summary>
+        <a href="admin.html">Admin</a><a href="admin-panel.html">Admin Panel</a><a href="admin_panel.html">Admin Panel (alt)</a>
+        <a href="admin-hub.html">Admin Hub</a><a href="admin-guide.html">Admin Guide</a><a href="admin_guide.html">Admin Guide (alt)</a>
+        <a href="mod-hub.html">Mod Hub</a><a href="mod-panel.html">Mod Panel</a><a href="mod_panel.html">Mod Panel (alt)</a>
+        <a href="owner.html">Owner</a><a href="owner-studio.html">Owner Studio</a><a href="owner-panel.html">Owner Panel</a>
+        <a href="owner_picks.html">Owner Picks</a>
+      </details>
+      <details class="group"><summary>Info & Legal</summary>
+        <a href="faq.html">FAQ</a><a href="help.html">Help</a><a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a><a href="credits.html">Credits</a><a href="tos_updates.html">TOS Updates</a>
+        <a href="announcements.html">Announcements</a>
+      </details>
+      <details class="group"><summary>Carrie & Fun</summary>
+        <a href="carrie-chat.html">Carrie Chat</a><a href="carrie-closet.html">Carrie Closet</a><a href="carrie-concerts.html">Carrie Concerts</a>
+        <a href="kids.html">Kids</a><a href="kids-zone.html">Kids Zone</a><a href="kids_games.html">Kids Games</a><a href="kids_stories.html">Kids Stories</a>
+        <a href="system.html">System</a><a href="debug.html">Debug</a>
+      </details>
+    </nav>
+
+    <!-- Carrie (draggable) -->
+    <div id="carrieWrap" title="Chat with Carrie (drag)">
+      <video id="carrie" autoplay loop muted playsinline src="assets/videos/carrie_casual_animate_3_1.mp4"></video>
+    </div>
+  `;
+  document.body.appendChild(shell);
+
+  // Button actions
+  document.getElementById('contactFab').addEventListener('click', ()=> location.href='contact.html');
+  document.getElementById('donateFab').addEventListener('click', ()=> {
+    window.open('https://www.paypal.com/donate?business=8bfr.music@gmail.com','_blank','noopener');
+  });
+  document.getElementById('topFab').addEventListener('click', ()=> {
+    try{ window.scrollTo({top:0, behavior:'smooth'}); }catch{ window.scrollTo(0,0); }
+  });
+
+  // Menu logic
+  const fab=document.getElementById('fab'),menu=document.getElementById('menu'),
+        shade=document.getElementById('backdrop'),cWrap=document.getElementById('carrieWrap');
+  let timer=null;
+  function open(){menu.classList.add('open');shade.classList.add('open');fab.setAttribute('aria-expanded','true');cWrap.classList.add('aside');reset()}
+  function close(){menu.classList.remove('open');shade.classList.remove('open');fab.setAttribute('aria-expanded','false');cWrap.classList.remove('aside');clearTimeout(timer);timer=null}
+  function reset(){clearTimeout(timer);timer=setTimeout(close,20000)}
+  fab.addEventListener('click',e=>{e.stopPropagation();menu.classList.contains('open')?close():open()});
+  shade.addEventListener('click',close);
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
+  menu.addEventListener('pointermove',reset);
+  menu.addEventListener('wheel',reset);
+
+  // Carrie drag + click to chat
+  const wrap=cWrap,video=document.getElementById('carrie'); wrap.classList.add('bob');
+  video.addEventListener('click',()=>location.href='carrie-chat.html');
+  let dragging=false,sx=0,sy=0,ox=0,oy=0;
+  const p=e=>('touches'in e)?[e.touches[0].clientX,e.touches[0].clientY]:[e.clientX,e.clientY];
+  const down=e=>{dragging=true;[sx,sy]=p(e);const r=wrap.getBoundingClientRect();ox=r.left;oy=r.top;e.preventDefault();}
+  const move=e=>{if(!dragging)return;const[x,y]=p(e);const dx=x-sx,dy=y-sy;wrap.style.right='auto';wrap.style.bottom='auto';wrap.style.left=(ox+dx)+'px';wrap.style.top=(oy+dy)+'px';}
+  const up=()=>dragging=false;
+  wrap.addEventListener('mousedown',down);wrap.addEventListener('touchstart',down,{passive:false});
+  window.addEventListener('mousemove',move,{passive:false});window.addEventListener('touchmove',move,{passive:false});
+  window.addEventListener('mouseup',up);window.addEventListener('touchend',up);
+})();
