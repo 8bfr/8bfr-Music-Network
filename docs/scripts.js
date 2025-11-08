@@ -1,216 +1,34 @@
-// 8BFR global script – hero text, ads, modals, floating menu, Carrie, bubbles
-(function(){
-  function onReady(fn){
-    if(document.readyState === 'loading'){
-      document.addEventListener('DOMContentLoaded', fn);
-    } else {
-      fn();
-    }
-  }
-
-  onReady(function(){
-    setupHero();
-    setupAds();
-    setupAdFormModal();
-    setupHowAdsModal();
-    injectGlobalUI();
-  });
-
-  function setupHero(){
-    var el = document.getElementById('line');
-    if(!el) return;
-    var lines = [
-      'Game Tournaments (Win Free Coins)',
-      'Music Studio — AI Lyrics & AI Beat Creator (Artists & Beatmakers)',
-      'AI Post Creator with Voiceover (Influencers)',
-      'AI Helper for Authors',
-      'Mirror Your Streams from Other Sites',
-      'Seller Options • Group 7 (G7) Perks',
-      'Carrie — AI Chat & Helper',
-      'Explore the site to find all features'
-    ];
-    var i = 0;
-    setInterval(function(){
-      i = (i + 1) % lines.length;
-      el.textContent = lines[i];
-    }, 4800);
-  }
-
-  function setupAds(){
-    var track = document.getElementById('adTrack');
-    var prev  = document.getElementById('adPrev');
-    var next  = document.getElementById('adNext');
-    var pause = document.getElementById('adPause');
-    if(!track || !prev || !next || !pause) return;
-
-    var ads = [
-      {img:'assets/images/ad_banner_1.jpg', url:'#'},
-      {img:'assets/images/ad_banner_2.jpg', url:'#'},
-      {img:'assets/images/ad_banner_3.jpg', url:'#'},
-      {img:'assets/images/ad_banner_4.jpg', url:'#'},
-      {img:'assets/images/ad_banner_5.jpg', url:'#'}
-    ];
-
-    var i = 0;
-    var paused = false;
-    var t = null;
-
-    function slide(idx){
-      i = (idx + ads.length) % ads.length;
-      var old = track.querySelector('.ad-slide.show');
-
-      var a = document.createElement('a');
-      a.className = 'ad-slide';
-      a.href = ads[i].url || '#';
-      a.target = '_blank';
-      a.rel = 'noopener';
-
-      var img = new Image();
-      img.src = ads[i].img;
-      img.alt = 'Ad banner';
-      a.appendChild(img);
-
-      track.appendChild(a);
-      requestAnimationFrame(function(){ a.classList.add('show'); });
-
-      if(old){ setTimeout(function(){ old.remove(); }, 380); }
-    }
-
-    function auto(){ if(paused) return; slide(i + 1); schedule(); }
-    function schedule(){ clearTimeout(t); t = setTimeout(auto, 5000); }
-
-    prev.onclick = function(){ if(!paused){ paused=true; pause.textContent='Play'; } slide(i-1); };
-    next.onclick = function(){ if(!paused){ paused=true; pause.textContent='Play'; } slide(i+1); };
-    pause.onclick = function(){
-      paused = !paused;
-      pause.textContent = paused ? 'Play' : 'Pause';
-      if(!paused) schedule(); else clearTimeout(t);
-    };
-
-    var sx=0, dx=0, down=false;
-    track.addEventListener('touchstart', function(e){
-      down = true; sx = e.touches[0].clientX; dx = 0; clearTimeout(t);
-    }, {passive:true});
-    track.addEventListener('touchmove', function(e){
-      if(!down) return; dx = e.touches[0].clientX - sx;
-    }, {passive:true});
-    track.addEventListener('touchend', function(){
-      down = false;
-      if(Math.abs(dx) > 40){ if(dx < 0) next.click(); else prev.click(); }
-      schedule();
-    }, {passive:true});
-
-    slide(0); schedule();
-  }
-
-  function setupAdFormModal(){
-    var openBtn = document.getElementById('openAdForm');
-    if(!openBtn) return;
-
-    var modal = document.createElement('div');
-    modal.className = 'modal ad-modal';
-    modal.innerHTML = '\
-      <style>\
-        .modal{position:fixed;inset:0;z-index:10000;display:none;}\
-        .modal.open{display:block;}\
-        .modal .shade{position:absolute;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(2px);}\
-        .modal .panel{position:relative;margin:6vh auto 0;max-width:720px;background:#0c0618;border:1px solid rgba(124,58,237,.4);border-radius:14px;padding:16px;box-shadow:0 20px 40px rgba(0,0,0,.6);}\
-        .modal label{font-size:.9rem;opacity:.9;display:block;margin-bottom:2px;}\
-        .modal .input{width:100%;padding:.55rem .7rem;background:#120327;color:#fff;border:1px solid rgba(124,58,237,.5);border-radius:.55rem;margin-bottom:.35rem;}\
-        .modal .btn{display:inline-block;background:#120327;border:1px solid rgba(124,58,237,.6);color:#eae6ff;padding:.6rem .95rem;border-radius:.75rem;text-decoration:none;font-size:.9rem;}\
-        .modal .btn-primary{background:#7c3aed;border-color:#7c3aed;color:#fff;}\
-      </style>\
-      <div class="shade"></div>\
-      <div class="panel">\
-        <h3 class="text-xl font-bold mb-3">Buy an Ad</h3>\
-        <form action="ads.html#form" method="get">\
-          <div class="grid sm:grid-cols-2 gap-3">\
-            <div><label>Advertiser / Artist</label><input class="input" name="name" placeholder="Your name or brand"></div>\
-            <div><label>Contact Email</label><input class="input" name="email" type="email" placeholder="you@domain.com"></div>\
-            <div class="sm:col-span-2"><label>Target URL</label><input class="input" name="url" placeholder="https://your-link"></div>\
-            <div class="sm:col-span-2"><label>Notes</label><textarea class="input" name="notes" rows="3" placeholder="Tell us about your ad"></textarea></div>\
-          </div>\
-          <div class="mt-4 flex gap-2 flex-wrap">\
-            <button type="submit" class="btn btn-primary">Continue</button>\
-            <button type="button" class="btn" id="closeAdForm">Cancel</button>\
-          </div>\
-        </form>\
-      </div>';
-
-    document.body.appendChild(modal);
-    var shade = modal.querySelector('.shade');
-    var closeBtn = modal.querySelector('#closeAdForm');
-
-    openBtn.addEventListener('click', function(){ modal.classList.add('open'); });
-    shade.addEventListener('click', function(){ modal.classList.remove('open'); });
-    closeBtn.addEventListener('click', function(){ modal.classList.remove('open'); });
-  }
-
-  function setupHowAdsModal(){
-    var btn = document.getElementById('openHowAds');
-    if(!btn) return;
-
-    var modal = document.createElement('div');
-    modal.className = 'modal how-ads-modal';
-    modal.innerHTML = '\
-      <style>\
-        .how-ads-modal{position:fixed;inset:0;z-index:10000;display:none;}\
-        .how-ads-modal.open{display:block;}\
-        .how-ads-modal .shade{position:absolute;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(2px);}\
-        .how-ads-modal .panel{position:relative;margin:6vh auto 0;max-width:720px;background:#0c0618;border:1px solid rgba(124,58,237,.4);border-radius:14px;padding:16px;box-shadow:0 20px 40px rgba(0,0,0,.6);}\
-        .how-ads-modal .btn{display:inline-block;background:#120327;border:1px solid rgba(124,58,237,.6);color:#eae6ff;padding:.6rem .95rem;border-radius:.75rem;text-decoration:none;font-size:.9rem;}\
-        .how-ads-modal .btn-primary{background:#7c3aed;border-color:#7c3aed;color:#fff;}\
-      </style>\
-      <div class="shade"></div>\
-      <div class="panel">\
-        <h3 class="text-xl font-bold mb-3">How Ads Work</h3>\
-        <ol class="list-decimal pl-6 space-y-2 text-sm text-purple-100/90">\
-          <li>There are always <b>5 ad slots</b> in rotation.</li>\
-          <li>When someone buys an ad, it replaces a placeholder until it <b>expires</b>.</li>\
-          <li>After expiration, the placeholder returns automatically.</li>\
-          <li>You can <b>pause</b> the carousel, or use <b>arrows</b> to navigate.</li>\
-          <li>Click any ad to open the advertiser\'s page.</li>\
-        </ol>\
-        <div class="mt-4 flex gap-2 flex-wrap">\
-          <a class="btn btn-primary" href="ads.html#form">Buy an Ad</a>\
-          <button class="btn" type="button" id="closeHowAds">Close</button>\
-        </div>\
-      </div>';
-
-    document.body.appendChild(modal);
-    var shade = modal.querySelector('.shade');
-    var closeBtn = modal.querySelector('#closeHowAds');
-
-    btn.addEventListener('click', function(){ modal.classList.add('open'); });
-    shade.addEventListener('click', function(){ modal.classList.remove('open'); });
-    closeBtn.addEventListener('click', function(){ modal.classList.remove('open'); });
-  }
-
-  function injectGlobalUI(){
-    if(document.getElementById('fab')) return;
+function injectGlobalUI(){
+    if (document.getElementById('fab')) return; // already injected
 
     var css = document.createElement('style');
     css.textContent = '\
       :root{--ring:rgba(124,58,237,.55);--glass:rgba(12,6,24,.80);}\
       #fab{position:fixed;top:86px;right:14px;z-index:9999;width:56px;height:56px;border-radius:9999px;display:grid;place-items:center;cursor:pointer;background:radial-gradient(120% 120% at 30% 20%,rgba(124,58,237,.50),rgba(10,10,20,.70));border:1px solid rgba(124,58,237,.35);box-shadow:0 0 14px rgba(124,58,237,.30),0 0 18px rgba(0,217,255,.18) inset;}\
-      #menu{position:fixed;top:144px;right:14px;width:min(92vw,270px);max-height:calc(100vh - 160px);overflow-y:auto;z-index:9998;transform:translateX(115%);transition:transform .25s ease;backdrop-filter:blur(10px);background:var(--glass);border:1px solid var(--ring);border-radius:12px;box-shadow:0 12px 28px rgba(0,0,0,.45);font-size:.85rem;}\
+      #menu{position:fixed;top:144px;right:14px;width:min(88vw,230px);max-height:calc(100vh - 160px);overflow-y:auto;z-index:9998;transform:translateX(115%);transition:transform .25s ease;backdrop-filter:blur(10px);background:var(--glass);border:1px solid var(--ring);border-radius:12px;box-shadow:0 12px 28px rgba(0,0,0,.45);font-size:.78rem;}\
       #menu.open{transform:translateX(0);}\
       #backdrop{position:fixed;inset:0;background:rgba(0,0,0,.18);backdrop-filter:blur(1px);z-index:9990;opacity:0;pointer-events:none;transition:opacity .2s ease;}\
       #backdrop.open{opacity:1;pointer-events:auto;}\
-      #menu .group{margin:8px;border:1px solid rgba(124,58,237,.28);border-radius:10px;overflow:hidden;}\
-      #menu .group summary{cursor:pointer;padding:7px 9px;background:rgba(124,58,237,.10);}\
-      #menu .group a{display:block;padding:6px 9px;color:#eae6ff;text-decoration:none;}\
+      #menu .group{margin:3px;border:1px solid rgba(124,58,237,.28);border-radius:10px;overflow:hidden;}\
+      #menu .group summary{cursor:pointer;padding:5px 7px;background:rgba(124,58,237,.10);}\
+      #menu .group a{display:block;padding:3px 7px;color:#eae6ff;text-decoration:none;}\
       #menu .group a:hover{background:rgba(124,58,237,.14);}\
       #carrieWrap{position:fixed;right:14px;bottom:16px;z-index:9997;transition:transform .25s ease;user-select:none;touch-action:none;}\
-      #carrieWrap.aside{transform:translateX(-260px);}\
-      #carrie{width:min(80vw,420px);height:auto;border-radius:0;background:transparent!important;filter:drop-shadow(0 10px 28px rgba(124,58,237,.35)) drop-shadow(0 4px 10px rgba(0,0,0,.45));display:block;}\
-      #carrieWrap.bob{animation:bob 3.5s ease-in-out infinite;}\
+      #carrieWrap.aside{transform:translateX(-240px);}\
+      #carrie{width:min(90vw,480px);height:auto;border-radius:0;background:transparent!important;filter:drop-shadow(0 10px 28px rgba(124,58,237,.35)) drop-shadow(0 4px 10px rgba(0,0,0,.45));display:block;object-fit:contain;}\
+      #carrie.bob{animation:bob 3.5s ease-in-out infinite;}\
       @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}\
       .bubble{position:fixed;width:46px;height:46px;border-radius:999px;display:grid;place-items:center;font-size:22px;background:radial-gradient(circle at 30% 20%,rgba(124,58,237,.55),rgba(10,10,20,.85));border:1px solid rgba(124,58,237,.5);box-shadow:0 0 14px rgba(124,58,237,.30);color:#eae6ff;cursor:pointer;z-index:10001;opacity:0.9;transition:transform .25s ease;}\
       .bubble:hover{opacity:1;box-shadow:0 0 18px rgba(124,58,237,.45);}\
       #bubble-contact{right:14px;top:150px;}\
       #bubble-donate{right:14px;top:204px;}\
-      .bubble.aside{transform:translateX(-260px);}';
+      #bubble-top{right:14px;top:258px;}\
+      .bubble.aside{transform:translateX(-240px);}\
+      .bubble-label{position:fixed;right:68px;font-size:11px;padding:2px 6px;border-radius:999px;background:rgba(5,2,12,.75);color:#eae6ff;opacity:.7;pointer-events:none;z-index:10000;}\
+      #label-contact{top:160px;}\
+      #label-donate{top:214px;}\
+      #label-top{top:268px;}\
+      .bubble-label.aside{transform:translateX(-240px);}';
     document.head.appendChild(css);
 
     var shell = document.createElement('div');
@@ -365,20 +183,28 @@
           <a href="zz-test.html">ZZ Test</a>\
         </details>\
       </nav>\
-      <div id="carrieWrap" class="bob" title="Chat with Carrie (drag / tap)">\
-        <video id="carrie" src="assets/videos/carrie_casual_animate_3_1.webm" autoplay loop muted playsinline style="width:min(80vw,420px);height:auto;background:transparent;object-fit:contain;"></video>\
+      <div id="carrieWrap" title="Chat with Carrie (drag / tap)">\
+        <video id="carrie" class="bob" src="assets/videos/carrie_casual_animate_3_1.webm" autoplay loop muted playsinline></video>\
       </div>\
       <button id="bubble-contact" class="bubble" title="Contact">&#9835;</button>\
-      <button id="bubble-donate" class="bubble" title="Donate">&#9834;</button>';
-
+      <button id="bubble-donate" class="bubble" title="Donate">&#9834;</button>\
+      <button id="bubble-top" class="bubble" title="Back to top">&#8593;</button>\
+      <span id="label-contact" class="bubble-label">Contact</span>\
+      <span id="label-donate" class="bubble-label">Donate</span>\
+      <span id="label-top" class="bubble-label">Top</span>';
     document.body.appendChild(shell);
 
-    var fab = document.getElementById('fab');
-    var menu = document.getElementById('menu');
-    var backdrop = document.getElementById('backdrop');
-    var carrieWrap = document.getElementById('carrieWrap');
+    var fab           = document.getElementById('fab');
+    var menu          = document.getElementById('menu');
+    var backdrop      = document.getElementById('backdrop');
+    var carrieWrap    = document.getElementById('carrieWrap');
+    var carrieVideo   = document.getElementById('carrie');
     var bubbleContact = document.getElementById('bubble-contact');
-    var bubbleDonate = document.getElementById('bubble-donate');
+    var bubbleDonate  = document.getElementById('bubble-donate');
+    var bubbleTop     = document.getElementById('bubble-top');
+    var labelContact  = document.getElementById('label-contact');
+    var labelDonate   = document.getElementById('label-donate');
+    var labelTop      = document.getElementById('label-top');
 
     var timer = null;
 
@@ -389,8 +215,13 @@
       carrieWrap.classList.add('aside');
       bubbleContact.classList.add('aside');
       bubbleDonate.classList.add('aside');
+      bubbleTop.classList.add('aside');
+      labelContact.classList.add('aside');
+      labelDonate.classList.add('aside');
+      labelTop.classList.add('aside');
       resetTimer();
     }
+
     function closeMenu(){
       menu.classList.remove('open');
       backdrop.classList.remove('open');
@@ -398,8 +229,14 @@
       carrieWrap.classList.remove('aside');
       bubbleContact.classList.remove('aside');
       bubbleDonate.classList.remove('aside');
-      clearTimeout(timer); timer=null;
+      bubbleTop.classList.remove('aside');
+      labelContact.classList.remove('aside');
+      labelDonate.classList.remove('aside');
+      labelTop.classList.remove('aside');
+      clearTimeout(timer);
+      timer = null;
     }
+
     function resetTimer(){
       clearTimeout(timer);
       timer = setTimeout(closeMenu, 20000);
@@ -407,44 +244,74 @@
 
     fab.addEventListener('click', function(e){
       e.stopPropagation();
-      if(menu.classList.contains('open')) closeMenu(); else openMenu();
+      if(menu.classList.contains('open')) closeMenu();
+      else openMenu();
     });
+
     backdrop.addEventListener('click', closeMenu);
-    document.addEventListener('keydown', function(e){ if(e.key === 'Escape') closeMenu(); });
+    document.addEventListener('keydown', function(e){
+      if(e.key === 'Escape') closeMenu();
+    });
     menu.addEventListener('pointermove', resetTimer);
     menu.addEventListener('wheel', resetTimer, {passive:true});
 
-    bubbleContact.addEventListener('click', function(){ window.location.href='contact.html'; });
-    bubbleDonate.addEventListener('click', function(){
-      var donate = document.getElementById('donate');
-      if(donate) donate.scrollIntoView({behavior:'smooth'});
-      else window.location.href='donate.html';
+    // bubbles
+    bubbleContact.addEventListener('click', function(){
+      window.location.href = 'contact.html';
     });
 
+    // PayPal donate
+    bubbleDonate.addEventListener('click', function(){
+      window.open('https://www.paypal.com/donate?business=8bfr.music@gmail.com', '_blank');
+    });
+
+    // Back to top
+    bubbleTop.addEventListener('click', function(){
+      window.scrollTo({top:0, behavior:'smooth'});
+    });
+
+    // Carrie drag + tap-to-chat
     var dragging=false, sx=0, sy=0, ox=0, oy=0, downTime=0, moved=false;
 
     function getPoint(e){
-      if(e.touches && e.touches.length){ return {x:e.touches[0].clientX, y:e.touches[0].clientY}; }
+      if(e.touches && e.touches.length){
+        return {x:e.touches[0].clientX, y:e.touches[0].clientY};
+      }
       return {x:e.clientX, y:e.clientY};
     }
+
     function onDown(e){
-      dragging=true; moved=false; downTime=Date.now();
-      var p=getPoint(e); sx=p.x; sy=p.y;
-      var r=carrieWrap.getBoundingClientRect(); ox=r.left; oy=r.top;
-      carrieWrap.style.right='auto'; carrieWrap.style.bottom='auto';
+      dragging = true;
+      moved = false;
+      downTime = Date.now();
+      var p = getPoint(e);
+      sx = p.x;
+      sy = p.y;
+      var r = carrieWrap.getBoundingClientRect();
+      ox = r.left;
+      oy = r.top;
+      carrieWrap.style.right='auto';
+      carrieWrap.style.bottom='auto';
       e.preventDefault();
     }
+
     function onMove(e){
       if(!dragging) return;
-      var p=getPoint(e); var dx=p.x-sx, dy=p.y-sy;
-      if(Math.abs(dx)>5 || Math.abs(dy)>5) moved=true;
-      carrieWrap.style.left=(ox+dx)+'px';
-      carrieWrap.style.top=(oy+dy)+'px';
+      var p = getPoint(e);
+      var dx = p.x - sx;
+      var dy = p.y - sy;
+      if(Math.abs(dx)>5 || Math.abs(dy)>5) moved = true;
+      carrieWrap.style.left = (ox + dx) + 'px';
+      carrieWrap.style.top  = (oy + dy) + 'px';
     }
+
     function onUp(){
-      if(!dragging) return; dragging=false;
-      var dt=Date.now()-downTime;
-      if(!moved && dt<300){ window.location.href='carrie-chat.html'; }
+      if(!dragging) return;
+      dragging = false;
+      var dt = Date.now() - downTime;
+      if(!moved && dt < 300){
+        window.location.href = 'carrie-chat.html';
+      }
     }
 
     carrieWrap.addEventListener('mousedown', onDown);
@@ -453,5 +320,4 @@
     window.addEventListener('touchmove', onMove, {passive:false});
     window.addEventListener('mouseup', onUp);
     window.addEventListener('touchend', onUp);
-  }
-})();
+}
