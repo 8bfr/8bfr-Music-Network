@@ -50,7 +50,7 @@
     transform:translateX(-320px);
   }
   #carrie{
-    width:min(42vw,290px); height:auto; border-radius:0; background:transparent!important;
+    width:min(55vw,420px); height:auto; border-radius:0; background:transparent!important;
     filter:drop-shadow(0 10px 28px rgba(124,58,237,.35)) drop-shadow(0 4px 10px rgba(0,0,0,.45));
     display:block
   }
