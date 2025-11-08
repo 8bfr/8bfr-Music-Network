@@ -108,11 +108,10 @@
   background:var(--chip-hover);
 }
 
-/* Float bubble stack (contact/donate/footer/top) */
 #bubbleStack{
   position:fixed;
+  top:76px;
   right:16px;
-  bottom:18px;
   z-index:9996;
   display:flex;
   flex-direction:column;
