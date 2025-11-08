@@ -142,11 +142,26 @@
         border-style:solid;
         border-color:rgba(10,6,24,.95) transparent transparent transparent;
       }
+      /* "Chat with me" speech bubble attached to Carrie */
+      #carrieTip{
+        position:absolute;
+        bottom:100%;
+        right:40px;              /* shift left so it’s over her head */
+        margin-bottom:8px;
+        padding:5px 10px;
+        font-size:11px;
+        border-radius:14px;
+        background:rgba(10,6,24,.95);
+        color:#eae6ff;
+        border:1px solid rgba(124,58,237,.9);
+        box-shadow:0 0 10px rgba(124,58,237,.55);
+        white-space:nowrap;
+      }
       #carrieTip::after{
         content:"";
         position:absolute;
-        bottom:-7px;             /* tail points downward toward her mouth */
-        right:16px;              /* move this left/right to fine-tune where it points */
+        bottom:-7px;             /* tail points downward toward her */
+        right:16px;              /* move left/right to fine-tune where it hits her mouth */
         border-width:7px 7px 0 7px;
         border-style:solid;
         border-color:rgba(10,6,24,.95) transparent transparent transparent;
