@@ -185,7 +185,6 @@
 
   // Carrie drag + tap to open chat
   const wrap = cWrap;
-  const video = document.getElementById('carrie');
   wrap.classList.add('bob');
 
   let dragging = false;
