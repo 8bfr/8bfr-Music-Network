@@ -166,15 +166,14 @@
         box-shadow:0 0 18px rgba(124,58,237,.45);
       }
       #bubble-contact{ right:14px; top:150px; }
-      #bubble-donate{ right:14px; top:204px; }
-      #bubble-bottom{ right:14px; top:258px; } /* down arrow */
-      #bubble-top{    right:14px; bottom:24px; } /* up arrow */
+      #bubble-donate{  right:14px; top:204px; }
+      #bubble-bottom{  right:14px; top:258px; } /* down arrow */
+      #bubble-top{     right:14px; bottom:24px; } /* up arrow */
 
       .bubble.aside{
         transform:translateX(-240px);
       }
 
-      /* Labels for bubbles */
       .bubble-label{
         position:fixed;
         right:68px;
