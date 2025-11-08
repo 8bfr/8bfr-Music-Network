@@ -106,51 +106,155 @@
     <!-- Backdrop + Menu -->
     <div id="backdrop"></div>
     <nav id="menu" aria-hidden="true">
-      <details class="group" open><summary>Home</summary>
-        <a href="index.html">Dashboard</a><a href="home.html">Home (alt)</a><a href="featured.html">Featured</a>
-        <a href="feed.html">Community Feed</a><a href="radio.html">Radio</a><a href="podcast.html">Podcast</a>
-        <a href="contact.html">Contact</a><a href="about.html">About</a>
+      <!-- HOME / COMMUNITY -->
+      <details class="group" open><summary>Home & Community</summary>
+        <a href="index.html">Dashboard / Home</a>
+        <a href="home.html">Home (alt)</a>
+        <a href="featured.html">Featured</a>
+        <a href="featured_songs.html">Featured Songs</a>
+        <a href="feed.html">Community Feed</a>
+        <a href="fan-zone.html">Fan Zone</a>
+        <a href="blog.html">Blog</a>
+        <a href="stories.html">Stories</a>
+        <a href="posts.html">Posts</a>
+        <a href="podcast.html">Podcast</a>
+        <a href="radio.html">Radio</a>
+        <a href="contact.html">Contact</a>
+        <a href="about.html">About</a>
+        <a href="press.html">Press</a>
+        <a href="help.html">Help</a>
+        <a href="faq.html">FAQ</a>
+        <a href="chat.html">Site Chat</a>
       </details>
+
+      <!-- STUDIO & AI -->
       <details class="group"><summary>Studio & AI</summary>
-        <a href="studio-tools.html">All Tools</a><a href="creator-tools.html">Creator Tools</a>
-        <a href="lyrics-ai.html">AI Lyrics</a><a href="song-ai.html">AI Song</a><a href="album-ai.html">AI Album</a>
-        <a href="voice-ai.html">Voice / Post VO</a><a href="master_ai.html">Master AI</a><a href="cover_ai.html">Cover AI</a>
-        <a href="author.html">Author</a><a href="author-hub.html">Author Hub</a><a href="translate.html">Translate</a>
+        <a href="artist-studio.html">Artist Studio</a>
+        <a href="artist.html">Artist Page</a>
+        <a href="beatmaker.html">Beatmaker Page</a>
+        <a href="studio-tools.html">Studio Tools</a>
+        <a href="studio_tools.html">Studio Tools (alt)</a>
+        <a href="creator-tools.html">Creator Tools</a>
+        <a href="creator_tools.html">Creator Tools (alt)</a>
+        <a href="game-music.html">Game Music</a>
+        <a href="lyrics-ai.html">AI Lyrics</a>
+        <a href="lyric_ai.html">AI Lyrics (alt)</a>
+        <a href="song-ai.html">AI Song</a>
+        <a href="album-ai.html">AI Album</a>
+        <a href="voice-ai.html">Voice / Post VO</a>
+        <a href="master_ai.html">Master AI</a>
+        <a href="cover_ai.html">Cover AI</a>
+        <a href="author.html">Author</a>
+        <a href="author-hub.html">Author Hub</a>
+        <a href="integration.html">Integration</a>
+        <a href="translate.html">Translate</a>
       </details>
+
+      <!-- TOURNAMENTS & GAMES -->
       <details class="group"><summary>Tournaments & Games</summary>
-        <a href="game-hub.html">Game Hub</a><a href="games.html">Games</a><a href="arcade.html">Arcade</a>
-        <a href="game-tournaments.html">Tournaments</a><a href="game-leaderboards.html">Leaderboards</a>
-        <a href="pool-8-ball.html">Pool 8-Ball</a><a href="pool-9-ball.html">Pool 9-Ball</a><a href="trickshot-pool.html">Trickshot</a>
-        <a href="game_pool_8ball.html">8-Ball (alt)</a><a href="game_pool_9ball.html">9-Ball (alt)</a><a href="game_pool_trick.html">Trickshot (alt)</a>
+        <a href="game-hub.html">Game Hub</a>
+        <a href="games.html">Games</a>
+        <a href="arcade.html">Arcade</a>
+        <a href="game-tournaments.html">Tournaments</a>
+        <a href="game-leaderboards.html">Game Leaderboards</a>
+        <a href="leaderboard.html">Site Leaderboard</a>
+        <a href="game-coin-shop.html">Game Coin Shop</a>
+        <a href="pool-8-ball.html">Pool 8-Ball</a>
+        <a href="pool-9-ball.html">Pool 9-Ball</a>
+        <a href="trickshot-pool.html">Trickshot Pool</a>
+        <a href="game_pool_8ball.html">Pool 8-Ball (alt)</a>
+        <a href="game_pool_9ball.html">Pool 9-Ball (alt)</a>
+        <a href="game_pool_trick.html">Trickshot (alt)</a>
       </details>
-      <details class="group"><summary>Profiles</summary>
-        <a href="profiles.html">All Profiles</a><a href="profile_artist.html">Artist Profile</a>
-        <a href="profile_beatmaker.html">Beatmaker Profile</a><a href="profile_author.html">Author Profile</a>
-        <a href="profile_dancer.html">Dancer Profile</a><a href="profile_influencer.html">Influencer Profile</a>
-        <a href="profile_fan.html">Fan Profile</a><a href="profile.html">My Profile (generic)</a>
+
+      <!-- PROFILES -->
+      <details class="group"><summary>Profiles & Badges</summary>
+        <a href="profiles.html">All Profiles</a>
+        <a href="profile.html">My Profile (generic)</a>
+        <a href="profile_base.html">Profile Base</a>
+        <a href="profile_artist.html">Artist Profile</a>
+        <a href="profile_beatmaker.html">Beatmaker Profile</a>
+        <a href="profile_author.html">Author Profile</a>
+        <a href="profile_dancer.html">Dancer Profile</a>
+        <a href="profile_influencer.html">Influencer Profile</a>
+        <a href="profile_fan.html">Fan Profile</a>
+        <a href="influencer.html">Influencer Page</a>
+        <a href="influencer-hub.html">Influencer Hub</a>
+        <a href="fan-zone.html">Fan Zone</a>
       </details>
-      <details class="group"><summary>Shop</summary>
-        <a href="shop.html">Store</a><a href="store.html">Store (alt)</a><a href="coinshop.html">Coin Shop</a>
-        <a href="game-coin-shop.html">Game Coin Shop</a><a href="upgrades.html">Upgrades</a><a href="stickers.html">Stickers</a>
-        <a href="shop-stickers.html">Shop Stickers</a><a href="shop-upgrades.html">Shop Upgrades</a>
-        <a href="pricing.html">Pricing</a><a href="donate.html">Donate</a>
+
+      <!-- SHOP -->
+      <details class="group"><summary>Shop & Coins</summary>
+        <a href="shop.html">Shop</a>
+        <a href="store.html">Store (alt)</a>
+        <a href="coinshop.html">Coin Shop</a>
+        <a href="game-coin-shop.html">Game Coin Shop</a>
+        <a href="shop-stickers.html">Shop Stickers</a>
+        <a href="stickers.html">Stickers (alt)</a>
+        <a href="shop-upgrades.html">Shop Upgrades</a>
+        <a href="upgrades.html">Upgrades (alt)</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="donate.html">Donate</a>
+        <a href="thank_you.html">Thank You</a>
       </details>
+
+      <!-- ADMIN / MOD / OWNER -->
       <details class="group"><summary>Admin / Mod / Owner</summary>
-        <a href="admin.html">Admin</a><a href="admin-panel.html">Admin Panel</a><a href="admin_panel.html">Admin Panel (alt)</a>
-        <a href="admin-hub.html">Admin Hub</a><a href="admin-guide.html">Admin Guide</a><a href="admin_guide.html">Admin Guide (alt)</a>
-        <a href="mod-hub.html">Mod Hub</a><a href="mod-panel.html">Mod Panel</a><a href="mod_panel.html">Mod Panel (alt)</a>
-        <a href="owner.html">Owner</a><a href="owner-studio.html">Owner Studio</a><a href="owner-panel.html">Owner Panel</a>
+        <a href="admin.html">Admin</a>
+        <a href="admin-panel.html">Admin Panel</a>
+        <a href="admin_panel.html">Admin Panel (alt)</a>
+        <a href="admin-hub.html">Admin Hub</a>
+        <a href="admin-guide.html">Admin Guide</a>
+        <a href="admin_guide.html">Admin Guide (alt)</a>
+
+        <a href="mod-hub.html">Mod Hub</a>
+        <a href="mod-panel.html">Mod Panel</a>
+        <a href="mod_panel.html">Mod Panel (alt)</a>
+
+        <a href="owner.html">Owner</a>
+        <a href="owner-panel.html">Owner Panel</a>
+        <a href="owner-studio.html">Owner Studio</a>
         <a href="owner_picks.html">Owner Picks</a>
+
+        <a href="contests.html">Contests</a>
+        <a href="contest.html">Contest (single)</a>
+
+        <a href="stats.html">Stats</a>
+        <a href="rules.html">Rules</a>
+        <a href="system.html">System</a>
+        <a href="debug.html">Debug</a>
+        <a href="dm.html">DM (messages)</a>
+        <a href="menu.html">Menu Page</a>
+        <a href="login.html">Login</a>
+        <a href="reset-password.html">Reset Password</a>
+        <a href="reset_password.html">Reset Password (alt)</a>
+        <a href="zz-test.html">ZZ Test</a>
       </details>
+
+      <!-- INFO / LEGAL -->
       <details class="group"><summary>Info & Legal</summary>
-        <a href="faq.html">FAQ</a><a href="help.html">Help</a><a href="privacy.html">Privacy</a>
-        <a href="terms.html">Terms</a><a href="credits.html">Credits</a><a href="tos_updates.html">TOS Updates</a>
-        <a href="announcements.html">Announcements</a>
+        <a href="faq.html">FAQ</a>
+        <a href="help.html">Help</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+        <a href="tos_updates.html">TOS Updates</a>
+        <a href="credits.html">Credits</a>
+        <a href="press.html">Press</a>
+        <a href="awards.html">Awards</a>
+        <a href="dedications.html">Dedications</a>
+        <a href="dedication.html">Dedication (single)</a>
       </details>
-      <details class="group"><summary>Carrie & Fun</summary>
-        <a href="carrie-chat.html">Carrie Chat</a><a href="carrie-closet.html">Carrie Closet</a><a href="carrie-concerts.html">Carrie Concerts</a>
-        <a href="kids.html">Kids</a><a href="kids-zone.html">Kids Zone</a><a href="kids_games.html">Kids Games</a><a href="kids_stories.html">Kids Stories</a>
-        <a href="system.html">System</a><a href="debug.html">Debug</a>
+
+      <!-- CARRIE / KIDS / FUN -->
+      <details class="group"><summary>Carrie • Kids • Fun</summary>
+        <a href="carrie-chat.html">Carrie Chat</a>
+        <a href="carrie-closet.html">Carrie Closet</a>
+        <a href="carrie-concerts.html">Carrie Concerts</a>
+        <a href="kids.html">Kids</a>
+        <a href="kids-zone.html">Kids Zone</a>
+        <a href="kids_games.html">Kids Games</a>
+        <a href="kids_stories.html">Kids Stories</a>
+        <a href="stories.html">Stories</a>
       </details>
     </nav>
 
