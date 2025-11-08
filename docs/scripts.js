@@ -4,8 +4,8 @@
   const css = document.createElement('style');
   css.textContent = `
   :root{ --ring: rgba(124,58,237,.55); --glass: rgba(12,6,24,.70); }
-  /* Floating buttons */
-  #fab, #contactFab{
+  /* Floating round buttons */
+  #fab, #contactFab, #donateFab, #topFab{
     position:fixed; right:14px; z-index:9999; width:56px; height:56px; border-radius:9999px;
     display:grid; place-items:center; cursor:pointer;
     background:radial-gradient(120% 120% at 30% 20%, rgba(124,58,237,.50), rgba(10,10,20,.50));
@@ -14,10 +14,11 @@
     backdrop-filter: blur(4px);
   }
   #fab{ top:86px; }
-  /* Contact sits 66px below the FAB (56px button + 10px gap) */
   #contactFab{ top:152px; z-index:9998 }
-  #contactFab svg{ stroke:#00d9ff }
-  #fab svg{ stroke:#00d9ff }
+  #donateFab{ top:218px; z-index:9998 }
+  #topFab{ top:284px; z-index:9998 }
+
+  #fab svg, #contactFab svg, #donateFab svg, #topFab svg{ stroke:#00d9ff }
 
   /* Slide-out menu panel */
   #menu{
@@ -53,10 +54,12 @@
   .bob{ animation:bob 3.5s ease-in-out infinite }
   @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 
-  /* Small screens: nudge buttons a bit lower */
+  /* Small screens: nudge items slightly */
   @media (max-width: 420px){
     #fab{ top:90px }
     #contactFab{ top:156px }
+    #donateFab{ top:222px }
+    #topFab{ top:288px }
     #menu{ top:170px; max-height:calc(100vh - 186px) }
   }
   `;
@@ -74,13 +77,30 @@
       <span class="sr-only">Open site menu</span>
     </button>
 
-    <!-- Floating Contact button -->
+    <!-- Contact -->
     <button id="contactFab" title="Contact 8BFR">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true">
-        <path d="M4 6h16v12H4z"></path>
+        <rect x="3" y="5" width="18" height="14" rx="2" ry="2"></rect>
         <path d="M22 6l-10 7L2 6"></path>
       </svg>
       <span class="sr-only">Contact</span>
+    </button>
+
+    <!-- Donate -->
+    <button id="donateFab" title="Donate">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true">
+        <path d="M12 21s-6-4.35-8.485-6.835A6 6 0 1 1 12 5a6 6 0 1 1 8.485 9.165C18 16.65 12 21 12 21z"></path>
+      </svg>
+      <span class="sr-only">Donate</span>
+    </button>
+
+    <!-- Back to Top -->
+    <button id="topFab" title="Back to Top">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true">
+        <path d="M12 19V5"></path>
+        <path d="M5 12l7-7 7 7"></path>
+      </svg>
+      <span class="sr-only">Back to Top</span>
     </button>
 
     <!-- Backdrop + Menu -->
@@ -92,82 +112,4 @@
         <a href="contact.html">Contact</a><a href="about.html">About</a>
       </details>
       <details class="group"><summary>Studio & AI</summary>
-        <a href="studio-tools.html">All Tools</a><a href="creator-tools.html">Creator Tools</a>
-        <a href="lyrics-ai.html">AI Lyrics</a><a href="song-ai.html">AI Song</a><a href="album-ai.html">AI Album</a>
-        <a href="voice-ai.html">Voice / Post VO</a><a href="master_ai.html">Master AI</a><a href="cover_ai.html">Cover AI</a>
-        <a href="author.html">Author</a><a href="author-hub.html">Author Hub</a><a href="translate.html">Translate</a>
-      </details>
-      <details class="group"><summary>Tournaments & Games</summary>
-        <a href="game-hub.html">Game Hub</a><a href="games.html">Games</a><a href="arcade.html">Arcade</a>
-        <a href="game-tournaments.html">Tournaments</a><a href="game-leaderboards.html">Leaderboards</a>
-        <a href="pool-8-ball.html">Pool 8-Ball</a><a href="pool-9-ball.html">Pool 9-Ball</a><a href="trickshot-pool.html">Trickshot</a>
-        <a href="game_pool_8ball.html">8-Ball (alt)</a><a href="game_pool_9ball.html">9-Ball (alt)</a><a href="game_pool_trick.html">Trickshot (alt)</a>
-      </details>
-      <details class="group"><summary>Profiles</summary>
-        <a href="profiles.html">All Profiles</a><a href="profile_artist.html">Artist Profile</a>
-        <a href="profile_beatmaker.html">Beatmaker Profile</a><a href="profile_author.html">Author Profile</a>
-        <a href="profile_dancer.html">Dancer Profile</a><a href="profile_influencer.html">Influencer Profile</a>
-        <a href="profile_fan.html">Fan Profile</a><a href="profile.html">My Profile (generic)</a>
-      </details>
-      <details class="group"><summary>Shop</summary>
-        <a href="shop.html">Store</a><a href="store.html">Store (alt)</a><a href="coinshop.html">Coin Shop</a>
-        <a href="game-coin-shop.html">Game Coin Shop</a><a href="upgrades.html">Upgrades</a><a href="stickers.html">Stickers</a>
-        <a href="shop-stickers.html">Shop Stickers</a><a href="shop-upgrades.html">Shop Upgrades</a>
-        <a href="pricing.html">Pricing</a><a href="donate.html">Donate</a>
-      </details>
-      <details class="group"><summary>Admin / Mod / Owner</summary>
-        <a href="admin.html">Admin</a><a href="admin-panel.html">Admin Panel</a><a href="admin_panel.html">Admin Panel (alt)</a>
-        <a href="admin-hub.html">Admin Hub</a><a href="admin-guide.html">Admin Guide</a><a href="admin_guide.html">Admin Guide (alt)</a>
-        <a href="mod-hub.html">Mod Hub</a><a href="mod-panel.html">Mod Panel</a><a href="mod_panel.html">Mod Panel (alt)</a>
-        <a href="owner.html">Owner</a><a href="owner-studio.html">Owner Studio</a><a href="owner-panel.html">Owner Panel</a>
-        <a href="owner_picks.html">Owner Picks</a>
-      </details>
-      <details class="group"><summary>Info & Legal</summary>
-        <a href="faq.html">FAQ</a><a href="help.html">Help</a><a href="privacy.html">Privacy</a>
-        <a href="terms.html">Terms</a><a href="credits.html">Credits</a><a href="tos_updates.html">TOS Updates</a>
-        <a href="announcements.html">Announcements</a>
-      </details>
-      <details class="group"><summary>Carrie & Fun</summary>
-        <a href="carrie-chat.html">Carrie Chat</a><a href="carrie-closet.html">Carrie Closet</a><a href="carrie-concerts.html">Carrie Concerts</a>
-        <a href="kids.html">Kids</a><a href="kids-zone.html">Kids Zone</a><a href="kids_games.html">Kids Games</a><a href="kids_stories.html">Kids Stories</a>
-        <a href="system.html">System</a><a href="debug.html">Debug</a>
-      </details>
-    </nav>
-
-    <!-- Carrie (draggable) -->
-    <div id="carrieWrap" title="Chat with Carrie (drag)">
-      <video id="carrie" autoplay loop muted playsinline src="assets/videos/carrie_casual_animate_3_1.mp4"></video>
-    </div>
-  `;
-  document.body.appendChild(shell);
-
-  // contact button action
-  document.getElementById('contactFab').addEventListener('click', ()=>{
-    location.href = 'contact.html';
-  });
-
-  // menu logic
-  const fab=document.getElementById('fab'),menu=document.getElementById('menu'),
-        shade=document.getElementById('backdrop'),cWrap=document.getElementById('carrieWrap');
-  let timer=null;
-  function open(){menu.classList.add('open');shade.classList.add('open');fab.setAttribute('aria-expanded','true');cWrap.classList.add('aside');reset()}
-  function close(){menu.classList.remove('open');shade.classList.remove('open');fab.setAttribute('aria-expanded','false');cWrap.classList.remove('aside');clearTimeout(timer);timer=null}
-  function reset(){clearTimeout(timer);timer=setTimeout(close,20000)}
-  fab.addEventListener('click',e=>{e.stopPropagation();menu.classList.contains('open')?close():open()});
-  shade.addEventListener('click',close);
-  document.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
-  menu.addEventListener('pointermove',reset);
-  menu.addEventListener('wheel',reset);
-
-  // carrie drag + click to chat
-  const wrap=cWrap,video=document.getElementById('carrie'); wrap.classList.add('bob');
-  video.addEventListener('click',()=>location.href='carrie-chat.html');
-  let dragging=false,sx=0,sy=0,ox=0,oy=0;
-  const p=e=>('touches'in e)?[e.touches[0].clientX,e.touches[0].clientY]:[e.clientX,e.clientY];
-  const down=e=>{dragging=true;[sx,sy]=p(e);const r=wrap.getBoundingClientRect();ox=r.left;oy=r.top;e.preventDefault();}
-  const move=e=>{if(!dragging)return;const[x,y]=p(e);const dx=x-sx,dy=y-sy;wrap.style.right='auto';wrap.style.bottom='auto';wrap.style.left=(ox+dx)+'px';wrap.style.top=(oy+dy)+'px';}
-  const up=()=>dragging=false;
-  wrap.addEventListener('mousedown',down);wrap.addEventListener('touchstart',down,{passive:false});
-  window.addEventListener('mousemove',move,{passive:false});window.addEventListener('touchmove',move,{passive:false});
-  window.addEventListener('mouseup',up);window.addEventListener('touchend',up);
-})();
+        <a href="studio-tools.html">All Tools</a><a href="
