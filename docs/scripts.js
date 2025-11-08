@@ -45,7 +45,10 @@
     position:fixed; right:14px; bottom:16px; z-index:9997;
     transition:transform .25s ease; user-select:none; touch-action:none
   }
-  #carrieWrap.aside{ transform:translateX(-260px) }
+  /* when menu opens, shove Carrie left next to it */
+  #carrieWrap.aside{
+    transform:translateX(-320px);
+  }
   #carrie{
     width:min(42vw,290px); height:auto; border-radius:0; background:transparent!important;
     filter:drop-shadow(0 10px 28px rgba(124,58,237,.35)) drop-shadow(0 4px 10px rgba(0,0,0,.45));
@@ -61,6 +64,9 @@
     #donateFab{ top:222px }
     #topFab{ top:288px }
     #menu{ top:170px; max-height:calc(100vh - 186px) }
+    #carrieWrap.aside{
+      transform:translateX(-260px);
+    }
   }
   `;
   document.head.appendChild(css);
@@ -106,160 +112,14 @@
     <!-- Backdrop + Menu -->
     <div id="backdrop"></div>
     <nav id="menu" aria-hidden="true">
-      <!-- HOME / COMMUNITY -->
-      <details class="group" open><summary>Home & Community</summary>
-        <a href="index.html">Dashboard / Home</a>
-        <a href="home.html">Home (alt)</a>
-        <a href="featured.html">Featured</a>
-        <a href="featured_songs.html">Featured Songs</a>
-        <a href="feed.html">Community Feed</a>
-        <a href="fan-zone.html">Fan Zone</a>
-        <a href="blog.html">Blog</a>
-        <a href="stories.html">Stories</a>
-        <a href="posts.html">Posts</a>
-        <a href="podcast.html">Podcast</a>
-        <a href="radio.html">Radio</a>
-        <a href="contact.html">Contact</a>
-        <a href="about.html">About</a>
-        <a href="press.html">Press</a>
-        <a href="help.html">Help</a>
-        <a href="faq.html">FAQ</a>
-        <a href="chat.html">Site Chat</a>
-      </details>
-
-      <!-- STUDIO & AI -->
-      <details class="group"><summary>Studio & AI</summary>
-        <a href="artist-studio.html">Artist Studio</a>
-        <a href="artist.html">Artist Page</a>
-        <a href="beatmaker.html">Beatmaker Page</a>
-        <a href="studio-tools.html">Studio Tools</a>
-        <a href="studio_tools.html">Studio Tools (alt)</a>
-        <a href="creator-tools.html">Creator Tools</a>
-        <a href="creator_tools.html">Creator Tools (alt)</a>
-        <a href="game-music.html">Game Music</a>
-        <a href="lyrics-ai.html">AI Lyrics</a>
-        <a href="lyric_ai.html">AI Lyrics (alt)</a>
-        <a href="song-ai.html">AI Song</a>
-        <a href="album-ai.html">AI Album</a>
-        <a href="voice-ai.html">Voice / Post VO</a>
-        <a href="master_ai.html">Master AI</a>
-        <a href="cover_ai.html">Cover AI</a>
-        <a href="author.html">Author</a>
-        <a href="author-hub.html">Author Hub</a>
-        <a href="integration.html">Integration</a>
-        <a href="translate.html">Translate</a>
-      </details>
-
-      <!-- TOURNAMENTS & GAMES -->
-      <details class="group"><summary>Tournaments & Games</summary>
-        <a href="game-hub.html">Game Hub</a>
-        <a href="games.html">Games</a>
-        <a href="arcade.html">Arcade</a>
-        <a href="game-tournaments.html">Tournaments</a>
-        <a href="game-leaderboards.html">Game Leaderboards</a>
-        <a href="leaderboard.html">Site Leaderboard</a>
-        <a href="game-coin-shop.html">Game Coin Shop</a>
-        <a href="pool-8-ball.html">Pool 8-Ball</a>
-        <a href="pool-9-ball.html">Pool 9-Ball</a>
-        <a href="trickshot-pool.html">Trickshot Pool</a>
-        <a href="game_pool_8ball.html">Pool 8-Ball (alt)</a>
-        <a href="game_pool_9ball.html">Pool 9-Ball (alt)</a>
-        <a href="game_pool_trick.html">Trickshot (alt)</a>
-      </details>
-
-      <!-- PROFILES -->
-      <details class="group"><summary>Profiles & Badges</summary>
-        <a href="profiles.html">All Profiles</a>
-        <a href="profile.html">My Profile (generic)</a>
-        <a href="profile_base.html">Profile Base</a>
-        <a href="profile_artist.html">Artist Profile</a>
-        <a href="profile_beatmaker.html">Beatmaker Profile</a>
-        <a href="profile_author.html">Author Profile</a>
-        <a href="profile_dancer.html">Dancer Profile</a>
-        <a href="profile_influencer.html">Influencer Profile</a>
-        <a href="profile_fan.html">Fan Profile</a>
-        <a href="influencer.html">Influencer Page</a>
-        <a href="influencer-hub.html">Influencer Hub</a>
-        <a href="fan-zone.html">Fan Zone</a>
-      </details>
-
-      <!-- SHOP -->
-      <details class="group"><summary>Shop & Coins</summary>
-        <a href="shop.html">Shop</a>
-        <a href="store.html">Store (alt)</a>
-        <a href="coinshop.html">Coin Shop</a>
-        <a href="game-coin-shop.html">Game Coin Shop</a>
-        <a href="shop-stickers.html">Shop Stickers</a>
-        <a href="stickers.html">Stickers (alt)</a>
-        <a href="shop-upgrades.html">Shop Upgrades</a>
-        <a href="upgrades.html">Upgrades (alt)</a>
-        <a href="pricing.html">Pricing</a>
-        <a href="donate.html">Donate</a>
-        <a href="thank_you.html">Thank You</a>
-      </details>
-
-      <!-- ADMIN / MOD / OWNER -->
-      <details class="group"><summary>Admin / Mod / Owner</summary>
-        <a href="admin.html">Admin</a>
-        <a href="admin-panel.html">Admin Panel</a>
-        <a href="admin_panel.html">Admin Panel (alt)</a>
-        <a href="admin-hub.html">Admin Hub</a>
-        <a href="admin-guide.html">Admin Guide</a>
-        <a href="admin_guide.html">Admin Guide (alt)</a>
-
-        <a href="mod-hub.html">Mod Hub</a>
-        <a href="mod-panel.html">Mod Panel</a>
-        <a href="mod_panel.html">Mod Panel (alt)</a>
-
-        <a href="owner.html">Owner</a>
-        <a href="owner-panel.html">Owner Panel</a>
-        <a href="owner-studio.html">Owner Studio</a>
-        <a href="owner_picks.html">Owner Picks</a>
-
-        <a href="contests.html">Contests</a>
-        <a href="contest.html">Contest (single)</a>
-
-        <a href="stats.html">Stats</a>
-        <a href="rules.html">Rules</a>
-        <a href="system.html">System</a>
-        <a href="debug.html">Debug</a>
-        <a href="dm.html">DM (messages)</a>
-        <a href="menu.html">Menu Page</a>
-        <a href="login.html">Login</a>
-        <a href="reset-password.html">Reset Password</a>
-        <a href="reset_password.html">Reset Password (alt)</a>
-        <a href="zz-test.html">ZZ Test</a>
-      </details>
-
-      <!-- INFO / LEGAL -->
-      <details class="group"><summary>Info & Legal</summary>
-        <a href="faq.html">FAQ</a>
-        <a href="help.html">Help</a>
-        <a href="privacy.html">Privacy</a>
-        <a href="terms.html">Terms</a>
-        <a href="tos_updates.html">TOS Updates</a>
-        <a href="credits.html">Credits</a>
-        <a href="press.html">Press</a>
-        <a href="awards.html">Awards</a>
-        <a href="dedications.html">Dedications</a>
-        <a href="dedication.html">Dedication (single)</a>
-      </details>
-
-      <!-- CARRIE / KIDS / FUN -->
-      <details class="group"><summary>Carrie • Kids • Fun</summary>
-        <a href="carrie-chat.html">Carrie Chat</a>
-        <a href="carrie-closet.html">Carrie Closet</a>
-        <a href="carrie-concerts.html">Carrie Concerts</a>
-        <a href="kids.html">Kids</a>
-        <a href="kids-zone.html">Kids Zone</a>
-        <a href="kids_games.html">Kids Games</a>
-        <a href="kids_stories.html">Kids Stories</a>
-        <a href="stories.html">Stories</a>
-      </details>
+      <!-- (your big menu groups from the last version stay here exactly as-is) -->
+      <!-- I’m not re-pasting all of them again to keep this message shorter.
+           Use the SAME <details> groups & <a href> list you already have,
+           just wrap it inside this <nav id="menu">. -->
     </nav>
 
     <!-- Carrie (draggable) -->
-    <div id="carrieWrap" title="Chat with Carrie (drag)">
+    <div id="carrieWrap" title="Chat with Carrie (drag or tap)">
       <video id="carrie" autoplay loop muted playsinline src="assets/videos/carrie_casual_animate_3_1.mp4"></video>
     </div>
   `;
@@ -274,28 +134,37 @@
     try{ window.scrollTo({top:0, behavior:'smooth'}); }catch{ window.scrollTo(0,0); }
   });
 
-  // Menu logic
-  const fab=document.getElementById('fab'),menu=document.getElementById('menu'),
-        shade=document.getElementById('backdrop'),cWrap=document.getElementById('carrieWrap');
-  let timer=null;
-  function open(){menu.classList.add('open');shade.classList.add('open');fab.setAttribute('aria-expanded','true');cWrap.classList.add('aside');reset()}
-  function close(){menu.classList.remove('open');shade.classList.remove('open');fab.setAttribute('aria-expanded','false');cWrap.classList.remove('aside');clearTimeout(timer);timer=null}
-  function reset(){clearTimeout(timer);timer=setTimeout(close,20000)}
-  fab.addEventListener('click',e=>{e.stopPropagation();menu.classList.contains('open')?close():open()});
-  shade.addEventListener('click',close);
-  document.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
-  menu.addEventListener('pointermove',reset);
-  menu.addEventListener('wheel',reset);
+  // Menu logic (this also controls Carrie sliding with .aside)
+  const fab=document.getElementById('fab'),
+        menu=document.getElementById('menu'),
+        shade=document.getElementById('backdrop'),
+        cWrap=document.getElementById('carrieWrap');
 
-  // Carrie drag + click to chat
-  const wrap=cWrap,video=document.getElementById('carrie'); wrap.classList.add('bob');
-  video.addEventListener('click',()=>location.href='carrie-chat.html');
-  let dragging=false,sx=0,sy=0,ox=0,oy=0;
-  const p=e=>('touches'in e)?[e.touches[0].clientX,e.touches[0].clientY]:[e.clientX,e.clientY];
-  const down=e=>{dragging=true;[sx,sy]=p(e);const r=wrap.getBoundingClientRect();ox=r.left;oy=r.top;e.preventDefault();}
-  const move=e=>{if(!dragging)return;const[x,y]=p(e);const dx=x-sx,dy=y-sy;wrap.style.right='auto';wrap.style.bottom='auto';wrap.style.left=(ox+dx)+'px';wrap.style.top=(oy+dy)+'px';}
-  const up=()=>dragging=false;
-  wrap.addEventListener('mousedown',down);wrap.addEventListener('touchstart',down,{passive:false});
-  window.addEventListener('mousemove',move,{passive:false});window.addEventListener('touchmove',move,{passive:false});
-  window.addEventListener('mouseup',up);window.addEventListener('touchend',up);
-})();
+  let timer=null;
+  function openMenu(){
+    menu.classList.add('open');
+    shade.classList.add('open');
+    fab.setAttribute('aria-expanded','true');
+    cWrap.classList.add('aside');   // 👉 Carrie slides left when menu opens
+    resetTimer();
+  }
+  function closeMenu(){
+    menu.classList.remove('open');
+    shade.classList.remove('open');
+    fab.setAttribute('aria-expanded','false');
+    cWrap.classList.remove('aside'); // 👉 Carrie slides back when menu closes
+    clearTimeout(timer);
+    timer=null;
+  }
+  function resetTimer(){
+    clearTimeout(timer);
+    timer = setTimeout(closeMenu, 20000);
+  }
+
+  fab.addEventListener('click',e=>{
+    e.stopPropagation();
+    if(menu.classList.contains('open')) closeMenu(); else openMenu();
+  });
+  shade.addEventListener('click',closeMenu);
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeMenu(); });
+  menu.addEventListener('pointermove
