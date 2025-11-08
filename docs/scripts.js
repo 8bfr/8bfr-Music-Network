@@ -85,15 +85,16 @@
         background:rgba(124,58,237,.14);
       }
 
-      /* Carrie */
       #carrieWrap{
         position:fixed;
         right:14px;
-        bottom:16px;
+        top:320px;       /* Carrie sits under the floating menu & bubbles */
+        bottom:auto;
         z-index:9997;
         transition:transform .25s ease;
         user-select:none;
         touch-action:none;
+      }
       }
       /* when menu open, dock her to the left */
       #carrieWrap.aside{
