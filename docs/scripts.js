@@ -1,4 +1,4 @@
-// 8BFR global UI: floating menu, Carrie avatar, contact/donate/top bubbles
+// 8BFR global UI: floating menu, Carrie avatar, contact/donate/top/bottom bubbles
 (function () {
   function injectGlobalUI() {
     // don’t inject twice
@@ -100,7 +100,7 @@
         transform:translateX(-240px);
       }
       #carrie{
-        width:min(90vw,480px);
+        width:min(90vw,520px);
         height:auto;
         border-radius:0;
         background:transparent!important;
@@ -115,6 +115,22 @@
       @keyframes bob{
         0%,100%{ transform:translateY(0); }
         50%{ transform:translateY(-6px); }
+      }
+
+      /* "Chat with me" bubble attached to Carrie */
+      #carrieTip{
+        position:absolute;
+        bottom:100%;
+        right:18px;
+        margin-bottom:6px;
+        padding:4px 8px;
+        font-size:11px;
+        border-radius:999px;
+        background:rgba(10,6,24,.92);
+        color:#eae6ff;
+        border:1px solid rgba(124,58,237,.7);
+        box-shadow:0 0 10px rgba(124,58,237,.45);
+        white-space:nowrap;
       }
 
       /* Floating bubbles */
@@ -141,8 +157,8 @@
       }
       #bubble-contact{ right:14px; top:150px; }
       #bubble-donate{ right:14px; top:204px; }
-      /* back-to-top bubble near bottom */
-      #bubble-top{     right:14px; bottom:24px; }
+      #bubble-bottom{ right:14px; top:258px; } /* down arrow */
+      #bubble-top{    right:14px; bottom:24px; } /* up arrow */
 
       .bubble.aside{
         transform:translateX(-240px);
@@ -163,7 +179,7 @@
       }
       #label-contact{ top:160px; }
       #label-donate{  top:214px; }
-      /* label above bottom bubble */
+      #label-bottom{  top:268px; }
       #label-top{     bottom:74px; }
 
       .bubble-label.aside{
@@ -345,14 +361,17 @@
           muted
           playsinline
         ></video>
+        <div id="carrieTip">Chat with me</div>
       </div>
 
       <button id="bubble-contact" class="bubble" title="Contact">&#9835;</button>
       <button id="bubble-donate"  class="bubble" title="Donate">&#9834;</button>
+      <button id="bubble-bottom"  class="bubble" title="Go to footer">&#8595;</button>
       <button id="bubble-top"     class="bubble" title="Back to top">&#8593;</button>
 
       <span id="label-contact" class="bubble-label">Contact</span>
       <span id="label-donate"  class="bubble-label">Donate</span>
+      <span id="label-bottom"  class="bubble-label">Footer</span>
       <span id="label-top"     class="bubble-label">Top</span>
     `;
     document.body.appendChild(shell);
@@ -362,11 +381,14 @@
     const menu          = document.getElementById("menu");
     const backdrop      = document.getElementById("backdrop");
     const carrieWrap    = document.getElementById("carrieWrap");
+    const carrieVideo   = document.getElementById("carrie");
     const bubbleContact = document.getElementById("bubble-contact");
     const bubbleDonate  = document.getElementById("bubble-donate");
+    const bubbleBottom  = document.getElementById("bubble-bottom");
     const bubbleTop     = document.getElementById("bubble-top");
     const labelContact  = document.getElementById("label-contact");
     const labelDonate   = document.getElementById("label-donate");
+    const labelBottom   = document.getElementById("label-bottom");
     const labelTop      = document.getElementById("label-top");
 
     let timer = null;
@@ -378,9 +400,11 @@
       carrieWrap.classList.add("aside");
       bubbleContact.classList.add("aside");
       bubbleDonate.classList.add("aside");
+      bubbleBottom.classList.add("aside");
       bubbleTop.classList.add("aside");
       labelContact.classList.add("aside");
       labelDonate.classList.add("aside");
+      labelBottom.classList.add("aside");
       labelTop.classList.add("aside");
       resetTimer();
     }
@@ -392,9 +416,11 @@
       carrieWrap.classList.remove("aside");
       bubbleContact.classList.remove("aside");
       bubbleDonate.classList.remove("aside");
+      bubbleBottom.classList.remove("aside");
       bubbleTop.classList.remove("aside");
       labelContact.classList.remove("aside");
       labelDonate.classList.remove("aside");
+      labelBottom.classList.remove("aside");
       labelTop.classList.remove("aside");
       clearTimeout(timer);
       timer = null;
@@ -434,14 +460,24 @@
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
-    // Carrie drag + tap-to-chat
+    bubbleBottom.addEventListener("click", () => {
+      const footer = document.getElementById("page-footer");
+      if (footer) {
+        footer.scrollIntoView({ behavior: "smooth", block: "start" });
+      } else {
+        window.scrollTo({
+          top: document.body.scrollHeight,
+          behavior: "smooth",
+        });
+      }
+    });
+
+    // Carrie drag (wrapper) + click-to-chat (video only)
     let dragging = false,
       sx = 0,
       sy = 0,
       ox = 0,
-      oy = 0,
-      downTime = 0,
-      moved = false;
+      oy = 0;
 
     function getPoint(e) {
       if (e.touches && e.touches.length) {
@@ -452,8 +488,6 @@
 
     function onDown(e) {
       dragging = true;
-      moved = false;
-      downTime = Date.now();
       const p = getPoint(e);
       sx = p.x;
       sy = p.y;
@@ -470,18 +504,12 @@
       const p = getPoint(e);
       const dx = p.x - sx;
       const dy = p.y - sy;
-      if (Math.abs(dx) > 5 || Math.abs(dy) > 5) moved = true;
       carrieWrap.style.left = ox + dx + "px";
       carrieWrap.style.top = oy + dy + "px";
     }
 
     function onUp() {
-      if (!dragging) return;
       dragging = false;
-      const dt = Date.now() - downTime;
-      if (!moved && dt < 300) {
-        window.location.href = "carrie-chat.html";
-      }
     }
 
     carrieWrap.addEventListener("mousedown", onDown);
@@ -490,6 +518,14 @@
     window.addEventListener("touchmove", onMove, { passive: false });
     window.addEventListener("mouseup", onUp);
     window.addEventListener("touchend", onUp);
+
+    // ONLY clicking directly on Carrie opens chat
+    if (carrieVideo) {
+      carrieVideo.addEventListener("click", function (e) {
+        e.stopPropagation();
+        window.location.href = "carrie-chat.html";
+      });
+    }
   }
 
   // Run when DOM is ready
