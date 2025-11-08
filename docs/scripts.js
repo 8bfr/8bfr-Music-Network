@@ -1,7 +1,7 @@
 (function(){
   if (document.getElementById('fab')) return; // prevent duplicate injection
 
-  // Decide which Carrie animation to use
+  // Decide which Carrie animation to use (casual vs business)
   const path = location.pathname.toLowerCase();
   let carrieSrc = 'assets/videos/carrie_casual_animate_3_1.webm';
 
@@ -72,8 +72,11 @@
     height:auto;
     border-radius:0;
     background:transparent!important;
-    filter:drop-shadow(0 10px 28px rgba(124,58,237,.35)) drop-shadow(0 4px 10px rgba(0,0,0,.45));
     display:block;
+    object-fit:contain;
+    filter:drop-shadow(0 10px 28px rgba(124,58,237,.55))
+           drop-shadow(0 4px 10px rgba(0,0,0,.65));
+    mix-blend-mode:lighten;
   }
   .bob{animation:bob 3.5s ease-in-out infinite}
   @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
@@ -219,7 +222,6 @@
     if (!dragging) return;
     dragging = false;
     if (!moved){
-      // treat as a click / tap → open Carrie chat
       location.href = 'carrie-chat.html';
     }
   };
