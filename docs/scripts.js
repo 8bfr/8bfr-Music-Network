@@ -1,4 +1,4 @@
-// 8BFR global UI v16 — Carrie above arrow, labeled bubbles, theme toggle + random
+// 8BFR global UI v17 — Carrie left of up arrow, labeled bubbles, theme toggle + random
 (function () {
   function injectGlobalUI() {
     if (document.getElementById("fab")) return; // already injected
@@ -93,12 +93,21 @@
   z-index:9996; transition:right .25s ease;
 }
 
-/* shift all floaters when menu open */
-body.menu-open #bubbleStack,
-body.menu-open #bubble-top-single,
-body.menu-open #carrieWrap{
-  right:300px;
+/* Carrie left of up-arrow */
+#carrieWrap{
+  position:fixed;
+  right:72px;       /* arrow is at 16px, Carrie sits to its left */
+  bottom:18px;      /* same baseline as up arrow */
+  z-index:9997;
+  user-select:none;
+  touch-action:none;
+  transition:right .25s ease;
 }
+
+/* shift all floaters when menu open */
+body.menu-open #bubbleStack{ right:300px; }
+body.menu-open #bubble-top-single{ right:300px; }
+body.menu-open #carrieWrap{ right:356px; } /* keep same horizontal gap when shifted */
 
 .bubble{
   width:42px; height:42px;
@@ -114,12 +123,7 @@ body.menu-open #carrieWrap{
   transform:translateY(-1px);
 }
 
-/* --- Carrie wrapper & chat bubble --- */
-#carrieWrap{
-  position:fixed; right:16px; bottom:72px; /* above up arrow */
-  z-index:9997; user-select:none; touch-action:none;
-  transition:right .25s ease;
-}
+/* --- Carrie video & chat bubble --- */
 #carrie{
   width:min(48vw,260px);
   object-fit:contain;
@@ -146,11 +150,9 @@ body.menu-open #carrieWrap{
 
 @media(max-width:480px){
   #carrie{ width:min(56vw,220px); }
-  body.menu-open #bubbleStack,
-  body.menu-open #bubble-top-single,
-  body.menu-open #carrieWrap{
-    right:260px;
-  }
+  body.menu-open #bubbleStack{ right:260px; }
+  body.menu-open #bubble-top-single{ right:260px; }
+  body.menu-open #carrieWrap{ right:316px; }
 }
 `;
     document.head.appendChild(css);
