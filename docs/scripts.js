@@ -549,3 +549,22 @@
     injectGlobalUI();
   }
 })();
+// --- 8BFR: wire up ad buttons on homepage ---
+document.addEventListener('DOMContentLoaded', () => {
+  const buyAdBtn = document.getElementById('openAdForm');
+  const howAdsBtn = document.getElementById('openHowAds');
+
+  if (buyAdBtn) {
+    buyAdBtn.addEventListener('click', () => {
+      // Send people straight to the Buy Ad section
+      window.location.href = 'ads.html#buy-ad';
+    });
+  }
+
+  if (howAdsBtn) {
+    howAdsBtn.addEventListener('click', () => {
+      // Send people to the How Ads Work section
+      window.location.href = 'ads.html#how-ads-work';
+    });
+  }
+});
