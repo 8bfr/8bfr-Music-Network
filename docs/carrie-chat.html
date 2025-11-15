@@ -94,7 +94,7 @@
       display:block;
     }
     .msg-row.user .msg-avatar{
-      display:none; /* hide avatar on the right for now */
+      display:none;
     }
 
     .pill-tag{
@@ -166,7 +166,6 @@
       40%{ transform:translateY(-4px); opacity:1;}
     }
 
-    /* Mode toggle pills */
     .mode-toggle{
       display:flex;
       gap:4px;
@@ -197,7 +196,6 @@
   </style>
 </head>
 <body>
-  <!-- Simple header (matches home vibe) -->
   <header class="px-4 py-4">
     <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
       <div class="flex items-center gap-3">
@@ -230,7 +228,7 @@
             <span>Live Carrie</span>
           </span>
           <span class="text-[11px] text-purple-200/80">
-            Friendly assistant • remembers this chat
+            Site help • planning • personal chat (PG-13)
           </span>
         </div>
         <div class="text-right space-y-1">
@@ -240,13 +238,12 @@
           <div class="mode-toggle">
             <span class="text-[10px] text-purple-200/80">Mode:</span>
             <button id="modeBusinessBtn" type="button" class="btn-pill">
-              Site Help
+              Site / Pro
             </button>
             <button id="modePersonalBtn" type="button" class="btn-pill">
               Personal
             </button>
           </div>
-          <!-- Owner-only trainer button (shown via JS if email matches) -->
           <button
             id="trainerBtn"
             type="button"
@@ -258,16 +255,10 @@
         </div>
       </div>
 
-      <!-- Chat log -->
-      <div id="chatLog" class="chat-log rounded-lg mb-3">
-        <!-- messages injected by JS -->
-      </div>
+      <div id="chatLog" class="chat-log rounded-lg mb-3"></div>
 
-      <!-- Typing indicator -->
       <div id="typingRow" class="hidden mb-2 text-xs text-purple-200/80 flex items-center gap-2">
-        <span class="pill-tag">
-          Carrie typing
-        </span>
+        <span class="pill-tag">Carrie typing</span>
         <div class="flex items-center gap-1 ml-1">
           <span class="typing-dot"></span>
           <span class="typing-dot"></span>
@@ -275,16 +266,15 @@
         </div>
       </div>
 
-      <!-- Input row -->
       <form id="carrieForm" class="mt-1">
         <div class="flex items-end gap-2">
           <div class="flex-1">
             <label for="carrieInput"
                    class="text-xs text-purple-200/80 mb-1 inline-block">
-              Ask Carrie anything about 8BFR, music, games, or ideas.
+              Business mode: ask about 8BFR, tools, badges. Personal mode: talk about goals, ideas, or just unwind (PG-13).
             </label>
             <textarea id="carrieInput"
-                      placeholder="Example: “Help me write a hook for a trap beat about late nights.”"></textarea>
+                      placeholder="Example: “Help me plan my week of music and writing.”"></textarea>
             <p class="input-hint mt-1">
               Press <b>Enter</b> to send • <b>Shift+Enter</b> for a new line.
             </p>
@@ -302,11 +292,7 @@
     </p>
   </main>
 
-  <!-- Carrie Trainer modal (owner only; JS toggles visibility) -->
-  <div
-    id="trainerModal"
-    class="fixed inset-0 z-50 hidden"
-  >
+  <div id="trainerModal" class="fixed inset-0 z-50 hidden">
     <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
     <div
       class="relative max-w-md mx-auto mt-24 bg-[#0c0618] border border-purple-500/60 rounded-xl p-4 shadow-2xl"
@@ -377,10 +363,8 @@
     </div>
   </div>
 
-  <!-- Supabase client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
-    // --- Supabase setup (same project as scripts.js) ---
     const SUPABASE_URL = "https://novbuvwpjnxwwvdekjhr.supabase.co";
     const SUPABASE_ANON_KEY =
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0";
@@ -395,14 +379,14 @@
     const typingRowEl    = document.getElementById("typingRow");
     const sessionLabelEl = document.getElementById("sessionIndicator");
 
-    const trainerBtn     = document.getElementById("trainerBtn");
-    const trainerModal   = document.getElementById("trainerModal");
-    const trainerForm    = document.getElementById("trainerForm");
-    const trainerClose   = document.getElementById("trainerClose");
-    const trainerCancel  = document.getElementById("trainerCancel");
-    const trainerQuestion= document.getElementById("trainerQuestion");
-    const trainerAnswer  = document.getElementById("trainerAnswer");
-    const trainerStatus  = document.getElementById("trainerStatus");
+    const trainerBtn      = document.getElementById("trainerBtn");
+    const trainerModal    = document.getElementById("trainerModal");
+    const trainerForm     = document.getElementById("trainerForm");
+    const trainerClose    = document.getElementById("trainerClose");
+    const trainerCancel   = document.getElementById("trainerCancel");
+    const trainerQuestion = document.getElementById("trainerQuestion");
+    const trainerAnswer   = document.getElementById("trainerAnswer");
+    const trainerStatus   = document.getElementById("trainerStatus");
 
     const modeBusinessBtn = document.getElementById("modeBusinessBtn");
     const modePersonalBtn = document.getElementById("modePersonalBtn");
@@ -410,11 +394,12 @@
     let currentUserId    = null;
     let currentUserEmail = null;
     let loadingHistory   = false;
+
+    // persona is settable from outside, default "global" for this chat page
+    let carriePersona    = window.carriePersona || "global"; // "global", "music", "author", "influencer", etc.
     let carrieMode       = "business"; // "business" | "personal"
 
-    /* =========================
-       Seeded Site-Help Q&A
-       ========================= */
+    /* =========== Seeded Site / Pro Q&A (business mode) =========== */
     let carrieScripts = [
       {
         id: "buy_8bfr_music",
@@ -636,8 +621,8 @@
           Around the site I appear as a <b>floating avatar</b> at the bottom-right, slide away when the menu opens,
           and auto-hide if you ignore me for a bit. You’ll also be able to unlock outfits, dances, and concert looks
           in the <b>Carrie Shop</b> using 8BFR Coins.<br><br>
-          On this page you can switch my mode with the <b>Site Help / Personal</b> toggle. The full avatar,
-          concerts, and outfits will show more on pages like <a href="carrie-closet.html">Carrie Closet</a> and the future concert hub.
+          On this page you can switch my mode with the <b>Site / Pro</b> vs <b>Personal</b> toggle. Other rooms
+          (Artist Studio, Author Studio, Influencer Hub) will load my specialist versions automatically.
         `
       },
       {
@@ -738,7 +723,6 @@
     }
 
     function getCarrieAvatarSrc() {
-      // Business vs casual Carrie images
       if (carrieMode === "business") {
         return "assets/images/Carrie_Business.png";
       }
@@ -815,256 +799,152 @@
       }
     }
 
-    function carrieBrain(userText) {
-      const t = userText.trim();
-      if (!t) {
-        return "I didn’t quite catch that — try asking me about music, games, or how 8BFR works.";
-      }
-
-      // 1) Scripted intent
-      const scripted = findCarrieScriptReply(t);
-      if (scripted) {
-        return scripted;
-      }
-
-      const lower = t.toLowerCase();
-
-      // 2) Mode-specific behavior
-      if (carrieMode === "business") {
+    function businessBrain(lower, original) {
+      // global site/business help (default persona)
+      if (carriePersona === "global") {
         if (lower.includes("home page") || lower.includes("index")) {
-          return "The home page is at <a href=\"index.html\">index.html</a>. From there you can reach profiles, studio tools, radio, podcast, games, and more using the floating menu.";
+          return 'The home page is at <a href="index.html">index.html</a>. From there you can reach profiles, studio tools, radio, podcast, games, and more using the floating menu.';
         }
         if (lower.includes("menu") || lower.includes("navigation")) {
-          return "The round button at the top-right opens the floating menu. You can also use the bubble stack for quick actions like Contact, Donate, Footer, Theme, and Stream 8BFR.";
+          return "The round button at the top-right opens the floating menu. You can also use the bubble stack for quick actions like Contact, Donate, Footer, Theme, and “Stream 8BFR on Spotify.”";
         }
         if (lower.includes("profile") || lower.includes("account")) {
-          return "You can view or edit your profile from <a href=\"profile.html\">profile.html</a> or the Profiles section. There are special layouts for artists, beatmakers, authors, influencers, fans, and kids.";
+          return 'You can view or edit your profile from <a href="profile.html">profile.html</a> or the Profiles section. There are special layouts for artists, beatmakers, authors, influencers, fans, and kids.';
         }
-
-        return "Here in <b>Site Help</b> mode, I focus on the 8BFR Network itself: pages, tools, ads, games, and how things work. Try asking something like “How do coins work?” or “How do I buy 8BFR music?”.";
+        return "I’m in <b>Site / Pro</b> mode right now — focused on 8BFR itself: pages, tools, ads, coins, and business-side questions. Try asking things like “How do coins work?”, “How do I buy 8BFR music?”, or “How do I get featured?”.";
       }
 
-      // Personal / fun mode
-      if (lower.includes("hook") || lower.includes("chorus")) {
-        return "Hooks love repetition and rhythm. Try a 2-bar phrase you can repeat 3–4 times, then flip the last line. Tell me your song topic and vibe and I’ll help you sketch a hook.";
-      }
-      if (lower.includes("8bfr") || lower.includes("network")) {
-        return "8BFR is basically our little creative universe — music, games, stories, and community. I’m your AI friend inside it. 💜 What are you trying to build right now?";
-      }
-      if (lower.includes("beat") || lower.includes("bpm")) {
-        return "For rap/trap, 130–150 BPM (or 65–75 double-time) is a sweet spot. Tell me your mood — dark, hype, chill — and I’ll suggest a BPM and structure.";
-      }
-      if (lower.includes("tournament") || lower.includes("game")) {
-        return "Games and tournaments are here to keep things fun, not stressful. You can warm up your brain with a few games, then jump back into music or writing.";
-      }
-      if (
-        lower.includes("lyrics") ||
-        lower.includes("write") ||
-        lower.includes("writer's block") ||
-        lower.includes("writers block")
-      ) {
-        return "Give me 3 things: mood, topic, and an artist you like. I’ll help you sketch a verse or some starting lines to get you unstuck.";
-      }
-
-      const starters = [
-        "I hear you.",
-        "Got it.",
-        "Nice idea.",
-        "Okay, let’s build from that."
-      ];
-      const starter = starters[Math.floor(Math.random() * starters.length)];
-      return starter + " In <b>Personal</b> mode I’m here more like a creative friend — tell me your goal in one sentence and I’ll break it into a simple plan.";
-    }
-
-    async function initSessionAndHistory() {
-      try {
-        const { data, error } = await supabase.auth.getSession();
-        if (error) throw error;
-
-        if (data && data.session && data.session.user) {
-          currentUserId = data.session.user.id;
-          currentUserEmail = data.session.user.email || null;
-          sessionLabelEl.textContent = "Logged in as " + (currentUserEmail || "8BFR user");
-
-          if (trainerBtn && currentUserEmail === "8bfr.music@gmail.com") {
-            trainerBtn.classList.remove("hidden");
-          }
-        } else {
-          currentUserId = null;
-          currentUserEmail = null;
-          sessionLabelEl.textContent = "Not logged in • Carrie will still chat, but history won’t be tied to an account.";
+      // music persona: expert coach for artists / beatmakers
+      if (carriePersona === "music") {
+        if (lower.includes("release") || lower.includes("distribute") || lower.includes("upload")) {
+          return `
+            As your music coach, here’s a simple release checklist:<br><br>
+            1) <b>Song ready</b> — mixed/mastered and named clearly.<br>
+            2) <b>Artwork</b> — square cover, high resolution.<br>
+            3) <b>Metadata</b> — artist name, title, producer credits, release date.<br>
+            4) <b>Distribution</b> — choose a distributor, upload files, set stores (Spotify, Apple, Amazon, etc.).<br>
+            5) <b>Promo</b> — short clips for socials, pin links, update your 8BFR profile.<br><br>
+            Tell me where you’re stuck — mixing, releasing, or promoting — and I’ll zoom in on that part.
+          `;
         }
-      } catch (e) {
-        console.warn("Carrie session check failed", e);
-        sessionLabelEl.textContent = "Could not check login • you can still chat.";
-      }
-
-      if (!currentUserId) {
-        renderMessage(
-          "assistant",
-          "Hey, I’m Carrie 💜 I’m in <b>Site Help</b> mode right now. Ask me about pages, ads, coins, tournaments, or the Carrie Plan — or switch to <b>Personal</b> mode for more laid-back chat."
-        );
-        return;
-      }
-
-      loadingHistory = true;
-      try {
-        const { data: rows, error } = await supabase
-          .from("carrie_chat_logs")
-          .select("*")
-          .eq("user_id", currentUserId)
-          .order("created_at", { ascending: true })
-          .limit(40);
-
-        if (error) throw error;
-
-        if (rows && rows.length) {
-          rows.forEach(r => renderMessage(r.role, r.content, r.created_at));
-        } else {
-          renderMessage(
-            "assistant",
-            "Hey, I’m Carrie 💜 First time here — want help with a track, a story, or exploring the 8BFR Network?"
-          );
+        if (lower.includes("beat") || lower.includes("bpm") || lower.includes("drums")) {
+          return `
+            For trap/rap:<br><br>
+            • Drums usually hit hardest around 130–150 BPM (or 65–75 double-time).<br>
+            • Start with clean 808 + clap + hi-hat pattern, then layer perks after.<br>
+            • Keep one element simple and repetitive so the vocal has space.<br><br>
+            Tell me your vibe (dark, melodic, rage, chill) and I’ll suggest a BPM and layout for your next beat.
+          `;
         }
-      } catch (e) {
-        console.warn("Could not load Carrie history", e);
-        renderMessage(
-          "assistant",
-          "Hey, I’m Carrie 💜 I had a tiny glitch loading history, but we can start fresh right now."
-        );
-      } finally {
-        loadingHistory = false;
-      }
-    }
-
-    function showTyping() {
-      typingRowEl.classList.remove("hidden");
-    }
-    function hideTyping() {
-      typingRowEl.classList.add("hidden");
-    }
-
-    function openTrainer() {
-      if (!trainerModal) return;
-      trainerModal.classList.remove("hidden");
-      trainerStatus.style.display = "none";
-      trainerStatus.textContent = "";
-    }
-    function closeTrainer() {
-      if (!trainerModal) return;
-      trainerModal.classList.add("hidden");
-      trainerQuestion.value = "";
-      trainerAnswer.value = "";
-      trainerStatus.style.display = "none";
-      trainerStatus.textContent = "";
-    }
-
-    if (trainerBtn) {
-      trainerBtn.addEventListener("click", () => {
-        openTrainer();
-      });
-    }
-    if (trainerClose) {
-      trainerClose.addEventListener("click", () => {
-        closeTrainer();
-      });
-    }
-    if (trainerCancel) {
-      trainerCancel.addEventListener("click", (e) => {
-        e.preventDefault();
-        closeTrainer();
-      });
-    }
-
-    if (trainerForm) {
-      trainerForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const q = (trainerQuestion.value || "").trim();
-        const aRaw = (trainerAnswer.value || "").trim();
-        if (!q || !aRaw) return;
-
-        const answerHtml = aRaw.replace(/\n/g, "<br>");
-
-        const entry = {
-          id: "custom_" + Date.now(),
-          patterns: [q],
-          reply: answerHtml
-        };
-        carrieScripts.push(entry);
-
-        trainerStatus.textContent = "Saved! Carrie will now recognize that pattern in this session.";
-        trainerStatus.style.display = "block";
-
-        try {
-          await supabase.from("carrie_scripts").insert({
-            user_id: currentUserId,
-            email: currentUserEmail,
-            question_pattern: q,
-            reply_html: aRaw
-          });
-        } catch (err) {
-          console.warn("Could not save carrie_scripts row (table might not exist yet)", err);
+        if (lower.includes("lyrics") || lower.includes("hook") || lower.includes("chorus") || lower.includes("verse")) {
+          return `
+            Let’s build lyrics like a pro:<br><br>
+            • Pick a <b>topic</b> (example: late nights, loyalty, comeback).<br>
+            • Choose a <b>structure</b>: intro – hook – verse – hook – verse – hook.<br>
+            • For the hook, use 1–2 strong lines and repeat with a twist on the last bar.<br><br>
+            Tell me your topic + mood + a reference artist, and I’ll help you draft a hook or verse blueprint.
+          `;
         }
-      });
-    }
-
-    if (modeBusinessBtn) {
-      modeBusinessBtn.addEventListener("click", () => {
-        carrieMode = "business";
-        updateModeUI();
-        renderMessage(
-          "assistant",
-          "Switched to <b>Site Help</b> mode. I’ll focus on 8BFR pages, tools, ads, coins, and how everything works.",
-          new Date()
-        );
-      });
-    }
-
-    if (modePersonalBtn) {
-      modePersonalBtn.addEventListener("click", () => {
-        carrieMode = "personal";
-        updateModeUI();
-        renderMessage(
-          "assistant",
-          "Switched to <b>Personal / Chill</b> mode. Now I’m more like a creative friend — ask me about lyrics, routines, ideas, or just talk.",
-          new Date()
-        );
-      });
-    }
-
-    updateModeUI();
-
-    inputEl.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        formEl.requestSubmit();
+        return "You’re in a <b>music room</b>, so I’m your pro music assistant — ask me about beats, lyrics, arranging, releasing, or promoting your tracks and I’ll treat it like a coaching session.";
       }
-    });
 
-    formEl.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const raw = inputEl.value.trim();
-      if (!raw) return;
+      // author persona: writing / publishing expert
+      if (carriePersona === "author") {
+        if (lower.includes("outline") || lower.includes("plot") || lower.includes("story")) {
+          return `
+            As your writing coach, here’s a quick story plan:<br><br>
+            1) <b>Hook</b> — what’s the first thing that grabs the reader?<br>
+            2) <b>Main character</b> — what do they want and what’s in the way?<br>
+            3) <b>Middle conflict</b> — 2–3 big problems or twists.<br>
+            4) <b>Climax</b> — the moment everything explodes or changes.<br>
+            5) <b>Ending</b> — how are they different at the end?<br><br>
+            Paste a short summary of your idea and I’ll help you turn it into an outline.
+          `;
+        }
+        if (lower.includes("publish") || lower.includes("self-publish") || lower.includes("kdp") || lower.includes("amazon")) {
+          return `
+            To publish a book or story, you usually need:<br><br>
+            • <b>Edited manuscript</b> — as clean as you can make it.<br>
+            • <b>Cover</b> — clear title and genre signal (font + art).<br>
+            • <b>Blurb</b> — a short, punchy description.<br>
+            • <b>Platform</b> — such as Amazon KDP, Wattpad, or your own landing page.<br><br>
+            Tell me your genre and goal (short story, novella, novel) and I’ll suggest a simple publish plan.
+          `;
+        }
+        if (lower.includes("writer's block") || lower.includes("writers block") || lower.includes("stuck")) {
+          return `
+            Writer’s block usually means the pressure is too high, not that you’re out of ideas.<br><br>
+            Try this:<br>
+            • Free-write for 5 minutes about anything related to your story.<br>
+            • Lower the goal: “one messy paragraph” instead of “perfect chapter”.<br>
+            • Let me give you 3 prompts — tell me your genre and I’ll throw ideas at you. 💜
+          `;
+        }
+        return "You’re in an <b>author / writing</b> context, so I’m tuned as your editor/coach — ask about outlines, publishing, blurbs, or fixing writer’s block and I’ll go deep.";
+      }
 
-      const userMsg = raw;
-      inputEl.value = "";
-      renderMessage("user", userMsg, new Date());
-      saveMessage("user", userMsg);
+      // influencer persona: growth / brand coach
+      if (carriePersona === "influencer") {
+        if (lower.includes("content plan") || lower.includes("schedule") || lower.includes("post every")) {
+          return `
+            Let’s build a simple content plan:<br><br>
+            • <b>3 content pillars</b> — for example: behind-the-scenes, tips, and reactions.<br>
+            • <b>Schedule</b> — pick 3–5 days a week you can realistically post.<br>
+            • <b>Format</b> — short vertical video tends to perform best.<br><br>
+            Tell me your niche and how many days a week you want to post, and I’ll suggest a one-week content schedule.
+          `;
+        }
+        if (lower.includes("brand") || lower.includes("aesthetic") || lower.includes("colors")) {
+          return `
+            For an influencer brand:<br><br>
+            • Pick 2–3 <b>brand colors</b> and use them everywhere (banners, text, captions).<br>
+            • Choose a <b>tone</b> — funny, cozy, luxury, chaotic, etc.<br>
+            • Keep your <b>bio, profile pic, and link</b> consistent across platforms.<br><br>
+            Tell me your current handle and vibe and I’ll help you tighten the brand feel.
+          `;
+        }
+        if (lower.includes("collab") || lower.includes("sponsor") || lower.includes("brand deal")) {
+          return `
+            For collabs and brand deals:<br><br>
+            • Start by showing <b>clean examples</b> of your content and analytics.<br>
+            • Reach out with a short pitch: who you are, what you make, and why it fits their audience.<br>
+            • Even small, local brands can be your first “wins”.<br><br>
+            Tell me your follower range and niche and I’ll help draft a simple pitch message.
+          `;
+        }
+        return "You’re in an <b>influencer / brand</b> lane, so I’m thinking like a manager: strategy, content plans, collabs, and making your presence feel professional.";
+      }
 
-      showTyping();
+      // fallback
+      return "I’m in <b>Site / Pro</b> mode. If you tell me which area you’re working on — music, writing, influencing, games, or site navigation — I’ll answer like a specialist for that lane.";
+    }
 
-      setTimeout(async () => {
-        const reply = carrieBrain(userMsg);
-        renderMessage("assistant", reply, new Date());
-        hideTyping();
-        saveMessage("assistant", reply);
-      }, 600 + Math.random() * 500);
-    });
+    function personalBrain(lower, original) {
+      // PG-13, general AI friend + planner
+      if (lower.includes("stressed") || lower.includes("anxious") || lower.includes("overwhelmed") || lower.includes("burnt out") || lower.includes("tired")) {
+        return `
+          That sounds heavy, and it’s okay to admit you’re feeling that way. 💜<br><br>
+          A simple reset I like is:<br>
+          • 1 small thing for your <b>body</b> (water, stretch, snack).<br>
+          • 1 small thing for your <b>space</b> (clear your desk, open a window).<br>
+          • 1 small thing for your <b>mind</b> (music, journaling, or a short break).<br><br>
+          If you tell me what’s stressing you out, I can help you break it into tiny steps instead of one giant ball of pressure.
+        `;
+      }
 
-    initSessionAndHistory();
-  </script>
+      if (lower.includes("goal") || lower.includes("plan") || lower.includes("schedule") || lower.includes("routine")) {
+        return `
+          Let’s make this easy: tell me <b>one main goal</b> you have this week (music, writing, work, life — anything PG-13).<br><br>
+          I’ll help you:<br>
+          1) Break it into 3–5 tiny steps.<br>
+          2) Put those steps into a simple day-by-day plan.<br>
+          3) Add one “fun” or “rest” thing so you don’t burn out.<br><br>
+          What’s the goal you want to tackle first?
+        `;
+      }
 
-  <!-- Global floating Carrie + menu + bubbles on this page too -->
-  <script src="scripts.js?v=1ed5604" defer></script>
-</body>
-</html>
+      if (lower.includes("song idea") || lower.includes("story idea") || lower.includes("idea for a song") || lower.includes("idea for a story")) {
+        return `
+          I love idea sessions. 💜<br><br>
+          Tell me:<br>
+          • <b>Vibe</b> (happy, dark, dreamy, hype, cozy, etc
