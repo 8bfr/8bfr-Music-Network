@@ -404,19 +404,6 @@ body.menu-open #pageWrap{
   text-shadow:0 0 6px rgba(0,0,0,.85);
 }
 
-/* ✅ Founder banner – sit to the left of the bubbles */
-#founderBanner,
-.founder-banner{
-  right:120px !important;     /* moves it left of the bubble stack */
-  z-index:9995;
-}
-
-/* Move founder with menu as well */
-body.menu-open #founderBanner,
-body.menu-open .founder-banner{
-  right:380px !important;
-}
-
 /* Single bottom up-arrow bubble */
 #bubble-top-single{
   position:fixed; right:16px; bottom:18px;
