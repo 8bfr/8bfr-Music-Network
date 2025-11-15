@@ -94,7 +94,7 @@
       display:block;
     }
     .msg-row.user .msg-avatar{
-      display:none; /* hide avatar on the right for now */
+      display:none;
     }
 
     .pill-tag{
@@ -133,6 +133,19 @@
       color:#fff;
     }
     .btn-primary:hover{ filter:brightness(1.05); }
+
+    .btn-pill{
+      border-radius:999px;
+      padding:2px 8px;
+      font-size:10px;
+      line-height:1.1;
+    }
+
+    .btn-pill-active{
+      background:#7c3aed;
+      border-color:#7c3aed;
+      color:#fff;
+    }
 
     textarea#carrieInput{
       resize:none;
@@ -173,7 +186,7 @@
   </style>
 </head>
 <body>
-  <!-- Simple header (matches home vibe, no menu here so we don't double Carrie) -->
+  <!-- Simple header (matches home vibe, no global Carrie here) -->
   <header class="px-4 py-4">
     <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
       <div class="flex items-center gap-3">
@@ -200,15 +213,39 @@
   <main class="max-w-4xl mx-auto px-4 pb-10 pt-4">
     <div class="chat-shell p-4 sm:p-5">
       <div class="flex items-center justify-between mb-3 gap-3">
-        <div class="flex items-center gap-2">
-          <span class="pill-tag">
-            <span class="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-            <span>Live Carrie</span>
-          </span>
-          <span class="text-[11px] text-purple-200/80">
-            Friendly assistant • remembers this chat
-          </span>
+        <div class="flex flex-col gap-1">
+          <div class="flex items-center gap-2">
+            <span class="pill-tag">
+              <span class="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+              <span>Live Carrie</span>
+            </span>
+            <span class="text-[11px] text-purple-200/80">
+              Friendly assistant • remembers this chat
+            </span>
+          </div>
+          <!-- Mode toggle -->
+          <div class="flex items-center gap-2 text-[11px] text-purple-200/80">
+            <span>Mode:</span>
+            <button
+              id="modeBusinessBtn"
+              type="button"
+              class="btn btn-pill btn-pill-active"
+            >
+              Site Help
+            </button>
+            <button
+              id="modePersonalBtn"
+              type="button"
+              class="btn btn-pill"
+            >
+              Personal / Chill
+            </button>
+            <span id="modeHint" class="text-[10px] text-purple-300/80 hidden sm:inline">
+              Business Carrie answers site questions • Personal Carrie is more laid back.
+            </span>
+          </div>
         </div>
+
         <div class="text-right space-y-1">
           <div id="sessionIndicator" class="text-[11px] text-purple-200/70">
             Checking login…
@@ -217,8 +254,7 @@
           <button
             id="trainerBtn"
             type="button"
-            class="btn hidden"
-            style="padding:2px 8px;font-size:10px;border-radius:999px;"
+            class="btn btn-pill hidden"
           >
             Carrie Trainer
           </button>
@@ -248,10 +284,10 @@
           <div class="flex-1">
             <label for="carrieInput"
                    class="text-xs text-purple-200/80 mb-1 inline-block">
-              Ask Carrie anything about 8BFR, music, games, or ideas.
+              Ask Carrie anything — site help in <b>Site Help</b> mode or creative / fun chat in <b>Personal</b> mode.
             </label>
             <textarea id="carrieInput"
-                      placeholder="Example: “Help me write a hook for a trap beat about late nights.”"></textarea>
+                      placeholder="Example: “How do I buy 8BFR music?” or “Help me write a hook for a trap beat.”"></textarea>
             <p class="input-hint mt-1">
               Press <b>Enter</b> to send • <b>Shift+Enter</b> for a new line.
             </p>
@@ -266,6 +302,7 @@
 
     <p class="mt-3 text-[11px] text-purple-300/70 text-center max-w-xl mx-auto">
       Carrie is in beta. Conversations may be stored to improve your experience on the 8BFR Music Network.
+      Outfit changes and extra looks will be managed from the upcoming <b>Carrie Closet</b> page.
     </p>
   </main>
 
@@ -350,7 +387,7 @@
     // --- Supabase setup (same project as scripts.js) ---
     const SUPABASE_URL = "https://novbuvwpjnxwwvdekjhr.supabase.co";
     const SUPABASE_ANON_KEY =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiIsIm5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0";
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0";
 
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   </script>
@@ -371,11 +408,17 @@
     const trainerAnswer  = document.getElementById("trainerAnswer");
     const trainerStatus  = document.getElementById("trainerStatus");
 
+    const modeBusinessBtn = document.getElementById("modeBusinessBtn");
+    const modePersonalBtn = document.getElementById("modePersonalBtn");
+    const modeHint        = document.getElementById("modeHint");
+
     let currentUserId    = null;
     let currentUserEmail = null;
     let loadingHistory   = false;
+    let carrieMode       = "business"; // "business" | "personal"
 
     // --- Simple "training" data for Carrie (seeded) ---
+    // Business / site-help intents
     let carrieScripts = [
       {
         id: "buy_8bfr_music",
@@ -386,14 +429,16 @@
           "how can i purchase 8bfr",
           "how do i purchase 8 bfr music",
           "buy 8bfr music",
-          "purchase 8bfr"
+          "purchase 8bfr",
+          "where can i buy your music",
+          "how do i support 8bfr"
         ],
         reply: `
           You can support 8BFR by buying or streaming the music here:<br><br>
           • <b>Amazon Music</b> — search for “8BFR” in the Amazon Music store.<br>
           • <b>Spotify</b> — <a href="https://open.spotify.com/artist/127tw52iDXr7BvgB0IGG2x" target="_blank" rel="noopener">stream 8BFR here</a>.<br>
-          • <b>Other platforms</b> — most 8BFR releases appear in Apple Music, YouTube Music, etc.<br><br>
-          If you need help finding a song, tell me the title and I’ll guide you. 💜
+          • <b>Other platforms</b> — most 8BFR releases appear in Apple Music, YouTube Music, and YouTube Music.<br><br>
+          If you tell me the <b>song title</b>, I can guide you where to look. 💜
         `
       },
       {
@@ -402,16 +447,202 @@
           "what is 8bfr",
           "what is 8bfr music network",
           "tell me about 8bfr",
-          "what is this site"
+          "what is this site",
+          "what is this website"
         ],
         reply: `
-          8BFR Music Network is a creator hub where artists, beatmakers, gamers,
+          <b>8BFR Music Network</b> is a creator hub where artists, beatmakers, gamers,
           authors, and fans can <b>Create • Connect • Collab</b>.<br><br>
-          I’m Carrie — your AI guide for music, tools, profiles, and site help. 😊
+          You get:<br>
+          • Profiles for artists, beatmakers, authors, and fans<br>
+          • Studio &amp; AI tools for lyrics, songs, and more<br>
+          • Games &amp; tournaments with coins and rewards<br>
+          • Ads and features to promote your work<br><br>
+          I’m Carrie — your AI guide for the whole network. 😊
+        `
+      },
+      {
+        id: "signup_login",
+        patterns: [
+          "how do i sign up",
+          "how do i create an account",
+          "how do i join",
+          "how do i log in",
+          "i cant login",
+          "i can't log in",
+          "forgot my password",
+          "reset my password"
+        ],
+        reply: `
+          Here’s how accounts work on 8BFR:<br><br>
+          • <b>Sign up</b>: go to <a href="signup.html">signup.html</a> and create a free account.<br>
+          • <b>Log in</b>: use <a href="login.html">login.html</a> with your email and password.<br>
+          • <b>Forgot password</b>: use <a href="reset-password.html">reset-password.html</a> or <a href="reset_password.html">reset_password.html</a>.<br><br>
+          If you’re still stuck, hit <b>Contact</b> from the floating menu or use <a href="contact.html">contact.html</a>.
+        `
+      },
+      {
+        id: "profiles_featured",
+        patterns: [
+          "how do i get featured",
+          "how do i become a featured artist",
+          "how do i get on the home page",
+          "how do i get featured on 8bfr"
+        ],
+        reply: `
+          Featured spots are chosen based on a mix of:<br><br>
+          • <b>Activity</b> — posting, sharing, and staying engaged<br>
+          • <b>Quality</b> — strong songs, art, or content<br>
+          • <b>Support</b> — helping the community, not just self-promo<br>
+          • <b>Events</b> — tournaments, challenges, and special drops<br><br>
+          Start by completing your <b>profile</b>, sharing links, and joining events on the
+          <a href="featured.html">Featured</a> and <a href="game-tournaments.html">Tournaments</a> pages.
+        `
+      },
+      {
+        id: "upload_music",
+        patterns: [
+          "how do i upload music",
+          "how do i upload a song",
+          "how do i post a track",
+          "where do i upload beats"
+        ],
+        reply: `
+          Uploading music is handled through your <b>creator tools and profile</b> pages.<br><br>
+          • Check <a href="studio-tools.html">Studio Tools</a> and <a href="artist-studio.html">Artist Studio</a> for upload areas.<br>
+          • Make sure you’re logged in and your profile type is set correctly (Artist / Beatmaker).<br>
+          • In early builds, uploads may be limited while we finish the backend — watch <a href="announcements.html">Announcements</a> for updates.<br><br>
+          If something feels broken, send a message via <a href="contact.html">Contact</a>.
+        `
+      },
+      {
+        id: "ads_how_work",
+        patterns: [
+          "how do ads work",
+          "how do i buy an ad",
+          "how to buy an ad",
+          "how do i promote my music",
+          "how do i promote my song",
+          "how do i promote on 8bfr"
+        ],
+        reply: `
+          Ads on 8BFR rotate in the <b>Featured Ads</b> carousel on the home page.<br><br>
+          • There are always <b>5 slots</b> rotating in the banner.<br>
+          • When you buy a slot, your ad replaces a placeholder until it expires.<br>
+          • You can click <b>“Buy an Ad”</b> on the home page or go to <a href="ads.html#buy">ads.html#buy</a>.<br><br>
+          For best results, use a clear cover image, a short headline, and a link that goes directly to your music, shop, or profile.
+        `
+      },
+      {
+        id: "tournaments_games",
+        patterns: [
+          "how do tournaments work",
+          "how do the games work",
+          "how do i join a tournament",
+          "what games do you have",
+          "where are the tournaments"
+        ],
+        reply: `
+          Tournaments live under the <b>Games &amp; Tournaments</b> section.<br><br>
+          • Visit <a href="game-hub.html">Game Hub</a> or <a href="game-tournaments.html">Tournaments</a> to see current events.<br>
+          • Pool and other games connect to <b>leaderboards</b> and coins.<br>
+          • Events, prizes, and dates are usually listed on <a href="announcements.html">Announcements</a>.<br><br>
+          The goal is low-stress, fun competition — not sweaty esports. 😄
+        `
+      },
+      {
+        id: "coins_points",
+        patterns: [
+          "how do coins work",
+          "how do points work",
+          "what are coins",
+          "what are points",
+          "how do i earn coins",
+          "how do i earn points",
+          "what is the algorithm system",
+          "algorithm points"
+        ],
+        reply: `
+          8BFR uses <b>coins and points</b> to reward creators and fans.<br><br>
+          • <b>Coins</b>: earned from games, contests, and events; you can spend them in the
+            <a href="coinshop.html">Coin Shop</a> or <a href="shop-upgrades.html">Upgrades</a>.<br>
+          • <b>Points / Algorithm</b>: activity across the site feeds into a points system explained on
+            <a href="algorithm-points.html">Algorithm &amp; Points</a>.<br><br>
+          Think of it as an XP system that rewards <b>real engagement</b>, not just spam posting.
+        `
+      },
+      {
+        id: "kids_zone",
+        patterns: [
+          "what is kids zone",
+          "is there a kids area",
+          "kids safe",
+          "is this safe for kids"
+        ],
+        reply: `
+          Yes — there is a dedicated <b>Kids Zone</b> to keep things as safe as possible for younger users.<br><br>
+          • See <a href="kids-zone.html">Kids Zone</a>, <a href="kids_games.html">Kids Games</a>, and <a href="kids_stories.html">Kids Stories</a>.<br>
+          • Kids profiles are marked and handled differently (extra care with content).<br>
+          • Parents and guardians can learn more via <a href="rules.html">Rules</a> and <a href="privacy.html">Privacy</a>.<br><br>
+          Carrie stays in “PG mode” when she knows she’s talking with kids. 💜
+        `
+      },
+      {
+        id: "contact_support",
+        patterns: [
+          "how do i contact support",
+          "how do i contact you",
+          "how do i contact 8bfr",
+          "i need help",
+          "how do i report a problem",
+          "how do i report someone"
+        ],
+        reply: `
+          You can reach 8BFR directly from the site:<br><br>
+          • Use the <a href="contact.html">Contact</a> page to send a message.<br>
+          • Use floating <b>Contact</b> bubble on any page (top-right stack).<br>
+          • For serious issues, see <a href="rules.html">Rules</a> and then contact staff or mods via your profile or the contact form.<br><br>
+          The goal is to keep 8BFR safe and fun for everyone.
+        `
+      },
+      {
+        id: "radio_podcast_feed",
+        patterns: [
+          "where is the radio",
+          "where is the podcast",
+          "where is the feed",
+          "how do i see the feed",
+          "how do i listen to radio"
+        ],
+        reply: `
+          Here’s where everything lives:<br><br>
+          • <b>Community Feed</b>: <a href="feed.html">feed.html</a><br>
+          • <b>8BFR Radio</b>: <a href="radio.html">radio.html</a><br>
+          • <b>Podcast</b>: <a href="podcast.html">podcast.html</a><br><br>
+          They’re also linked from the <b>floating menu</b> under “Home &amp; Core” and “Community”.
+        `
+      },
+      {
+        id: "carrie_plan",
+        patterns: [
+          "what is the carrie plan",
+          "tell me about the carrie plan",
+          "what can carrie do",
+          "what does carrie do here",
+          "what is carrie"
+        ],
+        reply: `
+          The <b>Carrie Plan</b> is simple:<br><br>
+          • <b>Business Carrie (Site Help mode)</b> — helps you with 8BFR: pages, tools, games, ads, coins, rules, and how the network works.<br>
+          • <b>Personal Carrie (Personal / Chill mode)</b> — more like a creative friend: hooks, lyric ideas, routines, encouragement, and casual conversation.<br>
+          • <b>Looks &amp; outfits</b> — you’ll be able to change outfits and unlock more styles in the upcoming
+            <a href="carrie-closet.html">Carrie Closet</a> and related shop pages.<br><br>
+          Right now on this page you can switch modes with the <b>Site Help / Personal</b> toggle. Outfit customization will be turned on across the network soon.
         `
       }
     ];
 
+    // Normalization & match
     function normalizeText(text) {
       return text.toLowerCase().replace(/\s+/g, " ").trim();
     }
@@ -421,7 +652,7 @@
       for (const intent of carrieScripts) {
         for (const pattern of intent.patterns) {
           const p = normalizeText(pattern);
-          if (normalized.includes(p)) {
+          if (p && normalized.includes(p)) {
             return intent.reply;
           }
         }
@@ -445,6 +676,14 @@
       });
     }
 
+    function getCarrieAvatarSrc() {
+      // Business vs casual Carrie images
+      if (carrieMode === "business") {
+        return "assets/images/Carrie_Business.png";
+      }
+      return "assets/images/Carrie_Casual.png";
+    }
+
     function renderMessage(role, content, createdAt) {
       const row = document.createElement("div");
       row.className = "msg-row " + (role === "user" ? "user" : "assistant");
@@ -454,7 +693,7 @@
 
       if (role === "assistant") {
         const img = document.createElement("img");
-        img.src = "assets/images/Carrie_Casual.png";
+        img.src = getCarrieAvatarSrc();
         img.alt = "Carrie avatar";
         img.onerror = function () {
           this.onerror = null;
@@ -473,7 +712,6 @@
         // allow simple HTML for Carrie replies
         text.innerHTML = content;
       } else {
-        // user content stays plain text for safety
         text.textContent = content;
       }
       bubble.appendChild(text);
@@ -506,35 +744,67 @@
       }
     }
 
-    // Very simple Carrie brain (with training layer first)
+    // --- Mode UI ---
+    function updateModeUI() {
+      if (!modeBusinessBtn || !modePersonalBtn) return;
+      if (carrieMode === "business") {
+        modeBusinessBtn.classList.add("btn-pill-active", "btn-primary");
+        modePersonalBtn.classList.remove("btn-pill-active", "btn-primary");
+      } else {
+        modePersonalBtn.classList.add("btn-pill-active", "btn-primary");
+        modeBusinessBtn.classList.remove("btn-pill-active", "btn-primary");
+      }
+    }
+
+    // Very simple Carrie brain with:
+    // 1) Scripted Q&A
+    // 2) Branch behavior depending on carrieMode
     function carrieBrain(userText) {
       const t = userText.trim();
       if (!t) {
         return "I didn’t quite catch that — try asking me about music, games, or how 8BFR works.";
       }
 
-      // 1) Check owner / scripted Q&A
+      // 1) Check scripted / trained answers first
       const scripted = findCarrieScriptReply(t);
       if (scripted) {
         return scripted;
       }
 
-      // 2) Heuristic backup logic
       const lower = t.toLowerCase();
+
+      // 2) Mode-specific behavior
+      if (carrieMode === "business") {
+        // Business Carrie: more site-focused backup answers
+        if (lower.includes("home page") || lower.includes("index")) {
+          return "The home page is at <a href=\"index.html\">index.html</a>. From there you can reach profiles, studio tools, radio, podcast, games, and more using the floating menu.";
+        }
+        if (lower.includes("menu") || lower.includes("navigation")) {
+          return "The round button at the top-right opens the floating menu. You can also use the bubble stack for quick actions like Contact, Donate, Footer, Theme, and Stream 8BFR.";
+        }
+        if (lower.includes("profile") || lower.includes("account")) {
+          return "You can view or edit your profile from <a href=\"profile.html\">profile.html</a> or the Profiles section. There are special layouts for artists, beatmakers, authors, influencers, fans, and kids.";
+        }
+
+        // Generic business fallback
+        return "Here in <b>Site Help</b> mode, I focus on the 8BFR Network itself: pages, tools, ads, games, and how things work. Try asking something like “How do coins work?” or “How do I buy 8BFR music?”.";
+      }
+
+      // Personal Carrie: creative / chill assistant
       if (lower.includes("hook") || lower.includes("chorus")) {
-        return "Hooks love repetition and rhythm. Try a 2-bar phrase you can repeat 3–4 times, then tweak the last line. If you tell me your song topic and vibe, I can suggest some hook ideas.";
+        return "Hooks love repetition and rhythm. Try a 2-bar phrase you can repeat 3–4 times, then flip the last line. Tell me your song topic and vibe and I’ll help you sketch a hook.";
       }
       if (lower.includes("8bfr") || lower.includes("network")) {
-        return "8BFR Music Network is built to help creators connect — profiles, studio & AI tools, tournaments, and more. You can explore it all from the floating menu and the Network / Search page.";
+        return "8BFR is basically our little creative universe — music, games, stories, and community. I’m your AI friend inside it. 💜 What are you trying to build right now?";
       }
       if (lower.includes("beat") || lower.includes("bpm")) {
-        return "For rap and trap, a lot of people sit between 130–150 BPM (or 65–75 double-time). If you share your mood — dark, hype, chill — I can help you pick a BPM range and structure.";
+        return "For rap/trap, 130–150 BPM (or 65–75 double-time) is a sweet spot. Tell me your mood — dark, hype, chill — and I’ll suggest a BPM and structure.";
       }
       if (lower.includes("tournament") || lower.includes("game")) {
-        return "Tournaments and games on 8BFR are meant to be low-stress and fun. You’ll see brackets, leaderboards, and coin rewards on the Games & Tournaments pages.";
+        return "Games and tournaments are here to keep things fun, not stressful. You can warm up your brain with a few games, then jump back into music or writing.";
       }
-      if (lower.includes("lyrics") || lower.includes("write")) {
-        return "Give me 3 things: mood, topic, and artist you’re inspired by. I’ll help you shape a verse structure or some starting lines you can tweak.";
+      if (lower.includes("lyrics") || lower.includes("write") || lower.includes("writer's block") || lower.includes("writers block")) {
+        return "Give me 3 things: mood, topic, and an artist you like. I’ll help you sketch a verse or some starting lines to get you unstuck.";
       }
 
       const starters = [
@@ -544,7 +814,7 @@
         "Okay, let’s build from that."
       ];
       const starter = starters[Math.floor(Math.random() * starters.length)];
-      return starter + " If you want a more concrete answer, tell me your goal in one sentence, and I’ll break it into a simple plan.";
+      return starter + " In <b>Personal</b> mode I’m here more like a creative friend — tell me your goal in one sentence and I’ll break it into a simple plan.";
     }
 
     // --- Session + history ---
@@ -573,7 +843,7 @@
       }
 
       if (!currentUserId) {
-        renderMessage("assistant", "Hey, I’m Carrie 💜 What are you working on today — music, writing, games, or something else?");
+        renderMessage("assistant", "Hey, I’m Carrie 💜 I’m in <b>Site Help</b> mode right now. Ask me about pages, ads, coins, or tournaments — or switch to <b>Personal</b> mode for more laid-back chat.");
         return;
       }
 
@@ -591,7 +861,7 @@
         if (rows && rows.length) {
           rows.forEach(r => renderMessage(r.role, r.content, r.created_at));
         } else {
-          renderMessage("assistant", "Hey, I’m Carrie 💜 First time here — want help with a track, a story, or exploring the 8BFR Network?");
+          renderMessage("assistant", "Hey, I’m Carrie 💜 I’m in <b>Site Help</b> mode right now. Want help with a track, a story, or figuring out the 8BFR Network?");
         }
       } catch (e) {
         console.warn("Could not load Carrie history", e);
@@ -674,6 +944,24 @@
         }
       });
     }
+
+    // --- Mode buttons behavior ---
+    if (modeBusinessBtn) {
+      modeBusinessBtn.addEventListener("click", () => {
+        carrieMode = "business";
+        updateModeUI();
+        renderMessage("assistant", "Switched to <b>Site Help</b> mode. I’ll focus on 8BFR pages, tools, ads, coins, and how everything works.", new Date());
+      });
+    }
+    if (modePersonalBtn) {
+      modePersonalBtn.addEventListener("click", () => {
+        carrieMode = "personal";
+        updateModeUI();
+        renderMessage("assistant", "Switched to <b>Personal / Chill</b> mode. Now I’m more like a creative friend — ask me about lyrics, routines, ideas, or just talk.", new Date());
+      });
+    }
+
+    updateModeUI();
 
     // --- Form behavior ---
     inputEl.addEventListener("keydown", (e) => {
