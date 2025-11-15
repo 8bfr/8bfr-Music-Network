@@ -1,59 +1,479 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Carrie Chat — 8BFR</title>
-<link rel="icon" href="assets/images/favicon.png">
-<script src="https://cdn.tailwindcss.com"></script>
-<style>
-body{background:linear-gradient(#0b0014,#000);color:#eae6ff;font-family:system-ui;margin:0}
-.card{border:1px solid rgba(124,58,237,.35);background:#0c0618;border-radius:14px;box-shadow:0 0 20px rgba(124,58,237,.18);padding:16px}
-.input{width:100%;padding:.5rem .6rem;background:#120327;border:1px solid rgba(124,58,237,.6);border-radius:.6rem;color:#fff}
-.btn{display:inline-block;background:#120327;border:1px solid rgba(124,58,237,.6);color:#eae6ff;padding:.55rem .9rem;border-radius:.7rem;text-decoration:none}
-.btn:hover{background:#190536}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Chat with Carrie — 8BFR Music Network</title>
+  <meta name="description" content="Chat with Carrie — your AI assistant on the 8BFR Music Network." />
+  <link rel="icon" href="assets/images/favicon.png" />
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    :root {
+      --ring: rgba(124,58,237,.55);
+      --glass: rgba(12,6,24,.80);
+    }
+    html,body { scroll-behavior:smooth; }
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(124,58,237,.35), transparent 60%),
+        radial-gradient(900px 400px at 110% 10%, rgba(0,217,255,.22), transparent 60%),
+        linear-gradient(#0b0014,#000);
+      color:#eae6ff;
+      margin:0;
+      min-height:100vh;
+      overflow-x:hidden;
+    }
+    header{
+      position:relative;
+      z-index:5;
+      background:rgba(15,0,30,.9);
+      border-bottom:1px solid rgba(124,58,237,.5);
+    }
+    .chat-shell{
+      border-radius:18px;
+      border:1px solid rgba(124,58,237,.55);
+      background:rgba(10,2,26,.95);
+      box-shadow:0 16px 40px rgba(0,0,0,.75);
+    }
+    .chat-log{
+      height:420px;
+      max-height:65vh;
+      overflow-y:auto;
+      padding:1rem;
+      background:
+        radial-gradient(circle at 0 0, rgba(124,58,237,.12), transparent 55%),
+        radial-gradient(circle at 100% 0, rgba(0,217,255,.10), transparent 55%),
+        #020014;
+    }
+    .msg-row{
+      display:flex;
+      margin-bottom:.65rem;
+      gap:.4rem;
+    }
+    .msg-row.user{
+      justify-content:flex-end;
+    }
+    .msg-bubble{
+      max-width:80%;
+      padding:.55rem .8rem;
+      border-radius:.85rem;
+      font-size:.9rem;
+      line-height:1.35;
+      border:1px solid rgba(148,163,255,.55);
+      background:rgba(17,24,39,.96);
+      box-shadow:0 0 12px rgba(79,70,229,.35);
+    }
+    .msg-row.user .msg-bubble{
+      background:linear-gradient(135deg,#7c3aed,#4c1d95);
+      border-color:#a855f7;
+      box-shadow:0 0 12px rgba(168,85,247,.55);
+    }
+    .msg-meta{
+      font-size:.7rem;
+      opacity:.7;
+      margin-top:.2rem;
+    }
+    .msg-avatar{
+      width:28px;
+      height:28px;
+      border-radius:999px;
+      flex-shrink:0;
+      overflow:hidden;
+      border:1px solid rgba(129,140,248,.9);
+      display:grid;
+      place-items:center;
+      font-size:.75rem;
+      background:#020014;
+    }
+    .msg-avatar img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
+    }
+    .msg-row.user .msg-avatar{
+      display:none; /* hide avatar on the right for now */
+    }
+
+    .pill-tag{
+      display:inline-flex;
+      align-items:center;
+      gap:.25rem;
+      font-size:.7rem;
+      border-radius:999px;
+      padding:.15rem .55rem;
+      border:1px solid rgba(129,140,248,.85);
+      background:rgba(15,23,42,.9);
+      text-transform:uppercase;
+      letter-spacing:.08em;
+    }
+
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:.3rem;
+      background:#120327;
+      border:1px solid rgba(124,58,237,.6);
+      color:#eae6ff;
+      padding:.55rem .95rem;
+      border-radius:.75rem;
+      font-size:.9rem;
+      text-decoration:none;
+      cursor:pointer;
+    }
+    .btn:hover{
+      background:#190536;
+    }
+    .btn-primary{
+      background:#7c3aed;
+      border-color:#7c3aed;
+      color:#fff;
+    }
+    .btn-primary:hover{ filter:brightness(1.05); }
+
+    textarea#carrieInput{
+      resize:none;
+      min-height:52px;
+      max-height:120px;
+      background:rgba(10,2,26,.95);
+      border-radius:.75rem;
+      border:1px solid rgba(148,163,255,.55);
+      padding:.5rem .7rem;
+      font-size:.9rem;
+      color:#e5e7eb;
+    }
+    textarea#carrieInput:focus{
+      outline:none;
+      box-shadow:0 0 0 1px rgba(129,140,248,.9);
+      border-color:rgba(129,140,248,1);
+    }
+    .input-hint{
+      font-size:.7rem;
+      opacity:.7;
+    }
+    .typing-dot{
+      width:6px;height:6px;border-radius:999px;
+      background:#a855f7;
+      animation:bounce 1s infinite ease-in-out;
+    }
+    .typing-dot:nth-child(2){ animation-delay:.15s; }
+    .typing-dot:nth-child(3){ animation-delay:.3s; }
+    @keyframes bounce{
+      0%,80%,100%{ transform:translateY(0); opacity:.4;}
+      40%{ transform:translateY(-4px); opacity:1;}
+    }
+
+    @media (max-width:640px){
+      .chat-log{ height:60vh; }
+      .msg-bubble{ max-width:88%; }
+    }
+  </style>
 </head>
 <body>
-<header class="px-4 py-4 bg-[rgba(15,0,30,.9)] border-b border-purple-500/40">
-  <div class="max-w-4xl mx-auto flex items-center justify-between">
-    <a href="index.html" class="btn">← Home</a>
-    <h1 class="text-lg font-bold">Chat with Carrie</h1>
-    <span></span>
-  </div>
-</header>
+  <!-- Simple header (matches home vibe, no menu here so we don't double Carrie) -->
+  <header class="px-4 py-4">
+    <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <img src="assets/images/logo_8bfr.svg"
+             alt="8BFR logo"
+             class="h-9 w-auto"
+             onerror="this.onerror=null;this.src='assets/images/8bfr.png'">
+        <div>
+          <h1 class="text-xl sm:text-2xl font-extrabold">
+            Chat with <span class="text-[#a855f7]">Carrie</span>
+          </h1>
+          <p class="text-[11px] text-purple-300/80 -mt-0.5">
+            8BFR Music Network • Create • Connect • Collab
+          </p>
+        </div>
+      </div>
+      <a href="index.html"
+         class="text-[#00d9ff] text-xs sm:text-sm underline/50 hover:underline">
+        ⬅ Back to Home
+      </a>
+    </div>
+  </header>
 
-<main class="max-w-4xl mx-auto px-4 py-6 space-y-4">
-  <div class="card">
-    <div id="log" class="space-y-2 text-sm max-h-80 overflow-auto"></div>
-    <form id="chatForm" class="mt-3 flex gap-2">
-      <input id="msg" class="input flex-1" placeholder="Ask Carrie something…">
-      <button class="btn" type="submit">Send</button>
-    </form>
-  </div>
-</main>
+  <main class="max-w-4xl mx-auto px-4 pb-10 pt-4">
+    <div class="chat-shell p-4 sm:p-5">
+      <div class="flex items-center justify-between mb-3 gap-3">
+        <div class="flex items-center gap-2">
+          <span class="pill-tag">
+            <span class="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+            <span>Live Carrie</span>
+          </span>
+          <span class="text-[11px] text-purple-200/80">
+            Friendly assistant • remembers this chat
+          </span>
+        </div>
+        <div id="sessionIndicator" class="text-[11px] text-purple-200/70 text-right">
+          Checking login…
+        </div>
+      </div>
 
-<script src="scripts.js?v=6" defer></script>
-<script>
-const form=document.getElementById('chatForm');
-const log=document.getElementById('log');
-const msg=document.getElementById('msg');
-function add(role,text){
-  const d=document.createElement('div');
-  d.innerHTML='<b>'+role+':</b> '+text;
-  log.appendChild(d);
-  log.scrollTop=log.scrollHeight;
-}
-form.addEventListener('submit',e=>{
-  e.preventDefault();
-  const v=msg.value.trim();
-  if(!v) return;
-  add('You',v);
-  msg.value='';
-  add('Carrie','(Placeholder) I heard: '+v);
-});
-</script>
-  <script src="scripts.js?v=6" defer></script>
-</body>
-</html>
+      <!-- Chat log -->
+      <div id="chatLog" class="chat-log rounded-lg mb-3">
+        <!-- messages injected by JS -->
+      </div>
+
+      <!-- Typing indicator -->
+      <div id="typingRow" class="hidden mb-2 text-xs text-purple-200/80 flex items-center gap-2">
+        <span class="pill-tag">
+          Carrie typing
+        </span>
+        <div class="flex items-center gap-1 ml-1">
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+        </div>
+      </div>
+
+      <!-- Input row -->
+      <form id="carrieForm" class="mt-1">
+        <div class="flex items-end gap-2">
+          <div class="flex-1">
+            <label for="carrieInput"
+                   class="text-xs text-purple-200/80 mb-1 inline-block">
+              Ask Carrie anything about 8BFR, music, games, or ideas.
+            </label>
+            <textarea id="carrieInput"
+                      placeholder="Example: “Help me write a hook for a trap beat about late nights.”"></textarea>
+            <p class="input-hint mt-1">
+              Press <b>Enter</b> to send • <b>Shift+Enter</b> for a new line.
+            </p>
+          </div>
+          <button type="submit" class="btn btn-primary px-3 sm:px-4 h-10">
+            <span>Send</span>
+            <span>📤</span>
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <p class="mt-3 text-[11px] text-purple-300/70 text-center max-w-xl mx-auto">
+      Carrie is in beta. Conversations may be stored to improve your experience on the 8BFR Music Network.
+    </p>
+  </main>
+
+  <!-- Supabase client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    // --- Supabase setup (same project as scripts.js) ---
+    const SUPABASE_URL = "https://novbuvwpjnxwwvdekjhr.supabase.co";
+    const SUPABASE_ANON_KEY =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0";
+
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  </script>
+
+  <script>
+    const chatLogEl      = document.getElementById("chatLog");
+    const formEl         = document.getElementById("carrieForm");
+    const inputEl        = document.getElementById("carrieInput");
+    const typingRowEl    = document.getElementById("typingRow");
+    const sessionLabelEl = document.getElementById("sessionIndicator");
+
+    let currentUserId = null;
+    let loadingHistory = false;
+
+    // --- Utils ---
+    function fmtTime(dt) {
+      try {
+        const d = typeof dt === "string" ? new Date(dt) : dt;
+        return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+      } catch {
+        return "";
+      }
+    }
+
+    function scrollChatToBottom() {
+      requestAnimationFrame(() => {
+        chatLogEl.scrollTop = chatLogEl.scrollHeight;
+      });
+    }
+
+    function renderMessage(role, content, createdAt) {
+      const row = document.createElement("div");
+      row.className = "msg-row " + (role === "user" ? "user" : "assistant");
+
+      const avatar = document.createElement("div");
+      avatar.className = "msg-avatar";
+
+      if (role === "assistant") {
+        const img = document.createElement("img");
+        img.src = "assets/images/Carrie_Casual.png";
+        img.alt = "Carrie avatar";
+        img.onerror = function () {
+          this.onerror = null;
+          this.src = "assets/images/default_user_35_40_girl.png";
+        };
+        avatar.appendChild(img);
+      } else {
+        avatar.textContent = "You";
+      }
+
+      const bubble = document.createElement("div");
+      bubble.className = "msg-bubble";
+
+      const text = document.createElement("div");
+      text.textContent = content;
+      bubble.appendChild(text);
+
+      const meta = document.createElement("div");
+      meta.className = "msg-meta";
+      meta.textContent = (role === "assistant" ? "Carrie • " : "You • ") + fmtTime(createdAt || new Date());
+      bubble.appendChild(meta);
+
+      // structure: [avatar][bubble] for assistant, bubble-only for user aligned right
+      if (role === "assistant") {
+        row.appendChild(avatar);
+        row.appendChild(bubble);
+      } else {
+        row.appendChild(bubble);
+      }
+
+      chatLogEl.appendChild(row);
+      scrollChatToBottom();
+    }
+
+    async function saveMessage(role, content) {
+      try {
+        await supabase.from("carrie_chat_logs").insert({
+          user_id: currentUserId,
+          role,
+          content
+        });
+      } catch (e) {
+        console.warn("Failed to save Carrie chat message", e);
+      }
+    }
+
+    // Very simple Carrie brain (no external API yet, but nicer than echo)
+    function carrieBrain(userText) {
+      const t = userText.trim();
+      if (!t) {
+        return "I didn’t quite catch that — try asking me about music, games, or how 8BFR works.";
+      }
+
+      const lower = t.toLowerCase();
+      if (lower.includes("hook") || lower.includes("chorus")) {
+        return "Hooks love repetition and rhythm. Try a 2-bar phrase you can repeat 3–4 times, then tweak the last line. If you tell me your song topic and vibe, I can suggest some hook ideas.";
+      }
+      if (lower.includes("8bfr") || lower.includes("network")) {
+        return "8BFR Music Network is built to help creators connect — profiles, studio & AI tools, tournaments, and more. You can explore it all from the floating menu and the Network / Search page.";
+      }
+      if (lower.includes("beat") || lower.includes("bpm")) {
+        return "For rap and trap, a lot of people sit between 130–150 BPM (or 65–75 double-time). If you share your mood — dark, hype, chill — I can help you pick a BPM range and structure.";
+      }
+      if (lower.includes("tournament") || lower.includes("game")) {
+        return "Tournaments and games on 8BFR are meant to be low-stress and fun. You’ll see brackets, leaderboards, and coin rewards on the Games & Tournaments pages.";
+      }
+      if (lower.includes("lyrics") || lower.includes("write")) {
+        return "Give me 3 things: mood, topic, and artist you’re inspired by. I’ll help you shape a verse structure or some starting lines you can tweak.";
+      }
+
+      // generic friendly fallback
+      const starters = [
+        "I hear you.",
+        "Got it.",
+        "Nice idea.",
+        "Okay, let’s build from that."
+      ];
+      const starter = starters[Math.floor(Math.random() * starters.length)];
+      return starter + " If you want a more concrete answer, tell me your goal in one sentence, and I’ll break it into a simple plan.";
+    }
+
+    // --- Session + history ---
+    async function initSessionAndHistory() {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) throw error;
+
+        if (data && data.session && data.session.user) {
+          currentUserId = data.session.user.id;
+          sessionLabelEl.textContent = "Logged in as " + (data.session.user.email || "8BFR user");
+        } else {
+          currentUserId = null;
+          sessionLabelEl.textContent = "Not logged in • Carrie will still chat, but history won’t be tied to an account.";
+        }
+      } catch (e) {
+        console.warn("Carrie session check failed", e);
+        sessionLabelEl.textContent = "Could not check login • you can still chat.";
+      }
+
+      // load chat history if we have a user id
+      if (!currentUserId) {
+        // show a friendly opener
+        renderMessage("assistant", "Hey, I’m Carrie 💜 What are you working on today — music, writing, games, or something else?");
+        return;
+      }
+
+      loadingHistory = true;
+      try {
+        const { data: rows, error } = await supabase
+          .from("carrie_chat_logs")
+          .select("*")
+          .eq("user_id", currentUserId)
+          .order("created_at", { ascending: true })
+          .limit(40);
+
+        if (error) throw error;
+
+        if (rows && rows.length) {
+          rows.forEach(r => renderMessage(r.role, r.content, r.created_at));
+        } else {
+          renderMessage("assistant", "Hey, I’m Carrie 💜 First time here — want help with a track, a story, or exploring the 8BFR Network?");
+        }
+      } catch (e) {
+        console.warn("Could not load Carrie history", e);
+        renderMessage("assistant", "Hey, I’m Carrie 💜 I had a tiny glitch loading history, but we can start fresh right now.");
+      } finally {
+        loadingHistory = false;
+      }
+    }
+
+    // --- Typing indicator helpers ---
+    function showTyping() {
+      typingRowEl.classList.remove("hidden");
+    }
+    function hideTyping() {
+      typingRowEl.classList.add("hidden");
+    }
+
+    // --- Form behavior ---
+    inputEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        formEl.requestSubmit();
+      }
+    });
+
+    formEl.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const raw = inputEl.value.trim();
+      if (!raw) return;
+
+      const userMsg = raw;
+      inputEl.value = "";
+      renderMessage("user", userMsg, new Date());
+      saveMessage("user", userMsg);
+
+      showTyping();
+
+      // simulate thinking delay
+      setTimeout(async () => {
+        const reply = carrieBrain(userMsg);
+        renderMessage("assistant", reply, new Date());
+        hideTyping();
+        saveMessage("assistant", reply);
+      }, 600 + Math.random() * 500);
+    });
+
+    // Kick everything off
+    initSessionAndHistory();
+  </script>
 </body>
 </html>
