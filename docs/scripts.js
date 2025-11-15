@@ -1059,6 +1059,134 @@ body.menu-open #carrieWrap{
         );
       });
     }
+    // ===== Carrie global preferences (mode + outfit) =====
+(function () {
+  const OUTFIT_KEY = "carrie-outfit";
+  const MODE_KEY   = "carrie-mode";
+
+  // Map outfit keys to image paths
+  const OUTFIT_SRC = {
+    casual:    "assets/images/Carrie_Casual.png",
+    business:  "assets/images/Carrie_Business.png",
+    concert:   "assets/images/Carrie_Concert.png",
+    streetwear:"assets/images/Carrie_Streetwear.png"
+  };
+
+  function safeGetLocal(key, fallback) {
+    try {
+      const v = localStorage.getItem(key);
+      return v == null ? fallback : v;
+    } catch (e) {
+      return fallback;
+    }
+  }
+
+  function safeSetLocal(key, value) {
+    try {
+      localStorage.setItem(key, value);
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  function getOutfit() {
+    const stored = safeGetLocal(OUTFIT_KEY, null);
+    if (stored && OUTFIT_SRC[stored]) return stored;
+    return "casual"; // default Carrie
+  }
+
+  function setOutfit(name) {
+    if (!OUTFIT_SRC[name]) return;
+    safeSetLocal(OUTFIT_KEY, name);
+    updateCarrieAvatarImage(); // refresh if avatar is visible
+  }
+
+  function resolveOutfitSrc(name) {
+    const key = OUTFIT_SRC[name] ? name : "casual";
+    return OUTFIT_SRC[key];
+  }
+
+  function getMode() {
+    const stored = safeGetLocal(MODE_KEY, null);
+    if (stored === "professional" || stored === "personal") return stored;
+    return "professional";
+  }
+
+  /**
+   * setMode("professional") or setMode("personal")
+   * persist = true by default (stores in localStorage)
+   */
+  function setMode(mode, persist) {
+    if (mode !== "professional" && mode !== "personal") return;
+    if (persist !== false) {
+      safeSetLocal(MODE_KEY, mode);
+    }
+    // nothing else to do here yet – pages like carrie-chat.html
+    // already read carrie-mode from localStorage.
+  }
+
+  /**
+   * Find Carrie avatar(s) on the page and update src based on outfit.
+   * We try several selectors so we don't break any existing markup.
+   */
+  function updateCarrieAvatarImage() {
+    const src = resolveOutfitSrc(getOutfit());
+    const selectors = [
+      "[data-carrie-avatar]",
+      "#carrieAvatar",
+      "#carrie-avatar",
+      ".carrie-avatar"
+    ];
+
+    let els = [];
+    selectors.forEach(sel => {
+      document.querySelectorAll(sel).forEach(el => els.push(el));
+    });
+
+    if (!els.length) return;
+
+    els.forEach(function (img) {
+      if (img && img.tagName && img.tagName.toLowerCase() === "img") {
+        img.src = src;
+      }
+    });
+  }
+
+  // Expose a tiny API on window so pages can use it if needed
+  window.carriePrefs = window.carriePrefs || {
+    getOutfit,
+    setOutfit,
+    getMode,
+    setMode,
+    resolveOutfitSrc,
+    updateCarrieAvatarImage
+  };
+
+  // On page load:
+  // 1) Optional per-page default mode (does NOT overwrite user choice unless wanted)
+  //    You can add: <body data-carrie-default-mode="professional"> or "personal"
+  // 2) Update Carrie avatar image if she is rendered on this page.
+  document.addEventListener("DOMContentLoaded", function () {
+    try {
+      const body = document.body;
+      if (body) {
+        const defaultMode = body.getAttribute("data-carrie-default-mode");
+        if (defaultMode === "professional" || defaultMode === "personal") {
+          // Only set mode if there is nothing stored yet
+          const stored = safeGetLocal(MODE_KEY, null);
+          if (!stored) {
+            setMode(defaultMode, true);
+          }
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    // Make sure avatar matches current outfit
+    updateCarrieAvatarImage();
+  });
+})();
 
     enforceAuthGate();
   }
