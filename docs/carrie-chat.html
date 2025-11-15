@@ -209,8 +209,19 @@
             Friendly assistant • remembers this chat
           </span>
         </div>
-        <div id="sessionIndicator" class="text-[11px] text-purple-200/70 text-right">
-          Checking login…
+        <div class="text-right space-y-1">
+          <div id="sessionIndicator" class="text-[11px] text-purple-200/70">
+            Checking login…
+          </div>
+          <!-- Owner-only trainer button (shown via JS if email matches) -->
+          <button
+            id="trainerBtn"
+            type="button"
+            class="btn hidden"
+            style="padding:2px 8px;font-size:10px;border-radius:999px;"
+          >
+            Carrie Trainer
+          </button>
         </div>
       </div>
 
@@ -258,13 +269,88 @@
     </p>
   </main>
 
+  <!-- Carrie Trainer modal (owner only; JS toggles visibility) -->
+  <div
+    id="trainerModal"
+    class="fixed inset-0 z-50 hidden"
+  >
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+    <div
+      class="relative max-w-md mx-auto mt-24 bg-[#0c0618] border border-purple-500/60 rounded-xl p-4 shadow-2xl"
+    >
+      <div class="flex items-center justify-between mb-2">
+        <h2 class="text-sm font-semibold text-purple-100">
+          Carrie Trainer (Owner Only)
+        </h2>
+        <button
+          id="trainerClose"
+          type="button"
+          class="text-xs text-purple-200 hover:underline"
+        >
+          Close
+        </button>
+      </div>
+      <p class="text-[11px] text-purple-200/80 mb-2">
+        Add a question pattern and the reply you want Carrie to use.
+        Replies can include basic HTML and links.
+      </p>
+      <form id="trainerForm" class="space-y-2">
+        <div>
+          <label class="text-xs text-purple-200/90 block mb-1">
+            User question / pattern (example: "how do i purchase 8bfr music")
+          </label>
+          <textarea
+            id="trainerQuestion"
+            class="w-full text-xs rounded-md border border-purple-500/50 bg-[#120327] px-2 py-1 text-purple-50"
+            rows="2"
+          ></textarea>
+        </div>
+        <div>
+          <label class="text-xs text-purple-200/90 block mb-1">
+            Carrie reply (HTML allowed)
+          </label>
+          <textarea
+            id="trainerAnswer"
+            class="w-full text-xs rounded-md border border-purple-500/50 bg-[#120327] px-2 py-1 text-purple-50"
+            rows="4"
+          ></textarea>
+        </div>
+        <p class="text-[10px] text-purple-300/80">
+          Tip: You can add more patterns for the same answer later by repeating this with small variations.
+        </p>
+        <div class="flex justify-end gap-2 pt-1">
+          <button
+            type="button"
+            id="trainerCancel"
+            class="btn"
+            style="padding:3px 10px;font-size:11px;"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            class="btn btn-primary"
+            style="padding:3px 10px;font-size:11px;"
+          >
+            Save &amp; Use
+          </button>
+        </div>
+        <div
+          id="trainerStatus"
+          class="text-[10px] text-green-300/80 mt-1"
+          style="display:none;"
+        ></div>
+      </form>
+    </div>
+  </div>
+
   <!-- Supabase client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     // --- Supabase setup (same project as scripts.js) ---
     const SUPABASE_URL = "https://novbuvwpjnxwwvdekjhr.supabase.co";
     const SUPABASE_ANON_KEY =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0";
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiIsIm5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0";
 
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   </script>
@@ -276,8 +362,72 @@
     const typingRowEl    = document.getElementById("typingRow");
     const sessionLabelEl = document.getElementById("sessionIndicator");
 
-    let currentUserId = null;
-    let loadingHistory = false;
+    const trainerBtn     = document.getElementById("trainerBtn");
+    const trainerModal   = document.getElementById("trainerModal");
+    const trainerForm    = document.getElementById("trainerForm");
+    const trainerClose   = document.getElementById("trainerClose");
+    const trainerCancel  = document.getElementById("trainerCancel");
+    const trainerQuestion= document.getElementById("trainerQuestion");
+    const trainerAnswer  = document.getElementById("trainerAnswer");
+    const trainerStatus  = document.getElementById("trainerStatus");
+
+    let currentUserId    = null;
+    let currentUserEmail = null;
+    let loadingHistory   = false;
+
+    // --- Simple "training" data for Carrie (seeded) ---
+    let carrieScripts = [
+      {
+        id: "buy_8bfr_music",
+        patterns: [
+          "how do i purchase 8bfr music",
+          "how do i buy 8bfr music",
+          "where can i buy 8bfr",
+          "how can i purchase 8bfr",
+          "how do i purchase 8 bfr music",
+          "buy 8bfr music",
+          "purchase 8bfr"
+        ],
+        reply: `
+          You can support 8BFR by buying or streaming the music here:<br><br>
+          • <b>Amazon Music</b> — search for “8BFR” in the Amazon Music store.<br>
+          • <b>Spotify</b> — <a href="https://open.spotify.com/artist/127tw52iDXr7BvgB0IGG2x" target="_blank" rel="noopener">stream 8BFR here</a>.<br>
+          • <b>Other platforms</b> — most 8BFR releases appear in Apple Music, YouTube Music, etc.<br><br>
+          If you need help finding a song, tell me the title and I’ll guide you. 💜
+        `
+      },
+      {
+        id: "what_is_8bfr",
+        patterns: [
+          "what is 8bfr",
+          "what is 8bfr music network",
+          "tell me about 8bfr",
+          "what is this site"
+        ],
+        reply: `
+          8BFR Music Network is a creator hub where artists, beatmakers, gamers,
+          authors, and fans can <b>Create • Connect • Collab</b>.<br><br>
+          I’m Carrie — your AI guide for music, tools, profiles, and site help. 😊
+        `
+      }
+    ];
+
+    function normalizeText(text) {
+      return text.toLowerCase().replace(/\s+/g, " ").trim();
+    }
+
+    function findCarrieScriptReply(userText) {
+      const normalized = normalizeText(userText);
+      for (const intent of carrieScripts) {
+        for (const pattern of intent.patterns) {
+          const p = normalizeText(pattern);
+          if (normalized.includes(p)) {
+            return intent.reply;
+          }
+        }
+      }
+      return null;
+    }
 
     // --- Utils ---
     function fmtTime(dt) {
@@ -319,7 +469,13 @@
       bubble.className = "msg-bubble";
 
       const text = document.createElement("div");
-      text.textContent = content;
+      if (role === "assistant") {
+        // allow simple HTML for Carrie replies
+        text.innerHTML = content;
+      } else {
+        // user content stays plain text for safety
+        text.textContent = content;
+      }
       bubble.appendChild(text);
 
       const meta = document.createElement("div");
@@ -327,7 +483,6 @@
       meta.textContent = (role === "assistant" ? "Carrie • " : "You • ") + fmtTime(createdAt || new Date());
       bubble.appendChild(meta);
 
-      // structure: [avatar][bubble] for assistant, bubble-only for user aligned right
       if (role === "assistant") {
         row.appendChild(avatar);
         row.appendChild(bubble);
@@ -351,13 +506,20 @@
       }
     }
 
-    // Very simple Carrie brain (no external API yet, but nicer than echo)
+    // Very simple Carrie brain (with training layer first)
     function carrieBrain(userText) {
       const t = userText.trim();
       if (!t) {
         return "I didn’t quite catch that — try asking me about music, games, or how 8BFR works.";
       }
 
+      // 1) Check owner / scripted Q&A
+      const scripted = findCarrieScriptReply(t);
+      if (scripted) {
+        return scripted;
+      }
+
+      // 2) Heuristic backup logic
       const lower = t.toLowerCase();
       if (lower.includes("hook") || lower.includes("chorus")) {
         return "Hooks love repetition and rhythm. Try a 2-bar phrase you can repeat 3–4 times, then tweak the last line. If you tell me your song topic and vibe, I can suggest some hook ideas.";
@@ -375,7 +537,6 @@
         return "Give me 3 things: mood, topic, and artist you’re inspired by. I’ll help you shape a verse structure or some starting lines you can tweak.";
       }
 
-      // generic friendly fallback
       const starters = [
         "I hear you.",
         "Got it.",
@@ -394,9 +555,16 @@
 
         if (data && data.session && data.session.user) {
           currentUserId = data.session.user.id;
-          sessionLabelEl.textContent = "Logged in as " + (data.session.user.email || "8BFR user");
+          currentUserEmail = data.session.user.email || null;
+          sessionLabelEl.textContent = "Logged in as " + (currentUserEmail || "8BFR user");
+
+          // show trainer button only for owner email
+          if (trainerBtn && currentUserEmail === "8bfr.music@gmail.com") {
+            trainerBtn.classList.remove("hidden");
+          }
         } else {
           currentUserId = null;
+          currentUserEmail = null;
           sessionLabelEl.textContent = "Not logged in • Carrie will still chat, but history won’t be tied to an account.";
         }
       } catch (e) {
@@ -404,9 +572,7 @@
         sessionLabelEl.textContent = "Could not check login • you can still chat.";
       }
 
-      // load chat history if we have a user id
       if (!currentUserId) {
-        // show a friendly opener
         renderMessage("assistant", "Hey, I’m Carrie 💜 What are you working on today — music, writing, games, or something else?");
         return;
       }
@@ -443,6 +609,72 @@
       typingRowEl.classList.add("hidden");
     }
 
+    // --- Trainer modal behavior (owner only) ---
+    function openTrainer() {
+      if (!trainerModal) return;
+      trainerModal.classList.remove("hidden");
+      trainerStatus.style.display = "none";
+      trainerStatus.textContent = "";
+    }
+    function closeTrainer() {
+      if (!trainerModal) return;
+      trainerModal.classList.add("hidden");
+      trainerQuestion.value = "";
+      trainerAnswer.value = "";
+      trainerStatus.style.display = "none";
+      trainerStatus.textContent = "";
+    }
+
+    if (trainerBtn) {
+      trainerBtn.addEventListener("click", () => {
+        openTrainer();
+      });
+    }
+    if (trainerClose) {
+      trainerClose.addEventListener("click", () => {
+        closeTrainer();
+      });
+    }
+    if (trainerCancel) {
+      trainerCancel.addEventListener("click", (e) => {
+        e.preventDefault();
+        closeTrainer();
+      });
+    }
+
+    if (trainerForm) {
+      trainerForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const q = (trainerQuestion.value || "").trim();
+        const aRaw = (trainerAnswer.value || "").trim();
+        if (!q || !aRaw) return;
+
+        const answerHtml = aRaw.replace(/\n/g, "<br>");
+
+        const entry = {
+          id: "custom_" + Date.now(),
+          patterns: [q],
+          reply: answerHtml
+        };
+        carrieScripts.push(entry);
+
+        trainerStatus.textContent = "Saved! Carrie will now recognize that pattern in this session.";
+        trainerStatus.style.display = "block";
+
+        // Try to persist to Supabase carrie_scripts (optional table)
+        try {
+          await supabase.from("carrie_scripts").insert({
+            user_id: currentUserId,
+            email: currentUserEmail,
+            question_pattern: q,
+            reply_html: aRaw
+          });
+        } catch (err) {
+          console.warn("Could not save carrie_scripts row (table might not exist yet)", err);
+        }
+      });
+    }
+
     // --- Form behavior ---
     inputEl.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.shiftKey) {
@@ -463,7 +695,6 @@
 
       showTyping();
 
-      // simulate thinking delay
       setTimeout(async () => {
         const reply = carrieBrain(userMsg);
         renderMessage("assistant", reply, new Date());
