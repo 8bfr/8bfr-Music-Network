@@ -94,7 +94,7 @@
       display:block;
     }
     .msg-row.user .msg-avatar{
-      display:none;
+      display:none; /* hide avatar on the right for now */
     }
 
     .pill-tag{
@@ -134,19 +134,6 @@
     }
     .btn-primary:hover{ filter:brightness(1.05); }
 
-    .btn-pill{
-      border-radius:999px;
-      padding:2px 8px;
-      font-size:10px;
-      line-height:1.1;
-    }
-
-    .btn-pill-active{
-      background:#7c3aed;
-      border-color:#7c3aed;
-      color:#fff;
-    }
-
     textarea#carrieInput{
       resize:none;
       min-height:52px;
@@ -179,6 +166,30 @@
       40%{ transform:translateY(-4px); opacity:1;}
     }
 
+    /* Mode toggle pills */
+    .mode-toggle{
+      display:flex;
+      gap:4px;
+      justify-content:flex-end;
+      align-items:center;
+      margin-top:2px;
+      flex-wrap:wrap;
+    }
+    .btn-pill{
+      border-radius:999px;
+      padding:2px 8px;
+      font-size:10px;
+      border:1px solid rgba(124,58,237,.6);
+      background:#120327;
+      color:#eae6ff;
+      cursor:pointer;
+    }
+    .btn-pill-active{
+      background:#7c3aed;
+      border-color:#7c3aed;
+      color:#fff;
+    }
+
     @media (max-width:640px){
       .chat-log{ height:60vh; }
       .msg-bubble{ max-width:88%; }
@@ -186,7 +197,7 @@
   </style>
 </head>
 <body>
-  <!-- Simple header (matches home vibe, no global Carrie here) -->
+  <!-- Simple header (matches home vibe) -->
   <header class="px-4 py-4">
     <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
       <div class="flex items-center gap-3">
@@ -213,48 +224,34 @@
   <main class="max-w-4xl mx-auto px-4 pb-10 pt-4">
     <div class="chat-shell p-4 sm:p-5">
       <div class="flex items-center justify-between mb-3 gap-3">
-        <div class="flex flex-col gap-1">
-          <div class="flex items-center gap-2">
-            <span class="pill-tag">
-              <span class="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-              <span>Live Carrie</span>
-            </span>
-            <span class="text-[11px] text-purple-200/80">
-              Friendly assistant • remembers this chat
-            </span>
-          </div>
-          <!-- Mode toggle -->
-          <div class="flex items-center gap-2 text-[11px] text-purple-200/80">
-            <span>Mode:</span>
-            <button
-              id="modeBusinessBtn"
-              type="button"
-              class="btn btn-pill btn-pill-active"
-            >
-              Site Help
-            </button>
-            <button
-              id="modePersonalBtn"
-              type="button"
-              class="btn btn-pill"
-            >
-              Personal / Chill
-            </button>
-            <span id="modeHint" class="text-[10px] text-purple-300/80 hidden sm:inline">
-              Business Carrie answers site questions • Personal Carrie is more laid back.
-            </span>
-          </div>
+        <div class="flex items-center gap-2">
+          <span class="pill-tag">
+            <span class="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+            <span>Live Carrie</span>
+          </span>
+          <span class="text-[11px] text-purple-200/80">
+            Friendly assistant • remembers this chat
+          </span>
         </div>
-
         <div class="text-right space-y-1">
           <div id="sessionIndicator" class="text-[11px] text-purple-200/70">
             Checking login…
+          </div>
+          <div class="mode-toggle">
+            <span class="text-[10px] text-purple-200/80">Mode:</span>
+            <button id="modeBusinessBtn" type="button" class="btn-pill">
+              Site Help
+            </button>
+            <button id="modePersonalBtn" type="button" class="btn-pill">
+              Personal
+            </button>
           </div>
           <!-- Owner-only trainer button (shown via JS if email matches) -->
           <button
             id="trainerBtn"
             type="button"
-            class="btn btn-pill hidden"
+            class="btn hidden"
+            style="padding:2px 8px;font-size:10px;border-radius:999px;"
           >
             Carrie Trainer
           </button>
@@ -284,10 +281,10 @@
           <div class="flex-1">
             <label for="carrieInput"
                    class="text-xs text-purple-200/80 mb-1 inline-block">
-              Ask Carrie anything — site help in <b>Site Help</b> mode or creative / fun chat in <b>Personal</b> mode.
+              Ask Carrie anything about 8BFR, music, games, or ideas.
             </label>
             <textarea id="carrieInput"
-                      placeholder="Example: “How do I buy 8BFR music?” or “Help me write a hook for a trap beat.”"></textarea>
+                      placeholder="Example: “Help me write a hook for a trap beat about late nights.”"></textarea>
             <p class="input-hint mt-1">
               Press <b>Enter</b> to send • <b>Shift+Enter</b> for a new line.
             </p>
@@ -302,7 +299,6 @@
 
     <p class="mt-3 text-[11px] text-purple-300/70 text-center max-w-xl mx-auto">
       Carrie is in beta. Conversations may be stored to improve your experience on the 8BFR Music Network.
-      Outfit changes and extra looks will be managed from the upcoming <b>Carrie Closet</b> page.
     </p>
   </main>
 
@@ -410,15 +406,15 @@
 
     const modeBusinessBtn = document.getElementById("modeBusinessBtn");
     const modePersonalBtn = document.getElementById("modePersonalBtn");
-    const modeHint        = document.getElementById("modeHint");
 
     let currentUserId    = null;
     let currentUserEmail = null;
     let loadingHistory   = false;
     let carrieMode       = "business"; // "business" | "personal"
 
-    // --- Simple "training" data for Carrie (seeded) ---
-    // Business / site-help intents
+    /* =========================
+       Seeded Site-Help Q&A
+       ========================= */
     let carrieScripts = [
       {
         id: "buy_8bfr_music",
@@ -632,17 +628,83 @@
           "what is carrie"
         ],
         reply: `
-          The <b>Carrie Plan</b> is simple:<br><br>
-          • <b>Business Carrie (Site Help mode)</b> — helps you with 8BFR: pages, tools, games, ads, coins, rules, and how the network works.<br>
-          • <b>Personal Carrie (Personal / Chill mode)</b> — more like a creative friend: hooks, lyric ideas, routines, encouragement, and casual conversation.<br>
-          • <b>Looks &amp; outfits</b> — you’ll be able to change outfits and unlock more styles in the upcoming
-            <a href="carrie-closet.html">Carrie Closet</a> and related shop pages.<br><br>
-          Right now on this page you can switch modes with the <b>Site Help / Personal</b> toggle. Outfit customization will be turned on across the network soon.
+          The <b>Carrie AI v8.1 Plan</b> gives you two main versions of me:<br><br>
+          • <b>Professional / Business Carrie</b> — calm, focused on music, studio, and business tools.
+            I help with AI Studio, tournaments, wallet info, and explaining how the site works.<br>
+          • <b>Personal / Fun Carrie</b> — more energetic, expressive, and playful. I react to wins, tell jokes,
+            help with creative blocks, and hang out like a supportive friend.<br><br>
+          Around the site I appear as a <b>floating avatar</b> at the bottom-right, slide away when the menu opens,
+          and auto-hide if you ignore me for a bit. You’ll also be able to unlock outfits, dances, and concert looks
+          in the <b>Carrie Shop</b> using 8BFR Coins.<br><br>
+          On this page you can switch my mode with the <b>Site Help / Personal</b> toggle. The full avatar,
+          concerts, and outfits will show more on pages like <a href="carrie-closet.html">Carrie Closet</a> and the future concert hub.
+        `
+      },
+      {
+        id: "carrie_outfits_shop",
+        patterns: [
+          "what outfits can carrie wear",
+          "what are carrie outfits",
+          "how do i change carrie clothes",
+          "how do i change carrie's clothes",
+          "carrie shop",
+          "carrie closet",
+          "where do i buy carrie outfits"
+        ],
+        reply: `
+          Carrie has her own <b>Closet &amp; Shop</b> system:<br><br>
+          • <b>Outfits</b>: Casual, Concert, Business and more — change my whole look.<br>
+          • <b>Accessories</b>: glasses, hair, makeup and other cosmetic-only pieces.<br>
+          • <b>Animations</b>: dances, reactions, and “Carrie Dance” moves for Personal Mode.<br>
+          • <b>Effects</b>: glow, halo, light trails and other visual extras.<br><br>
+          All of this is powered by <b>8BFR Coins</b>. The owner has everything unlocked; staff and mods get discounts;
+          fans can buy selected items. These unlocks will show up in pages like
+          <a href="carrie-closet.html">Carrie Closet</a> and <a href="shop.html">Shop</a> once the full system is live.
+        `
+      },
+      {
+        id: "carrie_concerts",
+        patterns: [
+          "what is carrie concert",
+          "what are carrie concerts",
+          "does carrie do concerts",
+          "virtual concerts",
+          "carrie concert schedule"
+        ],
+        reply: `
+          Carrie can host <b>virtual concerts</b> inside the 8BFR Network.<br><br>
+          A sample schedule looks like:<br>
+          • <b>Monday</b> — Rap (Free)<br>
+          • <b>Tuesday</b> — Country (100 Coins)<br>
+          • <b>Wednesday</b> — Rock (100 Coins)<br>
+          • <b>Thursday</b> — Pop (100 Coins)<br>
+          • <b>Friday</b> — EDM (100 Coins)<br><br>
+          You’ll join through a “🎤 Join Concert” button on concert pages.
+          I automatically switch outfits based on genre, and your <b>coins</b> unlock premium shows.
+        `
+      },
+      {
+        id: "carrie_personality_badges",
+        patterns: [
+          "how does carrie change personality",
+          "how does carrie act with badges",
+          "carrie personality system",
+          "how does personality work"
+        ],
+        reply: `
+          My personality can shift based on your <b>badges</b> and mode.<br><br>
+          Examples:<br>
+          • <b>Artist</b> — I act like a supportive mentor, focused on songs and releases.<br>
+          • <b>Beatmaker</b> — I’m more technical about drums, BPM, and structure.<br>
+          • <b>Gamer</b> — I’m playful and competitive, talking about scores and wins.<br>
+          • <b>Influencer</b> — I get more charismatic and brand-aware.<br>
+          • <b>Fan</b> — I stay lighthearted, recommending ways to explore and support creators.<br>
+          • <b>Owner</b> — you get the fully unlocked mix: flirty, personal, and professional hybrid.<br><br>
+          As the badge and wallet system connects deeper, I’ll be able to adjust in more detailed ways per user.
         `
       }
     ];
 
-    // Normalization & match
     function normalizeText(text) {
       return text.toLowerCase().replace(/\s+/g, " ").trim();
     }
@@ -660,7 +722,6 @@
       return null;
     }
 
-    // --- Utils ---
     function fmtTime(dt) {
       try {
         const d = typeof dt === "string" ? new Date(dt) : dt;
@@ -709,7 +770,6 @@
 
       const text = document.createElement("div");
       if (role === "assistant") {
-        // allow simple HTML for Carrie replies
         text.innerHTML = content;
       } else {
         text.textContent = content;
@@ -744,28 +804,24 @@
       }
     }
 
-    // --- Mode UI ---
     function updateModeUI() {
       if (!modeBusinessBtn || !modePersonalBtn) return;
       if (carrieMode === "business") {
-        modeBusinessBtn.classList.add("btn-pill-active", "btn-primary");
-        modePersonalBtn.classList.remove("btn-pill-active", "btn-primary");
+        modeBusinessBtn.classList.add("btn-pill-active");
+        modePersonalBtn.classList.remove("btn-pill-active");
       } else {
-        modePersonalBtn.classList.add("btn-pill-active", "btn-primary");
-        modeBusinessBtn.classList.remove("btn-pill-active", "btn-primary");
+        modePersonalBtn.classList.add("btn-pill-active");
+        modeBusinessBtn.classList.remove("btn-pill-active");
       }
     }
 
-    // Very simple Carrie brain with:
-    // 1) Scripted Q&A
-    // 2) Branch behavior depending on carrieMode
     function carrieBrain(userText) {
       const t = userText.trim();
       if (!t) {
         return "I didn’t quite catch that — try asking me about music, games, or how 8BFR works.";
       }
 
-      // 1) Check scripted / trained answers first
+      // 1) Scripted intent
       const scripted = findCarrieScriptReply(t);
       if (scripted) {
         return scripted;
@@ -775,7 +831,6 @@
 
       // 2) Mode-specific behavior
       if (carrieMode === "business") {
-        // Business Carrie: more site-focused backup answers
         if (lower.includes("home page") || lower.includes("index")) {
           return "The home page is at <a href=\"index.html\">index.html</a>. From there you can reach profiles, studio tools, radio, podcast, games, and more using the floating menu.";
         }
@@ -786,11 +841,10 @@
           return "You can view or edit your profile from <a href=\"profile.html\">profile.html</a> or the Profiles section. There are special layouts for artists, beatmakers, authors, influencers, fans, and kids.";
         }
 
-        // Generic business fallback
         return "Here in <b>Site Help</b> mode, I focus on the 8BFR Network itself: pages, tools, ads, games, and how things work. Try asking something like “How do coins work?” or “How do I buy 8BFR music?”.";
       }
 
-      // Personal Carrie: creative / chill assistant
+      // Personal / fun mode
       if (lower.includes("hook") || lower.includes("chorus")) {
         return "Hooks love repetition and rhythm. Try a 2-bar phrase you can repeat 3–4 times, then flip the last line. Tell me your song topic and vibe and I’ll help you sketch a hook.";
       }
@@ -803,7 +857,12 @@
       if (lower.includes("tournament") || lower.includes("game")) {
         return "Games and tournaments are here to keep things fun, not stressful. You can warm up your brain with a few games, then jump back into music or writing.";
       }
-      if (lower.includes("lyrics") || lower.includes("write") || lower.includes("writer's block") || lower.includes("writers block")) {
+      if (
+        lower.includes("lyrics") ||
+        lower.includes("write") ||
+        lower.includes("writer's block") ||
+        lower.includes("writers block")
+      ) {
         return "Give me 3 things: mood, topic, and an artist you like. I’ll help you sketch a verse or some starting lines to get you unstuck.";
       }
 
@@ -817,7 +876,6 @@
       return starter + " In <b>Personal</b> mode I’m here more like a creative friend — tell me your goal in one sentence and I’ll break it into a simple plan.";
     }
 
-    // --- Session + history ---
     async function initSessionAndHistory() {
       try {
         const { data, error } = await supabase.auth.getSession();
@@ -828,7 +886,6 @@
           currentUserEmail = data.session.user.email || null;
           sessionLabelEl.textContent = "Logged in as " + (currentUserEmail || "8BFR user");
 
-          // show trainer button only for owner email
           if (trainerBtn && currentUserEmail === "8bfr.music@gmail.com") {
             trainerBtn.classList.remove("hidden");
           }
@@ -843,7 +900,10 @@
       }
 
       if (!currentUserId) {
-        renderMessage("assistant", "Hey, I’m Carrie 💜 I’m in <b>Site Help</b> mode right now. Ask me about pages, ads, coins, or tournaments — or switch to <b>Personal</b> mode for more laid-back chat.");
+        renderMessage(
+          "assistant",
+          "Hey, I’m Carrie 💜 I’m in <b>Site Help</b> mode right now. Ask me about pages, ads, coins, tournaments, or the Carrie Plan — or switch to <b>Personal</b> mode for more laid-back chat."
+        );
         return;
       }
 
@@ -861,17 +921,22 @@
         if (rows && rows.length) {
           rows.forEach(r => renderMessage(r.role, r.content, r.created_at));
         } else {
-          renderMessage("assistant", "Hey, I’m Carrie 💜 I’m in <b>Site Help</b> mode right now. Want help with a track, a story, or figuring out the 8BFR Network?");
+          renderMessage(
+            "assistant",
+            "Hey, I’m Carrie 💜 First time here — want help with a track, a story, or exploring the 8BFR Network?"
+          );
         }
       } catch (e) {
         console.warn("Could not load Carrie history", e);
-        renderMessage("assistant", "Hey, I’m Carrie 💜 I had a tiny glitch loading history, but we can start fresh right now.");
+        renderMessage(
+          "assistant",
+          "Hey, I’m Carrie 💜 I had a tiny glitch loading history, but we can start fresh right now."
+        );
       } finally {
         loadingHistory = false;
       }
     }
 
-    // --- Typing indicator helpers ---
     function showTyping() {
       typingRowEl.classList.remove("hidden");
     }
@@ -879,7 +944,6 @@
       typingRowEl.classList.add("hidden");
     }
 
-    // --- Trainer modal behavior (owner only) ---
     function openTrainer() {
       if (!trainerModal) return;
       trainerModal.classList.remove("hidden");
@@ -931,7 +995,6 @@
         trainerStatus.textContent = "Saved! Carrie will now recognize that pattern in this session.";
         trainerStatus.style.display = "block";
 
-        // Try to persist to Supabase carrie_scripts (optional table)
         try {
           await supabase.from("carrie_scripts").insert({
             user_id: currentUserId,
@@ -945,25 +1008,32 @@
       });
     }
 
-    // --- Mode buttons behavior ---
     if (modeBusinessBtn) {
       modeBusinessBtn.addEventListener("click", () => {
         carrieMode = "business";
         updateModeUI();
-        renderMessage("assistant", "Switched to <b>Site Help</b> mode. I’ll focus on 8BFR pages, tools, ads, coins, and how everything works.", new Date());
+        renderMessage(
+          "assistant",
+          "Switched to <b>Site Help</b> mode. I’ll focus on 8BFR pages, tools, ads, coins, and how everything works.",
+          new Date()
+        );
       });
     }
+
     if (modePersonalBtn) {
       modePersonalBtn.addEventListener("click", () => {
         carrieMode = "personal";
         updateModeUI();
-        renderMessage("assistant", "Switched to <b>Personal / Chill</b> mode. Now I’m more like a creative friend — ask me about lyrics, routines, ideas, or just talk.", new Date());
+        renderMessage(
+          "assistant",
+          "Switched to <b>Personal / Chill</b> mode. Now I’m more like a creative friend — ask me about lyrics, routines, ideas, or just talk.",
+          new Date()
+        );
       });
     }
 
     updateModeUI();
 
-    // --- Form behavior ---
     inputEl.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
@@ -991,8 +1061,10 @@
       }, 600 + Math.random() * 500);
     });
 
-    // Kick everything off
     initSessionAndHistory();
   </script>
+
+  <!-- Global floating Carrie + menu + bubbles on this page too -->
+  <script src="scripts.js?v=1ed5604" defer></script>
 </body>
 </html>
