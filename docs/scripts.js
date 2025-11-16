@@ -1,15 +1,11 @@
-// scripts.js — 8BFR global UI (floating menu, Carrie, auth gate, themes)
+// scripts.js – global 8BFR UI (Carrie + floating menu + bubbles + auth gate)
 (function () {
   const SUPABASE_URL =
     "https://novbuvwpjnxwwvdekjhr.supabase.co";
   const SUPABASE_ANON_KEY =
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiIsIm5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0";
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0";
 
-  const PAGE = (window.location.pathname.split("/").pop() || "index.html").toLowerCase();
-  const isChatPage = PAGE === "carrie-chat.html";
-  const isClosetPage = PAGE === "carrie-closet.html";
-
-  // --- Supabase loader / auth gate helpers ---
+  // ---------- SUPABASE LOADER + AUTH GATE ----------
   function loadSupabaseClient(callback) {
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
 
@@ -66,6 +62,7 @@
   function enforceAuthGate() {
     const publicPages = [
       "index.html",
+      "",
       "login.html",
       "signup.html",
       "reset-password.html",
@@ -73,10 +70,8 @@
       "logout.html",
       "carrie-chat.html"
     ];
-
-    let path = PAGE;
-    if (!path) path = "index.html";
-
+    let path = window.location.pathname.split("/").pop();
+    if (path === undefined || path === null) path = "";
     if (publicPages.includes(path)) {
       return;
     }
@@ -93,73 +88,17 @@
     });
   }
 
-  // --- Carrie helper: which mode for which page? ---
-  function getDefaultCarrieModeForPage() {
-    const businessPages = [
-      "studio-tools.html",
-      "creator-tools.html",
-      "lyrics-ai.html",
-      "lyric_ai.html",
-      "song-ai.html",
-      "album-ai.html",
-      "voice-ai.html",
-      "cover_ai.html",
-      "master_ai.html",
-      "artist-studio.html",
-      "profile_artist.html",
-      "profile_beatmaker.html",
-      "profile_author.html",
-      "admin.html",
-      "admin-panel.html",
-      "admin_panel.html",
-      "admin-hub.html",
-      "owner.html",
-      "owner-panel.html",
-      "owner-studio.html",
-      "shop.html",
-      "coinshop.html",
-      "pricing.html"
-    ];
-
-    if (isChatPage) return "personal";
-
-    if (businessPages.includes(PAGE)) {
-      return "business";
-    }
-    // everything else: casual / fun Carrie
-    return "casual";
-  }
-
-  function getSavedCarrieMode() {
-    try {
-      return localStorage.getItem("8bfrCarrieMode") || null;
-    } catch {
-      return null;
-    }
-  }
-
-  function saveCarrieMode(mode) {
-    try {
-      localStorage.setItem("8bfrCarrieMode", mode);
-    } catch {}
-  }
-
-  // --- Main UI injector ---
+  // ---------- GLOBAL UI INJECTION ----------
   function injectGlobalUI() {
-    // Don’t double–inject
+    // Prevent double-inject
     if (document.getElementById("fab")) {
       enforceAuthGate();
-      // hide extra bubbles on chat page even if already injected
-      if (isChatPage) {
-        const stack = document.getElementById("bubbleStack");
-        const topSingle = document.getElementById("bubble-top-single");
-        if (stack) stack.remove();
-        if (topSingle) topSingle.remove();
-      }
       return;
     }
 
-    // ---------- STYLES ----------
+    const path = window.location.pathname.split("/").pop() || "index.html";
+
+    // --- CSS ---
     const css = document.createElement("style");
     css.textContent = `
 :root{
@@ -189,7 +128,7 @@
 }
 body.menu-open #menuStripe{ display:block; }
 
-/* shift content if page uses #pageWrap */
+/* shift page content left when menu is open (if #pageWrap exists) */
 body.menu-open #pageWrap{
   margin-right:280px;
 }
@@ -269,36 +208,6 @@ body.menu-open #pageWrap{
   white-space:nowrap;
 }
 .menu-chip:hover{background:var(--chip-hover)}
-
-/* Network/Search fading label */
-.menu-chip-network{
-  position:relative;
-  overflow:hidden;
-}
-.menu-chip-network .menu-label-main,
-.menu-chip-network .menu-label-alt{
-  display:inline-block;
-  transition:opacity .3s ease;
-}
-.menu-chip-network .menu-label-alt{
-  position:absolute;
-  left:50%;
-  transform:translateX(-50%);
-}
-.menu-chip-network .menu-label-main{
-  animation:networkLabelMain 3s ease-in-out infinite;
-}
-.menu-chip-network .menu-label-alt{
-  animation:networkLabelAlt 3s ease-in-out infinite;
-}
-@keyframes networkLabelMain{
-  0%,45%{opacity:1;}
-  55%,100%{opacity:0;}
-}
-@keyframes networkLabelAlt{
-  0%,45%{opacity:0;}
-  55%,100%{opacity:1;}
-}
 
 /* --- Floating bubbles with labels --- */
 #bubbleStack{
@@ -382,21 +291,6 @@ body.menu-open #carrieWrap{
   border-color:rgba(15,23,42,.95) transparent transparent transparent;
 }
 
-/* Carrie mode toggle badge */
-#carrieModeToggle{
-  position:absolute;
-  bottom:100%;
-  right:0;
-  margin-bottom:22px;
-  padding:2px 8px;
-  border-radius:999px;
-  font-size:10px;
-  border:1px solid rgba(129,140,248,.9);
-  background:rgba(15,23,42,.96);
-  color:#e5e7eb;
-  cursor:pointer;
-}
-
 /* --- Auth lock overlay --- */
 #authGateOverlay{
   position:fixed; inset:0; z-index:12000;
@@ -431,12 +325,6 @@ body.menu-open #carrieWrap{
   background:#7c3aed; border-color:#7c3aed; color:#fff;
 }
 
-/* chat page: hide extra bubbles */
-body.page-chat #bubbleStack,
-body.page-chat #bubble-top-single{
-  display:none !important;
-}
-
 @media(max-width:480px){
   #carrie{ width:min(56vw,220px); }
   body.menu-open #bubbleStack,
@@ -448,7 +336,7 @@ body.page-chat #bubble-top-single{
 `;
     document.head.appendChild(css);
 
-    // ---------- HTML SHELL ----------
+    // --- HTML SHELL (menu + bubbles + Carrie) ---
     const ui = document.createElement("div");
     ui.innerHTML = `
 <div id="menuStripe">
@@ -469,21 +357,13 @@ body.page-chat #bubble-top-single{
     <div class="menu-group-title">Home & Core</div>
     <div class="menu-links">
       <a href="index.html" class="menu-chip">Home</a>
-      <a href="network.html" class="menu-chip menu-chip-network">
-        <span class="menu-label-main">Network</span>
-        <span class="menu-label-alt">Search</span>
-      </a>
+      <a href="network.html" class="menu-chip">Network / Search</a>
       <a href="featured.html" class="menu-chip">Featured</a>
       <a href="feed.html" class="menu-chip">Community Feed</a>
       <a href="radio.html" class="menu-chip">Radio</a>
       <a href="podcast.html" class="menu-chip">Podcast</a>
-      <a href="fan-zone.html" class="menu-chip">Fan Zone</a>
       <a href="about.html" class="menu-chip">About</a>
       <a href="contact.html" class="menu-chip">Contact</a>
-      <a href="blog.html" class="menu-chip">Blog</a>
-      <a href="algorithm-points.html" class="menu-chip">Algorithm & Points</a>
-      <a href="stories.html" class="menu-chip">Stories</a>
-      <a href="announcements.html" class="menu-chip">Announcements</a>
     </div>
   </div>
 
@@ -491,61 +371,342 @@ body.page-chat #bubble-top-single{
     <div class="menu-group-title">Studio & AI</div>
     <div class="menu-links">
       <a href="studio-tools.html" class="menu-chip">Studio Tools</a>
-      <a href="creator-tools.html" class="menu-chip">Creator Tools</a>
       <a href="lyrics-ai.html" class="menu-chip">Lyrics AI</a>
-      <a href="lyric_ai.html" class="menu-chip">Lyrics AI (alt)</a>
       <a href="song-ai.html" class="menu-chip">Song AI</a>
       <a href="album-ai.html" class="menu-chip">Album AI</a>
       <a href="voice-ai.html" class="menu-chip">Voice / Post VO</a>
-      <a href="cover_ai.html" class="menu-chip">Cover AI</a>
-      <a href="master_ai.html" class="menu-chip">Master AI</a>
-      <a href="artist-studio.html" class="menu-chip">Artist Studio</a>
-      <a href="author.html" class="menu-chip">Author</a>
       <a href="author-hub.html" class="menu-chip">Author Hub</a>
-      <a href="translate.html" class="menu-chip">Translate</a>
-      <a href="integration.html" class="menu-chip">Integration</a>
       <a href="stats.html" class="menu-chip">Stats</a>
       <a href="system.html" class="menu-chip">System</a>
-      <a href="debug.html" class="menu-chip">Debug</a>
     </div>
   </div>
 
   <div class="menu-group collapsed">
-    <div class="menu-group-title">Games & Tournaments</div>
+    <div class="menu-group-title">Profiles & Community</div>
     <div class="menu-links">
-      <a href="game-hub.html" class="menu-chip">Game Hub</a>
-      <a href="games.html" class="menu-chip">Games</a>
-      <a href="arcade.html" class="menu-chip">Arcade</a>
-      <a href="game-music.html" class="menu-chip">Game Music</a>
-      <a href="game-tournaments.html" class="menu-chip">Tournaments</a>
-      <a href="game-leaderboards.html" class="menu-chip">Leaderboards</a>
-      <a href="leaderboard.html" class="menu-chip">Leaderboard (alt)</a>
-      <a href="pool-8-ball.html" class="menu-chip">Pool 8-Ball</a>
-      <a href="pool-9-ball.html" class="menu-chip">Pool 9-Ball</a>
-      <a href="trickshot-pool.html" class="menu-chip">Trickshot Pool</a>
-      <a href="game_pool_8ball.html" class="menu-chip">8-Ball (alt)</a>
-      <a href="game_pool_9ball.html" class="menu-chip">9-Ball (alt)</a>
-      <a href="game_pool_trick.html" class="menu-chip">Trickshot (alt)</a>
+      <a href="profiles.html" class="menu-chip">All Profiles</a>
+      <a href="profile.html" class="menu-chip">My Profile</a>
+      <a href="profile_artist.html" class="menu-chip">Artist Profile</a>
+      <a href="profile_beatmaker.html" class="menu-chip">Beatmaker Profile</a>
+      <a href="profile_author.html" class="menu-chip">Author Profile</a>
+      <a href="fan-zone.html" class="menu-chip">Fan Zone</a>
+      <a href="kids-zone.html" class="menu-chip">Kids Zone</a>
+      <a href="chat.html" class="menu-chip">Site Chat</a>
+      <a href="carrie-chat.html" class="menu-chip">Carrie Chat</a>
     </div>
-  </div`
+  </div>
 
-[truncated here for space, but **you should paste the entire `scripts.js` I sent above**, which already includes all the menu groups, Carrie, bubbles, and theme logic. 👆]
+  <div class="menu-group collapsed">
+    <div class="menu-group-title">Shop & Coins</div>
+    <div class="menu-links">
+      <a href="shop.html" class="menu-chip">Shop</a>
+      <a href="coinshop.html" class="menu-chip">Coin Shop</a>
+      <a href="upgrades.html" class="menu-chip">Upgrades</a>
+      <a href="donate.html" class="menu-chip">Donate</a>
+      <a href="thank_you.html" class="menu-chip">Thank You</a>
+      <a href="carrie-closet.html" class="menu-chip">Carrie Closet</a>
+    </div>
+  </div>
 
----
+  <div class="menu-group collapsed">
+    <div class="menu-group-title">Account</div>
+    <div class="menu-links">
+      <a href="login.html" class="menu-chip">Log in</a>
+      <a href="signup.html" class="menu-chip">Sign up</a>
+      <a href="profile.html" class="menu-chip">My Account</a>
+      <a href="logout.html" class="menu-chip">Log out</a>
+    </div>
+  </div>
+</nav>
 
-## 2️⃣ Small changes for `index.html` (Featured Ads pause button)
+<div id="bubbleStack">
+  <div class="bubble-row">
+    <span class="bubble-label">Contact</span>
+    <button class="bubble" id="bubble-contact" title="Contact"><span>✉️</span></button>
+  </div>
+  <div class="bubble-row">
+    <span class="bubble-label">Donate</span>
+    <button class="bubble" id="bubble-donate" title="Donate"><span>💜</span></button>
+  </div>
+  <div class="bubble-row">
+    <span class="bubble-label">Footer</span>
+    <button class="bubble" id="bubble-footer" title="Go to footer"><span>⬇️</span></button>
+  </div>
+  <div class="bubble-row">
+    <span class="bubble-label">Theme</span>
+    <button class="bubble" id="bubble-theme" title="Light / Dark"><span>☯️</span></button>
+  </div>
+  <div class="bubble-row">
+    <span class="bubble-label">Random</span>
+    <button class="bubble" id="bubble-theme-random" title="Random theme"><span>🔀</span></button>
+  </div>
+  <div class="bubble-row">
+    <span class="bubble-label">Stream 8BFR</span>
+    <button class="bubble" id="bubble-stream" title="Stream 8BFR"><span>🎧</span></button>
+  </div>
+</div>
 
-You already have your working `index.html` (HOME v11).  
-You only need to tweak **two spots**.
+<button class="bubble" id="bubble-top-single" title="Back to top">
+  <span>⬆️</span>
+</button>
 
-### a. CSS for the Pause button
+<div id="carrieWrap" title="Chat with Carrie (drag)">
+  <div id="carrieBubble">Chat with me</div>
+  <video
+    id="carrie"
+    src="assets/videos/carrie_casual_animate_3_1.webm"
+    autoplay
+    loop
+    muted
+    playsinline
+  ></video>
+</div>
+`;
+    document.body.appendChild(ui);
 
-Find this in `<style>` at the top of `index.html`:
+    // ---------- MENU CONTROL ----------
+    const fab = document.getElementById("fab");
+    const menu = document.getElementById("menu");
+    const backdrop = document.getElementById("menu-backdrop");
+    let menuTimer = null;
 
-```css
-#adPause{
-  right:10px;
-  bottom:10px;
-  top:auto;
-  transform:none;
-}
+    function closeMenu() {
+      menu.classList.remove("open");
+      backdrop.classList.remove("open");
+      document.body.classList.remove("menu-open");
+      clearTimeout(menuTimer);
+      menuTimer = null;
+    }
+    function openMenu() {
+      menu.classList.add("open");
+      backdrop.classList.add("open");
+      document.body.classList.add("menu-open");
+      resetMenuTimer();
+    }
+    function resetMenuTimer() {
+      clearTimeout(menuTimer);
+      menuTimer = setTimeout(closeMenu, 20000);
+    }
+
+    fab.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (menu.classList.contains("open")) closeMenu();
+      else openMenu();
+    });
+    backdrop.addEventListener("click", closeMenu);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeMenu();
+    });
+    menu.addEventListener("pointermove", resetMenuTimer);
+    menu.addEventListener("wheel", resetMenuTimer);
+
+    const groups = menu.querySelectorAll(".menu-group");
+    groups.forEach((group) => {
+      const title = group.querySelector(".menu-group-title");
+      if (!title) return;
+      title.addEventListener("click", () => {
+        const willOpen = group.classList.contains("collapsed");
+        groups.forEach((g) => g.classList.add("collapsed"));
+        if (willOpen) group.classList.remove("collapsed");
+      });
+    });
+
+    // ---------- CARRIE DRAG ----------
+    const carrieWrap = document.getElementById("carrieWrap");
+    const carrie = document.getElementById("carrie");
+
+    let dragging = false;
+    let startX = 0, startY = 0;
+    let originLeft = 0, originTop = 0;
+
+    function ptr(ev) {
+      const t = ev.touches ? ev.touches[0] : ev;
+      return { x: t.clientX, y: t.clientY };
+    }
+
+    if (carrieWrap) {
+      carrieWrap.addEventListener("mousedown", (e) => {
+        dragging = true;
+        const p = ptr(e);
+        startX = p.x;
+        startY = p.y;
+        const rect = carrieWrap.getBoundingClientRect();
+        originLeft = rect.left;
+        originTop = rect.top;
+        carrieWrap.style.right = "auto";
+        carrieWrap.style.bottom = "auto";
+        e.preventDefault();
+      });
+      carrieWrap.addEventListener("touchstart", (e) => {
+        dragging = true;
+        const p = ptr(e);
+        startX = p.x;
+        startY = p.y;
+        const rect = carrieWrap.getBoundingClientRect();
+        originLeft = rect.left;
+        originTop = rect.top;
+        carrieWrap.style.right = "auto";
+        carrieWrap.style.bottom = "auto";
+      }, { passive: true });
+    }
+
+    window.addEventListener("mousemove", (e) => {
+      if (!dragging) return;
+      const p = ptr(e);
+      const dx = p.x - startX;
+      const dy = p.y - startY;
+      carrieWrap.style.left = originLeft + dx + "px";
+      carrieWrap.style.top = originTop + dy + "px";
+      e.preventDefault();
+    });
+    window.addEventListener("touchmove", (e) => {
+      if (!dragging) return;
+      const p = ptr(e);
+      const dx = p.x - startX;
+      const dy = p.y - startY;
+      carrieWrap.style.left = originLeft + dx + "px";
+      carrieWrap.style.top = originTop + dy + "px";
+    }, { passive: true });
+    window.addEventListener("mouseup", () => { dragging = false; });
+    window.addEventListener("touchend", () => { dragging = false; });
+
+    if (carrie) {
+      try {
+        carrie.muted = true;
+        carrie.autoplay = true;
+        carrie.playsInline = true;
+        carrie.play().catch(() => {});
+      } catch (e) {}
+      carrie.addEventListener("click", () => {
+        window.location.href = "carrie-chat.html";
+      });
+      carrie.addEventListener("touchend", () => {
+        window.location.href = "carrie-chat.html";
+      });
+    }
+
+    // ---------- BUBBLES ----------
+    const contact = document.getElementById("bubble-contact");
+    const donate = document.getElementById("bubble-donate");
+    const footerBtn = document.getElementById("bubble-footer");
+    const topBtn = document.getElementById("bubble-top-single");
+    const themeBtn = document.getElementById("bubble-theme");
+    const themeRandomBtn = document.getElementById("bubble-theme-random");
+    const streamBtn = document.getElementById("bubble-stream");
+
+    if (contact) {
+      contact.addEventListener("click", () => {
+        window.location.href = "contact.html";
+      });
+    }
+
+    if (donate) {
+      donate.addEventListener("click", () => {
+        const donateSection = document.getElementById("donate");
+        if (donateSection) {
+          donateSection.scrollIntoView({ behavior: "smooth" });
+        } else {
+          window.location.href = "donate.html";
+        }
+      });
+    }
+
+    if (footerBtn) {
+      footerBtn.addEventListener("click", () => {
+        window.scrollTo({
+          top: document.body.scrollHeight,
+          behavior: "smooth",
+        });
+      });
+    }
+
+    if (topBtn) {
+      topBtn.addEventListener("click", () => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    }
+
+    const themes = [
+      { name: "dark",   bg: "linear-gradient(#0b0014,#000000)", color: "#eae6ff" },
+      { name: "light",  bg: "#f5f5ff",                            color: "#111827" },
+      {
+        name: "neon",
+        bg: "radial-gradient(circle at 0% 0%, #00f5ff 0, #12001e 40%, #000 100%)",
+        color: "#e0f2fe",
+      },
+      {
+        name: "sunset",
+        bg: "linear-gradient(135deg,#ff7a18,#af002d 60%,#000 100%)",
+        color: "#fff7ed",
+      },
+      {
+        name: "ocean",
+        bg: "linear-gradient(135deg,#0f172a,#0369a1,#0b0014)",
+        color: "#e0f2fe",
+      },
+    ];
+
+    function applyTheme(name) {
+      const t = themes.find((x) => x.name === name);
+      if (!t) return;
+      document.body.style.background = t.bg;
+      document.body.style.color = t.color;
+      try {
+        localStorage.setItem("8bfr-theme", name);
+      } catch {}
+    }
+
+    function getCurrentTheme() {
+      try {
+        return localStorage.getItem("8bfr-theme") || "dark";
+      } catch {
+        return "dark";
+      }
+    }
+
+    applyTheme(getCurrentTheme());
+
+    if (themeBtn) {
+      themeBtn.addEventListener("click", () => {
+        const current = getCurrentTheme();
+        const next = current === "light" ? "dark" : "light";
+        applyTheme(next);
+      });
+    }
+
+    if (themeRandomBtn) {
+      themeRandomBtn.addEventListener("click", () => {
+        const current = getCurrentTheme();
+        const pool = themes.map((t) => t.name).filter((n) => n !== current);
+        const next = pool[Math.floor(Math.random() * pool.length)];
+        applyTheme(next);
+      });
+    }
+
+    if (streamBtn) {
+      streamBtn.addEventListener("click", () => {
+        window.open(
+          "https://open.spotify.com/artist/127tw52iDXr7BvgB0IGG2x",
+          "_blank",
+          "noopener"
+        );
+      });
+    }
+
+    // ---------- SPECIAL: CHAT PAGE → ONLY HAMBURGER + CARRIE ----------
+    if (path === "carrie-chat.html") {
+      const stack = document.getElementById("bubbleStack");
+      if (stack) stack.style.display = "none";
+      const topBubble = document.getElementById("bubble-top-single");
+      if (topBubble) topBubble.style.display = "none";
+    }
+
+    enforceAuthGate();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", injectGlobalUI);
+  } else {
+    injectGlobalUI();
+  }
+})();
