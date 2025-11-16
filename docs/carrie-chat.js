@@ -354,10 +354,21 @@ function updateFloatingCarrieVideo() {
   }
 }
 
-
 function saveMode(mode) {
   currentMode = mode;
   try {
+    localStorage.setItem("carrie_mode", mode);
+  } catch {}
+
+  // 🔄 update the floating Carrie video on this page
+  updateFloatingCarrieVideo();
+
+  // If global floating Carrie exposes an API, update it too (safe no-op otherwise)
+  if (window._8bfrCarrie && typeof window._8bfrCarrie.setMode === "function") {
+    window._8bfrCarrie.setMode(mode);
+  }
+}
+
     localStorage.setItem("carrie_mode", mode);
   } catch {}
 
@@ -372,11 +383,16 @@ function loadMode() {
   try {
     stored = localStorage.getItem("carrie_mode");
   } catch {}
+
   if (stored === "personal" || stored === "business") {
     currentMode = stored;
   } else {
     currentMode = "business";
   }
+
+  // make sure floating Carrie video matches mode on first load
+  updateFloatingCarrieVideo();
+}
 }
 
 function applyModeStyles() {
