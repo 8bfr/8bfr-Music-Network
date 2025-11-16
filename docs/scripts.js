@@ -1,4 +1,4 @@
-// scripts.js – 8BFR global UI (Carrie + menu + basic bubbles)
+// scripts.js – 8BFR global UI (Carrie + menu + bubbles)
 (function () {
   console.log("8BFR scripts.js loaded");
 
@@ -153,6 +153,7 @@ body.menu-open #carrieWrap{
   object-fit:contain;
   background:transparent!important;
   display:block;
+  transform-origin:bottom right;
   filter:
     drop-shadow(0 14px 32px rgba(15,6,40,.9))
     drop-shadow(0 0 18px rgba(124,58,237,.55));
@@ -278,7 +279,7 @@ body.menu-open #carrieWrap{
   <span>⬆️</span>
 </button>
 
-<div id="carrieWrap" title="Chat with Carrie (drag)">
+<div id="carrieWrap" title="Carrie (tap to grow, drag to move)">
   <div id="carrieBubble">Chat with me</div>
   <video
     id="carrie"
@@ -377,7 +378,7 @@ body.menu-open #carrieWrap{
       }
     }
 
-    // allow other pages to control outfit + mode
+    // allow other pages (closet, chat) to control outfit / mode
     window._8bfrCarrie = {
       setMode(mode) {
         try { localStorage.setItem("carrie_mode", mode); } catch {}
@@ -396,6 +397,7 @@ body.menu-open #carrieWrap{
     let moved = false;
     let startX = 0, startY = 0;
     let originLeft = 0, originTop = 0;
+    let carrieScale = 1;
 
     function ptr(ev) {
       const t = ev.touches ? ev.touches[0] : ev;
@@ -448,25 +450,23 @@ body.menu-open #carrieWrap{
     window.addEventListener("mousemove", handleMove, { passive: false });
     window.addEventListener("touchmove", handleMove, { passive: false });
 
-    function endDrag(navigateIfClick) {
+    function endDrag() {
       if (!dragging) return;
       dragging = false;
-      if (!moved && navigateIfClick) {
-        if (path !== "carrie-chat.html") {
-          window.location.href = "carrie-chat.html";
-        }
-      }
+      // if moved == false, click handler will handle grow/shrink
     }
 
-    window.addEventListener("mouseup", () => endDrag(true));
-    window.addEventListener("touchend", () => endDrag(true));
+    window.addEventListener("mouseup", endDrag);
+    window.addEventListener("touchend", endDrag);
 
-    // simple "grow big" on double-click
-    let carrieScale = 1;
-    if (carrie) {
-      carrie.addEventListener("dblclick", () => {
-        carrieScale = carrieScale === 1 ? 1.7 : 1;
-        carrie.style.transform = `scale(${carrieScale})`;
+    // Carrie grow/shrink on click (tap)
+    if (carrieWrap) {
+      carrieWrap.addEventListener("click", () => {
+        if (moved) return; // ignore click after a drag
+        carrieScale = carrieScale === 1 ? 1.8 : 1;
+        if (carrie) {
+          carrie.style.transform = `scale(${carrieScale})`;
+        }
       });
     }
 
