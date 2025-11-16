@@ -226,7 +226,7 @@ body.menu-open #carrieWrap{
     <div class="menu-group-title">Profiles & Community</div>
     <div class="menu-links">
       <a href="profiles.html" class="menu-chip">All Profiles</a>
-      <a href="profile.html" class="menu-chip">My Profile</</a>
+      <a href="profile.html" class="menu-chip">My Profile</a>
       <a href="profile_artist.html" class="menu-chip">Artist Profile</a>
       <a href="profile_beatmaker.html" class="menu-chip">Beatmaker Profile</a>
       <a href="profile_author.html" class="menu-chip">Author Profile</a>
@@ -361,7 +361,6 @@ body.menu-open #carrieWrap{
         const stored = localStorage.getItem("carrie_outfit");
         if (stored && OUTFITS[stored]) return stored;
       } catch {}
-      // default: business outfit in business mode, casual otherwise
       return getStoredMode() === "business" ? "business" : "casual";
     }
 
@@ -378,19 +377,15 @@ body.menu-open #carrieWrap{
       }
     }
 
-    // allow other pages (Carrie chat / Closet) to control outfit + mode
+    // allow other pages to control outfit + mode
     window._8bfrCarrie = {
       setMode(mode) {
-        try {
-          localStorage.setItem("carrie_mode", mode);
-        } catch {}
+        try { localStorage.setItem("carrie_mode", mode); } catch {}
         applyCarrieOutfit();
       },
       setOutfit(name) {
         if (!OUTFITS[name]) return;
-        try {
-          localStorage.setItem("carrie_outfit", name);
-        } catch {}
+        try { localStorage.setItem("carrie_outfit", name); } catch {}
         applyCarrieOutfit();
       },
       applyOutfit: applyCarrieOutfit,
@@ -399,10 +394,8 @@ body.menu-open #carrieWrap{
     // drag vs click
     let dragging = false;
     let moved = false;
-    let startX = 0,
-      startY = 0;
-    let originLeft = 0,
-      originTop = 0;
+    let startX = 0, startY = 0;
+    let originLeft = 0, originTop = 0;
 
     function ptr(ev) {
       const t = ev.touches ? ev.touches[0] : ev;
@@ -459,7 +452,6 @@ body.menu-open #carrieWrap{
       if (!dragging) return;
       dragging = false;
       if (!moved && navigateIfClick) {
-        // only navigate to chat when NOT already on chat page
         if (path !== "carrie-chat.html") {
           window.location.href = "carrie-chat.html";
         }
@@ -516,7 +508,7 @@ body.menu-open #carrieWrap{
       });
     }
 
-    // On the chat page, hide all helper bubbles – just keep Carrie + hamburger
+    // On the chat page, hide helper bubbles – just keep Carrie + hamburger
     if (path === "carrie-chat.html") {
       const stack = document.getElementById("bubbleStack");
       if (stack) stack.style.display = "none";
