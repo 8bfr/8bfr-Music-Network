@@ -39,6 +39,9 @@ let currentUserId    = null;
 let currentUserEmail = null;
 let currentMode      = "business"; // "business" | "personal"
 
+// Inline Carrie video just for this page (created by JS)
+let inlineCarrieVideo = null;
+
 // ------- helpers
 
 function normalizeText(text) {
@@ -65,6 +68,62 @@ function scrollChatToBottom() {
   });
 }
 
+// ------- inline Carrie video (for this page only)
+
+function ensureInlineCarrie() {
+  if (!chatLogEl || inlineCarrieVideo) return;
+
+  const wrapper = document.createElement("div");
+  wrapper.id = "carrieChatInline";
+  wrapper.style.display = "flex";
+  wrapper.style.alignItems = "center";
+  wrapper.style.gap = "0.75rem";
+  wrapper.style.marginBottom = "0.75rem";
+
+  const vid = document.createElement("video");
+  vid.id = "carrieChatVideo";
+  vid.autoplay = true;
+  vid.loop = true;
+  vid.muted = true;
+  vid.playsInline = true;
+  vid.style.width = "72px";
+  vid.style.height = "72px";
+  vid.style.borderRadius = "9999px";
+  vid.style.border = "1px solid rgba(129,140,248,.9)";
+  vid.style.boxShadow = "0 0 14px rgba(124,58,237,.55)";
+  vid.style.objectFit = "cover";
+
+  const caption = document.createElement("p");
+  caption.textContent =
+    "Carrie’s outfit here follows the mode you pick: Business or Personal.";
+  caption.style.fontSize = "11px";
+  caption.style.color = "rgba(233,213,255,0.8)";
+
+  wrapper.appendChild(vid);
+  wrapper.appendChild(caption);
+
+  // insert just above the chat log
+  chatLogEl.parentNode.insertBefore(wrapper, chatLogEl);
+  inlineCarrieVideo = vid;
+
+  updateInlineCarrieVideo();
+}
+
+function updateInlineCarrieVideo() {
+  if (!inlineCarrieVideo) return;
+
+  const newSrc =
+    currentMode === "business" ? CARRIE_VIDEOS.business : CARRIE_VIDEOS.personal;
+
+  if (inlineCarrieVideo.getAttribute("src") !== newSrc) {
+    inlineCarrieVideo.src = newSrc;
+    try {
+      inlineCarrieVideo.load();
+      inlineCarrieVideo.play().catch(() => {});
+    } catch (e) {}
+  }
+}
+
 // ------- chat message renderer (Carrie = tiny animated video)
 
 function renderMessage(role, content, createdAt) {
@@ -77,7 +136,7 @@ function renderMessage(role, content, createdAt) {
   avatar.className = "msg-avatar";
 
   if (role === "assistant") {
-    // tiny video avatar
+    // tiny video avatar that follows currentMode
     const avatarVid = document.createElement("video");
     avatarVid.src =
       currentMode === "business"
@@ -88,9 +147,9 @@ function renderMessage(role, content, createdAt) {
     avatarVid.muted       = true;
     avatarVid.loop        = true;
     avatarVid.playsInline = true;
-    avatarVid.style.width      = "100%";
-    avatarVid.style.height     = "100%";
-    avatarVid.style.objectFit  = "cover";
+    avatarVid.style.width     = "100%";
+    avatarVid.style.height    = "100%";
+    avatarVid.style.objectFit = "cover";
 
     avatarVid.onerror = function () {
       this.onerror = null;
@@ -335,9 +394,9 @@ function hideTyping() {
   if (typingRowEl) typingRowEl.classList.add("hidden");
 }
 
-// ------- Mode toggle / Floating Carrie sync
+// ------- Mode toggle / Floating + Inline Carrie sync
 
-// Keep floating Carrie (bottom-right, from scripts.js) in sync with currentMode
+// Try to keep global floating Carrie (from scripts.js) in sync with currentMode
 function updateFloatingCarrieVideo() {
   const floater = document.getElementById("carrie");
   if (!floater) return;
@@ -362,11 +421,9 @@ function saveMode(mode) {
     localStorage.setItem("carrie_mode", mode);
   } catch {}
 
+  updateInlineCarrieVideo();
   updateFloatingCarrieVideo();
-
-  if (window._8bfrCarrie && typeof window._8bfrCarrie.setMode === "function") {
-    window._8bfrCarrie.setMode(mode);
-  }
+  applyModeStyles();
 }
 
 function loadMode() {
@@ -382,6 +439,7 @@ function loadMode() {
   }
 
   console.log("Loaded Carrie mode:", currentMode);
+  updateInlineCarrieVideo();
   updateFloatingCarrieVideo();
 }
 
@@ -405,7 +463,8 @@ function applyModeStyles() {
   }
 }
 
-// Load saved mode + apply button styles on page load
+// init inline Carrie + mode on page load
+ensureInlineCarrie();
 loadMode();
 applyModeStyles();
 
@@ -413,13 +472,11 @@ applyModeStyles();
 if (modeBusinessBtn) {
   modeBusinessBtn.addEventListener("click", () => {
     saveMode("business");
-    applyModeStyles();
   });
 }
 if (modePersonalBtn) {
   modePersonalBtn.addEventListener("click", () => {
     saveMode("personal");
-    applyModeStyles();
   });
 }
 
