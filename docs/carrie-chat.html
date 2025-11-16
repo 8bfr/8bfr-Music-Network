@@ -179,22 +179,47 @@
       display:none !important;
     }
 
-    /* Local Carrie dock for this chat page (bottom-right) */
-    #chatCarrieDock {
-      position: fixed;
-      right: 16px;
-      bottom: 72px;
-      z-index: 9997;
-      pointer-events: none; /* visual only */
+    /* Local Carrie wrapper for this chat page (bottom-right, draggable + resizable) */
+    #chatCarrieWrap{
+      position:fixed;
+      right:16px;
+      bottom:72px;
+      z-index:9997;
+      user-select:none;
+      touch-action:none;
+      pointer-events:auto;
     }
-    #chatCarrieDock video {
-      width: min(40vw, 200px);
-      border-radius: 9999px;
-      border: 1px solid rgba(129,140,248,0.9);
-      box-shadow: 0 0 18px rgba(124,58,237,0.6);
-      object-fit: cover;
-      display: block;
-      background: transparent;
+    #chatCarrieVideo{
+      width:min(48vw,260px);
+      max-height:70vh;
+      object-fit:contain;
+      background:transparent!important;
+      display:block;
+      filter:
+        drop-shadow(0 14px 32px rgba(15,6,40,.9))
+        drop-shadow(0 0 18px rgba(124,58,237,.55));
+    }
+    #chatCarrieBubble{
+      position:absolute;
+      bottom:100%;
+      right:40px;
+      margin-bottom:4px;
+      padding:3px 10px;
+      border-radius:999px;
+      font-size:.72rem;
+      background:rgba(15,23,42,.95);
+      color:#e5e7eb;
+      border:1px solid rgba(129,140,248,.9);
+      white-space:nowrap;
+    }
+    #chatCarrieBubble::after{
+      content:"";
+      position:absolute;
+      top:100%;
+      right:16px;
+      border-width:6px 6px 0 6px;
+      border-style:solid;
+      border-color:rgba(15,23,42,.95) transparent transparent transparent;
     }
   </style>
 </head>
@@ -276,7 +301,7 @@
         </div>
       </div>
 
-      <!-- Inline Carrie circle will be injected here by JS -->
+      <!-- Inline Carrie circle (top of chat) will still be injected by carrie-chat.js if you keep that logic -->
 
       <!-- Chat log -->
       <div id="chatLog" class="chat-log rounded-lg mb-3"></div>
@@ -319,7 +344,8 @@
   </main>
 
   <!-- Local Carrie (bottom-right) just for this chat page -->
-  <div id="chatCarrieDock">
+  <div id="chatCarrieWrap" title="Carrie (chat only)">
+    <div id="chatCarrieBubble">Carrie chat</div>
     <video
       id="chatCarrieVideo"
       src="assets/videos/carrie_casual_animate_3_1.webm"
@@ -411,77 +437,228 @@
   <!-- Carrie chat brain JUST for this page -->
   <script src="carrie-chat.js?v=5"></script>
 
-  <!-- Small helper to sync bottom-right Carrie with Business/Personal mode -->
+  <!-- Local Carrie (chat page only): mode sync + drag/resize -->
   <script>
     (function () {
-      const dockVideo = document.getElementById("chatCarrieVideo");
-      if (!dockVideo) return;
+      const VIDEO_SRC = {
+        business: "assets/videos/carrie_business_animate.webm",
+        personal: "assets/videos/carrie_casual_animate_3_1.webm",
+      };
 
-      function getCurrentMode() {
-        // Try localStorage first (what carrie-chat.js uses)
+      const wrap   = document.getElementById("chatCarrieWrap");
+      const video  = document.getElementById("chatCarrieVideo");
+      const bubble = document.getElementById("chatCarrieBubble");
+      const btnBusiness = document.getElementById("modeBusiness");
+      const btnPersonal = document.getElementById("modePersonal");
+      const modeHint    = document.getElementById("modeHint");
+
+      if (!wrap || !video) return;
+
+      function getMode() {
         try {
           const stored = localStorage.getItem("carrie_mode");
           if (stored === "business" || stored === "personal") return stored;
         } catch (e) {}
-        // Fallback to global variable if present
-        if (window.currentMode === "business" || window.currentMode === "personal") {
-          return window.currentMode;
-        }
         return "business";
       }
 
-      function applyDockVideo(mode) {
-        if (!window.CARRIE_VIDEOS) return;
-        const src =
-          mode === "business"
-            ? window.CARRIE_VIDEOS.business
-            : window.CARRIE_VIDEOS.personal;
-
-        if (dockVideo.getAttribute("src") !== src) {
-          dockVideo.src = src;
+      function applyMode(mode) {
+        const src = VIDEO_SRC[mode] || VIDEO_SRC.business;
+        if (video.getAttribute("src") !== src) {
+          video.src = src;
           try {
-            dockVideo.load();
-            dockVideo.play().catch(function () {});
+            video.load();
+            video.play().catch(function () {});
           } catch (e) {}
+        }
+        if (modeHint) {
+          modeHint.textContent =
+            mode === "business"
+              ? "Business chat • focused on tools, music, and progress"
+              : "Personal chat • softer vibe, creative and support focused";
         }
       }
 
-      function syncCarrieDock() {
-        const mode = getCurrentMode();
-        applyDockVideo(mode);
+      function setMode(mode) {
+        try {
+          localStorage.setItem("carrie_mode", mode);
+        } catch (e) {}
+        applyMode(mode);
       }
 
-      // Initial sync on load
-      syncCarrieDock();
-
-      // Hook into the mode buttons
-      const btnBusiness = document.getElementById("modeBusiness");
-      const btnPersonal = document.getElementById("modePersonal");
+      // Initial sync
+      applyMode(getMode());
 
       if (btnBusiness) {
         btnBusiness.addEventListener("click", function () {
-          try {
-            localStorage.setItem("carrie_mode", "business");
-          } catch (e) {}
-          syncCarrieDock();
+          setMode("business");
         });
       }
-
       if (btnPersonal) {
         btnPersonal.addEventListener("click", function () {
-          try {
-            localStorage.setItem("carrie_mode", "personal");
-          } catch (e) {}
-          syncCarrieDock();
+          setMode("personal");
         });
       }
 
-      // If mode changes in another tab/window, keep in sync
+      // Stay in sync if another script/tab changes carrie_mode
       window.addEventListener("storage", function (ev) {
         if (ev.key === "carrie_mode") {
-          syncCarrieDock();
+          applyMode(getMode());
         }
       });
+
+      // ----- Drag + resize logic (like global Carrie, but local) -----
+      let dragging = false;
+      let moved = false;
+      let sx = 0;
+      let sy = 0;
+      let ox = 0;
+      let oy = 0;
+
+      let carrieScale = 1;
+      let pinchActive = false;
+      let pinchStartDist = 0;
+      let carrieStartScale = 1;
+      let mouseResizeActive = false;
+      let mouseResizeStartY = 0;
+
+      function applyCarrieScale() {
+        video.style.transform = "scale(" + carrieScale + ")";
+        if (bubble) {
+          bubble.style.transform = "scale(" + carrieScale + ")";
+        }
+      }
+
+      function clampScale(v) {
+        return Math.max(0.5, v); // min 0.5x, no max
+      }
+
+      function getTouchDistance(e) {
+        if (!e.touches || e.touches.length < 2) return 0;
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        const dx = t2.clientX - t1.clientX;
+        const dy = t2.clientY - t1.clientY;
+        return Math.sqrt(dx * dx + dy * dy);
+      }
+
+      function ptr(ev) {
+        const t = ev.touches ? ev.touches[0] : ev;
+        return { x: t.clientX, y: t.clientY };
+      }
+
+      wrap.addEventListener("contextmenu", function (e) {
+        e.preventDefault();
+      });
+
+      wrap.addEventListener("mousedown", startDragOrResize);
+      wrap.addEventListener("touchstart", startTouch, { passive: false });
+
+      function startDragOrResize(e) {
+        // Right click = resize (desktop)
+        if (e.button === 2) {
+          mouseResizeActive = true;
+          mouseResizeStartY = e.clientY;
+          carrieStartScale = carrieScale;
+          moved = false;
+          dragging = false;
+          e.preventDefault();
+          return;
+        }
+
+        // Left click = drag
+        dragging = true;
+        moved = false;
+        const p = ptr(e);
+        sx = p.x;
+        sy = p.y;
+        const rect = wrap.getBoundingClientRect();
+        ox = rect.left;
+        oy = rect.top;
+        wrap.style.right = "auto";
+        wrap.style.bottom = "auto";
+      }
+
+      function startTouch(e) {
+        if (e.touches && e.touches.length >= 2) {
+          // Pinch to resize
+          pinchActive = true;
+          dragging = false;
+          moved = false;
+          pinchStartDist = getTouchDistance(e);
+          carrieStartScale = carrieScale;
+          e.preventDefault();
+          return;
+        }
+
+        // Single finger = drag
+        dragging = true;
+        moved = false;
+        const p = ptr(e);
+        sx = p.x;
+        sy = p.y;
+        const rect = wrap.getBoundingClientRect();
+        ox = rect.left;
+        oy = rect.top;
+        wrap.style.right = "auto";
+        wrap.style.bottom = "auto";
+        e.preventDefault();
+      }
+
+      window.addEventListener("mousemove", onMove, { passive: false });
+      window.addEventListener("touchmove", onMove, { passive: false });
+      window.addEventListener("mouseup", endAll);
+      window.addEventListener("touchend", endAll);
+
+      function onMove(e) {
+        // Pinch
+        if (pinchActive && e.touches && e.touches.length >= 2) {
+          const dist = getTouchDistance(e);
+          if (!dist || !pinchStartDist) return;
+          const ratio = dist / pinchStartDist;
+          carrieScale = clampScale(carrieStartScale * ratio);
+          applyCarrieScale();
+          e.preventDefault();
+          return;
+        }
+
+        // Mouse resize
+        if (mouseResizeActive && !e.touches) {
+          const dy = e.clientY - mouseResizeStartY;
+          const ratio = 1 - dy / 300;
+          carrieScale = clampScale(carrieStartScale * ratio);
+          applyCarrieScale();
+          e.preventDefault();
+          return;
+        }
+
+        // Drag
+        if (!dragging) return;
+        const p = ptr(e);
+        const dx = p.x - sx;
+        const dy = p.y - sy;
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+        wrap.style.left = ox + dx + "px";
+        wrap.style.top = oy + dy + "px";
+        e.preventDefault();
+      }
+
+      function endAll(e) {
+        if (e && e.touches && e.touches.length > 0) {
+          return;
+        }
+        dragging = false;
+        pinchActive = false;
+        mouseResizeActive = false;
+      }
+
+      // Make sure video tries to play
+      try {
+        video.muted = true;
+        video.autoplay = true;
+        video.playsInline = true;
+        video.play().catch(function () {});
+      } catch (e) {}
     })();
   </script>
 </body>
