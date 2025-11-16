@@ -145,6 +145,162 @@
   // Buttons already present; buy/how clicks handled in index via modals
 })();
 
+
+
+
+
+
+
+
+
+  
+   // ========== FEATURED ADS + BUTTONS (index.html only, with swipe) ==========
+(function () {
+  const track = document.getElementById("adTrack");
+  if (!track) return;
+
+  const ads = [
+    { img: "assets/images/ad_banner_1.jpg", url: "ads.html#buy" },
+    { img: "assets/images/ad_banner_2.jpg", url: "ads.html#buy" },
+    { img: "assets/images/ad_banner_3.jpg", url: "ads.html#buy" },
+    { img: "assets/images/ad_banner_4.jpg", url: "ads.html#buy" },
+    { img: "assets/images/ad_banner_5.jpg", url: "ads.html#buy" },
+  ];
+
+  const prev = document.getElementById("adPrev");
+  const next = document.getElementById("adNext");
+  const pause = document.getElementById("adPause");
+
+  let index = 0;
+  let paused = false;
+  let timer = null;
+
+  function createSlide(i) {
+    const data = ads[i];
+    const a = document.createElement("a");
+    a.className = "ad-slide";
+    a.href = data.url || "#";
+    a.target = "_blank";
+    a.rel = "noopener";
+
+    const img = new Image();
+    img.src = data.img;
+    img.alt = "Featured ad banner";
+    a.appendChild(img);
+    return a;
+  }
+
+  function showSlide(nextIndex) {
+    index = (nextIndex + ads.length) % ads.length;
+
+    const oldSlide = track.querySelector(".ad-slide.show");
+    const newSlide = createSlide(index);
+
+    track.appendChild(newSlide);
+    requestAnimationFrame(() => newSlide.classList.add("show"));
+
+    if (oldSlide) {
+      setTimeout(() => oldSlide.remove(), 380);
+    }
+  }
+
+  function schedule() {
+    clearTimeout(timer);
+    if (paused) return;
+    timer = setTimeout(() => {
+      showSlide(index + 1);
+      schedule();
+    }, 5000);
+  }
+
+  if (prev) {
+    prev.addEventListener("click", () => {
+      if (!paused && pause) {
+        paused = true;
+        pause.textContent = "Play";
+      }
+      showSlide(index - 1);
+    });
+  }
+
+  if (next) {
+    next.addEventListener("click", () => {
+      if (!paused && pause) {
+        paused = true;
+        pause.textContent = "Play";
+      }
+      showSlide(index + 1);
+    });
+  }
+
+  if (pause) {
+    pause.addEventListener("click", () => {
+      paused = !paused;
+      pause.textContent = paused ? "Play" : "Pause";
+      if (!paused) {
+        schedule();
+      } else {
+        clearTimeout(timer);
+      }
+    });
+  }
+
+  // ✅ Touch swipe left/right
+  let startX = 0;
+  let deltaX = 0;
+  let dragging = false;
+
+  track.addEventListener(
+    "touchstart",
+    (e) => {
+      dragging = true;
+      startX = e.touches[0].clientX;
+      deltaX = 0;
+      clearTimeout(timer);
+    },
+    { passive: true }
+  );
+
+  track.addEventListener(
+    "touchmove",
+    (e) => {
+      if (!dragging) return;
+      deltaX = e.touches[0].clientX - startX;
+    },
+    { passive: true }
+  );
+
+  track.addEventListener(
+    "touchend",
+    () => {
+      if (!dragging) return;
+      dragging = false;
+      if (Math.abs(deltaX) > 40) {
+        if (deltaX < 0) {
+          if (!paused && pause) {
+            paused = true;
+            pause.textContent = "Play";
+          }
+          showSlide(index + 1);
+        } else {
+          if (!paused && pause) {
+            paused = true;
+            pause.textContent = "Play";
+          }
+          showSlide(index - 1);
+        }
+      }
+      schedule();
+    },
+    { passive: true }
+  );
+
+  showSlide(0);
+  schedule();
+
+  // Buttons already present; buy/how clicks handled in index via modals
+})();
+
 // ========== GLOBAL 8BFR UI (menu, bubbles, Carrie, auth gate, Spotify stripe) ==========
 (function () {
   const SUPABASE_URL = "https://novbuvwpjnxwwvdekjhr.supabase.co";
@@ -1175,6 +1331,29 @@ body.menu-open #carrieWrap{
     injectGlobalUI();
   }
 })();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+
+        
+       
 
 
 
