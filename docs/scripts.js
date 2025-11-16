@@ -822,6 +822,73 @@ body.menu-open #carrieWrap{
     const carrieWrap = document.getElementById("carrieWrap");
     const carrie = document.getElementById("carrie");
     const carrieBubble = document.getElementById("carrieBubble");
+    const globalAvatarSwitch = document.getElementById("globalAvatarSwitch");
+
+    // ✅ global avatar video options (Carrie / James)
+    const GLOBAL_AVATAR_VIDEOS = {
+      carrie: "assets/videos/carrie_casual_animate_3_1.webm",
+      james: "assets/videos/james-casual.webm",
+    };
+
+    function getGlobalAvatar() {
+      try {
+        const a = localStorage.getItem("carrie_avatar");
+        if (a === "james") return "james";
+      } catch (e) {}
+      return "carrie";
+    }
+
+    function applyGlobalAvatar() {
+      if (carrie) {
+        const avatar = getGlobalAvatar();
+        const src =
+          GLOBAL_AVATAR_VIDEOS[avatar] || GLOBAL_AVATAR_VIDEOS.carrie;
+        if (carrie.getAttribute("src") !== src) {
+          carrie.src = src;
+          try {
+            carrie.load();
+            carrie.play().catch(function () {});
+          } catch (e) {}
+        }
+      }
+
+      if (globalAvatarSwitch) {
+        const buttons = globalAvatarSwitch.querySelectorAll(
+          "button[data-avatar]"
+        );
+        const avatar = getGlobalAvatar();
+        buttons.forEach((btn) => {
+          if (btn.dataset.avatar === avatar) {
+            btn.style.borderColor = "#a855f7";
+            btn.style.background = "rgba(88,28,135,0.9)";
+          } else {
+            btn.style.borderColor = "rgba(129,140,248,.4)";
+            btn.style.background = "rgba(10,10,20,.8)";
+          }
+        });
+      }
+    }
+
+    if (globalAvatarSwitch) {
+      globalAvatarSwitch.addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-avatar]");
+        if (!btn) return;
+        const avatar = btn.dataset.avatar;
+        try {
+          localStorage.setItem("carrie_avatar", avatar);
+        } catch (err) {}
+        applyGlobalAvatar();
+      });
+    }
+
+    applyGlobalAvatar();
+
+    // stay in sync if chat page changes avatar
+    window.addEventListener("storage", (ev) => {
+      if (ev.key === "carrie_avatar") {
+        applyGlobalAvatar();
+      }
+    });
 
     // position + movement
     let dragging = false;
@@ -848,7 +915,6 @@ body.menu-open #carrieWrap{
       }
     }
 
-    // ✅ only minimum, no maximum limit
     function clampScale(v) {
       return Math.max(0.5, v);
     }
@@ -1109,3 +1175,26 @@ body.menu-open #carrieWrap{
     injectGlobalUI();
   }
 })();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+
+        
+      
