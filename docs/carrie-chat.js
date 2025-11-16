@@ -334,43 +334,38 @@ function hideTyping() {
   if (typingRowEl) typingRowEl.classList.add("hidden");
 }
 
-// ------- Mode toggle
+// ------- Mode toggle / Floating Carrie sync
+
 // Keep floating Carrie (bottom-right) in sync with currentMode on this page
 function updateFloatingCarrieVideo() {
+  // this is the big floating Carrie from scripts.js
   const floater = document.getElementById("carrie");
   if (!floater) return;
 
   const newSrc =
-    currentMode === "business"
-      ? CARRIE_VIDEOS.business
-      : CARRIE_VIDEOS.personal;
+    currentMode === "business" ? CARRIE_VIDEOS.business : CARRIE_VIDEOS.personal;
 
   if (floater.getAttribute("src") !== newSrc) {
     floater.src = newSrc;
     try {
       floater.load();
       floater.play().catch(() => {});
-    } catch (e) {}
+    } catch (e) {
+      // ignore play errors
+    }
   }
 }
 
 function saveMode(mode) {
   currentMode = mode;
+
+  // remember for later visits
   try {
     localStorage.setItem("carrie_mode", mode);
   } catch {}
 
-  // 🔄 update the floating Carrie video on this page
+  // update floating Carrie video on this page
   updateFloatingCarrieVideo();
-
-  // If global floating Carrie exposes an API, update it too (safe no-op otherwise)
-  if (window._8bfrCarrie && typeof window._8bfrCarrie.setMode === "function") {
-    window._8bfrCarrie.setMode(mode);
-  }
-}
-
-    localStorage.setItem("carrie_mode", mode);
-  } catch {}
 
   // If global floating Carrie exposes an API, update it too (safe no-op otherwise)
   if (window._8bfrCarrie && typeof window._8bfrCarrie.setMode === "function") {
@@ -393,10 +388,10 @@ function loadMode() {
   // make sure floating Carrie video matches mode on first load
   updateFloatingCarrieVideo();
 }
-}
 
 function applyModeStyles() {
   if (!modeBusinessBtn || !modePersonalBtn) return;
+
   if (currentMode === "business") {
     modeBusinessBtn.style.background = "rgba(88,28,135,0.9)";
     modeBusinessBtn.style.borderColor = "#a855f7";
@@ -414,9 +409,11 @@ function applyModeStyles() {
   }
 }
 
+// Load saved mode + apply button styles on page load
 loadMode();
 applyModeStyles();
 
+// button click handlers
 if (modeBusinessBtn) {
   modeBusinessBtn.addEventListener("click", () => {
     saveMode("business");
@@ -463,7 +460,8 @@ if (trainerCancel) {
     closeTrainer();
   });
 }
-if (trainerForm && supabase) {
+
+if (trainerForm) {
   trainerForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const q = (trainerQuestion.value || "").trim();
@@ -483,6 +481,8 @@ if (trainerForm && supabase) {
         "Saved! Carrie will now recognize that pattern in this session.";
       trainerStatus.style.display = "block";
     }
+
+    if (!supabase) return;
 
     try {
       await supabase.from("carrie_scripts").insert({
