@@ -60,7 +60,7 @@ function scrollChatToBottom() {
   });
 }
 
-// Pick Carrie avatar based on current mode
+// Choose Carrie avatar image based on mode
 function getCarrieAvatarSrc() {
   if (currentMode === "business") {
     return "assets/images/Carrie_Business.png";
@@ -120,7 +120,7 @@ function renderMessage(role, content, createdAt) {
 }
 
 async function saveMessage(role, content) {
-  if (!supabase || !currentUserId) return; // fail-safe if supabase not ready
+  if (!supabase || !currentUserId) return; // safe if supabase not ready
   try {
     await supabase.from("carrie_chat_logs").insert({
       user_id: currentUserId,
@@ -327,7 +327,7 @@ function saveMode(mode) {
     localStorage.setItem("carrie_mode", mode);
   } catch {}
 
-  // if global floating Carrie exposes an API, update it too (safe no-op otherwise)
+  // If global floating Carrie exposes an API, update it too (safe no-op otherwise)
   if (window._8bfrCarrie && typeof window._8bfrCarrie.setMode === "function") {
     window._8bfrCarrie.setMode(mode);
   }
