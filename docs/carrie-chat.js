@@ -4,7 +4,10 @@
 const SUPABASE_URL = "https://novbuvwpjnxwwvdekjhr.supabase.co";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0";
-
+const CARRIE_VIDEOS = {
+  business: "assets/videos/carrie_business_animate.webm",
+  personal: "assets/videos/carrie_casual_animate_3_1.webm",
+};
 // Safely create Supabase client (so script doesn’t die if supabase JS fails)
 let supabase = null;
 if (window.supabase && window.supabase.createClient) {
