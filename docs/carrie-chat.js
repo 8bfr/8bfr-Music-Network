@@ -39,6 +39,9 @@ let currentUserId    = null;
 let currentUserEmail = null;
 let currentMode      = "business"; // "business" | "personal"
 
+// Inline Carrie video just for this page (created by JS)
+let inlineCarrieVideo = null;
+
 // ------- helpers
 
 function normalizeText(text) {
@@ -65,6 +68,62 @@ function scrollChatToBottom() {
   });
 }
 
+// ------- inline Carrie video (for this page only)
+
+function ensureInlineCarrie() {
+  if (!chatLogEl || inlineCarrieVideo) return;
+
+  const wrapper = document.createElement("div");
+  wrapper.id = "carrieChatInline";
+  wrapper.style.display = "flex";
+  wrapper.style.alignItems = "center";
+  wrapper.style.gap = "0.75rem";
+  wrapper.style.marginBottom = "0.75rem";
+
+  const vid = document.createElement("video");
+  vid.id = "carrieChatVideo";
+  vid.autoplay = true;
+  vid.loop = true;
+  vid.muted = true;
+  vid.playsInline = true;
+  vid.style.width = "72px";
+  vid.style.height = "72px";
+  vid.style.borderRadius = "9999px";
+  vid.style.border = "1px solid rgba(129,140,248,.9)";
+  vid.style.boxShadow = "0 0 14px rgba(124,58,237,.55)";
+  vid.style.objectFit = "cover";
+
+  const caption = document.createElement("p");
+  caption.textContent =
+    "Carrie’s outfit here follows the mode you pick: Business or Personal.";
+  caption.style.fontSize = "11px";
+  caption.style.color = "rgba(233,213,255,0.8)";
+
+  wrapper.appendChild(vid);
+  wrapper.appendChild(caption);
+
+  // insert just above the chat log
+  chatLogEl.parentNode.insertBefore(wrapper, chatLogEl);
+  inlineCarrieVideo = vid;
+
+  updateInlineCarrieVideo();
+}
+
+function updateInlineCarrieVideo() {
+  if (!inlineCarrieVideo) return;
+
+  const newSrc =
+    currentMode === "business" ? CARRIE_VIDEOS.business : CARRIE_VIDEOS.personal;
+
+  if (inlineCarrieVideo.getAttribute("src") !== newSrc) {
+    inlineCarrieVideo.src = newSrc;
+    try {
+      inlineCarrieVideo.load();
+      inlineCarrieVideo.play().catch(() => {});
+    } catch (e) {}
+  }
+}
+
 // ------- chat message renderer (Carrie = tiny animated video)
 
 function renderMessage(role, content, createdAt) {
@@ -77,7 +136,7 @@ function renderMessage(role, content, createdAt) {
   avatar.className = "msg-avatar";
 
   if (role === "assistant") {
-    // tiny video avatar that follows currentMode at send time
+    // tiny video avatar that follows currentMode
     const avatarVid = document.createElement("video");
     avatarVid.src =
       currentMode === "business"
@@ -259,64 +318,45 @@ function findCarrieScriptReply(userText) {
 
 function carrieBrain(userText) {
   const t = userText.trim();
-  const isBusiness = currentMode === "business";
-
   if (!t) {
-    return isBusiness
-      ? 'Business Carrie 💼:<br>I didn’t quite catch that — try asking me about studio tools, music plans, or how 8BFR works.'
-      : 'Personal Carrie 💜:<br>I didn’t quite catch that — tell me what kind of vibe you need or what’s on your mind.';
+    return "I didn’t quite catch that — try asking me about music, games, or how 8BFR works.";
   }
 
   const lower = t.toLowerCase();
 
   // 1) scripted answers first
   const scripted = findCarrieScriptReply(t);
-  if (scripted) {
-    if (isBusiness) {
-      return 'Business Carrie 💼:<br>' + scripted;
-    } else {
-      return 'Personal Carrie 💜:<br>' + scripted;
-    }
-  }
+  if (scripted) return scripted;
 
   // 2) business mode = focused, studio / tools / progress
-  if (isBusiness) {
-    let body;
-
+  if (currentMode === "business") {
     if (lower.includes("hook") || lower.includes("chorus")) {
-      body =
-        "Hooks love repetition and rhythm. Try a 2-bar phrase you can repeat 3–4 times, then tweak the last line. " +
-        "If you tell me your song topic and vibe, I can suggest some hook ideas.";
-    } else if (lower.includes("8bfr") || lower.includes("network")) {
-      body =
-        "8BFR Music Network is built to help creators connect — profiles, studio & AI tools, tournaments, and more. " +
-        "You can explore it all from the floating menu and the Network / Search page.";
-    } else if (lower.includes("beat") || lower.includes("bpm")) {
-      body =
-        "For rap and trap, a lot of people sit between 130–150 BPM (or 65–75 double-time). " +
-        "If you share your mood — dark, hype, chill — I can help you pick a BPM range and structure.";
-    } else if (lower.includes("tournament") || lower.includes("game")) {
-      body =
-        "Tournaments and games on 8BFR are meant to be low-stress and fun. " +
-        "You’ll see brackets, leaderboards, and coin rewards on the Games & Tournaments pages.";
-    } else if (lower.includes("lyrics") || lower.includes("write")) {
-      body =
-        "Give me 3 things: mood, topic, and an artist you’re inspired by. " +
-        "I’ll help you shape a verse structure or some starting lines you can tweak.";
-    } else {
-      const starters = [
-        "Got it — let’s keep it focused.",
-        "Okay, let’s turn that into a plan.",
-        "I hear you. Let’s break this into steps.",
-        "Nice. We can build that into something real.",
-      ];
-      const starter = starters[Math.floor(Math.random() * starters.length)];
-      body =
-        starter +
-        " Tell me your main goal in one sentence, and I’ll outline the next 3 moves.";
+      return "Hooks love repetition and rhythm. Try a 2-bar phrase you can repeat 3–4 times, then tweak the last line. If you tell me your song topic and vibe, I can suggest some hook ideas.";
+    }
+    if (lower.includes("8bfr") || lower.includes("network")) {
+      return "8BFR Music Network is built to help creators connect — profiles, studio & AI tools, tournaments, and more. You can explore it all from the floating menu and the Network / Search page.";
+    }
+    if (lower.includes("beat") || lower.includes("bpm")) {
+      return "For rap and trap, a lot of people sit between 130–150 BPM (or 65–75 double-time). If you share your mood — dark, hype, chill — I can help you pick a BPM range and structure.";
+    }
+    if (lower.includes("tournament") || lower.includes("game")) {
+      return "Tournaments and games on 8BFR are meant to be low-stress and fun. You’ll see brackets, leaderboards, and coin rewards on the Games & Tournaments pages.";
+    }
+    if (lower.includes("lyrics") || lower.includes("write")) {
+      return "Give me 3 things: mood, topic, and an artist you’re inspired by. I’ll help you shape a verse structure or some starting lines you can tweak.";
     }
 
-    return "Business Carrie 💼:<br>" + body;
+    const starters = [
+      "Got it — let’s keep it focused.",
+      "Okay, let’s turn that into a plan.",
+      "I hear you. Let’s break this into steps.",
+      "Nice. We can build that into something real.",
+    ];
+    const starter = starters[Math.floor(Math.random() * starters.length)];
+    return (
+      starter +
+      " Tell me your main goal in one sentence, and I’ll outline the next 3 moves."
+    );
   }
 
   // 3) personal mode = chill break, still PG-13
@@ -339,11 +379,10 @@ function carrieBrain(userText) {
   const starter =
     personalStarters[Math.floor(Math.random() * personalStarters.length)];
 
-  const body =
+  return (
     starter +
-    " Tell me what kind of vibe you need right now — hype, chill, or comfort — and I’ll roll with it.";
-
-  return "Personal Carrie 💜:<br>" + body;
+    " Tell me what kind of vibe you need right now — hype, chill, or comfort — and I’ll roll with it."
+  );
 }
 
 // ------- Typing indicator
@@ -355,9 +394,9 @@ function hideTyping() {
   if (typingRowEl) typingRowEl.classList.add("hidden");
 }
 
-// ------- Mode toggle / Floating Carrie sync
+// ------- Mode toggle / Floating + Inline Carrie sync
 
-// Keep global floating Carrie (from scripts.js) in sync with currentMode (best-effort)
+// Try to keep global floating Carrie (from scripts.js) in sync with currentMode
 function updateFloatingCarrieVideo() {
   const floater = document.getElementById("carrie");
   if (!floater) return;
@@ -372,6 +411,50 @@ function updateFloatingCarrieVideo() {
       floater.play().catch(() => {});
     } catch (e) {}
   }
+}
+
+// Clear chat and show a fresh greeting when switching modes
+function resetChatForMode() {
+  if (!chatLogEl) return;
+  chatLogEl.innerHTML = "";
+
+  const greeting =
+    currentMode === "business"
+      ? "Hey, I’m Carrie 💼 Business mode is on — want help with a track, tools, or something on the 8BFR site?"
+      : "Hey, I’m Carrie 💜 Personal mode is on — want to vent, brainstorm, or just talk ideas for a bit?";
+
+  renderMessage("assistant", greeting, new Date());
+}
+
+function saveMode(mode) {
+  currentMode = mode;
+  console.log("Carrie mode set to:", currentMode);
+
+  try {
+    localStorage.setItem("carrie_mode", mode);
+  } catch {}
+
+  updateInlineCarrieVideo();
+  updateFloatingCarrieVideo();
+  applyModeStyles();
+  resetChatForMode();
+}
+
+function loadMode() {
+  let stored = null;
+  try {
+    stored = localStorage.getItem("carrie_mode");
+  } catch {}
+
+  if (stored === "personal" || stored === "business") {
+    currentMode = stored;
+  } else {
+    currentMode = "business";
+  }
+
+  console.log("Loaded Carrie mode:", currentMode);
+  updateInlineCarrieVideo();
+  updateFloatingCarrieVideo();
 }
 
 function applyModeStyles() {
@@ -394,37 +477,11 @@ function applyModeStyles() {
   }
 }
 
-function saveMode(mode) {
-  currentMode = mode;
-  console.log("Carrie mode set to:", currentMode);
-
-  try {
-    localStorage.setItem("carrie_mode", mode);
-  } catch {}
-
-  updateFloatingCarrieVideo();
-  applyModeStyles();
-}
-
-function loadMode() {
-  let stored = null;
-  try {
-    stored = localStorage.getItem("carrie_mode");
-  } catch {}
-
-  if (stored === "personal" || stored === "business") {
-    currentMode = stored;
-  } else {
-    currentMode = "business";
-  }
-
-  console.log("Loaded Carrie mode:", currentMode);
-  updateFloatingCarrieVideo();
-  applyModeStyles();
-}
-
-// init mode on page load
+// init inline Carrie + mode on page load
+ensureInlineCarrie();
 loadMode();
+applyModeStyles();
+resetChatForMode();
 
 // button click handlers
 if (modeBusinessBtn) {
@@ -514,14 +571,8 @@ if (trainerForm) {
 // ------- Session + history
 
 async function initSessionAndHistory() {
-  const isBusiness = currentMode === "business";
-
-  const firstGreeting = isBusiness
-    ? 'Hey, I’m <b>Business Carrie</b> 💼 — want help with a track, studio tools, or exploring the 8BFR site?'
-    : 'Hey, I’m <b>Personal Carrie</b> 💜 — want to vent, brainstorm ideas, or just talk about your vibe for tonight?';
-
   if (!supabase) {
-    renderMessage("assistant", firstGreeting);
+    // we already showed a mode-based greeting via resetChatForMode()
     return;
   }
 
@@ -555,34 +606,7 @@ async function initSessionAndHistory() {
     }
   }
 
-  if (!currentUserId) {
-    renderMessage("assistant", firstGreeting);
-    return;
-  }
-
-  try {
-    const { data: rows, error } = await supabase
-      .from("carrie_chat_logs")
-      .select("*")
-      .eq("user_id", currentUserId)
-      .order("created_at", { ascending: true })
-      .limit(40);
-
-    if (error) throw error;
-
-    if (rows && rows.length) {
-      rows.forEach((r) => renderMessage(r.role, r.content, r.created_at));
-    } else {
-      renderMessage("assistant", firstGreeting);
-    }
-  } catch (e) {
-    console.warn("Could not load Carrie history", e);
-    renderMessage(
-      "assistant",
-      firstGreeting +
-        "<br><br><span style='font-size:11px;opacity:.8;'>I had a tiny glitch loading history, but we can start fresh right now.</span>"
-    );
-  }
+  // We keep the “fresh per mode” feel, so no Supabase history reload here.
 }
 
 // ------- Input behavior
