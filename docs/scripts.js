@@ -1,142 +1,25 @@
-// scripts.js – global 8BFR UI (Carrie + floating menu + bubbles + auth gate)
+// scripts.js – minimal global 8BFR UI
 (function () {
-  const SUPABASE_URL =
-    "https://novbuvwpjnxwwvdekjhr.supabase.co";
-  const SUPABASE_ANON_KEY =
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0";
+  console.log("8BFR scripts.js loaded");
 
-  // ---------- SUPABASE LOADER + AUTH GATE ----------
-  function loadSupabaseClient(callback) {
-    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
-
-    if (window._8bfrSupabaseClient) {
-      callback(window._8bfrSupabaseClient);
-      return;
-    }
-
-    function init() {
-      if (!window.supabase || !window.supabase.createClient) return;
-      const { createClient } = window.supabase;
-      window._8bfrSupabaseClient = createClient(
-        SUPABASE_URL,
-        SUPABASE_ANON_KEY
-      );
-      callback(window._8bfrSupabaseClient);
-    }
-
-    if (window.supabase && window.supabase.createClient) {
-      init();
-    } else {
-      const existing = document.querySelector("script[data-8bfr-supabase]");
-      if (!existing) {
-        const s = document.createElement("script");
-        s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
-        s.defer = true;
-        s.dataset["8bfrSupabase"] = "1";
-        s.onload = init;
-        document.head.appendChild(s);
-      } else {
-        existing.addEventListener("load", init, { once: true });
-      }
-    }
-  }
-
-  function showAuthOverlay() {
-    if (document.getElementById("authGateOverlay")) return;
-    const overlay = document.createElement("div");
-    overlay.id = "authGateOverlay";
-    overlay.innerHTML = `
-      <div id="authGateCard">
-        <h2>Login required</h2>
-        <p>You need an 8BFR account to open this page.</p>
-        <div class="auth-buttons">
-          <a href="login.html">Log in</a>
-          <a href="signup.html">Sign up free</a>
-          <a href="index.html">Back to home</a>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-  }
-
-  function enforceAuthGate() {
-    const publicPages = [
-      "index.html",
-      "",
-      "login.html",
-      "signup.html",
-      "reset-password.html",
-      "reset_password.html",
-      "logout.html",
-      "carrie-chat.html"
-    ];
-    let path = window.location.pathname.split("/").pop();
-    if (path === undefined || path === null) path = "";
-    if (publicPages.includes(path)) {
-      return;
-    }
-
-    loadSupabaseClient(async (client) => {
-      try {
-        const { data, error } = await client.auth.getSession();
-        if (error || !data || !data.session) {
-          showAuthOverlay();
-        }
-      } catch (e) {
-        console.warn("Auth gate check failed", e);
-      }
-    });
-  }
-
-  // ---------- GLOBAL UI INJECTION ----------
-  function injectGlobalUI() {
-    // Prevent double-inject
-    if (document.getElementById("fab")) {
-      enforceAuthGate();
-      return;
-    }
+  function injectUI() {
+    // Prevent double inject
+    if (document.getElementById("fab")) return;
 
     const path = window.location.pathname.split("/").pop() || "index.html";
 
-    // --- CSS ---
+    // ---------- STYLES ----------
     const css = document.createElement("style");
     css.textContent = `
 :root{
   --ring: rgba(124,58,237,.65);
   --glass: rgba(12,6,24,.88);
-  --chip-bg: rgba(18,3,39,.96);
-  --chip-hover: rgba(55,9,90,1);
 }
 
-/* stripe on the right behind the menu */
-#menuStripe{
-  position:fixed; top:0; right:0; bottom:0;
-  width:280px;
-  background:radial-gradient(circle at 0 0, rgba(15,23,42,.95), rgba(24,0,48,.98));
-  border-left:1px solid rgba(124,58,237,.6);
-  z-index:9991;
-  display:none;
-}
-#menuStripeText{
-  position:absolute; top:50%; left:50%;
-  transform:translate(-50%,-50%) rotate(-90deg);
-  font-size:.75rem;
-  letter-spacing:.35em;
-  text-transform:uppercase;
-  color:#a855f7;
-  opacity:.9;
-}
-body.menu-open #menuStripe{ display:block; }
-
-/* shift page content left when menu is open (if #pageWrap exists) */
-body.menu-open #pageWrap{
-  margin-right:280px;
-}
-
-/* --- Floating menu button --- */
+/* Floating menu button */
 #fab{
   position:fixed; top:10px; right:14px;
-  z-index:9999; width:56px; height:56px;
+  z-index:9999; width:52px; height:52px;
   border-radius:9999px; display:grid; place-items:center;
   background:radial-gradient(120% 120% at 30% 20%, rgba(124,58,237,.60), rgba(10,10,20,.80));
   border:1px solid rgba(124,58,237,.60);
@@ -146,7 +29,7 @@ body.menu-open #pageWrap{
 #fab:hover{ filter:brightness(1.1); }
 #fab svg{display:block}
 
-/* --- Menu panel --- */
+/* Menu backdrop */
 #menu-backdrop{
   position:fixed; inset:0; background:rgba(0,0,0,.25);
   backdrop-filter:blur(2px); z-index:9990;
@@ -154,9 +37,10 @@ body.menu-open #pageWrap{
 }
 #menu-backdrop.open{opacity:1;pointer-events:auto}
 
+/* Menu panel */
 #menu{
   position:fixed; top:72px; right:14px;
-  width:min(92vw,280px); max-height:calc(100vh - 88px);
+  width:min(92vw,260px); max-height:calc(100vh - 88px);
   overflow-y:auto; z-index:9998;
   transform:translateX(115%); transition:transform .25s ease;
   backdrop-filter:blur(12px); background:var(--glass);
@@ -194,22 +78,19 @@ body.menu-open #pageWrap{
 .menu-group.collapsed .menu-group-title::after{
   transform:rotate(-90deg);
 }
-
 .menu-links{display:flex;flex-wrap:wrap;gap:4px}
-.menu-group.collapsed .menu-links{
-  display:none;
-}
+.menu-group.collapsed .menu-links{ display:none; }
 
 .menu-chip{
   display:inline-block; padding:3px 10px;
   border-radius:999px; font-size:.75rem;
-  text-decoration:none; background:var(--chip-bg);
+  text-decoration:none; background:rgba(18,3,39,.96);
   border:1px solid rgba(129,140,248,.9); color:#eae6ff;
   white-space:nowrap;
 }
-.menu-chip:hover{background:var(--chip-hover)}
+.menu-chip:hover{background:rgba(55,9,90,1)}
 
-/* --- Floating bubbles with labels --- */
+/* Bubbles stack */
 #bubbleStack{
   position:fixed; top:76px; right:16px;
   z-index:9996; display:flex;
@@ -244,11 +125,11 @@ body.menu-open #pageWrap{
 body.menu-open #bubbleStack,
 body.menu-open #bubble-top-single,
 body.menu-open #carrieWrap{
-  right:340px;
+  right:300px;
 }
 
 .bubble{
-  width:42px; height:42px;
+  width:40px; height:40px;
   border-radius:999px;
   display:grid; place-items:center;
   background:rgba(18,3,39,.94);
@@ -261,7 +142,7 @@ body.menu-open #carrieWrap{
   transform:translateY(-1px);
 }
 
-/* --- Carrie wrapper & chat bubble --- */
+/* Carrie */
 #carrieWrap{
   position:fixed; right:16px; bottom:72px;
   z-index:9997; user-select:none; touch-action:none;
@@ -291,58 +172,20 @@ body.menu-open #carrieWrap{
   border-color:rgba(15,23,42,.95) transparent transparent transparent;
 }
 
-/* --- Auth lock overlay --- */
-#authGateOverlay{
-  position:fixed; inset:0; z-index:12000;
-  background:radial-gradient(circle at 10% -10%, rgba(124,58,237,.45), rgba(3,0,10,.96));
-  display:flex; align-items:center; justify-content:center;
-}
-#authGateCard{
-  width:min(92vw,360px);
-  border-radius:18px;
-  border:1px solid rgba(129,140,248,.85);
-  background:rgba(10,2,26,.96);
-  box-shadow:0 20px 40px rgba(0,0,0,.85);
-  padding:1.4rem 1.5rem;
-  text-align:center;
-}
-#authGateCard h2{
-  font-size:1.05rem; font-weight:700; margin-bottom:.4rem;
-}
-#authGateCard p{
-  font-size:.8rem; opacity:.82; margin-bottom:.8rem;
-}
-#authGateCard .auth-buttons{
-  display:flex; flex-direction:column; gap:.4rem;
-}
-#authGateCard .auth-buttons a{
-  display:block; border-radius:.9rem; padding:.45rem .7rem;
-  font-size:.8rem; text-decoration:none;
-  border:1px solid rgba(129,140,248,.9);
-  background:rgba(15,23,42,.9); color:#e5e7eb;
-}
-#authGateCard .auth-buttons a:first-child{
-  background:#7c3aed; border-color:#7c3aed; color:#fff;
-}
-
 @media(max-width:480px){
   #carrie{ width:min(56vw,220px); }
   body.menu-open #bubbleStack,
   body.menu-open #bubble-top-single,
   body.menu-open #carrieWrap{
-    right:300px;
+    right:260px;
   }
 }
 `;
     document.head.appendChild(css);
 
-    // --- HTML SHELL (menu + bubbles + Carrie) ---
+    // ---------- HTML SHELL ----------
     const ui = document.createElement("div");
     ui.innerHTML = `
-<div id="menuStripe">
-  <div id="menuStripeText">STREAM 8BFR ON SPOTIFY</div>
-</div>
-
 <button id="fab" aria-label="Open navigation">
   <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#00d9ff" stroke-width="2" stroke-linecap="round">
     <path d="M4 6h16M4 12h12M4 18h8"/>
@@ -376,8 +219,6 @@ body.menu-open #carrieWrap{
       <a href="album-ai.html" class="menu-chip">Album AI</a>
       <a href="voice-ai.html" class="menu-chip">Voice / Post VO</a>
       <a href="author-hub.html" class="menu-chip">Author Hub</a>
-      <a href="stats.html" class="menu-chip">Stats</a>
-      <a href="system.html" class="menu-chip">System</a>
     </div>
   </div>
 
@@ -391,7 +232,6 @@ body.menu-open #carrieWrap{
       <a href="profile_author.html" class="menu-chip">Author Profile</a>
       <a href="fan-zone.html" class="menu-chip">Fan Zone</a>
       <a href="kids-zone.html" class="menu-chip">Kids Zone</a>
-      <a href="chat.html" class="menu-chip">Site Chat</a>
       <a href="carrie-chat.html" class="menu-chip">Carrie Chat</a>
     </div>
   </div>
@@ -432,18 +272,6 @@ body.menu-open #carrieWrap{
     <span class="bubble-label">Footer</span>
     <button class="bubble" id="bubble-footer" title="Go to footer"><span>⬇️</span></button>
   </div>
-  <div class="bubble-row">
-    <span class="bubble-label">Theme</span>
-    <button class="bubble" id="bubble-theme" title="Light / Dark"><span>☯️</span></button>
-  </div>
-  <div class="bubble-row">
-    <span class="bubble-label">Random</span>
-    <button class="bubble" id="bubble-theme-random" title="Random theme"><span>🔀</span></button>
-  </div>
-  <div class="bubble-row">
-    <span class="bubble-label">Stream 8BFR</span>
-    <button class="bubble" id="bubble-stream" title="Stream 8BFR"><span>🎧</span></button>
-  </div>
 </div>
 
 <button class="bubble" id="bubble-top-single" title="Back to top">
@@ -464,7 +292,7 @@ body.menu-open #carrieWrap{
 `;
     document.body.appendChild(ui);
 
-    // ---------- MENU CONTROL ----------
+    // ---------- MENU ----------
     const fab = document.getElementById("fab");
     const menu = document.getElementById("menu");
     const backdrop = document.getElementById("menu-backdrop");
@@ -511,7 +339,7 @@ body.menu-open #carrieWrap{
       });
     });
 
-    // ---------- CARRIE DRAG ----------
+    // ---------- CARRIE DRAG + CLICK ----------
     const carrieWrap = document.getElementById("carrieWrap");
     const carrie = document.getElementById("carrie");
 
@@ -590,9 +418,6 @@ body.menu-open #carrieWrap{
     const donate = document.getElementById("bubble-donate");
     const footerBtn = document.getElementById("bubble-footer");
     const topBtn = document.getElementById("bubble-top-single");
-    const themeBtn = document.getElementById("bubble-theme");
-    const themeRandomBtn = document.getElementById("bubble-theme-random");
-    const streamBtn = document.getElementById("bubble-stream");
 
     if (contact) {
       contact.addEventListener("click", () => {
@@ -626,87 +451,18 @@ body.menu-open #carrieWrap{
       });
     }
 
-    const themes = [
-      { name: "dark",   bg: "linear-gradient(#0b0014,#000000)", color: "#eae6ff" },
-      { name: "light",  bg: "#f5f5ff",                            color: "#111827" },
-      {
-        name: "neon",
-        bg: "radial-gradient(circle at 0% 0%, #00f5ff 0, #12001e 40%, #000 100%)",
-        color: "#e0f2fe",
-      },
-      {
-        name: "sunset",
-        bg: "linear-gradient(135deg,#ff7a18,#af002d 60%,#000 100%)",
-        color: "#fff7ed",
-      },
-      {
-        name: "ocean",
-        bg: "linear-gradient(135deg,#0f172a,#0369a1,#0b0014)",
-        color: "#e0f2fe",
-      },
-    ];
-
-    function applyTheme(name) {
-      const t = themes.find((x) => x.name === name);
-      if (!t) return;
-      document.body.style.background = t.bg;
-      document.body.style.color = t.color;
-      try {
-        localStorage.setItem("8bfr-theme", name);
-      } catch {}
-    }
-
-    function getCurrentTheme() {
-      try {
-        return localStorage.getItem("8bfr-theme") || "dark";
-      } catch {
-        return "dark";
-      }
-    }
-
-    applyTheme(getCurrentTheme());
-
-    if (themeBtn) {
-      themeBtn.addEventListener("click", () => {
-        const current = getCurrentTheme();
-        const next = current === "light" ? "dark" : "light";
-        applyTheme(next);
-      });
-    }
-
-    if (themeRandomBtn) {
-      themeRandomBtn.addEventListener("click", () => {
-        const current = getCurrentTheme();
-        const pool = themes.map((t) => t.name).filter((n) => n !== current);
-        const next = pool[Math.floor(Math.random() * pool.length)];
-        applyTheme(next);
-      });
-    }
-
-    if (streamBtn) {
-      streamBtn.addEventListener("click", () => {
-        window.open(
-          "https://open.spotify.com/artist/127tw52iDXr7BvgB0IGG2x",
-          "_blank",
-          "noopener"
-        );
-      });
-    }
-
-    // ---------- SPECIAL: CHAT PAGE → ONLY HAMBURGER + CARRIE ----------
+    // ---------- Chat page: hide bubbles ----------
     if (path === "carrie-chat.html") {
       const stack = document.getElementById("bubbleStack");
       if (stack) stack.style.display = "none";
       const topBubble = document.getElementById("bubble-top-single");
       if (topBubble) topBubble.style.display = "none";
     }
-
-    enforceAuthGate();
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", injectGlobalUI);
+    document.addEventListener("DOMContentLoaded", injectUI);
   } else {
-    injectGlobalUI();
+    injectUI();
   }
 })();
