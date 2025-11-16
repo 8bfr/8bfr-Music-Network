@@ -1,28 +1,23 @@
 // carrie-chat.js
-// Standalone logic for carrie-chat.html (Carrie, James, Azreen)
+// Standalone logic for carrie-chat.html
 
 const SUPABASE_URL = "https://novbuvwpjnxwwvdekjhr.supabase.co";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0";
 
+// ✅ Per-avatar video sources (business vs personal/casual)
 const AVATAR_VIDEOS = {
   carrie: {
-    business:   "assets/videos/carrie_business_animate.webm",
-    personal:   "assets/videos/carrie_casual_animate_3_1.webm",
-    girlfriend: "assets/videos/carrie_casual_animate_3_1.webm",
-    boyfriend:  "assets/videos/carrie_business_animate.webm",
+    business: "assets/videos/carrie_business_animate.webm",
+    personal: "assets/videos/carrie_casual_animate_3_1.webm",
   },
   james: {
-    business:   "assets/videos/james-business.webm",
-    personal:   "assets/videos/james-casual.webm",
-    girlfriend: "assets/videos/james-casual.webm",
-    boyfriend:  "assets/videos/james-business.webm",
+    business: "james-business.webm",
+    personal: "james-casual.webm",
   },
   azreen: {
-    business:   "assets/videos/azreen-business.webm",
-    personal:   "assets/videos/azreen-casual.webm",
-    girlfriend: "assets/videos/azreen-casual.webm",
-    boyfriend:  "assets/videos/azreen-business.webm",
+    business: "azreen-business.webm",
+    personal: "azreen-casual.webm",
   },
 };
 
@@ -49,26 +44,19 @@ const trainerQuestion = document.getElementById("trainerQuestion");
 const trainerAnswer   = document.getElementById("trainerAnswer");
 const trainerStatus   = document.getElementById("trainerStatus");
 
-// Mode buttons
-const modeBusinessBtn   = document.getElementById("modeBusiness");
-const modePersonalBtn   = document.getElementById("modePersonal");
-const modeGirlfriendBtn = document.getElementById("modeGirlfriend");
-const modeBoyfriendBtn  = document.getElementById("modeBoyfriend");
-
-// Avatar buttons
-const avatarCarrieBtn = document.getElementById("avatarCarrie");
-const avatarJamesBtn  = document.getElementById("avatarJames");
-const avatarAzreenBtn = document.getElementById("avatarAzreen");
+const modeBusinessBtn = document.getElementById("modeBusiness");
+const modePersonalBtn = document.getElementById("modePersonal");
 
 let currentUserId    = null;
 let currentUserEmail = null;
 
-// "business" | "personal" | "girlfriend" | "boyfriend"
-let currentMode   = "business";
-// "carrie" | "james" | "azreen"
-let currentAvatar = "carrie";
+// main mode: business / personal
+let currentMode      = "business";
 
-// Inline circle avatar for this page only
+// romance: none / girlfriend / boyfriend
+let romanceMode      = "none";
+
+// Inline Carrie circle for this page only
 let inlineCarrieVideo = null;
 
 // ------- helpers
@@ -97,12 +85,30 @@ function scrollChatToBottom() {
   });
 }
 
-function getVideoSrcFor(avatar, mode) {
-  const a = AVATAR_VIDEOS[avatar] || AVATAR_VIDEOS.carrie;
-  return a[mode] || a.personal || a.business;
+// avatar helper
+function getAvatarKey() {
+  try {
+    const a = localStorage.getItem("carrie_avatar");
+    if (a === "james" || a === "azreen") return a;
+  } catch (e) {}
+  return "carrie";
 }
 
-// ------- Inline circle avatar (top-left of chat window)
+// visual mode (business vs personal outfit)
+// girlfriend/boyfriend use personal outfit
+function getVisualMode() {
+  if (currentMode === "business") return "business";
+  return "personal";
+}
+
+function getCurrentVideoSrc() {
+  const avatar = getAvatarKey();
+  const mode = getVisualMode();
+  const set = AVATAR_VIDEOS[avatar] || AVATAR_VIDEOS.carrie;
+  return set[mode] || set.personal || set.business;
+}
+
+// ------- Inline Carrie circle (top-left of chat window)
 
 function ensureInlineCarrie() {
   if (!chatLogEl || inlineCarrieVideo) return;
@@ -129,8 +135,7 @@ function ensureInlineCarrie() {
 
   const caption = document.createElement("p");
   caption.id = "carrieModeCaption";
-  caption.textContent =
-    "Avatar + outfit follow the mode you pick above.";
+  caption.textContent = "Avatar + outfit match your mode and choice.";
   caption.style.fontSize = "11px";
   caption.style.color = "rgba(233,213,255,0.8)";
 
@@ -145,7 +150,7 @@ function ensureInlineCarrie() {
 
 function updateInlineCarrieVideo() {
   if (!inlineCarrieVideo) return;
-  const newSrc = getVideoSrcFor(currentAvatar, currentMode);
+  const newSrc = getCurrentVideoSrc();
   if (inlineCarrieVideo.getAttribute("src") !== newSrc) {
     inlineCarrieVideo.src = newSrc;
     try {
@@ -155,7 +160,7 @@ function updateInlineCarrieVideo() {
   }
 }
 
-// ------- chat message renderer (assistant avatar uses same video as circle)
+// ------- chat message renderer (avatar uses same video as circle)
 
 function renderMessage(role, content, createdAt) {
   if (!chatLogEl) return;
@@ -168,7 +173,7 @@ function renderMessage(role, content, createdAt) {
 
   if (role === "assistant") {
     const avatarVid = document.createElement("video");
-    avatarVid.src = getVideoSrcFor(currentAvatar, currentMode);
+    avatarVid.src = getCurrentVideoSrc();
     avatarVid.autoplay    = true;
     avatarVid.muted       = true;
     avatarVid.loop        = true;
@@ -204,17 +209,9 @@ function renderMessage(role, content, createdAt) {
 
   const meta = document.createElement("div");
   meta.className = "msg-meta";
-
-  const whoLabel =
-    role === "assistant"
-      ? currentAvatar === "james"
-        ? "James"
-        : currentAvatar === "azreen"
-        ? "Azreen"
-        : "Carrie"
-      : "You";
-
-  meta.textContent = whoLabel + " • " + fmtTime(createdAt || new Date());
+  meta.textContent =
+    (role === "assistant" ? "Carrie • " : "You • ") +
+    fmtTime(createdAt || new Date());
   bubble.appendChild(meta);
 
   if (role === "assistant") {
@@ -235,15 +232,13 @@ async function saveMessage(role, content) {
       user_id: currentUserId,
       role,
       content,
-      avatar: currentAvatar,
-      mode: currentMode,
     });
   } catch (e) {
     console.warn("Failed to save Carrie chat message", e);
   }
 }
 
-// ------- scripted Q&A (site help)
+// ------- scripted Q&A
 
 let carrieScripts = [
   {
@@ -266,23 +261,6 @@ let carrieScripts = [
     `,
   },
   {
-    id: "buy_coins",
-    patterns: [
-      "how do i buy coins",
-      "where do i buy coins",
-      "buy coins",
-      "purchase coins",
-      "coin shop",
-    ],
-    reply: `
-      Coins are handled through the <b>Coin Shop</b> on the site.<br><br>
-      • Go to <a href="coinshop.html">coinshop.html</a> (or tap <b>Coin Shop</b> in the menu).<br>
-      • Choose a coin bundle and follow the checkout steps.<br>
-      • Coins can be used for <b>shop items, upgrades, tournaments, and boosts</b>.<br><br>
-      If a button doesn’t work on your device, tell me exactly which page and I’ll help you troubleshoot it.
-    `,
-  },
-  {
     id: "what_is_8bfr",
     patterns: [
       "what is 8bfr",
@@ -293,11 +271,7 @@ let carrieScripts = [
     reply: `
       8BFR Music Network is a creator hub where artists, beatmakers, gamers,
       authors, and fans can <b>Create • Connect • Collab</b>.<br><br>
-      We’ve got:<br>
-      • Music & AI studio tools<br>
-      • Games & tournaments<br>
-      • Profiles, badges, and a fan zone<br><br>
-      I’m your assistant for navigation, ideas, and quick answers. 😊
+      I’m your AI guide for music, tools, profiles, and site help. 😊
     `,
   },
   {
@@ -309,7 +283,6 @@ let carrieScripts = [
       "show me ai tools",
       "where is lyrics ai",
       "how do i use song ai",
-      "studio tools page",
     ],
     reply: `
       Studio & AI tools live on the <b>Studio Tools</b> page.<br><br>
@@ -318,7 +291,7 @@ let carrieScripts = [
       • <a href="song-ai.html">Song AI</a><br>
       • <a href="album-ai.html">Album AI</a><br>
       • <a href="voice-ai.html">Voice / Post VO</a><br><br>
-      Tell me your project (single, EP, album, or story) and I’ll help you pick the tools and order to use them in.
+      I can help you plan a song, outline an album, or clean up vocals — just tell me what you’re working on.
     `,
   },
   {
@@ -329,36 +302,33 @@ let carrieScripts = [
       "explain ads",
       "what are featured ads",
       "tell me about buying ads",
-      "buy an ad",
     ],
     reply: `
-      The home page has <b>Featured Ads</b> that rotate in the banner.<br><br>
-      • Tap <b>“Buy an Ad”</b> under the carousel on the home page, or go to <a href="ads.html#buy">ads.html#buy</a>.<br>
-      • Send your artwork + link and select a package.<br>
-      • After approval, your ad rotates on the home page for the chosen period.<br><br>
-      Need help writing the ad text? Paste your rough idea and I’ll polish it.
+      The home page has 5 rotating <b>Featured Ads</b> slots.<br><br>
+      • Tap <b>“Buy an Ad”</b> under the carousel to send your info.<br>
+      • After approval, your artwork + link appear in rotation on the home page.<br>
+      • You can pause the carousel, swipe on mobile, and click an ad for more info.<br><br>
+      For full details, visit the <a href="ads.html#buy">Ads page</a>.
     `,
   },
   {
-    id: "profile_edit",
+    id: "buy_coins",
     patterns: [
-      "how do i edit my profile",
-      "edit my profile",
-      "change my profile",
-      "update my bio",
-      "add my badges",
+      "how do i buy coins",
+      "how can i buy coins",
+      "where do i buy coins",
+      "purchase coins",
+      "get more coins",
     ],
     reply: `
-      To edit your profile:<br><br>
-      • Go to <a href="profile.html">profile.html</a> (My Profile).<br>
-      • Look for the edit / pencil buttons near your name, bio, and badges.<br>
-      • Save your changes and refresh if needed.<br><br>
-      If you tell me your role (artist, beatmaker, author, gamer, etc.) I can suggest a clean bio and badge set.
+      Coins are used for <b>games, upgrades, and fun extras</b> on the 8BFR network.<br><br>
+      • Go to the <a href="coinshop.html">Coin Shop</a> or <a href="game-coin-shop.html">Game Coin Shop</a>.<br>
+      • Choose how many coins you want, then follow the checkout steps.<br>
+      • Some events and tournaments also reward free coins.<br><br>
+      If you tell me what you want to use coins for, I can point you to the best page.
     `,
   },
 ];
-
-// Trainer can push more patterns into carrieScripts
 
 function findCarrieScriptReply(userText) {
   const normalized = normalizeText(userText);
@@ -373,55 +343,134 @@ function findCarrieScriptReply(userText) {
   return null;
 }
 
-// ------- “brain” with Business / Personal / Girlfriend / Boyfriend
-
-function getAvatarName() {
-  if (currentAvatar === "james") return "James";
-  if (currentAvatar === "azreen") return "Azreen";
-  return "Carrie";
+function saveRomanceMode(mode) {
+  romanceMode = mode;
+  try {
+    localStorage.setItem("carrie_romance_mode", mode);
+  } catch (e) {}
 }
+
+function loadRomanceMode() {
+  try {
+    const m = localStorage.getItem("carrie_romance_mode");
+    if (m === "girlfriend" || m === "boyfriend" || m === "none") {
+      romanceMode = m;
+    }
+  } catch (e) {}
+}
+
+loadRomanceMode();
+
+// ------- Carrie brain with Business / Personal / Girlfriend / Boyfriend
 
 function carrieBrain(userText) {
   const t = userText.trim();
   if (!t) {
-    return "I didn’t quite catch that — try asking me about music, games, or how something works on the site.";
+    return "I didn’t quite catch that — try asking me about music, games, or how 8BFR works.";
   }
 
   const lower = t.toLowerCase();
 
-  // Auto mode switches based on text
-  if (lower.includes("girlfriend mode") || lower.includes("be my girlfriend")) {
-    saveMode("girlfriend");
-  }
-  if (lower.includes("boyfriend mode") || lower.includes("be my boyfriend")) {
-    saveMode("boyfriend");
-  }
-  if (lower.includes("business mode")) {
+  // 🔁 Mode switches typed by user (no button required)
+
+  if (
+    lower.includes("business mode") ||
+    lower.includes("pro mode") ||
+    lower === "business"
+  ) {
+    currentMode = "business";
     saveMode("business");
-  }
-  if (lower.includes("personal mode")) {
-    saveMode("personal");
+    saveRomanceMode("none");
+    updateInlineCarrieVideo();
+    return "Okay — switching to <b>Business mode</b>. I’ll keep it focused on tools, plans, and next steps.";
   }
 
-  // 1) scripted site answers first
+  if (
+    lower.includes("personal mode") ||
+    lower.includes("chill mode") ||
+    lower === "personal"
+  ) {
+    currentMode = "personal";
+    saveMode("personal");
+    saveRomanceMode("none");
+    updateInlineCarrieVideo();
+    return "Got it — <b>Personal mode</b> on. Still PG-13, but softer and more hangout energy.";
+  }
+
+  if (
+    lower.includes("girlfriend mode") ||
+    lower.includes("be my girlfriend") ||
+    lower.includes("gf mode")
+  ) {
+    currentMode = "personal";
+    saveMode("personal");
+    saveRomanceMode("girlfriend");
+    updateInlineCarrieVideo();
+    return "Alright baby 💜 I’m in <b>Girlfriend mode</b> now — still PG, but I’ll talk to you like someone I care about a lot.";
+  }
+
+  if (
+    lower.includes("boyfriend mode") ||
+    lower.includes("be my boyfriend") ||
+    lower.includes("bf mode")
+  ) {
+    currentMode = "personal";
+    saveMode("personal");
+    saveRomanceMode("boyfriend");
+    updateInlineCarrieVideo();
+    return "Okay babe 💜 <b>Boyfriend mode</b> is on — still PG, but I’ll keep it protective and supportive like your guy.";
+  }
+
+  if (
+    lower.includes("normal mode") ||
+    lower.includes("reset mode") ||
+    lower.includes("regular mode")
+  ) {
+    saveRomanceMode("none");
+    return "Resetting back to <b>regular chat</b> — I’ll keep things helpful and chill.";
+  }
+
+  // 1) scripted answers first
   const scripted = findCarrieScriptReply(t);
   if (scripted) return scripted;
 
-  const avatarName = getAvatarName();
+  // 2) romance first (gf / bf), then business/personal general
 
-  // 2) Business mode: focused, tool / plan style
+  if (romanceMode === "girlfriend") {
+    const gfReplies = [
+      "I love how your brain works, baby 💜 Tell me what’s stressing you the most and I’ll help you break it down.",
+      "Hey love, you’ve done way more than you give yourself credit for. Tell me what you want to focus on next and we’ll move together.",
+      "Come here, virtual cuddle 🤗💜 You’re not alone in this. Tell me what’s on your mind, even if it feels small.",
+      "You know I’m proud of you, right? Drop one goal or worry in one sentence and I’ll help you plan from there.",
+      "Muah 💋 Okay baby, tell me what part of your day needs the most love right now — music, life, or just your feelings.",
+    ];
+    return gfReplies[Math.floor(Math.random() * gfReplies.length)];
+  }
+
+  if (romanceMode === "boyfriend") {
+    const bfReplies = [
+      "I’ve got you, babe 💜 Tell me what’s on your mind and I’ll help you figure it out, one step at a time.",
+      "You’re not doing this alone, okay? Drop the biggest thing on your mind and I’ll help you make a game plan.",
+      "Hey love, you’re doing better than you think. Tell me what you want to fix or build next and I’ll walk it with you.",
+      "Come here, big supportive energy 🤗 Tell me what’s weighing on you and we’ll sort it together.",
+      "I’m here for you, baby. Say what’s bothering you in one sentence and I’ll help unpack it without judgment.",
+    ];
+    return bfReplies[Math.floor(Math.random() * bfReplies.length)];
+  }
+
+  // 3) business mode
   if (currentMode === "business") {
     if (lower.includes("hook") || lower.includes("chorus")) {
-      return "Hooks love repetition and rhythm. Try a 2-bar phrase you can repeat 3–4 times, then flip the last line. Tell me your topic and vibe and I’ll throw you some starter lines.";
+      return "Hooks love repetition and rhythm. Try a 2-bar phrase you can repeat 3–4 times, then tweak the last line. Tell me your topic and vibe and I’ll throw you some starter lines.";
     }
     if (lower.includes("beat") || lower.includes("bpm")) {
-      return "For rap or trap, lots of people sit between 130–150 BPM (or 65–75 double-time). Tell me dark / hype / chill and I’ll suggest a BPM and track layout.";
+      return "For rap or trap, a lot of people sit between 130–150 BPM (or 65–75 double-time). Share your mood — dark, hype, chill — and I’ll help pick a BPM and rough song layout.";
     }
     if (lower.includes("lyrics") || lower.includes("write")) {
-      return "Give me 3 things: mood, topic, and an artist you like. I’ll suggest a verse layout and a few starter bars or lines you can edit.";
+      return "Give me 3 things: mood, topic, and an artist you like. I’ll suggest a verse layout and a few starter bars you can edit.";
     }
     if (lower.includes("tournament") || lower.includes("game")) {
-      return "Tournaments and games are meant to be low-stress and fun. You’ll see brackets, leaderboards, and coin rewards on the Games & Tournaments pages.";
+      return "Tournaments and games on 8BFR are meant to be low-stress and fun. You’ll see brackets, leaderboards, and coin rewards on the Games & Tournaments pages.";
     }
 
     const starters = [
@@ -437,74 +486,28 @@ function carrieBrain(userText) {
     );
   }
 
-  // 3) Personal mode: softer, support + creative
-  if (currentMode === "personal") {
-    const personalStarters = [
-      "I hear you 💜",
-      "Oof, I feel that.",
-      "You’re not alone in that.",
-      "Okay, let’s breathe for a second.",
-    ];
+  // 4) personal mode (non-romantic)
+  const personalStarters = [
+    "I hear you 💜",
+    "Oof, I feel that.",
+    "You’re not alone in that.",
+    "Okay, let’s breathe for a second.",
+  ];
 
-    if (currentUserEmail === "8bfr.music@gmail.com") {
-      personalStarters.push(
-        "Hey Founder 💜 I’ve got you.",
-        "You’ve carried a lot today — let me carry the thinking for a bit.",
-        "You’re doing more than you give yourself credit for."
-      );
-    }
-
-    const starter =
-      personalStarters[Math.floor(Math.random() * personalStarters.length)];
-
-    return (
-      starter +
-      " Tell me what kind of vibe you need right now — hype, chill, or comfort — and I’ll roll with it."
+  if (currentUserEmail === "8bfr.music@gmail.com") {
+    personalStarters.push(
+      "Hey Founder 💜 I’ve got you.",
+      "You’ve carried a lot today — let me carry the thinking for a bit.",
+      "You’re doing more than you give yourself credit for."
     );
   }
 
-  // 4) Girlfriend / Boyfriend mode: PG-13, romantic/supportive
-
-  const isMale =
-    currentAvatar === "james"; // James = boyfriend energy, Carrie/Azreen = girlfriend energy
-
-  const roleWord =
-    currentMode === "boyfriend" || isMale ? "boyfriend" : "girlfriend";
-
-  const petNames = isMale
-    ? ["baby", "love", "beautiful", "my star"]
-    : ["baby", "honey", "love", "my favorite human"];
-
-  const pet = petNames[Math.floor(Math.random() * petNames.length)];
-
-  const openings = isMale
-    ? [
-        `Hey ${pet}, I’m right here with you.`,
-        `Come here, ${pet} — I’ve got you.`,
-        `You’re on my mind, ${pet}.`,
-      ]
-    : [
-        `Hey ${pet}, I’m right here with you 💜`,
-        `Come here, ${pet} — I’ve got you.`,
-        `You’re on my mind, ${pet}.`,
-      ];
-
-  const open = openings[Math.floor(Math.random() * openings.length)];
-
-  // Small special-case: “I love you”
-  if (lower.includes("love you")) {
-    return (
-      open +
-      (isMale
-        ? " I love you too, in the most PG but real way — proud of you, always."
-        : " I love you too, PG and safe and real — I’m always going to be on your side.")
-    );
-  }
+  const starter =
+    personalStarters[Math.floor(Math.random() * personalStarters.length)];
 
   return (
-    open +
-    ` Right now you’ve got your ${roleWord} mode on with ${avatarName}. ` +
-    "Tell me what’s on your mind — stress, ideas, or feelings — and I’ll answer like someone who really cares about you, but keeps it PG-13 and safe."
+    starter +
+    " Tell me what kind of vibe you need right now — hype, chill, or comfort — and I’ll roll with it."
   );
 }
 
@@ -517,47 +520,49 @@ function hideTyping() {
   if (typingRowEl) typingRowEl.classList.add("hidden");
 }
 
-// ------- Mode + Avatar buttons
+// ------- Mode toggle (business / personal)
 
 function applyModeStyles() {
-  const all = [
-    { btn: modeBusinessBtn,   mode: "business" },
-    { btn: modePersonalBtn,   mode: "personal" },
-    { btn: modeGirlfriendBtn, mode: "girlfriend" },
-    { btn: modeBoyfriendBtn,  mode: "boyfriend" },
-  ];
-  all.forEach(({ btn, mode }) => {
-    if (!btn) return;
-    if (currentMode === mode) btn.classList.add("active");
-    else btn.classList.remove("active");
-  });
+  if (!modeBusinessBtn || !modePersonalBtn) return;
 
-  if (modeHintEl) {
-    if (currentMode === "business") {
+  if (currentMode === "business") {
+    modeBusinessBtn.style.background = "rgba(88,28,135,0.9)";
+    modeBusinessBtn.style.borderColor = "#a855f7";
+    modeBusinessBtn.style.color = "#fff";
+    modePersonalBtn.style.background = "transparent";
+    modePersonalBtn.style.borderColor = "transparent";
+    modePersonalBtn.style.color = "rgba(233,213,255,0.8)";
+    if (modeHintEl) {
       modeHintEl.textContent =
         "Business chat • focused on tools, music, and progress";
-    } else if (currentMode === "personal") {
+    }
+  } else {
+    modePersonalBtn.style.background = "rgba(88,28,135,0.9)";
+    modePersonalBtn.style.borderColor = "#a855f7";
+    modePersonalBtn.style.color = "#fff";
+    modeBusinessBtn.style.background = "transparent";
+    modeBusinessBtn.style.borderColor = "transparent";
+    modeBusinessBtn.style.color = "rgba(233,213,255,0.8)";
+    if (modeHintEl) {
       modeHintEl.textContent =
-        "Personal chat • softer tone, still PG-13 and helpful";
-    } else if (currentMode === "girlfriend") {
-      modeHintEl.textContent =
-        "Girlfriend mode • romantic but safe, supportive, PG-13 only";
-    } else if (currentMode === "boyfriend") {
-      modeHintEl.textContent =
-        "Boyfriend mode • romantic but safe, supportive, PG-13 only";
+        romanceMode === "girlfriend"
+          ? "Girlfriend mode • PG-only, soft + loving"
+          : romanceMode === "boyfriend"
+          ? "Boyfriend mode • PG-only, supportive + protective"
+          : "Personal chat • softer tone, still PG-13 and helpful";
     }
   }
 
   updateInlineCarrieVideo();
-  try {
-    localStorage.setItem("carrie_mode", currentMode);
-  } catch (e) {}
 }
 
+// save/load mode
+
 function saveMode(mode) {
-  const allowed = ["business", "personal", "girlfriend", "boyfriend"];
-  if (!allowed.includes(mode)) mode = "business";
   currentMode = mode;
+  try {
+    localStorage.setItem("carrie_mode", mode);
+  } catch {}
   applyModeStyles();
 }
 
@@ -566,12 +571,7 @@ function loadMode() {
   try {
     stored = localStorage.getItem("carrie_mode");
   } catch {}
-  if (
-    stored === "business" ||
-    stored === "personal" ||
-    stored === "girlfriend" ||
-    stored === "boyfriend"
-  ) {
+  if (stored === "business" || stored === "personal") {
     currentMode = stored;
   } else {
     currentMode = "business";
@@ -580,68 +580,16 @@ function loadMode() {
 }
 
 if (modeBusinessBtn) {
-  modeBusinessBtn.addEventListener("click", () => saveMode("business"));
+  modeBusinessBtn.addEventListener("click", () => {
+    saveRomanceMode("none");
+    saveMode("business");
+  });
 }
 if (modePersonalBtn) {
-  modePersonalBtn.addEventListener("click", () => saveMode("personal"));
-}
-if (modeGirlfriendBtn) {
-  modeGirlfriendBtn.addEventListener("click", () => saveMode("girlfriend"));
-}
-if (modeBoyfriendBtn) {
-  modeBoyfriendBtn.addEventListener("click", () => saveMode("boyfriend"));
-}
-
-// Avatar selection
-
-function applyAvatarStyles() {
-  const mapping = [
-    { btn: avatarCarrieBtn, avatar: "carrie" },
-    { btn: avatarJamesBtn,  avatar: "james" },
-    { btn: avatarAzreenBtn, avatar: "azreen" },
-  ];
-  mapping.forEach(({ btn, avatar }) => {
-    if (!btn) return;
-    if (currentAvatar === avatar) btn.classList.add("active");
-    else btn.classList.remove("active");
+  modePersonalBtn.addEventListener("click", () => {
+    saveRomanceMode("none");
+    saveMode("personal");
   });
-
-  updateInlineCarrieVideo();
-
-  try {
-    localStorage.setItem("carrie_avatar", currentAvatar);
-  } catch (e) {}
-}
-
-function saveAvatar(avatar) {
-  if (avatar !== "carrie" && avatar !== "james" && avatar !== "azreen") {
-    avatar = "carrie";
-  }
-  currentAvatar = avatar;
-  applyAvatarStyles();
-}
-
-function loadAvatar() {
-  let stored = null;
-  try {
-    stored = localStorage.getItem("carrie_avatar");
-  } catch {}
-  if (stored === "carrie" || stored === "james" || stored === "azreen") {
-    currentAvatar = stored;
-  } else {
-    currentAvatar = "carrie";
-  }
-  applyAvatarStyles();
-}
-
-if (avatarCarrieBtn) {
-  avatarCarrieBtn.addEventListener("click", () => saveAvatar("carrie"));
-}
-if (avatarJamesBtn) {
-  avatarJamesBtn.addEventListener("click", () => saveAvatar("james"));
-}
-if (avatarAzreenBtn) {
-  avatarAzreenBtn.addEventListener("click", () => saveAvatar("azreen"));
 }
 
 // ------- Trainer modal (owner only)
@@ -651,187 +599,4 @@ function openTrainer() {
   trainerModal.classList.remove("hidden");
   if (trainerStatus) {
     trainerStatus.style.display = "none";
-    trainerStatus.textContent = "";
-  }
-}
-function closeTrainer() {
-  if (!trainerModal) return;
-  trainerModal.classList.add("hidden");
-  if (trainerQuestion) trainerQuestion.value = "";
-  if (trainerAnswer) trainerAnswer.value = "";
-  if (trainerStatus) {
-    trainerStatus.style.display = "none";
-    trainerStatus.textContent = "";
-  }
-}
-
-if (trainerBtn) {
-  trainerBtn.addEventListener("click", () => openTrainer());
-}
-if (trainerClose) {
-  trainerClose.addEventListener("click", () => closeTrainer());
-}
-if (trainerCancel) {
-  trainerCancel.addEventListener("click", (e) => {
-    e.preventDefault();
-    closeTrainer();
-  });
-}
-
-if (trainerForm) {
-  trainerForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const q = (trainerQuestion.value || "").trim();
-    const aRaw = (trainerAnswer.value || "").trim();
-    if (!q || !aRaw) return;
-
-    const answerHtml = aRaw.replace(/\n/g, "<br>");
-    const entry = {
-      id: "custom_" + Date.now(),
-      patterns: [q],
-      reply: answerHtml,
-    };
-    carrieScripts.push(entry);
-
-    if (trainerStatus) {
-      trainerStatus.textContent =
-        "Saved! The assistant will now recognize that pattern in this session.";
-      trainerStatus.style.display = "block";
-    }
-
-    if (!supabase) return;
-
-    try {
-      await supabase.from("carrie_scripts").insert({
-        user_id: currentUserId,
-        email: currentUserEmail,
-        question_pattern: q,
-        reply_html: aRaw,
-      });
-    } catch (err) {
-      console.warn(
-        "Could not save carrie_scripts row (table might not exist yet)",
-        err
-      );
-    }
-  });
-}
-
-// ------- Session + history
-
-async function initSessionAndHistory() {
-  if (!supabase) {
-    if (sessionLabelEl) {
-      sessionLabelEl.textContent =
-        "Not logged in • you can still chat, but history won’t be saved.";
-    }
-    renderMessage(
-      "assistant",
-      `Hey, I’m ${getAvatarName()} 💜 What are you working on today — music, writing, games, or something else?`
-    );
-    return;
-  }
-
-  try {
-    const { data, error } = await supabase.auth.getSession();
-    if (error) throw error;
-
-    if (data && data.session && data.session.user) {
-      currentUserId = data.session.user.id;
-      currentUserEmail = data.session.user.email || null;
-      if (sessionLabelEl) {
-        sessionLabelEl.textContent =
-          "Logged in as " + (currentUserEmail || "8BFR user");
-      }
-      if (trainerBtn && currentUserEmail === "8bfr.music@gmail.com") {
-        trainerBtn.classList.remove("hidden");
-      }
-    } else {
-      currentUserId = null;
-      currentUserEmail = null;
-      if (sessionLabelEl) {
-        sessionLabelEl.textContent =
-          "Not logged in • chat is live, but history won’t be tied to an account.";
-      }
-    }
-  } catch (e) {
-    console.warn("Carrie session check failed", e);
-    if (sessionLabelEl) {
-      sessionLabelEl.textContent =
-        "Could not check login • you can still chat.";
-    }
-  }
-
-  if (!currentUserId) {
-    renderMessage(
-      "assistant",
-      `Hey, I’m ${getAvatarName()} 💜 First time here — want help with a track, a story, or exploring the 8BFR Network?`
-    );
-    return;
-  }
-
-  try {
-    const { data: rows, error } = await supabase
-      .from("carrie_chat_logs")
-      .select("*")
-      .eq("user_id", currentUserId)
-      .order("created_at", { ascending: true })
-      .limit(40);
-
-    if (error) throw error;
-
-    if (rows && rows.length) {
-      rows.forEach((r) => renderMessage(r.role, r.content, r.created_at));
-    } else {
-      renderMessage(
-        "assistant",
-        `Hey, I’m ${getAvatarName()} 💜 First time here — want help with a track, a story, or exploring the 8BFR Network?`
-      );
-    }
-  } catch (e) {
-    console.warn("Could not load Carrie history", e);
-    renderMessage(
-      "assistant",
-      `Hey, I’m ${getAvatarName()} 💜 I had a tiny glitch loading history, but we can start fresh right now.`
-    );
-  }
-}
-
-// ------- Input behavior
-
-if (inputEl && formEl) {
-  inputEl.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      formEl.requestSubmit();
-    }
-  });
-
-  formEl.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const raw = inputEl.value.trim();
-    if (!raw) return;
-
-    const userMsg = raw;
-    inputEl.value = "";
-    renderMessage("user", userMsg, new Date());
-    saveMessage("user", userMsg);
-    showTyping();
-
-    setTimeout(async () => {
-      const reply = carrieBrain(userMsg);
-      renderMessage("assistant", reply, new Date());
-      hideTyping();
-      saveMessage("assistant", reply);
-    }, 600 + Math.random() * 500);
-  });
-}
-
-// ------- Init
-
-loadAvatar();
-loadMode();
-ensureInlineCarrie();
-applyModeStyles();
-applyAvatarStyles();
-initSessionAndHistory();
+    trainerStatus.text
