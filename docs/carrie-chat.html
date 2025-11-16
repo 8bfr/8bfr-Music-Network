@@ -178,6 +178,24 @@
     #carrieWrap {
       display:none !important;
     }
+
+    /* Local Carrie dock for this chat page (bottom-right) */
+    #chatCarrieDock {
+      position: fixed;
+      right: 16px;
+      bottom: 72px;
+      z-index: 9997;
+      pointer-events: none; /* visual only */
+    }
+    #chatCarrieDock video {
+      width: min(40vw, 200px);
+      border-radius: 9999px;
+      border: 1px solid rgba(129,140,248,0.9);
+      box-shadow: 0 0 18px rgba(124,58,237,0.6);
+      object-fit: cover;
+      display: block;
+      background: transparent;
+    }
   </style>
 </head>
 <body>
@@ -300,6 +318,18 @@
     </p>
   </main>
 
+  <!-- Local Carrie (bottom-right) just for this chat page -->
+  <div id="chatCarrieDock">
+    <video
+      id="chatCarrieVideo"
+      src="assets/videos/carrie_casual_animate_3_1.webm"
+      autoplay
+      loop
+      muted
+      playsinline
+    ></video>
+  </div>
+
   <!-- Trainer modal (owner only; optional) -->
   <div id="trainerModal" class="fixed inset-0 z-50 hidden">
     <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
@@ -380,5 +410,79 @@
 
   <!-- Carrie chat brain JUST for this page -->
   <script src="carrie-chat.js?v=5"></script>
+
+  <!-- Small helper to sync bottom-right Carrie with Business/Personal mode -->
+  <script>
+    (function () {
+      const dockVideo = document.getElementById("chatCarrieVideo");
+      if (!dockVideo) return;
+
+      function getCurrentMode() {
+        // Try localStorage first (what carrie-chat.js uses)
+        try {
+          const stored = localStorage.getItem("carrie_mode");
+          if (stored === "business" || stored === "personal") return stored;
+        } catch (e) {}
+        // Fallback to global variable if present
+        if (window.currentMode === "business" || window.currentMode === "personal") {
+          return window.currentMode;
+        }
+        return "business";
+      }
+
+      function applyDockVideo(mode) {
+        if (!window.CARRIE_VIDEOS) return;
+        const src =
+          mode === "business"
+            ? window.CARRIE_VIDEOS.business
+            : window.CARRIE_VIDEOS.personal;
+
+        if (dockVideo.getAttribute("src") !== src) {
+          dockVideo.src = src;
+          try {
+            dockVideo.load();
+            dockVideo.play().catch(function () {});
+          } catch (e) {}
+        }
+      }
+
+      function syncCarrieDock() {
+        const mode = getCurrentMode();
+        applyDockVideo(mode);
+      }
+
+      // Initial sync on load
+      syncCarrieDock();
+
+      // Hook into the mode buttons
+      const btnBusiness = document.getElementById("modeBusiness");
+      const btnPersonal = document.getElementById("modePersonal");
+
+      if (btnBusiness) {
+        btnBusiness.addEventListener("click", function () {
+          try {
+            localStorage.setItem("carrie_mode", "business");
+          } catch (e) {}
+          syncCarrieDock();
+        });
+      }
+
+      if (btnPersonal) {
+        btnPersonal.addEventListener("click", function () {
+          try {
+            localStorage.setItem("carrie_mode", "personal");
+          } catch (e) {}
+          syncCarrieDock();
+        });
+      }
+
+      // If mode changes in another tab/window, keep in sync
+      window.addEventListener("storage", function (ev) {
+        if (ev.key === "carrie_mode") {
+          syncCarrieDock();
+        }
+      });
+    })();
+  </script>
 </body>
 </html>
