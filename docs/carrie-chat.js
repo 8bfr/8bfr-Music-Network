@@ -237,6 +237,7 @@ let carrieScripts = [
       "what is 8bfr music network",
       "tell me about 8bfr",
       "what is this site",
+      "what does this site do",
     ],
     reply: `
       8BFR Music Network is a creator hub where artists, beatmakers, gamers,
@@ -253,6 +254,8 @@ let carrieScripts = [
       "show me ai tools",
       "where is lyrics ai",
       "how do i use song ai",
+      "studio tools",
+      "ai studio",
     ],
     reply: `
       Studio & AI tools live on the <b>Studio Tools</b> page.<br><br>
@@ -272,6 +275,8 @@ let carrieScripts = [
       "explain ads",
       "what are featured ads",
       "tell me about buying ads",
+      "how do i buy an ad",
+      "buy an ad",
     ],
     reply: `
       The home page has 5 rotating <b>Featured Ads</b> slots.<br><br>
@@ -281,64 +286,180 @@ let carrieScripts = [
       For full details, visit the <a href="ads.html#buy">Ads page</a>.
     `,
   },
+  {
+    id: "profiles_badges",
+    patterns: [
+      "profile badges",
+      "what are badges",
+      "how do badges work",
+      "how do i get badges",
+      "profile setup",
+      "set up my profile",
+    ],
+    reply: `
+      Profiles on 8BFR use badges so people can see what kind of creator you are at a glance.<br><br>
+      • Go to <a href="profile.html">My Profile</a> to edit your info and choose badges.<br>
+      • Music badges like <b>artist</b> or <b>beatmaker</b> may ask for a verified link.<br>
+      • Community badges like <b>fan</b>, <b>supporter</b>, and <b>mentor</b> help people find you.<br><br>
+      Tell me your main lane — artist, beatmaker, author, gamer, etc. — and I’ll suggest a badge combo.
+    `,
+  },
+  {
+    id: "coins_economy",
+    patterns: [
+      "what are coins",
+      "how do coins work",
+      "what are 8bfr coins",
+      "how do i earn coins",
+      "how do i use coins",
+    ],
+    reply: `
+      8BFR coins are the game / site currency used for upgrades, entries, and fun extras.<br><br>
+      • Check <a href="coinshop.html">Coin Shop</a> and <a href="game-coin-shop.html">Game Coin Shop</a> for ways to spend them.<br>
+      • You can earn coins from games, tournaments, contests, and future missions.<br><br>
+      If you tell me what you want to do (upgrade, enter a tournament, etc.) I can point you to the right page.
+    `,
+  },
+  {
+    id: "tournaments",
+    patterns: [
+      "how do tournaments work",
+      "how do i join a tournament",
+      "join tournament",
+      "game tournaments",
+      "where are tournaments",
+    ],
+    reply: `
+      Tournaments happen in the <b>Games & Tournaments</b> area.<br><br>
+      • Start at <a href="game-hub.html">Game Hub</a><br>
+      • Check <a href="game-tournaments.html">Tournaments</a> for active events<br>
+      • See winners on <a href="game-leaderboards.html">Leaderboards</a><br><br>
+      Most tournaments use coins or simple entry rules — when a new one is live, you’ll see it highlighted there.
+    `,
+  },
+  {
+    id: "login_help",
+    patterns: [
+      "how do i log in",
+      "where do i login",
+      "log in",
+      "login help",
+      "sign up",
+      "how do i sign up",
+      "create an account",
+    ],
+    reply: `
+      To use everything on 8BFR you’ll want a free account.<br><br>
+      • <a href="login.html">Log in</a> if you already have one<br>
+      • <a href="signup.html">Sign up</a> if you’re new<br><br>
+      Once you’re in, I can remember more about your chats and help with profiles, tools, and tournaments.
+    `,
+  },
 ];
 
-function findCarrieScriptReply(userText) {
-  const normalized = normalizeText(userText);
-  for (const intent of carrieScripts) {
-    for (const pattern of intent.patterns) {
-      const p = normalizeText(pattern);
-      if (normalized.includes(p)) {
-        return intent.reply;
-      }
-    }
+// ------- vibe helpers for personal mode
+
+function personalVibeReply(lower, original) {
+  // explicit vibe words
+  const hasHype =
+    /\bhype\b/.test(lower) ||
+    lower.includes("get me hyped") ||
+    lower.includes("pump me up");
+  const hasChill =
+    /\bchill\b/.test(lower) ||
+    lower.includes("calm me") ||
+    lower.includes("relax");
+  const hasComfort =
+    /\bcomfort\b/.test(lower) ||
+    lower.includes("comfort me") ||
+    lower.includes("reassure") ||
+    lower.includes("i feel sad") ||
+    lower.includes("i am sad") ||
+    lower.includes("down");
+
+  if (hasHype) {
+    return `
+      Hype mode: ON. 🔥<br><br>
+      You’re not starting from zero — you already made it here and built more than most people even begin.<br><br>
+      Pick <b>one tiny move</b> you can do in the next 10–15 minutes:<br>
+      • Fix 4 bars of a verse<br>
+      • Rename / organize one project<br>
+      • Write down 3 song ideas in your notes<br><br>
+      Tell me which one you choose, and I’ll help you map the next step.
+    `;
   }
-  return null;
-}
 
-// ------- Carrie brain with Business / Personal mode
-
-function carrieBrain(userText) {
-  const t = userText.trim();
-  if (!t) {
-    return "I didn’t quite catch that — try asking me about music, games, or how 8BFR works.";
+  if (hasChill) {
+    return `
+      Okay, let’s keep it chill. 🌙<br><br>
+      You don’t have to push right now. Take a minute, unclench your jaw, drop your shoulders, breathe deep once or twice.<br><br>
+      If you want a gentle task, we can:<br>
+      • Sort ideas (no pressure to finish anything)<br>
+      • Brain-dump song titles or story titles<br>
+      • Make a “later” list so your brain can rest<br><br>
+      Tell me which one sounds easiest and we’ll do the lightest version of it.
+    `;
   }
 
-  const lower = t.toLowerCase();
-
-  // 1) scripted answers first
-  const scripted = findCarrieScriptReply(t);
-  if (scripted) return scripted;
-
-  // 2) business mode
-  if (currentMode === "business") {
-    if (lower.includes("hook") || lower.includes("chorus")) {
-      return "Hooks love repetition and rhythm. Try a 2-bar phrase you can repeat 3–4 times, then tweak the last line. Tell me your topic and vibe and I’ll throw you some starter lines.";
+  if (hasComfort) {
+    let founderLine = "";
+    if (currentUserEmail === "8bfr.music@gmail.com") {
+      founderLine =
+        "You’ve been carrying this whole network on your back for a while — it’s okay to feel heavy. 💜<br><br>";
     }
-    if (lower.includes("beat") || lower.includes("bpm")) {
-      return "For rap or trap, a lot of people sit between 130–150 BPM (or 65–75 double-time). Share your mood — dark, hype, chill — and I’ll help pick a BPM and rough song layout.";
-    }
-    if (lower.includes("lyrics") || lower.includes("write")) {
-      return "Give me 3 things: mood, topic, and an artist you like. I’ll suggest a verse layout and a few starter bars you can edit.";
-    }
-    if (lower.includes("tournament") || lower.includes("game")) {
-      return "Tournaments and games on 8BFR are meant to be low-stress and fun. You’ll see brackets, leaderboards, and coin rewards on the Games & Tournaments pages.";
-    }
-
-    const starters = [
-      "Got it — let’s keep it focused.",
-      "Okay, let’s turn that into a plan.",
-      "I hear you. Let’s break this into steps.",
-      "Nice. We can build that into something real.",
-    ];
-    const starter = starters[Math.floor(Math.random() * starters.length)];
     return (
-      starter +
-      " Tell me your main goal in one sentence, and I’ll outline the next 3 moves."
+      founderLine +
+      `
+      You’re allowed to slow down. Feeling off doesn’t erase anything you’ve already built.<br><br>
+      Let’s shrink things down:<br>
+      • You don’t have to fix everything tonight.<br>
+      • You only need one small win, or even just rest.<br><br>
+      If you want, tell me one thing that’s bothering you most, and I’ll help you break it into calmer pieces.`
     );
   }
 
-  // 3) personal mode
+  // emotion keywords (burnout / overwhelmed / tired)
+  if (
+    lower.includes("burned out") ||
+    lower.includes("burnt out") ||
+    lower.includes("overwhelmed") ||
+    lower.includes("overwhelm") ||
+    lower.includes("exhausted") ||
+    lower.includes("tired") ||
+    lower.includes("drained")
+  ) {
+    let prefix = "I hear you. That’s a lot to carry.";
+    if (currentUserEmail === "8bfr.music@gmail.com") {
+      prefix = "Founder, I hear you. That’s a lot to carry. 💜";
+    }
+    return (
+      prefix +
+      `<br><br>
+      Let’s not pile on more pressure. Here’s a light plan:<br>
+      1) Decide if tonight is a <b>rest night</b> or a <b>tiny progress</b> night.<br>
+      2) If it’s rest: close your tabs, maybe put on music, and let things be unfinished.<br>
+      3) If it’s tiny progress: pick one 5–10 minute task and ignore everything else.<br><br>
+      Tell me which one you choose and I’ll help you keep it small.`
+    );
+  }
+
+  if (
+    lower.includes("anxious") ||
+    lower.includes("anxiety") ||
+    lower.includes("worried") ||
+    lower.includes("nervous")
+  ) {
+    return `
+      Anxiety loves big messy piles of “what if.” We’ll keep things small and concrete here.<br><br>
+      We can:<br>
+      • Sort your thoughts into “now / later / never”, or<br>
+      • Pick one simple thing you <b>can</b> control tonight (like saving a backup, or naming projects), or<br>
+      • Just talk about what’s on your mind in a few sentences.<br><br>
+      I’m not a therapist, but I can help you organize the chaos into easier steps. Want to sort “now / later / never” first?
+    `;
+  }
+
+  // default personal starter if no specific vibe / emotion pattern
   const personalStarters = [
     "I hear you 💜",
     "Oof, I feel that.",
@@ -361,6 +482,185 @@ function carrieBrain(userText) {
     starter +
     " Tell me what kind of vibe you need right now — hype, chill, or comfort — and I’ll roll with it."
   );
+}
+
+// ------- Carrie brain with Business / Personal mode
+
+function carrieBrain(userText) {
+  const t = userText.trim();
+  if (!t) {
+    return "I didn’t quite catch that — try asking me about music, games, or how 8BFR works.";
+  }
+
+  const lower = t.toLowerCase();
+
+  // 1) scripted answers first
+  const scripted = findCarrieScriptReply(t);
+  if (scripted) return scripted;
+
+  // 2) BUSINESS MODE: more technical / planning replies
+  if (currentMode === "business") {
+    // Hooks / chorus
+    if (lower.includes("hook") || lower.includes("chorus")) {
+      return `
+        Hooks love repetition and rhythm.<br><br>
+        Try this structure:<br>
+        • Line 1: main phrase / emotion<br>
+        • Line 2: flip or answer that phrase<br>
+        • Line 3: repeat line 1 (or something very close)<br>
+        • Line 4: switch up the last few words<br><br>
+        Tell me your topic + mood (examples: “late night grind, confident” or “heartbreak, sad but strong”) and I’ll sketch a 4-line hook for you.
+      `;
+    }
+
+    // BPM / beats
+    if (lower.includes("beat") || lower.includes("bpm")) {
+      return `
+        Quick BPM guide:<br><br>
+        • Trap / Drill: ~130–150 BPM (or 65–75 double time)<br>
+        • Boom bap / old school: ~85–100 BPM<br>
+        • R&B / melodic: ~90–110 BPM<br><br>
+        Tell me the mood (dark / hype / chill) and the type of track (rap, melodic, storytelling) and I’ll suggest a BPM plus a simple song layout.
+      `;
+    }
+
+    // Lyrics / writing
+    if (
+      lower.includes("lyrics") ||
+      lower.includes("write") ||
+      lower.includes("bars") ||
+      lower.includes("verse")
+    ) {
+      return `
+        Let’s build lyrics the easy way.<br><br>
+        Send me 3 things:<br>
+        1) Mood (angry / flex / heartbreak / hopeful / storytelling)<br>
+        2) Topic (what it’s about in 1 sentence)<br>
+        3) Any artist reference (optional)<br><br>
+        I’ll reply with:<br>
+        • A verse outline (how many bars & what each part does)<br>
+        • 2–4 starter bars you can tweak into your own voice.`
+      ;
+    }
+
+    // Mixing / mastering
+    if (
+      lower.includes("mix") ||
+      lower.includes("master") ||
+      lower.includes("mastering")
+    ) {
+      return `
+        Mixing / mastering inside 8BFR will live mostly in the <b>Master AI</b> and <b>Studio Tools</b> pages.<br><br>
+        Right now, I can help you with:<br>
+        • Basic gain staging tips<br>
+        • Simple EQ / reverb ideas<br>
+        • How to prepare a mix for upload<br><br>
+        Tell me what you’re stuck on (muddy vocals, quiet mix, harsh highs, etc.) and I’ll give you a short checklist to try.
+      `;
+    }
+
+    // Profiles / badges
+    if (
+      lower.includes("profile") ||
+      lower.includes("badges") ||
+      lower.includes("badge")
+    ) {
+      return `
+        Profiles + badges help people see who you are fast.<br><br>
+        • Edit your info on <a href="profile.html">My Profile</a>.<br>
+        • Music roles (artist, beatmaker, producer) show you’re a creator.<br>
+        • Community roles (fan, supporter, mentor) show how you interact.<br><br>
+        Tell me if you’re mainly artist, beatmaker, gamer, author, or a mix — I’ll suggest a badge setup for your profile.
+      `;
+    }
+
+    // Coins / upgrades
+    if (
+      lower.includes("coin") ||
+      lower.includes("coins") ||
+      lower.includes("upgrade") ||
+      lower.includes("upgrades")
+    ) {
+      return `
+        Coins and upgrades tie into games, tournaments, and site perks.<br><br>
+        • Spend coins in <a href="coinshop.html">Coin Shop</a> or <a href="game-coin-shop.html">Game Coin Shop</a>.<br>
+        • Upgrades and extras appear in <a href="shop-upgrades.html">Shop Upgrades</a> and <a href="upgrades.html">Upgrades</a>.<br><br>
+        Tell me what you’re trying to do (enter tournaments, unlock cosmetics, support creators) and I’ll point you to the best page.
+      `;
+    }
+
+    // Games / tournaments
+    if (
+      lower.includes("tournament") ||
+      lower.includes("bracket") ||
+      lower.includes("leaderboard") ||
+      lower.includes("game hub") ||
+      lower.includes("pool")
+    ) {
+      return `
+        Games and tournaments are split into a few pages:<br><br>
+        • <a href="game-hub.html">Game Hub</a> — main entry<br>
+        • <a href="games.html">Games</a> / <a href="arcade.html">Arcade</a> — play area<br>
+        • <a href="game-tournaments.html">Tournaments</a> — events & brackets<br>
+        • <a href="game-leaderboards.html">Leaderboards</a> — winners & stats<br><br>
+        Tell me if you want <b>practice</b>, <b>competition</b>, or just <b>fun</b> and I’ll suggest where to start.
+      `;
+    }
+
+    // Uploads / releases / distribution (generic guidance)
+    if (
+      lower.includes("upload") ||
+      lower.includes("release") ||
+      lower.includes("distribute") ||
+      lower.includes("distribution")
+    ) {
+      return `
+        Uploads and releases are being built around profiles and studio tools.<br><br>
+        General best practice before releasing:<br>
+        • Make sure your mix is not clipping and has a little headroom.<br>
+        • Have final titles, artist name spelling, and artwork ready.<br>
+        • Keep a backup of your project and final WAV.<br><br>
+        Tell me where you plan to release (Spotify, YouTube, social, etc.) and I’ll help you outline a simple release checklist.
+      `;
+    }
+
+    // General productivity / planning
+    if (
+      lower.includes("plan") ||
+      lower.includes("organize") ||
+      lower.includes("schedule") ||
+      lower.includes("next step") ||
+      lower.includes("next steps")
+    ) {
+      const starters = [
+        "Got it — let’s keep it focused.",
+        "Okay, let’s turn that into a plan.",
+        "I hear you. Let’s break this into steps.",
+        "Nice. We can build that into something real.",
+      ];
+      const starter = starters[Math.floor(Math.random() * starters.length)];
+      return (
+        starter +
+        " Tell me your main goal in one sentence, and I’ll outline the next 3 moves in plain language."
+      );
+    }
+
+    // Default business fallback
+    const starters = [
+      "Got it — let’s keep it focused.",
+      "Okay, let’s turn that into a plan.",
+      "I hear you. Let’s break this into steps.",
+      "Nice. We can build that into something real.",
+    ];
+    const starter = starters[Math.floor(Math.random() * starters.length)];
+    return (
+      starter +
+      " Tell me your main goal in one sentence, and I’ll outline the next 3 moves."
+    );
+  }
+
+  // 3) PERSONAL MODE: vibes + support
+  return personalVibeReply(lower, t);
 }
 
 // ------- Typing indicator
@@ -503,6 +803,21 @@ if (trainerForm) {
       );
     }
   });
+}
+
+// ------- scripted reply helper
+
+function findCarrieScriptReply(userText) {
+  const normalized = normalizeText(userText);
+  for (const intent of carrieScripts) {
+    for (const pattern of intent.patterns) {
+      const p = normalizeText(pattern);
+      if (normalized.includes(p)) {
+        return intent.reply;
+      }
+    }
+  }
+  return null;
 }
 
 // ------- Session + history
