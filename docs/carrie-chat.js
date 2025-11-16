@@ -39,9 +39,6 @@ let currentUserId    = null;
 let currentUserEmail = null;
 let currentMode      = "business"; // "business" | "personal"
 
-// Inline Carrie video just for this page (created by JS)
-let inlineCarrieVideo = null;
-
 // ------- helpers
 
 function normalizeText(text) {
@@ -68,62 +65,6 @@ function scrollChatToBottom() {
   });
 }
 
-// ------- inline Carrie video (for this page only)
-
-function ensureInlineCarrie() {
-  if (!chatLogEl || inlineCarrieVideo) return;
-
-  const wrapper = document.createElement("div");
-  wrapper.id = "carrieChatInline";
-  wrapper.style.display = "flex";
-  wrapper.style.alignItems = "center";
-  wrapper.style.gap = "0.75rem";
-  wrapper.style.marginBottom = "0.75rem";
-
-  const vid = document.createElement("video");
-  vid.id = "carrieChatVideo";
-  vid.autoplay = true;
-  vid.loop = true;
-  vid.muted = true;
-  vid.playsInline = true;
-  vid.style.width = "72px";
-  vid.style.height = "72px";
-  vid.style.borderRadius = "9999px";
-  vid.style.border = "1px solid rgba(129,140,248,.9)";
-  vid.style.boxShadow = "0 0 14px rgba(124,58,237,.55)";
-  vid.style.objectFit = "cover";
-
-  const caption = document.createElement("p");
-  caption.textContent =
-    "Carrie’s outfit here follows the mode you pick: Business or Personal.";
-  caption.style.fontSize = "11px";
-  caption.style.color = "rgba(233,213,255,0.8)";
-
-  wrapper.appendChild(vid);
-  wrapper.appendChild(caption);
-
-  // insert just above the chat log
-  chatLogEl.parentNode.insertBefore(wrapper, chatLogEl);
-  inlineCarrieVideo = vid;
-
-  updateInlineCarrieVideo();
-}
-
-function updateInlineCarrieVideo() {
-  if (!inlineCarrieVideo) return;
-
-  const newSrc =
-    currentMode === "business" ? CARRIE_VIDEOS.business : CARRIE_VIDEOS.personal;
-
-  if (inlineCarrieVideo.getAttribute("src") !== newSrc) {
-    inlineCarrieVideo.src = newSrc;
-    try {
-      inlineCarrieVideo.load();
-      inlineCarrieVideo.play().catch(() => {});
-    } catch (e) {}
-  }
-}
-
 // ------- chat message renderer (Carrie = tiny animated video)
 
 function renderMessage(role, content, createdAt) {
@@ -136,7 +77,7 @@ function renderMessage(role, content, createdAt) {
   avatar.className = "msg-avatar";
 
   if (role === "assistant") {
-    // tiny video avatar that follows currentMode
+    // tiny video avatar that follows currentMode at send time
     const avatarVid = document.createElement("video");
     avatarVid.src =
       currentMode === "business"
@@ -414,9 +355,9 @@ function hideTyping() {
   if (typingRowEl) typingRowEl.classList.add("hidden");
 }
 
-// ------- Mode toggle / Floating + Inline Carrie sync
+// ------- Mode toggle / Floating Carrie sync
 
-// Try to keep global floating Carrie (from scripts.js) in sync with currentMode
+// Keep global floating Carrie (from scripts.js) in sync with currentMode (best-effort)
 function updateFloatingCarrieVideo() {
   const floater = document.getElementById("carrie");
   if (!floater) return;
@@ -431,36 +372,6 @@ function updateFloatingCarrieVideo() {
       floater.play().catch(() => {});
     } catch (e) {}
   }
-}
-
-function saveMode(mode) {
-  currentMode = mode;
-  console.log("Carrie mode set to:", currentMode);
-
-  try {
-    localStorage.setItem("carrie_mode", mode);
-  } catch {}
-
-  updateInlineCarrieVideo();
-  updateFloatingCarrieVideo();
-  applyModeStyles();
-}
-
-function loadMode() {
-  let stored = null;
-  try {
-    stored = localStorage.getItem("carrie_mode");
-  } catch {}
-
-  if (stored === "personal" || stored === "business") {
-    currentMode = stored;
-  } else {
-    currentMode = "business";
-  }
-
-  console.log("Loaded Carrie mode:", currentMode);
-  updateInlineCarrieVideo();
-  updateFloatingCarrieVideo();
 }
 
 function applyModeStyles() {
@@ -483,10 +394,37 @@ function applyModeStyles() {
   }
 }
 
-// init inline Carrie + mode on page load
-ensureInlineCarrie();
+function saveMode(mode) {
+  currentMode = mode;
+  console.log("Carrie mode set to:", currentMode);
+
+  try {
+    localStorage.setItem("carrie_mode", mode);
+  } catch {}
+
+  updateFloatingCarrieVideo();
+  applyModeStyles();
+}
+
+function loadMode() {
+  let stored = null;
+  try {
+    stored = localStorage.getItem("carrie_mode");
+  } catch {}
+
+  if (stored === "personal" || stored === "business") {
+    currentMode = stored;
+  } else {
+    currentMode = "business";
+  }
+
+  console.log("Loaded Carrie mode:", currentMode);
+  updateFloatingCarrieVideo();
+  applyModeStyles();
+}
+
+// init mode on page load
 loadMode();
-applyModeStyles();
 
 // button click handlers
 if (modeBusinessBtn) {
@@ -576,8 +514,6 @@ if (trainerForm) {
 // ------- Session + history
 
 async function initSessionAndHistory() {
-  ensureInlineCarrie(); // make sure inline Carrie exists before first message
-
   const isBusiness = currentMode === "business";
 
   const firstGreeting = isBusiness
@@ -608,4 +544,75 @@ async function initSessionAndHistory() {
       currentUserEmail = null;
       if (sessionLabelEl) {
         sessionLabelEl.textContent =
-          "Not logged in • Carrie
+          "Not logged in • Carrie will still chat, but history won’t be tied to an account.";
+      }
+    }
+  } catch (e) {
+    console.warn("Carrie session check failed", e);
+    if (sessionLabelEl) {
+      sessionLabelEl.textContent =
+        "Could not check login • you can still chat.";
+    }
+  }
+
+  if (!currentUserId) {
+    renderMessage("assistant", firstGreeting);
+    return;
+  }
+
+  try {
+    const { data: rows, error } = await supabase
+      .from("carrie_chat_logs")
+      .select("*")
+      .eq("user_id", currentUserId)
+      .order("created_at", { ascending: true })
+      .limit(40);
+
+    if (error) throw error;
+
+    if (rows && rows.length) {
+      rows.forEach((r) => renderMessage(r.role, r.content, r.created_at));
+    } else {
+      renderMessage("assistant", firstGreeting);
+    }
+  } catch (e) {
+    console.warn("Could not load Carrie history", e);
+    renderMessage(
+      "assistant",
+      firstGreeting +
+        "<br><br><span style='font-size:11px;opacity:.8;'>I had a tiny glitch loading history, but we can start fresh right now.</span>"
+    );
+  }
+}
+
+// ------- Input behavior
+
+if (inputEl && formEl) {
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      formEl.requestSubmit();
+    }
+  });
+
+  formEl.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const raw = inputEl.value.trim();
+    if (!raw) return;
+
+    const userMsg = raw;
+    inputEl.value = "";
+    renderMessage("user", userMsg, new Date());
+    saveMessage("user", userMsg);
+    showTyping();
+
+    setTimeout(async () => {
+      const reply = carrieBrain(userMsg);
+      renderMessage("assistant", reply, new Date());
+      hideTyping();
+      saveMessage("assistant", reply);
+    }, 600 + Math.random() * 500);
+  });
+}
+
+initSessionAndHistory();
