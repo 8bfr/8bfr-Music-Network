@@ -1,156 +1,15 @@
-// ========== FEATURED ADS + BUTTONS (index.html only, with swipe) ==========
+// scripts.js — 8BFR global UI (floating menu, Carrie, auth gate, themes)
 (function () {
-  const track = document.getElementById("adTrack");
-  if (!track) return;
-
-  const ads = [
-    { img: "assets/images/ad_banner_1.jpg", url: "ads.html#buy" },
-    { img: "assets/images/ad_banner_2.jpg", url: "ads.html#buy" },
-    { img: "assets/images/ad_banner_3.jpg", url: "ads.html#buy" },
-    { img: "assets/images/ad_banner_4.jpg", url: "ads.html#buy" },
-    { img: "assets/images/ad_banner_5.jpg", url: "ads.html#buy" },
-  ];
-
-  const prev = document.getElementById("adPrev");
-  const next = document.getElementById("adNext");
-  const pause = document.getElementById("adPause");
-
-  let index = 0;
-  let paused = false;
-  let timer = null;
-
-  function createSlide(i) {
-    const data = ads[i];
-    const a = document.createElement("a");
-    a.className = "ad-slide";
-    a.href = data.url || "#";
-    a.target = "_blank";
-    a.rel = "noopener";
-
-    const img = new Image();
-    img.src = data.img;
-    img.alt = "Featured ad banner";
-    a.appendChild(img);
-    return a;
-  }
-
-  function showSlide(nextIndex) {
-    index = (nextIndex + ads.length) % ads.length;
-
-    const oldSlide = track.querySelector(".ad-slide.show");
-    const newSlide = createSlide(index);
-
-    track.appendChild(newSlide);
-    requestAnimationFrame(() => newSlide.classList.add("show"));
-
-    if (oldSlide) {
-      setTimeout(() => oldSlide.remove(), 380);
-    }
-  }
-
-  function schedule() {
-    clearTimeout(timer);
-    if (paused) return;
-    timer = setTimeout(() => {
-      showSlide(index + 1);
-      schedule();
-    }, 5000);
-  }
-
-  if (prev) {
-    prev.addEventListener("click", () => {
-      if (!paused && pause) {
-        paused = true;
-        pause.textContent = "Play";
-      }
-      showSlide(index - 1);
-    });
-  }
-
-  if (next) {
-    next.addEventListener("click", () => {
-      if (!paused && pause) {
-        paused = true;
-        pause.textContent = "Play";
-      }
-      showSlide(index + 1);
-    });
-  }
-
-  if (pause) {
-    pause.addEventListener("click", () => {
-      paused = !paused;
-      pause.textContent = paused ? "Play" : "Pause";
-      if (!paused) {
-        schedule();
-      } else {
-        clearTimeout(timer);
-      }
-    });
-  }
-
-  // ✅ Touch swipe left/right
-  let startX = 0;
-  let deltaX = 0;
-  let dragging = false;
-
-  track.addEventListener(
-    "touchstart",
-    (e) => {
-      dragging = true;
-      startX = e.touches[0].clientX;
-      deltaX = 0;
-      clearTimeout(timer);
-    },
-    { passive: true }
-  );
-
-  track.addEventListener(
-    "touchmove",
-    (e) => {
-      if (!dragging) return;
-      deltaX = e.touches[0].clientX - startX;
-    },
-    { passive: true }
-  );
-
-  track.addEventListener(
-    "touchend",
-    () => {
-      if (!dragging) return;
-      dragging = false;
-      if (Math.abs(deltaX) > 40) {
-        if (deltaX < 0) {
-          if (!paused && pause) {
-            paused = true;
-            pause.textContent = "Play";
-          }
-          showSlide(index + 1);
-        } else {
-          if (!paused && pause) {
-            paused = true;
-            pause.textContent = "Play";
-          }
-          showSlide(index - 1);
-        }
-      }
-      schedule();
-    },
-    { passive: true }
-  );
-
-  showSlide(0);
-  schedule();
-
-  // Buttons already present; buy/how clicks handled in index via modals
-})();
-
-// ========== GLOBAL 8BFR UI (menu, bubbles, Carrie, auth gate, Spotify stripe) ==========
-(function () {
-  const SUPABASE_URL = "https://novbuvwpjnxwwvdekjhr.supabase.co";
+  const SUPABASE_URL =
+    "https://novbuvwpjnxwwvdekjhr.supabase.co";
   const SUPABASE_ANON_KEY =
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0";
 
+  const PAGE = (window.location.pathname.split("/").pop() || "index.html").toLowerCase();
+  const isChatPage = PAGE === "carrie-chat.html";
+  const isClosetPage = PAGE === "carrie-closet.html";
+
+  // --- Supabase loader / auth gate helpers ---
   function loadSupabaseClient(callback) {
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
 
@@ -211,9 +70,11 @@
       "signup.html",
       "reset-password.html",
       "reset_password.html",
-      "logout.html"
+      "logout.html",
+      "carrie-chat.html"
     ];
-    let path = window.location.pathname.split("/").pop();
+
+    let path = PAGE;
     if (!path) path = "index.html";
 
     if (publicPages.includes(path)) {
@@ -232,9 +93,69 @@
     });
   }
 
+  // --- Carrie helper: which mode for which page? ---
+  function getDefaultCarrieModeForPage() {
+    const businessPages = [
+      "studio-tools.html",
+      "creator-tools.html",
+      "lyrics-ai.html",
+      "lyric_ai.html",
+      "song-ai.html",
+      "album-ai.html",
+      "voice-ai.html",
+      "cover_ai.html",
+      "master_ai.html",
+      "artist-studio.html",
+      "profile_artist.html",
+      "profile_beatmaker.html",
+      "profile_author.html",
+      "admin.html",
+      "admin-panel.html",
+      "admin_panel.html",
+      "admin-hub.html",
+      "owner.html",
+      "owner-panel.html",
+      "owner-studio.html",
+      "shop.html",
+      "coinshop.html",
+      "pricing.html"
+    ];
+
+    if (isChatPage) return "personal";
+
+    if (businessPages.includes(PAGE)) {
+      return "business";
+    }
+    // everything else: casual / fun Carrie
+    return "casual";
+  }
+
+  function getSavedCarrieMode() {
+    try {
+      return localStorage.getItem("8bfrCarrieMode") || null;
+    } catch {
+      return null;
+    }
+  }
+
+  function saveCarrieMode(mode) {
+    try {
+      localStorage.setItem("8bfrCarrieMode", mode);
+    } catch {}
+  }
+
+  // --- Main UI injector ---
   function injectGlobalUI() {
+    // Don’t double–inject
     if (document.getElementById("fab")) {
       enforceAuthGate();
+      // hide extra bubbles on chat page even if already injected
+      if (isChatPage) {
+        const stack = document.getElementById("bubbleStack");
+        const topSingle = document.getElementById("bubble-top-single");
+        if (stack) stack.remove();
+        if (topSingle) topSingle.remove();
+      }
       return;
     }
 
@@ -268,7 +189,7 @@
 }
 body.menu-open #menuStripe{ display:block; }
 
-/* shift page content left when menu is open (for pages using #pageWrap) */
+/* shift content if page uses #pageWrap */
 body.menu-open #pageWrap{
   margin-right:280px;
 }
@@ -461,6 +382,21 @@ body.menu-open #carrieWrap{
   border-color:rgba(15,23,42,.95) transparent transparent transparent;
 }
 
+/* Carrie mode toggle badge */
+#carrieModeToggle{
+  position:absolute;
+  bottom:100%;
+  right:0;
+  margin-bottom:22px;
+  padding:2px 8px;
+  border-radius:999px;
+  font-size:10px;
+  border:1px solid rgba(129,140,248,.9);
+  background:rgba(15,23,42,.96);
+  color:#e5e7eb;
+  cursor:pointer;
+}
+
 /* --- Auth lock overlay --- */
 #authGateOverlay{
   position:fixed; inset:0; z-index:12000;
@@ -493,6 +429,12 @@ body.menu-open #carrieWrap{
 }
 #authGateCard .auth-buttons a:first-child{
   background:#7c3aed; border-color:#7c3aed; color:#fff;
+}
+
+/* chat page: hide extra bubbles */
+body.page-chat #bubbleStack,
+body.page-chat #bubble-top-single{
+  display:none !important;
 }
 
 @media(max-width:480px){
@@ -682,6 +624,7 @@ body.menu-open #carrieWrap{
   </div>
 </nav>
 
+${isChatPage ? "" : `
 <div id="bubbleStack">
   <div class="bubble-row">
     <span class="bubble-label">Contact</span>
@@ -703,25 +646,22 @@ body.menu-open #carrieWrap{
     <span class="bubble-label">Random</span>
     <button class="bubble" id="bubble-theme-random" title="Random theme"><span>🔀</span></button>
   </div>
-  <!-- ✅ Stream 8BFR bubble -->
   <div class="bubble-row">
     <span class="bubble-label">Stream 8BFR</span>
     <button class="bubble" id="bubble-stream" title="Stream 8BFR"><span>🎧</span></button>
   </div>
 </div>
 
-<
-</div>
-
 <button class="bubble" id="bubble-top-single" title="Back to top">
   <span>⬆️</span>
 </button>
+`}
 
 <div id="carrieWrap" title="Chat with Carrie (drag / resize)">
   <div id="carrieBubble">Chat with me</div>
+  <button id="carrieModeToggle" type="button">Mode: …</button>
   <video
     id="carrie"
-    src="assets/videos/carrie_casual_animate_3_1.webm"
     autoplay
     loop
     muted
@@ -731,11 +671,16 @@ body.menu-open #carrieWrap{
 `;
     document.body.appendChild(ui);
 
+    // mark chat page on body for CSS
+    if (isChatPage) {
+      document.body.classList.add("page-chat");
+    }
+
     // ---------- MENU CONTROL ----------
     const fab = document.getElementById("fab");
     const menu = document.getElementById("menu");
     const backdrop = document.getElementById("menu-backdrop");
-    let timer = null;
+    let menuTimer = null;
 
     function openMenu() {
       menu.classList.add("open");
@@ -747,12 +692,12 @@ body.menu-open #carrieWrap{
       menu.classList.remove("open");
       backdrop.classList.remove("open");
       document.body.classList.remove("menu-open");
-      clearTimeout(timer);
-      timer = null;
+      clearTimeout(menuTimer);
+      menuTimer = null;
     }
     function resetTimer() {
-      clearTimeout(timer);
-      timer = setTimeout(closeMenu, 20000);
+      clearTimeout(menuTimer);
+      menuTimer = setTimeout(closeMenu, 20000);
     }
 
     fab.addEventListener("click", (e) => {
@@ -778,10 +723,11 @@ body.menu-open #carrieWrap{
       });
     });
 
-    // ---------- Carrie drag + resize + click ----------
+    // ---------- Carrie drag + resize + mode ----------
     const carrieWrap = document.getElementById("carrieWrap");
     const carrie = document.getElementById("carrie");
     const carrieBubble = document.getElementById("carrieBubble");
+    const carrieModeToggle = document.getElementById("carrieModeToggle");
 
     // position + movement
     let dragging = false;
@@ -808,7 +754,6 @@ body.menu-open #carrieWrap{
       }
     }
 
-    // ✅ only minimum, no maximum limit
     function clampScale(v) {
       return Math.max(0.5, v);
     }
@@ -927,6 +872,57 @@ body.menu-open #carrieWrap{
       mouseResizeActive = false;
     }
 
+    // Carrie mode switching
+    function applyCarrieMode(mode) {
+      if (!carrie) return;
+
+      let finalMode = mode;
+      if (!finalMode) {
+        finalMode = getDefaultCarrieModeForPage();
+      }
+
+      let src;
+      if (finalMode === "business") {
+        src = "assets/videos/carrie_business_animate.webm";
+      } else if (finalMode === "personal") {
+        src = "assets/videos/carrie_casual_animate_3_1.webm";
+      } else {
+        src = "assets/videos/carrie_casual_animate_3_1.webm";
+      }
+
+      if (carrie.getAttribute("src") !== src) {
+        carrie.src = src;
+        try {
+          carrie.load();
+          carrie.play().catch(function () {});
+        } catch (e) {}
+      }
+
+      if (carrieModeToggle) {
+        let label;
+        if (finalMode === "business") label = "Mode: Business";
+        else if (finalMode === "personal") label = "Mode: Personal";
+        else label = "Mode: Casual";
+        carrieModeToggle.textContent = label;
+      }
+
+      saveCarrieMode(finalMode);
+    }
+
+    const savedCarrieMode = getSavedCarrieMode();
+    applyCarrieMode(savedCarrieMode || getDefaultCarrieModeForPage());
+
+    if (carrieModeToggle) {
+      carrieModeToggle.addEventListener("click", () => {
+        const current = getSavedCarrieMode() || getDefaultCarrieModeForPage();
+        let next;
+        if (current === "business") next = "personal";
+        else if (current === "personal") next = "casual";
+        else next = "business";
+        applyCarrieMode(next);
+      });
+    }
+
     if (carrie) {
       try {
         carrie.muted = true;
@@ -936,15 +932,13 @@ body.menu-open #carrieWrap{
       } catch (e) {}
     }
 
-    // ✅ Desktop click
+    // click → open Carrie chat
     if (carrie) {
       carrie.addEventListener("click", () => {
         if (!moved && !pinchActive && !mouseResizeActive) {
           window.location.href = "carrie-chat.html";
         }
       });
-
-      // ✅ Mobile tap (because touchmove/touchstart used preventDefault)
       carrie.addEventListener("touchend", () => {
         if (!moved && !pinchActive && !mouseResizeActive) {
           window.location.href = "carrie-chat.html";
@@ -1059,135 +1053,8 @@ body.menu-open #carrieWrap{
         );
       });
     }
-    // ===== Carrie global preferences (mode + outfit) =====
-(function () {
-  const OUTFIT_KEY = "carrie-outfit";
-  const MODE_KEY   = "carrie-mode";
 
-  // Map outfit keys to image paths
-  const OUTFIT_SRC = {
-    casual:    "assets/images/Carrie_Casual.png",
-    business:  "assets/images/Carrie_Business.png",
-    concert:   "assets/images/Carrie_Concert.png",
-    streetwear:"assets/images/Carrie_Streetwear.png"
-  };
-
-  function safeGetLocal(key, fallback) {
-    try {
-      const v = localStorage.getItem(key);
-      return v == null ? fallback : v;
-    } catch (e) {
-      return fallback;
-    }
-  }
-
-  function safeSetLocal(key, value) {
-    try {
-      localStorage.setItem(key, value);
-    } catch (e) {
-      // ignore
-    }
-  }
-
-  function getOutfit() {
-    const stored = safeGetLocal(OUTFIT_KEY, null);
-    if (stored && OUTFIT_SRC[stored]) return stored;
-    return "casual"; // default Carrie
-  }
-
-  function setOutfit(name) {
-    if (!OUTFIT_SRC[name]) return;
-    safeSetLocal(OUTFIT_KEY, name);
-    updateCarrieAvatarImage(); // refresh if avatar is visible
-  }
-
-  function resolveOutfitSrc(name) {
-    const key = OUTFIT_SRC[name] ? name : "casual";
-    return OUTFIT_SRC[key];
-  }
-
-  function getMode() {
-    const stored = safeGetLocal(MODE_KEY, null);
-    if (stored === "professional" || stored === "personal") return stored;
-    return "professional";
-  }
-
-  /**
-   * setMode("professional") or setMode("personal")
-   * persist = true by default (stores in localStorage)
-   */
-  function setMode(mode, persist) {
-    if (mode !== "professional" && mode !== "personal") return;
-    if (persist !== false) {
-      safeSetLocal(MODE_KEY, mode);
-    }
-    // nothing else to do here yet – pages like carrie-chat.html
-    // already read carrie-mode from localStorage.
-  }
-
-  /**
-   * Find Carrie avatar(s) on the page and update src based on outfit.
-   * We try several selectors so we don't break any existing markup.
-   */
-  function updateCarrieAvatarImage() {
-    const src = resolveOutfitSrc(getOutfit());
-    const selectors = [
-      "[data-carrie-avatar]",
-      "#carrieAvatar",
-      "#carrie-avatar",
-      ".carrie-avatar"
-    ];
-
-    let els = [];
-    selectors.forEach(sel => {
-      document.querySelectorAll(sel).forEach(el => els.push(el));
-    });
-
-    if (!els.length) return;
-
-    els.forEach(function (img) {
-      if (img && img.tagName && img.tagName.toLowerCase() === "img") {
-        img.src = src;
-      }
-    });
-  }
-
-  // Expose a tiny API on window so pages can use it if needed
-  window.carriePrefs = window.carriePrefs || {
-    getOutfit,
-    setOutfit,
-    getMode,
-    setMode,
-    resolveOutfitSrc,
-    updateCarrieAvatarImage
-  };
-
-  // On page load:
-  // 1) Optional per-page default mode (does NOT overwrite user choice unless wanted)
-  //    You can add: <body data-carrie-default-mode="professional"> or "personal"
-  // 2) Update Carrie avatar image if she is rendered on this page.
-  document.addEventListener("DOMContentLoaded", function () {
-    try {
-      const body = document.body;
-      if (body) {
-        const defaultMode = body.getAttribute("data-carrie-default-mode");
-        if (defaultMode === "professional" || defaultMode === "personal") {
-          // Only set mode if there is nothing stored yet
-          const stored = safeGetLocal(MODE_KEY, null);
-          if (!stored) {
-            setMode(defaultMode, true);
-          }
-        }
-      }
-    } catch (e) {
-      // ignore
-    }
-
-    // Make sure avatar matches current outfit
-    updateCarrieAvatarImage();
-  });
-})();
-
+    // chat page: we already hid extra bubbles via body.page-chat CSS
     enforceAuthGate();
   }
 
