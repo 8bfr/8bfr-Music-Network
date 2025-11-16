@@ -4,10 +4,12 @@
 const SUPABASE_URL = "https://novbuvwpjnxwwvdekjhr.supabase.co";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0";
+
 const CARRIE_VIDEOS = {
   business: "assets/videos/carrie_business_animate.webm",
   personal: "assets/videos/carrie_casual_animate_3_1.webm",
 };
+
 // Safely create Supabase client (so script doesn’t die if supabase JS fails)
 let supabase = null;
 if (window.supabase && window.supabase.createClient) {
@@ -63,14 +65,6 @@ function scrollChatToBottom() {
   });
 }
 
-// Choose Carrie avatar image based on mode
-function getCarrieAvatarSrc() {
-  if (currentMode === "business") {
-    return "assets/images/Carrie_Business.png";
-  }
-  return "assets/images/Carrie_Casual.png";
-}
-
 function renderMessage(role, content, createdAt) {
   if (!chatLogEl) return;
 
@@ -81,14 +75,32 @@ function renderMessage(role, content, createdAt) {
   avatar.className = "msg-avatar";
 
   if (role === "assistant") {
-    const img = document.createElement("img");
-    img.src = getCarrieAvatarSrc();
-    img.alt = "Carrie avatar";
-    img.onerror = function () {
+    // 🔄 Use animated video avatar based on currentMode
+    const avatarVid = document.createElement("video");
+    avatarVid.src =
+      currentMode === "business"
+        ? CARRIE_VIDEOS.business
+        : CARRIE_VIDEOS.personal;
+
+    avatarVid.autoplay = true;
+    avatarVid.muted = true;
+    avatarVid.loop = true;
+    avatarVid.playsInline = true;
+    avatarVid.style.width = "100%";
+    avatarVid.style.height = "100%";
+    avatarVid.style.objectFit = "cover";
+
+    avatarVid.onerror = function () {
+      // Fallback to static girl avatar if video fails
       this.onerror = null;
-      this.src = "assets/images/default_user_35_40_girl.png";
+      const img = document.createElement("img");
+      img.src = "assets/images/default_user_35_40_girl.png";
+      img.alt = "Carrie avatar";
+      avatar.innerHTML = "";
+      avatar.appendChild(img);
     };
-    avatar.appendChild(img);
+
+    avatar.appendChild(avatarVid);
   } else {
     avatar.textContent = "You";
   }
