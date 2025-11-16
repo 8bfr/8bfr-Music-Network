@@ -65,6 +65,8 @@ function scrollChatToBottom() {
   });
 }
 
+// ------- chat message renderer (Carrie = tiny animated video)
+
 function renderMessage(role, content, createdAt) {
   if (!chatLogEl) return;
 
@@ -75,23 +77,22 @@ function renderMessage(role, content, createdAt) {
   avatar.className = "msg-avatar";
 
   if (role === "assistant") {
-    // 🔄 Use animated video avatar based on currentMode
+    // tiny video avatar
     const avatarVid = document.createElement("video");
     avatarVid.src =
       currentMode === "business"
         ? CARRIE_VIDEOS.business
         : CARRIE_VIDEOS.personal;
 
-    avatarVid.autoplay = true;
-    avatarVid.muted = true;
-    avatarVid.loop = true;
+    avatarVid.autoplay    = true;
+    avatarVid.muted       = true;
+    avatarVid.loop        = true;
     avatarVid.playsInline = true;
-    avatarVid.style.width = "100%";
-    avatarVid.style.height = "100%";
-    avatarVid.style.objectFit = "cover";
+    avatarVid.style.width      = "100%";
+    avatarVid.style.height     = "100%";
+    avatarVid.style.objectFit  = "cover";
 
     avatarVid.onerror = function () {
-      // Fallback to static girl avatar if video fails
       this.onerror = null;
       const img = document.createElement("img");
       img.src = "assets/images/default_user_35_40_girl.png";
@@ -336,9 +337,8 @@ function hideTyping() {
 
 // ------- Mode toggle / Floating Carrie sync
 
-// Keep floating Carrie (bottom-right) in sync with currentMode on this page
+// Keep floating Carrie (bottom-right, from scripts.js) in sync with currentMode
 function updateFloatingCarrieVideo() {
-  // this is the big floating Carrie from scripts.js
   const floater = document.getElementById("carrie");
   if (!floater) return;
 
@@ -350,24 +350,20 @@ function updateFloatingCarrieVideo() {
     try {
       floater.load();
       floater.play().catch(() => {});
-    } catch (e) {
-      // ignore play errors
-    }
+    } catch (e) {}
   }
 }
 
 function saveMode(mode) {
   currentMode = mode;
+  console.log("Carrie mode set to:", currentMode);
 
-  // remember for later visits
   try {
     localStorage.setItem("carrie_mode", mode);
   } catch {}
 
-  // update floating Carrie video on this page
   updateFloatingCarrieVideo();
 
-  // If global floating Carrie exposes an API, update it too (safe no-op otherwise)
   if (window._8bfrCarrie && typeof window._8bfrCarrie.setMode === "function") {
     window._8bfrCarrie.setMode(mode);
   }
@@ -385,7 +381,7 @@ function loadMode() {
     currentMode = "business";
   }
 
-  // make sure floating Carrie video matches mode on first load
+  console.log("Loaded Carrie mode:", currentMode);
   updateFloatingCarrieVideo();
 }
 
@@ -504,7 +500,6 @@ if (trainerForm) {
 
 async function initSessionAndHistory() {
   if (!supabase) {
-    // No Supabase – just start a fresh chat
     renderMessage(
       "assistant",
       "Hey, I’m Carrie 💜 What are you working on today — music, writing, games, or something else?"
@@ -577,7 +572,8 @@ async function initSessionAndHistory() {
   }
 }
 
-// input behavior
+// ------- Input behavior
+
 if (inputEl && formEl) {
   inputEl.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
