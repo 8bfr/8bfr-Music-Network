@@ -335,6 +335,25 @@ function hideTyping() {
 }
 
 // ------- Mode toggle
+// Keep floating Carrie (bottom-right) in sync with currentMode on this page
+function updateFloatingCarrieVideo() {
+  const floater = document.getElementById("carrie");
+  if (!floater) return;
+
+  const newSrc =
+    currentMode === "business"
+      ? CARRIE_VIDEOS.business
+      : CARRIE_VIDEOS.personal;
+
+  if (floater.getAttribute("src") !== newSrc) {
+    floater.src = newSrc;
+    try {
+      floater.load();
+      floater.play().catch(() => {});
+    } catch (e) {}
+  }
+}
+
 
 function saveMode(mode) {
   currentMode = mode;
