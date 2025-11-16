@@ -1,9 +1,9 @@
-// scripts.js – minimal global 8BFR UI
+// scripts.js – 8BFR global UI (Carrie + menu + basic bubbles)
 (function () {
   console.log("8BFR scripts.js loaded");
 
   function injectUI() {
-    // Prevent double inject
+    // Prevent double-inject
     if (document.getElementById("fab")) return;
 
     const path = window.location.pathname.split("/").pop() || "index.html";
@@ -226,7 +226,7 @@ body.menu-open #carrieWrap{
     <div class="menu-group-title">Profiles & Community</div>
     <div class="menu-links">
       <a href="profiles.html" class="menu-chip">All Profiles</a>
-      <a href="profile.html" class="menu-chip">My Profile</a>
+      <a href="profile.html" class="menu-chip">My Profile</</a>
       <a href="profile_artist.html" class="menu-chip">Artist Profile</a>
       <a href="profile_beatmaker.html" class="menu-chip">Beatmaker Profile</a>
       <a href="profile_author.html" class="menu-chip">Author Profile</a>
@@ -339,13 +339,70 @@ body.menu-open #carrieWrap{
       });
     });
 
-    // ---------- CARRIE DRAG + CLICK ----------
+    // ---------- Carrie: outfits + drag / click ----------
     const carrieWrap = document.getElementById("carrieWrap");
     const carrie = document.getElementById("carrie");
 
+    const OUTFITS = {
+      casual: "assets/videos/carrie_casual_animate_3_1.webm",
+      business: "assets/videos/carrie_business_animate.webm",
+    };
+
+    function getStoredMode() {
+      try {
+        return localStorage.getItem("carrie_mode") || "personal";
+      } catch {
+        return "personal";
+      }
+    }
+
+    function getStoredOutfit() {
+      try {
+        const stored = localStorage.getItem("carrie_outfit");
+        if (stored && OUTFITS[stored]) return stored;
+      } catch {}
+      // default: business outfit in business mode, casual otherwise
+      return getStoredMode() === "business" ? "business" : "casual";
+    }
+
+    function applyCarrieOutfit() {
+      if (!carrie) return;
+      const outfitKey = getStoredOutfit();
+      const src = OUTFITS[outfitKey] || OUTFITS.casual;
+      if (carrie.getAttribute("src") !== src) {
+        carrie.setAttribute("src", src);
+        try {
+          carrie.load();
+          carrie.play().catch(() => {});
+        } catch (e) {}
+      }
+    }
+
+    // allow other pages (Carrie chat / Closet) to control outfit + mode
+    window._8bfrCarrie = {
+      setMode(mode) {
+        try {
+          localStorage.setItem("carrie_mode", mode);
+        } catch {}
+        applyCarrieOutfit();
+      },
+      setOutfit(name) {
+        if (!OUTFITS[name]) return;
+        try {
+          localStorage.setItem("carrie_outfit", name);
+        } catch {}
+        applyCarrieOutfit();
+      },
+      applyOutfit: applyCarrieOutfit,
+    };
+
+    // drag vs click
     let dragging = false;
-    let startX = 0, startY = 0;
-    let originLeft = 0, originTop = 0;
+    let moved = false;
+    let startX = 0,
+      startY = 0;
+    let originLeft = 0,
+      originTop = 0;
 
     function ptr(ev) {
       const t = ev.touches ? ev.touches[0] : ev;
@@ -355,6 +412,7 @@ body.menu-open #carrieWrap{
     if (carrieWrap) {
       carrieWrap.addEventListener("mousedown", (e) => {
         dragging = true;
+        moved = false;
         const p = ptr(e);
         startX = p.x;
         startY = p.y;
@@ -365,51 +423,58 @@ body.menu-open #carrieWrap{
         carrieWrap.style.bottom = "auto";
         e.preventDefault();
       });
-      carrieWrap.addEventListener("touchstart", (e) => {
-        dragging = true;
-        const p = ptr(e);
-        startX = p.x;
-        startY = p.y;
-        const rect = carrieWrap.getBoundingClientRect();
-        originLeft = rect.left;
-        originTop = rect.top;
-        carrieWrap.style.right = "auto";
-        carrieWrap.style.bottom = "auto";
-      }, { passive: true });
+      carrieWrap.addEventListener(
+        "touchstart",
+        (e) => {
+          dragging = true;
+          moved = false;
+          const p = ptr(e);
+          startX = p.x;
+          startY = p.y;
+          const rect = carrieWrap.getBoundingClientRect();
+          originLeft = rect.left;
+          originTop = rect.top;
+          carrieWrap.style.right = "auto";
+          carrieWrap.style.bottom = "auto";
+        },
+        { passive: true }
+      );
     }
 
-    window.addEventListener("mousemove", (e) => {
+    function handleMove(e) {
       if (!dragging) return;
       const p = ptr(e);
       const dx = p.x - startX;
       const dy = p.y - startY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
       carrieWrap.style.left = originLeft + dx + "px";
       carrieWrap.style.top = originTop + dy + "px";
-      e.preventDefault();
-    });
-    window.addEventListener("touchmove", (e) => {
-      if (!dragging) return;
-      const p = ptr(e);
-      const dx = p.x - startX;
-      const dy = p.y - startY;
-      carrieWrap.style.left = originLeft + dx + "px";
-      carrieWrap.style.top = originTop + dy + "px";
-    }, { passive: true });
-    window.addEventListener("mouseup", () => { dragging = false; });
-    window.addEventListener("touchend", () => { dragging = false; });
+      if (e.cancelable) e.preventDefault();
+    }
 
+    window.addEventListener("mousemove", handleMove, { passive: false });
+    window.addEventListener("touchmove", handleMove, { passive: false });
+
+    function endDrag(navigateIfClick) {
+      if (!dragging) return;
+      dragging = false;
+      if (!moved && navigateIfClick) {
+        // only navigate to chat when NOT already on chat page
+        if (path !== "carrie-chat.html") {
+          window.location.href = "carrie-chat.html";
+        }
+      }
+    }
+
+    window.addEventListener("mouseup", () => endDrag(true));
+    window.addEventListener("touchend", () => endDrag(true));
+
+    // simple "grow big" on double-click
+    let carrieScale = 1;
     if (carrie) {
-      try {
-        carrie.muted = true;
-        carrie.autoplay = true;
-        carrie.playsInline = true;
-        carrie.play().catch(() => {});
-      } catch (e) {}
-      carrie.addEventListener("click", () => {
-        window.location.href = "carrie-chat.html";
-      });
-      carrie.addEventListener("touchend", () => {
-        window.location.href = "carrie-chat.html";
+      carrie.addEventListener("dblclick", () => {
+        carrieScale = carrieScale === 1 ? 1.7 : 1;
+        carrie.style.transform = `scale(${carrieScale})`;
       });
     }
 
@@ -451,13 +516,18 @@ body.menu-open #carrieWrap{
       });
     }
 
-    // ---------- Chat page: hide bubbles ----------
+    // On the chat page, hide all helper bubbles – just keep Carrie + hamburger
     if (path === "carrie-chat.html") {
       const stack = document.getElementById("bubbleStack");
       if (stack) stack.style.display = "none";
-      const topBubble = document.getElementById("bubble-top-single");
-      if (topBubble) topBubble.style.display = "none";
+      if (topBtn) topBtn.style.display = "none";
+      if (document.body) {
+        document.body.classList.remove("menu-open");
+      }
     }
+
+    // finally apply correct outfit based on storage
+    applyCarrieOutfit();
   }
 
   if (document.readyState === "loading") {
