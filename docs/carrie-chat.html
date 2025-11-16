@@ -119,9 +119,9 @@
       background:#120327;
       border:1px solid rgba(124,58,237,.6);
       color:#eae6ff;
-      padding:.35rem .7rem;
+      padding:.55rem .95rem;
       border-radius:.75rem;
-      font-size:.8rem;
+      font-size:.9rem;
       text-decoration:none;
       cursor:pointer;
     }
@@ -183,7 +183,7 @@
     #chatCarrieWrap{
       position:fixed;
       right:16px;
-      bottom:110px; /* moved up so it doesn't block Send button */
+      bottom:72px;
       z-index:9997;
       user-select:none;
       touch-action:none;
@@ -198,7 +198,6 @@
       filter:
         drop-shadow(0 14px 32px rgba(15,6,40,.9))
         drop-shadow(0 0 18px rgba(124,58,237,.55));
-      transform-origin: bottom center; /* scale from bottom so head isn't cropped */
     }
     #chatCarrieBubble{
       position:absolute;
@@ -212,7 +211,6 @@
       color:#e5e7eb;
       border:1px solid rgba(129,140,248,.9);
       white-space:nowrap;
-      transform-origin: bottom center;
     }
     #chatCarrieBubble::after{
       content:"";
@@ -278,6 +276,27 @@
         </div>
       </div>
 
+      <!-- Persona toggle row -->
+      <div class="flex justify-end mb-2">
+        <div class="flex items-center gap-1 text-[11px]">
+          <span class="text-purple-200/80 hidden sm:inline">Persona:</span>
+          <button
+            id="personaNeutral"
+            type="button"
+            class="px-2 py-1 rounded-full border border-purple-400/40 bg-purple-900/40 text-[10px] uppercase tracking-wide"
+          >
+            Normal
+          </button>
+          <button
+            id="personaGirlfriend"
+            type="button"
+            class="px-2 py-1 rounded-full border border-transparent bg-transparent text-[10px] uppercase tracking-wide text-purple-200/80"
+          >
+            Girlfriend
+          </button>
+        </div>
+      </div>
+
       <div class="flex items-center justify-between mb-3 gap-3">
         <div class="flex items-center gap-2">
           <span class="pill-tag">
@@ -292,33 +311,18 @@
           <div id="sessionIndicator" class="text-[11px] text-purple-200/70">
             Checking login…
           </div>
-          <div class="flex flex-wrap gap-1 justify-end">
-            <button
-              id="clearChatBtn"
-              type="button"
-              class="btn"
-            >
-              Clear chat
-            </button>
-            <button
-              id="hardResetBtn"
-              type="button"
-              class="btn hidden"
-            >
-              Reset history
-            </button>
-            <button
-              id="trainerBtn"
-              type="button"
-              class="btn hidden"
-            >
-              Carrie Trainer
-            </button>
-          </div>
+          <button
+            id="trainerBtn"
+            type="button"
+            class="btn hidden"
+            style="padding:2px 8px;font-size:10px;border-radius:999px;"
+          >
+            Carrie Trainer
+          </button>
         </div>
       </div>
 
-      <!-- Inline Carrie circle (top of chat) is injected by carrie-chat.js -->
+      <!-- Inline Carrie circle (top of chat) will be injected by JS -->
 
       <!-- Chat log -->
       <div id="chatLog" class="chat-log rounded-lg mb-3"></div>
@@ -424,12 +428,14 @@
             type="button"
             id="trainerCancel"
             class="btn"
+            style="padding:3px 10px;font-size:11px;"
           >
             Cancel
           </button>
           <button
             type="submit"
             class="btn btn-primary"
+            style="padding:3px 10px;font-size:11px;"
           >
             Save &amp; Use
           </button>
@@ -463,8 +469,6 @@
       const wrap   = document.getElementById("chatCarrieWrap");
       const video  = document.getElementById("chatCarrieVideo");
       const bubble = document.getElementById("chatCarrieBubble");
-      const btnBusiness = document.getElementById("modeBusiness");
-      const btnPersonal = document.getElementById("modePersonal");
       const modeHint    = document.getElementById("modeHint");
 
       if (!wrap || !video) return;
@@ -477,8 +481,11 @@
         return "business";
       }
 
-      function applyMode(mode) {
-        const src = VIDEO_SRC[mode] || VIDEO_SRC.business;
+      function applyModeToVideo() {
+        const mode = getMode();
+        const src =
+          mode === "business" ? VIDEO_SRC.business : VIDEO_SRC.personal;
+
         if (video.getAttribute("src") !== src) {
           video.src = src;
           try {
@@ -486,43 +493,17 @@
             video.play().catch(function () {});
           } catch (e) {}
         }
-        if (modeHint) {
-          modeHint.textContent =
-            mode === "business"
-              ? "Business chat • focused on tools, music, and progress"
-              : "Personal chat • softer vibe, creative and support focused";
-        }
       }
 
-      function setMode(mode) {
-        try {
-          localStorage.setItem("carrie_mode", mode);
-        } catch (e) {}
-        applyMode(mode);
-      }
+      applyModeToVideo();
 
-      // Initial sync
-      applyMode(getMode());
-
-      if (btnBusiness) {
-        btnBusiness.addEventListener("click", function () {
-          setMode("business");
-        });
-      }
-      if (btnPersonal) {
-        btnPersonal.addEventListener("click", function () {
-          setMode("personal");
-        });
-      }
-
-      // Stay in sync if another script/tab changes carrie_mode
       window.addEventListener("storage", function (ev) {
         if (ev.key === "carrie_mode") {
-          applyMode(getMode());
+          applyModeToVideo();
         }
       });
 
-      // ----- Drag + resize logic (like global Carrie, but local) -----
+      // ----- Drag + resize logic -----
       let dragging = false;
       let moved = false;
       let sx = 0;
@@ -545,8 +526,7 @@
       }
 
       function clampScale(v) {
-        // min 0.5x, max ~1.8x so she doesn't get huge & glitchy
-        return Math.max(0.5, Math.min(v, 1.8));
+        return Math.max(0.5, v); // min 0.5x, no max
       }
 
       function getTouchDistance(e) {
@@ -571,7 +551,6 @@
       wrap.addEventListener("touchstart", startTouch, { passive: false });
 
       function startDragOrResize(e) {
-        // Right click = resize (desktop)
         if (e.button === 2) {
           mouseResizeActive = true;
           mouseResizeStartY = e.clientY;
@@ -582,7 +561,6 @@
           return;
         }
 
-        // Left click = drag
         dragging = true;
         moved = false;
         const p = ptr(e);
@@ -597,7 +575,6 @@
 
       function startTouch(e) {
         if (e.touches && e.touches.length >= 2) {
-          // Pinch to resize
           pinchActive = true;
           dragging = false;
           moved = false;
@@ -607,7 +584,6 @@
           return;
         }
 
-        // Single finger = drag
         dragging = true;
         moved = false;
         const p = ptr(e);
@@ -627,7 +603,6 @@
       window.addEventListener("touchend", endAll);
 
       function onMove(e) {
-        // Pinch
         if (pinchActive && e.touches && e.touches.length >= 2) {
           const dist = getTouchDistance(e);
           if (!dist || !pinchStartDist) return;
@@ -638,7 +613,6 @@
           return;
         }
 
-        // Mouse resize
         if (mouseResizeActive && !e.touches) {
           const dy = e.clientY - mouseResizeStartY;
           const ratio = 1 - dy / 300;
@@ -648,7 +622,6 @@
           return;
         }
 
-        // Drag
         if (!dragging) return;
         const p = ptr(e);
         const dx = p.x - sx;
@@ -668,7 +641,6 @@
         mouseResizeActive = false;
       }
 
-      // Make sure video tries to play
       try {
         video.muted = true;
         video.autoplay = true;
