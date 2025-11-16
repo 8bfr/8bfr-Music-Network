@@ -211,7 +211,7 @@
       "signup.html",
       "reset-password.html",
       "reset_password.html",
-      "logout.html"
+      "logout.html",
     ];
     let path = window.location.pathname.split("/").pop();
     if (!path) path = "index.html";
@@ -237,6 +237,10 @@
       enforceAuthGate();
       return;
     }
+
+    // 🔑 Check if this page wants to hide global Carrie
+    const noCarrie =
+      document.body && document.body.dataset.noGlobalCarrie === "true";
 
     // ---------- STYLES ----------
     const css = document.createElement("style");
@@ -508,7 +512,7 @@ body.menu-open #carrieWrap{
 
     // ---------- HTML SHELL ----------
     const ui = document.createElement("div");
-    ui.innerHTML = `
+    let html = `
 <div id="menuStripe">
   <div id="menuStripeText">STREAM 8BFR ON SPOTIFY</div>
 </div>
@@ -710,13 +714,14 @@ body.menu-open #carrieWrap{
   </div>
 </div>
 
-<
-</div>
-
 <button class="bubble" id="bubble-top-single" title="Back to top">
   <span>⬆️</span>
 </button>
+`;
 
+    // ✅ Only add global Carrie on pages that did NOT opt out
+    if (!noCarrie) {
+      html += `
 <div id="carrieWrap" title="Chat with Carrie (drag / resize)">
   <div id="carrieBubble">Chat with me</div>
   <video
@@ -729,6 +734,9 @@ body.menu-open #carrieWrap{
   ></video>
 </div>
 `;
+    }
+
+    ui.innerHTML = html;
     document.body.appendChild(ui);
 
     // ---------- MENU CONTROL ----------
@@ -994,8 +1002,8 @@ body.menu-open #carrieWrap{
     }
 
     const themes = [
-      { name: "dark",   bg: "linear-gradient(#0b0014,#000000)", color: "#eae6ff" },
-      { name: "light",  bg: "#f5f5ff",                            color: "#111827" },
+      { name: "dark", bg: "linear-gradient(#0b0014,#000000)", color: "#eae6ff" },
+      { name: "light", bg: "#f5f5ff", color: "#111827" },
       {
         name: "neon",
         bg: "radial-gradient(circle at 0% 0%, #00f5ff 0, #12001e 40%, #000 100%)",
