@@ -11,7 +11,7 @@
     personal: "assets/videos/carrie_casual_animate_3_1.webm",
   };
 
-  // Local-only mode + state
+  // Local-only state
   let carrieChatMode = "business"; // "business" | "personal"
   let supabaseClient = null;
 
@@ -31,7 +31,10 @@
     modeBusinessBtn,
     modePersonalBtn;
 
+  // Inline circle + bottom-right dock
   let inlineCarrieVideo = null;
+  let dockCarrieVideo = null;
+
   let currentUserId = null;
   let currentUserEmail = null;
 
@@ -61,7 +64,7 @@
     });
   }
 
-  // ----- inline Carrie circle
+  // ----- inline Carrie circle (above chat)
 
   function ensureInlineCarrie() {
     if (!chatLogEl || inlineCarrieVideo) return;
@@ -118,7 +121,59 @@
     }
   }
 
-  // ----- message renderer (tiny video avatar)
+  // ----- bottom-right Carrie dock (chat page only)
+
+  function ensureDockCarrie() {
+    if (dockCarrieVideo) return;
+
+    const dock = document.createElement("div");
+    dock.id = "carrieChatDock";
+    dock.style.position = "fixed";
+    dock.style.right = "16px";
+    dock.style.bottom = "16px";
+    dock.style.zIndex = "50";
+    dock.style.width = "70px";
+    dock.style.height = "70px";
+    dock.style.borderRadius = "9999px";
+    dock.style.border = "1px solid rgba(129,140,248,.9)";
+    dock.style.boxShadow = "0 0 18px rgba(124,58,237,.75)";
+    dock.style.overflow = "hidden";
+    dock.style.background = "rgba(10,2,26,.95)";
+
+    const vid = document.createElement("video");
+    vid.autoplay = true;
+    vid.loop = true;
+    vid.muted = true;
+    vid.playsInline = true;
+    vid.style.width = "100%";
+    vid.style.height = "100%";
+    vid.style.objectFit = "cover";
+
+    dock.appendChild(vid);
+    document.body.appendChild(dock);
+
+    dockCarrieVideo = vid;
+    updateDockCarrieVideo();
+  }
+
+  function updateDockCarrieVideo() {
+    if (!dockCarrieVideo) return;
+
+    const newSrc =
+      carrieChatMode === "business"
+        ? CARRIE_VIDEOS.business
+        : CARRIE_VIDEOS.personal;
+
+    if (dockCarrieVideo.getAttribute("src") !== newSrc) {
+      dockCarrieVideo.src = newSrc;
+      try {
+        dockCarrieVideo.load();
+        dockCarrieVideo.play().catch(() => {});
+      } catch (e) {}
+    }
+  }
+
+  // ----- message renderer (tiny avatar per reply)
 
   function renderMessage(role, content, createdAt) {
     if (!chatLogEl) return;
@@ -277,352 +332,4 @@
       id: "where_are_tools",
       patterns: [
         "where are the ai tools",
-        "where are the studio tools",
-        "how do i open studio tools",
-        "how do i use the ai studio",
-        "find lyrics ai",
-        "open lyrics ai",
-      ],
-      reply: `
-        All AI & studio tools live under the <b>Studio & AI</b> section in the floating menu.<br><br>
-        • <a href="lyrics-ai.html">Lyrics AI</a><br>
-        • <a href="song-ai.html">Song AI</a><br>
-        • <a href="album-ai.html">Album AI</a><br>
-        • <a href="voice-ai.html">Voice / Post VO</a><br><br>
-        Tell me your goal (song, album, story) and I’ll suggest which tool to start with.
-      `,
-    },
-  ];
-
-  function findCarrieScriptReply(userText) {
-    const normalized = normalizeText(userText);
-    for (const intent of carrieScripts) {
-      for (const pattern of intent.patterns) {
-        const p = normalizeText(pattern);
-        if (normalized.includes(p)) {
-          return intent.reply;
-        }
-      }
-    }
-    return null;
-  }
-
-  // ----- Carrie brain
-
-  function carrieBrain(userText) {
-    const t = userText.trim();
-    if (!t) {
-      return "I didn’t quite catch that — try asking me about music, games, or how 8BFR works.";
-    }
-
-    const lower = t.toLowerCase();
-
-    const scripted = findCarrieScriptReply(t);
-    if (scripted) return scripted;
-
-    if (carrieChatMode === "business") {
-      if (lower.includes("hook") || lower.includes("chorus")) {
-        return "Hooks love repetition and rhythm. Try a 2-bar phrase you can repeat 3–4 times, then tweak the last line. If you tell me your song topic and vibe, I can suggest some hook ideas.";
-      }
-      if (lower.includes("8bfr") || lower.includes("network")) {
-        return "8BFR Music Network is built to help creators connect — profiles, studio & AI tools, tournaments, and more. You can explore it all from the floating menu and the Network / Search page.";
-      }
-      if (lower.includes("beat") || lower.includes("bpm")) {
-        return "For rap and trap, a lot of people sit between 130–150 BPM (or 65–75 double-time). If you share your mood — dark, hype, chill — I can help you pick a BPM range and structure.";
-      }
-      if (lower.includes("tournament") || lower.includes("game")) {
-        return "Tournaments and games on 8BFR are meant to be low-stress and fun. You’ll see brackets, leaderboards, and coin rewards on the Games & Tournaments pages.";
-      }
-      if (lower.includes("lyrics") || lower.includes("write")) {
-        return "Give me 3 things: mood, topic, and an artist you’re inspired by. I’ll help you shape a verse structure or some starting lines you can tweak.";
-      }
-
-      const starters = [
-        "Got it — let’s keep it focused.",
-        "Okay, let’s turn that into a plan.",
-        "I hear you. Let’s break this into steps.",
-        "Nice. We can build that into something real.",
-      ];
-      const starter = starters[Math.floor(Math.random() * starters.length)];
-      return (
-        starter +
-        " Tell me your main goal in one sentence, and I’ll outline the next 3 moves."
-      );
-    }
-
-    // personal mode
-    const personalStarters = [
-      "I hear you 💜",
-      "Oof, I feel that.",
-      "You’re not alone in that.",
-      "Okay, let’s breathe for a second.",
-    ];
-
-    if (currentUserEmail === "8bfr.music@gmail.com") {
-      personalStarters.push(
-        "Hey Founder 💜 I’ve got you.",
-        "You’ve carried a lot today — let me carry the thinking for a bit.",
-        "You’re doing more than you give yourself credit for."
-      );
-    }
-
-    const starter =
-      personalStarters[Math.floor(Math.random() * personalStarters.length)];
-
-    return (
-      starter +
-      " Tell me what kind of vibe you need right now — hype, chill, or comfort — and I’ll roll with it."
-    );
-  }
-
-  // ----- typing indicator
-
-  function showTyping() {
-    if (typingRowEl) typingRowEl.classList.remove("hidden");
-  }
-  function hideTyping() {
-    if (typingRowEl) typingRowEl.classList.add("hidden");
-  }
-
-  // ----- mode + styles
-
-  function resetChatForMode() {
-    if (!chatLogEl) return;
-    chatLogEl.innerHTML = "";
-
-    const greeting =
-      carrieChatMode === "business"
-        ? "Hey, I’m Carrie 💼 Business mode is on — want help with a track, tools, or something on the 8BFR site?"
-        : "Hey, I’m Carrie 💜 Personal mode is on — want to vent, brainstorm, or just talk ideas for a bit?";
-
-    renderMessage("assistant", greeting, new Date());
-  }
-
-  function applyModeStyles() {
-    if (!modeBusinessBtn || !modePersonalBtn) return;
-
-    if (carrieChatMode === "business") {
-      modeBusinessBtn.style.background = "rgba(88,28,135,0.9)";
-      modeBusinessBtn.style.borderColor = "#a855f7";
-      modeBusinessBtn.style.color = "#fff";
-      modePersonalBtn.style.background = "transparent";
-      modePersonalBtn.style.borderColor = "transparent";
-      modePersonalBtn.style.color = "rgba(233,213,255,0.8)";
-    } else {
-      modePersonalBtn.style.background = "rgba(88,28,135,0.9)";
-      modePersonalBtn.style.borderColor = "#a855f7";
-      modePersonalBtn.style.color = "#fff";
-      modeBusinessBtn.style.background = "transparent";
-      modeBusinessBtn.style.borderColor = "transparent";
-      modeBusinessBtn.style.color = "rgba(233,213,255,0.8)";
-    }
-  }
-
-  function saveMode(mode) {
-    carrieChatMode = mode;
-    try {
-      localStorage.setItem("carrie_chat_mode", mode);
-    } catch {}
-    updateInlineCarrieVideo();
-    applyModeStyles();
-    resetChatForMode();
-  }
-
-  function loadMode() {
-    let stored = null;
-    try {
-      stored = localStorage.getItem("carrie_chat_mode");
-    } catch {}
-    carrieChatMode =
-      stored === "personal" || stored === "business" ? stored : "business";
-  }
-
-  // ----- trainer modal
-
-  function setupTrainer() {
-    if (!trainerForm) return;
-
-    trainerForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const q = (trainerQuestion.value || "").trim();
-      const aRaw = (trainerAnswer.value || "").trim();
-      if (!q || !aRaw) return;
-
-      const answerHtml = aRaw.replace(/\n/g, "<br>");
-      const entry = {
-        id: "custom_" + Date.now(),
-        patterns: [q],
-        reply: answerHtml,
-      };
-      carrieScripts.push(entry);
-
-      if (trainerStatus) {
-        trainerStatus.textContent =
-          "Saved! Carrie will now recognize that pattern in this session.";
-        trainerStatus.style.display = "block";
-      }
-
-      if (!supabaseClient) return;
-
-      try {
-        await supabaseClient.from("carrie_scripts").insert({
-          user_id: currentUserId,
-          email: currentUserEmail,
-          question_pattern: q,
-          reply_html: aRaw,
-        });
-      } catch (err) {
-        console.warn(
-          "Could not save carrie_scripts row (table might not exist yet)",
-          err
-        );
-      }
-    });
-
-    if (trainerBtn) {
-      trainerBtn.addEventListener("click", () => {
-        if (!trainerModal) return;
-        trainerModal.classList.remove("hidden");
-        if (trainerStatus) {
-          trainerStatus.style.display = "none";
-          trainerStatus.textContent = "";
-        }
-      });
-    }
-
-    if (trainerClose) {
-      trainerClose.addEventListener("click", () => {
-        if (!trainerModal) return;
-        trainerModal.classList.add("hidden");
-      });
-    }
-
-    if (trainerCancel) {
-      trainerCancel.addEventListener("click", (e) => {
-        e.preventDefault();
-        if (!trainerModal) return;
-        trainerModal.classList.add("hidden");
-      });
-    }
-  }
-
-  // ----- session (auth only, no history reload)
-
-  async function initSession() {
-    if (!supabaseClient) return;
-
-    try {
-      const { data, error } = await supabaseClient.auth.getSession();
-      if (error) throw error;
-
-      if (data && data.session && data.session.user) {
-        currentUserId = data.session.user.id;
-        currentUserEmail = data.session.user.email || null;
-        if (sessionLabelEl) {
-          sessionLabelEl.textContent =
-            "Logged in as " + (currentUserEmail || "8BFR user");
-        }
-        if (trainerBtn && currentUserEmail === "8bfr.music@gmail.com") {
-          trainerBtn.classList.remove("hidden");
-        }
-      } else {
-        currentUserId = null;
-        currentUserEmail = null;
-        if (sessionLabelEl) {
-          sessionLabelEl.textContent =
-            "Not logged in • Carrie will still chat, but history won’t be tied to an account.";
-        }
-      }
-    } catch (e) {
-      console.warn("Carrie session check failed", e);
-      if (sessionLabelEl) {
-        sessionLabelEl.textContent =
-          "Could not check login • you can still chat.";
-      }
-    }
-  }
-
-  // ----- input behavior
-
-  function setupInput() {
-    if (!inputEl || !formEl) return;
-
-    inputEl.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        formEl.requestSubmit();
-      }
-    });
-
-    formEl.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const raw = inputEl.value.trim();
-      if (!raw) return;
-
-      const userMsg = raw;
-      inputEl.value = "";
-      renderMessage("user", userMsg, new Date());
-      saveMessage("user", userMsg);
-      showTyping();
-
-      setTimeout(async () => {
-        const reply = carrieBrain(userMsg);
-        renderMessage("assistant", reply, new Date());
-        hideTyping();
-        saveMessage("assistant", reply);
-      }, 600 + Math.random() * 500);
-    });
-  }
-
-  // ----- init
-
-  function init() {
-    // Dom refs
-    chatLogEl = document.getElementById("chatLog");
-    formEl = document.getElementById("carrieForm");
-    inputEl = document.getElementById("carrieInput");
-    typingRowEl = document.getElementById("typingRow");
-    sessionLabelEl = document.getElementById("sessionIndicator");
-
-    trainerBtn = document.getElementById("trainerBtn");
-    trainerModal = document.getElementById("trainerModal");
-    trainerForm = document.getElementById("trainerForm");
-    trainerClose = document.getElementById("trainerClose");
-    trainerCancel = document.getElementById("trainerCancel");
-    trainerQuestion = document.getElementById("trainerQuestion");
-    trainerAnswer = document.getElementById("trainerAnswer");
-    trainerStatus = document.getElementById("trainerStatus");
-
-    modeBusinessBtn = document.getElementById("modeBusiness");
-    modePersonalBtn = document.getElementById("modePersonal");
-
-    // Supabase client
-    if (window.supabase && window.supabase.createClient) {
-      supabaseClient = window.supabase.createClient(
-        SUPABASE_URL,
-        SUPABASE_ANON_KEY
-      );
-    }
-
-    ensureInlineCarrie();
-    loadMode();
-    applyModeStyles();
-    resetChatForMode();
-    setupInput();
-    setupTrainer();
-    initSession();
-
-    if (modeBusinessBtn) {
-      modeBusinessBtn.addEventListener("click", () => saveMode("business"));
-    }
-    if (modePersonalBtn) {
-      modePersonalBtn.addEventListener("click", () => saveMode("personal"));
-    }
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
-  }
-})();
+        "where are
