@@ -33,15 +33,15 @@ const trainerQuestion = document.getElementById("trainerQuestion");
 const trainerAnswer   = document.getElementById("trainerAnswer");
 const trainerStatus   = document.getElementById("trainerStatus");
 
-const modeBusinessBtn = document.getElementById("modeBusiness");
-const modePersonalBtn = document.getElementById("modePersonal");
-
-const clearChatBtn    = document.getElementById("clearChatBtn");
-const hardResetBtn    = document.getElementById("hardResetBtn");
+const modeBusinessBtn      = document.getElementById("modeBusiness");
+const modePersonalBtn      = document.getElementById("modePersonal");
+const personaNeutralBtn    = document.getElementById("personaNeutral");
+const personaGirlfriendBtn = document.getElementById("personaGirlfriend");
 
 let currentUserId    = null;
 let currentUserEmail = null;
-let currentMode      = "business"; // "business" | "personal"
+let currentMode      = "business";  // "business" | "personal"
+let currentPersona   = "neutral";   // "neutral" | "girlfriend"
 
 // Inline Carrie circle for this page only
 let inlineCarrieVideo = null;
@@ -234,24 +234,6 @@ let carrieScripts = [
     `,
   },
   {
-    id: "buy_coins",
-    patterns: [
-      "how do i buy coins",
-      "where do i buy coins",
-      "how can i get coins",
-      "how do i get coins",
-      "buy coins",
-      "purchase coins"
-    ],
-    reply: `
-      8BFR coins connect to games, upgrades, and rewards.<br><br>
-      • Go to the <a href="coinshop.html">Coin Shop</a> to see coin packs.<br>
-      • Some games also reward free coins for wins or tournaments.<br>
-      • Check <a href="game-coin-shop.html">Game Coin Shop</a> for game-specific items.<br><br>
-      If you tell me what you want to unlock, I can suggest the smallest coin pack that fits. 🪙
-    `,
-  },
-  {
     id: "what_is_8bfr",
     patterns: [
       "what is 8bfr",
@@ -317,7 +299,49 @@ function findCarrieScriptReply(userText) {
   return null;
 }
 
-// ------- Carrie brain with Business / Personal mode
+// ------- Mode + Persona persistence
+
+function saveMode(mode) {
+  currentMode = mode;
+  try {
+    localStorage.setItem("carrie_mode", mode);
+  } catch {}
+  applyModeStyles();
+}
+
+function loadMode() {
+  let stored = null;
+  try {
+    stored = localStorage.getItem("carrie_mode");
+  } catch {}
+  if (stored === "business" || stored === "personal") {
+    currentMode = stored;
+  } else {
+    currentMode = "business";
+  }
+}
+
+function savePersona(persona) {
+  currentPersona = persona;
+  try {
+    localStorage.setItem("carrie_persona", persona);
+  } catch {}
+  applyModeStyles();
+}
+
+function loadPersona() {
+  let stored = null;
+  try {
+    stored = localStorage.getItem("carrie_persona");
+  } catch {}
+  if (stored === "girlfriend" || stored === "neutral") {
+    currentPersona = stored;
+  } else {
+    currentPersona = "neutral";
+  }
+}
+
+// ------- Carrie brain with Business / Personal / Girlfriend
 
 function carrieBrain(userText) {
   const t = userText.trim();
@@ -326,6 +350,28 @@ function carrieBrain(userText) {
   }
 
   const lower = t.toLowerCase();
+
+  // 0) Persona commands (secret phrases)
+  if (
+    lower.includes("girlfriend mode") ||
+    lower.includes("gf mode") ||
+    lower.includes("act like my girlfriend") ||
+    lower.includes("be my girlfriend")
+  ) {
+    saveMode("personal");
+    savePersona("girlfriend");
+    return "Okay baby 💜 Switching to girlfriend mode — still PG, but I’m here like your girl now. What’s going on with you?";
+  }
+
+  if (
+    lower.includes("normal mode") ||
+    lower.includes("back to normal") ||
+    lower.includes("turn off girlfriend") ||
+    lower.includes("stop girlfriend")
+  ) {
+    savePersona("neutral");
+    return "Got it 💜 I’ll dial it back to normal personal mode, but I’m still right here for you.";
+  }
 
   // 1) scripted answers first
   const scripted = findCarrieScriptReply(t);
@@ -359,7 +405,21 @@ function carrieBrain(userText) {
     );
   }
 
-  // 3) personal mode
+  // 3) personal mode (normal or girlfriend)
+  if (currentPersona === "girlfriend") {
+    const gfStarters = [
+      "Baby, I hear you 💜",
+      "Hey love, I’ve got you.",
+      "Come here, I’m right here with you.",
+      "Okay honey, let’s talk about it.",
+    ];
+    const line = gfStarters[Math.floor(Math.random() * gfStarters.length)];
+    return (
+      line +
+      " Tell me what’s on your mind — good or bad — and I’ll be your supportive girlfriend, no judgment, all PG cuddles and hype."
+    );
+  }
+
   const personalStarters = [
     "I hear you 💜",
     "Oof, I feel that.",
@@ -393,59 +453,71 @@ function hideTyping() {
   if (typingRowEl) typingRowEl.classList.add("hidden");
 }
 
-// ------- Mode toggle (also updates circle + avatar + hint)
+// ------- Mode + Persona toggle (also updates circle + avatar + hint)
 
 function applyModeStyles() {
-  if (!modeBusinessBtn || !modePersonalBtn) return;
+  // ---- Mode buttons ----
+  if (modeBusinessBtn && modePersonalBtn) {
+    if (currentMode === "business") {
+      modeBusinessBtn.style.background   = "rgba(88,28,135,0.9)";
+      modeBusinessBtn.style.borderColor  = "#a855f7";
+      modeBusinessBtn.style.color        = "#fff";
 
-  if (currentMode === "business") {
-    modeBusinessBtn.style.background = "rgba(88,28,135,0.9)";
-    modeBusinessBtn.style.borderColor = "#a855f7";
-    modeBusinessBtn.style.color = "#fff";
-    modePersonalBtn.style.background = "transparent";
-    modePersonalBtn.style.borderColor = "transparent";
-    modePersonalBtn.style.color = "rgba(233,213,255,0.8)";
-    if (modeHintEl) {
-      modeHintEl.textContent =
-        "Business chat • focused on tools, music, and progress";
-    }
-  } else {
-    modePersonalBtn.style.background = "rgba(88,28,135,0.9)";
-    modePersonalBtn.style.borderColor = "#a855f7";
-    modePersonalBtn.style.color = "#fff";
-    modeBusinessBtn.style.background = "transparent";
-    modeBusinessBtn.style.borderColor = "transparent";
-    modeBusinessBtn.style.color = "rgba(233,213,255,0.8)";
-    if (modeHintEl) {
-      modeHintEl.textContent =
-        "Personal chat • softer tone, still PG-13 and helpful";
+      modePersonalBtn.style.background   = "transparent";
+      modePersonalBtn.style.borderColor  = "transparent";
+      modePersonalBtn.style.color        = "rgba(233,213,255,0.8)";
+    } else {
+      modePersonalBtn.style.background   = "rgba(88,28,135,0.9)";
+      modePersonalBtn.style.borderColor  = "#a855f7";
+      modePersonalBtn.style.color        = "#fff";
+
+      modeBusinessBtn.style.background   = "transparent";
+      modeBusinessBtn.style.borderColor  = "transparent";
+      modeBusinessBtn.style.color        = "rgba(233,213,255,0.8)";
     }
   }
 
+  // ---- Persona buttons ----
+  if (personaNeutralBtn && personaGirlfriendBtn) {
+    if (currentPersona === "girlfriend") {
+      personaGirlfriendBtn.style.background  = "rgba(88,28,135,0.9)";
+      personaGirlfriendBtn.style.borderColor = "#a855f7";
+      personaGirlfriendBtn.style.color       = "#fff";
+
+      personaNeutralBtn.style.background     = "transparent";
+      personaNeutralBtn.style.borderColor    = "transparent";
+      personaNeutralBtn.style.color          = "rgba(233,213,255,0.8)";
+    } else {
+      personaNeutralBtn.style.background     = "rgba(88,28,135,0.9)";
+      personaNeutralBtn.style.borderColor    = "#a855f7";
+      personaNeutralBtn.style.color          = "#fff";
+
+      personaGirlfriendBtn.style.background  = "transparent";
+      personaGirlfriendBtn.style.borderColor = "transparent";
+      personaGirlfriendBtn.style.color       = "rgba(233,213,255,0.8)";
+    }
+  }
+
+  // ---- Hint text ----
+  if (modeHintEl) {
+    let hintText;
+    if (currentMode === "business") {
+      hintText = "Business chat • focused on tools, music, and progress";
+    } else {
+      if (currentPersona === "girlfriend") {
+        hintText = "Girlfriend mode • affectionate, PG-13, supportive";
+      } else {
+        hintText = "Personal chat • softer tone, still PG-13 and helpful";
+      }
+    }
+    modeHintEl.textContent = hintText;
+  }
+
+  // ---- Update the inline Carrie circle video ----
   updateInlineCarrieVideo();
 }
 
-function saveMode(mode) {
-  currentMode = mode;
-  try {
-    localStorage.setItem("carrie_mode", mode);
-  } catch {}
-  applyModeStyles();
-}
-
-function loadMode() {
-  let stored = null;
-  try {
-    stored = localStorage.getItem("carrie_mode");
-  } catch {}
-  if (stored === "business" || stored === "personal") {
-    currentMode = stored;
-  } else {
-    currentMode = "business";
-  }
-  applyModeStyles();
-}
-
+// Mode button listeners
 if (modeBusinessBtn) {
   modeBusinessBtn.addEventListener("click", () => saveMode("business"));
 }
@@ -453,44 +525,16 @@ if (modePersonalBtn) {
   modePersonalBtn.addEventListener("click", () => saveMode("personal"));
 }
 
-// ------- Clear chat + Reset history
-
-if (clearChatBtn) {
-  clearChatBtn.addEventListener("click", () => {
-    if (!chatLogEl) return;
-    chatLogEl.innerHTML = "";
-    renderMessage(
-      "assistant",
-      "New chat started 💜 Tell me what you want to work on — music, games, or something else?"
-    );
+// Persona button listeners
+if (personaNeutralBtn) {
+  personaNeutralBtn.addEventListener("click", () => {
+    savePersona("neutral");
   });
 }
-
-if (hardResetBtn) {
-  hardResetBtn.addEventListener("click", async () => {
-    if (!supabase || !currentUserId) return;
-    const ok = window.confirm(
-      "This will delete all stored Carrie chat history for your account. Continue?"
-    );
-    if (!ok) return;
-
-    try {
-      await supabase
-        .from("carrie_chat_logs")
-        .delete()
-        .eq("user_id", currentUserId);
-
-      if (chatLogEl) {
-        chatLogEl.innerHTML = "";
-        renderMessage(
-          "assistant",
-          "History cleared. Fresh start 💜 What do you want to do first?"
-        );
-      }
-    } catch (e) {
-      console.warn("Failed to reset Carrie history", e);
-      alert("I couldn't reset history just now. Check console for details.");
-    }
+if (personaGirlfriendBtn) {
+  personaGirlfriendBtn.addEventListener("click", () => {
+    saveMode("personal");
+    savePersona("girlfriend");
   });
 }
 
@@ -596,9 +640,6 @@ async function initSessionAndHistory() {
       if (trainerBtn && currentUserEmail === "8bfr.music@gmail.com") {
         trainerBtn.classList.remove("hidden");
       }
-      if (hardResetBtn && currentUserEmail === "8bfr.music@gmail.com") {
-        hardResetBtn.classList.remove("hidden");
-      }
     } else {
       currentUserId = null;
       currentUserEmail = null;
@@ -683,6 +724,7 @@ if (inputEl && formEl) {
 // ------- Init
 
 loadMode();
+loadPersona();
 ensureInlineCarrie();
 applyModeStyles();
 initSessionAndHistory();
