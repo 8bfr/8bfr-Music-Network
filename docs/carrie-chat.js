@@ -1,24 +1,50 @@
 // carrie-chat.js
-// Simple standalone brain for carrie-chat.html (no Supabase)
+// Standalone logic for carrie-chat.html
+
+const SUPABASE_URL = "https://novbuvwpjnxwwvdekjhr.supabase.co";
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0";
 
 const CARRIE_VIDEOS = {
   business: "assets/videos/carrie_business_animate.webm",
   personal: "assets/videos/carrie_casual_animate_3_1.webm",
 };
 
+// Safely create Supabase client
+let supabase = null;
+if (window.supabase && window.supabase.createClient) {
+  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+
 // DOM refs
 const chatLogEl      = document.getElementById("chatLog");
 const formEl         = document.getElementById("carrieForm");
 const inputEl        = document.getElementById("carrieInput");
 const typingRowEl    = document.getElementById("typingRow");
+const sessionLabelEl = document.getElementById("sessionIndicator");
 const modeHintEl     = document.getElementById("modeHint");
+
+const trainerBtn      = document.getElementById("trainerBtn");
+const trainerModal    = document.getElementById("trainerModal");
+const trainerForm     = document.getElementById("trainerForm");
+const trainerClose    = document.getElementById("trainerClose");
+const trainerCancel   = document.getElementById("trainerCancel");
+const trainerQuestion = document.getElementById("trainerQuestion");
+const trainerAnswer   = document.getElementById("trainerAnswer");
+const trainerStatus   = document.getElementById("trainerStatus");
+
 const modeBusinessBtn = document.getElementById("modeBusiness");
 const modePersonalBtn = document.getElementById("modePersonal");
 
-let currentMode = "business"; // "business" | "personal"
+let currentUserId    = null;
+let currentUserEmail = null;
+let currentMode      = "business"; // "business" | "personal"
+
+// Inline Carrie circle for this page only
 let inlineCarrieVideo = null;
 
-// ---------- helpers ----------
+// ------- helpers
+
 function normalizeText(text) {
   return text.toLowerCase().replace(/\s+/g, " ").trim();
 }
@@ -43,7 +69,8 @@ function scrollChatToBottom() {
   });
 }
 
-// ---------- inline Carrie circle ----------
+// ------- Inline Carrie circle (top-left of chat window)
+
 function ensureInlineCarrie() {
   if (!chatLogEl || inlineCarrieVideo) return;
 
@@ -70,13 +97,14 @@ function ensureInlineCarrie() {
   const caption = document.createElement("p");
   caption.id = "carrieModeCaption";
   caption.textContent =
-    "Carrie’s outfit here follows the mode you pick: Business or Personal.";
+    "Carrie’s outfit here matches Business / Personal mode.";
   caption.style.fontSize = "11px";
   caption.style.color = "rgba(233,213,255,0.8)";
 
   wrapper.appendChild(vid);
   wrapper.appendChild(caption);
 
+  // insert above chat log
   chatLogEl.parentNode.insertBefore(wrapper, chatLogEl);
   inlineCarrieVideo = vid;
 
@@ -85,6 +113,7 @@ function ensureInlineCarrie() {
 
 function updateInlineCarrieVideo() {
   if (!inlineCarrieVideo) return;
+
   const newSrc =
     currentMode === "business" ? CARRIE_VIDEOS.business : CARRIE_VIDEOS.personal;
 
@@ -97,7 +126,8 @@ function updateInlineCarrieVideo() {
   }
 }
 
-// ---------- message render ----------
+// ------- chat message renderer (Carrie avatar uses same video as circle)
+
 function renderMessage(role, content, createdAt) {
   if (!chatLogEl) return;
 
@@ -121,6 +151,15 @@ function renderMessage(role, content, createdAt) {
     avatarVid.style.width     = "100%";
     avatarVid.style.height    = "100%";
     avatarVid.style.objectFit = "cover";
+
+    avatarVid.onerror = function () {
+      this.onerror = null;
+      const img = document.createElement("img");
+      img.src = "assets/images/default_user_35_40_girl.png";
+      img.alt = "Carrie avatar";
+      avatar.innerHTML = "";
+      avatar.appendChild(img);
+    };
 
     avatar.appendChild(avatarVid);
   } else {
@@ -156,8 +195,22 @@ function renderMessage(role, content, createdAt) {
   scrollChatToBottom();
 }
 
-// ---------- tiny local "brain" ----------
-const carrieScripts = [
+async function saveMessage(role, content) {
+  if (!supabase || !currentUserId) return;
+  try {
+    await supabase.from("carrie_chat_logs").insert({
+      user_id: currentUserId,
+      role,
+      content,
+    });
+  } catch (e) {
+    console.warn("Failed to save Carrie chat message", e);
+  }
+}
+
+// ------- scripted Q&A
+
+let carrieScripts = [
   {
     id: "buy_8bfr_music",
     patterns: [
@@ -243,6 +296,8 @@ function findCarrieScriptReply(userText) {
   return null;
 }
 
+// ------- Carrie brain with Business / Personal mode
+
 function carrieBrain(userText) {
   const t = userText.trim();
   if (!t) {
@@ -251,10 +306,11 @@ function carrieBrain(userText) {
 
   const lower = t.toLowerCase();
 
-  // scripted answers first
+  // 1) scripted answers first
   const scripted = findCarrieScriptReply(t);
   if (scripted) return scripted;
 
+  // 2) business mode
   if (currentMode === "business") {
     if (lower.includes("hook") || lower.includes("chorus")) {
       return "Hooks love repetition and rhythm. Try a 2-bar phrase you can repeat 3–4 times, then tweak the last line. Tell me your topic and vibe and I’ll throw you some starter lines.";
@@ -264,6 +320,9 @@ function carrieBrain(userText) {
     }
     if (lower.includes("lyrics") || lower.includes("write")) {
       return "Give me 3 things: mood, topic, and an artist you like. I’ll suggest a verse layout and a few starter bars you can edit.";
+    }
+    if (lower.includes("tournament") || lower.includes("game")) {
+      return "Tournaments and games on 8BFR are meant to be low-stress and fun. You’ll see brackets, leaderboards, and coin rewards on the Games & Tournaments pages.";
     }
 
     const starters = [
@@ -279,13 +338,22 @@ function carrieBrain(userText) {
     );
   }
 
-  // personal mode
+  // 3) personal mode
   const personalStarters = [
     "I hear you 💜",
     "Oof, I feel that.",
     "You’re not alone in that.",
     "Okay, let’s breathe for a second.",
   ];
+
+  if (currentUserEmail === "8bfr.music@gmail.com") {
+    personalStarters.push(
+      "Hey Founder 💜 I’ve got you.",
+      "You’ve carried a lot today — let me carry the thinking for a bit.",
+      "You’re doing more than you give yourself credit for."
+    );
+  }
+
   const starter =
     personalStarters[Math.floor(Math.random() * personalStarters.length)];
 
@@ -295,7 +363,8 @@ function carrieBrain(userText) {
   );
 }
 
-// ---------- typing ----------
+// ------- Typing indicator
+
 function showTyping() {
   if (typingRowEl) typingRowEl.classList.remove("hidden");
 }
@@ -303,7 +372,8 @@ function hideTyping() {
   if (typingRowEl) typingRowEl.classList.add("hidden");
 }
 
-// ---------- mode toggle ----------
+// ------- Mode toggle (also updates circle + avatar + hint)
+
 function applyModeStyles() {
   if (!modeBusinessBtn || !modePersonalBtn) return;
 
@@ -314,7 +384,6 @@ function applyModeStyles() {
     modePersonalBtn.style.background = "transparent";
     modePersonalBtn.style.borderColor = "transparent";
     modePersonalBtn.style.color = "rgba(233,213,255,0.8)";
-
     if (modeHintEl) {
       modeHintEl.textContent =
         "Business chat • focused on tools, music, and progress";
@@ -326,7 +395,6 @@ function applyModeStyles() {
     modeBusinessBtn.style.background = "transparent";
     modeBusinessBtn.style.borderColor = "transparent";
     modeBusinessBtn.style.color = "rgba(233,213,255,0.8)";
-
     if (modeHintEl) {
       modeHintEl.textContent =
         "Personal chat • softer tone, still PG-13 and helpful";
@@ -357,7 +425,6 @@ function loadMode() {
   applyModeStyles();
 }
 
-// buttons
 if (modeBusinessBtn) {
   modeBusinessBtn.addEventListener("click", () => saveMode("business"));
 }
@@ -365,7 +432,161 @@ if (modePersonalBtn) {
   modePersonalBtn.addEventListener("click", () => saveMode("personal"));
 }
 
-// ---------- input / chat ----------
+// ------- Trainer modal (owner only)
+
+function openTrainer() {
+  if (!trainerModal) return;
+  trainerModal.classList.remove("hidden");
+  if (trainerStatus) {
+    trainerStatus.style.display = "none";
+    trainerStatus.textContent = "";
+  }
+}
+function closeTrainer() {
+  if (!trainerModal) return;
+  trainerModal.classList.add("hidden");
+  if (trainerQuestion) trainerQuestion.value = "";
+  if (trainerAnswer) trainerAnswer.value = "";
+  if (trainerStatus) {
+    trainerStatus.style.display = "none";
+    trainerStatus.textContent = "";
+  }
+}
+
+if (trainerBtn) {
+  trainerBtn.addEventListener("click", () => openTrainer());
+}
+if (trainerClose) {
+  trainerClose.addEventListener("click", () => closeTrainer());
+}
+if (trainerCancel) {
+  trainerCancel.addEventListener("click", (e) => {
+    e.preventDefault();
+    closeTrainer();
+  });
+}
+
+if (trainerForm) {
+  trainerForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const q = (trainerQuestion.value || "").trim();
+    const aRaw = (trainerAnswer.value || "").trim();
+    if (!q || !aRaw) return;
+
+    const answerHtml = aRaw.replace(/\n/g, "<br>");
+    const entry = {
+      id: "custom_" + Date.now(),
+      patterns: [q],
+      reply: answerHtml,
+    };
+    carrieScripts.push(entry);
+
+    if (trainerStatus) {
+      trainerStatus.textContent =
+        "Saved! Carrie will now recognize that pattern in this session.";
+      trainerStatus.style.display = "block";
+    }
+
+    if (!supabase) return;
+
+    try {
+      await supabase.from("carrie_scripts").insert({
+        user_id: currentUserId,
+        email: currentUserEmail,
+        question_pattern: q,
+        reply_html: aRaw,
+      });
+    } catch (err) {
+      console.warn(
+        "Could not save carrie_scripts row (table might not exist yet)",
+        err
+      );
+    }
+  });
+}
+
+// ------- Session + history
+
+async function initSessionAndHistory() {
+  if (!supabase) {
+    if (sessionLabelEl) {
+      sessionLabelEl.textContent =
+        "Not logged in • Carrie will still chat, but history won’t be saved.";
+    }
+    renderMessage(
+      "assistant",
+      "Hey, I’m Carrie 💜 What are you working on today — music, writing, games, or something else?"
+    );
+    return;
+  }
+
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+
+    if (data && data.session && data.session.user) {
+      currentUserId = data.session.user.id;
+      currentUserEmail = data.session.user.email || null;
+      if (sessionLabelEl) {
+        sessionLabelEl.textContent =
+          "Logged in as " + (currentUserEmail || "8BFR user");
+      }
+      if (trainerBtn && currentUserEmail === "8bfr.music@gmail.com") {
+        trainerBtn.classList.remove("hidden");
+      }
+    } else {
+      currentUserId = null;
+      currentUserEmail = null;
+      if (sessionLabelEl) {
+        sessionLabelEl.textContent =
+          "Not logged in • Carrie will still chat, but history won’t be tied to an account.";
+      }
+    }
+  } catch (e) {
+    console.warn("Carrie session check failed", e);
+    if (sessionLabelEl) {
+      sessionLabelEl.textContent =
+        "Could not check login • you can still chat.";
+    }
+  }
+
+  if (!currentUserId) {
+    renderMessage(
+      "assistant",
+      "Hey, I’m Carrie 💜 What are you working on today — music, writing, games, or something else?"
+    );
+    return;
+  }
+
+  try {
+    const { data: rows, error } = await supabase
+      .from("carrie_chat_logs")
+      .select("*")
+      .eq("user_id", currentUserId)
+      .order("created_at", { ascending: true })
+      .limit(40);
+
+    if (error) throw error;
+
+    if (rows && rows.length) {
+      rows.forEach((r) => renderMessage(r.role, r.content, r.created_at));
+    } else {
+      renderMessage(
+        "assistant",
+        "Hey, I’m Carrie 💜 First time here — want help with a track, a story, or exploring the 8BFR Network?"
+      );
+    }
+  } catch (e) {
+    console.warn("Could not load Carrie history", e);
+    renderMessage(
+      "assistant",
+      "Hey, I’m Carrie 💜 I had a tiny glitch loading history, but we can start fresh right now."
+    );
+  }
+}
+
+// ------- Input behavior
+
 if (inputEl && formEl) {
   inputEl.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -374,7 +595,7 @@ if (inputEl && formEl) {
     }
   });
 
-  formEl.addEventListener("submit", (e) => {
+  formEl.addEventListener("submit", async (e) => {
     e.preventDefault();
     const raw = inputEl.value.trim();
     if (!raw) return;
@@ -382,24 +603,21 @@ if (inputEl && formEl) {
     const userMsg = raw;
     inputEl.value = "";
     renderMessage("user", userMsg, new Date());
+    saveMessage("user", userMsg);
     showTyping();
 
-    setTimeout(() => {
+    setTimeout(async () => {
       const reply = carrieBrain(userMsg);
       renderMessage("assistant", reply, new Date());
       hideTyping();
+      saveMessage("assistant", reply);
     }, 600 + Math.random() * 500);
   });
 }
 
-// ---------- init ----------
+// ------- Init
+
 loadMode();
 ensureInlineCarrie();
 applyModeStyles();
-
-// initial greeting
-renderMessage(
-  "assistant",
-  "Hey, I’m Carrie 💜 What are you working on today — music, writing, games, or something else?",
-  new Date()
-);
+initSessionAndHistory();
