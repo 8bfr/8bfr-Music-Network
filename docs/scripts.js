@@ -722,7 +722,7 @@ body.menu-open #carrieWrap{
     // ✅ Only add global Carrie on pages that did NOT opt out
     if (!noCarrie) {
       html += `
-<div id="carrieWrap" title="Chat with Carrie (drag / resize)">
+<div id="carrieWrap" title="Chat avatar (global)">
   <div id="carrieBubble">Chat with me</div>
   <video
     id="carrie"
@@ -732,6 +732,38 @@ body.menu-open #carrieWrap{
     muted
     playsinline
   ></video>
+</div>
+
+<!-- Small global avatar switcher (Carrie / James) -->
+<div id="globalAvatarSwitch" style="
+  position:fixed;
+  right:16px;
+  bottom:18px;
+  z-index:9998;
+  display:flex;
+  gap:4px;
+  font-size:10px;
+">
+  <button data-avatar="carrie" style="
+    padding:2px 6px;
+    border-radius:999px;
+    border:1px solid rgba(129,140,248,.9);
+    background:rgba(15,23,42,.9);
+    color:#e5e7eb;
+    cursor:pointer;
+  ">
+    Carrie
+  </button>
+  <button data-avatar="james" style="
+    padding:2px 6px;
+    border-radius:999px;
+    border:1px solid rgba(129,140,248,.4);
+    background:rgba(10,10,20,.8);
+    color:#e5e7eb;
+    cursor:pointer;
+  ">
+    James
+  </button>
 </div>
 `;
     }
