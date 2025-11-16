@@ -1,384 +1,405 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Chat with Carrie — 8BFR Music Network</title>
-  <meta name="description" content="Chat with Carrie — your AI assistant on the 8BFR Music Network." />
-  <link rel="icon" href="assets/images/favicon.png" />
-  <script src="https://cdn.tailwindcss.com"></script>
+// carrie-chat.js
+// Simple standalone brain for carrie-chat.html (no Supabase)
 
-  <style>
-    :root {
-      --ring: rgba(124,58,237,.55);
-      --glass: rgba(12,6,24,.80);
+const CARRIE_VIDEOS = {
+  business: "assets/videos/carrie_business_animate.webm",
+  personal: "assets/videos/carrie_casual_animate_3_1.webm",
+};
+
+// DOM refs
+const chatLogEl      = document.getElementById("chatLog");
+const formEl         = document.getElementById("carrieForm");
+const inputEl        = document.getElementById("carrieInput");
+const typingRowEl    = document.getElementById("typingRow");
+const modeHintEl     = document.getElementById("modeHint");
+const modeBusinessBtn = document.getElementById("modeBusiness");
+const modePersonalBtn = document.getElementById("modePersonal");
+
+let currentMode = "business"; // "business" | "personal"
+let inlineCarrieVideo = null;
+
+// ---------- helpers ----------
+function normalizeText(text) {
+  return text.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function fmtTime(dt) {
+  try {
+    const d = typeof dt === "string" ? new Date(dt) : dt;
+    return d.toLocaleTimeString(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "";
+  }
+}
+
+function scrollChatToBottom() {
+  requestAnimationFrame(() => {
+    if (chatLogEl) {
+      chatLogEl.scrollTop = chatLogEl.scrollHeight;
     }
-    html,body { scroll-behavior:smooth; }
-    body {
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
-      background:
-        radial-gradient(1200px 600px at 10% -10%, rgba(124,58,237,.35), transparent 60%),
-        radial-gradient(900px 400px at 110% 10%, rgba(0,217,255,.22), transparent 60%),
-        linear-gradient(#0b0014,#000);
-      color:#eae6ff;
-      margin:0;
-      min-height:100vh;
-      overflow-x:hidden;
+  });
+}
+
+// ---------- inline Carrie circle ----------
+function ensureInlineCarrie() {
+  if (!chatLogEl || inlineCarrieVideo) return;
+
+  const wrapper = document.createElement("div");
+  wrapper.id = "carrieChatInline";
+  wrapper.style.display = "flex";
+  wrapper.style.alignItems = "center";
+  wrapper.style.gap = "0.75rem";
+  wrapper.style.marginBottom = "0.75rem";
+
+  const vid = document.createElement("video");
+  vid.id = "carrieChatVideo";
+  vid.autoplay = true;
+  vid.loop = true;
+  vid.muted = true;
+  vid.playsInline = true;
+  vid.style.width = "72px";
+  vid.style.height = "72px";
+  vid.style.borderRadius = "9999px";
+  vid.style.border = "1px solid rgba(129,140,248,.9)";
+  vid.style.boxShadow = "0 0 14px rgba(124,58,237,.55)";
+  vid.style.objectFit = "cover";
+
+  const caption = document.createElement("p");
+  caption.id = "carrieModeCaption";
+  caption.textContent =
+    "Carrie’s outfit here follows the mode you pick: Business or Personal.";
+  caption.style.fontSize = "11px";
+  caption.style.color = "rgba(233,213,255,0.8)";
+
+  wrapper.appendChild(vid);
+  wrapper.appendChild(caption);
+
+  chatLogEl.parentNode.insertBefore(wrapper, chatLogEl);
+  inlineCarrieVideo = vid;
+
+  updateInlineCarrieVideo();
+}
+
+function updateInlineCarrieVideo() {
+  if (!inlineCarrieVideo) return;
+  const newSrc =
+    currentMode === "business" ? CARRIE_VIDEOS.business : CARRIE_VIDEOS.personal;
+
+  if (inlineCarrieVideo.getAttribute("src") !== newSrc) {
+    inlineCarrieVideo.src = newSrc;
+    try {
+      inlineCarrieVideo.load();
+      inlineCarrieVideo.play().catch(() => {});
+    } catch (e) {}
+  }
+}
+
+// ---------- message render ----------
+function renderMessage(role, content, createdAt) {
+  if (!chatLogEl) return;
+
+  const row = document.createElement("div");
+  row.className = "msg-row " + (role === "user" ? "user" : "assistant");
+
+  const avatar = document.createElement("div");
+  avatar.className = "msg-avatar";
+
+  if (role === "assistant") {
+    const avatarVid = document.createElement("video");
+    avatarVid.src =
+      currentMode === "business"
+        ? CARRIE_VIDEOS.business
+        : CARRIE_VIDEOS.personal;
+
+    avatarVid.autoplay    = true;
+    avatarVid.muted       = true;
+    avatarVid.loop        = true;
+    avatarVid.playsInline = true;
+    avatarVid.style.width     = "100%";
+    avatarVid.style.height    = "100%";
+    avatarVid.style.objectFit = "cover";
+
+    avatar.appendChild(avatarVid);
+  } else {
+    avatar.textContent = "You";
+  }
+
+  const bubble = document.createElement("div");
+  bubble.className = "msg-bubble";
+
+  const textDiv = document.createElement("div");
+  if (role === "assistant") {
+    textDiv.innerHTML = content;
+  } else {
+    textDiv.textContent = content;
+  }
+  bubble.appendChild(textDiv);
+
+  const meta = document.createElement("div");
+  meta.className = "msg-meta";
+  meta.textContent =
+    (role === "assistant" ? "Carrie • " : "You • ") +
+    fmtTime(createdAt || new Date());
+  bubble.appendChild(meta);
+
+  if (role === "assistant") {
+    row.appendChild(avatar);
+    row.appendChild(bubble);
+  } else {
+    row.appendChild(bubble);
+  }
+
+  chatLogEl.appendChild(row);
+  scrollChatToBottom();
+}
+
+// ---------- tiny local "brain" ----------
+const carrieScripts = [
+  {
+    id: "buy_8bfr_music",
+    patterns: [
+      "how do i purchase 8bfr music",
+      "how do i buy 8bfr music",
+      "where can i buy 8bfr",
+      "how can i purchase 8bfr",
+      "how do i purchase 8 bfr music",
+      "buy 8bfr music",
+      "purchase 8bfr",
+    ],
+    reply: `
+      You can support 8BFR by buying or streaming the music here:<br><br>
+      • <b>Amazon Music</b> — search for “8BFR” in the Amazon Music store.<br>
+      • <b>Spotify</b> — <a href="https://open.spotify.com/artist/127tw52iDXr7BvgB0IGG2x" target="_blank" rel="noopener">stream 8BFR here</a>.<br>
+      • <b>Other platforms</b> — most 8BFR releases appear in Apple Music, YouTube Music, etc.<br><br>
+      If you need help finding a song, tell me the title and I’ll guide you. 💜
+    `,
+  },
+  {
+    id: "what_is_8bfr",
+    patterns: [
+      "what is 8bfr",
+      "what is 8bfr music network",
+      "tell me about 8bfr",
+      "what is this site",
+    ],
+    reply: `
+      8BFR Music Network is a creator hub where artists, beatmakers, gamers,
+      authors, and fans can <b>Create • Connect • Collab</b>.<br><br>
+      I’m Carrie — your AI guide for music, tools, profiles, and site help. 😊
+    `,
+  },
+  {
+    id: "studio_tools",
+    patterns: [
+      "where are the studio tools",
+      "how do i open studio",
+      "open studio tools",
+      "show me ai tools",
+      "where is lyrics ai",
+      "how do i use song ai",
+    ],
+    reply: `
+      Studio & AI tools live on the <b>Studio Tools</b> page.<br><br>
+      • <a href="studio-tools.html">Open Studio Tools</a><br>
+      • <a href="lyrics-ai.html">Lyrics AI</a><br>
+      • <a href="song-ai.html">Song AI</a><br>
+      • <a href="album-ai.html">Album AI</a><br>
+      • <a href="voice-ai.html">Voice / Post VO</a><br><br>
+      I can help you plan a song, outline an album, or clean up vocals — just tell me what you’re working on.
+    `,
+  },
+  {
+    id: "ads_info",
+    patterns: [
+      "how do ads work",
+      "how do the ads work",
+      "explain ads",
+      "what are featured ads",
+      "tell me about buying ads",
+    ],
+    reply: `
+      The home page has 5 rotating <b>Featured Ads</b> slots.<br><br>
+      • Tap <b>“Buy an Ad”</b> under the carousel to send your info.<br>
+      • After approval, your artwork + link appear in rotation on the home page.<br>
+      • You can pause the carousel, swipe on mobile, and click an ad for more info.<br><br>
+      For full details, visit the <a href="ads.html#buy">Ads page</a>.
+    `,
+  },
+];
+
+function findCarrieScriptReply(userText) {
+  const normalized = normalizeText(userText);
+  for (const intent of carrieScripts) {
+    for (const pattern of intent.patterns) {
+      const p = normalizeText(pattern);
+      if (normalized.includes(p)) {
+        return intent.reply;
+      }
     }
-    header{
-      position:relative;
-      z-index:5;
-      background:rgba(15,0,30,.9);
-      border-bottom:1px solid rgba(124,58,237,.5);
+  }
+  return null;
+}
+
+function carrieBrain(userText) {
+  const t = userText.trim();
+  if (!t) {
+    return "I didn’t quite catch that — try asking me about music, games, or how 8BFR works.";
+  }
+
+  const lower = t.toLowerCase();
+
+  // scripted answers first
+  const scripted = findCarrieScriptReply(t);
+  if (scripted) return scripted;
+
+  if (currentMode === "business") {
+    if (lower.includes("hook") || lower.includes("chorus")) {
+      return "Hooks love repetition and rhythm. Try a 2-bar phrase you can repeat 3–4 times, then tweak the last line. Tell me your topic and vibe and I’ll throw you some starter lines.";
     }
-    .chat-shell{
-      border-radius:18px;
-      border:1px solid rgba(124,58,237,.55);
-      background:rgba(10,2,26,.95);
-      box-shadow:0 16px 40px rgba(0,0,0,.75);
+    if (lower.includes("beat") || lower.includes("bpm")) {
+      return "For rap or trap, a lot of people sit between 130–150 BPM (or 65–75 double-time). Share your mood — dark, hype, chill — and I’ll help pick a BPM and rough song layout.";
     }
-    .chat-log{
-      height:420px;
-      max-height:65vh;
-      overflow-y:auto;
-      padding:1rem;
-      background:
-        radial-gradient(circle at 0 0, rgba(124,58,237,.12), transparent 55%),
-        radial-gradient(circle at 100% 0, rgba(0,217,255,.10), transparent 55%),
-        #020014;
-    }
-    .msg-row{
-      display:flex;
-      margin-bottom:.65rem;
-      gap:.4rem;
-    }
-    .msg-row.user{
-      justify-content:flex-end;
-    }
-    .msg-bubble{
-      max-width:80%;
-      padding:.55rem .8rem;
-      border-radius:.85rem;
-      font-size:.9rem;
-      line-height:1.35;
-      border:1px solid rgba(148,163,255,.55);
-      background:rgba(17,24,39,.96);
-      box-shadow:0 0 12px rgba(79,70,229,.35);
-    }
-    .msg-row.user .msg-bubble{
-      background:linear-gradient(135deg,#7c3aed,#4c1d95);
-      border-color:#a855f7;
-      box-shadow:0 0 12px rgba(168,85,247,.55);
-    }
-    .msg-meta{
-      font-size:.7rem;
-      opacity:.7;
-      margin-top:.2rem;
-    }
-    .msg-avatar{
-      width:28px;
-      height:28px;
-      border-radius:999px;
-      flex-shrink:0;
-      overflow:hidden;
-      border:1px solid rgba(129,140,248,.9);
-      display:grid;
-      place-items:center;
-      font-size:.75rem;
-      background:#020014;
-    }
-    .msg-avatar img{
-      width:100%;
-      height:100%;
-      object-fit:cover;
-      display:block;
-    }
-    .msg-row.user .msg-avatar{
-      display:none;
+    if (lower.includes("lyrics") || lower.includes("write")) {
+      return "Give me 3 things: mood, topic, and an artist you like. I’ll suggest a verse layout and a few starter bars you can edit.";
     }
 
-    .pill-tag{
-      display:inline-flex;
-      align-items:center;
-      gap:.25rem;
-      font-size:.7rem;
-      border-radius:999px;
-      padding:.15rem .55rem;
-      border:1px solid rgba(129,140,248,.85);
-      background:rgba(15,23,42,.9);
-      text-transform:uppercase;
-      letter-spacing:.08em;
+    const starters = [
+      "Got it — let’s keep it focused.",
+      "Okay, let’s turn that into a plan.",
+      "I hear you. Let’s break this into steps.",
+      "Nice. We can build that into something real.",
+    ];
+    const starter = starters[Math.floor(Math.random() * starters.length)];
+    return (
+      starter +
+      " Tell me your main goal in one sentence, and I’ll outline the next 3 moves."
+    );
+  }
+
+  // personal mode
+  const personalStarters = [
+    "I hear you 💜",
+    "Oof, I feel that.",
+    "You’re not alone in that.",
+    "Okay, let’s breathe for a second.",
+  ];
+  const starter =
+    personalStarters[Math.floor(Math.random() * personalStarters.length)];
+
+  return (
+    starter +
+    " Tell me what kind of vibe you need right now — hype, chill, or comfort — and I’ll roll with it."
+  );
+}
+
+// ---------- typing ----------
+function showTyping() {
+  if (typingRowEl) typingRowEl.classList.remove("hidden");
+}
+function hideTyping() {
+  if (typingRowEl) typingRowEl.classList.add("hidden");
+}
+
+// ---------- mode toggle ----------
+function applyModeStyles() {
+  if (!modeBusinessBtn || !modePersonalBtn) return;
+
+  if (currentMode === "business") {
+    modeBusinessBtn.style.background = "rgba(88,28,135,0.9)";
+    modeBusinessBtn.style.borderColor = "#a855f7";
+    modeBusinessBtn.style.color = "#fff";
+    modePersonalBtn.style.background = "transparent";
+    modePersonalBtn.style.borderColor = "transparent";
+    modePersonalBtn.style.color = "rgba(233,213,255,0.8)";
+
+    if (modeHintEl) {
+      modeHintEl.textContent =
+        "Business chat • focused on tools, music, and progress";
     }
+  } else {
+    modePersonalBtn.style.background = "rgba(88,28,135,0.9)";
+    modePersonalBtn.style.borderColor = "#a855f7";
+    modePersonalBtn.style.color = "#fff";
+    modeBusinessBtn.style.background = "transparent";
+    modeBusinessBtn.style.borderColor = "transparent";
+    modeBusinessBtn.style.color = "rgba(233,213,255,0.8)";
 
-    .btn{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      gap:.3rem;
-      background:#120327;
-      border:1px solid rgba(124,58,237,.6);
-      color:#eae6ff;
-      padding:.55rem .95rem;
-      border-radius:.75rem;
-      font-size:.9rem;
-      text-decoration:none;
-      cursor:pointer;
+    if (modeHintEl) {
+      modeHintEl.textContent =
+        "Personal chat • softer tone, still PG-13 and helpful";
     }
-    .btn:hover{
-      background:#190536;
+  }
+
+  updateInlineCarrieVideo();
+}
+
+function saveMode(mode) {
+  currentMode = mode;
+  try {
+    localStorage.setItem("carrie_mode", mode);
+  } catch {}
+  applyModeStyles();
+}
+
+function loadMode() {
+  let stored = null;
+  try {
+    stored = localStorage.getItem("carrie_mode");
+  } catch {}
+  if (stored === "business" || stored === "personal") {
+    currentMode = stored;
+  } else {
+    currentMode = "business";
+  }
+  applyModeStyles();
+}
+
+// buttons
+if (modeBusinessBtn) {
+  modeBusinessBtn.addEventListener("click", () => saveMode("business"));
+}
+if (modePersonalBtn) {
+  modePersonalBtn.addEventListener("click", () => saveMode("personal"));
+}
+
+// ---------- input / chat ----------
+if (inputEl && formEl) {
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      formEl.requestSubmit();
     }
-    .btn-primary{
-      background:#7c3aed;
-      border-color:#7c3aed;
-      color:#fff;
-    }
-    .btn-primary:hover{ filter:brightness(1.05); }
+  });
 
-    textarea#carrieInput{
-      resize:none;
-      min-height:52px;
-      max-height:120px;
-      background:rgba(10,2,26,.95);
-      border-radius:.75rem;
-      border:1px solid rgba(148,163,255,.55);
-      padding:.5rem .7rem;
-      font-size:.9rem;
-      color:#e5e7eb;
-    }
-    textarea#carrieInput:focus{
-      outline:none;
-      box-shadow:0 0 0 1px rgba(129,140,248,.9);
-      border-color:rgba(129,140,248,1);
-    }
-    .input-hint{
-      font-size:.7rem;
-      opacity:.7;
-    }
-    .typing-dot{
-      width:6px;height:6px;border-radius:999px;
-      background:#a855f7;
-      animation:bounce 1s infinite ease-in-out;
-    }
-    .typing-dot:nth-child(2){ animation-delay:.15s; }
-    .typing-dot:nth-child(3){ animation-delay:.3s; }
-    @keyframes bounce{
-      0%,80%,100%{ transform:translateY(0); opacity:.4;}
-      40%{ transform:translateY(-4px); opacity:1;}
-    }
+  formEl.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const raw = inputEl.value.trim();
+    if (!raw) return;
 
-    @media (max-width:640px){
-      .chat-log{ height:60vh; }
-      .msg-bubble{ max-width:88%; }
-    }
+    const userMsg = raw;
+    inputEl.value = "";
+    renderMessage("user", userMsg, new Date());
+    showTyping();
 
-    /* Hide helper bubbles on this page, keep only menu from scripts.js */
-    #bubbleStack,
-    #bubble-top-single {
-      display:none !important;
-    }
-  </style>
-</head>
+    setTimeout(() => {
+      const reply = carrieBrain(userMsg);
+      renderMessage("assistant", reply, new Date());
+      hideTyping();
+    }, 600 + Math.random() * 500);
+  });
+}
 
-<!-- 🔑 IMPORTANT: this flag tells scripts.js NOT to inject the global Carrie bubble -->
-<body data-no-global-carrie="true">
-  <header class="px-4 py-4">
-    <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
-      <div class="flex items-center gap-3">
-        <img src="assets/images/logo_8bfr.svg"
-             alt="8BFR logo"
-             class="h-9 w-auto"
-             onerror="this.onerror=null;this.src='assets/images/8bfr.png'">
-        <div>
-          <h1 class="text-xl sm:text-2xl font-extrabold">
-            Chat with <span class="text-[#a855f7]">Carrie</span>
-          </h1>
-          <p class="text-[11px] text-purple-300/80 -mt-0.5">
-            8BFR Music Network • Create • Connect • Collab
-          </p>
-        </div>
-      </div>
-      <a href="index.html"
-         class="hidden sm:inline text-[#00d9ff] text-xs sm:text-sm underline/50 hover:underline">
-        ⬅ Back to Home
-      </a>
-    </div>
-  </header>
+// ---------- init ----------
+loadMode();
+ensureInlineCarrie();
+applyModeStyles();
 
-  <main class="max-w-4xl mx-auto px-4 pb-10 pt-4">
-    <div class="chat-shell p-4 sm:p-5">
-      <!-- Back to home + mode toggle row -->
-      <div class="flex justify-between items-center mb-2">
-        <a href="index.html"
-           class="text-[#00d9ff] text-xs underline hover:underline">
-          ⬅ Back to Home
-        </a>
-
-        <!-- Mode toggle -->
-        <div class="flex items-center gap-1 text-[11px]">
-          <span class="text-purple-200/80 hidden sm:inline">Mode:</span>
-          <button
-            id="modeBusiness"
-            type="button"
-            class="px-2 py-1 rounded-full border border-purple-400/70 bg-purple-900/70 text-[10px] uppercase tracking-wide"
-          >
-            Business
-          </button>
-          <button
-            id="modePersonal"
-            type="button"
-            class="px-2 py-1 rounded-full border border-transparent bg-transparent text-[10px] uppercase tracking-wide text-purple-200/80"
-          >
-            Personal
-          </button>
-        </div>
-      </div>
-
-      <div class="flex items-center justify-between mb-3 gap-3">
-        <div class="flex items-center gap-2">
-          <span class="pill-tag">
-            <span class="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-            <span>Live Carrie</span>
-          </span>
-          <span class="text-[11px] text-purple-200/80" id="modeHint">
-            Business chat • focused on tools, music, and progress
-          </span>
-        </div>
-        <div class="text-right space-y-1">
-          <div id="sessionIndicator" class="text-[11px] text-purple-200/70">
-            Checking login…
-          </div>
-          <button
-            id="trainerBtn"
-            type="button"
-            class="btn hidden"
-            style="padding:2px 8px;font-size:10px;border-radius:999px;"
-          >
-            Carrie Trainer
-          </button>
-        </div>
-      </div>
-
-      <!-- Inline Carrie circle + caption will be injected here by JS -->
-
-      <!-- Chat log -->
-      <div id="chatLog" class="chat-log rounded-lg mb-3"></div>
-
-      <!-- Typing indicator -->
-      <div id="typingRow" class="hidden mb-2 text-xs text-purple-200/80 flex items-center gap-2">
-        <span class="pill-tag">Carrie typing</span>
-        <div class="flex items-center gap-1 ml-1">
-          <span class="typing-dot"></span>
-          <span class="typing-dot"></span>
-          <span class="typing-dot"></span>
-        </div>
-      </div>
-
-      <!-- Input row -->
-      <form id="carrieForm" class="mt-1">
-        <div class="flex items-end gap-2">
-          <div class="flex-1">
-            <label for="carrieInput"
-                   class="text-xs text-purple-200/80 mb-1 inline-block">
-              Ask Carrie anything about 8BFR, music, games, or ideas.
-            </label>
-            <textarea id="carrieInput"
-                      placeholder="Example: “Help me write a hook for a trap beat about late nights.”"></textarea>
-            <p class="input-hint mt-1">
-              Press <b>Enter</b> to send • <b>Shift+Enter</b> for a new line.
-            </p>
-          </div>
-          <button type="submit" class="btn btn-primary px-3 sm:px-4 h-10">
-            <span>Send</span>
-            <span>📤</span>
-          </button>
-        </div>
-      </form>
-    </div>
-
-    <p class="mt-3 text-[11px] text-purple-300/70 text-center max-w-xl mx-auto">
-      Carrie is in beta. Conversations may be stored to improve your experience on the 8BFR Music Network.
-    </p>
-  </main>
-
-  <!-- Trainer modal (owner only; optional) -->
-  <div id="trainerModal" class="fixed inset-0 z-50 hidden">
-    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
-    <div
-      class="relative max-w-md mx-auto mt-24 bg-[#0c0618] border border-purple-500/60 rounded-xl p-4 shadow-2xl"
-    >
-      <div class="flex items-center justify-between mb-2">
-        <h2 class="text-sm font-semibold text-purple-100">
-          Carrie Trainer (Owner Only)
-        </h2>
-        <button
-          id="trainerClose"
-          type="button"
-          class="text-xs text-purple-200 hover:underline"
-        >
-          Close
-        </button>
-      </div>
-      <p class="text-[11px] text-purple-200/80 mb-2">
-        Add a question pattern and the reply you want Carrie to use.
-        Replies can include basic HTML and links.
-      </p>
-      <form id="trainerForm" class="space-y-2">
-        <div>
-          <label class="text-xs text-purple-200/90 block mb-1">
-            User question / pattern (example: "how do i purchase 8bfr music")
-          </label>
-          <textarea
-            id="trainerQuestion"
-            class="w-full text-xs rounded-md border border-purple-500/50 bg-[#120327] px-2 py-1 text-purple-50"
-            rows="2"
-          ></textarea>
-        </div>
-        <div>
-          <label class="text-xs text-purple-200/90 block mb-1">
-            Carrie reply (HTML allowed)
-          </label>
-          <textarea
-            id="trainerAnswer"
-            class="w-full text-xs rounded-md border border-purple-500/50 bg-[#120327] px-2 py-1 text-purple-50"
-            rows="4"
-          ></textarea>
-        </div>
-        <p class="text-[10px] text-purple-300/80">
-          Tip: You can add more patterns for the same answer later by repeating this with small variations.
-        </p>
-        <div class="flex justify-end gap-2 pt-1">
-          <button
-            type="button"
-            id="trainerCancel"
-            class="btn"
-            style="padding:3px 10px;font-size:11px;"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            class="btn btn-primary"
-            style="padding:3px 10px;font-size:11px;"
-          >
-            Save &amp; Use
-          </button>
-        </div>
-        <div
-          id="trainerStatus"
-          class="text-[10px] text-green-300/80 mt-1"
-          style="display:none;"
-        ></div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Supabase client (for this page only) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <!-- Global 8BFR UI (menu, bubbles, auth gate) -->
-  <script src="scripts.js?v=1" defer></script>
-
-  <!-- Carrie chat brain JUST for this page -->
-  <script src="carrie-chat.js?v=2"></script>
-</body>
-</html>
+// initial greeting
+renderMessage(
+  "assistant",
+  "Hey, I’m Carrie 💜 What are you working on today — music, writing, games, or something else?",
+  new Date()
+);
