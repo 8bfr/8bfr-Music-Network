@@ -5,7 +5,11 @@ const SUPABASE_URL = "https://novbuvwpjnxwwvdekjhr.supabase.co";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0";
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Safely create Supabase client (so script doesn’t die if supabase JS fails)
+let supabase = null;
+if (window.supabase && window.supabase.createClient) {
+  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
 
 // DOM refs
 const chatLogEl      = document.getElementById("chatLog");
@@ -56,6 +60,14 @@ function scrollChatToBottom() {
   });
 }
 
+// Pick Carrie avatar based on current mode
+function getCarrieAvatarSrc() {
+  if (currentMode === "business") {
+    return "assets/images/Carrie_Business.png";
+  }
+  return "assets/images/Carrie_Casual.png";
+}
+
 function renderMessage(role, content, createdAt) {
   if (!chatLogEl) return;
 
@@ -67,7 +79,7 @@ function renderMessage(role, content, createdAt) {
 
   if (role === "assistant") {
     const img = document.createElement("img");
-    img.src = "assets/images/Carrie_Casual.png";
+    img.src = getCarrieAvatarSrc();
     img.alt = "Carrie avatar";
     img.onerror = function () {
       this.onerror = null;
@@ -108,6 +120,7 @@ function renderMessage(role, content, createdAt) {
 }
 
 async function saveMessage(role, content) {
+  if (!supabase || !currentUserId) return; // fail-safe if supabase not ready
   try {
     await supabase.from("carrie_chat_logs").insert({
       user_id: currentUserId,
@@ -400,7 +413,7 @@ if (trainerCancel) {
     closeTrainer();
   });
 }
-if (trainerForm) {
+if (trainerForm && supabase) {
   trainerForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const q = (trainerQuestion.value || "").trim();
@@ -440,6 +453,15 @@ if (trainerForm) {
 // ------- Session + history
 
 async function initSessionAndHistory() {
+  if (!supabase) {
+    // No Supabase – just start a fresh chat
+    renderMessage(
+      "assistant",
+      "Hey, I’m Carrie 💜 What are you working on today — music, writing, games, or something else?"
+    );
+    return;
+  }
+
   try {
     const { data, error } = await supabase.auth.getSession();
     if (error) throw error;
