@@ -318,45 +318,64 @@ function findCarrieScriptReply(userText) {
 
 function carrieBrain(userText) {
   const t = userText.trim();
+  const isBusiness = currentMode === "business";
+
   if (!t) {
-    return "I didn’t quite catch that — try asking me about music, games, or how 8BFR works.";
+    return isBusiness
+      ? 'Business Carrie 💼:<br>I didn’t quite catch that — try asking me about studio tools, music plans, or how 8BFR works.'
+      : 'Personal Carrie 💜:<br>I didn’t quite catch that — tell me what kind of vibe you need or what’s on your mind.';
   }
 
   const lower = t.toLowerCase();
 
   // 1) scripted answers first
   const scripted = findCarrieScriptReply(t);
-  if (scripted) return scripted;
+  if (scripted) {
+    if (isBusiness) {
+      return 'Business Carrie 💼:<br>' + scripted;
+    } else {
+      return 'Personal Carrie 💜:<br>' + scripted;
+    }
+  }
 
   // 2) business mode = focused, studio / tools / progress
-  if (currentMode === "business") {
+  if (isBusiness) {
+    let body;
+
     if (lower.includes("hook") || lower.includes("chorus")) {
-      return "Hooks love repetition and rhythm. Try a 2-bar phrase you can repeat 3–4 times, then tweak the last line. If you tell me your song topic and vibe, I can suggest some hook ideas.";
-    }
-    if (lower.includes("8bfr") || lower.includes("network")) {
-      return "8BFR Music Network is built to help creators connect — profiles, studio & AI tools, tournaments, and more. You can explore it all from the floating menu and the Network / Search page.";
-    }
-    if (lower.includes("beat") || lower.includes("bpm")) {
-      return "For rap and trap, a lot of people sit between 130–150 BPM (or 65–75 double-time). If you share your mood — dark, hype, chill — I can help you pick a BPM range and structure.";
-    }
-    if (lower.includes("tournament") || lower.includes("game")) {
-      return "Tournaments and games on 8BFR are meant to be low-stress and fun. You’ll see brackets, leaderboards, and coin rewards on the Games & Tournaments pages.";
-    }
-    if (lower.includes("lyrics") || lower.includes("write")) {
-      return "Give me 3 things: mood, topic, and an artist you’re inspired by. I’ll help you shape a verse structure or some starting lines you can tweak.";
+      body =
+        "Hooks love repetition and rhythm. Try a 2-bar phrase you can repeat 3–4 times, then tweak the last line. " +
+        "If you tell me your song topic and vibe, I can suggest some hook ideas.";
+    } else if (lower.includes("8bfr") || lower.includes("network")) {
+      body =
+        "8BFR Music Network is built to help creators connect — profiles, studio & AI tools, tournaments, and more. " +
+        "You can explore it all from the floating menu and the Network / Search page.";
+    } else if (lower.includes("beat") || lower.includes("bpm")) {
+      body =
+        "For rap and trap, a lot of people sit between 130–150 BPM (or 65–75 double-time). " +
+        "If you share your mood — dark, hype, chill — I can help you pick a BPM range and structure.";
+    } else if (lower.includes("tournament") || lower.includes("game")) {
+      body =
+        "Tournaments and games on 8BFR are meant to be low-stress and fun. " +
+        "You’ll see brackets, leaderboards, and coin rewards on the Games & Tournaments pages.";
+    } else if (lower.includes("lyrics") || lower.includes("write")) {
+      body =
+        "Give me 3 things: mood, topic, and an artist you’re inspired by. " +
+        "I’ll help you shape a verse structure or some starting lines you can tweak.";
+    } else {
+      const starters = [
+        "Got it — let’s keep it focused.",
+        "Okay, let’s turn that into a plan.",
+        "I hear you. Let’s break this into steps.",
+        "Nice. We can build that into something real.",
+      ];
+      const starter = starters[Math.floor(Math.random() * starters.length)];
+      body =
+        starter +
+        " Tell me your main goal in one sentence, and I’ll outline the next 3 moves.";
     }
 
-    const starters = [
-      "Got it — let’s keep it focused.",
-      "Okay, let’s turn that into a plan.",
-      "I hear you. Let’s break this into steps.",
-      "Nice. We can build that into something real.",
-    ];
-    const starter = starters[Math.floor(Math.random() * starters.length)];
-    return (
-      starter +
-      " Tell me your main goal in one sentence, and I’ll outline the next 3 moves."
-    );
+    return "Business Carrie 💼:<br>" + body;
   }
 
   // 3) personal mode = chill break, still PG-13
@@ -379,10 +398,11 @@ function carrieBrain(userText) {
   const starter =
     personalStarters[Math.floor(Math.random() * personalStarters.length)];
 
-  return (
+  const body =
     starter +
-    " Tell me what kind of vibe you need right now — hype, chill, or comfort — and I’ll roll with it."
-  );
+    " Tell me what kind of vibe you need right now — hype, chill, or comfort — and I’ll roll with it.";
+
+  return "Personal Carrie 💜:<br>" + body;
 }
 
 // ------- Typing indicator
@@ -556,11 +576,16 @@ if (trainerForm) {
 // ------- Session + history
 
 async function initSessionAndHistory() {
+  ensureInlineCarrie(); // make sure inline Carrie exists before first message
+
+  const isBusiness = currentMode === "business";
+
+  const firstGreeting = isBusiness
+    ? 'Hey, I’m <b>Business Carrie</b> 💼 — want help with a track, studio tools, or exploring the 8BFR site?'
+    : 'Hey, I’m <b>Personal Carrie</b> 💜 — want to vent, brainstorm ideas, or just talk about your vibe for tonight?';
+
   if (!supabase) {
-    renderMessage(
-      "assistant",
-      "Hey, I’m Carrie 💜 What are you working on today — music, writing, games, or something else?"
-    );
+    renderMessage("assistant", firstGreeting);
     return;
   }
 
@@ -583,80 +608,4 @@ async function initSessionAndHistory() {
       currentUserEmail = null;
       if (sessionLabelEl) {
         sessionLabelEl.textContent =
-          "Not logged in • Carrie will still chat, but history won’t be tied to an account.";
-      }
-    }
-  } catch (e) {
-    console.warn("Carrie session check failed", e);
-    if (sessionLabelEl) {
-      sessionLabelEl.textContent =
-        "Could not check login • you can still chat.";
-    }
-  }
-
-  if (!currentUserId) {
-    renderMessage(
-      "assistant",
-      "Hey, I’m Carrie 💜 What are you working on today — music, writing, games, or something else?"
-    );
-    return;
-  }
-
-  try {
-    const { data: rows, error } = await supabase
-      .from("carrie_chat_logs")
-      .select("*")
-      .eq("user_id", currentUserId)
-      .order("created_at", { ascending: true })
-      .limit(40);
-
-    if (error) throw error;
-
-    if (rows && rows.length) {
-      rows.forEach((r) => renderMessage(r.role, r.content, r.created_at));
-    } else {
-      renderMessage(
-        "assistant",
-        "Hey, I’m Carrie 💜 First time here — want help with a track, a story, or exploring the 8BFR Network?"
-      );
-    }
-  } catch (e) {
-    console.warn("Could not load Carrie history", e);
-    renderMessage(
-      "assistant",
-      "Hey, I’m Carrie 💜 I had a tiny glitch loading history, but we can start fresh right now."
-    );
-  }
-}
-
-// ------- Input behavior
-
-if (inputEl && formEl) {
-  inputEl.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      formEl.requestSubmit();
-    }
-  });
-
-  formEl.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const raw = inputEl.value.trim();
-    if (!raw) return;
-
-    const userMsg = raw;
-    inputEl.value = "";
-    renderMessage("user", userMsg, new Date());
-    saveMessage("user", userMsg);
-    showTyping();
-
-    setTimeout(async () => {
-      const reply = carrieBrain(userMsg);
-      renderMessage("assistant", reply, new Date());
-      hideTyping();
-      saveMessage("assistant", reply);
-    }, 600 + Math.random() * 500);
-  });
-}
-
-initSessionAndHistory();
+          "Not logged in • Carrie
