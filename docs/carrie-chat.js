@@ -9,7 +9,7 @@ const SUPABASE_ANON_KEY =
 // Uses your real James / Azreen videos
 const AVATAR_VIDEOS = {
   carrie: {
-    business: "cyassets/videos/carrie_business_animate.webm",
+    business: "assets/videos/carrie_business_animate.webm",
     personal: "assets/videos/carrie_casual_animate_3_1.webm",
   },
   james: {
@@ -162,6 +162,49 @@ function getCurrentVideoSrc() {
   return set[mode] || set.personal || set.business;
 }
 
+// Avatar-based romance locks (James vs Carrie/Azreen)
+function updateRomanceLocksByAvatar() {
+  if (!chatModeMenu) return;
+
+  const gfItem = chatModeMenu.querySelector('[data-mode="girlfriend"]');
+  const bfItem = chatModeMenu.querySelector('[data-mode="boyfriend"]');
+
+  const avatar = getAvatarKey();
+
+  function setDisabled(el, disabled) {
+    if (!el) return;
+    if (disabled) {
+      el.classList.add("disabled");
+      el.setAttribute("aria-disabled", "true");
+    } else {
+      el.classList.remove("disabled");
+      el.removeAttribute("aria-disabled");
+    }
+  }
+
+  if (avatar === "james") {
+    // James = only Boyfriend mode makes sense
+    setDisabled(gfItem, true);
+    setDisabled(bfItem, false);
+    if (romanceMode === "girlfriend") {
+      romanceMode = "none";
+      try {
+        localStorage.setItem("carrie_romance_mode", "none");
+      } catch (e) {}
+    }
+  } else {
+    // Carrie or Azreen = only Girlfriend mode makes sense
+    setDisabled(gfItem, false);
+    setDisabled(bfItem, true);
+    if (romanceMode === "boyfriend") {
+      romanceMode = "none";
+      try {
+        localStorage.setItem("carrie_romance_mode", "none");
+      } catch (e) {}
+    }
+  }
+}
+
 // ------- Inline Carrie circle (top-left of chat window)
 
 function ensureInlineCarrie() {
@@ -250,17 +293,21 @@ function updateBottomAvatar() {
 
 // Hide any extra Carrie/James buttons injected under the chat
 function hideLegacyCarrieButtons() {
-  const shell = document.querySelector(".chat-shell");
-  if (!shell) return;
-  const buttons = shell.querySelectorAll("button");
-  buttons.forEach((btn) => {
-    const txt = (btn.textContent || "").trim();
-    if (
-      (txt === "Carrie" || txt === "James") &&
-      !btn.closest(".dropdown-root") &&
-      btn.id !== "trainerBtn"
-    ) {
-      btn.style.display = "none";
+  // Try to hide specific known bars first
+  const explicit = document.querySelectorAll(
+    "#carrieToggleBar, .carrie-toggle-bar, #carrieModeButtons"
+  );
+  explicit.forEach((el) => (el.style.display = "none"));
+
+  // Extra safety: hide standalone Carrie/James labels not in dropdowns or trainer
+  const candidates = document.querySelectorAll("button, a, div");
+  candidates.forEach((el) => {
+    const txt = (el.textContent || "").trim().toLowerCase();
+    if (!txt) return;
+    if (txt === "carrie" || txt === "james") {
+      if (el.closest(".dropdown-root")) return;
+      if (el.id === "trainerBtn") return;
+      el.style.display = "none";
     }
   });
 }
@@ -677,7 +724,7 @@ function applyModeStyles() {
     }
   }
 
-  // Grey out GF/BF menu items for non-Pro
+  // Pro-only lock (GF/BF)
   const proItems = chatModeMenu
     ? chatModeMenu.querySelectorAll(".pro-lock")
     : [];
@@ -690,6 +737,9 @@ function applyModeStyles() {
       btn.removeAttribute("aria-disabled");
     }
   });
+
+  // Avatar-based GF/BF lock (James vs Carrie/Azreen)
+  updateRomanceLocksByAvatar();
 
   updateInlineCarrieVideo();
   updateBottomAvatar();
@@ -706,6 +756,7 @@ function applyAvatarStyles() {
   }
   updateInlineCarrieVideo();
   updateBottomAvatar();
+  updateRomanceLocksByAvatar();
 }
 
 // save/load mode
