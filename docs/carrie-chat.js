@@ -9,7 +9,7 @@ const SUPABASE_ANON_KEY =
 // Uses your real James / Azreen videos
 const AVATAR_VIDEOS = {
   carrie: {
-    business: "assets/videos/carrie_business_animate.webm",
+    business: "cyassets/videos/carrie_business_animate.webm",
     personal: "assets/videos/carrie_casual_animate_3_1.webm",
   },
   james: {
@@ -180,8 +180,8 @@ function ensureInlineCarrie() {
   vid.loop = true;
   vid.muted = true;
   vid.playsInline = true;
-  vid.style.width = "72px";
-  vid.style.height = "72px";
+  vid.style.width = "88px";
+  vid.style.height = "88px";
   vid.style.borderRadius = "9999px";
   vid.style.border = "1px solid rgba(129,140,248,.9)";
   vid.style.boxShadow = "0 0 14px rgba(124,58,237,.55)";
