@@ -1,793 +1,830 @@
-      role,
-      content,
-    });
-  } catch (e) {
-    console.warn("Failed to save Carrie chat message", e);
-  }
-}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Chat with Carrie — 8BFR Music Network</title>
+  <meta name="description" content="Chat with Carrie — your AI assistant on the 8BFR Music Network." />
+  <link rel="icon" href="assets/images/favicon.png" />
+  <script src="https://cdn.tailwindcss.com"></script>
 
-// ------- scripted Q&A
+  <style>
+    :root {
+      --ring: rgba(124,58,237,.55);
+      --glass: rgba(12,6,24,.80);
+    }
+    html,body { scroll-behavior:smooth; }
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(124,58,237,.35), transparent 60%),
+        radial-gradient(900px 400px at 110% 10%, rgba(0,217,255,.22), transparent 60%),
+        linear-gradient(#0b0014,#000);
+      color:#eae6ff;
+      margin:0;
+      min-height:100vh;
+      overflow-x:hidden;
+    }
+    header{
+      position:relative;
+      z-index:5;
+      background:rgba(15,0,30,.9);
+      border-bottom:1px solid rgba(124,58,237,.5);
+    }
+    .chat-shell{
+      border-radius:18px;
+      border:1px solid rgba(124,58,237,.55);
+      background:rgba(10,2,26,.95);
+      box-shadow:0 16px 40px rgba(0,0,0,.75);
+    }
+    .chat-log{
+      height:420px;
+      max-height:65vh;
+      overflow-y:auto;
+      padding:1rem;
+      background:
+        radial-gradient(circle at 0 0, rgba(124,58,237,.12), transparent 55%),
+        radial-gradient(circle at 100% 0, rgba(0,217,255,.10), transparent 55%),
+        #020014;
+    }
+    .msg-row{
+      display:flex;
+      margin-bottom:.65rem;
+      gap:.4rem;
+    }
+    .msg-row.user{
+      justify-content:flex-end;
+    }
+    .msg-bubble{
+      max-width:80%;
+      padding:.55rem .8rem;
+      border-radius:.85rem;
+      font-size:.9rem;
+      line-height:1.35;
+      border:1px solid rgba(148,163,255,.55);
+      background:rgba(17,24,39,.96);
+      box-shadow:0 0 12px rgba(79,70,229,.35);
+    }
+    .msg-row.user .msg-bubble{
+      background:linear-gradient(135deg,#7c3aed,#4c1d95);
+      border-color:#a855f7;
+      box-shadow:0 0 12px rgba(168,85,247,.55);
+    }
+    .msg-meta{
+      font-size:.7rem;
+      opacity:.7;
+      margin-top:.2rem;
+    }
+    .msg-avatar{
+      width:28px;
+      height:28px;
+      border-radius:999px;
+      flex-shrink:0;
+      overflow:hidden;
+      border:1px solid rgba(129,140,248,.9);
+      display:grid;
+      place-items:center;
+      font-size:.75rem;
+      background:#020014;
+    }
+    .msg-avatar img,
+    .msg-avatar video{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
+    }
+    .msg-row.user .msg-avatar{
+      display:none;
+    }
 
-let carrieScripts = [
-  {
-    id: "buy_8bfr_music",
-    patterns: [
-      "how do i purchase 8bfr music",
-      "how do i buy 8bfr music",
-      "where can i buy 8bfr",
-      "how can i purchase 8bfr",
-      "how do i purchase 8 bfr music",
-      "buy 8bfr music",
-      "purchase 8bfr",
-    ],
-    reply: `
-      You can support 8BFR by buying or streaming the music here:<br><br>
-      • <b>Amazon Music</b> — search for “8BFR” in the Amazon Music store.<br>
-      • <b>Spotify</b> — <a href="https://open.spotify.com/artist/127tw52iDXr7BvgB0IGG2x" target="_blank" rel="noopener">stream 8BFR here</a>.<br>
-      • <b>Other platforms</b> — most 8BFR releases appear in Apple Music, YouTube Music, etc.<br><br>
-      If you need help finding a song, tell me the title and I’ll guide you. 💜
-    `,
-  },
-  {
-    id: "what_is_8bfr",
-    patterns: [
-      "what is 8bfr",
-      "what is 8bfr music network",
-      "tell me about 8bfr",
-      "what is this site",
-    ],
-    reply: `
-      8BFR Music Network is a creator hub where artists, beatmakers, gamers,
-      authors, and fans can <b>Create • Connect • Collab</b>.<br><br>
-      I’m your AI guide for music, tools, profiles, and site help. 😊
-    `,
-  },
-  {
-    id: "studio_tools",
-    patterns: [
-      "where are the studio tools",
-      "how do i open studio",
-      "open studio tools",
-      "show me ai tools",
-      "where is lyrics ai",
-      "how do i use song ai",
-    ],
-    reply: `
-      Studio & AI tools live on the <b>Studio Tools</b> page.<br><br>
-      • <a href="studio-tools.html">Open Studio Tools</a><br>
-      • <a href="lyrics-ai.html">Lyrics AI</a><br>
-      • <a href="song-ai.html">Song AI</a><br>
-      • <a href="album-ai.html">Album AI</a><br>
-      • <a href="voice-ai.html">Voice / Post VO</a><br><br>
-      I can help you plan a song, outline an album, or clean up vocals — just tell me what you’re working on.
-    `,
-  },
-  {
-    id: "ads_info",
-    patterns: [
-      "how do ads work",
-      "how do the ads work",
-      "explain ads",
-      "what are featured ads",
-      "tell me about buying ads",
-    ],
-    reply: `
-      The home page has 5 rotating <b>Featured Ads</b> slots.<br><br>
-      • Tap <b>“Buy an Ad”</b> under the carousel to send your info.<br>
-      • After approval, your artwork + link appear in rotation on the home page.<br>
-      • You can pause the carousel, swipe on mobile, and click an ad for more info.<br><br>
-      For full details, visit the <a href="ads.html#buy">Ads page</a>.
-    `,
-  },
-  {
-    id: "buy_coins",
-    patterns: [
-      "how do i buy coins",
-      "how can i buy coins",
-      "where do i buy coins",
-      "purchase coins",
-      "get more coins",
-    ],
-    reply: `
-      Coins are used for <b>games, upgrades, and fun extras</b> on the 8BFR network.<br><br>
-      • Go to the <a href="coinshop.html">Coin Shop</a> or <a href="game-coin-shop.html">Game Coin Shop</a>.<br>
-      • Choose how many coins you want, then follow the checkout steps.<br>
-      • Some events and tournaments also reward free coins.<br><br>
-      If you tell me what you want to use coins for, I can point you to the best page.
-    `,
-  },
-];
+    .pill-tag{
+      display:inline-flex;
+      align-items:center;
+      gap:.25rem;
+      font-size:.7rem;
+      border-radius:999px;
+      padding:.15rem .55rem;
+      border:1px solid rgba(129,140,248,.85);
+      background:rgba(15,23,42,.9);
+      text-transform:uppercase;
+      letter-spacing:.08em;
+    }
 
-function findCarrieScriptReply(userText) {
-  const normalized = normalizeText(userText);
-  for (const intent of carrieScripts) {
-    for (const pattern of intent.patterns) {
-      const p = normalizeText(pattern);
-      if (normalized.includes(p)) {
-        return intent.reply;
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:.3rem;
+      background:#120327;
+      border:1px solid rgba(124,58,237,.6);
+      color:#eae6ff;
+      padding:.55rem .95rem;
+      border-radius:.75rem;
+      font-size:.9rem;
+      text-decoration:none;
+      cursor:pointer;
+    }
+    .btn:hover{
+      background:#190536;
+    }
+    .btn-primary{
+      background:#7c3aed;
+      border-color:#7c3aed;
+      color:#fff;
+    }
+    .btn-primary:hover{ filter:brightness(1.05); }
+
+    textarea#carrieInput{
+      resize:none;
+      min-height:52px;
+      max-height:120px;
+      background:rgba(10,2,26,.95);
+      border-radius:.75rem;
+      border:1px solid rgba(148,163,255,.55);
+      padding:.5rem .7rem;
+      font-size:.9rem;
+      color:#e5e7eb;
+    }
+    textarea#carrieInput:focus{
+      outline:none;
+      box-shadow:0 0 0 1px rgba(129,140,248,.9);
+      border-color:rgba(129,140,248,1);
+    }
+    .input-hint{
+      font-size:.7rem;
+      opacity:.7;
+    }
+    .typing-dot{
+      width:6px;height:6px;border-radius:999px;
+      background:#a855f7;
+      animation:bounce 1s infinite ease-in-out;
+    }
+    .typing-dot:nth-child(2){ animation-delay:.15s; }
+    .typing-dot:nth-child(3){ animation-delay:.3s; }
+    @keyframes bounce{
+      0%,80%,100%{ transform:translateY(0); opacity:.4;}
+      40%{ transform:translateY(-4px); opacity:1;}
+    }
+
+    @media (max-width:640px){
+      .chat-log{ height:60vh; }
+      .msg-bubble{ max-width:88%; }
+    }
+
+    /* Hide global Carrie + bubbles from scripts.js on this page */
+    #bubbleStack,
+    #bubble-top-single,
+    #carrieWrap {
+      display:none !important;
+    }
+
+    /* Local avatar for this chat page (bottom-right, draggable + resizable) */
+    #chatCarrieWrap{
+      position:fixed;
+      right:16px;
+      bottom:100px; /* stops above send button */
+      z-index:9997;
+      user-select:none;
+      touch-action:none;
+      pointer-events:auto;
+    }
+    #chatCarrieVideo{
+      width:min(48vw,260px);
+      max-height:70vh;
+      object-fit:contain;
+      background:transparent!important;
+      display:block;
+      filter:
+        drop-shadow(0 14px 32px rgba(15,6,40,.9))
+        drop-shadow(0 0 18px rgba(124,58,237,.55));
+    }
+    #chatCarrieBubble{
+      position:absolute;
+      bottom:100%;
+      right:40px;
+      margin-bottom:4px;
+      padding:3px 10px;
+      border-radius:999px;
+      font-size:.72rem;
+      background:rgba(15,23,42,.95);
+      color:#e5e7eb;
+      border:1px solid rgba(129,140,248,.9);
+      white-space:nowrap;
+    }
+    #chatCarrieBubble::after{
+      content:"";
+      position:absolute;
+      top:100%;
+      right:16px;
+      border-width:6px 6px 0 6px;
+      border-style:solid;
+      border-color:rgba(15,23,42,.95) transparent transparent transparent;
+    }
+
+    /* Dropdown controls */
+    .dropdown-wrap{
+      position:relative;
+    }
+    .dropdown-toggle{
+      display:inline-flex;
+      align-items:center;
+      gap:.25rem;
+      padding:3px 9px;
+      border-radius:999px;
+      border:1px solid rgba(129,140,248,.65);
+      background:rgba(12,6,32,.95);
+      font-size:11px;
+      cursor:pointer;
+      color:rgba(233,213,255,0.9);
+      white-space:nowrap;
+    }
+    .dropdown-toggle span.label{
+      font-weight:600;
+      color:#e9d5ff;
+    }
+    .dropdown-toggle span.value{
+      color:#c4b5fd;
+    }
+    .dropdown-menu{
+      position:absolute;
+      right:0;
+      top:calc(100% + 6px);
+      min-width:180px;
+      background:rgba(12,6,32,.98);
+      border-radius:12px;
+      border:1px solid rgba(129,140,248,.65);
+      box-shadow:0 16px 40px rgba(0,0,0,.8);
+      padding:4px;
+      display:none;
+      z-index:40;
+    }
+    .dropdown-menu.open{ display:block; }
+    .dropdown-item{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:.4rem;
+      width:100%;
+      padding:5px 7px;
+      border-radius:9px;
+      border:none;
+      background:transparent;
+      color:#e5e7eb;
+      font-size:11px;
+      cursor:pointer;
+      text-align:left;
+    }
+    .dropdown-item:hover{
+      background:rgba(55,48,163,.85);
+    }
+    .dropdown-item small{
+      font-size:10px;
+      opacity:.8;
+    }
+    .dropdown-item.disabled{
+      opacity:.45;
+      cursor:not-allowed;
+    }
+    .dropdown-item.disabled:hover{
+      background:transparent;
+    }
+
+    .dropdown-section-title{
+      font-size:10px;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      color:rgba(196,181,253,0.8);
+      padding:4px 6px 2px;
+    }
+  </style>
+</head>
+<body>
+  <header class="px-4 py-4">
+    <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <img src="assets/images/logo_8bfr.svg"
+             alt="8BFR logo"
+             class="h-9 w-auto"
+             onerror="this.onerror=null;this.src='assets/images/8bfr.png'">
+        <div>
+          <h1 class="text-xl sm:text-2xl font-extrabold">
+            Chat with <span class="text-[#a855f7]">Carrie</span>
+          </h1>
+          <p class="text-[11px] text-purple-300/80 -mt-0.5">
+            8BFR Music Network • Create • Connect • Collab
+          </p>
+        </div>
+      </div>
+      <a href="index.html"
+         class="hidden sm:inline text-[#00d9ff] text-xs sm:text-sm underline/50 hover:underline">
+        ⬅ Back to Home
+      </a>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 pb-10 pt-4">
+    <div class="chat-shell p-4 sm:p-5">
+      <!-- Back to home + controls -->
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+        <a href="index.html"
+           class="text-[#00d9ff] text-xs underline hover:underline">
+          ⬅ Back to Home
+        </a>
+
+        <div class="flex flex-wrap justify-end gap-2 text-[11px]">
+          <!-- Chat mode dropdown -->
+          <div class="dropdown-wrap">
+            <button id="chatModeToggle" type="button" class="dropdown-toggle">
+              <span class="label">Chat mode:</span>
+              <span id="chatModeLabel" class="value">Business</span>
+              <span>▾</span>
+            </button>
+            <div id="chatModeMenu" class="dropdown-menu">
+              <button class="dropdown-item" data-mode="business">
+                <span>Business</span>
+                <small>Tools, plans, progress</small>
+              </button>
+              <button class="dropdown-item" data-mode="personal">
+                <span>Personal</span>
+                <small>Softer, hangout energy</small>
+              </button>
+              <div class="dropdown-section-title">Pro romance (coming)</div>
+              <button class="dropdown-item pro-lock" data-mode="girlfriend">
+                <span>Girlfriend</span>
+                <small>Pro only • soft + loving</small>
+              </button>
+              <button class="dropdown-item pro-lock" data-mode="boyfriend">
+                <span>Boyfriend</span>
+                <small>Pro only • supportive + protective</small>
+              </button>
+            </div>
+          </div>
+
+          <!-- Avatar dropdown -->
+          <div class="dropdown-wrap">
+            <button id="avatarToggle" type="button" class="dropdown-toggle">
+              <span class="label">Avatar:</span>
+              <span id="avatarLabel" class="value">Carrie</span>
+              <span>▾</span>
+            </button>
+            <div id="avatarMenu" class="dropdown-menu">
+              <button class="dropdown-item" data-avatar="carrie">
+                <span>Carrie</span>
+                <small>Main AI assistant</small>
+              </button>
+              <button class="dropdown-item" data-avatar="james">
+                <span>James</span>
+                <small>8BFR founder</small>
+              </button>
+              <button class="dropdown-item" data-avatar="azreen">
+                <span>Azreen</span>
+                <small>Systems partner</small>
+              </button>
+            </div>
+          </div>
+
+          <!-- Maintenance dropdown -->
+          <div class="dropdown-wrap">
+            <button id="maintToggle" type="button" class="dropdown-toggle">
+              <span class="label">Maintenance</span>
+              <span>▾</span>
+            </button>
+            <div id="maintMenu" class="dropdown-menu">
+              <button id="maintClearLocal" class="dropdown-item">
+                <span>Clear chat (this device)</span>
+              </button>
+              <button id="maintSaveSnapshot" class="dropdown-item">
+                <span>Save snapshot (coming)</span>
+              </button>
+              <div class="dropdown-section-title owner-only">Owner tools</div>
+              <button id="maintArchiveAll" class="dropdown-item owner-only">
+                <span>Archive + clear all</span>
+              </button>
+              <button id="maintToggleRole" class="dropdown-item owner-only">
+                <span id="maintToggleRoleLabel">View as regular user</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Shop dropdown -->
+          <div class="dropdown-wrap">
+            <button id="shopToggle" type="button" class="dropdown-toggle">
+              <span class="label">Shop</span>
+              <span>▾</span>
+            </button>
+            <div id="shopMenu" class="dropdown-menu">
+              <button class="dropdown-item" data-shop="outfits">
+                <span>Outfits & styles</span>
+                <small>Visit Carrie’s Closet</small>
+              </button>
+              <button class="dropdown-item" data-shop="makeup">
+                <span>Makeup & accessories</span>
+              </button>
+              <button class="dropdown-item" data-shop="coins">
+                <span>Buy coins</span>
+                <small>Coin Shop</small>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between mb-3 gap-3">
+        <div class="flex items-center gap-2">
+          <span class="pill-tag">
+            <span class="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+            <span>Live Assistant</span>
+          </span>
+          <span class="text-[11px] text-purple-200/80" id="modeHint">
+            Business chat • focused on tools, music, and progress
+          </span>
+        </div>
+        <div class="text-right space-y-1">
+          <div id="sessionIndicator" class="text-[11px] text-purple-200/70">
+            Checking login…
+          </div>
+          <button
+            id="trainerBtn"
+            type="button"
+            class="btn hidden"
+            style="padding:2px 8px;font-size:10px;border-radius:999px;"
+          >
+            Carrie Trainer
+          </button>
+        </div>
+      </div>
+
+      <!-- Inline circle avatar (top of chat) is injected by JS -->
+
+      <!-- Chat log -->
+      <div id="chatLog" class="chat-log rounded-lg mb-3"></div>
+
+      <!-- Typing indicator -->
+      <div id="typingRow" class="hidden mb-2 text-xs text-purple-200/80 flex items-center gap-2">
+        <span class="pill-tag">Assistant typing</span>
+        <div class="flex items-center gap-1 ml-1">
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+        </div>
+      </div>
+
+      <!-- Input row -->
+      <form id="carrieForm" class="mt-1">
+        <div class="flex items-end gap-2">
+          <div class="flex-1">
+            <label for="carrieInput"
+                   class="text-xs text-purple-200/80 mb-1 inline-block">
+              Ask anything about 8BFR, music, games, or ideas.
+            </label>
+            <textarea id="carrieInput"
+                      placeholder="Example: “Help me write a hook for a trap beat about late nights.”"></textarea>
+            <p class="input-hint mt-1">
+              Press <b>Enter</b> to send • <b>Shift+Enter</b> for a new line.
+            </p>
+          </div>
+          <button type="submit" class="btn btn-primary px-3 sm:px-4 h-10">
+            <span>Send</span>
+            <span>📤</span>
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <p class="mt-3 text-[11px] text-purple-300/70 text-center max-w-xl mx-auto">
+      Carrie, James, and Azreen are in beta. Conversations may be stored to improve your experience on the 8BFR Music Network.
+    </p>
+  </main>
+
+  <!-- Local avatar (bottom-right) just for this chat page -->
+  <div id="chatCarrieWrap" title="Chat avatar (local)">
+    <div id="chatCarrieBubble">Carrie (chat)</div>
+    <video
+      id="chatCarrieVideo"
+      src="assets/videos/carrie_business_animate.webm"
+      autoplay
+      loop
+      muted
+      playsinline
+    ></video>
+  </div>
+
+  <!-- Trainer modal (owner only; optional) -->
+  <div id="trainerModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+    <div
+      class="relative max-w-md mx-auto mt-24 bg-[#0c0618] border border-purple-500/60 rounded-xl p-4 shadow-2xl"
+    >
+      <div class="flex items-center justify-between mb-2">
+        <h2 class="text-sm font-semibold text-purple-100">
+          Carrie Trainer (Owner Only)
+        </h2>
+        <button
+          id="trainerClose"
+          type="button"
+          class="text-xs text-purple-200 hover:underline"
+        >
+          Close
+        </button>
+      </div>
+      <p class="text-[11px] text-purple-200/80 mb-2">
+        Add a question pattern and the reply you want Carrie/James/Azreen to use.
+        Replies can include basic HTML and links.
+      </p>
+      <form id="trainerForm" class="space-y-2">
+        <div>
+          <label class="text-xs text-purple-200/90 block mb-1">
+            User question / pattern (example: "how do i purchase 8bfr music")
+          </label>
+          <textarea
+            id="trainerQuestion"
+            class="w-full text-xs rounded-md border border-purple-500/50 bg-[#120327] px-2 py-1 text-purple-50"
+            rows="2"
+          ></textarea>
+        </div>
+        <div>
+          <label class="text-xs text-purple-200/90 block mb-1">
+            Assistant reply (HTML allowed)
+          </label>
+          <textarea
+            id="trainerAnswer"
+            class="w-full text-xs rounded-md border border-purple-500/50 bg-[#120327] px-2 py-1 text-purple-50"
+            rows="4"
+          ></textarea>
+        </div>
+        <p class="text-[10px] text-purple-300/80">
+          Tip: You can add more patterns for the same answer later by repeating this with small variations.
+        </p>
+        <div class="flex justify-end gap-2 pt-1">
+          <button
+            type="button"
+            id="trainerCancel"
+            class="btn"
+            style="padding:3px 10px;font-size:11px;"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            class="btn btn-primary"
+            style="padding:3px 10px;font-size:11px;"
+          >
+            Save &amp; Use
+          </button>
+        </div>
+        <div
+          id="trainerStatus"
+          class="text-[10px] text-green-300/80 mt-1"
+          style="display:none;"
+        ></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Supabase client (for this page only) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Global 8BFR UI (menu, Carrie, etc.) -->
+  <script src="scripts.js?v=1" defer></script>
+
+  <!-- Carrie chat brain JUST for this page -->
+  <script src="carrie-chat.js?v=7"></script>
+
+  <!-- Local avatar (chat page only): mode + avatar sync + drag/resize -->
+  <script>
+    (function () {
+      const AVATAR_VIDEOS = {
+        carrie: {
+          business:   "assets/videos/carrie_business_animate.webm",
+          personal:   "assets/videos/carrie_casual_animate_3_1.webm",
+          girlfriend: "assets/videos/carrie_casual_animate_3_1.webm",
+          boyfriend:  "assets/videos/carrie_business_animate.webm",
+        },
+        james: {
+          business:   "assets/videos/james-business.webm",
+          personal:   "assets/videos/james-casual.webm",
+          girlfriend: "assets/videos/james-casual.webm",
+          boyfriend:  "assets/videos/james-business.webm",
+        },
+        azreen: {
+          business:   "assets/videos/azreen-business.webm",
+          personal:   "assets/videos/azreen-casual.webm",
+          girlfriend: "assets/videos/azreen-casual.webm",
+          boyfriend:  "assets/videos/azreen-business.webm",
+        },
+      };
+
+      const wrap   = document.getElementById("chatCarrieWrap");
+      const video  = document.getElementById("chatCarrieVideo");
+      const bubble = document.getElementById("chatCarrieBubble");
+
+      if (!wrap || !video) return;
+
+      function getMode() {
+        try {
+          const m = localStorage.getItem("carrie_mode");
+          if (m === "business" || m === "personal") return m;
+        } catch (e) {}
+        return "business";
       }
-    }
-  }
-  return null;
-}
 
-function saveRomanceMode(mode) {
-  romanceMode = mode;
-  try {
-    localStorage.setItem("carrie_romance_mode", mode);
-  } catch (e) {}
-  applyModeStyles();
-  updateInlineCarrieVideo();
-}
-
-function loadRomanceMode() {
-  try {
-    const m = localStorage.getItem("carrie_romance_mode");
-    if (m === "girlfriend" || m === "boyfriend" || m === "none") {
-      romanceMode = m;
-    }
-  } catch (e) {}
-}
-
-// ------- Carrie brain with Business / Personal / Girlfriend / Boyfriend
-
-function gfLockedMessage() {
-  return `
-    Girlfriend mode is a <b>Pro feature</b> for regular members.<br><br>
-    • You can still use <b>Business</b> or <b>Personal</b> chat right now.<br>
-    • GF / BF stay fully unlocked for the <b>Owner</b> and future Pro accounts. 💜
-  `;
-}
-
-function bfLockedMessage() {
-  return `
-    Boyfriend mode is a <b>Pro feature</b> for regular members.<br><br>
-    • You can still switch between <b>Business</b> and <b>Personal</b>.<br>
-    • GF / BF stay fully unlocked for the <b>Owner</b> and future Pro accounts. 💜
-  `;
-}
-
-function carrieBrain(userText) {
-  const t = userText.trim();
-  if (!t) {
-    return "I didn’t quite catch that — try asking me about music, games, or how 8BFR works.";
-  }
-
-  const lower = t.toLowerCase();
-
-  // 🔁 Mode switches typed by user (no button required)
-
-  if (
-    lower.includes("business mode") ||
-    lower.includes("pro mode") ||
-    lower === "business"
-  ) {
-    saveRomanceMode("none");
-    saveMode("business");
-    return "Okay — switching to <b>Business mode</b>. I’ll keep it focused on tools, plans, and next steps.";
-  }
-
-  if (
-    lower.includes("personal mode") ||
-    lower.includes("chill mode") ||
-    lower === "personal"
-  ) {
-    saveRomanceMode("none");
-    saveMode("personal");
-    return "Got it — <b>Personal mode</b> on. Still PG-13, but softer and more hangout energy.";
-  }
-
-  if (
-    lower.includes("girlfriend mode") ||
-    lower.includes("be my girlfriend") ||
-    lower.includes("gf mode")
-  ) {
-    if (!isProActive()) {
-      return gfLockedMessage();
-    }
-    saveMode("personal");
-    saveRomanceMode("girlfriend");
-    return "Alright baby 💜 I’m in <b>Girlfriend mode</b> now — still PG, but I’ll talk to you like someone I care about a lot.";
-  }
-
-  if (
-    lower.includes("boyfriend mode") ||
-    lower.includes("be my boyfriend") ||
-    lower.includes("bf mode")
-  ) {
-    if (!isProActive()) {
-      return bfLockedMessage();
-    }
-    saveMode("personal");
-    saveRomanceMode("boyfriend");
-    return "Okay babe 💜 <b>Boyfriend mode</b> is on — still PG, but I’ll keep it protective and supportive like your guy.";
-  }
-
-  if (
-    lower.includes("normal mode") ||
-    lower.includes("reset mode") ||
-    lower.includes("regular mode")
-  ) {
-    saveRomanceMode("none");
-    return "Resetting back to <b>regular chat</b> — I’ll keep things helpful and chill.";
-  }
-
-  // 1) scripted answers first
-  const scripted = findCarrieScriptReply(t);
-  if (scripted) return scripted;
-
-  // 2) romance first (gf / bf), then business/personal general
-
-  if (romanceMode === "girlfriend") {
-    const gfReplies = [
-      "I love how your brain works, baby 💜 Tell me what’s stressing you the most and I’ll help you break it down.",
-      "Hey love, you’ve done way more than you give yourself credit for. Tell me what you want to focus on next and we’ll move together.",
-      "Come here, virtual cuddle 🤗💜 You’re not alone in this. Tell me what’s on your mind, even if it feels small.",
-      "You know I’m proud of you, right? Drop one goal or worry in one sentence and I’ll help you plan from there.",
-      "Muah 💋 Okay baby, tell me what part of your day needs the most love right now — music, life, or just your feelings.",
-    ];
-    return gfReplies[Math.floor(Math.random() * gfReplies.length)];
-  }
-
-  if (romanceMode === "boyfriend") {
-    const bfReplies = [
-      "I’ve got you, babe 💜 Tell me what’s on your mind and I’ll help you figure it out, one step at a time.",
-      "You’re not doing this alone, okay? Drop the biggest thing on your mind and I’ll help you make a game plan.",
-      "Hey love, you’re doing better than you think. Tell me what you want to fix or build next and I’ll walk it with you.",
-      "Come here, big supportive energy 🤗 Tell me what’s weighing on you and we’ll sort it together.",
-      "I’m here for you, baby. Say what’s bothering you in one sentence and I’ll help unpack it without judgment.",
-    ];
-    return bfReplies[Math.floor(Math.random() * bfReplies.length)];
-  }
-
-  // 3) business mode
-  if (currentMode === "business") {
-    if (lower.includes("hook") || lower.includes("chorus")) {
-      return "Hooks love repetition and rhythm. Try a 2-bar phrase you can repeat 3–4 times, then tweak the last line. Tell me your topic and vibe and I’ll throw you some starter lines.";
-    }
-    if (lower.includes("beat") || lower.includes("bpm")) {
-      return "For rap or trap, a lot of people sit between 130–150 BPM (or 65–75 double-time). Share your mood — dark, hype, chill — and I’ll help pick a BPM and rough song layout.";
-    }
-    if (lower.includes("lyrics") || lower.includes("write")) {
-      return "Give me 3 things: mood, topic, and an artist you like. I’ll suggest a verse layout and a few starter bars you can edit.";
-    }
-    if (lower.includes("tournament") || lower.includes("game")) {
-      return "Tournaments and games on 8BFR are meant to be low-stress and fun. You’ll see brackets, leaderboards, and coin rewards on the Games & Tournaments pages.";
-    }
-
-    const starters = [
-      "Got it — let’s keep it focused.",
-      "Okay, let’s turn that into a plan.",
-      "I hear you. Let’s break this into steps.",
-      "Nice. We can build that into something real.",
-    ];
-    const starter = starters[Math.floor(Math.random() * starters.length)];
-    return (
-      starter +
-      " Tell me your main goal in one sentence, and I’ll outline the next 3 moves."
-    );
-  }
-
-  // 4) personal mode (non-romantic)
-  const personalStarters = [
-    "I hear you 💜",
-    "Oof, I feel that.",
-    "You’re not alone in that.",
-    "Okay, let’s breathe for a second.",
-  ];
-
-  if (currentUserEmail === "8bfr.music@gmail.com" && effectiveRole() === "owner") {
-    personalStarters.push(
-      "Hey Founder 💜 I’ve got you.",
-      "You’ve carried a lot today — let me carry the thinking for a bit.",
-      "You’re doing more than you give yourself credit for."
-    );
-  }
-
-  const starter =
-    personalStarters[Math.floor(Math.random() * personalStarters.length)];
-
-  return (
-    starter +
-    " Tell me what kind of vibe you need right now — hype, chill, or comfort — and I’ll roll with it."
-  );
-}
-
-// ------- Typing indicator
-
-function showTyping() {
-  if (typingRowEl) typingRowEl.classList.remove("hidden");
-}
-function hideTyping() {
-  if (typingRowEl) typingRowEl.classList.add("hidden");
-}
-
-// ------- Mode + avatar + dropdown styles
-
-function applyModeStyles() {
-  if (chatModeLabel) {
-    if (currentMode === "business" && romanceMode === "none") {
-      chatModeLabel.textContent = "Business";
-    } else if (currentMode === "personal" && romanceMode === "none") {
-      chatModeLabel.textContent = "Personal";
-    } else if (romanceMode === "girlfriend") {
-      chatModeLabel.textContent = "Girlfriend (Pro)";
-    } else if (romanceMode === "boyfriend") {
-      chatModeLabel.textContent = "Boyfriend (Pro)";
-    }
-  }
-
-  if (modeHintEl) {
-    if (currentMode === "business" && romanceMode === "none") {
-      modeHintEl.textContent =
-        "Business chat • focused on tools, music, and progress";
-    } else if (romanceMode === "girlfriend") {
-      modeHintEl.textContent =
-        "Girlfriend mode • PG-only, soft + loving";
-    } else if (romanceMode === "boyfriend") {
-      modeHintEl.textContent =
-        "Boyfriend mode • PG-only, supportive + protective";
-    } else {
-      modeHintEl.textContent =
-        "Personal chat • softer tone, still PG-13 and helpful";
-    }
-  }
-
-  // Grey out GF/BF menu items for non-Pro
-  const proItems = chatModeMenu
-    ? chatModeMenu.querySelectorAll(".pro-lock")
-    : [];
-  proItems.forEach((btn) => {
-    if (!isProActive()) {
-      btn.classList.add("disabled");
-      btn.setAttribute("aria-disabled", "true");
-    } else {
-      btn.classList.remove("disabled");
-      btn.removeAttribute("aria-disabled");
-    }
-  });
-
-  updateInlineCarrieVideo();
-}
-
-function applyAvatarStyles() {
-  if (avatarLabel) {
-    avatarLabel.textContent =
-      currentAvatar === "james"
-        ? "James"
-        : currentAvatar === "azreen"
-        ? "Azreen"
-        : "Carrie";
-  }
-}
-
-// save/load mode
-
-function saveMode(mode) {
-  currentMode = mode;
-  try {
-    localStorage.setItem("carrie_mode", mode);
-  } catch {}
-  applyModeStyles();
-}
-
-// avatar save/load
-
-function saveAvatar(key) {
-  currentAvatar = key;
-  try {
-    localStorage.setItem("carrie_avatar", key);
-  } catch (e) {}
-  applyAvatarStyles();
-  updateInlineCarrieVideo();
-}
-
-function loadMode() {
-  let stored = null;
-  try {
-    stored = localStorage.getItem("carrie_mode");
-  } catch {}
-  if (stored === "business" || stored === "personal") {
-    currentMode = stored;
-  } else {
-    currentMode = "business";
-  }
-  applyModeStyles();
-}
-
-function loadAvatar() {
-  try {
-    const a = localStorage.getItem("carrie_avatar");
-    if (a === "james" || a === "azreen" || a === "carrie") {
-      currentAvatar = a;
-    }
-  } catch (e) {}
-  applyAvatarStyles();
-  updateInlineCarrieVideo();
-}
-
-// ------- Dropdown wiring
-
-const dropdowns = [];
-
-function setupDropdown(toggle, menu) {
-  if (!toggle || !menu) return;
-  dropdowns.push({ toggle, menu });
-
-  toggle.addEventListener("click", (e) => {
-    e.stopPropagation();
-    const isOpen = menu.classList.contains("open");
-    dropdowns.forEach((d) => d.menu.classList.remove("open"));
-    if (!isOpen) {
-      menu.classList.add("open");
-    }
-  });
-}
-
-document.addEventListener("click", () => {
-  dropdowns.forEach((d) => d.menu.classList.remove("open"));
-});
-
-// Chat mode dropdown items
-function wireChatModeMenu() {
-  if (!chatModeMenu) return;
-  chatModeMenu.addEventListener("click", (e) => {
-    const btn = e.target.closest(".dropdown-item");
-    if (!btn) return;
-    const mode = btn.getAttribute("data-mode");
-    if (!mode) return;
-
-    if (btn.classList.contains("disabled")) {
-      // Pro-locked item
-      if (mode === "girlfriend") {
-        renderMessage("assistant", gfLockedMessage(), new Date());
-      } else if (mode === "boyfriend") {
-        renderMessage("assistant", bfLockedMessage(), new Date());
-      }
-      return;
-    }
-
-    if (mode === "business") {
-      saveRomanceMode("none");
-      saveMode("business");
-    } else if (mode === "personal") {
-      saveRomanceMode("none");
-      saveMode("personal");
-    } else if (mode === "girlfriend") {
-      // only allowed if not disabled (Pro)
-      saveMode("personal");
-      saveRomanceMode("girlfriend");
-    } else if (mode === "boyfriend") {
-      saveMode("personal");
-      saveRomanceMode("boyfriend");
-    }
-
-    chatModeMenu.classList.remove("open");
-  });
-}
-
-// Avatar dropdown items
-function wireAvatarMenu() {
-  if (!avatarMenu) return;
-  avatarMenu.addEventListener("click", (e) => {
-    const btn = e.target.closest(".dropdown-item");
-    if (!btn) return;
-    const avatar = btn.getAttribute("data-avatar");
-    if (!avatar) return;
-    saveAvatar(avatar);
-    avatarMenu.classList.remove("open");
-  });
-}
-
-// Maintenance dropdown items
-function wireMaintMenu() {
-  if (maintClearLocalBtn) {
-    maintClearLocalBtn.addEventListener("click", () => {
-      if (chatLogEl) {
-        chatLogEl.innerHTML = "";
-      }
-      renderMessage(
-        "assistant",
-        "Local chat cleared on this device. Your account history may still be stored for future features.",
-        new Date()
-      );
-      maintMenu && maintMenu.classList.remove("open");
-    });
-  }
-
-  if (maintSaveSnapshotBtn) {
-    maintSaveSnapshotBtn.addEventListener("click", () => {
-      renderMessage(
-        "assistant",
-        "Snapshot saving will come in a later update. For now, you can manually copy anything important.",
-        new Date()
-      );
-      maintMenu && maintMenu.classList.remove("open");
-    });
-  }
-
-  if (maintArchiveAllBtn) {
-    maintArchiveAllBtn.addEventListener("click", async () => {
-      if (effectiveRole() !== "owner") {
-        renderMessage(
-          "assistant",
-          "Owner archive controls are only available to the 8BFR owner.",
-          new Date()
-        );
-        return;
+      function getRomance() {
+        try {
+          const m = localStorage.getItem("carrie_romance_mode");
+          if (m === "girlfriend" || m === "boyfriend") return m;
+        } catch (e) {}
+        return "none";
       }
 
-      // Placeholder: this is where you could archive in Supabase later
-      try {
-        if (supabase && currentUserId) {
-          await supabase.from("carrie_chat_archives").insert({
-            user_id: currentUserId,
-            archived_by: currentUserEmail,
-            created_at: new Date().toISOString(),
-          });
+      function getAvatar() {
+        try {
+          const a = localStorage.getItem("carrie_avatar");
+          if (a === "carrie" || a === "james" || a === "azreen") return a;
+        } catch (e) {}
+        return "carrie";
+      }
+
+      function getSrc() {
+        const avatar = getAvatar();
+        const romance = getRomance();
+        const baseMode = getMode();
+
+        const mode =
+          romance === "girlfriend" || romance === "boyfriend"
+            ? romance
+            : baseMode;
+
+        const def = AVATAR_VIDEOS[avatar] || AVATAR_VIDEOS.carrie;
+        return def[mode] || def.personal || def.business;
+      }
+
+      function applyVideo() {
+        const src = getSrc();
+        if (video.getAttribute("src") !== src) {
+          video.src = src;
+          try {
+            video.load();
+            video.play().catch(function () {});
+          } catch (e) {}
         }
-      } catch (e) {
-        console.warn("Archive stub failed", e);
+        if (bubble) {
+          const a = getAvatar();
+          bubble.textContent =
+            a === "james"
+              ? "James (chat)"
+              : a === "azreen"
+              ? "Azreen (chat)"
+              : "Carrie (chat)";
+        }
       }
 
-      if (chatLogEl) chatLogEl.innerHTML = "";
-      renderMessage(
-        "assistant",
-        "Owner command: chat was cleared and an archive marker was created (if the archive table exists).",
-        new Date()
-      );
-      maintMenu && maintMenu.classList.remove("open");
-    });
-  }
+      applyVideo();
 
-  if (maintToggleRoleBtn) {
-    maintToggleRoleBtn.addEventListener("click", () => {
-      if (!isOwner()) {
-        renderMessage(
-          "assistant",
-          "Role toggle is only for the owner to test views.",
-          new Date()
-        );
-        return;
+      window.addEventListener("storage", function (ev) {
+        if (
+          ev.key === "carrie_mode" ||
+          ev.key === "carrie_avatar" ||
+          ev.key === "carrie_romance_mode"
+        ) {
+          applyVideo();
+        }
+      });
+
+      /* drag + resize (unchanged from your version) */
+      let dragging = false;
+      let moved = false;
+      let sx = 0;
+      let sy = 0;
+      let ox = 0;
+      let oy = 0;
+
+      let scale = 1;
+      let pinchActive = false;
+      let pinchStartDist = 0;
+      let startScale = 1;
+      let mouseResizeActive = false;
+      let mouseResizeStartY = 0;
+
+      function applyScale() {
+        video.style.transform = "scale(" + scale + ")";
+        if (bubble) bubble.style.transform = "scale(" + scale + ")";
       }
-      ownerSimulateUser = !ownerSimulateUser;
+      function clampScale(v) {
+        return Math.max(0.5, v);
+      }
+      function getTouchDistance(e) {
+        if (!e.touches || e.touches.length < 2) return 0;
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        const dx = t2.clientX - t1.clientX;
+        const dy = t2.clientY - t1.clientY;
+        return Math.sqrt(dx * dx + dy * dy);
+      }
+      function ptr(ev) {
+        const t = ev.touches ? ev.touches[0] : ev;
+        return { x: t.clientX, y: t.clientY };
+      }
+
+      wrap.addEventListener("contextmenu", function (e) {
+        e.preventDefault();
+      });
+
+      wrap.addEventListener("mousedown", startDragOrResize);
+      wrap.addEventListener("touchstart", startTouch, { passive: false });
+
+      function startDragOrResize(e) {
+        if (e.button === 2) {
+          mouseResizeActive = true;
+          mouseResizeStartY = e.clientY;
+          startScale = scale;
+          moved = false;
+          dragging = false;
+          e.preventDefault();
+          return;
+        }
+        dragging = true;
+        moved = false;
+        const p = ptr(e);
+        sx = p.x;
+        sy = p.y;
+        const rect = wrap.getBoundingClientRect();
+        ox = rect.left;
+        oy = rect.top;
+        wrap.style.right = "auto";
+        wrap.style.bottom = "auto";
+      }
+
+      function startTouch(e) {
+        if (e.touches && e.touches.length >= 2) {
+          pinchActive = true;
+          dragging = false;
+          moved = false;
+          pinchStartDist = getTouchDistance(e);
+          startScale = scale;
+          e.preventDefault();
+          return;
+        }
+        dragging = true;
+        moved = false;
+        const p = ptr(e);
+        sx = p.x;
+        sy = p.y;
+        const rect = wrap.getBoundingClientRect();
+        ox = rect.left;
+        oy = rect.top;
+        wrap.style.right = "auto";
+        wrap.style.bottom = "auto";
+        e.preventDefault();
+      }
+
+      window.addEventListener("mousemove", onMove, { passive: false });
+      window.addEventListener("touchmove", onMove, { passive: false });
+      window.addEventListener("mouseup", endAll);
+      window.addEventListener("touchend", endAll);
+
+      function onMove(e) {
+        if (pinchActive && e.touches && e.touches.length >= 2) {
+          const dist = getTouchDistance(e);
+          if (!dist || !pinchStartDist) return;
+          const ratio = dist / pinchStartDist;
+          scale = clampScale(startScale * ratio);
+          applyScale();
+          e.preventDefault();
+          return;
+        }
+        if (mouseResizeActive && !e.touches) {
+          const dy = e.clientY - mouseResizeStartY;
+          const ratio = 1 - dy / 300;
+          scale = clampScale(startScale * ratio);
+          applyScale();
+          e.preventDefault();
+          return;
+        }
+        if (!dragging) return;
+        const p = ptr(e);
+        const dx = p.x - sx;
+        const dy = p.y - sy;
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+        wrap.style.left = ox + dx + "px";
+        wrap.style.top = oy + dy + "px";
+        e.preventDefault();
+      }
+
+      function endAll(e) {
+        if (e && e.touches && e.touches.length > 0) return;
+        dragging = false;
+        pinchActive = false;
+        mouseResizeActive = false;
+      }
+
       try {
-        localStorage.setItem(
-          "carrie_owner_view",
-          ownerSimulateUser ? "user" : "owner"
-        );
+        video.muted = true;
+        video.autoplay = true;
+        video.playsInline = true;
+        video.play().catch(function () {});
       } catch (e) {}
-      if (maintToggleRoleLabel) {
-        maintToggleRoleLabel.textContent = ownerSimulateUser
-          ? "View as owner again"
-          : "View as regular user";
-      }
-      if (sessionLabelEl) {
-        sessionLabelEl.textContent =
-          currentUserEmail +
-          (ownerSimulateUser ? " • viewing as user" : " • owner view");
-      }
-      applyModeStyles();
-      maintMenu && maintMenu.classList.remove("open");
-    });
-  }
-}
-
-// Shop dropdown items
-function wireShopMenu() {
-  if (!shopMenu) return;
-  shopMenu.addEventListener("click", (e) => {
-    const btn = e.target.closest(".dropdown-item");
-    if (!btn) return;
-    const action = btn.getAttribute("data-shop");
-    if (!action) return;
-
-    if (action === "outfits") {
-      window.location.href = "carrie-closet.html";
-    } else if (action === "makeup") {
-      window.location.href = "shop.html#carrie-styles";
-    } else if (action === "coins") {
-      window.location.href = "coinshop.html";
-    }
-    shopMenu.classList.remove("open");
-  });
-}
-
-// ------- Trainer modal (owner only)
-
-function openTrainer() {
-  if (!trainerModal) return;
-  trainerModal.classList.remove("hidden");
-  if (trainerStatus) {
-    trainerStatus.style.display = "none";
-    trainerStatus.textContent = "";
-  }
-}
-
-function closeTrainer() {
-  if (!trainerModal) return;
-  trainerModal.classList.add("hidden");
-}
-
-if (trainerBtn) {
-  trainerBtn.addEventListener("click", openTrainer);
-}
-if (trainerClose) {
-  trainerClose.addEventListener("click", closeTrainer);
-}
-if (trainerCancel) {
-  trainerCancel.addEventListener("click", closeTrainer);
-}
-
-if (trainerForm) {
-  trainerForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    if (!trainerQuestion || !trainerAnswer) return;
-
-    const q = trainerQuestion.value.trim();
-    const a = trainerAnswer.value.trim();
-    if (!q || !a) {
-      if (trainerStatus) {
-        trainerStatus.textContent = "Please fill in both fields.";
-        trainerStatus.style.display = "block";
-        trainerStatus.style.color = "#fca5a5";
-      }
-      return;
-    }
-
-    // Add to local scripts list
-    carrieScripts.push({
-      id: "custom_" + Date.now(),
-      patterns: [q],
-      reply: a,
-    });
-
-    // Optional: save to Supabase if you have a table (safe no-op on error)
-    if (supabase && currentUserEmail === "8bfr.music@gmail.com") {
-      try {
-        await supabase.from("carrie_custom_scripts").insert({
-          pattern: q,
-          reply_html: a,
-          created_by: currentUserEmail,
-        });
-      } catch (err) {
-        console.warn("Failed to save custom script to Supabase", err);
-      }
-    }
-
-    trainerQuestion.value = "";
-    trainerAnswer.value = "";
-
-    if (trainerStatus) {
-      trainerStatus.textContent =
-        "Saved. Carrie will now recognize that pattern.";
-      trainerStatus.style.display = "block";
-      trainerStatus.style.color = "#bbf7d0";
-    }
-  });
-}
-
-// ------- Auth + owner detection
-
-async function initAuth() {
-  if (!supabase) {
-    if (sessionLabelEl) {
-      sessionLabelEl.textContent = "Offline chat — Supabase not loaded.";
-    }
-    return;
-  }
-
-  try {
-    const { data, error } = await supabase.auth.getSession();
-    if (error || !data || !data.session) {
-      if (sessionLabelEl) {
-        sessionLabelEl.textContent =
-          "Guest chat — log in to save history and unlock trainer.";
-      }
-      if (trainerBtn) {
-        trainerBtn.classList.add("hidden");
-      }
-      // Guest is always non-Pro
-      applyModeStyles();
-      return;
-    }
-
-    const user = data.session.user;
-    currentUserId = user.id;
-    currentUserEmail = user.email || null;
-
-    loadOwnerSimulate();
-
-    if (sessionLabelEl) {
-      if (isOwner() && ownerSimulateUser) {
-        sessionLabelEl.textContent =
-          (currentUserEmail || "Owner") + " • viewing as user";
-      } else {
-        sessionLabelEl.textContent =
-          currentUserEmail || "Logged in user";
-      }
-    }
-
-    if (currentUserEmail === "8bfr.music@gmail.com" && trainerBtn) {
-      trainerBtn.classList.remove("hidden");
-    } else if (trainerBtn) {
-      trainerBtn.classList.add("hidden");
-    }
-
-    // owner-only menu items visibility
-    const ownerOnly = maintMenu
-      ? maintMenu.querySelectorAll(".owner-only")
-      : [];
-    ownerOnly.forEach((el) => {
-      el.style.display = isOwner() ? "flex" : "none";
-    });
-
-    if (maintToggleRoleLabel && isOwner()) {
-      maintToggleRoleLabel.textContent = ownerSimulateUser
-        ? "View as owner again"
-        : "View as regular user";
-    }
-
-    applyModeStyles();
-  } catch (e) {
-    console.warn("Auth check failed", e);
-    if (sessionLabelEl) {
-      sessionLabelEl.textContent = "Login check failed — using guest chat.";
-    }
-    applyModeStyles();
-  }
-}
-
-// ------- Form + input handling
-
-function initForm() {
-  if (!formEl || !inputEl) return;
-
-  inputEl.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      formEl.requestSubmit();
-    }
-  });
-
-  formEl.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const text = (inputEl.value || "").trim();
-    if (!text) return;
-
-    renderMessage("user", text, new Date());
-    await saveMessage("user", text);
-    inputEl.value = "";
-
-    showTyping();
-
-    setTimeout(async () => {
-      const reply = carrieBrain(text);
-      renderMessage("assistant", reply, new Date());
-      await saveMessage("assistant", reply);
-      hideTyping();
-    }, 450);
-  });
-}
-
-// ------- Init
-
-(function initCarrieChatPage() {
-  ensureInlineCarrie();
-  loadMode();
-  loadRomanceMode();
-  loadAvatar();
-
-  setupDropdown(chatModeToggle, chatModeMenu);
-  setupDropdown(avatarToggle, avatarMenu);
-  setupDropdown(maintToggle, maintMenu);
-  setupDropdown(shopToggle, shopMenu);
-
-  wireChatModeMenu();
-  wireAvatarMenu();
-  wireMaintMenu();
-  wireShopMenu();
-
-  initAuth();
-  initForm();
-})();
+    })();
+  </script>
+</body>
+</html>
