@@ -5,19 +5,25 @@ const SUPABASE_URL = "https://novbuvwpjnxwwvdekjhr.supabase.co";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0";
 
-// ✅ Per-avatar video sources (business vs personal/casual)
+// ✅ Per-avatar video sources (business / personal / girlfriend / boyfriend)
 const AVATAR_VIDEOS = {
   carrie: {
     business: "assets/videos/carrie_business_animate.webm",
     personal: "assets/videos/carrie_casual_animate_3_1.webm",
+    girlfriend: "assets/videos/carrie_casual_animate_3_1.webm",
+    boyfriend: "assets/videos/carrie_business_animate.webm",
   },
   james: {
     business: "assets/videos/james-business.webm",
     personal: "assets/videos/james-casual.webm",
+    girlfriend: "assets/videos/james-casual.webm",
+    boyfriend: "assets/videos/james-business.webm",
   },
   azreen: {
     business: "assets/videos/azreen-business.webm",
     personal: "assets/videos/azreen-casual.webm",
+    girlfriend: "assets/videos/azreen-casual.webm",
+    boyfriend: "assets/videos/azreen-business.webm",
   },
 };
 
@@ -44,14 +50,25 @@ const trainerQuestion = document.getElementById("trainerQuestion");
 const trainerAnswer = document.getElementById("trainerAnswer");
 const trainerStatus = document.getElementById("trainerStatus");
 
-const modeBusinessBtn = document.getElementById("modeBusiness");
-const modePersonalBtn = document.getElementById("modePersonal");
-const modeGirlfriendBtn = document.getElementById("modeGirlfriend");
-const modeBoyfriendBtn = document.getElementById("modeBoyfriend");
+// Dropdown controls
+const chatModeToggle = document.getElementById("chatModeToggle");
+const chatModeMenu = document.getElementById("chatModeMenu");
+const chatModeLabel = document.getElementById("chatModeLabel");
 
-const avatarCarrieBtn = document.getElementById("avatarCarrie");
-const avatarJamesBtn = document.getElementById("avatarJames");
-const avatarAzreenBtn = document.getElementById("avatarAzreen");
+const avatarToggle = document.getElementById("avatarToggle");
+const avatarMenu = document.getElementById("avatarMenu");
+const avatarLabel = document.getElementById("avatarLabel");
+
+const maintToggle = document.getElementById("maintToggle");
+const maintMenu = document.getElementById("maintMenu");
+const maintClearLocalBtn = document.getElementById("maintClearLocal");
+const maintSaveSnapshotBtn = document.getElementById("maintSaveSnapshot");
+const maintArchiveAllBtn = document.getElementById("maintArchiveAll");
+const maintToggleRoleBtn = document.getElementById("maintToggleRole");
+const maintToggleRoleLabel = document.getElementById("maintToggleRoleLabel");
+
+const shopToggle = document.getElementById("shopToggle");
+const shopMenu = document.getElementById("shopMenu");
 
 let currentUserId = null;
 let currentUserEmail = null;
@@ -65,7 +82,10 @@ let romanceMode = "none";
 // avatar: carrie / james / azreen
 let currentAvatar = "carrie";
 
-// Inline Carrie circle for this page only
+// owner view simulation: owner or user (for founder only)
+let ownerSimulateUser = false;
+
+// Inline top circle for this page only
 let inlineCarrieVideo = null;
 
 // ------- helpers
@@ -94,7 +114,8 @@ function scrollChatToBottom() {
   });
 }
 
-// avatar helper
+// avatar + mode helpers
+
 function getAvatarKey() {
   if (currentAvatar) return currentAvatar;
   try {
@@ -104,21 +125,52 @@ function getAvatarKey() {
   return "carrie";
 }
 
-// visual mode (business vs personal outfit)
-// girlfriend/boyfriend use personal outfit visuals here
-function getVisualMode() {
+function getVisualModeKey() {
+  if (romanceMode === "girlfriend" || romanceMode === "boyfriend") {
+    return romanceMode;
+  }
   if (currentMode === "business") return "business";
   return "personal";
 }
 
 function getCurrentVideoSrc() {
   const avatar = getAvatarKey();
-  const mode = getVisualMode();
+  const mode = getVisualModeKey();
   const set = AVATAR_VIDEOS[avatar] || AVATAR_VIDEOS.carrie;
   return set[mode] || set.personal || set.business;
 }
 
-// ------- Inline Carrie circle (top-left of chat window)
+// ----- role / pro helpers
+
+function isOwner() {
+  return currentUserEmail === "8bfr.music@gmail.com";
+}
+
+function loadOwnerSimulate() {
+  try {
+    ownerSimulateUser = localStorage.getItem("carrie_owner_view") === "user";
+  } catch (e) {
+    ownerSimulateUser = false;
+  }
+}
+
+function effectiveRole() {
+  if (!isOwner()) return "user";
+  return ownerSimulateUser ? "user" : "owner";
+}
+
+function isProActive() {
+  // For now: Owner (in owner view) is always Pro.
+  if (effectiveRole() === "owner") return true;
+  // Future: regular users can have Pro via localStorage flag.
+  try {
+    return localStorage.getItem("carrie_pro") === "1";
+  } catch (e) {
+    return false;
+  }
+}
+
+// ------- Inline circle avatar (top-left of chat window)
 
 function ensureInlineCarrie() {
   if (!chatLogEl || inlineCarrieVideo) return;
@@ -170,7 +222,7 @@ function updateInlineCarrieVideo() {
   }
 }
 
-// ------- chat message renderer (avatar uses same video as circle)
+// ------- chat message renderer (assistant avatar uses same video as circle)
 
 function renderMessage(role, content, createdAt) {
   if (!chatLogEl) return;
@@ -220,7 +272,13 @@ function renderMessage(role, content, createdAt) {
   const meta = document.createElement("div");
   meta.className = "msg-meta";
   meta.textContent =
-    (role === "assistant" ? "Carrie • " : "You • ") +
+    (role === "assistant"
+      ? (currentAvatar === "james"
+          ? "James • "
+          : currentAvatar === "azreen"
+          ? "Azreen • "
+          : "Carrie • ")
+      : "You • ") +
     fmtTime(createdAt || new Date());
   bubble.appendChild(meta);
 
@@ -359,9 +417,9 @@ function saveRomanceMode(mode) {
     localStorage.setItem("carrie_romance_mode", mode);
   } catch (e) {}
   applyModeStyles();
+  updateInlineCarrieVideo();
 }
 
-// load romance from storage (gf/bf)
 function loadRomanceMode() {
   try {
     const m = localStorage.getItem("carrie_romance_mode");
@@ -371,9 +429,23 @@ function loadRomanceMode() {
   } catch (e) {}
 }
 
-loadRomanceMode();
-
 // ------- Carrie brain with Business / Personal / Girlfriend / Boyfriend
+
+function gfLockedMessage() {
+  return `
+    Girlfriend mode is a <b>Pro feature</b> for regular members.<br><br>
+    • You can still use <b>Business</b> or <b>Personal</b> chat right now.<br>
+    • GF / BF stay fully unlocked for the <b>Owner</b> and future Pro accounts. 💜
+  `;
+}
+
+function bfLockedMessage() {
+  return `
+    Boyfriend mode is a <b>Pro feature</b> for regular members.<br><br>
+    • You can still switch between <b>Business</b> and <b>Personal</b>.<br>
+    • GF / BF stay fully unlocked for the <b>Owner</b> and future Pro accounts. 💜
+  `;
+}
 
 function carrieBrain(userText) {
   const t = userText.trim();
@@ -392,7 +464,6 @@ function carrieBrain(userText) {
   ) {
     saveRomanceMode("none");
     saveMode("business");
-    updateInlineCarrieVideo();
     return "Okay — switching to <b>Business mode</b>. I’ll keep it focused on tools, plans, and next steps.";
   }
 
@@ -403,7 +474,6 @@ function carrieBrain(userText) {
   ) {
     saveRomanceMode("none");
     saveMode("personal");
-    updateInlineCarrieVideo();
     return "Got it — <b>Personal mode</b> on. Still PG-13, but softer and more hangout energy.";
   }
 
@@ -412,9 +482,11 @@ function carrieBrain(userText) {
     lower.includes("be my girlfriend") ||
     lower.includes("gf mode")
   ) {
+    if (!isProActive()) {
+      return gfLockedMessage();
+    }
     saveMode("personal");
     saveRomanceMode("girlfriend");
-    updateInlineCarrieVideo();
     return "Alright baby 💜 I’m in <b>Girlfriend mode</b> now — still PG, but I’ll talk to you like someone I care about a lot.";
   }
 
@@ -423,9 +495,11 @@ function carrieBrain(userText) {
     lower.includes("be my boyfriend") ||
     lower.includes("bf mode")
   ) {
+    if (!isProActive()) {
+      return bfLockedMessage();
+    }
     saveMode("personal");
     saveRomanceMode("boyfriend");
-    updateInlineCarrieVideo();
     return "Okay babe 💜 <b>Boyfriend mode</b> is on — still PG, but I’ll keep it protective and supportive like your guy.";
   }
 
@@ -502,7 +576,7 @@ function carrieBrain(userText) {
     "Okay, let’s breathe for a second.",
   ];
 
-  if (currentUserEmail === "8bfr.music@gmail.com") {
+  if (currentUserEmail === "8bfr.music@gmail.com" && effectiveRole() === "owner") {
     personalStarters.push(
       "Hey Founder 💜 I’ve got you.",
       "You’ve carried a lot today — let me carry the thinking for a bit.",
@@ -528,63 +602,62 @@ function hideTyping() {
   if (typingRowEl) typingRowEl.classList.add("hidden");
 }
 
-// ------- Mode + avatar styles
+// ------- Mode + avatar + dropdown styles
 
 function applyModeStyles() {
-  if (!modeBusinessBtn || !modePersonalBtn) return;
-
-  const allModeBtns = [
-    modeBusinessBtn,
-    modePersonalBtn,
-    modeGirlfriendBtn,
-    modeBoyfriendBtn,
-  ].filter(Boolean);
-
-  allModeBtns.forEach((btn) => btn.classList.remove("active"));
-
-  if (currentMode === "business" && romanceMode === "none") {
-    modeBusinessBtn.classList.add("active");
-  } else if (currentMode === "personal" && romanceMode === "none") {
-    modePersonalBtn.classList.add("active");
-  } else if (romanceMode === "girlfriend" && modeGirlfriendBtn) {
-    modeGirlfriendBtn.classList.add("active");
-  } else if (romanceMode === "boyfriend" && modeBoyfriendBtn) {
-    modeBoyfriendBtn.classList.add("active");
+  if (chatModeLabel) {
+    if (currentMode === "business" && romanceMode === "none") {
+      chatModeLabel.textContent = "Business";
+    } else if (currentMode === "personal" && romanceMode === "none") {
+      chatModeLabel.textContent = "Personal";
+    } else if (romanceMode === "girlfriend") {
+      chatModeLabel.textContent = "Girlfriend (Pro)";
+    } else if (romanceMode === "boyfriend") {
+      chatModeLabel.textContent = "Boyfriend (Pro)";
+    }
   }
 
-  if (!modeHintEl) return;
-
-  if (currentMode === "business" && romanceMode === "none") {
-    modeHintEl.textContent =
-      "Business chat • focused on tools, music, and progress";
-  } else if (romanceMode === "girlfriend") {
-    modeHintEl.textContent =
-      "Girlfriend mode • PG-only, soft + loving";
-  } else if (romanceMode === "boyfriend") {
-    modeHintEl.textContent =
-      "Boyfriend mode • PG-only, supportive + protective";
-  } else {
-    modeHintEl.textContent =
-      "Personal chat • softer tone, still PG-13 and helpful";
+  if (modeHintEl) {
+    if (currentMode === "business" && romanceMode === "none") {
+      modeHintEl.textContent =
+        "Business chat • focused on tools, music, and progress";
+    } else if (romanceMode === "girlfriend") {
+      modeHintEl.textContent =
+        "Girlfriend mode • PG-only, soft + loving";
+    } else if (romanceMode === "boyfriend") {
+      modeHintEl.textContent =
+        "Boyfriend mode • PG-only, supportive + protective";
+    } else {
+      modeHintEl.textContent =
+        "Personal chat • softer tone, still PG-13 and helpful";
+    }
   }
+
+  // Grey out GF/BF menu items for non-Pro
+  const proItems = chatModeMenu
+    ? chatModeMenu.querySelectorAll(".pro-lock")
+    : [];
+  proItems.forEach((btn) => {
+    if (!isProActive()) {
+      btn.classList.add("disabled");
+      btn.setAttribute("aria-disabled", "true");
+    } else {
+      btn.classList.remove("disabled");
+      btn.removeAttribute("aria-disabled");
+    }
+  });
 
   updateInlineCarrieVideo();
 }
 
 function applyAvatarStyles() {
-  const allAvatarBtns = [
-    avatarCarrieBtn,
-    avatarJamesBtn,
-    avatarAzreenBtn,
-  ].filter(Boolean);
-  allAvatarBtns.forEach((btn) => btn.classList.remove("active"));
-
-  if (currentAvatar === "james" && avatarJamesBtn) {
-    avatarJamesBtn.classList.add("active");
-  } else if (currentAvatar === "azreen" && avatarAzreenBtn) {
-    avatarAzreenBtn.classList.add("active");
-  } else if (avatarCarrieBtn) {
-    avatarCarrieBtn.classList.add("active");
+  if (avatarLabel) {
+    avatarLabel.textContent =
+      currentAvatar === "james"
+        ? "James"
+        : currentAvatar === "azreen"
+        ? "Azreen"
+        : "Carrie";
   }
 }
 
@@ -596,6 +669,17 @@ function saveMode(mode) {
     localStorage.setItem("carrie_mode", mode);
   } catch {}
   applyModeStyles();
+}
+
+// avatar save/load
+
+function saveAvatar(key) {
+  currentAvatar = key;
+  try {
+    localStorage.setItem("carrie_avatar", key);
+  } catch (e) {}
+  applyAvatarStyles();
+  updateInlineCarrieVideo();
 }
 
 function loadMode() {
@@ -611,17 +695,6 @@ function loadMode() {
   applyModeStyles();
 }
 
-// avatar save/load
-
-function saveAvatar(key) {
-  currentAvatar = key;
-  try {
-    localStorage.setItem("carrie_avatar", key);
-  } catch (e) {}
-  applyAvatarStyles();
-  updateInlineCarrieVideo();
-}
-
 function loadAvatar() {
   try {
     const a = localStorage.getItem("carrie_avatar");
@@ -633,43 +706,191 @@ function loadAvatar() {
   updateInlineCarrieVideo();
 }
 
-// Mode buttons
+// ------- Dropdown wiring
 
-if (modeBusinessBtn) {
-  modeBusinessBtn.addEventListener("click", () => {
-    saveRomanceMode("none");
-    saveMode("business");
-  });
-}
-if (modePersonalBtn) {
-  modePersonalBtn.addEventListener("click", () => {
-    saveRomanceMode("none");
-    saveMode("personal");
-  });
-}
-if (modeGirlfriendBtn) {
-  modeGirlfriendBtn.addEventListener("click", () => {
-    saveMode("personal");
-    saveRomanceMode("girlfriend");
-  });
-}
-if (modeBoyfriendBtn) {
-  modeBoyfriendBtn.addEventListener("click", () => {
-    saveMode("personal");
-    saveRomanceMode("boyfriend");
+const dropdowns = [];
+
+function setupDropdown(toggle, menu) {
+  if (!toggle || !menu) return;
+  dropdowns.push({ toggle, menu });
+
+  toggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isOpen = menu.classList.contains("open");
+    dropdowns.forEach((d) => d.menu.classList.remove("open"));
+    if (!isOpen) {
+      menu.classList.add("open");
+    }
   });
 }
 
-// Avatar buttons
+document.addEventListener("click", () => {
+  dropdowns.forEach((d) => d.menu.classList.remove("open"));
+});
 
-if (avatarCarrieBtn) {
-  avatarCarrieBtn.addEventListener("click", () => saveAvatar("carrie"));
+// Chat mode dropdown items
+function wireChatModeMenu() {
+  if (!chatModeMenu) return;
+  chatModeMenu.addEventListener("click", (e) => {
+    const btn = e.target.closest(".dropdown-item");
+    if (!btn) return;
+    const mode = btn.getAttribute("data-mode");
+    if (!mode) return;
+
+    if (btn.classList.contains("disabled")) {
+      // Pro-locked item
+      if (mode === "girlfriend") {
+        renderMessage("assistant", gfLockedMessage(), new Date());
+      } else if (mode === "boyfriend") {
+        renderMessage("assistant", bfLockedMessage(), new Date());
+      }
+      return;
+    }
+
+    if (mode === "business") {
+      saveRomanceMode("none");
+      saveMode("business");
+    } else if (mode === "personal") {
+      saveRomanceMode("none");
+      saveMode("personal");
+    } else if (mode === "girlfriend") {
+      // only allowed if not disabled (Pro)
+      saveMode("personal");
+      saveRomanceMode("girlfriend");
+    } else if (mode === "boyfriend") {
+      saveMode("personal");
+      saveRomanceMode("boyfriend");
+    }
+
+    chatModeMenu.classList.remove("open");
+  });
 }
-if (avatarJamesBtn) {
-  avatarJamesBtn.addEventListener("click", () => saveAvatar("james"));
+
+// Avatar dropdown items
+function wireAvatarMenu() {
+  if (!avatarMenu) return;
+  avatarMenu.addEventListener("click", (e) => {
+    const btn = e.target.closest(".dropdown-item");
+    if (!btn) return;
+    const avatar = btn.getAttribute("data-avatar");
+    if (!avatar) return;
+    saveAvatar(avatar);
+    avatarMenu.classList.remove("open");
+  });
 }
-if (avatarAzreenBtn) {
-  avatarAzreenBtn.addEventListener("click", () => saveAvatar("azreen"));
+
+// Maintenance dropdown items
+function wireMaintMenu() {
+  if (maintClearLocalBtn) {
+    maintClearLocalBtn.addEventListener("click", () => {
+      if (chatLogEl) {
+        chatLogEl.innerHTML = "";
+      }
+      renderMessage(
+        "assistant",
+        "Local chat cleared on this device. Your account history may still be stored for future features.",
+        new Date()
+      );
+      maintMenu && maintMenu.classList.remove("open");
+    });
+  }
+
+  if (maintSaveSnapshotBtn) {
+    maintSaveSnapshotBtn.addEventListener("click", () => {
+      renderMessage(
+        "assistant",
+        "Snapshot saving will come in a later update. For now, you can manually copy anything important.",
+        new Date()
+      );
+      maintMenu && maintMenu.classList.remove("open");
+    });
+  }
+
+  if (maintArchiveAllBtn) {
+    maintArchiveAllBtn.addEventListener("click", async () => {
+      if (effectiveRole() !== "owner") {
+        renderMessage(
+          "assistant",
+          "Owner archive controls are only available to the 8BFR owner.",
+          new Date()
+        );
+        return;
+      }
+
+      // Placeholder: this is where you could archive in Supabase later
+      try {
+        if (supabase && currentUserId) {
+          await supabase.from("carrie_chat_archives").insert({
+            user_id: currentUserId,
+            archived_by: currentUserEmail,
+            created_at: new Date().toISOString(),
+          });
+        }
+      } catch (e) {
+        console.warn("Archive stub failed", e);
+      }
+
+      if (chatLogEl) chatLogEl.innerHTML = "";
+      renderMessage(
+        "assistant",
+        "Owner command: chat was cleared and an archive marker was created (if the archive table exists).",
+        new Date()
+      );
+      maintMenu && maintMenu.classList.remove("open");
+    });
+  }
+
+  if (maintToggleRoleBtn) {
+    maintToggleRoleBtn.addEventListener("click", () => {
+      if (!isOwner()) {
+        renderMessage(
+          "assistant",
+          "Role toggle is only for the owner to test views.",
+          new Date()
+        );
+        return;
+      }
+      ownerSimulateUser = !ownerSimulateUser;
+      try {
+        localStorage.setItem(
+          "carrie_owner_view",
+          ownerSimulateUser ? "user" : "owner"
+        );
+      } catch (e) {}
+      if (maintToggleRoleLabel) {
+        maintToggleRoleLabel.textContent = ownerSimulateUser
+          ? "View as owner again"
+          : "View as regular user";
+      }
+      if (sessionLabelEl) {
+        sessionLabelEl.textContent =
+          currentUserEmail +
+          (ownerSimulateUser ? " • viewing as user" : " • owner view");
+      }
+      applyModeStyles();
+      maintMenu && maintMenu.classList.remove("open");
+    });
+  }
+}
+
+// Shop dropdown items
+function wireShopMenu() {
+  if (!shopMenu) return;
+  shopMenu.addEventListener("click", (e) => {
+    const btn = e.target.closest(".dropdown-item");
+    if (!btn) return;
+    const action = btn.getAttribute("data-shop");
+    if (!action) return;
+
+    if (action === "outfits") {
+      window.location.href = "carrie-closet.html";
+    } else if (action === "makeup") {
+      window.location.href = "shop.html#carrie-styles";
+    } else if (action === "coins") {
+      window.location.href = "coinshop.html";
+    }
+    shopMenu.classList.remove("open");
+  });
 }
 
 // ------- Trainer modal (owner only)
@@ -738,7 +959,8 @@ if (trainerForm) {
     trainerAnswer.value = "";
 
     if (trainerStatus) {
-      trainerStatus.textContent = "Saved. Carrie will now recognize that pattern.";
+      trainerStatus.textContent =
+        "Saved. Carrie will now recognize that pattern.";
       trainerStatus.style.display = "block";
       trainerStatus.style.color = "#bbf7d0";
     }
@@ -765,6 +987,8 @@ async function initAuth() {
       if (trainerBtn) {
         trainerBtn.classList.add("hidden");
       }
+      // Guest is always non-Pro
+      applyModeStyles();
       return;
     }
 
@@ -772,8 +996,16 @@ async function initAuth() {
     currentUserId = user.id;
     currentUserEmail = user.email || null;
 
+    loadOwnerSimulate();
+
     if (sessionLabelEl) {
-      sessionLabelEl.textContent = `Logged in as ${currentUserEmail || "user"}`;
+      if (isOwner() && ownerSimulateUser) {
+        sessionLabelEl.textContent =
+          (currentUserEmail || "Owner") + " • viewing as user";
+      } else {
+        sessionLabelEl.textContent =
+          currentUserEmail || "Logged in user";
+      }
     }
 
     if (currentUserEmail === "8bfr.music@gmail.com" && trainerBtn) {
@@ -781,11 +1013,28 @@ async function initAuth() {
     } else if (trainerBtn) {
       trainerBtn.classList.add("hidden");
     }
+
+    // owner-only menu items visibility
+    const ownerOnly = maintMenu
+      ? maintMenu.querySelectorAll(".owner-only")
+      : [];
+    ownerOnly.forEach((el) => {
+      el.style.display = isOwner() ? "flex" : "none";
+    });
+
+    if (maintToggleRoleLabel && isOwner()) {
+      maintToggleRoleLabel.textContent = ownerSimulateUser
+        ? "View as owner again"
+        : "View as regular user";
+    }
+
+    applyModeStyles();
   } catch (e) {
     console.warn("Auth check failed", e);
     if (sessionLabelEl) {
       sessionLabelEl.textContent = "Login check failed — using guest chat.";
     }
+    applyModeStyles();
   }
 }
 
@@ -826,7 +1075,19 @@ function initForm() {
 (function initCarrieChatPage() {
   ensureInlineCarrie();
   loadMode();
+  loadRomanceMode();
   loadAvatar();
+
+  setupDropdown(chatModeToggle, chatModeMenu);
+  setupDropdown(avatarToggle, avatarMenu);
+  setupDropdown(maintToggle, maintMenu);
+  setupDropdown(shopToggle, shopMenu);
+
+  wireChatModeMenu();
+  wireAvatarMenu();
+  wireMaintMenu();
+  wireShopMenu();
+
   initAuth();
   initForm();
 })();
