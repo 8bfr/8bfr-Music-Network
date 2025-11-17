@@ -179,6 +179,13 @@
       display:none !important;
     }
 
+    /* Try to hide any legacy Carrie/James toggle bars injected by global JS */
+    #carrieToggleBar,
+    .carrie-toggle-bar,
+    #carrieModeButtons {
+      display:none !important;
+    }
+
     /* Local avatar for this chat page (bottom-right, draggable + resizable) */
     #chatCarrieWrap{
       position:fixed;
@@ -296,6 +303,13 @@
       opacity:.75;
       margin-left:6px;
     }
+    .dropdown-item.disabled{
+      opacity:.45;
+      cursor:default;
+    }
+    .dropdown-item.disabled:hover{
+      background:transparent;
+    }
 
     @media (max-width:640px){
       #chatCarrieWrap{
@@ -355,11 +369,11 @@
                 <span>Personal</span>
                 <small>chill</small>
               </button>
-              <button class="dropdown-item dropdown-item-locked" data-mode="girlfriend">
+              <button class="dropdown-item pro-lock" data-mode="girlfriend">
                 <span>Girlfriend</span>
                 <small>Pro only</small>
               </button>
-              <button class="dropdown-item dropdown-item-locked" data-mode="boyfriend">
+              <button class="dropdown-item pro-lock" data-mode="boyfriend">
                 <span>Boyfriend</span>
                 <small>Pro only</small>
               </button>
@@ -397,16 +411,19 @@
             </button>
             <div id="maintMenu" class="dropdown-panel">
               <div class="dropdown-group-label">Chat maintenance</div>
-              <button class="dropdown-item" data-maint="clear-local">
+              <button class="dropdown-item" data-maint="clear-local" id="maintClearLocal">
                 <span>Clear chat (this device)</span>
               </button>
-              <button class="dropdown-item dropdown-item-locked" data-maint="archive-self">
+              <button class="dropdown-item dropdown-item-locked" data-maint="archive-self" id="maintSaveSnapshot">
                 <span>Archive for me</span>
                 <small>Pro only</small>
               </button>
-              <button class="dropdown-item dropdown-item-locked" data-maint="archive-all">
+              <button class="dropdown-item dropdown-item-locked owner-only" data-maint="archive-all" id="maintArchiveAll">
                 <span>Archive for everyone</span>
                 <small>Owner tools</small>
+              </button>
+              <button class="dropdown-item owner-only" data-maint="toggle-role" id="maintToggleRole">
+                <span id="maintToggleRoleLabel">View as regular user</span>
               </button>
             </div>
           </div>
@@ -419,6 +436,7 @@
             </button>
             <div id="shopMenu" class="dropdown-panel">
               <div class="dropdown-group-label">Outfits & coins</div>
+              <!-- These are just links; they already navigate correctly -->
               <a href="carrie-closet.html" class="dropdown-item">
                 <span>Open Carrie Closet</span>
                 <small>outfits, makeup</small>
@@ -595,88 +613,16 @@
   <script src="scripts.js?v=1" defer></script>
 
   <!-- Carrie chat brain JUST for this page -->
-  <script src="carrie-chat.js?v=7"></script>
+  <script src="carrie-chat.js?v=8"></script>
 
-  <!-- Local avatar (chat page only): mode + avatar sync + drag/resize -->
+  <!-- Local avatar (chat page only): drag/resize only (avatar src handled by carrie-chat.js) -->
   <script>
     (function () {
-      const AVATAR_VIDEOS = {
-        carrie: {
-          business:   "assets/videos/carrie_business_animate.webm",
-          personal:   "assets/videos/carrie_casual_animate_3_1.webm",
-          girlfriend: "assets/videos/carrie_casual_animate_3_1.webm",
-          boyfriend:  "assets/videos/carrie_business_animate.webm",
-        },
-        james: {
-          business:   "assets/videos/james-business.webm",
-          personal:   "assets/videos/james-casual.webm",
-          girlfriend: "assets/videos/james-casual.webm",
-          boyfriend:  "assets/videos/james-business.webm",
-        },
-        azreen: {
-          business:   "assets/videos/azreen-business.webm",
-          personal:   "assets/videos/azreen-casual.webm",
-          girlfriend: "assets/videos/azreen-casual.webm",
-          boyfriend:  "assets/videos/azreen-business.webm",
-        },
-      };
-
       const wrap   = document.getElementById("chatCarrieWrap");
       const video  = document.getElementById("chatCarrieVideo");
       const bubble = document.getElementById("chatCarrieBubble");
 
       if (!wrap || !video) return;
-
-      function getMode() {
-        try {
-          const m = localStorage.getItem("carrie_mode");
-          if (m) return m;
-        } catch (e) {}
-        return "business";
-      }
-
-      function getAvatar() {
-        try {
-          const a = localStorage.getItem("carrie_avatar");
-          if (a === "carrie" || a === "james" || a === "azreen") return a;
-        } catch (e) {}
-        return "carrie";
-      }
-
-      function getSrc() {
-        const mode   = getMode();
-        const avatar = getAvatar();
-        const def = AVATAR_VIDEOS[avatar] || AVATAR_VIDEOS.carrie;
-        return def[mode] || def.personal || def.business;
-      }
-
-      function applyVideo() {
-        const src = getSrc();
-        if (video.getAttribute("src") !== src) {
-          video.src = src;
-          try {
-            video.load();
-            video.play().catch(function () {});
-          } catch (e) {}
-        }
-        if (bubble) {
-          const avatar = getAvatar();
-          bubble.textContent =
-            avatar === "james"
-              ? "James (chat)"
-              : avatar === "azreen"
-              ? "Azreen (chat)"
-              : "Carrie (chat)";
-        }
-      }
-
-      applyVideo();
-
-      window.addEventListener("storage", function (ev) {
-        if (ev.key === "carrie_mode" || ev.key === "carrie_avatar") {
-          applyVideo();
-        }
-      });
 
       // ----- Drag + resize logic -----
       let dragging = false;
@@ -724,7 +670,6 @@
         if (e.button === 2) {
           mouseResizeActive = true;
           mouseResizeStartY = e.clientY;
-          startScale = scale;
           moved = false;
           dragging = false;
           e.preventDefault();
