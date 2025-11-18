@@ -792,6 +792,57 @@ body.menu-open #carrieWrap{
       });
     });
 
+    //
+
+    function clampScale(v) {
+      return Math.max(0.5, v);
+    }
+
+    function getTouchDistance(e) {
+      if (!e.touches || e.touches.length < 2) return 0;
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const dx = t2.clientX - t1.clientX;
+      const dy = t2.clientY - t1.clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    function ptr(ev) {
+      const t = ev.touches ? ev.touches[0] : ev;
+      return { x: t.clientX, y: t.clientY };
+    }
+
+    if (carrieWrap) {
+      carrieWrap.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+      });
+
+      carrieWrap.addEventListener("mousedown", startDragOrResize);
+      carrieWrap.addEventListener("touchstart", startTouch, { passive: false });
+    }
+
+    function startDragOrResize(e) {
+      if (e.button === 2) {
+        mouseResizeActive = true;
+        mouseResizeStartY = e.clientY;
+        carrieStartScale = carrieScale;
+        moved = false;
+        dragging = false;
+        e.preventDefault();
+        return;
+      }
+
+      dragging = true;
+      moved = false;
+      const p = ptr(e);
+      sx = p.x;
+      sy = p.y;
+      const rect = carrieWrap.getBoundingClientRect();
+      ox = rect.left;
+      oy = rect.top;
+      carrieWrap.style.right = "auto";
+      carrieWrap.style.bottom = "auto";
+    }
     // ---------- Carrie drag + resize + click ----------
     const carrieWrap = document.getElementById("carrieWrap");
     const carrie = document.getElementById("carrie");
@@ -804,13 +855,6 @@ body.menu-open #carrieWrap{
       azreen: "assets/videos/azreen-business.webm",
     };
 
-    // ✅ base scales so James & Azreen shrink more to match Carrie visually
-    const AVATAR_SCALES = {
-      carrie: 1.0,
-      james: 0.7,
-      azreen: 0.7,
-    };
-
     function getGlobalAvatar() {
       try {
         const a = localStorage.getItem("carrie_avatar");
@@ -821,12 +865,11 @@ body.menu-open #carrieWrap{
       return "carrie";
     }
 
-    // size / scale
-    let carrieScale = 1;           // user resize factor
-    let carrieAvatarBaseScale = 1; // avatar baseline
+    // 🟣 ONE global visual size for all avatars
+    let carrieScale = 1; // user resize factor, shared by Carrie / James / Azreen
 
     function applyCarrieScale() {
-      const scale = carrieAvatarBaseScale * carrieScale;
+      const scale = carrieScale;
       if (carrie) {
         carrie.style.transform = `scale(${scale})`;
       }
@@ -848,7 +891,7 @@ body.menu-open #carrieWrap{
           } catch (e) {}
         }
 
-        carrieAvatarBaseScale = AVATAR_SCALES[avatar] || 1.0;
+        // same size logic for *all* avatars
         applyCarrieScale();
       }
     }
@@ -1017,6 +1060,23 @@ body.menu-open #carrieWrap{
           window.location.href = "carrie-chat.html";
         }
       });
+    }
+
+    function startTouch(e) {
+      if (e.touches && e.touches.length >= 2) {
+        pinchActive = true;
+        dragging = false;
+        moved = false;
+        pinchStartDist = getTouchDistance(e);
+        carrieStartScale = carrieScale;
+        e.preventDefault();
+        return;
+      }
+
+      dragging = true;
+      moved = false;
+      const p = ptr(e);
+
     }
 
     // ---------- BUBBLES ----------
