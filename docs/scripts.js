@@ -61,7 +61,7 @@
     prev.addEventListener("click", () => {
       if (!paused && pause) {
         paused = true;
-        pause.textContent = "Play";
+          pause.textContent = "Play";
       }
       showSlide(index - 1);
     });
@@ -333,7 +333,7 @@ body.menu-open #pageWrap{
   font-size:.65rem;
   opacity:.7;
   margin-left:auto;
-  transition:transform .2s ease;
+  transition:transform .2s.ease;
 }
 .menu-group.collapsed .menu-group-title::after{
   transform:rotate(-90deg);
@@ -361,7 +361,7 @@ body.menu-open #pageWrap{
 .menu-chip-network .menu-label-main,
 .menu-chip-network .menu-label-alt{
   display:inline-block;
-  transition:opacity .3s ease;
+  transition:opacity .3s.ease;
 }
 .menu-chip-network .menu-label-alt{
   position:absolute;
@@ -369,10 +369,10 @@ body.menu-open #pageWrap{
   transform:translateX(-50%);
 }
 .menu-chip-network .menu-label-main{
-  animation:networkLabelMain 3s ease-in-out infinite;
+  animation:networkLabelMain 3s.ease-in-out infinite;
 }
 .menu-chip-network .menu-label-alt{
-  animation:networkLabelAlt 3s ease-in-out infinite;
+  animation:networkLabelAlt 3s.ease-in-out infinite;
 }
 @keyframes networkLabelMain{
   0%,45%{opacity:1;}
@@ -439,7 +439,7 @@ body.menu-open #carrieWrap{
 #carrieWrap{
   position:fixed; right:16px; bottom:72px;
   z-index:9997; user-select:none; touch-action:none;
-  transition:right .25s.ease;
+  transition:right .25s ease;
 }
 #carrie{
   width:min(48vw,260px);
@@ -734,7 +734,7 @@ body.menu-open #carrieWrap{
   ></video>
 </div>
 
-<!-- Small global avatar switcher (Carrie / James) -->
+<!-- Small global avatar switcher (Carrie / James / Azreen) -->
 <div id="globalAvatarSwitch" style="
   position:fixed;
   right:16px;
@@ -763,6 +763,16 @@ body.menu-open #carrieWrap{
     cursor:pointer;
   ">
     James
+  </button>
+  <button data-avatar="azreen" style="
+    padding:2px 6px;
+    border-radius:999px;
+    border:1px solid rgba(129,140,248,.4);
+    background:rgba(10,10,20,.8);
+    color:#e5e7eb;
+    cursor:pointer;
+  ">
+    Azreen
   </button>
 </div>
 `;
@@ -841,13 +851,24 @@ body.menu-open #carrieWrap{
       return "carrie";
     }
 
-    function applyGlobalAvatar() {
-    function applyGlobalAvatar() {
-      if (carrie) {
-        const avatar = getGlobalAvatar();
-        const src =
-          GLOBAL_AVATAR_VIDEOS[avatar] || GLOBAL_AVATAR_VIDEOS.carrie;
+    // size / scale
+    let carrieScale = 1;           // user-resize scale
+    let carrieAvatarBaseScale = 1; // per-avatar base scale
 
+    function applyCarrieScale() {
+      if (carrie) {
+        carrie.style.transform = `scale(${carrieAvatarBaseScale * carrieScale})`;
+      }
+      if (carrieBubble) {
+        carrieBubble.style.transform = `scale(${carrieAvatarBaseScale * carrieScale})`;
+      }
+    }
+
+    function applyGlobalAvatar() {
+      const avatar = getGlobalAvatar();
+
+      if (carrie) {
+        const src = GLOBAL_AVATAR_VIDEOS[avatar] || GLOBAL_AVATAR_VIDEOS.carrie;
         if (carrie.getAttribute("src") !== src) {
           carrie.src = src;
           try {
@@ -856,36 +877,15 @@ body.menu-open #carrieWrap{
           } catch (e) {}
         }
 
-        // 🔍 Normalize visual size so Carrie matches James & Azreen
-        const scale = avatar === "carrie" ? 1.15 : 1.0;
-        carrie.style.transform = `scale(${scale})`;
-        if (carrieBubble) {
-          carrieBubble.style.transform = `scale(${scale})`;
-        }
+        // 🔍 Base scale per avatar so Carrie visually matches James & Azreen
+        carrieAvatarBaseScale = avatar === "carrie" ? 1.15 : 1.0;
+        applyCarrieScale();
       }
 
       if (globalAvatarSwitch) {
         const buttons = globalAvatarSwitch.querySelectorAll(
           "button[data-avatar]"
         );
-        const avatar = getGlobalAvatar();
-        buttons.forEach((btn) => {
-          if (btn.dataset.avatar === avatar) {
-            btn.style.borderColor = "#a855f7";
-            btn.style.background = "rgba(88,28,135,0.9)";
-          } else {
-            btn.style.borderColor = "rgba(129,140,248,.4)";
-            btn.style.background = "rgba(10,10,20,.8)";
-          }
-        });
-      }
-    }
-
-      if (globalAvatarSwitch) {
-        const buttons = globalAvatarSwitch.querySelectorAll(
-          "button[data-avatar]"
-        );
-        const avatar = getGlobalAvatar();
         buttons.forEach((btn) => {
           if (btn.dataset.avatar === avatar) {
             btn.style.borderColor = "#a855f7";
@@ -927,22 +927,11 @@ body.menu-open #carrieWrap{
     let ox = 0;
     let oy = 0;
 
-    // size / scale
-    let carrieScale = 1;
     let pinchActive = false;
     let pinchStartDist = 0;
     let carrieStartScale = 1;
     let mouseResizeActive = false;
     let mouseResizeStartY = 0;
-
-    function applyCarrieScale() {
-      if (carrie) {
-        carrie.style.transform = `scale(${carrieScale})`;
-      }
-      if (carrieBubble) {
-        carrieBubble.style.transform = `scale(${carrieScale})`;
-      }
-    }
 
     function clampScale(v) {
       return Math.max(0.5, v);
