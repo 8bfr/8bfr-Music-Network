@@ -61,7 +61,7 @@
     prev.addEventListener("click", () => {
       if (!paused && pause) {
         paused = true;
-          pause.textContent = "Play";
+        pause.textContent = "Play";
       }
       showSlide(index - 1);
     });
@@ -333,7 +333,7 @@ body.menu-open #pageWrap{
   font-size:.65rem;
   opacity:.7;
   margin-left:auto;
-  transition:transform .2s.ease;
+  transition:transform .2s ease;
 }
 .menu-group.collapsed .menu-group-title::after{
   transform:rotate(-90deg);
@@ -361,7 +361,7 @@ body.menu-open #pageWrap{
 .menu-chip-network .menu-label-main,
 .menu-chip-network .menu-label-alt{
   display:inline-block;
-  transition:opacity .3s.ease;
+  transition:opacity .3s ease;
 }
 .menu-chip-network .menu-label-alt{
   position:absolute;
@@ -369,10 +369,10 @@ body.menu-open #pageWrap{
   transform:translateX(-50%);
 }
 .menu-chip-network .menu-label-main{
-  animation:networkLabelMain 3s.ease-in-out infinite;
+  animation:networkLabelMain 3s ease-in-out infinite;
 }
 .menu-chip-network .menu-label-alt{
-  animation:networkLabelAlt 3s.ease-in-out infinite;
+  animation:networkLabelAlt 3s ease-in-out infinite;
 }
 @keyframes networkLabelMain{
   0%,45%{opacity:1;}
@@ -733,48 +733,6 @@ body.menu-open #carrieWrap{
     playsinline
   ></video>
 </div>
-
-<!-- Small global avatar switcher (Carrie / James / Azreen) -->
-<div id="globalAvatarSwitch" style="
-  position:fixed;
-  right:16px;
-  bottom:18px;
-  z-index:9998;
-  display:flex;
-  gap:4px;
-  font-size:10px;
-">
-  <button data-avatar="carrie" style="
-    padding:2px 6px;
-    border-radius:999px;
-    border:1px solid rgba(129,140,248,.9);
-    background:rgba(15,23,42,.9);
-    color:#e5e7eb;
-    cursor:pointer;
-  ">
-    Carrie
-  </button>
-  <button data-avatar="james" style="
-    padding:2px 6px;
-    border-radius:999px;
-    border:1px solid rgba(129,140,248,.4);
-    background:rgba(10,10,20,.8);
-    color:#e5e7eb;
-    cursor:pointer;
-  ">
-    James
-  </button>
-  <button data-avatar="azreen" style="
-    padding:2px 6px;
-    border-radius:999px;
-    border:1px solid rgba(129,140,248,.4);
-    background:rgba(10,10,20,.8);
-    color:#e5e7eb;
-    cursor:pointer;
-  ">
-    Azreen
-  </button>
-</div>
 `;
     }
 
@@ -832,13 +790,19 @@ body.menu-open #carrieWrap{
     const carrieWrap = document.getElementById("carrieWrap");
     const carrie = document.getElementById("carrie");
     const carrieBubble = document.getElementById("carrieBubble");
-    const globalAvatarSwitch = document.getElementById("globalAvatarSwitch");
 
     // ✅ global avatar video options (Carrie / James / Azreen)
     const GLOBAL_AVATAR_VIDEOS = {
       carrie: "assets/videos/carrie_casual_animate_3_1.webm",
       james: "assets/videos/james-casual.webm",
       azreen: "assets/videos/azreen-business.webm",
+    };
+
+    // ✅ base scales so James & Azreen shrink slightly to match Carrie
+    const AVATAR_SCALES = {
+      carrie: 1.0,
+      james: 0.85,
+      azreen: 0.85,
     };
 
     function getGlobalAvatar() {
@@ -852,15 +816,16 @@ body.menu-open #carrieWrap{
     }
 
     // size / scale
-    let carrieScale = 1;           // user-resize scale
-    let carrieAvatarBaseScale = 1; // per-avatar base scale
+    let carrieScale = 1;           // user resize factor
+    let carrieAvatarBaseScale = 1; // avatar baseline
 
     function applyCarrieScale() {
+      const scale = carrieAvatarBaseScale * carrieScale;
       if (carrie) {
-        carrie.style.transform = `scale(${carrieAvatarBaseScale * carrieScale})`;
+        carrie.style.transform = `scale(${scale})`;
       }
       if (carrieBubble) {
-        carrieBubble.style.transform = `scale(${carrieAvatarBaseScale * carrieScale})`;
+        carrieBubble.style.transform = `scale(${scale})`;
       }
     }
 
@@ -877,42 +842,14 @@ body.menu-open #carrieWrap{
           } catch (e) {}
         }
 
-        // 🔍 Base scale per avatar so Carrie visually matches James & Azreen
-        carrieAvatarBaseScale = avatar === "carrie" ? 1.15 : 1.0;
+        carrieAvatarBaseScale = AVATAR_SCALES[avatar] || 1.0;
         applyCarrieScale();
       }
-
-      if (globalAvatarSwitch) {
-        const buttons = globalAvatarSwitch.querySelectorAll(
-          "button[data-avatar]"
-        );
-        buttons.forEach((btn) => {
-          if (btn.dataset.avatar === avatar) {
-            btn.style.borderColor = "#a855f7";
-            btn.style.background = "rgba(88,28,135,0.9)";
-          } else {
-            btn.style.borderColor = "rgba(129,140,248,.4)";
-            btn.style.background = "rgba(10,10,20,.8)";
-          }
-        });
-      }
-    }
-
-    if (globalAvatarSwitch) {
-      globalAvatarSwitch.addEventListener("click", (e) => {
-        const btn = e.target.closest("button[data-avatar]");
-        if (!btn) return;
-        const avatar = btn.dataset.avatar;
-        try {
-          localStorage.setItem("carrie_avatar", avatar);
-        } catch (err) {}
-        applyGlobalAvatar();
-      });
     }
 
     applyGlobalAvatar();
 
-    // stay in sync if home-page avatar switcher changes avatar
+    // stay in sync if some other page (home switcher) changes avatar
     window.addEventListener("storage", (ev) => {
       if (ev.key === "carrie_avatar") {
         applyGlobalAvatar();
