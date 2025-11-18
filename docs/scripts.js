@@ -4,11 +4,11 @@
   if (!track) return;
 
   const ads = [
-    { img: "assets/images/ad_banner_1.jpg", url: "ads.html#buy" },
-    { img: "assets/images/ad_banner_2.jpg", url: "ads.html#buy" },
-    { img: "assets/images/ad_banner_3.jpg", url: "ads.html#buy" },
-    { img: "assets/images/ad_banner_4.jpg", url: "ads.html#buy" },
-    { img: "assets/images/ad_banner_5.jpg", url: "ads.html#buy" },
+    { img: "assets/images/ad_banner_1.jpg", url: "ads.html#ad1" },
+    { img: "assets/images/ad_banner_2.jpg", url: "ads.html#ad2" },
+    { img: "assets/images/ad_banner_3.jpg", url: "ads.html#ad3" },
+    { img: "assets/images/ad_banner_4.jpg", url: "ads.html#ad4" },
+    { img: "assets/images/ad_banner_5.jpg", url: "ads.html#ad5" },
   ];
 
   const prev = document.getElementById("adPrev");
@@ -29,7 +29,7 @@
 
     const img = new Image();
     img.src = data.img;
-    img.alt = "Featured ad banner";
+    img.alt = "Featured ad banner " + (i + 1);
     a.appendChild(img);
     return a;
   }
@@ -142,163 +142,7 @@
   showSlide(0);
   schedule();
 
-  // Buttons already present; buy/how clicks handled in index via modals
-})();
-
-
-
-
-
-
-
-
-
-  
-   // ========== FEATURED ADS + BUTTONS (index.html only, with swipe) ==========
-(function () {
-  const track = document.getElementById("adTrack");
-  if (!track) return;
-
-  const ads = [
-    { img: "assets/images/ad_banner_1.jpg", url: "ads.html#buy" },
-    { img: "assets/images/ad_banner_2.jpg", url: "ads.html#buy" },
-    { img: "assets/images/ad_banner_3.jpg", url: "ads.html#buy" },
-    { img: "assets/images/ad_banner_4.jpg", url: "ads.html#buy" },
-    { img: "assets/images/ad_banner_5.jpg", url: "ads.html#buy" },
-  ];
-
-  const prev = document.getElementById("adPrev");
-  const next = document.getElementById("adNext");
-  const pause = document.getElementById("adPause");
-
-  let index = 0;
-  let paused = false;
-  let timer = null;
-
-  function createSlide(i) {
-    const data = ads[i];
-    const a = document.createElement("a");
-    a.className = "ad-slide";
-    a.href = data.url || "#";
-    a.target = "_blank";
-    a.rel = "noopener";
-
-    const img = new Image();
-    img.src = data.img;
-    img.alt = "Featured ad banner";
-    a.appendChild(img);
-    return a;
-  }
-
-  function showSlide(nextIndex) {
-    index = (nextIndex + ads.length) % ads.length;
-
-    const oldSlide = track.querySelector(".ad-slide.show");
-    const newSlide = createSlide(index);
-
-    track.appendChild(newSlide);
-    requestAnimationFrame(() => newSlide.classList.add("show"));
-
-    if (oldSlide) {
-      setTimeout(() => oldSlide.remove(), 380);
-    }
-  }
-
-  function schedule() {
-    clearTimeout(timer);
-    if (paused) return;
-    timer = setTimeout(() => {
-      showSlide(index + 1);
-      schedule();
-    }, 5000);
-  }
-
-  if (prev) {
-    prev.addEventListener("click", () => {
-      if (!paused && pause) {
-        paused = true;
-        pause.textContent = "Play";
-      }
-      showSlide(index - 1);
-    });
-  }
-
-  if (next) {
-    next.addEventListener("click", () => {
-      if (!paused && pause) {
-        paused = true;
-        pause.textContent = "Play";
-      }
-      showSlide(index + 1);
-    });
-  }
-
-  if (pause) {
-    pause.addEventListener("click", () => {
-      paused = !paused;
-      pause.textContent = paused ? "Play" : "Pause";
-      if (!paused) {
-        schedule();
-      } else {
-        clearTimeout(timer);
-      }
-    });
-  }
-
-  // ✅ Touch swipe left/right
-  let startX = 0;
-  let deltaX = 0;
-  let dragging = false;
-
-  track.addEventListener(
-    "touchstart",
-    (e) => {
-      dragging = true;
-      startX = e.touches[0].clientX;
-      deltaX = 0;
-      clearTimeout(timer);
-    },
-    { passive: true }
-  );
-
-  track.addEventListener(
-    "touchmove",
-    (e) => {
-      if (!dragging) return;
-      deltaX = e.touches[0].clientX - startX;
-    },
-    { passive: true }
-  );
-
-  track.addEventListener(
-    "touchend",
-    () => {
-      if (!dragging) return;
-      dragging = false;
-      if (Math.abs(deltaX) > 40) {
-        if (deltaX < 0) {
-          if (!paused && pause) {
-            paused = true;
-            pause.textContent = "Play";
-          }
-          showSlide(index + 1);
-        } else {
-          if (!paused && pause) {
-            paused = true;
-            pause.textContent = "Play";
-          }
-          showSlide(index - 1);
-        }
-      }
-      schedule();
-    },
-    { passive: true }
-  );
-
-  showSlide(0);
-  schedule();
-
-  // Buttons already present; buy/how clicks handled in index via modals
+  // Buttons under the carousel are plain links in index.html (Buy / How ads work)
 })();
 
 // ========== GLOBAL 8BFR UI (menu, bubbles, Carrie, auth gate, Spotify stripe) ==========
@@ -595,7 +439,7 @@ body.menu-open #carrieWrap{
 #carrieWrap{
   position:fixed; right:16px; bottom:72px;
   z-index:9997; user-select:none; touch-action:none;
-  transition:right .25s ease;
+  transition:right .25s.ease;
 }
 #carrie{
   width:min(48vw,260px);
@@ -980,16 +824,19 @@ body.menu-open #carrieWrap{
     const carrieBubble = document.getElementById("carrieBubble");
     const globalAvatarSwitch = document.getElementById("globalAvatarSwitch");
 
-    // ✅ global avatar video options (Carrie / James)
+    // ✅ global avatar video options (Carrie / James / Azreen)
     const GLOBAL_AVATAR_VIDEOS = {
       carrie: "assets/videos/carrie_casual_animate_3_1.webm",
       james: "assets/videos/james-casual.webm",
+      azreen: "assets/videos/azreen-business.webm",
     };
 
     function getGlobalAvatar() {
       try {
         const a = localStorage.getItem("carrie_avatar");
-        if (a === "james") return "james";
+        if (a === "james" || a === "azreen" || a === "carrie") {
+          return a;
+        }
       } catch (e) {}
       return "carrie";
     }
@@ -1039,7 +886,7 @@ body.menu-open #carrieWrap{
 
     applyGlobalAvatar();
 
-    // stay in sync if chat page changes avatar
+    // stay in sync if home-page avatar switcher changes avatar
     window.addEventListener("storage", (ev) => {
       if (ev.key === "carrie_avatar") {
         applyGlobalAvatar();
@@ -1206,7 +1053,7 @@ body.menu-open #carrieWrap{
         }
       });
 
-      // ✅ Mobile tap (because touchmove/touchstart used preventDefault)
+      // ✅ Mobile tap
       carrie.addEventListener("touchend", () => {
         if (!moved && !pinchActive && !mouseResizeActive) {
           window.location.href = "carrie-chat.html";
@@ -1331,49 +1178,3 @@ body.menu-open #carrieWrap{
     injectGlobalUI();
   }
 })();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
-
-
-        
-       
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
-
-
-        
-      
