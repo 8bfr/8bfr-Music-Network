@@ -228,7 +228,7 @@ function ensureInlineCarrie() {
   vid.style.borderRadius = "9999px";
   vid.style.border = "1px solid rgba(129,140,248,.9)";
   vid.style.boxShadow = "0 0 14px rgba(124,58,237,.55)";
-  vid.style.objectFit = "cover";
+  vid.style.objectFit = "contain";
 
   vid.onerror = function () {
     // Fallback to default Carrie business video if anything fails
@@ -332,7 +332,7 @@ function renderMessage(role, content, createdAt) {
     avatarVid.playsInline = true;
     avatarVid.style.width = "100%";
     avatarVid.style.height = "100%";
-    avatarVid.style.objectFit = "cover";
+    avatarVid.style.objectFit = "contain";
 
     avatarVid.onerror = function () {
       this.onerror = null;
