@@ -242,6 +242,12 @@
     const noCarrie =
       document.body && document.body.dataset.noGlobalCarrie === "true";
 
+    // 🧹 In case an old 3-button switcher is still in the HTML, kill it
+    const legacySwitch = document.getElementById("globalAvatarSwitch");
+    if (legacySwitch) {
+      legacySwitch.remove();
+    }
+
     // ---------- STYLES ----------
     const css = document.createElement("style");
     css.textContent = `
@@ -302,7 +308,7 @@ body.menu-open #pageWrap{
   position:fixed; top:72px; right:14px;
   width:min(92vw,280px); max-height:calc(100vh - 88px);
   overflow-y:auto; z-index:9998;
-  transform:translateX(115%); transition:transform .25s ease;
+  transform:translateX(115%); transition:transform .25s.ease;
   backdrop-filter:blur(12px); background:var(--glass);
   border:1px solid var(--ring); border-radius:14px;
   box-shadow:0 14px 32px rgba(0,0,0,.6);
@@ -428,7 +434,7 @@ body.menu-open #carrieWrap{
   background:rgba(18,3,39,.94);
   border:1px solid rgba(129,140,248,.9);
   box-shadow:0 0 10px rgba(124,58,237,.45);
-  cursor:pointer; transition:background .2s ease, transform .1s ease;
+  cursor:pointer; transition:background .2s ease, transform .1s.ease;
 }
 .bubble:hover{
   background:rgba(60,15,90,.95);
@@ -798,11 +804,11 @@ body.menu-open #carrieWrap{
       azreen: "assets/videos/azreen-business.webm",
     };
 
-    // ✅ base scales so James & Azreen shrink slightly to match Carrie
+    // ✅ base scales so James & Azreen shrink more to match Carrie visually
     const AVATAR_SCALES = {
       carrie: 1.0,
-      james: 0.85,
-      azreen: 0.85,
+      james: 0.7,
+      azreen: 0.7,
     };
 
     function getGlobalAvatar() {
