@@ -411,7 +411,7 @@ body.menu-open #pageWrap{
 /* Single bottom up-arrow bubble */
 #bubble-top-single{
   position:fixed; right:16px; bottom:18px;
-  z-index:9996; transition:right .25s ease;
+  z-index:9996; transition:right .25s.ease;
 }
 
 /* shift floaters when menu open */
@@ -444,8 +444,11 @@ body.menu-open #carrieWrap{
 
 /* One global avatar size shared by all three */
 .global-avatar{
-  width:min(48vw,260px);
+  width:auto;
+  height:260px;
+  max-width:min(48vw,260px);
   object-fit:contain;
+  object-position:bottom center;
   background:transparent!important;
   display:none;
   filter:
@@ -471,12 +474,14 @@ body.menu-open #carrieWrap{
   border-color:rgba(15,23,42,.95) transparent transparent transparent;
 }
 
-/* Small switcher INSIDE the avatar box */
+/* Small switcher ABOVE the avatar box */
 #avatarSwitcher{
   position:absolute;
-  top:4px;
-  left:4px;
+  bottom:100%;
+  right:0;
+  margin-bottom:4px;
   display:flex;
+  justify-content:flex-end;
   gap:4px;
   z-index:1;
 }
@@ -529,7 +534,10 @@ body.menu-open #carrieWrap{
 }
 
 @media(max-width:480px){
-  .global-avatar{ width:min(56vw,220px); }
+  .global-avatar{
+    height:220px;
+    max-width:min(56vw,220px);
+  }
   body.menu-open #bubbleStack,
   body.menu-open #bubble-top-single,
   body.menu-open #carrieWrap{
@@ -862,11 +870,11 @@ body.menu-open #carrieWrap{
       azreen: "avatar-azreen",
     };
 
-    // base scales so they LOOK the same size even if videos are framed different
+    // base scales so they VISUALLY match
     const AVATAR_BASE_SCALE = {
-      carrie: 1.15,
-      james: 0.9,
-      azreen: 0.9,
+      carrie: 1.3,   // Carrie boosted so she isn't smaller
+      james: 1.0,
+      azreen: 1.0,
     };
 
     function getStoredAvatar() {
@@ -886,16 +894,25 @@ body.menu-open #carrieWrap{
     }
 
     let currentAvatar = getStoredAvatar();
-    let userScale = 1; // global avatar size that all share
+    let userScale = 1; // one global avatar size all share
 
     function applyAvatarScale() {
       const base = AVATAR_BASE_SCALE[currentAvatar] || 1.0;
       const total = base * userScale;
+      const activeId = AVATAR_IDS[currentAvatar];
+
       avatarVideos.forEach((vid) => {
-        vid.style.transform = `scale(${total})`;
+        if (vid.id === activeId) {
+          vid.style.transform = `scale(${total})`;
+        } else {
+          vid.style.transform = "scale(1)";
+        }
+        vid.style.transformOrigin = "bottom center";
       });
+
       if (carrieBubble) {
         carrieBubble.style.transform = `scale(${total})`;
+        carrieBubble.style.transformOrigin = "bottom center";
       }
     }
 
