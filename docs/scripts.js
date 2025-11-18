@@ -842,10 +842,12 @@ body.menu-open #carrieWrap{
     }
 
     function applyGlobalAvatar() {
+    function applyGlobalAvatar() {
       if (carrie) {
         const avatar = getGlobalAvatar();
         const src =
           GLOBAL_AVATAR_VIDEOS[avatar] || GLOBAL_AVATAR_VIDEOS.carrie;
+
         if (carrie.getAttribute("src") !== src) {
           carrie.src = src;
           try {
@@ -853,7 +855,31 @@ body.menu-open #carrieWrap{
             carrie.play().catch(function () {});
           } catch (e) {}
         }
+
+        // 🔍 Normalize visual size so Carrie matches James & Azreen
+        const scale = avatar === "carrie" ? 1.15 : 1.0;
+        carrie.style.transform = `scale(${scale})`;
+        if (carrieBubble) {
+          carrieBubble.style.transform = `scale(${scale})`;
+        }
       }
+
+      if (globalAvatarSwitch) {
+        const buttons = globalAvatarSwitch.querySelectorAll(
+          "button[data-avatar]"
+        );
+        const avatar = getGlobalAvatar();
+        buttons.forEach((btn) => {
+          if (btn.dataset.avatar === avatar) {
+            btn.style.borderColor = "#a855f7";
+            btn.style.background = "rgba(88,28,135,0.9)";
+          } else {
+            btn.style.borderColor = "rgba(129,140,248,.4)";
+            btn.style.background = "rgba(10,10,20,.8)";
+          }
+        });
+      }
+    }
 
       if (globalAvatarSwitch) {
         const buttons = globalAvatarSwitch.querySelectorAll(
