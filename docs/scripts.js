@@ -242,12 +242,6 @@
     const noCarrie =
       document.body && document.body.dataset.noGlobalCarrie === "true";
 
-    // 🧹 In case an old 3-button switcher is still in the HTML, kill it
-    const legacySwitch = document.getElementById("globalAvatarSwitch");
-    if (legacySwitch) {
-      legacySwitch.remove();
-    }
-
     // ---------- STYLES ----------
     const css = document.createElement("style");
     css.textContent = `
@@ -308,7 +302,7 @@ body.menu-open #pageWrap{
   position:fixed; top:72px; right:14px;
   width:min(92vw,280px); max-height:calc(100vh - 88px);
   overflow-y:auto; z-index:9998;
-  transform:translateX(115%); transition:transform .25s.ease;
+  transform:translateX(115%); transition:transform .25s ease;
   backdrop-filter:blur(12px); background:var(--glass);
   border:1px solid var(--ring); border-radius:14px;
   box-shadow:0 14px 32px rgba(0,0,0,.6);
@@ -394,7 +388,7 @@ body.menu-open #pageWrap{
   position:fixed; top:76px; right:16px;
   z-index:9996; display:flex;
   flex-direction:column; gap:6px;
-  transition:right .25s ease;
+  transition:right .25s.ease;
 }
 .bubble-row{
   display:flex;
@@ -434,7 +428,7 @@ body.menu-open #carrieWrap{
   background:rgba(18,3,39,.94);
   border:1px solid rgba(129,140,248,.9);
   box-shadow:0 0 10px rgba(124,58,237,.45);
-  cursor:pointer; transition:background .2s ease, transform .1s.ease;
+  cursor:pointer; transition:background .2s ease, transform .1s ease;
 }
 .bubble:hover{
   background:rgba(60,15,90,.95);
@@ -792,57 +786,6 @@ body.menu-open #carrieWrap{
       });
     });
 
-    //
-
-    function clampScale(v) {
-      return Math.max(0.5, v);
-    }
-
-    function getTouchDistance(e) {
-      if (!e.touches || e.touches.length < 2) return 0;
-      const t1 = e.touches[0];
-      const t2 = e.touches[1];
-      const dx = t2.clientX - t1.clientX;
-      const dy = t2.clientY - t1.clientY;
-      return Math.sqrt(dx * dx + dy * dy);
-    }
-
-    function ptr(ev) {
-      const t = ev.touches ? ev.touches[0] : ev;
-      return { x: t.clientX, y: t.clientY };
-    }
-
-    if (carrieWrap) {
-      carrieWrap.addEventListener("contextmenu", (e) => {
-        e.preventDefault();
-      });
-
-      carrieWrap.addEventListener("mousedown", startDragOrResize);
-      carrieWrap.addEventListener("touchstart", startTouch, { passive: false });
-    }
-
-    function startDragOrResize(e) {
-      if (e.button === 2) {
-        mouseResizeActive = true;
-        mouseResizeStartY = e.clientY;
-        carrieStartScale = carrieScale;
-        moved = false;
-        dragging = false;
-        e.preventDefault();
-        return;
-      }
-
-      dragging = true;
-      moved = false;
-      const p = ptr(e);
-      sx = p.x;
-      sy = p.y;
-      const rect = carrieWrap.getBoundingClientRect();
-      ox = rect.left;
-      oy = rect.top;
-      carrieWrap.style.right = "auto";
-      carrieWrap.style.bottom = "auto";
-    }
     // ---------- Carrie drag + resize + click ----------
     const carrieWrap = document.getElementById("carrieWrap");
     const carrie = document.getElementById("carrie");
@@ -855,9 +798,12 @@ body.menu-open #carrieWrap{
       azreen: "assets/videos/azreen-business.webm",
     };
 
+    // ✅ normalize any value ("Carrie", "CARRIE", "Azreen") to lowercase key
     function getGlobalAvatar() {
       try {
-        const a = localStorage.getItem("carrie_avatar");
+        const raw = localStorage.getItem("carrie_avatar");
+        if (!raw) return "carrie";
+        const a = raw.toLowerCase();
         if (a === "james" || a === "azreen" || a === "carrie") {
           return a;
         }
@@ -1060,23 +1006,6 @@ body.menu-open #carrieWrap{
           window.location.href = "carrie-chat.html";
         }
       });
-    }
-
-    function startTouch(e) {
-      if (e.touches && e.touches.length >= 2) {
-        pinchActive = true;
-        dragging = false;
-        moved = false;
-        pinchStartDist = getTouchDistance(e);
-        carrieStartScale = carrieScale;
-        e.preventDefault();
-        return;
-      }
-
-      dragging = true;
-      moved = false;
-      const p = ptr(e);
-
     }
 
     // ---------- BUBBLES ----------
