@@ -388,7 +388,7 @@ body.menu-open #pageWrap{
   position:fixed; top:76px; right:16px;
   z-index:9996; display:flex;
   flex-direction:column; gap:6px;
-  transition:right .25s.ease;
+  transition:right .25s ease;
 }
 .bubble-row{
   display:flex;
@@ -411,7 +411,7 @@ body.menu-open #pageWrap{
 /* Single bottom up-arrow bubble */
 #bubble-top-single{
   position:fixed; right:16px; bottom:18px;
-  z-index:9996; transition:right .25s.ease;
+  z-index:9996; transition:right .25s ease;
 }
 
 /* shift floaters when menu open */
@@ -428,7 +428,7 @@ body.menu-open #carrieWrap{
   background:rgba(18,3,39,.94);
   border:1px solid rgba(129,140,248,.9);
   box-shadow:0 0 10px rgba(124,58,237,.45);
-  cursor:pointer; transition:background .2s.ease, transform .1s.ease;
+  cursor:pointer; transition:background .2s ease, transform .1s ease;
 }
 .bubble:hover{
   background:rgba(60,15,90,.95);
@@ -439,7 +439,7 @@ body.menu-open #carrieWrap{
 #carrieWrap{
   position:fixed; right:16px; bottom:72px;
   z-index:9997; user-select:none; touch-action:none;
-  transition:right .25s.ease;
+  transition:right .25s ease;
 }
 
 /* One global avatar size shared by all three */
@@ -457,6 +457,15 @@ body.menu-open #carrieWrap{
 }
 .global-avatar.active{
   display:block;
+}
+
+/* small vertical nudge so Carrie's face lines up with James/Azreen */
+#avatar-carrie{
+  margin-top:-6px;
+}
+#avatar-james,
+#avatar-azreen{
+  margin-top:0;
 }
 
 #carrieBubble{
@@ -477,7 +486,7 @@ body.menu-open #carrieWrap{
 /* Small switcher ABOVE the avatar box */
 #avatarSwitcher{
   position:absolute;
-  top:-32px;
+  top:-44px;
   right:0;
   display:flex;
   justify-content:flex-end;
@@ -869,6 +878,13 @@ body.menu-open #carrieWrap{
       azreen: "avatar-azreen",
     };
 
+    // small base scale to help Carrie visually match James & Azreen
+    const AVATAR_BASE_SCALE = {
+      carrie: 1.08,
+      james: 1.0,
+      azreen: 1.0,
+    };
+
     function getStoredAvatar() {
       try {
         const raw = localStorage.getItem("carrie_avatar");
@@ -890,7 +906,15 @@ body.menu-open #carrieWrap{
 
     function applyAvatarScale() {
       avatarVideos.forEach((vid) => {
-        vid.style.transform = `scale(${userScale})`;
+        const id = vid.id;
+        let key = "carrie";
+        if (id === "avatar-james") key = "james";
+        if (id === "avatar-azreen") key = "azreen";
+
+        const base = AVATAR_BASE_SCALE[key] || 1.0;
+        const scale = userScale * base;
+
+        vid.style.transform = `scale(${scale})`;
         vid.style.transformOrigin = "bottom center";
       });
       if (carrieBubble) {
