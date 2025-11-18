@@ -388,7 +388,7 @@ body.menu-open #pageWrap{
   position:fixed; top:76px; right:16px;
   z-index:9996; display:flex;
   flex-direction:column; gap:6px;
-  transition:right .25s ease;
+  transition:right .25s.ease;
 }
 .bubble-row{
   display:flex;
@@ -428,7 +428,7 @@ body.menu-open #carrieWrap{
   background:rgba(18,3,39,.94);
   border:1px solid rgba(129,140,248,.9);
   box-shadow:0 0 10px rgba(124,58,237,.45);
-  cursor:pointer; transition:background .2s ease, transform .1s ease;
+  cursor:pointer; transition:background .2s.ease, transform .1s.ease;
 }
 .bubble:hover{
   background:rgba(60,15,90,.95);
@@ -439,7 +439,7 @@ body.menu-open #carrieWrap{
 #carrieWrap{
   position:fixed; right:16px; bottom:72px;
   z-index:9997; user-select:none; touch-action:none;
-  transition:right .25s ease;
+  transition:right .25s.ease;
 }
 
 /* One global avatar size shared by all three */
@@ -477,9 +477,8 @@ body.menu-open #carrieWrap{
 /* Small switcher ABOVE the avatar box */
 #avatarSwitcher{
   position:absolute;
-  bottom:100%;
+  top:-32px;
   right:0;
-  margin-bottom:4px;
   display:flex;
   justify-content:flex-end;
   gap:4px;
@@ -870,13 +869,6 @@ body.menu-open #carrieWrap{
       azreen: "avatar-azreen",
     };
 
-    // base scales so they VISUALLY match
-    const AVATAR_BASE_SCALE = {
-      carrie: 1.3,   // Carrie boosted so she isn't smaller
-      james: 1.0,
-      azreen: 1.0,
-    };
-
     function getStoredAvatar() {
       try {
         const raw = localStorage.getItem("carrie_avatar");
@@ -897,21 +889,12 @@ body.menu-open #carrieWrap{
     let userScale = 1; // one global avatar size all share
 
     function applyAvatarScale() {
-      const base = AVATAR_BASE_SCALE[currentAvatar] || 1.0;
-      const total = base * userScale;
-      const activeId = AVATAR_IDS[currentAvatar];
-
       avatarVideos.forEach((vid) => {
-        if (vid.id === activeId) {
-          vid.style.transform = `scale(${total})`;
-        } else {
-          vid.style.transform = "scale(1)";
-        }
+        vid.style.transform = `scale(${userScale})`;
         vid.style.transformOrigin = "bottom center";
       });
-
       if (carrieBubble) {
-        carrieBubble.style.transform = `scale(${total})`;
+        carrieBubble.style.transform = `scale(${userScale})`;
         carrieBubble.style.transformOrigin = "bottom center";
       }
     }
