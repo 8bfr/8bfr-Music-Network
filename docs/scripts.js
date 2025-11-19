@@ -1,491 +1,450 @@
-// scripts.js – global 8BFR UI (Carrie + floating menu + bubbles + auth gate)
+// 8BFR global UI v12 — floating menu, Carrie avatar, bubbles
 (function () {
-  const SUPABASE_URL =
-    "https://novbuvwpjnxwwvdekjhr.supabase.co";
-  const SUPABASE_ANON_KEY =
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0";
-
-  // ---------- SUPABASE LOADER + AUTH GATE ----------
-  function loadSupabaseClient(callback) {
-    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
-
-    if (window._8bfrSupabaseClient) {
-      callback(window._8bfrSupabaseClient);
-      return;
-    }
-
-    function init() {
-      if (!window.supabase || !window.supabase.createClient) return;
-      const { createClient } = window.supabase;
-      window._8bfrSupabaseClient = createClient(
-        SUPABASE_URL,
-        SUPABASE_ANON_KEY
-      );
-      callback(window._8bfrSupabaseClient);
-    }
-
-    if (window.supabase && window.supabase.createClient) {
-      init();
-    } else {
-      const existing = document.querySelector("script[data-8bfr-supabase]");
-      if (!existing) {
-        const s = document.createElement("script");
-        s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
-        s.defer = true;
-        s.dataset["8bfrSupabase"] = "1";
-        s.onload = init;
-        document.head.appendChild(s);
-      } else {
-        existing.addEventListener("load", init, { once: true });
-      }
-    }
-  }
-
-  function showAuthOverlay() {
-    if (document.getElementById("authGateOverlay")) return;
-    const overlay = document.createElement("div");
-    overlay.id = "authGateOverlay";
-    overlay.innerHTML = `
-      <div id="authGateCard">
-        <h2>Login required</h2>
-        <p>You need an 8BFR account to open this page.</p>
-        <div class="auth-buttons">
-          <a href="login.html">Log in</a>
-          <a href="signup.html">Sign up free</a>
-          <a href="index.html">Back to home</a>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-  }
-
-  function enforceAuthGate() {
-    const publicPages = [
-      "index.html",
-      "",
-      "login.html",
-      "signup.html",
-      "reset-password.html",
-      "reset_password.html",
-      "logout.html",
-      "carrie-chat.html"
-    ];
-    let path = window.location.pathname.split("/").pop();
-    if (path === undefined || path === null) path = "";
-    if (publicPages.includes(path)) {
-      return;
-    }
-
-    loadSupabaseClient(async (client) => {
-      try {
-        const { data, error } = await client.auth.getSession();
-        if (error || !data || !data.session) {
-          showAuthOverlay();
-        }
-      } catch (e) {
-        console.warn("Auth gate check failed", e);
-      }
-    });
-  }
-
-  // ---------- GLOBAL UI INJECTION ----------
   function injectGlobalUI() {
-    // Prevent double-inject
-    if (document.getElementById("fab")) {
-      enforceAuthGate();
-      return;
+    if (document.getElementById("fab")) return; // avoid double inject
+
+    // ---------- STYLES ----------
+    const style = document.createElement("style");
+    style.textContent = `
+      :root{
+        --ring: rgba(124,58,237,.55);
+        --glass: rgba(12,6,24,.80);
+      }
+
+      #fab{
+        position:fixed;
+        top:86px;
+        right:14px;
+        z-index:9999;
+        width:56px;
+        height:56px;
+        border-radius:9999px;
+        display:grid;
+        place-items:center;
+        cursor:pointer;
+        background:radial-gradient(120% 120% at 30% 20%,rgba(124,58,237,.50),rgba(10,10,20,.70));
+        border:1px solid rgba(124,58,237,.35);
+        box-shadow:0 0 14px rgba(124,58,237,.30),0 0 18px rgba(0,217,255,.18) inset;
+      }
+
+      #menu{
+        position:fixed;
+        top:144px;
+        right:14px;
+        width:min(88vw,230px);
+        max-height:calc(100vh - 160px);
+        overflow-y:auto;
+        z-index:9998;
+        transform:translateX(115%);
+        transition:transform .25s ease;
+        backdrop-filter:blur(10px);
+        background:var(--glass);
+        border:1px solid var(--ring);
+        border-radius:12px;
+        box-shadow:0 12px 28px rgba(0,0,0,.45);
+        font-size:.75rem;
+      }
+      #menu.open{ transform:translateX(0); }
+
+      #backdrop{
+        position:fixed;
+        inset:0;
+        background:rgba(0,0,0,.18);
+        backdrop-filter:blur(1px);
+        z-index:9990;
+        opacity:0;
+        pointer-events:none;
+        transition:opacity .2s ease;
+      }
+      #backdrop.open{
+        opacity:1;
+        pointer-events:auto;
+      }
+
+      #menu .group{
+        margin:3px;
+        border:1px solid rgba(124,58,237,.28);
+        border-radius:10px;
+        overflow:hidden;
+      }
+      #menu .group summary{
+        cursor:pointer;
+        padding:4px 7px;
+        background:rgba(124,58,237,.10);
+      }
+      #menu .group a{
+        display:block;
+        margin:2px 6px;
+        padding:3px 8px;
+        border-radius:999px;
+        border:1px solid rgba(124,58,237,.28);
+        background:rgba(8,3,20,.85);
+        color:#eae6ff;
+        text-decoration:none;
+      }
+      #menu .group a:hover{
+        background:rgba(124,58,237,.18);
+      }
+
+      /* Carrie – bigger and above the up arrow */
+      #carrieWrap{
+        position:fixed;
+        right:14px;
+        bottom:110px;   /* sits above the up-arrow bubble */
+        top:auto;
+        z-index:9997;
+        transition:transform .25s ease;
+        user-select:none;
+        touch-action:none;
+      }
+      #carrieWrap.aside{
+        transform:translateX(-240px);
+      }
+      #carrie{
+        width:min(90vw,520px); /* big avatar */
+        height:auto;
+        border-radius:0;
+        background:transparent!important;
+        filter:drop-shadow(0 10px 28px rgba(124,58,237,.35))
+               drop-shadow(0 4px 10px rgba(0,0,0,.45));
+        display:block;
+        object-fit:contain;
+      }
+      #carrie.bob{
+        animation:bob 3.5s ease-in-out infinite;
+      }
+      @keyframes bob{
+        0%,100%{ transform:translateY(0); }
+        50%{ transform:translateY(-6px); }
+      }
+
+      #carrieTip{
+        position:absolute;
+        bottom:100%;
+        right:40px;
+        margin-bottom:8px;
+        padding:5px 10px;
+        font-size:11px;
+        border-radius:14px;
+        background:rgba(10,6,24,.95);
+        color:#eae6ff;
+        border:1px solid rgba(124,58,237,.9);
+        box-shadow:0 0 10px rgba(124,58,237,.55);
+        white-space:nowrap;
+      }
+      #carrieTip::after{
+        content:"";
+        position:absolute;
+        bottom:-7px;
+        right:16px;
+        border-width:7px 7px 0 7px;
+        border-style:solid;
+        border-color:rgba(10,6,24,.95) transparent transparent transparent;
+      }
+
+      .bubble{
+        position:fixed;
+        width:46px;
+        height:46px;
+        border-radius:999px;
+        display:grid;
+        place-items:center;
+        font-size:22px;
+        background:radial-gradient(circle at 30% 20%,rgba(124,58,237,.55),rgba(10,10,20,.85));
+        border:1px solid rgba(124,58,237,.5);
+        box-shadow:0 0 14px rgba(124,58,237,.30);
+        color:#eae6ff;
+        cursor:pointer;
+        z-index:10001;
+        opacity:0.9;
+        transition:transform .25s ease;
+      }
+      .bubble:hover{
+        opacity:1;
+        box-shadow:0 0 18px rgba(124,58,237,.45);
+      }
+      #bubble-contact{ right:14px; top:150px; }
+      #bubble-donate{  right:14px; top:204px; }
+      #bubble-bottom{  right:14px; top:258px; }
+      #bubble-top{     right:14px; bottom:24px; }  /* near bottom edge */
+
+      .bubble.aside{
+        transform:translateX(-240px);
+      }
+
+      .bubble-label{
+        position:fixed;
+        right:68px;
+        font-size:11px;
+        padding:2px 6px;
+        border-radius:999px;
+        background:rgba(5,2,12,.75);
+        color:#eae6ff;
+        opacity:.7;
+        pointer-events:none;
+        z-index:10000;
+      }
+      #label-contact{ top:160px; }
+      #label-donate{  top:214px; }
+      #label-bottom{  top:268px; }
+      #label-top{     bottom:70px; }
+
+      .bubble-label.aside{
+        transform:translateX(-240px);
+      }
+    `;
+    document.head.appendChild(style);
+
+    // ---------- HTML SHELL ----------
+    const shell = document.createElement("div");
+    shell.innerHTML = `
+      <button id="fab" aria-controls="menu" aria-expanded="false" title="Menu (UI v12)">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#00d9ff" stroke-width="2">
+          <path d="M9 18V5l10-2v13" />
+          <circle cx="7" cy="18" r="3" />
+          <circle cx="17" cy="16" r="3" />
+        </svg>
+      </button>
+
+      <div id="backdrop"></div>
+
+      <nav id="menu" aria-hidden="true">
+        <details class="group" open>
+          <summary>Home & Main</summary>
+          <a href="index.html">Dashboard</a>
+          <a href="home.html">Home (alt)</a>
+          <a href="featured.html">Featured</a>
+          <a href="featured_songs.html">Featured Songs</a>
+          <a href="feed.html">Community Feed</a>
+          <a href="radio.html">Radio</a>
+          <a href="podcast.html">Podcast</a>
+          <a href="blog.html">Blog</a>
+          <a href="fan-zone.html">Fan Zone</a>
+          <a href="stories.html">Stories</a>
+          <a href="dedications.html">Dedications</a>
+          <a href="dedication.html">Single Dedication</a>
+          <a href="contest.html">Contest</a>
+          <a href="contests.html">Contests</a>
+          <a href="leaderboard.html">Leaderboards</a>
+          <a href="stats.html">Site Stats</a>
+          <a href="awards.html">Awards</a>
+          <a href="contact.html">Contact</a>
+          <a href="about.html">About</a>
+        </details>
+
+        <details class="group">
+          <summary>Studio & AI</summary>
+          <a href="studio-tools.html">Studio Tools</a>
+          <a href="studio_tools.html">Studio Tools (alt)</a>
+          <a href="creator-tools.html">Creator Tools</a>
+          <a href="creator_tools.html">Creator Tools (alt)</a>
+          <a href="lyrics-ai.html">AI Lyrics</a>
+          <a href="lyric_ai.html">AI Lyrics (alt)</a>
+          <a href="song-ai.html">AI Song</a>
+          <a href="album-ai.html">AI Album</a>
+          <a href="voice-ai.html">Voice / Post VO</a>
+          <a href="cover_ai.html">Cover AI</a>
+          <a href="master_ai.html">Master AI</a>
+          <a href="author.html">Author AI</a>
+          <a href="author-hub.html">Author Hub</a>
+          <a href="ai-dashboard.html">AI Dashboard</a>
+          <a href="translate.html">Translate</a>
+          <a href="integration.html">Integration</a>
+        </details>
+
+        <details class="group">
+          <summary>Tournaments & Games</summary>
+          <a href="game-hub.html">Game Hub</a>
+          <a href="games.html">Games</a>
+          <a href="arcade.html">Arcade</a>
+          <a href="game-music.html">Music Game</a>
+          <a href="game-tournaments.html">Tournaments</a>
+          <a href="game-leaderboards.html">Game Leaderboards</a>
+          <a href="pool-8-ball.html">Pool 8-Ball</a>
+          <a href="pool-9-ball.html">Pool 9-Ball</a>
+          <a href="trickshot-pool.html">Trickshot Pool</a>
+          <a href="game_pool_8ball.html">8-Ball (alt)</a>
+          <a href="game_pool_9ball.html">9-Ball (alt)</a>
+          <a href="game_pool_trick.html">Trickshot (alt)</a>
+          <a href="game-coin-shop.html">Game Coin Shop</a>
+        </details>
+
+        <details class="group">
+          <summary>Profiles & Badges</summary>
+          <a href="profiles.html">All Profiles</a>
+          <a href="profile.html">My Profile (base)</a>
+          <a href="profile_base.html">Profile Template</a>
+          <a href="artist.html">Artist Landing</a>
+          <a href="beatmaker.html">Beatmaker Landing</a>
+          <a href="influencer.html">Influencer Landing</a>
+          <a href="influencer-hub.html">Influencer Hub</a>
+          <a href="artist-studio.html">Artist Studio</a>
+          <a href="profile_artist.html">Artist Profile</a>
+          <a href="profile_beatmaker.html">Beatmaker Profile</a>
+          <a href="profile_author.html">Author Profile</a>
+          <a href="profile_dancer.html">Dancer Profile</a>
+          <a href="profile_influencer.html">Influencer Profile</a>
+          <a href="profile_fan.html">Fan Profile</a>
+          <a href="login.html">Login</a>
+          <a href="reset-password.html">Reset Password</a>
+          <a href="reset_password.html">Reset Password (alt)</a>
+        </details>
+
+        <details class="group">
+          <summary>Shop & Coins</summary>
+          <a href="shop.html">Shop</a>
+          <a href="store.html">Store (alt)</a>
+          <a href="shop-stickers.html">Shop Stickers</a>
+          <a href="shop-upgrades.html">Shop Upgrades</a>
+          <a href="stickers.html">Stickers</a>
+          <a href="upgrades.html">Upgrades</a>
+          <a href="coinshop.html">Coin Shop</a>
+          <a href="game-coin-shop.html">Game Coin Shop</a>
+          <a href="pricing.html">Pricing</a>
+          <a href="donate.html">Donate</a>
+          <a href="ads.html">Ads</a>
+          <a href="affiliates.html">Affiliates</a>
+        </details>
+
+        <details class="group">
+          <summary>Admin / Mod / Owner</summary>
+          <a href="admin.html">Admin</a>
+          <a href="admin-panel.html">Admin Panel</a>
+          <a href="admin_panel.html">Admin Panel (alt)</a>
+          <a href="admin-hub.html">Admin Hub</a>
+          <a href="admin-guide.html">Admin Guide</a>
+          <a href="admin_guide.html">Admin Guide (alt)</a>
+          <a href="mod-hub.html">Mod Hub</a>
+          <a href="mod-panel.html">Mod Panel</a>
+          <a href="mod_panel.html">Mod Panel (alt)</a>
+          <a href="owner.html">Owner</a>
+          <a href="owner-studio.html">Owner Studio</a>
+          <a href="owner-panel.html">Owner Panel</a>
+          <a href="owner_picks.html">Owner Picks</a>
+          <a href="menu.html">Menu (legacy)</a>
+          <a href="system.html">System</a>
+          <a href="debug.html">Debug</a>
+        </details>
+
+        <details class="group">
+          <summary>Info & Legal</summary>
+          <a href="faq.html">FAQ</a>
+          <a href="help.html">Help</a>
+          <a href="press.html">Press</a>
+          <a href="announcements.html">Announcements</a>
+          <a href="rules.html">Rules</a>
+          <a href="privacy.html">Privacy</a>
+          <a href="terms.html">Terms</a>
+          <a href="tos_updates.html">TOS Updates</a>
+          <a href="credits.html">Credits</a>
+          <a href="thank_you.html">Thank You</a>
+        </details>
+
+        <details class="group">
+          <summary>Carrie, Kids & Fun</summary>
+          <a href="carrie-chat.html">Carrie Chat</a>
+          <a href="carrie-closet.html">Carrie Closet</a>
+          <a href="carrie-concerts.html">Carrie Concerts</a>
+          <a href="kids.html">Kids</a>
+          <a href="kids-zone.html">Kids Zone</a>
+          <a href="kids_games.html">Kids Games</a>
+          <a href="kids_stories.html">Kids Stories</a>
+          <a href="dm.html">Messages</a>
+          <a href="chat.html">Chat</a>
+          <a href="posts.html">Posts</a>
+          <a href="song-killa-bees.html">Killa Bees Song Page</a>
+          <a href="song.html">Song (generic)</a>
+          <a href="zz-test.html">ZZ Test</a>
+        </details>
+      </nav>
+
+      <div id="carrieWrap" title="Chat with Carrie (drag / tap)">
+        <video
+          id="carrie"
+          class="bob"
+          src="assets/videos/carrie_casual_animate_3_1.webm"
+          autoplay
+          loop
+          muted
+          playsinline
+        ></video>
+        <div id="carrieTip">Chat with me</div>
+      </div>
+
+      <button id="bubble-contact" class="bubble" title="Contact">&#9835;</button>
+      <button id="bubble-donate"  class="bubble" title="Donate">&#9834;</button>
+      <button id="bubble-bottom"  class="bubble" title="Go to footer">&#8595;</button>
+      <button id="bubble-top"     class="bubble" title="Back to top">&#8593;</button>
+
+      <span id="label-contact" class="bubble-label">Contact</span>
+      <span id="label-donate"  class="bubble-label">Donate</span>
+      <span id="label-bottom"  class="bubble-label">Footer</span>
+      <span id="label-top"     class="bubble-label">Top</span>
+    `;
+    document.body.appendChild(shell);
+
+    // ---------- BEHAVIOR ----------
+    const fab           = document.getElementById("fab");
+    const menu          = document.getElementById("menu");
+    const backdrop      = document.getElementById("backdrop");
+    const carrieWrap    = document.getElementById("carrieWrap");
+    const carrieVideo   = document.getElementById("carrie");
+    const bubbleContact = document.getElementById("bubble-contact");
+    const bubbleDonate  = document.getElementById("bubble-donate");
+    const bubbleBottom  = document.getElementById("bubble-bottom");
+    const bubbleTop     = document.getElementById("bubble-top");
+    const labelContact  = document.getElementById("label-contact");
+    const labelDonate   = document.getElementById("label-donate");
+    const labelBottom   = document.getElementById("label-bottom");
+    const labelTop      = document.getElementById("label-top");
+
+    let timer = null;
+
+    function snapCarrieHome() {
+      // put her back to the default docked spot
+      carrieWrap.style.left = "";
+      carrieWrap.style.top  = "";
+      carrieWrap.style.right = "14px";
+      carrieWrap.style.bottom = "110px";
     }
 
-    const path = window.location.pathname.split("/").pop() || "index.html";
-
-    // --- CSS ---
-    const css = document.createElement("style");
-    css.textContent = `
-:root{
-  --ring: rgba(124,58,237,.65);
-  --glass: rgba(12,6,24,.88);
-  --chip-bg: rgba(18,3,39,.96);
-  --chip-hover: rgba(55,9,90,1);
-}
-
-/* stripe on the right behind the menu */
-#menuStripe{
-  position:fixed; top:0; right:0; bottom:0;
-  width:280px;
-  background:radial-gradient(circle at 0 0, rgba(15,23,42,.95), rgba(24,0,48,.98));
-  border-left:1px solid rgba(124,58,237,.6);
-  z-index:9991;
-  display:none;
-}
-#menuStripeText{
-  position:absolute; top:50%; left:50%;
-  transform:translate(-50%,-50%) rotate(-90deg);
-  font-size:.75rem;
-  letter-spacing:.35em;
-  text-transform:uppercase;
-  color:#a855f7;
-  opacity:.9;
-}
-body.menu-open #menuStripe{ display:block; }
-
-/* shift page content left when menu is open (if #pageWrap exists) */
-body.menu-open #pageWrap{
-  margin-right:280px;
-}
-
-/* --- Floating menu button --- */
-#fab{
-  position:fixed; top:10px; right:14px;
-  z-index:9999; width:56px; height:56px;
-  border-radius:9999px; display:grid; place-items:center;
-  background:radial-gradient(120% 120% at 30% 20%, rgba(124,58,237,.60), rgba(10,10,20,.80));
-  border:1px solid rgba(124,58,237,.60);
-  box-shadow:0 0 14px rgba(124,58,237,.40),0 0 18px rgba(0,217,255,.25) inset;
-  cursor:pointer; transition:filter .2s ease;
-}
-#fab:hover{ filter:brightness(1.1); }
-#fab svg{display:block}
-
-/* --- Menu panel --- */
-#menu-backdrop{
-  position:fixed; inset:0; background:rgba(0,0,0,.25);
-  backdrop-filter:blur(2px); z-index:9990;
-  opacity:0; pointer-events:none; transition:opacity .2s ease;
-}
-#menu-backdrop.open{opacity:1;pointer-events:auto}
-
-#menu{
-  position:fixed; top:72px; right:14px;
-  width:min(92vw,280px); max-height:calc(100vh - 88px);
-  overflow-y:auto; z-index:9998;
-  transform:translateX(115%); transition:transform .25s ease;
-  backdrop-filter:blur(12px); background:var(--glass);
-  border:1px solid var(--ring); border-radius:14px;
-  box-shadow:0 14px 32px rgba(0,0,0,.6);
-  padding:8px 7px 10px;
-}
-#menu.open{ transform:translateX(0); }
-
-#menu h2{
-  font-size:.85rem; text-transform:uppercase;
-  letter-spacing:.12em; opacity:.9;
-  margin:2px 6px 4px;
-}
-.menu-group{
-  margin:4px 0 6px; padding:4px 4px 6px;
-  border-radius:10px;
-  border:1px solid rgba(139,92,246,.48);
-  background:rgba(10,2,26,.85);
-}
-.menu-group-title{
-  font-size:.78rem; font-weight:600;
-  opacity:.9; margin-bottom:3px;
-  cursor:pointer;
-  display:flex;
-  align-items:center;
-}
-.menu-group-title::after{
-  content:"▾";
-  font-size:.65rem;
-  opacity:.7;
-  margin-left:auto;
-  transition:transform .2s ease;
-}
-.menu-group.collapsed .menu-group-title::after{
-  transform:rotate(-90deg);
-}
-
-.menu-links{display:flex;flex-wrap:wrap;gap:4px}
-.menu-group.collapsed .menu-links{
-  display:none;
-}
-
-.menu-chip{
-  display:inline-block; padding:3px 10px;
-  border-radius:999px; font-size:.75rem;
-  text-decoration:none; background:var(--chip-bg);
-  border:1px solid rgba(129,140,248,.9); color:#eae6ff;
-  white-space:nowrap;
-}
-.menu-chip:hover{background:var(--chip-hover)}
-
-/* --- Floating bubbles with labels --- */
-#bubbleStack{
-  position:fixed; top:76px; right:16px;
-  z-index:9996; display:flex;
-  flex-direction:column; gap:6px;
-  transition:right .25s ease;
-}
-.bubble-row{
-  display:flex;
-  flex-direction:column;
-  align-items:flex-end;
-  gap:2px;
-}
-.bubble-label{
-  font-size:.7rem;
-  color:#ffffff;
-  opacity:1;
-  padding:2px 6px;
-  border-radius:8px;
-  background:rgba(90,0,160,0.55);
-  backdrop-filter:blur(4px);
-  border:1px solid rgba(160,100,255,0.4);
-  text-shadow:0 0 6px rgba(0,0,0,.85);
-}
-
-/* Single bottom up-arrow bubble */
-#bubble-top-single{
-  position:fixed; right:16px; bottom:18px;
-  z-index:9996; transition:right .25s ease;
-}
-
-/* shift floaters when menu open */
-body.menu-open #bubbleStack,
-body.menu-open #bubble-top-single,
-body.menu-open #carrieWrap{
-  right:340px;
-}
-
-.bubble{
-  width:42px; height:42px;
-  border-radius:999px;
-  display:grid; place-items:center;
-  background:rgba(18,3,39,.94);
-  border:1px solid rgba(129,140,248,.9);
-  box-shadow:0 0 10px rgba(124,58,237,.45);
-  cursor:pointer; transition:background .2s ease, transform .1s ease;
-}
-.bubble:hover{
-  background:rgba(60,15,90,.95);
-  transform:translateY(-1px);
-}
-
-/* --- Carrie wrapper & chat bubble --- */
-#carrieWrap{
-  position:fixed; right:16px; bottom:72px;
-  z-index:9997; user-select:none; touch-action:none;
-  transition:right .25s ease;
-}
-#carrie{
-  width:min(48vw,260px);
-  object-fit:contain;
-  background:transparent!important;
-  display:block;
-  filter:
-    drop-shadow(0 14px 32px rgba(15,6,40,.9))
-    drop-shadow(0 0 18px rgba(124,58,237,.55));
-}
-#carrieBubble{
-  position:absolute; bottom:100%; right:40px;
-  margin-bottom:4px; padding:3px 10px;
-  border-radius:999px; font-size:.72rem;
-  background:rgba(15,23,42,.95); color:#e5e7eb;
-  border:1px solid rgba(129,140,248,.9);
-  white-space:nowrap;
-}
-#carrieBubble::after{
-  content:""; position:absolute; top:100%; right:16px;
-  border-width:6px 6px 0 6px;
-  border-style:solid;
-  border-color:rgba(15,23,42,.95) transparent transparent transparent;
-}
-
-/* --- Auth lock overlay --- */
-#authGateOverlay{
-  position:fixed; inset:0; z-index:12000;
-  background:radial-gradient(circle at 10% -10%, rgba(124,58,237,.45), rgba(3,0,10,.96));
-  display:flex; align-items:center; justify-content:center;
-}
-#authGateCard{
-  width:min(92vw,360px);
-  border-radius:18px;
-  border:1px solid rgba(129,140,248,.85);
-  background:rgba(10,2,26,.96);
-  box-shadow:0 20px 40px rgba(0,0,0,.85);
-  padding:1.4rem 1.5rem;
-  text-align:center;
-}
-#authGateCard h2{
-  font-size:1.05rem; font-weight:700; margin-bottom:.4rem;
-}
-#authGateCard p{
-  font-size:.8rem; opacity:.82; margin-bottom:.8rem;
-}
-#authGateCard .auth-buttons{
-  display:flex; flex-direction:column; gap:.4rem;
-}
-#authGateCard .auth-buttons a{
-  display:block; border-radius:.9rem; padding:.45rem .7rem;
-  font-size:.8rem; text-decoration:none;
-  border:1px solid rgba(129,140,248,.9);
-  background:rgba(15,23,42,.9); color:#e5e7eb;
-}
-#authGateCard .auth-buttons a:first-child{
-  background:#7c3aed; border-color:#7c3aed; color:#fff;
-}
-
-@media(max-width:480px){
-  #carrie{ width:min(56vw,220px); }
-  body.menu-open #bubbleStack,
-  body.menu-open #bubble-top-single,
-  body.menu-open #carrieWrap{
-    right:300px;
-  }
-}
-`;
-    document.head.appendChild(css);
-
-    // --- HTML SHELL (menu + bubbles + Carrie) ---
-    const ui = document.createElement("div");
-    ui.innerHTML = `
-<div id="menuStripe">
-  <div id="menuStripeText">STREAM 8BFR ON SPOTIFY</div>
-</div>
-
-<button id="fab" aria-label="Open navigation">
-  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#00d9ff" stroke-width="2" stroke-linecap="round">
-    <path d="M4 6h16M4 12h12M4 18h8"/>
-  </svg>
-</button>
-<div id="menu-backdrop"></div>
-
-<nav id="menu" aria-hidden="true">
-  <h2>8BFR Navigation</h2>
-
-  <div class="menu-group collapsed">
-    <div class="menu-group-title">Home & Core</div>
-    <div class="menu-links">
-      <a href="index.html" class="menu-chip">Home</a>
-      <a href="network.html" class="menu-chip">Network / Search</a>
-      <a href="featured.html" class="menu-chip">Featured</a>
-      <a href="feed.html" class="menu-chip">Community Feed</a>
-      <a href="radio.html" class="menu-chip">Radio</a>
-      <a href="podcast.html" class="menu-chip">Podcast</a>
-      <a href="about.html" class="menu-chip">About</a>
-      <a href="contact.html" class="menu-chip">Contact</a>
-    </div>
-  </div>
-
-  <div class="menu-group collapsed">
-    <div class="menu-group-title">Studio & AI</div>
-    <div class="menu-links">
-      <a href="studio-tools.html" class="menu-chip">Studio Tools</a>
-      <a href="lyrics-ai.html" class="menu-chip">Lyrics AI</a>
-      <a href="song-ai.html" class="menu-chip">Song AI</a>
-      <a href="album-ai.html" class="menu-chip">Album AI</a>
-      <a href="voice-ai.html" class="menu-chip">Voice / Post VO</a>
-      <a href="author-hub.html" class="menu-chip">Author Hub</a>
-      <a href="stats.html" class="menu-chip">Stats</a>
-      <a href="system.html" class="menu-chip">System</a>
-    </div>
-  </div>
-
-  <div class="menu-group collapsed">
-    <div class="menu-group-title">Profiles & Community</div>
-    <div class="menu-links">
-      <a href="profiles.html" class="menu-chip">All Profiles</a>
-      <a href="profile.html" class="menu-chip">My Profile</a>
-      <a href="profile_artist.html" class="menu-chip">Artist Profile</a>
-      <a href="profile_beatmaker.html" class="menu-chip">Beatmaker Profile</a>
-      <a href="profile_author.html" class="menu-chip">Author Profile</a>
-      <a href="fan-zone.html" class="menu-chip">Fan Zone</a>
-      <a href="kids-zone.html" class="menu-chip">Kids Zone</a>
-      <a href="chat.html" class="menu-chip">Site Chat</a>
-      <a href="carrie-chat.html" class="menu-chip">Carrie Chat</a>
-    </div>
-  </div>
-
-  <div class="menu-group collapsed">
-    <div class="menu-group-title">Shop & Coins</div>
-    <div class="menu-links">
-      <a href="shop.html" class="menu-chip">Shop</a>
-      <a href="coinshop.html" class="menu-chip">Coin Shop</a>
-      <a href="upgrades.html" class="menu-chip">Upgrades</a>
-      <a href="donate.html" class="menu-chip">Donate</a>
-      <a href="thank_you.html" class="menu-chip">Thank You</a>
-      <a href="carrie-closet.html" class="menu-chip">Carrie Closet</a>
-    </div>
-  </div>
-
-  <div class="menu-group collapsed">
-    <div class="menu-group-title">Account</div>
-    <div class="menu-links">
-      <a href="login.html" class="menu-chip">Log in</a>
-      <a href="signup.html" class="menu-chip">Sign up</a>
-      <a href="profile.html" class="menu-chip">My Account</a>
-      <a href="logout.html" class="menu-chip">Log out</a>
-    </div>
-  </div>
-</nav>
-
-<div id="bubbleStack">
-  <div class="bubble-row">
-    <span class="bubble-label">Contact</span>
-    <button class="bubble" id="bubble-contact" title="Contact"><span>✉️</span></button>
-  </div>
-  <div class="bubble-row">
-    <span class="bubble-label">Donate</span>
-    <button class="bubble" id="bubble-donate" title="Donate"><span>💜</span></button>
-  </div>
-  <div class="bubble-row">
-    <span class="bubble-label">Footer</span>
-    <button class="bubble" id="bubble-footer" title="Go to footer"><span>⬇️</span></button>
-  </div>
-  <div class="bubble-row">
-    <span class="bubble-label">Theme</span>
-    <button class="bubble" id="bubble-theme" title="Light / Dark"><span>☯️</span></button>
-  </div>
-  <div class="bubble-row">
-    <span class="bubble-label">Random</span>
-    <button class="bubble" id="bubble-theme-random" title="Random theme"><span>🔀</span></button>
-  </div>
-  <div class="bubble-row">
-    <span class="bubble-label">Stream 8BFR</span>
-    <button class="bubble" id="bubble-stream" title="Stream 8BFR"><span>🎧</span></button>
-  </div>
-</div>
-
-<button class="bubble" id="bubble-top-single" title="Back to top">
-  <span>⬆️</span>
-</button>
-
-<div id="carrieWrap" title="Chat with Carrie (drag)">
-  <div id="carrieBubble">Chat with me</div>
-  <video
-    id="carrie"
-    src="assets/videos/carrie_casual_animate_3_1.webm"
-    autoplay
-    loop
-    muted
-    playsinline
-  ></video>
-</div>
-`;
-    document.body.appendChild(ui);
-
-    // ---------- MENU CONTROL ----------
-    const fab = document.getElementById("fab");
-    const menu = document.getElementById("menu");
-    const backdrop = document.getElementById("menu-backdrop");
-    let menuTimer = null;
+    function openMenu() {
+      menu.classList.add("open");
+      backdrop.classList.add("open");
+      fab.setAttribute("aria-expanded", "true");
+      carrieWrap.classList.add("aside");
+      bubbleContact.classList.add("aside");
+      bubbleDonate.classList.add("aside");
+      bubbleBottom.classList.add("aside");
+      bubbleTop.classList.add("aside");
+      labelContact.classList.add("aside");
+      labelDonate.classList.add("aside");
+      labelBottom.classList.add("aside");
+      labelTop.classList.add("aside");
+      resetTimer();
+    }
 
     function closeMenu() {
       menu.classList.remove("open");
       backdrop.classList.remove("open");
-      document.body.classList.remove("menu-open");
-      clearTimeout(menuTimer);
-      menuTimer = null;
+      fab.setAttribute("aria-expanded", "false");
+      carrieWrap.classList.remove("aside");
+      bubbleContact.classList.remove("aside");
+      bubbleDonate.classList.remove("aside");
+      bubbleBottom.classList.remove("aside");
+      bubbleTop.classList.remove("aside");
+      labelContact.classList.remove("aside");
+      labelDonate.classList.remove("aside");
+      labelBottom.classList.remove("aside");
+      labelTop.classList.remove("aside");
+      snapCarrieHome();
+      clearTimeout(timer);
+      timer = null;
     }
-    function openMenu() {
-      menu.classList.add("open");
-      backdrop.classList.add("open");
-      document.body.classList.add("menu-open");
-      resetMenuTimer();
-    }
-    function resetMenuTimer() {
-      clearTimeout(menuTimer);
-      menuTimer = setTimeout(closeMenu, 20000);
+
+    function resetTimer() {
+      clearTimeout(timer);
+      timer = setTimeout(closeMenu, 20000);
     }
 
     fab.addEventListener("click", (e) => {
@@ -493,215 +452,95 @@ body.menu-open #carrieWrap{
       if (menu.classList.contains("open")) closeMenu();
       else openMenu();
     });
+
     backdrop.addEventListener("click", closeMenu);
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") closeMenu();
     });
-    menu.addEventListener("pointermove", resetMenuTimer);
-    menu.addEventListener("wheel", resetMenuTimer);
+    menu.addEventListener("pointermove", resetTimer);
+    menu.addEventListener("wheel", resetTimer, { passive: true });
 
-    const groups = menu.querySelectorAll(".menu-group");
-    groups.forEach((group) => {
-      const title = group.querySelector(".menu-group-title");
-      if (!title) return;
-      title.addEventListener("click", () => {
-        const willOpen = group.classList.contains("collapsed");
-        groups.forEach((g) => g.classList.add("collapsed"));
-        if (willOpen) group.classList.remove("collapsed");
-      });
+    // bubbles
+    bubbleContact.addEventListener("click", () => {
+      window.location.href = "contact.html";
     });
 
-    // ---------- CARRIE DRAG ----------
-    const carrieWrap = document.getElementById("carrieWrap");
-    const carrie = document.getElementById("carrie");
-
-    let dragging = false;
-    let startX = 0, startY = 0;
-    let originLeft = 0, originTop = 0;
-
-    function ptr(ev) {
-      const t = ev.touches ? ev.touches[0] : ev;
-      return { x: t.clientX, y: t.clientY };
-    }
-
-    if (carrieWrap) {
-      carrieWrap.addEventListener("mousedown", (e) => {
-        dragging = true;
-        const p = ptr(e);
-        startX = p.x;
-        startY = p.y;
-        const rect = carrieWrap.getBoundingClientRect();
-        originLeft = rect.left;
-        originTop = rect.top;
-        carrieWrap.style.right = "auto";
-        carrieWrap.style.bottom = "auto";
-        e.preventDefault();
-      });
-      carrieWrap.addEventListener("touchstart", (e) => {
-        dragging = true;
-        const p = ptr(e);
-        startX = p.x;
-        startY = p.y;
-        const rect = carrieWrap.getBoundingClientRect();
-        originLeft = rect.left;
-        originTop = rect.top;
-        carrieWrap.style.right = "auto";
-        carrieWrap.style.bottom = "auto";
-      }, { passive: true });
-    }
-
-    window.addEventListener("mousemove", (e) => {
-      if (!dragging) return;
-      const p = ptr(e);
-      const dx = p.x - startX;
-      const dy = p.y - startY;
-      carrieWrap.style.left = originLeft + dx + "px";
-      carrieWrap.style.top = originTop + dy + "px";
-      e.preventDefault();
+    bubbleDonate.addEventListener("click", () => {
+      window.open(
+        "https://www.paypal.com/donate?business=8bfr.music@gmail.com",
+        "_blank"
+      );
     });
-    window.addEventListener("touchmove", (e) => {
-      if (!dragging) return;
-      const p = ptr(e);
-      const dx = p.x - startX;
-      const dy = p.y - startY;
-      carrieWrap.style.left = originLeft + dx + "px";
-      carrieWrap.style.top = originTop + dy + "px";
-    }, { passive: true });
-    window.addEventListener("mouseup", () => { dragging = false; });
-    window.addEventListener("touchend", () => { dragging = false; });
 
-    if (carrie) {
-      try {
-        carrie.muted = true;
-        carrie.autoplay = true;
-        carrie.playsInline = true;
-        carrie.play().catch(() => {});
-      } catch (e) {}
-      carrie.addEventListener("click", () => {
-        window.location.href = "carrie-chat.html";
-      });
-      carrie.addEventListener("touchend", () => {
-        window.location.href = "carrie-chat.html";
-      });
-    }
+    bubbleTop.addEventListener("click", () => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
 
-    // ---------- BUBBLES ----------
-    const contact = document.getElementById("bubble-contact");
-    const donate = document.getElementById("bubble-donate");
-    const footerBtn = document.getElementById("bubble-footer");
-    const topBtn = document.getElementById("bubble-top-single");
-    const themeBtn = document.getElementById("bubble-theme");
-    const themeRandomBtn = document.getElementById("bubble-theme-random");
-    const streamBtn = document.getElementById("bubble-stream");
-
-    if (contact) {
-      contact.addEventListener("click", () => {
-        window.location.href = "contact.html";
-      });
-    }
-
-    if (donate) {
-      donate.addEventListener("click", () => {
-        const donateSection = document.getElementById("donate");
-        if (donateSection) {
-          donateSection.scrollIntoView({ behavior: "smooth" });
-        } else {
-          window.location.href = "donate.html";
-        }
-      });
-    }
-
-    if (footerBtn) {
-      footerBtn.addEventListener("click", () => {
+    bubbleBottom.addEventListener("click", () => {
+      const footer = document.getElementById("page-footer");
+      if (footer) {
+        footer.scrollIntoView({ behavior: "smooth", block: "start" });
+      } else {
         window.scrollTo({
           top: document.body.scrollHeight,
           behavior: "smooth",
         });
-      });
-    }
-
-    if (topBtn) {
-      topBtn.addEventListener("click", () => {
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      });
-    }
-
-    const themes = [
-      { name: "dark",   bg: "linear-gradient(#0b0014,#000000)", color: "#eae6ff" },
-      { name: "light",  bg: "#f5f5ff",                            color: "#111827" },
-      {
-        name: "neon",
-        bg: "radial-gradient(circle at 0% 0%, #00f5ff 0, #12001e 40%, #000 100%)",
-        color: "#e0f2fe",
-      },
-      {
-        name: "sunset",
-        bg: "linear-gradient(135deg,#ff7a18,#af002d 60%,#000 100%)",
-        color: "#fff7ed",
-      },
-      {
-        name: "ocean",
-        bg: "linear-gradient(135deg,#0f172a,#0369a1,#0b0014)",
-        color: "#e0f2fe",
-      },
-    ];
-
-    function applyTheme(name) {
-      const t = themes.find((x) => x.name === name);
-      if (!t) return;
-      document.body.style.background = t.bg;
-      document.body.style.color = t.color;
-      try {
-        localStorage.setItem("8bfr-theme", name);
-      } catch {}
-    }
-
-    function getCurrentTheme() {
-      try {
-        return localStorage.getItem("8bfr-theme") || "dark";
-      } catch {
-        return "dark";
       }
+    });
+
+    // Carrie drag (wrapper) + click-to-chat (video only)
+    let dragging = false,
+      sx = 0,
+      sy = 0,
+      ox = 0,
+      oy = 0;
+
+    function getPoint(e) {
+      if (e.touches && e.touches.length) {
+        return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
+      return { x: e.clientX, y: e.clientY };
     }
 
-    applyTheme(getCurrentTheme());
+    function onDown(e) {
+      dragging = true;
+      const p = getPoint(e);
+      sx = p.x;
+      sy = p.y;
+      const r = carrieWrap.getBoundingClientRect();
+      ox = r.left;
+      oy = r.top;
+      carrieWrap.style.right = "auto";
+      carrieWrap.style.bottom = "auto";
+      // no preventDefault here so taps still produce click (for chat)
+    }
 
-    if (themeBtn) {
-      themeBtn.addEventListener("click", () => {
-        const current = getCurrentTheme();
-        const next = current === "light" ? "dark" : "light";
-        applyTheme(next);
+    function onMove(e) {
+      if (!dragging) return;
+      const p = getPoint(e);
+      const dx = p.x - sx;
+      const dy = p.y - sy;
+      carrieWrap.style.left = ox + dx + "px";
+      carrieWrap.style.top  = oy + dy + "px";
+    }
+
+    function onUp() {
+      dragging = false;
+    }
+
+    carrieWrap.addEventListener("mousedown", onDown);
+    carrieWrap.addEventListener("touchstart", onDown, { passive: true });
+    window.addEventListener("mousemove", onMove, { passive: false });
+    window.addEventListener("touchmove", onMove, { passive: false });
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchend", onUp);
+
+    if (carrieVideo) {
+      carrieVideo.addEventListener("click", function (e) {
+        e.stopPropagation();
+        window.location.href = "carrie-chat.html";
       });
     }
-
-    if (themeRandomBtn) {
-      themeRandomBtn.addEventListener("click", () => {
-        const current = getCurrentTheme();
-        const pool = themes.map((t) => t.name).filter((n) => n !== current);
-        const next = pool[Math.floor(Math.random() * pool.length)];
-        applyTheme(next);
-      });
-    }
-
-    if (streamBtn) {
-      streamBtn.addEventListener("click", () => {
-        window.open(
-          "https://open.spotify.com/artist/127tw52iDXr7BvgB0IGG2x",
-          "_blank",
-          "noopener"
-        );
-      });
-    }
-
-    // ---------- SPECIAL: CHAT PAGE → ONLY HAMBURGER + CARRIE ----------
-    if (path === "carrie-chat.html") {
-      const stack = document.getElementById("bubbleStack");
-      if (stack) stack.style.display = "none";
-      const topBubble = document.getElementById("bubble-top-single");
-      if (topBubble) topBubble.style.display = "none";
-    }
-
-    enforceAuthGate();
   }
 
   if (document.readyState === "loading") {
