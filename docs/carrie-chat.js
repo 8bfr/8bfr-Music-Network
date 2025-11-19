@@ -23,6 +23,20 @@ const AVATAR_VIDEOS = {
   },
 };
 
+// ✅ Romance-specific videos (GF / BF)
+// These are optional: if any is missing, code falls back to business/personal.
+const ROMANCE_VIDEOS = {
+  carrie: {
+    girlfriend: "assets/videos/carrie_girlfriend.webm",
+  },
+  james: {
+    boyfriend: "assets/videos/james_boyfriend.webm",
+  },
+  azreen: {
+    girlfriend: "assets/videos/azreen_girlfriend.webm",
+  },
+};
+
 // Safely create Supabase client
 let supabase = null;
 if (window.supabase && window.supabase.createClient) {
@@ -156,11 +170,23 @@ function getVisualMode() {
   return "personal";
 }
 
+// ✅ now uses romance videos if in GF/BF mode and a special file exists
 function getCurrentVideoSrc() {
   const avatar = getAvatarKey();
+  const baseSet = AVATAR_VIDEOS[avatar] || AVATAR_VIDEOS.carrie;
+
+  // Romance overrides
+  const rset = ROMANCE_VIDEOS[avatar];
+  if (romanceMode === "girlfriend" && rset && rset.girlfriend) {
+    return rset.girlfriend;
+  }
+  if (romanceMode === "boyfriend" && rset && rset.boyfriend) {
+    return rset.boyfriend;
+  }
+
+  // Otherwise, normal business/personal
   const mode = getVisualMode();
-  const set = AVATAR_VIDEOS[avatar] || AVATAR_VIDEOS.carrie;
-  return set[mode] || set.personal || set.business;
+  return baseSet[mode] || baseSet.personal || baseSet.business;
 }
 
 // Avatar-based romance locks (James vs Carrie/Azreen)
