@@ -485,6 +485,23 @@ body.menu-open #carrieWrap{
   border-color:rgba(15,23,42,.95) transparent transparent transparent;
 }
 
+#avatarSwitcher{
+  display:none !important;
+}
+#avatarSwitcher button{
+  padding:2px 6px;
+  border-radius:999px;
+  border:1px solid rgba(129,140,248,.6);
+  background:rgba(15,23,42,.85);
+  color:#e5e7eb;
+  font-size:.65rem;
+  cursor:pointer;
+}
+#avatarSwitcher button.active{
+  border-color:#a855f7;
+  background:rgba(88,28,135,0.95);
+}
+
 
 #avatarSwitcher button{
   padding:2px 6px;
