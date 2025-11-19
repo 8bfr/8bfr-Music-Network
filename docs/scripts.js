@@ -145,7 +145,7 @@
   // Buttons under the carousel are plain links in index.html (Buy / How ads work)
 })();
 
-// ========== GLOBAL 8BFR UI (menu, bubbles, Avatars, auth gate, Spotify stripe) ==========
+// ========== GLOBAL 8BFR UI (menu, avatars, auth gate, Spotify stripe) ==========
 (function () {
   const SUPABASE_URL = "https://novbuvwpjnxwwvdekjhr.supabase.co";
   const SUPABASE_ANON_KEY =
@@ -437,18 +437,15 @@ body.menu-open #carrieWrap{
 
 /* --- Global avatar wrapper & chat bubble --- */
 #carrieWrap{
-  position:fixed; right:16px; bottom:72px;
+  position:fixed; right:16px; bottom:80px;
   z-index:9997; user-select:none; touch-action:none;
   transition:right .25s ease;
 }
 
-/* One global avatar size shared by all three */
+/* ONE global avatar size shared by all */
 .global-avatar{
-  width:auto;
-  height:260px;
-  max-width:min(48vw,260px);
+  width:min(48vw,260px);
   object-fit:contain;
-  object-position:bottom center;
   background:transparent!important;
   display:none;
   filter:
@@ -459,15 +456,7 @@ body.menu-open #carrieWrap{
   display:block;
 }
 
-/* small vertical nudge so Carrie's face lines up with James/Azreen */
-#avatar-carrie{
-  margin-top:-6px;
-}
-#avatar-james,
-#avatar-azreen{
-  margin-top:0;
-}
-
+/* Speech bubble */
 #carrieBubble{
   position:absolute; bottom:100%; right:40px;
   margin-bottom:4px; padding:3px 10px;
@@ -483,13 +472,13 @@ body.menu-open #carrieWrap{
   border-color:rgba(15,23,42,.95) transparent transparent transparent;
 }
 
-/* Small switcher ABOVE the avatar box */
+/* Switcher ABOVE the avatars, centered */
 #avatarSwitcher{
   position:absolute;
-  top:-44px;
-  right:0;
+  bottom:100%;
+  left:50%;
+  transform:translate(-50%, -8px);
   display:flex;
-  justify-content:flex-end;
   gap:4px;
   z-index:1;
 }
@@ -542,10 +531,7 @@ body.menu-open #carrieWrap{
 }
 
 @media(max-width:480px){
-  .global-avatar{
-    height:220px;
-    max-width:min(56vw,220px);
-  }
+  .global-avatar{ width:min(56vw,220px); }
   body.menu-open #bubbleStack,
   body.menu-open #bubble-top-single,
   body.menu-open #carrieWrap{
@@ -774,10 +760,11 @@ body.menu-open #carrieWrap{
     <button data-avatar="azreen">Azreen</button>
   </div>
   <div id="carrieBubble">Chat with me</div>
+  <!-- Business defaults for global avatars -->
   <video
     id="avatar-carrie"
     class="global-avatar"
-    src="assets/videos/carrie_casual_animate_3_1.webm"
+    src="assets/videos/carrie_business_animate.webm"
     autoplay
     loop
     muted
@@ -786,7 +773,7 @@ body.menu-open #carrieWrap{
   <video
     id="avatar-james"
     class="global-avatar"
-    src="assets/videos/james-casual.webm"
+    src="assets/videos/james_business.webm"
     autoplay
     loop
     muted
@@ -795,7 +782,7 @@ body.menu-open #carrieWrap{
   <video
     id="avatar-azreen"
     class="global-avatar"
-    src="assets/videos/azreen-business.webm"
+    src="assets/videos/azreen_business.webm"
     autoplay
     loop
     muted
@@ -878,17 +865,14 @@ body.menu-open #carrieWrap{
       azreen: "avatar-azreen",
     };
 
-    // small base scale to help Carrie visually match James & Azreen
-    const AVATAR_BASE_SCALE = {
-      carrie: 1.08,
-      james: 1.0,
-      azreen: 1.0,
-    };
+    // One global size factor shared by all
+    let currentAvatar = getStoredAvatar();
+    let userScale = 1;
 
     function getStoredAvatar() {
       try {
         const raw = localStorage.getItem("carrie_avatar");
-        if (!raw) return "carrie";
+        if (!raw) return "carrie"; // default Carrie on first visit
         const a = raw.toLowerCase();
         if (AVATAR_KEYS.includes(a)) return a;
       } catch (e) {}
@@ -901,25 +885,13 @@ body.menu-open #carrieWrap{
       } catch (e) {}
     }
 
-    let currentAvatar = getStoredAvatar();
-    let userScale = 1; // one global avatar size all share
-
     function applyAvatarScale() {
+      const total = userScale;
       avatarVideos.forEach((vid) => {
-        const id = vid.id;
-        let key = "carrie";
-        if (id === "avatar-james") key = "james";
-        if (id === "avatar-azreen") key = "azreen";
-
-        const base = AVATAR_BASE_SCALE[key] || 1.0;
-        const scale = userScale * base;
-
-        vid.style.transform = `scale(${scale})`;
-        vid.style.transformOrigin = "bottom center";
+        vid.style.transform = `scale(${total})`;
       });
       if (carrieBubble) {
-        carrieBubble.style.transform = `scale(${userScale})`;
-        carrieBubble.style.transformOrigin = "bottom center";
+        carrieBubble.style.transform = `scale(${total})`;
       }
     }
 
@@ -964,8 +936,9 @@ body.menu-open #carrieWrap{
 
     // init avatar + size
     if (avatarVideos.length) {
-      setActiveAvatar(currentAvatar);
+      setActiveAvatar(currentAvatar || "carrie");
     }
+    applyAvatarScale();
 
     if (avatarSwitcher) {
       avatarSwitcher.addEventListener("click", (e) => {
@@ -980,8 +953,8 @@ body.menu-open #carrieWrap{
     // stay in sync if another tab changes avatar
     window.addEventListener("storage", (ev) => {
       if (ev.key === "carrie_avatar") {
-        currentAvatar = getStoredAvatar();
-        setActiveAvatar(currentAvatar);
+        const next = getStoredAvatar();
+        setActiveAvatar(next);
       }
     });
 
