@@ -6,19 +6,20 @@ const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0";
 
 // ✅ Per-avatar video sources (business vs personal/casual)
-// Uses your real James / Azreen videos
+// Uses your real James / Azreen videos + current Carrie casual filename
 const AVATAR_VIDEOS = {
   carrie: {
     business: "assets/videos/carrie_business_animate.webm",
-    personal: "assets/videos/carrie_casual_animate_3_1.webm",
+    // NOTE: current file on GitHub is "Carrie_casual_animate_3_1.webm" (capital C)
+    personal: "assets/videos/Carrie_casual_animate_3_1.webm",
   },
   james: {
-    business: "assets/videos/james-business.webm",
-    personal: "assets/videos/james-casual.webm",
+    business: "assets/videos/james_business.webm",
+    personal: "assets/videos/james_casual.webm",
   },
   azreen: {
-    business: "assets/videos/azreen-business.webm",
-    personal: "assets/videos/azreen-casual.webm",
+    business: "assets/videos/azreen_business.webm",
+    personal: "assets/videos/azreen_casual.webm",
   },
 };
 
