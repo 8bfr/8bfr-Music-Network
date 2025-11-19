@@ -145,7 +145,7 @@
   // Buttons under the carousel are plain links in index.html (Buy / How ads work)
 })();
 
-// ========== GLOBAL 8BFR UI (menu, avatars, auth gate, Spotify stripe) ==========
+// ========== GLOBAL 8BFR UI (menu, bubbles, Avatars, auth gate, Spotify stripe) ==========
 (function () {
   const SUPABASE_URL = "https://novbuvwpjnxwwvdekjhr.supabase.co";
   const SUPABASE_ANON_KEY =
@@ -233,12 +233,14 @@
   }
 
   function injectGlobalUI() {
+    // Already injected?
     if (document.getElementById("fab")) {
       enforceAuthGate();
       return;
     }
 
-    // 🔑 Check if this page wants to hide global avatars
+    // 🔑 Pages can opt out of global avatars with:
+    // <body data-no-global-carrie="true">
     const noCarrie =
       document.body && document.body.dataset.noGlobalCarrie === "true";
 
@@ -250,11 +252,6 @@
   --glass: rgba(12,6,24,.88);
   --chip-bg: rgba(18,3,39,.96);
   --chip-hover: rgba(55,9,90,1);
-}
-
-/* Hide any old global switcher that might still exist */
-#globalAvatarSwitch{
-  display:none !important;
 }
 
 /* stripe on the right behind the menu */
@@ -393,7 +390,7 @@ body.menu-open #pageWrap{
   position:fixed; top:76px; right:16px;
   z-index:9996; display:flex;
   flex-direction:column; gap:6px;
-  transition:right .25s.ease;
+  transition:right .25s ease;
 }
 .bubble-row{
   display:flex;
@@ -433,7 +430,7 @@ body.menu-open #carrieWrap{
   background:rgba(18,3,39,.94);
   border:1px solid rgba(129,140,248,.9);
   box-shadow:0 0 10px rgba(124,58,237,.45);
-  cursor:pointer; transition:background .2s ease, transform .1s.ease;
+  cursor:pointer; transition:background .2s ease, transform .1s ease;
 }
 .bubble:hover{
   background:rgba(60,15,90,.95);
@@ -442,12 +439,16 @@ body.menu-open #carrieWrap{
 
 /* --- Global avatar wrapper & chat bubble --- */
 #carrieWrap{
-  position:fixed; right:16px; bottom:80px;
-  z-index:9997; user-select:none; touch-action:none;
+  position:fixed;
+  right:16px;
+  bottom:72px;
+  z-index:9997;
+  user-select:none;
+  touch-action:none;
   transition:right .25s ease;
 }
 
-/* ONE global avatar size shared by all */
+/* One global avatar size shared by all three */
 .global-avatar{
   width:min(48vw,260px);
   object-fit:contain;
@@ -461,28 +462,34 @@ body.menu-open #carrieWrap{
   display:block;
 }
 
-/* Speech bubble */
 #carrieBubble{
-  position:absolute; bottom:100%; right:40px;
-  margin-bottom:4px; padding:3px 10px;
-  border-radius:999px; font-size:.72rem;
-  background:rgba(15,23,42,.95); color:#e5e7eb;
+  position:absolute;
+  bottom:100%;
+  right:40px;
+  margin-bottom:4px;
+  padding:3px 10px;
+  border-radius:999px;
+  font-size:.72rem;
+  background:rgba(15,23,42,.95);
+  color:#e5e7eb;
   border:1px solid rgba(129,140,248,.9);
   white-space:nowrap;
 }
 #carrieBubble::after{
-  content:""; position:absolute; top:100%; right:16px;
+  content:"";
+  position:absolute;
+  top:100%;
+  right:16px;
   border-width:6px 6px 0 6px;
   border-style:solid;
   border-color:rgba(15,23,42,.95) transparent transparent transparent;
 }
 
-/* Switcher ABOVE avatars, just a few pixels up */
+/* Single global avatar switcher above the avatars */
 #avatarSwitcher{
   position:absolute;
   bottom:100%;
-  left:50%;
-  transform:translateX(-50%);
+  right:0;
   margin-bottom:6px;
   display:flex;
   gap:4px;
@@ -766,7 +773,6 @@ body.menu-open #carrieWrap{
     <button data-avatar="azreen">Azreen</button>
   </div>
   <div id="carrieBubble">Chat with me</div>
-  <!-- Business defaults for global avatars -->
   <video
     id="avatar-carrie"
     class="global-avatar"
@@ -871,10 +877,17 @@ body.menu-open #carrieWrap{
       azreen: "avatar-azreen",
     };
 
+    // base scales so they LOOK visually similar if framing is different
+    const AVATAR_BASE_SCALE = {
+      carrie: 1.0,
+      james: 1.0,
+      azreen: 1.0,
+    };
+
     function getStoredAvatar() {
       try {
         const raw = localStorage.getItem("carrie_avatar");
-        if (!raw) return "carrie"; // default
+        if (!raw) return "carrie";
         const a = raw.toLowerCase();
         if (AVATAR_KEYS.includes(a)) return a;
       } catch (e) {}
@@ -888,10 +901,11 @@ body.menu-open #carrieWrap{
     }
 
     let currentAvatar = getStoredAvatar();
-    let userScale = 1; // shared size for all avatars
+    let userScale = 1; // one shared size for all global avatars
 
     function applyAvatarScale() {
-      const total = userScale;
+      const base = AVATAR_BASE_SCALE[currentAvatar] || 1.0;
+      const total = base * userScale;
       avatarVideos.forEach((vid) => {
         vid.style.transform = `scale(${total})`;
       });
@@ -941,9 +955,8 @@ body.menu-open #carrieWrap{
 
     // init avatar + size
     if (avatarVideos.length) {
-      setActiveAvatar(currentAvatar || "carrie");
+      setActiveAvatar(currentAvatar);
     }
-    applyAvatarScale();
 
     if (avatarSwitcher) {
       avatarSwitcher.addEventListener("click", (e) => {
@@ -955,11 +968,11 @@ body.menu-open #carrieWrap{
       });
     }
 
-    // stay in sync if another tab changes avatar
+    // stay in sync if another tab or the chat page changes avatar
     window.addEventListener("storage", (ev) => {
       if (ev.key === "carrie_avatar") {
-        const next = getStoredAvatar();
-        setActiveAvatar(next);
+        currentAvatar = getStoredAvatar();
+        setActiveAvatar(currentAvatar);
       }
     });
 
