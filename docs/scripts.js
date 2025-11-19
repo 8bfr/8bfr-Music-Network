@@ -252,6 +252,11 @@
   --chip-hover: rgba(55,9,90,1);
 }
 
+/* Hide any old global switcher that might still exist */
+#globalAvatarSwitch{
+  display:none !important;
+}
+
 /* stripe on the right behind the menu */
 #menuStripe{
   position:fixed; top:0; right:0; bottom:0;
@@ -388,7 +393,7 @@ body.menu-open #pageWrap{
   position:fixed; top:76px; right:16px;
   z-index:9996; display:flex;
   flex-direction:column; gap:6px;
-  transition:right .25s ease;
+  transition:right .25s.ease;
 }
 .bubble-row{
   display:flex;
@@ -428,7 +433,7 @@ body.menu-open #carrieWrap{
   background:rgba(18,3,39,.94);
   border:1px solid rgba(129,140,248,.9);
   box-shadow:0 0 10px rgba(124,58,237,.45);
-  cursor:pointer; transition:background .2s ease, transform .1s ease;
+  cursor:pointer; transition:background .2s ease, transform .1s.ease;
 }
 .bubble:hover{
   background:rgba(60,15,90,.95);
@@ -472,12 +477,13 @@ body.menu-open #carrieWrap{
   border-color:rgba(15,23,42,.95) transparent transparent transparent;
 }
 
-/* Switcher ABOVE the avatars, centered */
+/* Switcher ABOVE avatars, just a few pixels up */
 #avatarSwitcher{
   position:absolute;
   bottom:100%;
   left:50%;
-  transform:translate(-50%, -8px);
+  transform:translateX(-50%);
+  margin-bottom:6px;
   display:flex;
   gap:4px;
   z-index:1;
@@ -865,14 +871,10 @@ body.menu-open #carrieWrap{
       azreen: "avatar-azreen",
     };
 
-    // One global size factor shared by all
-    let currentAvatar = getStoredAvatar();
-    let userScale = 1;
-
     function getStoredAvatar() {
       try {
         const raw = localStorage.getItem("carrie_avatar");
-        if (!raw) return "carrie"; // default Carrie on first visit
+        if (!raw) return "carrie"; // default
         const a = raw.toLowerCase();
         if (AVATAR_KEYS.includes(a)) return a;
       } catch (e) {}
@@ -884,6 +886,9 @@ body.menu-open #carrieWrap{
         localStorage.setItem("carrie_avatar", name);
       } catch (e) {}
     }
+
+    let currentAvatar = getStoredAvatar();
+    let userScale = 1; // shared size for all avatars
 
     function applyAvatarScale() {
       const total = userScale;
