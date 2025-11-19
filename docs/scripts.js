@@ -485,16 +485,7 @@ body.menu-open #carrieWrap{
   border-color:rgba(15,23,42,.95) transparent transparent transparent;
 }
 
-/* Single global avatar switcher above the avatars */
-#avatarSwitcher{
-  position:absolute;
-  bottom:100%;
-  right:0;
-  margin-bottom:6px;
-  display:flex;
-  gap:4px;
-  z-index:1;
-}
+
 #avatarSwitcher button{
   padding:2px 6px;
   border-radius:999px;
