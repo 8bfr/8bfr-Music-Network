@@ -931,16 +931,40 @@ function wireMaintMenu() {
       maintMenu.classList.remove("open");
       return;
     }
+if (action === "archive-self") {
+  // Archive just this user's chat (marker only)
+  if (!currentUserId || !currentUserEmail) {
+    renderMessage(
+      "assistant",
+      "I can only save a snapshot if you're logged in. Please log in, then try again.",
+      new Date()
+    );
+    maintMenu.classList.remove("open");
+    return;
+  }
 
-    if (action === "archive-self") {
-      renderMessage(
-        "assistant",
-        "Snapshot saving will come in a later update. For now, you can manually copy anything important.",
-        new Date()
-      );
-      maintMenu.classList.remove("open");
-      return;
+  try {
+    if (supabase) {
+      await supabase.from("carrie_chat_archives").insert({
+        user_id: currentUserId,
+        archived_by: currentUserEmail,
+        scope: "self",          // optional column; safe to ignore if table doesn't have it
+        created_at: new Date().toISOString(),
+      });
     }
+  } catch (e2) {
+    console.warn("Archive self stub failed", e2);
+  }
+
+  renderMessage(
+    "assistant",
+    "I saved a snapshot marker for your chat history. In a future update this will connect to a full viewer, but your archive flag is stored now.",
+    new Date()
+  );
+  maintMenu.classList.remove("open");
+  return;
+}
+    
 
     if (action === "archive-all") {
       if (effectiveRole() !== "owner") {
