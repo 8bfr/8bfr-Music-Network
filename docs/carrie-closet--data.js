@@ -1,1013 +1,319 @@
-// carrie-closet-data.js
-// Master item list for the Carrie Closet (clothes, hair, eyes, skin, accessories, makeup)
-//
-// NOTE: Video paths are placeholders like:
-// "assets/videos/closet/outfit_casual_purple_hoodie.webm"
-// You can rename them to whatever you actually upload later.
+// carrie-closet.js
+// Renders items from carrie-closet-data.js onto carrie-closet.html
 
-// -------------------- CLOTHING (outfits) --------------------
+(function () {
+  const gridEl = document.getElementById("closetGrid");
+  const emptyEl = document.getElementById("closetEmpty");
+  const countEl = document.getElementById("closetItemCount");
+  const filterRowPrimary = document.getElementById("filterRowPrimary");
+  const filterResetBtn = document.getElementById("filterReset");
 
-const CARRIE_CLOSET_OUTFITS = [
-  // CASUAL
-  {
-    id: "outfit_casual_purple_hoodie",
-    type: "clothing",
-    slot: "outfit",
-    name: "Casual Purple Hoodie Set",
-    style: "casual",
-    subType: "hoodie",
-    description: "Relaxed purple hoodie with black leggings and sneakers.",
-    coins: 90,
-    rarity: "common",
-    tags: ["casual", "hoodie", "street"],
-    video: "assets/videos/closet/outfit_casual_purple_hoodie.webm",
-  },
-  {
-    id: "outfit_casual_denim_jacket",
-    type: "clothing",
-    slot: "outfit",
-    name: "Denim Jacket & Leggings",
-    style: "casual",
-    subType: "jacket",
-    description: "Light wash denim jacket, white crop tee, and charcoal leggings.",
-    coins: 110,
-    rarity: "common",
-    tags: ["casual", "denim"],
-    video: "assets/videos/closet/outfit_casual_denim_jacket.webm",
-  },
-  {
-    id: "outfit_casual_oversized_tee",
-    type: "clothing",
-    slot: "outfit",
-    name: "Oversized Tee & Biker Shorts",
-    style: "casual",
-    subType: "shorts",
-    description: "Long graphic tee with black biker shorts for lazy days.",
-    coins: 95,
-    rarity: "common",
-    tags: ["casual", "street", "comfy"],
-    video: "assets/videos/closet/outfit_casual_oversized_tee.webm",
-  },
-  {
-    id: "outfit_casual_pastel_joggers",
-    type: "clothing",
-    slot: "outfit",
-    name: "Pastel Hoodie & Joggers",
-    style: "casual",
-    subType: "joggers",
-    description: "Soft pastel hoodie and matching jogger pants set.",
-    coins: 120,
-    rarity: "uncommon",
-    tags: ["casual", "set", "pastel"],
-    video: "assets/videos/closet/outfit_casual_pastel_joggers.webm",
-  },
-  {
-    id: "outfit_casual_plaid_jeans",
-    type: "clothing",
-    slot: "outfit",
-    name: "Plaid Shirt & Ripped Jeans",
-    style: "casual",
-    subType: "pants",
-    description: "Plaid flannel over a white tank with distressed jeans.",
-    coins: 130,
-    rarity: "uncommon",
-    tags: ["casual", "plaid", "street"],
-    video: "assets/videos/closet/outfit_casual_plaid_jeans.webm",
-  },
+  // Safely read from data file
+  const ALL_ITEMS = Array.isArray(window.CARRIE_CLOSET_ALL)
+    ? window.CARRIE_CLOSET_ALL
+    : [];
 
-  // CONSERVATIVE
-  {
-    id: "outfit_conservative_midi_dress",
-    type: "clothing",
-    slot: "outfit",
-    name: "Soft Midi Dress",
-    style: "conservative",
-    subType: "dress",
-    description: "Knee-length long sleeve midi dress with soft flow.",
-    coins: 150,
-    rarity: "uncommon",
-    tags: ["conservative", "dress"],
-    video: "assets/videos/closet/outfit_conservative_midi_dress.webm",
-  },
-  {
-    id: "outfit_conservative_blouse_slacks",
-    type: "clothing",
-    slot: "outfit",
-    name: "Blouse & High-Waist Slacks",
-    style: "conservative",
-    subType: "pants",
-    description: "Button blouse tucked into high-waist tailored slacks.",
-    coins: 160,
-    rarity: "uncommon",
-    tags: ["conservative", "office"],
-    video: "assets/videos/closet/outfit_conservative_blouse_slacks.webm",
-  },
-  {
-    id: "outfit_conservative_turtleneck_maxi",
-    type: "clothing",
-    slot: "outfit",
-    name: "Turtleneck & Maxi Skirt",
-    style: "conservative",
-    subType: "skirt",
-    description: "Fitted turtleneck paired with a flowing maxi skirt.",
-    coins: 170,
-    rarity: "rare",
-    tags: ["conservative", "skirt"],
-    video: "assets/videos/closet/outfit_conservative_turtleneck_maxi.webm",
-  },
-  {
-    id: "outfit_conservative_blazer_pencil",
-    type: "clothing",
-    slot: "outfit",
-    name: "Blazer & Pencil Skirt",
-    style: "conservative",
-    subType: "skirt",
-    description: "Structured blazer with a knee-length pencil skirt.",
-    coins: 180,
-    rarity: "rare",
-    tags: ["conservative", "office", "blazer"],
-    video: "assets/videos/closet/outfit_conservative_blazer_pencil.webm",
-  },
-  {
-    id: "outfit_conservative_cardigan_pants",
-    type: "clothing",
-    slot: "outfit",
-    name: "Long Cardigan & Dress Pants",
-    style: "conservative",
-    subType: "pants",
-    description: "Soft long cardigan layered over a top and dress pants.",
-    coins: 155,
-    rarity: "uncommon",
-    tags: ["conservative", "cozy"],
-    video: "assets/videos/closet/outfit_conservative_cardigan_pants.webm",
-  },
+  // If nothing is loaded, show a quick message for debugging
+  if (!ALL_ITEMS.length && countEl) {
+    countEl.innerHTML = `
+      <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+      <span>No closet items loaded (check carrie-closet-data.js is included before this script).</span>
+    `;
+  }
 
-  // SEXY (still PG / club style; higher coin cost)
-  {
-    id: "outfit_sexy_black_bodycon",
-    type: "clothing",
-    slot: "outfit",
-    name: "Black Bodycon Dress",
-    style: "sexy",
-    subType: "dress",
-    description: "Fitted black bodycon mini dress for night-out vibes.",
-    coins: 260,
-    rarity: "rare",
-    tags: ["sexy", "party", "dress"],
-    video: "assets/videos/closet/outfit_sexy_black_bodycon.webm",
-  },
-  {
-    id: "outfit_sexy_red_mini",
-    type: "clothing",
-    slot: "outfit",
-    name: "Red Party Mini",
-    style: "sexy",
-    subType: "dress",
-    description: "Bold red mini dress with a sleek silhouette.",
-    coins: 280,
-    rarity: "rare",
-    tags: ["sexy", "party", "red"],
-    video: "assets/videos/closet/outfit_sexy_red_mini.webm",
-  },
-  {
-    id: "outfit_sexy_sequin_silver",
-    type: "clothing",
-    slot: "outfit",
-    name: "Silver Sequin Dress",
-    style: "sexy",
-    subType: "dress",
-    description: "Sparkling silver sequin club dress that catches the light.",
-    coins: 320,
-    rarity: "epic",
-    tags: ["sexy", "party", "sequin"],
-    video: "assets/videos/closet/outfit_sexy_sequin_silver.webm",
-  },
-  {
-    id: "outfit_sexy_leather_skirt_set",
-    type: "clothing",
-    slot: "outfit",
-    name: "Leather Skirt & Crop Top",
-    style: "sexy",
-    subType: "skirt",
-    description: "High-waist leather skirt with a fitted crop top.",
-    coins: 300,
-    rarity: "epic",
-    tags: ["sexy", "leather", "club"],
-    video: "assets/videos/closet/outfit_sexy_leather_skirt_set.webm",
-  },
-  {
-    id: "outfit_sexy_strappy_jumpsuit",
-    type: "clothing",
-    slot: "outfit",
-    name: "Strappy Jumpsuit",
-    style: "sexy",
-    subType: "jumpsuit",
-    description: "One-piece jumpsuit with sleek, fitted lines.",
-    coins: 310,
-    rarity: "epic",
-    tags: ["sexy", "jumpsuit"],
-    video: "assets/videos/closet/outfit_sexy_strappy_jumpsuit.webm",
-  },
+  // ------------- Filter state -------------
 
-  // SHORTS + PANTS / STREET
-  {
-    id: "outfit_street_cargo_shorts",
-    type: "clothing",
-    slot: "outfit",
-    name: "Cargo Shorts & Tube Top",
-    style: "street",
-    subType: "shorts",
-    description: "Olive cargo shorts with a simple tube top and sneakers.",
-    coins: 150,
-    rarity: "uncommon",
-    tags: ["street", "shorts"],
-    video: "assets/videos/closet/outfit_street_cargo_shorts.webm",
-  },
-  {
-    id: "outfit_street_track_pants",
-    type: "clothing",
-    slot: "outfit",
-    name: "Track Pants & Sports Top",
-    style: "sporty",
-    subType: "pants",
-    description: "Side-stripe track pants with a sporty crop top.",
-    coins: 145,
-    rarity: "uncommon",
-    tags: ["sporty", "street"],
-    video: "assets/videos/closet/outfit_street_track_pants.webm",
-  },
-  {
-    id: "outfit_street_boyfriend_jeans",
-    type: "clothing",
-    slot: "outfit",
-    name: "Boyfriend Jeans & Bralette",
-    style: "street",
-    subType: "pants",
-    description: "Loose boyfriend jeans with a fitted top.",
-    coins: 170,
-    rarity: "rare",
-    tags: ["street", "denim"],
-    video: "assets/videos/closet/outfit_street_boyfriend_jeans.webm",
-  },
-  {
-    id: "outfit_street_camo_joggers",
-    type: "clothing",
-    slot: "outfit",
-    name: "Camo Joggers & Tank",
-    style: "street",
-    subType: "pants",
-    description: "Camo print joggers with a fitted tank top.",
-    coins: 155,
-    rarity: "uncommon",
-    tags: ["street", "camo"],
-    video: "assets/videos/closet/outfit_street_camo_joggers.webm",
-  },
-  {
-    id: "outfit_street_highwaist_shorts",
-    type: "clothing",
-    slot: "outfit",
-    name: "High-waist Shorts & Off-Shoulder Tee",
-    style: "street",
-    subType: "shorts",
-    description: "High-waist shorts with a loose off-shoulder tee.",
-    coins: 165,
-    rarity: "rare",
-    tags: ["street", "shorts"],
-    video: "assets/videos/closet/outfit_street_highwaist_shorts.webm",
-  },
+  let activeSlot = "all";   // outfit, hair, eyes, skin, accessory, makeup
+  let activeStyle = "all";  // casual, conservative, sexy, swim, theme, etc.
 
-  // SKIRTS
-  {
-    id: "outfit_skirt_tennis",
-    type: "clothing",
-    slot: "outfit",
-    name: "Tennis Skirt & Polo",
-    style: "skirt",
-    subType: "skirt",
-    description: "Pleated tennis skirt with a cropped polo top.",
-    coins: 180,
-    rarity: "rare",
-    tags: ["skirt", "sporty"],
-    video: "assets/videos/closet/outfit_skirt_tennis.webm",
-  },
-  {
-    id: "outfit_skirt_school",
-    type: "clothing",
-    slot: "outfit",
-    name: "Plaid Skirt & Cardigan",
-    style: "skirt",
-    subType: "skirt",
-    description: "Plaid skirt with a cozy cardigan and simple top.",
-    coins: 175,
-    rarity: "rare",
-    tags: ["skirt", "plaid"],
-    video: "assets/videos/closet/outfit_skirt_school.webm",
-  },
-  {
-    id: "outfit_skirt_leather_mini",
-    type: "clothing",
-    slot: "outfit",
-    name: "Leather Mini & Mesh Sleeves",
-    style: "skirt",
-    subType: "skirt",
-    description: "Leather mini skirt with a top that has mesh sleeves.",
-    coins: 230,
-    rarity: "epic",
-    tags: ["skirt", "party", "leather"],
-    video: "assets/videos/closet/outfit_skirt_leather_mini.webm",
-  },
-  {
-    id: "outfit_skirt_chiffon_midi",
-    type: "clothing",
-    slot: "outfit",
-    name: "Chiffon Midi & Camisole",
-    style: "skirt",
-    subType: "skirt",
-    description: "Light chiffon midi skirt with a delicate camisole.",
-    coins: 190,
-    rarity: "rare",
-    tags: ["skirt", "soft"],
-    video: "assets/videos/closet/outfit_skirt_chiffon_midi.webm",
-  },
-  {
-    id: "outfit_skirt_denim_hoodie",
-    type: "clothing",
-    slot: "outfit",
-    name: "Denim Skirt & Hoodie",
-    style: "skirt",
-    subType: "skirt",
-    description: "Casual denim skirt with a cropped hoodie.",
-    coins: 165,
-    rarity: "uncommon",
-    tags: ["skirt", "casual"],
-    video: "assets/videos/closet/outfit_skirt_denim_hoodie.webm",
-  },
+  const SLOT_FILTERS = [
+    { id: "all", label: "All" },
+    { id: "outfit", label: "Outfits" },
+    { id: "hair", label: "Hair" },
+    { id: "eyes", label: "Eyes" },
+    { id: "skin", label: "Skin" },
+    { id: "accessory", label: "Accessories" },
+    { id: "makeup", label: "Makeup" },
+  ];
 
-  // SWIM / BIKINI
-  {
-    id: "outfit_swim_lilac_bikini",
-    type: "clothing",
-    slot: "outfit",
-    name: "Lilac Bikini",
-    style: "swim",
-    subType: "bikini",
-    description: "Soft lilac bikini set with simple straps.",
-    coins: 220,
-    rarity: "rare",
-    tags: ["swim", "bikini"],
-    video: "assets/videos/closet/outfit_swim_lilac_bikini.webm",
-  },
-  {
-    id: "outfit_swim_black_bikini",
-    type: "clothing",
-    slot: "outfit",
-    name: "Black Bikini Set",
-    style: "swim",
-    subType: "bikini",
-    description: "Classic black bikini with a sleek, fitted look.",
-    coins: 240,
-    rarity: "rare",
-    tags: ["swim", "bikini", "sexy"],
-    video: "assets/videos/closet/outfit_swim_black_bikini.webm",
-  },
-  {
-    id: "outfit_swim_sport_onepiece",
-    type: "clothing",
-    slot: "outfit",
-    name: "Sporty One-Piece",
-    style: "swim",
-    subType: "swimsuit",
-    description: "High-neck one-piece swimsuit with sporty side stripes.",
-    coins: 210,
-    rarity: "uncommon",
-    tags: ["swim", "sporty"],
-    video: "assets/videos/closet/outfit_swim_sport_onepiece.webm",
-  },
-  {
-    id: "outfit_swim_retro_highwaist",
-    type: "clothing",
-    slot: "outfit",
-    name: "Retro High-Waist Bikini",
-    style: "swim",
-    subType: "bikini",
-    description: "High-waisted bikini bottom with a vintage top.",
-    coins: 230,
-    rarity: "rare",
-    tags: ["swim", "retro"],
-    video: "assets/videos/closet/outfit_swim_retro_highwaist.webm",
-  },
+  const STYLE_FILTERS = [
+    { id: "casual", label: "Casual" },
+    { id: "conservative", label: "Conservative" },
+    { id: "sexy", label: "Sexy" },
+    { id: "street", label: "Street" },
+    { id: "skirt", label: "Skirts" },
+    { id: "swim", label: "Swim / Bikini" },
+    { id: "sleep", label: "Sleep / Lounge" },
+    { id: "theme", label: "Theme / Festival" },
+  ];
 
-  // SLEEP / LOUNGE
-  {
-    id: "outfit_sleep_oversized_shirt",
-    type: "clothing",
-    slot: "outfit",
-    name: "Oversized Sleep Shirt",
-    style: "sleep",
-    subType: "dress",
-    description: "Huge soft t-shirt styled as sleep dress.",
-    coins: 120,
-    rarity: "common",
-    tags: ["sleep", "comfy"],
-    video: "assets/videos/closet/outfit_sleep_oversized_shirt.webm",
-  },
-  {
-    id: "outfit_sleep_satin_set",
-    type: "clothing",
-    slot: "outfit",
-    name: "Satin PJ Set",
-    style: "sleep",
-    subType: "set",
-    description: "Satin short-sleeve top with matching shorts.",
-    coins: 160,
-    rarity: "uncommon",
-    tags: ["sleep", "satin"],
-    video: "assets/videos/closet/outfit_sleep_satin_set.webm",
-  },
-  {
-    id: "outfit_sleep_hoodie_dress",
-    type: "clothing",
-    slot: "outfit",
-    name: "Hoodie Dress Lounge",
-    style: "sleep",
-    subType: "dress",
-    description: "Soft hoodie dress perfect for lounging.",
-    coins: 140,
-    rarity: "common",
-    tags: ["sleep", "hoodie"],
-    video: "assets/videos/closet/outfit_sleep_hoodie_dress.webm",
-  },
+  // ------------- Helpers -------------
 
-  // SPECIAL / THEME
-  {
-    id: "outfit_theme_angel",
-    type: "clothing",
-    slot: "outfit",
-    name: "Angel Dress",
-    style: "theme",
-    subType: "dress",
-    description: "White flowy dress with soft glow details.",
-    coins: 320,
-    rarity: "epic",
-    tags: ["theme", "angel"],
-    video: "assets/videos/closet/outfit_theme_angel.webm",
-  },
-  {
-    id: "outfit_theme_dark_fairy",
-    type: "clothing",
-    slot: "outfit",
-    name: "Dark Fairy Fit",
-    style: "theme",
-    subType: "dress",
-    description: "Dark layered dress with fantasy-inspired vibe.",
-    coins: 330,
-    rarity: "epic",
-    tags: ["theme", "fairy"],
-    video: "assets/videos/closet/outfit_theme_dark_fairy.webm",
-  },
-  {
-    id: "outfit_theme_rave_neon",
-    type: "clothing",
-    slot: "outfit",
-    name: "Neon Rave Set",
-    style: "theme",
-    subType: "shorts",
-    description: "Neon top and shorts with glow strips.",
-    coins: 340,
-    rarity: "legendary",
-    tags: ["theme", "rave", "festival"],
-    video: "assets/videos/closet/outfit_theme_rave_neon.webm",
-  },
-  {
-    id: "outfit_theme_gamer_hoodie",
-    type: "clothing",
-    slot: "outfit",
-    name: "Gamer Hoodie & Shorts",
-    style: "theme",
-    subType: "shorts",
-    description: "Oversized gamer hoodie with logo and shorts.",
-    coins: 210,
-    rarity: "uncommon",
-    tags: ["theme", "gamer"],
-    video: "assets/videos/closet/outfit_theme_gamer_hoodie.webm",
-  },
-  {
-    id: "outfit_theme_xmas_cozy",
-    type: "clothing",
-    slot: "outfit",
-    name: "Holiday Cozy Set",
-    style: "theme",
-    subType: "pants",
-    description: "Holiday sweater with printed lounge pants.",
-    coins: 230,
-    rarity: "rare",
-    tags: ["theme", "holiday"],
-    video: "assets/videos/closet/outfit_theme_xmas_cozy.webm",
-  },
-  {
-    id: "outfit_theme_cat_hoodie",
-    type: "clothing",
-    slot: "outfit",
-    name: "Cat-Ear Hoodie Fit",
-    style: "theme",
-    subType: "shorts",
-    description: "Cat-ear hoodie with fitted shorts.",
-    coins: 260,
-    rarity: "epic",
-    tags: ["theme", "cat"],
-    video: "assets/videos/closet/outfit_theme_cat_hoodie.webm",
-  },
-];
+  function rarityClass(rarity) {
+    switch (rarity) {
+      case "legendary":
+        return "rarity-pill rarity-legendary";
+      case "epic":
+        return "rarity-pill rarity-epic";
+      case "rare":
+        return "rarity-pill rarity-rare";
+      case "common":
+      case "uncommon":
+      default:
+        return "rarity-pill rarity-common";
+    }
+  }
 
-// -------------------- HAIR --------------------
+  function rarityLabel(rarity) {
+    if (!rarity) return "Common";
+    return rarity.charAt(0).toUpperCase() + rarity.slice(1);
+  }
 
-const CARRIE_CLOSET_HAIR = [
-  {
-    id: "hair_long_straight_black",
-    type: "hair",
-    slot: "hair",
-    name: "Long Straight Black",
-    style: "natural",
-    description: "Super long straight black hair.",
-    coins: 140,
-    rarity: "uncommon",
-    tags: ["long", "straight"],
-    video: "assets/videos/closet/hair_long_straight_black.webm",
-  },
-  {
-    id: "hair_long_wavy_brown",
-    type: "hair",
-    slot: "hair",
-    name: "Long Wavy Brown",
-    style: "natural",
-    description: "Soft waves in a warm brown tone.",
-    coins: 150,
-    rarity: "uncommon",
-    tags: ["long", "wavy"],
-    video: "assets/videos/closet/hair_long_wavy_brown.webm",
-  },
-  {
-    id: "hair_long_curly",
-    type: "hair",
-    slot: "hair",
-    name: "Long Curly Volume",
-    style: "natural",
-    description: "Big volume curls with medium length.",
-    coins: 170,
-    rarity: "rare",
-    tags: ["curly", "volume"],
-    video: "assets/videos/closet/hair_long_curly.webm",
-  },
-  {
-    id: "hair_medium_bob",
-    type: "hair",
-    slot: "hair",
-    name: "Medium Bob Cut",
-    style: "stylish",
-    description: "Chin-length bob with a light curl.",
-    coins: 160,
-    rarity: "rare",
-    tags: ["bob", "medium"],
-    video: "assets/videos/closet/hair_medium_bob.webm",
-  },
-  {
-    id: "hair_short_pixie",
-    type: "hair",
-    slot: "hair",
-    name: "Short Pixie",
-    style: "stylish",
-    description: "Edgy pixie cut with side fringe.",
-    coins: 180,
-    rarity: "rare",
-    tags: ["short", "pixie"],
-    video: "assets/videos/closet/hair_short_pixie.webm",
-  },
-  {
-    id: "hair_high_ponytail",
-    type: "hair",
-    slot: "hair",
-    name: "High Ponytail",
-    style: "sporty",
-    description: "High ponytail with sleek sides.",
-    coins: 130,
-    rarity: "common",
-    tags: ["ponytail"],
-    video: "assets/videos/closet/hair_high_ponytail.webm",
-  },
-  {
-    id: "hair_space_buns",
-    type: "hair",
-    slot: "hair",
-    name: "Space Buns",
-    style: "festival",
-    description: "Double buns on top with loose strands.",
-    coins: 170,
-    rarity: "rare",
-    tags: ["buns", "festival"],
-    video: "assets/videos/closet/hair_space_buns.webm",
-  },
-  {
-    id: "hair_twin_tails",
-    type: "hair",
-    slot: "hair",
-    name: "Twin Tails",
-    style: "cute",
-    description: "High double ponytails, anime style.",
-    coins: 175,
-    rarity: "rare",
-    tags: ["twin", "cute"],
-    video: "assets/videos/closet/hair_twin_tails.webm",
-  },
-  {
-    id: "hair_braided_ponytail",
-    type: "hair",
-    slot: "hair",
-    name: "Braided Ponytail",
-    style: "stylish",
-    description: "Single long braid pulled into a ponytail.",
-    coins: 165,
-    rarity: "rare",
-    tags: ["braid"],
-    video: "assets/videos/closet/hair_braided_ponytail.webm",
-  },
-  {
-    id: "hair_half_up_half_down",
-    type: "hair",
-    slot: "hair",
-    name: "Half-Up Half-Down",
-    style: "soft",
-    description: "Top section tied back, rest flowing.",
-    coins: 160,
-    rarity: "rare",
-    tags: ["half-up"],
-    video: "assets/videos/closet/hair_half_up_half_down.webm",
-  },
-];
+  function slotLabel(slot) {
+    switch (slot) {
+      case "outfit":
+        return "Outfit";
+      case "hair":
+        return "Hair";
+      case "eyes":
+        return "Eyes";
+      case "skin":
+        return "Skin";
+      case "accessory":
+        return "Accessory";
+      case "makeup":
+        return "Makeup";
+      default:
+        return "Item";
+    }
+  }
 
-// -------------------- EYE COLORS --------------------
+  function styleLabel(style) {
+    if (!style) return "";
+    if (style === "swim") return "Swim / Bikini";
+    if (style === "sleep") return "Sleep / Lounge";
+    if (style === "theme") return "Theme / Festival";
+    return style.charAt(0).toUpperCase() + style.slice(1);
+  }
 
-const CARRIE_CLOSET_EYES = [
-  {
-    id: "eyes_brown",
-    type: "eyes",
-    slot: "eyes",
-    name: "Warm Brown Eyes",
-    style: "natural",
-    description: "Soft brown iris shade.",
-    coins: 40,
-    rarity: "common",
-    tags: ["natural"],
-    video: "assets/videos/closet/eyes_brown.webm",
-  },
-  {
-    id: "eyes_dark_brown",
-    type: "eyes",
-    slot: "eyes",
-    name: "Deep Dark Brown",
-    style: "natural",
-    description: "Very dark brown almost black.",
-    coins: 40,
-    rarity: "common",
-    tags: ["natural"],
-    video: "assets/videos/closet/eyes_dark_brown.webm",
-  },
-  {
-    id: "eyes_blue",
-    type: "eyes",
-    slot: "eyes",
-    name: "Bright Blue Eyes",
-    style: "natural",
-    description: "Clear blue with light rim.",
-    coins: 60,
-    rarity: "uncommon",
-    tags: ["blue"],
-    video: "assets/videos/closet/eyes_blue.webm",
-  },
-  {
-    id: "eyes_green",
-    type: "eyes",
-    slot: "eyes",
-    name: "Green Eyes",
-    style: "natural",
-    description: "Soft green tone.",
-    coins: 60,
-    rarity: "uncommon",
-    tags: ["green"],
-    video: "assets/videos/closet/eyes_green.webm",
-  },
-  {
-    id: "eyes_hazel",
-    type: "eyes",
-    slot: "eyes",
-    name: "Hazel Mix",
-    style: "natural",
-    description: "Brown/green blend with warm flecks.",
-    coins: 70,
-    rarity: "rare",
-    tags: ["hazel"],
-    video: "assets/videos/closet/eyes_hazel.webm",
-  },
-  {
-    id: "eyes_violet",
-    type: "eyes",
-    slot: "eyes",
-    name: "Violet Fantasy",
-    style: "theme",
-    description: "Soft violet iris for fantasy looks.",
-    coins: 90,
-    rarity: "epic",
-    tags: ["violet", "theme"],
-    video: "assets/videos/closet/eyes_violet.webm",
-  },
-];
+  // ------------- Rendering -------------
 
-// -------------------- SKIN TONES --------------------
+  function renderFilters() {
+    if (!filterRowPrimary) return;
 
-const CARRIE_CLOSET_SKIN = [
-  {
-    id: "skin_porcelain",
-    type: "skin",
-    slot: "skin",
-    name: "Porcelain",
-    style: "natural",
-    description: "Very light cool-toned skin.",
-    coins: 0,
-    rarity: "common",
-    tags: ["light"],
-    video: "assets/videos/closet/skin_porcelain.webm",
-  },
-  {
-    id: "skin_light",
-    type: "skin",
-    slot: "skin",
-    name: "Light",
-    style: "natural",
-    description: "Light neutral skin tone.",
-    coins: 0,
-    rarity: "common",
-    tags: ["light"],
-    video: "assets/videos/closet/skin_light.webm",
-  },
-  {
-    id: "skin_tan",
-    type: "skin",
-    slot: "skin",
-    name: "Tan",
-    style: "natural",
-    description: "Warm tan sun-kissed tone.",
-    coins: 0,
-    rarity: "common",
-    tags: ["tan"],
-    video: "assets/videos/closet/skin_tan.webm",
-  },
-  {
-    id: "skin_deep",
-    type: "skin",
-    slot: "skin",
-    name: "Deep",
-    style: "natural",
-    description: "Rich deep skin tone.",
-    coins: 0,
-    rarity: "common",
-    tags: ["deep"],
-    video: "assets/videos/closet/skin_deep.webm",
-  },
-];
+    filterRowPrimary.innerHTML = "";
 
-// -------------------- ACCESSORIES --------------------
+    // Slot filters
+    SLOT_FILTERS.forEach((f) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className =
+        "filter-pill " + (activeSlot === f.id ? "active" : "");
+      btn.dataset.slot = f.id;
+      btn.textContent = f.label;
+      filterRowPrimary.appendChild(btn);
+    });
 
-const CARRIE_CLOSET_ACCESSORIES = [
-  {
-    id: "acc_headphones_neon",
-    type: "accessory",
-    slot: "accessory",
-    name: "Neon Studio Headphones",
-    style: "gamer",
-    description: "Over-ear neon headphones for gamer vibes.",
-    coins: 120,
-    rarity: "uncommon",
-    tags: ["headphones", "gamer"],
-    video: "assets/videos/closet/acc_headphones_neon.webm",
-  },
-  {
-    id: "acc_choker_black",
-    type: "accessory",
-    slot: "accessory",
-    name: "Black Choker",
-    style: "edgy",
-    description: "Simple black choker necklace.",
-    coins: 80,
-    rarity: "common",
-    tags: ["necklace"],
-    video: "assets/videos/closet/acc_choker_black.webm",
-  },
-  {
-    id: "acc_hoop_earrings",
-    type: "accessory",
-    slot: "accessory",
-    name: "Gold Hoop Earrings",
-    style: "glam",
-    description: "Medium gold hoops that catch the light.",
-    coins: 95,
-    rarity: "uncommon",
-    tags: ["earrings"],
-    video: "assets/videos/closet/acc_hoop_earrings.webm",
-  },
-  {
-    id: "acc_heart_necklace",
-    type: "accessory",
-    slot: "accessory",
-    name: "Heart Pendant Necklace",
-    style: "cute",
-    description: "Small heart charm on a fine chain.",
-    coins: 85,
-    rarity: "common",
-    tags: ["necklace"],
-    video: "assets/videos/closet/acc_heart_necklace.webm",
-  },
-  {
-    id: "acc_sunglasses_black",
-    type: "accessory",
-    slot: "accessory",
-    name: "Black Sunglasses",
-    style: "street",
-    description: "Dark lens sunglasses for day or night.",
-    coins: 90,
-    rarity: "uncommon",
-    tags: ["sunglasses"],
-    video: "assets/videos/closet/acc_sunglasses_black.webm",
-  },
-  {
-    id: "acc_cat_ears_headband",
-    type: "accessory",
-    slot: "accessory",
-    name: "Cat Ears Headband",
-    style: "theme",
-    description: "Cute cat ears headband.",
-    coins: 110,
-    rarity: "rare",
-    tags: ["cat", "theme"],
-    video: "assets/videos/closet/acc_cat_ears_headband.webm",
-  },
-  {
-    id: "acc_halo",
-    type: "accessory",
-    slot: "accessory",
-    name: "Soft Halo",
-    style: "theme",
-    description: "Floating halo for angel fits.",
-    coins: 130,
-    rarity: "epic",
-    tags: ["angel", "theme"],
-    video: "assets/videos/closet/acc_halo.webm",
-  },
-  {
-    id: "acc_fairy_wings",
-    type: "accessory",
-    slot: "accessory",
-    name: "Fairy Wings",
-    style: "theme",
-    description: "Translucent wings overlay behind Carrie.",
-    coins: 160,
-    rarity: "epic",
-    tags: ["fairy", "theme"],
-    video: "assets/videos/closet/acc_fairy_wings.webm",
-  },
-  {
-    id: "acc_chain_belt",
-    type: "accessory",
-    slot: "accessory",
-    name: "Chain Belt",
-    style: "street",
-    description: "Silver chain belt accent.",
-    coins: 100,
-    rarity: "uncommon",
-    tags: ["belt"],
-    video: "assets/videos/closet/acc_chain_belt.webm",
-  },
-  {
-    id: "acc_bracelet_stack",
-    type: "accessory",
-    slot: "accessory",
-    name: "Bracelet Stack",
-    style: "casual",
-    description: "Mix of bangles and bands.",
-    coins: 85,
-    rarity: "common",
-    tags: ["bracelet"],
-    video: "assets/videos/closet/acc_bracelet_stack.webm",
-  },
-];
+    // Divider
+    const dot = document.createElement("span");
+    dot.className = "mx-1 text-[10px] text-purple-400/80";
+    dot.textContent = "•";
+    filterRowPrimary.appendChild(dot);
 
-// -------------------- MAKEUP LOOKS --------------------
+    // Style filters
+    STYLE_FILTERS.forEach((f) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className =
+        "filter-pill " + (activeStyle === f.id ? "active" : "");
+      btn.dataset.style = f.id;
+      btn.textContent = f.label;
+      filterRowPrimary.appendChild(btn);
+    });
+  }
 
-const CARRIE_CLOSET_MAKEUP = [
-  {
-    id: "makeup_soft_glam",
-    type: "makeup",
-    slot: "makeup",
-    name: "Soft Glam",
-    style: "natural",
-    description: "Soft shimmer eyes, nude lip, light contour.",
-    coins: 90,
-    rarity: "uncommon",
-    tags: ["soft", "glam"],
-    video: "assets/videos/closet/makeup_soft_glam.webm",
-  },
-  {
-    id: "makeup_nude_matte",
-    type: "makeup",
-    slot: "makeup",
-    name: "Nude Matte",
-    style: "natural",
-    description: "Matte skin, subtle eyes, nude matte lip.",
-    coins: 80,
-    rarity: "common",
-    tags: ["nude"],
-    video: "assets/videos/closet/makeup_nude_matte.webm",
-  },
-  {
-    id: "makeup_bold_red",
-    type: "makeup",
-    slot: "makeup",
-    name: "Bold Red Lip",
-    style: "glam",
-    description: "Winged liner with bright red lipstick.",
-    coins: 110,
-    rarity: "uncommon",
-    tags: ["red", "glam"],
-    video: "assets/videos/closet/makeup_bold_red.webm",
-  },
-  {
-    id: "makeup_smokey_eye",
-    type: "makeup",
-    slot: "makeup",
-    name: "Smokey Eye",
-    style: "night",
-    description: "Dark smokey shadow with soft lip.",
-    coins: 130,
-    rarity: "rare",
-    tags: ["smokey"],
-    video: "assets/videos/closet/makeup_smokey_eye.webm",
-  },
-  {
-    id: "makeup_egirl_blush",
-    type: "makeup",
-    slot: "makeup",
-    name: "E-girl Blush",
-    style: "cute",
-    description: "Heavy nose + cheek blush with simple eyes.",
-    coins: 120,
-    rarity: "rare",
-    tags: ["egirl", "cute"],
-    video: "assets/videos/closet/makeup_egirl_blush.webm",
-  },
-  {
-    id: "makeup_festival_glitter",
-    type: "makeup",
-    slot: "makeup",
-    name: "Festival Glitter",
-    style: "festival",
-    description: "Glitter accents under eyes and on cheeks.",
-    coins: 140,
-    rarity: "epic",
-    tags: ["festival", "glitter"],
-    video: "assets/videos/closet/makeup_festival_glitter.webm",
-  },
-  {
-    id: "makeup_goth_glow",
-    type: "makeup",
-    slot: "makeup",
-    name: "Goth Glow",
-    style: "dark",
-    description: "Dark lip, smoked liner, pale highlight.",
-    coins: 135,
-    rarity: "rare",
-    tags: ["goth"],
-    video: "assets/videos/closet/makeup_goth_glow.webm",
-  },
-  {
-    id: "makeup_beach_bronze",
-    type: "makeup",
-    slot: "makeup",
-    name: "Beach Bronze",
-    style: "sunny",
-    description: "Bronzed skin, soft highlight, glossy lip.",
-    coins: 110,
-    rarity: "uncommon",
-    tags: ["beach"],
-    video: "assets/videos/closet/makeup_beach_bronze.webm",
-  },
-];
+  function matchesFilters(item) {
+    if (activeSlot !== "all") {
+      if (item.slot !== activeSlot) return false;
+    }
+    if (activeStyle !== "all") {
+      if (item.style !== activeStyle) return false;
+    }
+    return true;
+  }
 
-// -------------------- MASTER LIST --------------------
+  function renderGrid() {
+    if (!gridEl) return;
 
-// Single combined list your closet JS can use
-const CARRIE_CLOSET_ALL = [
-  ...CARRIE_CLOSET_OUTFITS,
-  ...CARRIE_CLOSET_HAIR,
-  ...CARRIE_CLOSET_EYES,
-  ...CARRIE_CLOSET_SKIN,
-  ...CARRIE_CLOSET_ACCESSORIES,
-  ...CARRIE_CLOSET_MAKEUP,
-];
+    const visible = ALL_ITEMS.filter(matchesFilters);
+
+    gridEl.innerHTML = "";
+
+    if (countEl) {
+      const total = ALL_ITEMS.length;
+      const visibleCount = visible.length;
+      if (total === 0) {
+        countEl.innerHTML = `
+          <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+          <span>No closet items loaded.</span>
+        `;
+      } else if (visibleCount === total) {
+        countEl.innerHTML = `
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+          <span>${total} items in Carrie’s closet</span>
+        `;
+      } else {
+        countEl.innerHTML = `
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+          <span>${visibleCount} of ${total} items shown</span>
+        `;
+      }
+    }
+
+    if (visible.length === 0) {
+      if (emptyEl) emptyEl.classList.remove("hidden");
+      return;
+    } else {
+      if (emptyEl) emptyEl.classList.add("hidden");
+    }
+
+    visible.forEach((item) => {
+      const card = document.createElement("article");
+      card.className = "closet-card";
+
+      // Header row
+      const header = document.createElement("div");
+      header.className = "closet-card-header";
+
+      const left = document.createElement("div");
+      const title = document.createElement("h2");
+      title.className = "closet-card-title";
+      title.textContent = item.name;
+
+      const slotSpan = document.createElement("span");
+      slotSpan.className = "tag-chip";
+      slotSpan.textContent = slotLabel(item.slot);
+
+      left.appendChild(title);
+      left.appendChild(slotSpan);
+
+      const right = document.createElement("div");
+      right.style.display = "flex";
+      right.style.flexDirection = "column";
+      right.style.alignItems = "flex-end";
+      right.style.gap = "0.25rem";
+
+      const coins = document.createElement("div");
+      coins.className = "closet-card-coins";
+      coins.innerHTML = `🪙 <span>${item.coins}</span>`;
+
+      const rarity = document.createElement("div");
+      rarity.className = rarityClass(item.rarity);
+      rarity.textContent = rarityLabel(item.rarity);
+
+      right.appendChild(coins);
+      right.appendChild(rarity);
+
+      header.appendChild(left);
+      header.appendChild(right);
+
+      // Description
+      const desc = document.createElement("p");
+      desc.className = "text-xs text-slate-200/90";
+      desc.textContent = item.description || "";
+
+      // Tags row
+      const tagsRow = document.createElement("div");
+      tagsRow.className = "flex flex-wrap gap-1 mt-1";
+
+      if (item.style) {
+        const styleTag = document.createElement("span");
+        styleTag.className = "tag-chip";
+        styleTag.textContent = styleLabel(item.style);
+        tagsRow.appendChild(styleTag);
+      }
+
+      if (Array.isArray(item.tags)) {
+        item.tags.slice(0, 3).forEach((t) => {
+          const tag = document.createElement("span");
+          tag.className = "tag-chip";
+          tag.textContent = t;
+          tagsRow.appendChild(tag);
+        });
+      }
+
+      // Buttons
+      const btnRow = document.createElement("div");
+      btnRow.className = "mt-2 flex flex-wrap items-center justify-between gap-2";
+
+      const previewBtn = document.createElement("button");
+      previewBtn.type = "button";
+      previewBtn.className = "btn-sm";
+      previewBtn.textContent = "Preview (coming soon)";
+      previewBtn.disabled = true;
+
+      const buyBtn = document.createElement("button");
+      buyBtn.type = "button";
+      buyBtn.className = "btn-sm btn-sm-primary";
+      buyBtn.innerHTML = `Buy for ${item.coins} 🪙`;
+      buyBtn.disabled = true; // backend hook in future
+
+      btnRow.appendChild(previewBtn);
+      btnRow.appendChild(buyBtn);
+
+      card.appendChild(header);
+      card.appendChild(desc);
+      card.appendChild(tagsRow);
+      card.appendChild(btnRow);
+
+      gridEl.appendChild(card);
+    });
+  }
+
+  // ------------- Event wiring -------------
+
+  function handleFilterClick(e) {
+    const btn = e.target.closest(".filter-pill");
+    if (!btn) return;
+
+    const slot = btn.dataset.slot;
+    const style = btn.dataset.style;
+
+    if (slot !== undefined) {
+      activeSlot = slot;
+    }
+    if (style !== undefined) {
+      activeStyle = style;
+    }
+
+    renderFilters();
+    renderGrid();
+  }
+
+  function handleReset() {
+    activeSlot = "all";
+    activeStyle = "all";
+    renderFilters();
+    renderGrid();
+  }
+
+  // ------------- Init -------------
+
+  function init() {
+    renderFilters();
+    renderGrid();
+
+    if (filterRowPrimary) {
+      filterRowPrimary.addEventListener("click", handleFilterClick);
+    }
+    if (filterResetBtn) {
+      filterResetBtn.addEventListener("click", handleReset);
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
