@@ -6,7 +6,7 @@ window.CARRIE_CLOSET_DATA = {
   previewCoins: 999,
 
   // Default selections for female preview
-  defaults: {
+defaults: {
     gender: "female",
     baseId: "skin_female_light",
     outfitId: "outfit_bikini",
@@ -14,7 +14,7 @@ window.CARRIE_CLOSET_DATA = {
     jewelryId: null,
     unisexTopId: null,
     shoesId: null,
-    eyesId: "eyes_brown",
+    eyesId: null, // ❌ no overlay eyes for now
   },
 
   // All items that can be layered on the base sprite
@@ -307,24 +307,7 @@ window.CARRIE_CLOSET_DATA = {
       img: "assets/images/unisex/shoes/sandles_unisex.png",
     },
 
-    // ---------- EYES (UNISEX) ----------
-    {
-      id: "eyes_blue",
-      slot: "eyes",
-      gender: "unisex",
-      label: "Blue eyes",
-      price: 35,
-      img: "assets/images/unisex/eyes/blue_eyes.png",
-    },
-    {
-      id: "eyes_brown",
-      slot: "eyes",
-      gender: "unisex",
-      label: "Brown eyes",
-      price: 0,
-      img: "assets/images/unisex/eyes/brown_eyes.png",
-    },
-    {
+    
       id: "eyes_green",
       slot: "eyes",
       gender: "unisex",
