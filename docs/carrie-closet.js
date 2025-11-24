@@ -1,381 +1,327 @@
 // carrie-closet.js
-// Front-end logic for carrie-closet.html
-// Uses window.CARRIE_CLOSET_DATA defined in carrie-closet--data.js
+// Front-end logic for Carrie Closet (no global 8BFR UI here)
 
 (function () {
-  document.addEventListener("DOMContentLoaded", initCarrieCloset);
+  const data = window.CARRIE_CLOSET_DATA || null;
 
-  function initCarrieCloset() {
-    const loadingEl = document.getElementById("closetLoading");
-    const errorEl = document.getElementById("closetError");
-    const mainEl = document.getElementById("closetMain");
-    const itemsGrid = document.getElementById("closetItemsGrid");
-    const emptyEl = document.getElementById("closetEmpty");
-    const genderFilterEl = document.getElementById("closetGenderFilter");
-    const typeFilterEl = document.getElementById("closetTypeFilter");
-    const coinEl = document.getElementById("closetCoinBalance");
-    const genderLabelEl = document.getElementById("closetGenderLabel");
+  // DOM refs
+  const loadingEl = document.getElementById("closetLoading");
+  const errorEl = document.getElementById("closetError");
+  const mainEl = document.getElementById("closetMain");
+  const itemsEl = document.getElementById("closetItems");
+  const coinsEl = document.getElementById("coinBalance");
+  const genderSelect = document.getElementById("genderSelect");
 
-    const layerEls = {
-      skin: document.getElementById("layer-skin"),
-      eyes: document.getElementById("layer-eyes"),
-      hair: document.getElementById("layer-hair"),
-      top: document.getElementById("layer-top"),
-      bottom: document.getElementById("layer-bottom"),
-      shoes: document.getElementById("layer-shoes"),
-      jewelry: document.getElementById("layer-jewelry"),
-    };
+  const previewBase = document.getElementById("previewBase");
+  const previewOutfit = document.getElementById("previewOutfit");
+  const previewHair = document.getElementById("previewHair");
+  const previewJewelry = document.getElementById("previewJewelry");
+  const previewUnisexTop = document.getElementById("previewUnisexTop");
+  const previewShoes = document.getElementById("previewShoes");
+  const previewEyes = document.getElementById("previewEyes");
 
-    // Check that data exists
-    const data = window.CARRIE_CLOSET_DATA;
-    if (!data || !Array.isArray(data.items)) {
-      if (loadingEl) loadingEl.style.display = "none";
-      if (errorEl) errorEl.classList.remove("hidden");
-      console.error("Carrie Closet: CARRIE_CLOSET_DATA not found or invalid.");
+  if (!loadingEl || !mainEl || !itemsEl || !data || !Array.isArray(data.items)) {
+    if (loadingEl) loadingEl.style.display = "none";
+    if (errorEl) errorEl.classList.remove("hidden");
+    return;
+  }
+
+  // State
+  let currentGender = data.defaults.gender || "female";
+  let selected = {
+    baseId: data.defaults.baseId,
+    outfitId: data.defaults.outfitId,
+    hairId: data.defaults.hairId,
+    jewelryId: data.defaults.jewelryId,
+    unisexTopId: data.defaults.unisexTopId,
+    shoesId: data.defaults.shoesId,
+    eyesId: data.defaults.eyesId,
+  };
+
+  const coins = data.previewCoins || 0;
+
+  function getItem(id) {
+    return data.items.find((it) => it.id === id) || null;
+  }
+
+  function itemsFor(slot) {
+    return data.items.filter((it) => {
+      if (it.slot !== slot) return false;
+      if (it.gender === "unisex") return true;
+      if (it.gender === currentGender) return true;
+      return false;
+    });
+  }
+
+  function setLayer(imgEl, itemId) {
+    if (!imgEl) return;
+    if (!itemId) {
+      imgEl.src = "";
+      imgEl.style.opacity = "0";
       return;
     }
+    const item = getItem(itemId);
+    if (!item) {
+      imgEl.src = "";
+      imgEl.style.opacity = "0";
+      return;
+    }
+    imgEl.src = item.img;
+    imgEl.style.opacity = "1";
+  }
 
-    const allItems = data.items.slice();
-    const itemById = new Map();
-    allItems.forEach((item) => {
-      if (item && item.id) {
-        itemById.set(item.id, item);
-      }
+  function updatePreview() {
+    // Always have a base
+    const baseItem =
+      getItem(selected.baseId) ||
+      data.items.find((it) => it.slot === "base" && it.gender === currentGender) ||
+      data.items.find((it) => it.slot === "base");
+
+    if (baseItem && previewBase) {
+      previewBase.src = baseItem.img;
+      previewBase.style.opacity = "1";
+    }
+
+    setLayer(previewOutfit, selected.outfitId);
+    setLayer(previewHair, selected.hairId);
+    setLayer(previewJewelry, selected.jewelryId);
+    setLayer(previewUnisexTop, selected.unisexTopId);
+    setLayer(previewShoes, selected.shoesId);
+    setLayer(previewEyes, selected.eyesId);
+  }
+
+  function makeItemCard(item, slotKey) {
+    const div = document.createElement("button");
+    div.type = "button";
+    div.className =
+      "closet-item border border-purple-500/40 rounded-xl bg-slate-900/80 hover:bg-slate-800/90 transition flex flex-col text-left";
+
+    const isSelected =
+      (slotKey === "baseId" && selected.baseId === item.id) ||
+      (slotKey === "outfitId" && selected.outfitId === item.id) ||
+      (slotKey === "hairId" && selected.hairId === item.id) ||
+      (slotKey === "jewelryId" && selected.jewelryId === item.id) ||
+      (slotKey === "unisexTopId" && selected.unisexTopId === item.id) ||
+      (slotKey === "shoesId" && selected.shoesId === item.id) ||
+      (slotKey === "eyesId" && selected.eyesId === item.id);
+
+    if (isSelected) {
+      div.classList.add("ring-1", "ring-purple-400");
+    }
+
+    div.innerHTML = `
+      <div class="w-full aspect-[3/4] overflow-hidden rounded-t-xl bg-slate-950/80 flex items-center justify-center">
+        <img
+          src="${item.img}"
+          alt="${item.label}"
+          class="max-h-full max-w-full object-contain"
+          onerror="this.style.display='none';"
+        />
+      </div>
+      <div class="px-2.5 py-2 flex justify-between items-center gap-2">
+        <div class="text-[11px] leading-tight">
+          <div class="font-semibold text-violet-50">${item.label}</div>
+          <div class="text-[10px] text-purple-200/80">
+            ${item.gender === "unisex" ? "Unisex" : item.gender === "female" ? "Female" : "Male"}
+          </div>
+        </div>
+        <div class="text-right text-[10px]">
+          ${
+            item.price > 0
+              ? `<div class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-600/30 border border-emerald-400/60">
+                   <span>🪙</span><span>${item.price}</span>
+                 </div>`
+              : `<span class="text-emerald-300/90 text-[10px]">Free</span>`
+          }
+        </div>
+      </div>
+    `;
+
+    div.addEventListener("click", () => {
+      // In future: check coin balance here before allowing.
+      selected[slotKey] = item.id;
+      updatePreview();
+      buildItemsUI(); // rebuild list so highlight moves
     });
 
-    // ---------- State
-
-    let state = loadState();
-    let ownedSet = new Set(state.owned || []);
-
-    // Initialize UI from state
-    if (genderFilterEl) genderFilterEl.value = state.gender || "female";
-    if (typeFilterEl) typeFilterEl.value = "all";
-
-    updateCoinLabel();
-    updateGenderLabel();
-    applyEquippedToPreview();
-    renderItems();
-
-    if (loadingEl) loadingEl.style.display = "none";
-    if (mainEl) mainEl.classList.remove("hidden");
-
-    // ---------- Event wiring
-
-    if (genderFilterEl) {
-      genderFilterEl.addEventListener("change", () => {
-        state.gender = genderFilterEl.value || "female";
-        saveState();
-        updateGenderLabel();
-        renderItems();
-      });
-    }
-
-    if (typeFilterEl) {
-      typeFilterEl.addEventListener("change", () => {
-        renderItems();
-      });
-    }
-
-    // ---------- Core helpers
-
-    function loadState() {
-      const DEFAULT_COINS = 500;
-      let baseGender = data.defaultGender || "female";
-      let baseSkinId = data.defaultSkinId || null;
-      let baseEyesId = data.defaultEyesId || null;
-      let baseOutfitId = data.defaultOutfitId || null;
-
-      try {
-        const raw = localStorage.getItem("carrie_closet_state_v1");
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          // Very basic sanity check
-          if (parsed && typeof parsed === "object") {
-            if (!parsed.equipped) parsed.equipped = {};
-            if (!parsed.gender) parsed.gender = baseGender;
-            if (!Array.isArray(parsed.owned)) parsed.owned = [];
-            if (typeof parsed.coins !== "number") parsed.coins = DEFAULT_COINS;
-            return parsed;
-          }
-        }
-      } catch (e) {
-        console.warn("Carrie Closet: failed to load state", e);
-      }
-
-      // Fallback default
-      const equipped = {
-        skin: baseSkinId,
-        eyes: baseEyesId,
-        hair: null,
-        top: null,
-        bottom: null,
-        shoes: null,
-        jewelry: null,
-      };
-
-      if (baseOutfitId && itemById.has(baseOutfitId)) {
-        const outfit = itemById.get(baseOutfitId);
-        if (outfit && outfit.type && equipped.hasOwnProperty(outfit.type)) {
-          equipped[outfit.type] = baseOutfitId;
-        }
-      }
-
-      // Free items (coins === 0) auto-owned, plus defaults
-      const ownedIds = [];
-      allItems.forEach((it) => {
-        if (it.coins === 0) ownedIds.push(it.id);
-      });
-      if (baseSkinId && !ownedIds.includes(baseSkinId)) ownedIds.push(baseSkinId);
-      if (baseEyesId && !ownedIds.includes(baseEyesId)) ownedIds.push(baseEyesId);
-      if (baseOutfitId && !ownedIds.includes(baseOutfitId)) ownedIds.push(baseOutfitId);
-
-      return {
-        gender: baseGender,
-        coins: DEFAULT_COINS,
-        owned: ownedIds,
-        equipped,
-      };
-    }
-
-    function saveState() {
-      try {
-        const toSave = {
-          gender: state.gender,
-          coins: state.coins,
-          owned: Array.from(ownedSet),
-          equipped: state.equipped || {},
-        };
-        localStorage.setItem("carrie_closet_state_v1", JSON.stringify(toSave));
-      } catch (e) {
-        console.warn("Carrie Closet: failed to save state", e);
-      }
-    }
-
-    function updateCoinLabel() {
-      if (!coinEl) return;
-      const span = coinEl.querySelector("span:last-child");
-      if (span) span.textContent = String(state.coins ?? 0);
-    }
-
-    function updateGenderLabel() {
-      if (!genderLabelEl) return;
-      const isFemale = (state.gender || "female") === "female";
-      genderLabelEl.innerHTML = "";
-      const icon = document.createElement("span");
-      icon.textContent = isFemale ? "♀" : "♂";
-      const txt = document.createElement("span");
-      txt.textContent = isFemale ? "Female" : "Male";
-      genderLabelEl.appendChild(icon);
-      genderLabelEl.appendChild(txt);
-    }
-
-    function applyEquippedToPreview() {
-      if (!state.equipped) state.equipped = {};
-
-      const layers = ["skin", "eyes", "hair", "top", "bottom", "shoes", "jewelry"];
-      layers.forEach((layerName) => {
-        const img = layerEls[layerName];
-        if (!img) return;
-        const itemId = state.equipped[layerName];
-        if (!itemId || !itemById.has(itemId)) {
-          img.removeAttribute("src");
-          img.style.opacity = 0;
-          return;
-        }
-        const item = itemById.get(itemId);
-        img.src = item.src;
-        img.style.opacity = 1;
-      });
-    }
-
-    function isOwned(itemId) {
-      return ownedSet.has(itemId);
-    }
-
-    function isEquipped(item) {
-      if (!item || !item.type || !state.equipped) return false;
-      return state.equipped[item.type] === item.id;
-    }
-
-    function canSeeItem(item) {
-      const g = state.gender || "female";
-      if (item.gender === "unisex") return true;
-      return item.gender === g;
-    }
-
-    function typeMatchesFilter(itemType, filterValue) {
-      if (!filterValue || filterValue === "all") return true;
-      return itemType === filterValue;
-    }
-
-    function renderItems() {
-      if (!itemsGrid) return;
-      itemsGrid.innerHTML = "";
-      if (emptyEl) emptyEl.classList.add("hidden");
-
-      const filterGender = state.gender || "female";
-      const filterType = typeFilterEl ? typeFilterEl.value : "all";
-
-      const filtered = allItems.filter((item) => {
-        if (!canSeeItem(item)) return false;
-        if (!typeMatchesFilter(item.type, filterType)) return false;
-        return true;
-      });
-
-      if (!filtered.length) {
-        if (emptyEl) emptyEl.classList.remove("hidden");
-        return;
-      }
-
-      filtered.forEach((item) => {
-        const card = document.createElement("div");
-        card.className = "item-card";
-
-        const thumb = document.createElement("div");
-        thumb.className = "item-thumb";
-        const img = document.createElement("img");
-        img.src = item.src;
-        img.alt = item.label || "";
-        thumb.appendChild(img);
-
-        const nameRow = document.createElement("div");
-        nameRow.className = "flex justify-between items-center gap-2";
-        const label = document.createElement("div");
-        label.className = "font-medium text-[11px]";
-        label.textContent = item.label || item.id;
-
-        const cost = document.createElement("div");
-        cost.className = "coin-tag";
-        const coinEmoji = document.createElement("span");
-        coinEmoji.textContent = "🪙";
-        const costText = document.createElement("span");
-        costText.textContent = String(item.coins ?? 0);
-        cost.appendChild(coinEmoji);
-        cost.appendChild(costText);
-
-        nameRow.appendChild(label);
-        nameRow.appendChild(cost);
-
-        const metaRow = document.createElement("div");
-        metaRow.className = "item-meta";
-
-        const leftMeta = document.createElement("div");
-        leftMeta.className = "flex flex-wrap gap-1";
-
-        // Status tags
-        const owned = isOwned(item.id);
-        const equipped = isEquipped(item);
-
-        if (equipped) {
-          const tag = document.createElement("div");
-          tag.className = "status-tag";
-          tag.textContent = "Equipped";
-          leftMeta.appendChild(tag);
-        } else if (owned) {
-          const tag = document.createElement("div");
-          tag.className = "status-tag";
-          tag.textContent = "Owned";
-          leftMeta.appendChild(tag);
-        } else {
-          const tag = document.createElement("div");
-          tag.className = "status-tag status-locked";
-          tag.textContent = "Locked";
-          leftMeta.appendChild(tag);
-        }
-
-        const typeTag = document.createElement("div");
-        typeTag.className = "text-[10px] opacity-80";
-        typeTag.textContent = prettyType(item.type);
-        leftMeta.appendChild(typeTag);
-
-        metaRow.appendChild(leftMeta);
-
-        // Right meta: button
-        const btnWrap = document.createElement("div");
-
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "btn-mini";
-
-        if (equipped) {
-          btn.textContent = "Equipped";
-          btn.disabled = true;
-        } else if (owned) {
-          btn.textContent = "Equip";
-          btn.addEventListener("click", () => {
-            equipItem(item);
-          });
-        } else {
-          btn.textContent = "Buy";
-          if (state.coins < (item.coins ?? 0)) {
-            btn.disabled = true;
-            btn.title = "Not enough coins";
-          }
-          btn.addEventListener("click", () => {
-            buyAndEquip(item);
-          });
-        }
-
-        btnWrap.appendChild(btn);
-        metaRow.appendChild(btnWrap);
-
-        card.appendChild(thumb);
-        card.appendChild(nameRow);
-        card.appendChild(metaRow);
-
-        itemsGrid.appendChild(card);
-      });
-    }
-
-    function prettyType(type) {
-      switch (type) {
-        case "skin":
-          return "Skin tone";
-        case "hair":
-          return "Hair";
-        case "top":
-          return "Top";
-        case "bottom":
-          return "Bottom";
-        case "eyes":
-          return "Eyes";
-        case "jewelry":
-          return "Jewelry";
-        case "shoes":
-          return "Shoes";
-        default:
-          return type || "";
-      }
-    }
-
-    function equipItem(item) {
-      if (!item || !item.type) return;
-      if (!state.equipped) state.equipped = {};
-      state.equipped[item.type] = item.id;
-      saveState();
-      applyEquippedToPreview();
-      renderItems();
-    }
-
-    function buyAndEquip(item) {
-      if (!item) return;
-      if (isOwned(item.id)) {
-        equipItem(item);
-        return;
-      }
-
-      const price = item.coins ?? 0;
-      if (state.coins < price) {
-        alert("Not enough coins for this item yet.");
-        return;
-      }
-
-      state.coins -= price;
-      ownedSet.add(item.id);
-      saveState();
-      updateCoinLabel();
-      equipItem(item);
-    }
+    return div;
   }
+
+  function makeSection(title, slotKey, description) {
+    const container = document.createElement("section");
+    container.className = "mb-4";
+
+    const header = document.createElement("div");
+    header.className = "flex justify-between items-center mb-1.5";
+
+    const titleEl = document.createElement("h3");
+    titleEl.className = "text-xs font-semibold text-purple-100";
+    titleEl.textContent = title;
+
+    const descEl = document.createElement("p");
+    descEl.className = "text-[10px] text-purple-200/70";
+    descEl.textContent = description;
+
+    header.appendChild(titleEl);
+
+    const grid = document.createElement("div");
+    grid.className =
+      "grid grid-cols-2 sm:grid-cols-3 gap-2.5 mt-1";
+
+    let slotName;
+    switch (slotKey) {
+      case "baseId":
+        slotName = "base";
+        break;
+      case "outfitId":
+        slotName = "outfit";
+        break;
+      case "hairId":
+        slotName = "hair";
+        break;
+      case "jewelryId":
+        slotName = "jewelry";
+        break;
+      case "unisexTopId":
+        slotName = "unisexTop";
+        break;
+      case "shoesId":
+        slotName = "shoes";
+        break;
+      case "eyesId":
+        slotName = "eyes";
+        break;
+      default:
+        slotName = null;
+    }
+
+    const list = slotName ? itemsFor(slotName) : [];
+
+    if (list.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "text-[11px] text-purple-200/70 mt-1";
+      empty.textContent = "Coming soon for this avatar.";
+      container.appendChild(header);
+      container.appendChild(descEl);
+      container.appendChild(empty);
+      return container;
+    }
+
+    list.forEach((item) => {
+      grid.appendChild(makeItemCard(item, slotKey));
+    });
+
+    container.appendChild(header);
+    container.appendChild(descEl);
+    container.appendChild(grid);
+
+    return container;
+  }
+
+  function buildItemsUI() {
+    itemsEl.innerHTML = "";
+
+    if (currentGender === "male") {
+      const note = document.createElement("p");
+      note.className = "text-xs text-purple-100/80 mb-3";
+      note.textContent =
+        "Male closet is in early setup. Skin tones will preview, and additional clothes/jewelry will be added soon.";
+      itemsEl.appendChild(note);
+    }
+
+    const sections = [
+      {
+        title: "Skin tone",
+        slotKey: "baseId",
+        description: "Pick the skin tone for your avatar.",
+      },
+      {
+        title: "Outfits",
+        slotKey: "outfitId",
+        description: "Shorts, skirts, bikini and more.",
+      },
+      {
+        title: "Tops (unisex)",
+        slotKey: "unisexTopId",
+        description: "Tank tops and tees usable across avatars.",
+      },
+      {
+        title: "Hair styles",
+        slotKey: "hairId",
+        description: "Long straight and wavy styles in multiple colors.",
+      },
+      {
+        title: "Jewelry",
+        slotKey: "jewelryId",
+        description: "Necklaces, earrings, belly rings and more.",
+      },
+      {
+        title: "Shoes",
+        slotKey: "shoesId",
+        description: "Shoes and sandals (unisex).",
+      },
+      {
+        title: "Eyes",
+        slotKey: "eyesId",
+        description: "Different eye colors for the avatar.",
+      },
+    ];
+
+    sections.forEach((s) => {
+      itemsEl.appendChild(
+        makeSection(s.title, s.slotKey, s.description)
+      );
+    });
+  }
+
+  function onGenderChange() {
+    currentGender = genderSelect.value === "male" ? "male" : "female";
+
+    if (currentGender === "female") {
+      selected.baseId = data.defaults.baseId;
+      selected.outfitId = data.defaults.outfitId;
+      selected.hairId = data.defaults.hairId;
+      selected.jewelryId = data.defaults.jewelryId;
+      selected.unisexTopId = data.defaults.unisexTopId;
+      selected.shoesId = data.defaults.shoesId;
+      selected.eyesId = data.defaults.eyesId;
+    } else {
+      // male: just switch base for now
+      const maleDefault =
+        data.items.find(
+          (it) => it.slot === "base" && it.gender === "male"
+        ) || data.items.find((it) => it.slot === "base");
+
+      selected.baseId = maleDefault ? maleDefault.id : selected.baseId;
+      selected.outfitId = null;
+      selected.hairId = null;
+      selected.jewelryId = null;
+      selected.unisexTopId = null;
+      selected.shoesId = null;
+      selected.eyesId = null;
+    }
+
+    updatePreview();
+    buildItemsUI();
+  }
+
+  // Init
+  function init() {
+    if (coinsEl) {
+      coinsEl.textContent = coins.toString();
+    }
+
+    if (genderSelect) {
+      genderSelect.value = currentGender;
+      genderSelect.addEventListener("change", onGenderChange);
+    }
+
+    updatePreview();
+    buildItemsUI();
+
+    loadingEl.style.display = "none";
+    mainEl.classList.remove("hidden");
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
 })();
