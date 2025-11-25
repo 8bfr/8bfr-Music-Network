@@ -329,3 +329,29 @@ window.CARRIE_CLOSET_DATA = {
       gender: "male",
       category: "jewelry",
       slot: "necklace",
+      label: "Gold chain",
+      coins: 35,
+      img: "assets/images/male_jewlery/male_gold_necklace.png"
+    },
+
+    // ---------- SHOES (unisex) ----------
+    {
+      id: "shoes_unisex",
+      gender: "unisex",
+      category: "shoes",
+      slot: "shoes",
+      label: "Sneakers",
+      coins: 25,
+      img: "assets/images/unisex/shoes/unisex_shoes.png"
+    },
+    {
+      id: "shoes_sandals",
+      gender: "unisex",
+      category: "shoes",
+      slot: "shoes",
+      label: "Sandals",
+      coins: 20,
+      img: "assets/images/unisex/shoes/unisex_sandles.png"
+    }
+  ]
+};
