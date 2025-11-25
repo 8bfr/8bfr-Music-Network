@@ -374,4 +374,97 @@
                 <button type="button" class="px-2 py-1 rounded-full bg-slate-900/80 text-purple-100 border border-purple-500/40">
                   Outfit
                 </button>
-                <button type="button" class="px-2 py-1 rounded-full bg-slate-900/80 text-purple-100 border border-purple-500/40
+                <button type="button" class="px-2 py-1 rounded-full bg-slate-900/80 text-purple-100 border border-purple-500/40">
+                  Eyes
+                </button>
+                <button type="button" class="px-2 py-1 rounded-full bg-slate-900/80 text-purple-100 border border-purple-500/40">
+                  Jewelry
+                </button>
+                <button type="button" class="px-2 py-1 rounded-full bg-slate-900/80 text-purple-100 border border-purple-500/40">
+                  Shoes
+                </button>
+              </div>
+            </div>
+
+            <div class="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+              <!-- Hair -->
+              <section>
+                <div class="flex items-center justify-between mb-1">
+                  <h3 class="text-xs font-semibold text-purple-100">Hair</h3>
+                  <button id="clearHair"
+                    class="text-[10px] text-purple-200/80 hover:text-purple-50 underline-offset-2 hover:underline">
+                    Clear hair
+                  </button>
+                </div>
+                <div id="slotGridHair"></div>
+              </section>
+
+              <!-- Outfit -->
+              <section>
+                <div class="flex items-center justify-between mb-1">
+                  <h3 class="text-xs font-semibold text-purple-100">Outfit</h3>
+                  <button id="clearOutfit"
+                    class="text-[10px] text-purple-200/80 hover:text-purple-50 underline-offset-2 hover:underline">
+                    Clear outfit
+                  </button>
+                </div>
+                <div id="slotGridOutfit"></div>
+              </section>
+
+              <!-- Eyes -->
+              <section>
+                <div class="flex items-center justify-between mb-1">
+                  <h3 class="text-xs font-semibold text-purple-100">Eyes</h3>
+                  <button id="clearEyes"
+                    class="text-[10px] text-purple-200/80 hover:text-purple-50 underline-offset-2 hover:underline">
+                    Clear eyes
+                  </button>
+                </div>
+                <div id="slotGridEyes"></div>
+              </section>
+
+              <!-- Jewelry -->
+              <section>
+                <div class="flex items-center justify-between mb-1">
+                  <h3 class="text-xs font-semibold text-purple-100">Jewelry</h3>
+                  <button id="clearJewelry"
+                    class="text-[10px] text-purple-200/80 hover:text-purple-50 underline-offset-2 hover:underline">
+                    Clear jewelry
+                  </button>
+                </div>
+                <div id="slotGridJewelry"></div>
+              </section>
+
+              <!-- Shoes -->
+              <section>
+                <div class="flex items-center justify-between mb-1">
+                  <h3 class="text-xs font-semibold text-purple-100">Shoes</h3>
+                  <button id="clearShoes"
+                    class="text-[10px] text-purple-200/80 hover:text-purple-50 underline-offset-2 hover:underline">
+                    Clear shoes
+                  </button>
+                </div>
+                <div id="slotGridShoes"></div>
+              </section>
+            </div>
+
+            <div class="mt-2 border-t border-purple-500/40 pt-2">
+              <h3 class="text-xs font-semibold text-purple-100 mb-1">Selection summary</h3>
+              <ul id="selectionSummary" class="space-y-0.5 mb-1"></ul>
+              <div class="flex items-center justify-between text-xs text-purple-100 mt-1">
+                <span>Total cost</span>
+                <span class="text-emerald-300 font-semibold">
+                  🪙 <span id="totalCostLabel">0</span>
+                </span>
+              </div>
+              <p class="text-[10px] text-purple-300/75 mt-1">
+                Coin purchases and saving outfits will be wired into the 8BFR coin system in a later step.
+                For now, use this to preview styles for BF / GF chat.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+})();
