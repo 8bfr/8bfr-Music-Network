@@ -1,5 +1,5 @@
-// carrie-closet--data.js
-// Static definition of closet items (overlays only — bases are in carrie-closet.js)
+// carrie-closet-data.js
+// Static definition of closet items (overlays only — bases handled in carrie-closet.js)
 
 window.CARRIE_CLOSET_ITEMS = [
   // =========================
@@ -12,7 +12,7 @@ window.CARRIE_CLOSET_ITEMS = [
     category: "hair",
     label: "Straight blonde",
     src: "assets/images/hair/straight/female_straight_blonde.png",
-    price: 25,
+    price: 25
   },
   {
     id: "hair_straight_brown",
@@ -21,7 +21,7 @@ window.CARRIE_CLOSET_ITEMS = [
     category: "hair",
     label: "Straight brown",
     src: "assets/images/hair/straight/female_straight_brown.png",
-    price: 25,
+    price: 25
   },
   {
     id: "hair_straight_copper",
@@ -30,7 +30,7 @@ window.CARRIE_CLOSET_ITEMS = [
     category: "hair",
     label: "Straight copper",
     src: "assets/images/hair/straight/female_straight_copper.png",
-    price: 25,
+    price: 25
   },
   {
     id: "hair_straight_ginger",
@@ -39,7 +39,7 @@ window.CARRIE_CLOSET_ITEMS = [
     category: "hair",
     label: "Straight ginger",
     src: "assets/images/hair/straight/female_straight_ginger.png",
-    price: 25,
+    price: 25
   },
   {
     id: "hair_straight_pastel_blue",
@@ -48,7 +48,7 @@ window.CARRIE_CLOSET_ITEMS = [
     category: "hair",
     label: "Straight pastel blue",
     src: "assets/images/hair/straight/female_straight_pastel_blue.png",
-    price: 25,
+    price: 25
   },
   {
     id: "hair_straight_pastel_pink",
@@ -57,7 +57,7 @@ window.CARRIE_CLOSET_ITEMS = [
     category: "hair",
     label: "Straight pastel pink",
     src: "assets/images/hair/straight/female_straight_pastel_pink.png",
-    price: 25,
+    price: 25
   },
   {
     id: "hair_straight_pastel_purple",
@@ -66,7 +66,7 @@ window.CARRIE_CLOSET_ITEMS = [
     category: "hair",
     label: "Straight pastel purple",
     src: "assets/images/hair/straight/female_straight_pastel_purple.png",
-    price: 25,
+    price: 25
   },
   {
     id: "hair_straight_platinum",
@@ -75,7 +75,7 @@ window.CARRIE_CLOSET_ITEMS = [
     category: "hair",
     label: "Straight platinum blonde",
     src: "assets/images/hair/straight/female_straight_platinum_blonde.png",
-    price: 25,
+    price: 25
   },
 
   // ======================
@@ -88,7 +88,7 @@ window.CARRIE_CLOSET_ITEMS = [
     category: "hair",
     label: "Wavy blonde",
     src: "assets/images/hair/wavy/female_wavy_blonde.png",
-    price: 28,
+    price: 28
   },
   {
     id: "hair_wavy_brown",
@@ -97,7 +97,7 @@ window.CARRIE_CLOSET_ITEMS = [
     category: "hair",
     label: "Wavy brown",
     src: "assets/images/hair/wavy/female_wavy_brown.png",
-    price: 28,
+    price: 28
   },
   {
     id: "hair_wavy_copper",
@@ -106,7 +106,7 @@ window.CARRIE_CLOSET_ITEMS = [
     category: "hair",
     label: "Wavy copper",
     src: "assets/images/hair/wavy/female_wavy_copper.png",
-    price: 28,
+    price: 28
   },
   {
     id: "hair_wavy_ginger",
@@ -115,7 +115,7 @@ window.CARRIE_CLOSET_ITEMS = [
     category: "hair",
     label: "Wavy ginger",
     src: "assets/images/hair/wavy/female_wavy_ginger.png",
-    price: 28,
+    price: 28
   },
   {
     id: "hair_wavy_pastel_blue",
@@ -124,7 +124,7 @@ window.CARRIE_CLOSET_ITEMS = [
     category: "hair",
     label: "Wavy pastel blue",
     src: "assets/images/hair/wavy/female_pastel_blue.png",
-    price: 28,
+    price: 28
   },
   {
     id: "hair_wavy_pastel_pink",
@@ -133,7 +133,7 @@ window.CARRIE_CLOSET_ITEMS = [
     category: "hair",
     label: "Wavy pastel pink",
     src: "assets/images/hair/wavy/female_wavy_pastel_pink.png",
-    price: 28,
+    price: 28
   },
   {
     id: "hair_wavy_pastel_purple",
@@ -142,20 +142,20 @@ window.CARRIE_CLOSET_ITEMS = [
     category: "hair",
     label: "Wavy pastel purple",
     src: "assets/images/hair/wavy/female_wavy_pastel_purple.png",
-    price: 28,
+    price: 28
   },
   {
     id: "hair_wavy_platinum",
     gender: "female",
     slot: "hair",
     category: "hair",
-    label: "Wavy platinum blonde",
+    label: "Wavy platinum",
     src: "assets/images/hair/wavy/female_wavy_platinum_blonde.png",
-    price: 28,
+    price: 28
   },
 
   // ======================
-  // TOPS — UNISEX (slot: top)
+  // TOPS — UNISEX
   // ======================
   {
     id: "top_unisex_tee",
@@ -164,7 +164,7 @@ window.CARRIE_CLOSET_ITEMS = [
     category: "top",
     label: "Unisex tee",
     src: "assets/images/unisex/cloths/unisex_tee-shirt.png",
-    price: 16,
+    price: 16
   },
   {
     id: "top_unisex_tank",
@@ -173,7 +173,7 @@ window.CARRIE_CLOSET_ITEMS = [
     category: "top",
     label: "Unisex tank top",
     src: "assets/images/unisex/cloths/unisex_tank-top.png",
-    price: 16,
+    price: 16
   },
 
   // ======================
@@ -186,7 +186,7 @@ window.CARRIE_CLOSET_ITEMS = [
     category: "bottom",
     label: "Shorts",
     src: "assets/images/female_cloths/female_shorts.png",
-    price: 20,
+    price: 20
   },
   {
     id: "bottom_female_skirt",
@@ -195,7 +195,7 @@ window.CARRIE_CLOSET_ITEMS = [
     category: "bottom",
     label: "Skirt",
     src: "assets/images/female_cloths/female_skirt.png",
-    price: 22,
+    price: 22
   },
 
   // ======================
@@ -208,7 +208,7 @@ window.CARRIE_CLOSET_ITEMS = [
     category: "jewelry",
     label: "Gold necklace",
     src: "assets/images/female_jewlery/female_gold_necklace.png",
-    price: 18,
+    price: 18
   },
   {
     id: "jewelry_female_earrings",
@@ -217,29 +217,29 @@ window.CARRIE_CLOSET_ITEMS = [
     category: "jewelry",
     label: "Gold earrings",
     src: "assets/images/female_jewlery/female_gold_ear-ring.png",
-    price: 18,
+    price: 18
   },
   {
-    id: "jewelry_female_belly",
+    id: "jewelry_female_belly_ring",
     gender: "female",
     slot: "belly",
     category: "jewelry",
-    label: "Gold belly ring",
+    label: "Belly ring",
     src: "assets/images/female_jewlery/female_gold_belly-ring.png",
-    price: 22,
+    price: 22
   },
 
   // ======================
   // JEWELRY — MALE
   // ======================
   {
-    id: "jewelry_male_necklace",
+    id: "jewelry_male_chain",
     gender: "male",
     slot: "necklace",
     category: "jewelry",
     label: "Gold chain",
     src: "assets/images/male_jewlery/male_gold_necklace.png",
-    price: 18,
+    price: 18
   },
 
   // ======================
@@ -252,7 +252,7 @@ window.CARRIE_CLOSET_ITEMS = [
     category: "eyes",
     label: "Blue eyes",
     src: "assets/images/unisex/eyes/unisex_eyes_blue.png",
-    price: 15,
+    price: 15
   },
   {
     id: "eyes_green",
@@ -261,7 +261,7 @@ window.CARRIE_CLOSET_ITEMS = [
     category: "eyes",
     label: "Green eyes",
     src: "assets/images/unisex/eyes/unisex_eyes_green.png",
-    price: 15,
+    price: 15
   },
   {
     id: "eyes_brown",
@@ -270,7 +270,7 @@ window.CARRIE_CLOSET_ITEMS = [
     category: "eyes",
     label: "Brown eyes",
     src: "assets/images/unisex/eyes/unisex_eyes_brown.png",
-    price: 15,
+    price: 15
   },
 
   // ======================
@@ -283,18 +283,18 @@ window.CARRIE_CLOSET_ITEMS = [
     category: "shoes",
     label: "Sneakers",
     src: "assets/images/unisex/shoes/unisex_shoes.png",
-    price: 18,
+    price: 18
   },
   {
-    id: "shoes_sandles",
+    id: "shoes_sandals",
     gender: "any",
     slot: "shoes",
     category: "shoes",
     label: "Sandals",
     src: "assets/images/unisex/shoes/unisex_sandles.png",
-    price: 16,
+    price: 16
   },
 ];
 
-// Tiny debug (safe to leave in)
+// Debug log
 console.log("Carrie Closet items loaded:", window.CARRIE_CLOSET_ITEMS.length);
