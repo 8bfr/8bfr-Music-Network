@@ -1,8 +1,10 @@
 // carrie-closet--data.js
-// Static definition of closet items (NO skin/base here; just overlays)
+// Static definition of closet items (overlays only — bases are in carrie-closet.js)
 
 window.CARRIE_CLOSET_ITEMS = [
-  // ---- HAIR: straight (female only) ----
+  // =========================
+  // HAIR — STRAIGHT (FEMALE)
+  // =========================
   {
     id: "hair_straight_blonde",
     gender: "female",
@@ -76,7 +78,9 @@ window.CARRIE_CLOSET_ITEMS = [
     price: 25,
   },
 
-  // ---- HAIR: wavy (female only) ----
+  // ======================
+  // HAIR — WAVY (FEMALE)
+  // ======================
   {
     id: "hair_wavy_blonde",
     gender: "female",
@@ -150,7 +154,9 @@ window.CARRIE_CLOSET_ITEMS = [
     price: 28,
   },
 
-  // ---- TOPS: unisex tees / tanks (slot: top) ----
+  // ======================
+  // TOPS — UNISEX (slot: top)
+  // ======================
   {
     id: "top_unisex_tee",
     gender: "any",
@@ -170,7 +176,9 @@ window.CARRIE_CLOSET_ITEMS = [
     price: 16,
   },
 
-  // ---- FEMALE BOTTOMS ----
+  // ======================
+  // BOTTOMS — FEMALE
+  // ======================
   {
     id: "bottom_female_shorts",
     gender: "female",
@@ -190,7 +198,9 @@ window.CARRIE_CLOSET_ITEMS = [
     price: 22,
   },
 
-  // ---- JEWELRY: female ----
+  // ======================
+  // JEWELRY — FEMALE
+  // ======================
   {
     id: "jewelry_female_necklace",
     gender: "female",
@@ -219,7 +229,9 @@ window.CARRIE_CLOSET_ITEMS = [
     price: 22,
   },
 
-  // ---- JEWELRY: male ----
+  // ======================
+  // JEWELRY — MALE
+  // ======================
   {
     id: "jewelry_male_necklace",
     gender: "male",
@@ -230,7 +242,9 @@ window.CARRIE_CLOSET_ITEMS = [
     price: 18,
   },
 
-  // ---- EYES (unisex) ----
+  // ======================
+  // EYES — UNISEX
+  // ======================
   {
     id: "eyes_blue",
     gender: "any",
@@ -259,7 +273,9 @@ window.CARRIE_CLOSET_ITEMS = [
     price: 15,
   },
 
-  // ---- SHOES (unisex) ----
+  // ======================
+  // SHOES — UNISEX
+  // ======================
   {
     id: "shoes_sneakers",
     gender: "any",
@@ -279,3 +295,6 @@ window.CARRIE_CLOSET_ITEMS = [
     price: 16,
   },
 ];
+
+// Tiny debug (safe to leave in)
+console.log("Carrie Closet items loaded:", window.CARRIE_CLOSET_ITEMS.length);
