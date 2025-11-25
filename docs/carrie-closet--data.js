@@ -1,208 +1,339 @@
-// carrie-closet-data.js
-// Minimal, clean dataset so we always have a base avatar
+// carrie-closet--data.js
+// Data only — paths and item definitions for Carrie Closet
 
 window.CARRIE_CLOSET_DATA = {
-  version: 4,
+  // --- Base avatars (body + skin tone) ---
 
-  categories: [
-    { id: "skin",    label: "Skin",    emoji: "🎨" },
-    { id: "hair",    label: "Hair",    emoji: "💇‍♀️" },
-    { id: "eyes",    label: "Eyes",    emoji: "👀" },
-    { id: "top",     label: "Tops",    emoji: "👕" },
-    { id: "bottom",  label: "Bottoms", emoji: "🩳" },
-    { id: "jewelry", label: "Jewelry", emoji: "💎" },
-    { id: "shoes",   label: "Shoes",   emoji: "👟" }
-  ],
+  baseAvatars: {
+    female: [
+      {
+        id: "female_light",
+        label: "Female • Light skin",
+        src: "assets/images/base/female/base_female_light.png",
+        default: true,
+      },
+      {
+        id: "female_medium",
+        label: "Female • Medium skin",
+        src: "assets/images/base/female/base_female_medium.png",
+      },
+      {
+        id: "female_dark",
+        label: "Female • Dark skin",
+        src: "assets/images/base/female/base_female_dark.png",
+      },
+    ],
+    male: [
+      {
+        id: "male_light",
+        label: "Male • Light skin",
+        src: "assets/images/base/male/base_male_light.png",
+        default: true,
+      },
+      {
+        id: "male_medium",
+        label: "Male • Medium skin",
+        src: "assets/images/base/male/base_male_medium.png",
+      },
+      {
+        id: "male_dark",
+        label: "Male • Dark skin",
+        src: "assets/images/base/male/base_male_dark.png",
+      },
+    ],
+  },
+
+  // --- Items ---
+  // gender: "female" | "male" | "any"
+  // slot: one of: "hair", "eyes", "top", "bottom", "necklace", "ears", "belly", "shoes"
+  // category: used for the shop tabs
+  // price: coins (cosmetic only right now)
 
   items: [
-    // ---- SKIN (bases) ----
+    // ----- HAIR (straight) -----
     {
-      id: "f_skin_light",
+      id: "hair_straight_blonde",
       gender: "female",
-      category: "skin",
-      slot: "base",
-      label: "Female • light",
-      coins: 0,
-      img: "assets/images/base/female/base_female_light.png",
-      default: true
-    },
-    {
-      id: "f_skin_medium",
-      gender: "female",
-      category: "skin",
-      slot: "base",
-      label: "Female • medium",
-      coins: 0,
-      img: "assets/images/base/female/base_female_medium.png"
-    },
-    {
-      id: "f_skin_dark",
-      gender: "female",
-      category: "skin",
-      slot: "base",
-      label: "Female • dark",
-      coins: 0,
-      img: "assets/images/base/female/base_female_dark.png"
-    },
-
-    {
-      id: "m_skin_light",
-      gender: "male",
-      category: "skin",
-      slot: "base",
-      label: "Male • light",
-      coins: 0,
-      img: "assets/images/base/male/base_male_light.png",
-      default: true
-    },
-    {
-      id: "m_skin_medium",
-      gender: "male",
-      category: "skin",
-      slot: "base",
-      label: "Male • medium",
-      coins: 0,
-      img: "assets/images/base/male/base_male_medium.png"
-    },
-    {
-      id: "m_skin_dark",
-      gender: "male",
-      category: "skin",
-      slot: "base",
-      label: "Male • dark",
-      coins: 0,
-      img: "assets/images/base/male/base_male_dark.png"
-    },
-
-    // ---- HAIR (just a couple to test alignment) ----
-    {
-      id: "f_hair_straight_blonde",
-      gender: "female",
-      category: "hair",
       slot: "hair",
-      label: "Straight blonde",
-      coins: 30,
-      img: "assets/images/hair/straight/female_straight_blonde.png"
+      category: "hair",
+      label: "Straight • Blonde",
+      src: "assets/images/hair/straight/female_straight_blonde.png",
+      price: 25,
     },
     {
-      id: "f_hair_wavy_brown",
+      id: "hair_straight_brown",
       gender: "female",
-      category: "hair",
       slot: "hair",
-      label: "Wavy brown",
-      coins: 30,
-      img: "assets/images/hair/wavy/female_wavy_brown.png"
+      category: "hair",
+      label: "Straight • Brown",
+      src: "assets/images/hair/straight/female_straight_brown.png",
+      price: 25,
+    },
+    {
+      id: "hair_straight_copper",
+      gender: "female",
+      slot: "hair",
+      category: "hair",
+      label: "Straight • Copper",
+      src: "assets/images/hair/straight/female_straight_copper.png",
+      price: 25,
+    },
+    {
+      id: "hair_straight_ginger",
+      gender: "female",
+      slot: "hair",
+      category: "hair",
+      label: "Straight • Ginger",
+      src: "assets/images/hair/straight/female_straight_ginger.png",
+      price: 25,
+    },
+    {
+      id: "hair_straight_pastel_blue",
+      gender: "female",
+      slot: "hair",
+      category: "hair",
+      label: "Straight • Pastel blue",
+      src: "assets/images/hair/straight/female_straight_pastel_blue.png",
+      price: 30,
+    },
+    {
+      id: "hair_straight_pastel_pink",
+      gender: "female",
+      slot: "hair",
+      category: "hair",
+      label: "Straight • Pastel pink",
+      src: "assets/images/hair/straight/female_straight_pastel_pink.png",
+      price: 30,
+    },
+    {
+      id: "hair_straight_pastel_purple",
+      gender: "female",
+      slot: "hair",
+      category: "hair",
+      label: "Straight • Pastel purple",
+      src: "assets/images/hair/straight/female_straight_pastel_purple.png",
+      price: 30,
+    },
+    {
+      id: "hair_straight_platinum",
+      gender: "female",
+      slot: "hair",
+      category: "hair",
+      label: "Straight • Platinum blonde",
+      src: "assets/images/hair/straight/female_straight_platinum_blonde.png",
+      price: 30,
     },
 
-    // ---- EYES (unisex pair) ----
+    // ----- HAIR (wavy) -----
+    {
+      id: "hair_wavy_blonde",
+      gender: "female",
+      slot: "hair",
+      category: "hair",
+      label: "Wavy • Blonde",
+      src: "assets/images/hair/wavy/female_wavy_blonde.png",
+      price: 28,
+    },
+    {
+      id: "hair_wavy_brown",
+      gender: "female",
+      slot: "hair",
+      category: "hair",
+      label: "Wavy • Brown",
+      src: "assets/images/hair/wavy/female_wavy_brown.png",
+      price: 28,
+    },
+    {
+      id: "hair_wavy_copper",
+      gender: "female",
+      slot: "hair",
+      category: "hair",
+      label: "Wavy • Copper",
+      src: "assets/images/hair/wavy/female_wavy_copper.png",
+      price: 28,
+    },
+    {
+      id: "hair_wavy_ginger",
+      gender: "female",
+      slot: "hair",
+      category: "hair",
+      label: "Wavy • Ginger",
+      src: "assets/images/hair/wavy/female_wavy_ginger.png",
+      price: 28,
+    },
+    {
+      id: "hair_wavy_pastel_blue",
+      gender: "female",
+      slot: "hair",
+      category: "hair",
+      label: "Wavy • Pastel blue",
+      src: "assets/images/hair/wavy/female_pastel_blue.png",
+      price: 32,
+    },
+    {
+      id: "hair_wavy_pastel_pink",
+      gender: "female",
+      slot: "hair",
+      category: "hair",
+      label: "Wavy • Pastel pink",
+      src: "assets/images/hair/wavy/female_wavy_pastel_pink.png",
+      price: 32,
+    },
+    {
+      id: "hair_wavy_pastel_purple",
+      gender: "female",
+      slot: "hair",
+      category: "hair",
+      label: "Wavy • Pastel purple",
+      src: "assets/images/hair/wavy/female_wavy_pastel_purple.png",
+      price: 32,
+    },
+    {
+      id: "hair_wavy_platinum",
+      gender: "female",
+      slot: "hair",
+      category: "hair",
+      label: "Wavy • Platinum blonde",
+      src: "assets/images/hair/wavy/female_wavy_platinum_blonde.png",
+      price: 32,
+    },
+
+    // ----- FEMALE CLOTHES (over bikini base) -----
+    {
+      id: "female_shorts",
+      gender: "female",
+      slot: "bottom",
+      category: "bottoms",
+      label: "Denim shorts",
+      src: "assets/images/female_cloths/female_shorts.png",
+      price: 20,
+    },
+    {
+      id: "female_skirt",
+      gender: "female",
+      slot: "bottom",
+      category: "bottoms",
+      label: "Mini skirt",
+      src: "assets/images/female_cloths/female_skirt.png",
+      price: 22,
+    },
+    {
+      id: "female_bikini_cover",
+      gender: "female",
+      slot: "top",
+      category: "tops",
+      label: "Bikini top overlay",
+      src: "assets/images/female_cloths/female_bikini.png",
+      price: 18,
+    },
+
+    // ----- UNISEX TOPS -----
+    {
+      id: "unisex_tank_top",
+      gender: "any",
+      slot: "top",
+      category: "tops",
+      label: "Unisex tank top",
+      src: "assets/images/unisex/cloths/unisex_tank-top.png",
+      price: 18,
+    },
+    {
+      id: "unisex_tee_shirt",
+      gender: "any",
+      slot: "top",
+      category: "tops",
+      label: "Unisex tee shirt",
+      src: "assets/images/unisex/cloths/unisex_tee-shirt.png",
+      price: 18,
+    },
+
+    // ----- FEMALE JEWELRY -----
+    {
+      id: "female_necklace_gold",
+      gender: "female",
+      slot: "necklace",
+      category: "jewelry",
+      label: "Gold necklace",
+      src: "assets/images/female_jewlery/female_gold_necklace.png",
+      price: 30,
+    },
+    {
+      id: "female_earrings_gold",
+      gender: "female",
+      slot: "ears",
+      category: "jewelry",
+      label: "Gold earrings",
+      src: "assets/images/female_jewlery/female_gold_ear-ring.png",
+      price: 26,
+    },
+    {
+      id: "female_belly_ring_gold",
+      gender: "female",
+      slot: "belly",
+      category: "jewelry",
+      label: "Gold belly ring",
+      src: "assets/images/female_jewlery/female_gold_belly-ring.png",
+      price: 28,
+    },
+
+    // ----- MALE JEWELRY -----
+    {
+      id: "male_necklace_gold",
+      gender: "male",
+      slot: "necklace",
+      category: "jewelry",
+      label: "Gold necklace",
+      src: "assets/images/male_jewlery/male_gold_necklace.png",
+      price: 30,
+    },
+
+    // ----- UNISEX EYES -----
     {
       id: "eyes_blue",
-      gender: "unisex",
-      category: "eyes",
+      gender: "any",
       slot: "eyes",
+      category: "eyes",
       label: "Blue eyes",
-      coins: 10,
-      img: "assets/images/unisex/eyes/unisex_eyes_blue.png",
-      default: true
+      src: "assets/images/unisex/eyes/unisex_eyes_blue.png",
+      price: 15,
+    },
+    {
+      id: "eyes_green",
+      gender: "any",
+      slot: "eyes",
+      category: "eyes",
+      label: "Green eyes",
+      src: "assets/images/unisex/eyes/unisex_eyes_green.png",
+      price: 15,
     },
     {
       id: "eyes_brown",
-      gender: "unisex",
-      category: "eyes",
+      gender: "any",
       slot: "eyes",
+      category: "eyes",
       label: "Brown eyes",
-      coins: 10,
-      img: "assets/images/unisex/eyes/unisex_eyes_brown.png"
+      src: "assets/images/unisex/eyes/unisex_eyes_brown.png",
+      price: 15,
     },
 
-    // ---- TOPS ----
+    // ----- UNISEX SHOES -----
     {
-      id: "top_tee",
-      gender: "unisex",
-      category: "top",
-      slot: "top",
-      label: "Unisex tee",
-      coins: 25,
-      img: "assets/images/unisex/cloths/unisex_tee-shirt.png"
-    },
-    {
-      id: "top_tank",
-      gender: "unisex",
-      category: "top",
-      slot: "top",
-      label: "Unisex tank",
-      coins: 25,
-      img: "assets/images/unisex/cloths/unisex_tank-top.png"
-    },
-
-    // ---- BOTTOMS (female only for now) ----
-    {
-      id: "f_bottom_shorts",
-      gender: "female",
-      category: "bottom",
-      slot: "bottom",
-      label: "Shorts",
-      coins: 20,
-      img: "assets/images/female_cloths/female_shorts.png"
-    },
-    {
-      id: "f_bottom_skirt",
-      gender: "female",
-      category: "bottom",
-      slot: "bottom",
-      label: "Skirt",
-      coins: 25,
-      img: "assets/images/female_cloths/female_skirt.png"
-    },
-
-    // ---- JEWELRY ----
-    {
-      id: "f_jewel_necklace",
-      gender: "female",
-      category: "jewelry",
-      slot: "necklace",
-      label: "Gold necklace",
-      coins: 35,
-      img: "assets/images/female_jewlery/female_gold_necklace.png"
-    },
-    {
-      id: "f_jewel_belly",
-      gender: "female",
-      category: "jewelry",
-      slot: "belly",
-      label: "Gold belly ring",
-      coins: 35,
-      img: "assets/images/female_jewlery/female_gold_belly-ring.png"
-    },
-
-    {
-      id: "m_jewel_necklace",
-      gender: "male",
-      category: "jewelry",
-      slot: "necklace",
-      label: "Gold chain",
-      coins: 35,
-      img: "assets/images/male_jewlery/male_gold_necklace.png"
-    },
-
-    // ---- SHOES (unisex) ----
-    {
-      id: "shoes_unisex",
-      gender: "unisex",
-      category: "shoes",
+      id: "shoes_sneakers",
+      gender: "any",
       slot: "shoes",
+      category: "shoes",
       label: "Sneakers",
-      coins: 25,
-      img: "assets/images/unisex/shoes/unisex_shoes.png"
+      src: "assets/images/unisex/shoes/unisex_shoes.png",
+      price: 18,
     },
     {
-      id: "shoes_sandals",
-      gender: "unisex",
-      category: "shoes",
+      id: "shoes_sandles",
+      gender: "any",
       slot: "shoes",
+      category: "shoes",
       label: "Sandals",
-      coins: 20,
-      img: "assets/images/unisex/shoes/unisex_sandles.png"
-    }
-  ]
+      src: "assets/images/unisex/shoes/unisex_sandles.png",
+      price: 16,
+    },
+  ],
 };
