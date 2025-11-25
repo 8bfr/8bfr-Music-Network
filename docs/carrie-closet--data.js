@@ -1,254 +1,281 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Carrie Closet — 8BFR Music Network</title>
-  <meta name="description" content="Customize the Boyfriend / Girlfriend chat avatars with outfits, hair, eyes and accessories using 8BFR coins." />
-  <link rel="icon" href="assets/images/favicon.png" />
-  <script src="https://cdn.tailwindcss.com"></script>
+// carrie-closet--data.js
+// Static definition of closet items (NO skin/base here; just overlays)
 
-  <style>
-    :root {
-      --ring: rgba(124,58,237,.55);
-      --glass: rgba(12,6,24,.85);
-    }
-    html, body { scroll-behavior:smooth; }
-    body {
-      margin:0;
-      min-height:100vh;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background:
-        radial-gradient(1200px 600px at 10% -10%, rgba(124,58,237,.35), transparent 60%),
-        radial-gradient(900px 400px at 110% 10%, rgba(0,217,255,.22), transparent 60%),
-        linear-gradient(#0b0014,#000);
-      color:#eae6ff;
-      overflow-x:hidden;
-    }
-    header{
-      position:relative;
-      z-index:5;
-      background:rgba(15,0,30,.92);
-      border-bottom:1px solid rgba(124,58,237,.5);
-      backdrop-filter:blur(18px);
-    }
+window.CARRIE_CLOSET_ITEMS = [
+  // ---- HAIR: straight (female only) ----
+  {
+    id: "hair_straight_blonde",
+    gender: "female",
+    slot: "hair",
+    category: "hair",
+    label: "Straight blonde",
+    src: "assets/images/hair/straight/female_straight_blonde.png",
+    price: 25,
+  },
+  {
+    id: "hair_straight_brown",
+    gender: "female",
+    slot: "hair",
+    category: "hair",
+    label: "Straight brown",
+    src: "assets/images/hair/straight/female_straight_brown.png",
+    price: 25,
+  },
+  {
+    id: "hair_straight_copper",
+    gender: "female",
+    slot: "hair",
+    category: "hair",
+    label: "Straight copper",
+    src: "assets/images/hair/straight/female_straight_copper.png",
+    price: 25,
+  },
+  {
+    id: "hair_straight_ginger",
+    gender: "female",
+    slot: "hair",
+    category: "hair",
+    label: "Straight ginger",
+    src: "assets/images/hair/straight/female_straight_ginger.png",
+    price: 25,
+  },
+  {
+    id: "hair_straight_pastel_blue",
+    gender: "female",
+    slot: "hair",
+    category: "hair",
+    label: "Straight pastel blue",
+    src: "assets/images/hair/straight/female_straight_pastel_blue.png",
+    price: 25,
+  },
+  {
+    id: "hair_straight_pastel_pink",
+    gender: "female",
+    slot: "hair",
+    category: "hair",
+    label: "Straight pastel pink",
+    src: "assets/images/hair/straight/female_straight_pastel_pink.png",
+    price: 25,
+  },
+  {
+    id: "hair_straight_pastel_purple",
+    gender: "female",
+    slot: "hair",
+    category: "hair",
+    label: "Straight pastel purple",
+    src: "assets/images/hair/straight/female_straight_pastel_purple.png",
+    price: 25,
+  },
+  {
+    id: "hair_straight_platinum",
+    gender: "female",
+    slot: "hair",
+    category: "hair",
+    label: "Straight platinum blonde",
+    src: "assets/images/hair/straight/female_straight_platinum_blonde.png",
+    price: 25,
+  },
 
-    .closet-shell{
-      border-radius:18px;
-      border:1px solid rgba(124,58,237,.55);
-      background:rgba(6,2,18,.96);
-      box-shadow:0 16px 40px rgba(0,0,0,.85);
-    }
+  // ---- HAIR: wavy (female only) ----
+  {
+    id: "hair_wavy_blonde",
+    gender: "female",
+    slot: "hair",
+    category: "hair",
+    label: "Wavy blonde",
+    src: "assets/images/hair/wavy/female_wavy_blonde.png",
+    price: 28,
+  },
+  {
+    id: "hair_wavy_brown",
+    gender: "female",
+    slot: "hair",
+    category: "hair",
+    label: "Wavy brown",
+    src: "assets/images/hair/wavy/female_wavy_brown.png",
+    price: 28,
+  },
+  {
+    id: "hair_wavy_copper",
+    gender: "female",
+    slot: "hair",
+    category: "hair",
+    label: "Wavy copper",
+    src: "assets/images/hair/wavy/female_wavy_copper.png",
+    price: 28,
+  },
+  {
+    id: "hair_wavy_ginger",
+    gender: "female",
+    slot: "hair",
+    category: "hair",
+    label: "Wavy ginger",
+    src: "assets/images/hair/wavy/female_wavy_ginger.png",
+    price: 28,
+  },
+  {
+    id: "hair_wavy_pastel_blue",
+    gender: "female",
+    slot: "hair",
+    category: "hair",
+    label: "Wavy pastel blue",
+    src: "assets/images/hair/wavy/female_pastel_blue.png",
+    price: 28,
+  },
+  {
+    id: "hair_wavy_pastel_pink",
+    gender: "female",
+    slot: "hair",
+    category: "hair",
+    label: "Wavy pastel pink",
+    src: "assets/images/hair/wavy/female_wavy_pastel_pink.png",
+    price: 28,
+  },
+  {
+    id: "hair_wavy_pastel_purple",
+    gender: "female",
+    slot: "hair",
+    category: "hair",
+    label: "Wavy pastel purple",
+    src: "assets/images/hair/wavy/female_wavy_pastel_purple.png",
+    price: 28,
+  },
+  {
+    id: "hair_wavy_platinum",
+    gender: "female",
+    slot: "hair",
+    category: "hair",
+    label: "Wavy platinum blonde",
+    src: "assets/images/hair/wavy/female_wavy_platinum_blonde.png",
+    price: 28,
+  },
 
-    /* Avatar preview */
-    .avatar-stage{
-      position:relative;
-      margin:0 auto;
-      width:min(80vw, 280px);
-      aspect-ratio:9/16;
-      overflow:visible;
-    }
-    .avatar-base,
-    .avatar-layer{
-      position:absolute;
-      inset:0;
-      margin:auto;
-      max-width:100%;
-      max-height:100%;
-      object-fit:contain;
-      pointer-events:none;
-      display:block;
-    }
-    .avatar-base{
-      position:relative;
-      inset:auto;
-      margin:0 auto;
-      width:100%;
-      height:100%;
-    }
+  // ---- TOPS: unisex tees / tanks (slot: top) ----
+  {
+    id: "top_unisex_tee",
+    gender: "any",
+    slot: "top",
+    category: "top",
+    label: "Unisex tee",
+    src: "assets/images/unisex/cloths/unisex_tee-shirt.png",
+    price: 16,
+  },
+  {
+    id: "top_unisex_tank",
+    gender: "any",
+    slot: "top",
+    category: "top",
+    label: "Unisex tank top",
+    src: "assets/images/unisex/cloths/unisex_tank-top.png",
+    price: 16,
+  },
 
-    /* Per-slot alignment */
-    .slot-hair   { top:4%;   left:50%; width:46%; transform:translateX(-50%); }
-    .slot-eyes   { top:18%;  left:50%; width:14%; transform:translateX(-50%); }
-    .slot-top    { top:30%;  left:50%; width:52%; transform:translateX(-50%); }
-    .slot-bottom { top:52%;  left:50%; width:46%; transform:translateX(-50%); }
-    .slot-shoes  { top:88%;  left:50%; width:40%; transform:translateX(-50%); }
-    .slot-necklace { top:26%; left:50%; width:30%; transform:translateX(-50%); }
-    .slot-belly  { top:57%;  left:50%; width:14%; transform:translateX(-50%); }
-    .slot-earrings { top:18%; left:50%; width:34%; transform:translateX(-50%); }
+  // ---- FEMALE BOTTOMS ----
+  {
+    id: "bottom_female_shorts",
+    gender: "female",
+    slot: "bottom",
+    category: "bottom",
+    label: "Shorts",
+    src: "assets/images/female_cloths/female_shorts.png",
+    price: 20,
+  },
+  {
+    id: "bottom_female_skirt",
+    gender: "female",
+    slot: "bottom",
+    category: "bottom",
+    label: "Skirt",
+    src: "assets/images/female_cloths/female_skirt.png",
+    price: 22,
+  },
 
-    .cat-pill{
-      border-radius:999px;
-      padding:4px 10px;
-      font-size:11px;
-      letter-spacing:.05em;
-      text-transform:uppercase;
-      border:1px solid rgba(148,163,255,.55);
-      background:rgba(15,23,42,.95);
-      color:rgba(226,232,240,.9);
-      cursor:pointer;
-      display:inline-flex;
-      align-items:center;
-      gap:6px;
-    }
-    .cat-pill span.emoji{ font-size:13px; }
-    .cat-pill-active{
-      background:linear-gradient(135deg,#7c3aed,#4f46e5);
-      border-color:#a855f7;
-      color:white;
-      box-shadow:0 0 14px rgba(168,85,247,.6);
-    }
+  // ---- JEWELRY: female ----
+  {
+    id: "jewelry_female_necklace",
+    gender: "female",
+    slot: "necklace",
+    category: "jewelry",
+    label: "Gold necklace",
+    src: "assets/images/female_jewlery/female_gold_necklace.png",
+    price: 18,
+  },
+  {
+    id: "jewelry_female_earrings",
+    gender: "female",
+    slot: "ears",
+    category: "jewelry",
+    label: "Gold earrings",
+    src: "assets/images/female_jewlery/female_gold_ear-ring.png",
+    price: 18,
+  },
+  {
+    id: "jewelry_female_belly",
+    gender: "female",
+    slot: "belly",
+    category: "jewelry",
+    label: "Gold belly ring",
+    src: "assets/images/female_jewlery/female_gold_belly-ring.png",
+    price: 22,
+  },
 
-    .item-card{
-      border-radius:12px;
-      border:1px solid rgba(148,163,255,.45);
-      background:rgba(15,23,42,.9);
-      padding:6px 8px;
-      display:flex;
-      align-items:center;
-      gap:8px;
-      cursor:pointer;
-      transition:background .15s, border-color .15s, box-shadow .15s, transform .12s;
-    }
-    .item-card:hover{
-      background:rgba(30,64,175,.75);
-      border-color:rgba(191,219,254,.9);
-      transform:translateY(-1px);
-      box-shadow:0 8px 22px rgba(15,23,42,.9);
-    }
-    .item-card.selected{
-      border-color:#a855f7;
-      box-shadow:0 0 0 1px rgba(168,85,247,.8), 0 10px 25px rgba(76,29,149,.9);
-      background:linear-gradient(135deg, rgba(76,29,149,.92), rgba(15,23,42,.96));
-    }
-    .item-thumb{
-      width:40px;
-      height:40px;
-      border-radius:10px;
-      overflow:hidden;
-      border:1px solid rgba(148,163,255,.55);
-      background:#020617;
-      flex-shrink:0;
-      display:grid;
-      place-items:center;
-    }
-    .item-thumb img{
-      max-width:100%;
-      max-height:100%;
-      object-fit:contain;
-      display:block;
-    }
-    .item-name{ font-size:12px; font-weight:500; }
-    .item-meta{ font-size:11px; opacity:.8; }
+  // ---- JEWELRY: male ----
+  {
+    id: "jewelry_male_necklace",
+    gender: "male",
+    slot: "necklace",
+    category: "jewelry",
+    label: "Gold chain",
+    src: "assets/images/male_jewlery/male_gold_necklace.png",
+    price: 18,
+  },
 
-    .pill-tag{
-      display:inline-flex;
-      align-items:center;
-      gap:4px;
-      border-radius:999px;
-      border:1px solid rgba(148,163,255,.6);
-      background:rgba(15,23,42,.95);
-      padding:2px 8px;
-      font-size:10px;
-      letter-spacing:.08em;
-      text-transform:uppercase;
-    }
+  // ---- EYES (unisex) ----
+  {
+    id: "eyes_blue",
+    gender: "any",
+    slot: "eyes",
+    category: "eyes",
+    label: "Blue eyes",
+    src: "assets/images/unisex/eyes/unisex_eyes_blue.png",
+    price: 15,
+  },
+  {
+    id: "eyes_green",
+    gender: "any",
+    slot: "eyes",
+    category: "eyes",
+    label: "Green eyes",
+    src: "assets/images/unisex/eyes/unisex_eyes_green.png",
+    price: 15,
+  },
+  {
+    id: "eyes_brown",
+    gender: "any",
+    slot: "eyes",
+    category: "eyes",
+    label: "Brown eyes",
+    src: "assets/images/unisex/eyes/unisex_eyes_brown.png",
+    price: 15,
+  },
 
-    /* Hide any global Carrie avatar on this page if it leaks in */
-    [data-no-global-carrie="true"] #bubbleStack,
-    [data-no-global-carrie="true"] #carrieWrap {
-      display:none !important;
-    }
-  </style>
-</head>
-<body data-no-global-carrie="true">
-  <header class="px-4 py-3">
-    <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
-      <div class="flex items-center gap-3">
-        <img src="assets/images/logo_8bfr.svg"
-             alt="8BFR logo"
-             class="h-9 w-auto"
-             onerror="this.onerror=null;this.src='assets/images/8bfr.png'">
-        <div>
-          <h1 class="text-lg sm:text-2xl font-extrabold">
-            Carrie Closet <span class="text-[#a855f7]">(Beta)</span>
-          </h1>
-          <p class="text-[11px] text-purple-200/80 -mt-0.5">
-            Customize Boyfriend / Girlfriend chat avatars with outfits, hair, eyes &amp; accessories.
-          </p>
-        </div>
-      </div>
-      <a href="carrie-chat.html"
-         class="text-xs sm:text-sm text-[#00d9ff] underline/50 hover:underline">
-        ⬅ Back to Carrie Chat
-      </a>
-    </div>
-  </header>
-
-  <main class="max-w-6xl mx-auto px-4 pb-10 pt-4">
-    <div class="closet-shell p-4 sm:p-5">
-      <div class="flex flex-col lg:flex-row gap-6">
-        <!-- LEFT: Avatar preview -->
-        <section class="w-full lg:w-5/12">
-          <div class="flex items-center justify-between mb-2">
-            <div class="flex items-center gap-2">
-              <span class="pill-tag"><span>Preview</span></span>
-            </div>
-            <div class="flex items-center gap-2 text-[11px]">
-              <button id="genderFemaleBtn"
-                      class="px-3 py-1 rounded-full border border-purple-400/60 bg-purple-600/60 text-white text-[11px] font-semibold shadow-sm">
-                ♀ Female
-              </button>
-              <button id="genderMaleBtn"
-                      class="px-3 py-1 rounded-full border border-sky-400/40 bg-slate-900 text-sky-100 text-[11px]">
-                ♂ Male
-              </button>
-            </div>
-          </div>
-
-          <div id="avatarStage" class="avatar-stage">
-            <!-- JS injects base + layers here -->
-          </div>
-
-          <p id="coinsHint" class="mt-3 text-[11px] text-purple-200/80">
-            Items show a coin price, but coins aren’t charged yet. Closet is visual-only while 8BFR Coins are in beta.
-          </p>
-        </section>
-
-        <!-- RIGHT: Categories + items -->
-        <section class="w-full lg:w-7/12">
-          <div class="flex flex-wrap gap-2 mb-3" id="categoryBar">
-            <!-- Category pills -->
-          </div>
-
-          <div class="flex items-center justify-between mb-1">
-            <h2 class="text-sm font-semibold text-purple-100">
-              <span id="categoryTitle">Category</span>
-            </h2>
-            <span class="text-[11px] text-purple-200/80" id="genderLabel">
-              Female avatar
-            </span>
-          </div>
-
-          <div id="itemGrid"
-               class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[420px] overflow-y-auto pr-1">
-            <!-- Item cards -->
-          </div>
-        </section>
-      </div>
-    </div>
-
-    <p class="mt-3 text-[11px] text-purple-300/75 text-center max-w-3xl mx-auto">
-      Closet art is hand-built for 8BFR. Avatars here are used for Boyfriend / Girlfriend chat mode.
-      Business &amp; Personal chat still use the animated video avatars.
-    </p>
-  </main>
-
-  <!-- Global menu / hamburger -->
-  <script src="scripts.js?v=1" defer></script>
-
-  <!-- Closet data + logic (note: v=4 to force refresh) -->
-  <script src="carrie-closet-data.js?v=4"></script>
-  <script src="carrie-closet.js?v=4"></script>
-</body>
-</html>
+  // ---- SHOES (unisex) ----
+  {
+    id: "shoes_sneakers",
+    gender: "any",
+    slot: "shoes",
+    category: "shoes",
+    label: "Sneakers",
+    src: "assets/images/unisex/shoes/unisex_shoes.png",
+    price: 18,
+  },
+  {
+    id: "shoes_sandles",
+    gender: "any",
+    slot: "shoes",
+    category: "shoes",
+    label: "Sandals",
+    src: "assets/images/unisex/shoes/unisex_sandles.png",
+    price: 16,
+  },
+];
