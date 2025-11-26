@@ -10,7 +10,7 @@
       {
         id: "",
         gender: "female", // "female" | "male" | "unisex"
-        cat: "hair",      // UI category tab
+        cat: "hair",      // UI category tab: hair/top/bottom/jewelry/eyes/shoes/all
         slot: "hair",     // overlay slot: hair/top/bottom/eyes/shoes/necklace/ears/belly
         name: "",
         label: "",
@@ -197,7 +197,7 @@
       img: `${base}/hair/wavy/female_wavy_platinum_blonde.png`
     }),
 
-    // ---- TOPS (mostly unisex) ----
+    // ---- TOPS (unisex tank + tee) ----
     item({
       id: "u_top_tank",
       gender: "unisex",
@@ -342,5 +342,4 @@
 
   // Expose globally
   window.CARRIE_CLOSET_ITEMS = items;
-
 })();
