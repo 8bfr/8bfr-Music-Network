@@ -63,7 +63,8 @@
     { id: "dark",  label: "Dark"  }
   ];
 
-  const PAIR_SLOTS = ["eyes", "shoes", "ears"];
+  // Only shoes and ears are “pair” slots now.
+  const PAIR_SLOTS = ["shoes", "ears"];
 
   // --- Helpers ---
 
@@ -92,8 +93,8 @@
   }
 
   // Create / update overlay elements for a slot.
-  // For normal slots, we create ONE img.
-  // For PAIR_SLOTS (eyes, shoes, ears), we create LEFT + RIGHT copies.
+  // For normal slots (hair, eyes, top, bottom, necklace, belly) we create ONE img.
+  // For PAIR_SLOTS (shoes, ears), we create LEFT + RIGHT copies.
   function setOverlay(slot, imgSrc) {
     // Remove any existing layers for this slot
     const existing = overlayHost.querySelectorAll("[data-slot='" + slot + "']");
@@ -104,7 +105,7 @@
     if (PAIR_SLOTS.includes(slot)) {
       ["left", "right"].forEach((side) => {
         const layer = document.createElement("img");
-        layer.className = "layer-overlay layer-" + slot + " layer-" + slot + "-" + side;
+        layer.className = "layer-overlay layer-" + slot + "-" + side;
         layer.alt = slot + " " + side + " overlay";
         layer.dataset.slot = slot;
         layer.src = imgSrc;
