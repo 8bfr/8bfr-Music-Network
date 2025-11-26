@@ -1,26 +1,14 @@
-// — sanity ping —
-console.log("CARRIE_CLOSET_ITEMS at start:", Array.isArray(window.CARRIE_CLOSET_ITEMS) ? window.CARRIE_CLOSET_ITEMS.length : window.CARRIE_CLOSET_ITEMS);
-
-// If catalog isn’t ready yet (race condition), retry a couple times before erroring
-(function waitForCatalog(attempt = 0) {
-  if (Array.isArray(window.CARRIE_CLOSET_ITEMS) && window.CARRIE_CLOSET_ITEMS.length) {
-    window.__CLOSET_READY__ = true;
-    initCarrieCloset(window.CARRIE_CLOSET_ITEMS); // ← your existing init function
-    return;
-  }
-  if (attempt >= 10) {
-    const err = document.getElementById("closetError");
-    if (err) err.classList.remove("hidden");
-    console.warn("Closet data failed to load after retries.");
-    return;
-  }
-  setTimeout(() => waitForCatalog(attempt + 1), 120);
-})();
-
 // carrie-closet.js
 // Front-end logic for Carrie Closet (no coins yet, visual only).
 
 (function () {
+  console.log(
+    "Carrie Closet JS loaded. Catalog size:",
+    Array.isArray(window.CARRIE_CLOSET_ITEMS)
+      ? window.CARRIE_CLOSET_ITEMS.length
+      : window.CARRIE_CLOSET_ITEMS
+  );
+
   const baseImg = document.getElementById("closetBaseImg");
   const overlayHost = document.getElementById("closetOverlayHost");
   const itemsGrid = document.getElementById("closetItemsGrid");
