@@ -1,323 +1,437 @@
-// carrie-closet.js
-// Renders Carrie Closet using window.CARRIE_CLOSET_DATA
+// carrie-chat.js
+// Front-end logic for the Carrie chat page only (carrie-chat.html).
+// No Closet logic in here – that lives in carrie-closet*.js.
 
+// Wrap everything so we don't leak globals
 (function () {
-  const DATA = window.CARRIE_CLOSET_DATA || { items: [], categories: [] };
+  // --- Grab core DOM nodes ---
+  const chatLog        = document.getElementById("chatLog");
+  const typingRow      = document.getElementById("typingRow");
+  const form           = document.getElementById("carrieForm");
+  const input          = document.getElementById("carrieInput");
 
-  const avatarStage   = document.getElementById("avatarStage");
-  const categoryBar   = document.getElementById("categoryBar");
-  const itemGrid      = document.getElementById("itemGrid");
-  const catTitleEl    = document.getElementById("categoryTitle");
-  const genderLabelEl = document.getElementById("genderLabel");
-  const genderFemaleBtn = document.getElementById("genderFemaleBtn");
-  const genderMaleBtn   = document.getElementById("genderMaleBtn");
+  const chatModeToggle = document.getElementById("chatModeToggle");
+  const chatModeMenu   = document.getElementById("chatModeMenu");
+  const chatModeLabel  = document.getElementById("chatModeLabel");
 
-  if (!avatarStage || !categoryBar || !itemGrid) {
-    console.warn("Carrie Closet – required DOM nodes missing.");
+  const avatarToggle   = document.getElementById("avatarToggle");
+  const avatarMenu     = document.getElementById("avatarMenu");
+  const avatarLabel    = document.getElementById("avatarLabel");
+
+  const maintToggle    = document.getElementById("maintToggle");
+  const maintMenu      = document.getElementById("maintMenu");
+  const btnClearLocal  = document.getElementById("maintClearLocal");
+  const btnToggleRole  = document.getElementById("maintToggleRole");
+  const maintRoleLabel = document.getElementById("maintToggleRoleLabel");
+
+  const shopToggle     = document.getElementById("shopToggle");
+  const shopMenu       = document.getElementById("shopMenu");
+
+  const trainerBtn     = document.getElementById("trainerBtn");
+  const trainerModal   = document.getElementById("trainerModal");
+  const trainerClose   = document.getElementById("trainerClose");
+  const trainerCancel  = document.getElementById("trainerCancel");
+  const trainerForm    = document.getElementById("trainerForm");
+  const trainerStatus  = document.getElementById("trainerStatus");
+
+  // If we’re not on the chat page, bail quietly
+  if (!chatLog || !form || !input) {
+    console.warn("Carrie chat: required DOM nodes not found, exiting.");
     return;
   }
 
-  // ----- state -----
-  let currentGender = "female"; // "female" | "male"
-  let currentCategory = DATA.categories[0]?.id || "skin";
-
-  // For each gender, remember selected item id per category
-  const selections = {
-    female: {},
-    male: {}
-  };
-
-  // helper: filter items by gender + category
-  function itemsForCurrent() {
-    return DATA.items.filter((it) => {
-      if (it.category !== currentCategory) return false;
-      if (it.gender === "unisex") return true;
-      return it.gender === currentGender;
-    });
-  }
-
-  // helper: get current selection object for gender
-  function getGenderSelections() {
-    return currentGender === "male" ? selections.male : selections.female;
-  }
-
-  // find default item for category/gender
-  function defaultItemFor(catId) {
-    const items = DATA.items.filter((it) => {
-      if (it.category !== catId) return false;
-      if (it.gender === "unisex") return true;
-      return it.gender === currentGender;
-    });
-    if (!items.length) return null;
-    // prefer default flag
-    const def = items.find((i) => i.default);
-    return def || items[0];
-  }
-
-  // ----- avatar rendering -----
-
-  // Create or update the avatar DOM
-  function renderAvatar() {
-    const gSel = getGenderSelections();
-
-    // base skin item
-    let baseItem = gSel.skin
-      ? DATA.items.find((it) => it.id === gSel.skin)
-      : null;
-    if (!baseItem) {
-      baseItem = defaultItemFor("skin");
-      if (baseItem) gSel.skin = baseItem.id;
-    }
-
-    // compute active items for all categories
-    const active = {
-      base: baseItem,
-      hair: findActiveSlotItem(gSel, "hair"),
-      eyes: findActiveSlotItem(gSel, "eyes"),
-      top: findActiveSlotItem(gSel, "top"),
-      bottom: findActiveSlotItem(gSel, "bottom"),
-      shoes: findActiveSlotItem(gSel, "shoes"),
-      necklace: findActiveSlotItem(gSel, "jewelry", "necklace"),
-      belly: findActiveSlotItem(gSel, "jewelry", "belly"),
-      earrings: findActiveSlotItem(gSel, "jewelry", "earrings")
-    };
-
-    // clear stage
-    avatarStage.innerHTML = "";
-
-    if (!active.base) {
-      const msg = document.createElement("p");
-      msg.className = "text-xs text-purple-200";
-      msg.textContent = "No base avatar found for this gender.";
-      avatarStage.appendChild(msg);
-      return;
-    }
-
-    // container relative box
-    const box = document.createElement("div");
-    box.style.width = "100%";
-    box.style.height = "100%";
-    box.style.position = "relative";
-    avatarStage.appendChild(box);
-
-    // base image
-    const baseImg = document.createElement("img");
-    baseImg.src = active.base.img;
-    baseImg.alt = "Base avatar";
-    baseImg.className = "avatar-base";
-    box.appendChild(baseImg);
-
-    // helper to add overlay
-    function addLayer(slotName, item) {
-      if (!item) return;
-      const img = document.createElement("img");
-      img.src = item.img;
-      img.alt = item.label;
-      img.className = "avatar-layer slot-" + slotName;
-      box.appendChild(img);
-    }
-
-    addLayer("hair", active.hair);
-    addLayer("eyes", active.eyes);
-    addLayer("top", active.top);
-    addLayer("bottom", active.bottom);
-    addLayer("shoes", active.shoes);
-    addLayer("necklace", active.necklace);
-    addLayer("belly", active.belly);
-    addLayer("earrings", active.earrings);
-  }
-
-  function findActiveSlotItem(gSel, categoryId, slotFilter) {
-    // selection for this category?
-    const selectedId = gSel[categoryId];
-    if (selectedId) {
-      const found = DATA.items.find((it) => it.id === selectedId);
-      if (found) return found;
-    }
-
-    // else fall back to default for that category, respecting slot if provided
-    const items = DATA.items.filter((it) => {
-      if (it.category !== categoryId) return false;
-      if (slotFilter && it.slot !== slotFilter) return false;
-      if (it.gender === "unisex") return true;
-      return it.gender === currentGender;
-    });
-    if (!items.length) return null;
-    const def = items.find((it) => it.default);
-    return def || items[0];
-  }
-
-  // ----- category rendering -----
-
-  function renderCategories() {
-    categoryBar.innerHTML = "";
-    DATA.categories.forEach((cat) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className =
-        "cat-pill" +
-        (cat.id === currentCategory ? " cat-pill-active" : "");
-      btn.dataset.category = cat.id;
-
-      const em = document.createElement("span");
-      em.className = "emoji";
-      em.textContent = cat.emoji;
-      const span = document.createElement("span");
-      span.textContent = cat.label;
-
-      btn.appendChild(em);
-      btn.appendChild(span);
-      categoryBar.appendChild(btn);
-    });
-
-    categoryBar.addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-category]");
-      if (!btn) return;
-      const catId = btn.dataset.category;
-      if (!catId || catId === currentCategory) return;
-      currentCategory = catId;
-      renderCategories();
-      renderItems();
-    });
-  }
-
-  // ----- item list rendering -----
-
-  function renderItems() {
-    const cat = DATA.categories.find((c) => c.id === currentCategory);
-    catTitleEl.textContent = cat ? cat.label : "Category";
-
-    const gSel = getGenderSelections();
-    const activeId = gSel[currentCategory];
-
-    const items = itemsForCurrent();
-    itemGrid.innerHTML = "";
-
-    if (!items.length) {
-      const msg = document.createElement("p");
-      msg.className = "text-xs text-purple-200/80";
-      msg.textContent = "No items yet in this category for this avatar.";
-      itemGrid.appendChild(msg);
-      renderAvatar();
-      return;
-    }
-
-    items.forEach((item) => {
-      const card = document.createElement("button");
-      card.type = "button";
-      card.className =
-        "item-card" + (item.id === activeId ? " selected" : "");
-      card.dataset.itemId = item.id;
-
-      const thumb = document.createElement("div");
-      thumb.className = "item-thumb";
-      const img = document.createElement("img");
-      img.src = item.img;
-      img.alt = item.label;
-      thumb.appendChild(img);
-
-      const textWrap = document.createElement("div");
-      const name = document.createElement("div");
-      name.className = "item-name";
-      name.textContent = item.label;
-
-      const meta = document.createElement("div");
-      meta.className = "item-meta";
-      const coinSpan = document.createElement("span");
-      coinSpan.textContent = item.coins + " coins";
-      meta.appendChild(coinSpan);
-
-      textWrap.appendChild(name);
-      textWrap.appendChild(meta);
-
-      card.appendChild(thumb);
-      card.appendChild(textWrap);
-
-      itemGrid.appendChild(card);
-    });
-
-    // click handler
-    itemGrid.onclick = (e) => {
-      const card = e.target.closest("button[data-item-id]");
-      if (!card) return;
-      const itemId = card.dataset.itemId;
-      const item = DATA.items.find((it) => it.id === itemId);
-      if (!item) return;
-
-      const gSel2 = getGenderSelections();
-      gSel2[item.category] = item.id;
-
-      renderItems();  // re-highlight selection
-      renderAvatar(); // re-draw avatar
-    };
-
-    renderAvatar();
-  }
-
-  // ----- gender switching -----
-
-  function setGender(newGender) {
-    if (newGender !== "female" && newGender !== "male") return;
-    currentGender = newGender;
-
-    // update label + buttons
-    if (genderLabelEl) {
-      genderLabelEl.textContent =
-        newGender === "female" ? "Female avatar" : "Male avatar";
-    }
-    if (genderFemaleBtn && genderMaleBtn) {
-      if (newGender === "female") {
-        genderFemaleBtn.classList.add(
-          "bg-purple-600/60",
-          "text-white",
-          "border-purple-400/60"
-        );
-        genderMaleBtn.classList.remove(
-          "bg-slate-800",
-          "border-sky-400/60"
-        );
-      } else {
-        genderMaleBtn.classList.add(
-          "bg-slate-800",
-          "border-sky-400/60",
-          "text-sky-100"
-        );
-        genderFemaleBtn.classList.remove(
-          "bg-purple-600/60",
-          "border-purple-400/60"
-        );
-      }
-    }
-
-    // ensure we have defaults for this gender
-    const gSel = getGenderSelections();
-    DATA.categories.forEach((cat) => {
-      if (!gSel[cat.id]) {
-        const def = defaultItemFor(cat.id);
-        if (def) gSel[cat.id] = def.id;
-      }
-    });
-
-    renderItems();
-  }
-
-  if (genderFemaleBtn) {
-    genderFemaleBtn.addEventListener("click", () => setGender("female"));
-  }
-  if (genderMaleBtn) {
-    genderMaleBtn.addEventListener("click", () => setGender("male"));
-  }
-
-  // ----- init -----
+  // --- Simple owner mode flag (local only for now) ---
+  const OWNER_KEY = "8bfr_owner_mode";
+  let isOwner = false;
 
   try {
-    renderCategories();
-    setGender("female");
-  } catch (err) {
-    console.error("Carrie Closet init failed", err);
-    if (avatarStage) {
-      avatarStage.innerHTML =
-        '<p class="text-xs text-red-300">Closet failed to load. Check the console for details.</p>';
+    isOwner = localStorage.getItem(OWNER_KEY) === "1";
+  } catch (e) {
+    isOwner = false;
+  }
+
+  function updateOwnerUI() {
+    if (btnToggleRole && maintRoleLabel) {
+      maintRoleLabel.textContent = isOwner
+        ? "View as regular user"
+        : "View as owner";
+    }
+    if (trainerBtn) {
+      // Only show trainer if "owner" mode is on
+      if (isOwner) {
+        trainerBtn.classList.remove("hidden");
+      } else {
+        trainerBtn.classList.add("hidden");
+      }
     }
   }
+
+  // --- Local chat storage (just on this device) ---
+  const LOG_KEY = "carrie_chat_log_v1";
+  const MODE_KEY = "carrie_chat_mode_v1";
+  const AVATAR_KEY = "carrie_chat_avatar_v1";
+
+  let currentMode = "business"; // business | personal | girlfriend | boyfriend
+  let currentAvatar = "carrie"; // carrie | james | azreen
+
+  function loadState() {
+    try {
+      const saved = localStorage.getItem(LOG_KEY);
+      if (saved) {
+        chatLog.innerHTML = saved;
+        chatLog.scrollTop = chatLog.scrollHeight;
+      }
+      const mode = localStorage.getItem(MODE_KEY);
+      if (mode) currentMode = mode;
+      const avatar = localStorage.getItem(AVATAR_KEY);
+      if (avatar) currentAvatar = avatar;
+    } catch (e) {
+      console.warn("Carrie chat: unable to load saved state", e);
+    }
+    updateModeLabel();
+    updateAvatarLabel();
+  }
+
+  function saveLog() {
+    try {
+      localStorage.setItem(LOG_KEY, chatLog.innerHTML);
+    } catch (e) {
+      console.warn("Carrie chat: unable to save log", e);
+    }
+  }
+
+  function saveModeAvatar() {
+    try {
+      localStorage.setItem(MODE_KEY, currentMode);
+      localStorage.setItem(AVATAR_KEY, currentAvatar);
+    } catch (e) {
+      console.warn("Carrie chat: unable to save mode/avatar", e);
+    }
+  }
+
+  // --- Typing indicator helpers ---
+  function showTyping() {
+    if (typingRow) typingRow.classList.remove("hidden");
+  }
+  function hideTyping() {
+    if (typingRow) typingRow.classList.add("hidden");
+  }
+
+  // --- Message rendering ---
+  function getAvatarSrcForChat() {
+    // For now: use the business / casual Carrie PNGs for all three,
+    // you can swap these later for separate assets.
+    if (currentAvatar === "james") {
+      return "assets/images/default_user_25_30.png";
+    }
+    if (currentAvatar === "azreen") {
+      return "assets/images/default_user_35_40_girl.png";
+    }
+    // Carrie
+    return "assets/images/carrie_business.png";
+  }
+
+  function addMessage(role, htmlContent) {
+    const row = document.createElement("div");
+    row.className = "msg-row" + (role === "user" ? " user" : "");
+
+    if (role === "user") {
+      row.innerHTML = `
+        <div class="msg-bubble">
+          <div class="msg-body">${htmlContent}</div>
+          <div class="msg-meta">You • now</div>
+        </div>
+      `;
+    } else {
+      const avatarSrc = getAvatarSrcForChat();
+      row.innerHTML = `
+        <div class="msg-avatar">
+          <img src="${avatarSrc}" alt="Carrie avatar" onerror="this.style.display='none'">
+        </div>
+        <div class="msg-bubble">
+          <div class="msg-body">${htmlContent}</div>
+          <div class="msg-meta">Carrie • ${currentMode} mode</div>
+        </div>
+      `;
+    }
+
+    chatLog.appendChild(row);
+    chatLog.scrollTop = chatLog.scrollHeight;
+    saveLog();
+  }
+
+  // --- Simple scripted replies (you can extend later) ---
+  const scripted = [
+    {
+      id: "buy_8bfr_music",
+      patterns: [
+        "how do i purchase 8bfr music",
+        "how do i buy 8bfr music",
+        "where can i buy 8bfr",
+        "where can i buy your music",
+        "buy 8bfr music",
+        "purchase 8bfr",
+        "stream 8bfr"
+      ],
+      reply: `
+        You can support 8BFR by <b>streaming or buying the music here:</b><br><br>
+        • 🎧 <a href="https://open.spotify.com/artist/127tw52iDXr7BvgB0IGG2x" target="_blank" rel="noopener">Spotify</a><br>
+        • 🛒 Search <b>"8BFR"</b> on your favorite music platform (Amazon, Apple, etc.)<br><br>
+        If you’d like, I can help you pick a track based on your mood. 💜
+      `
+    },
+    {
+      id: "carrie_closet",
+      patterns: [
+        "carrie closet",
+        "closet",
+        "change outfit",
+        "change clothes",
+        "dress carrie",
+        "change avatar clothes"
+      ],
+      reply: `
+        Want to try outfits and accessories? 👗<br><br>
+        • Open <a href="carrie-closet.html">Carrie Closet</a> to change hair, eyes, clothes, and accessories for BF / GF chat.<br>
+        • Coins and purchases will connect from the <a href="coinshop.html">Coin Shop</a> later.
+      `
+    },
+    {
+      id: "games",
+      patterns: [
+        "games",
+        "play a game",
+        "arcade",
+        "pool game",
+        "8 ball",
+        "9 ball"
+      ],
+      reply: `
+        🎮 <b>Games & Arcade</b><br><br>
+        • Visit the <a href="arcade.html">Game Arcade</a> for tournaments and pool modes.<br>
+        • You can win coins, show up on leaderboards, and unlock future upgrades.
+      `
+    }
+  ];
+
+  function findScriptedReply(text) {
+    const t = text.toLowerCase().trim();
+    for (const s of scripted) {
+      if (s.patterns.some((p) => t.includes(p))) {
+        return s.reply;
+      }
+    }
+    return null;
+  }
+
+  function buildGenericReply(text) {
+    const safe = text.replace(/[<>]/g, (ch) =>
+      ch === "<" ? "&lt;" : "&gt;"
+    );
+
+    let vibe = "";
+    if (currentMode === "personal") {
+      vibe = "I'm in chill mode, so feel free to talk to me like a friend. 💜";
+    } else if (currentMode === "girlfriend") {
+      vibe = "GF chat is in early beta, so I'm still learning how to talk like your partner. 💕";
+    } else if (currentMode === "boyfriend") {
+      vibe = "BF chat is in early beta, so I'm still learning how to talk like your partner. 💙";
+    } else {
+      vibe = "I'm here to help you with music, tools, and ideas for 8BFR.";
+    }
+
+    return `
+      You said:<br>
+      <blockquote style="margin:4px 0 6px;border-left:2px solid rgba(148,163,255,.6);padding-left:6px;font-size:0.8rem;">
+        ${safe}
+      </blockquote>
+      I’m still in beta on this page, so I don’t always understand complex questions yet.<br>
+      ${vibe}
+    `;
+  }
+
+  // --- Dropdown helpers (mode / avatar / maintenance / shop) ---
+
+  function closeAllDropdowns() {
+    [chatModeMenu, avatarMenu, maintMenu, shopMenu].forEach((menu) => {
+      if (menu) menu.classList.remove("open");
+    });
+  }
+
+  function attachDropdown(toggleEl, menuEl) {
+    if (!toggleEl || !menuEl) return;
+    toggleEl.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const already = menuEl.classList.contains("open");
+      closeAllDropdowns();
+      if (!already) menuEl.classList.add("open");
+    });
+  }
+
+  document.addEventListener("click", () => {
+    closeAllDropdowns();
+  });
+
+  attachDropdown(chatModeToggle, chatModeMenu);
+  attachDropdown(avatarToggle, avatarMenu);
+  attachDropdown(maintToggle, maintMenu);
+  attachDropdown(shopToggle, shopMenu);
+
+  // --- Mode selection ---
+  function updateModeLabel() {
+    if (!chatModeLabel) return;
+    const label = {
+      business: "Business",
+      personal: "Personal",
+      girlfriend: "Girlfriend",
+      boyfriend: "Boyfriend"
+    }[currentMode] || "Business";
+    chatModeLabel.textContent = "Mode: " + label;
+  }
+
+  if (chatModeMenu) {
+    chatModeMenu.querySelectorAll("[data-mode]").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        const mode = btn.getAttribute("data-mode") || "business";
+        currentMode = mode;
+        updateModeLabel();
+        saveModeAvatar();
+        closeAllDropdowns();
+      });
+    });
+  }
+
+  // --- Avatar selection ---
+  function updateAvatarLabel() {
+    if (!avatarLabel) return;
+    const label = {
+      carrie: "Carrie",
+      james: "James",
+      azreen: "Azreen"
+    }[currentAvatar] || "Carrie";
+    avatarLabel.textContent = "Avatar: " + label;
+  }
+
+  if (avatarMenu) {
+    avatarMenu.querySelectorAll("[data-avatar]").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        const av = btn.getAttribute("data-avatar") || "carrie";
+        currentAvatar = av;
+        updateAvatarLabel();
+        saveModeAvatar();
+        closeAllDropdowns();
+      });
+    });
+  }
+
+  // --- Maintenance actions ---
+  if (btnClearLocal) {
+    btnClearLocal.addEventListener("click", (e) => {
+      e.preventDefault();
+      chatLog.innerHTML = "";
+      saveLog();
+      closeAllDropdowns();
+    });
+  }
+
+  if (btnToggleRole) {
+    btnToggleRole.addEventListener("click", (e) => {
+      e.preventDefault();
+      isOwner = !isOwner;
+      try {
+        localStorage.setItem(OWNER_KEY, isOwner ? "1" : "0");
+      } catch (err) {}
+      updateOwnerUI();
+      closeAllDropdowns();
+    });
+  }
+
+  // --- Trainer modal (owner only; local only for now) ---
+  function openTrainer() {
+    if (!trainerModal) return;
+    trainerModal.classList.remove("hidden");
+  }
+  function closeTrainer() {
+    if (!trainerModal) return;
+    trainerModal.classList.add("hidden");
+  }
+
+  if (trainerBtn) {
+    trainerBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      openTrainer();
+    });
+  }
+  if (trainerClose) {
+    trainerClose.addEventListener("click", (e) => {
+      e.preventDefault();
+      closeTrainer();
+    });
+  }
+  if (trainerCancel) {
+    trainerCancel.addEventListener("click", (e) => {
+      e.preventDefault();
+      closeTrainer();
+    });
+  }
+  if (trainerForm && trainerStatus) {
+    trainerForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const q = document.getElementById("trainerQuestion");
+      const a = document.getElementById("trainerAnswer");
+      const qv = (q && q.value || "").trim();
+      const av = (a && a.value || "").trim();
+      if (!qv || !av) {
+        trainerStatus.style.display = "block";
+        trainerStatus.textContent = "Please add both a pattern and a reply.";
+        trainerStatus.style.color = "#fed7d7";
+        return;
+      }
+      // For now, this is just local / temporary — no Supabase yet.
+      trainerStatus.style.display = "block";
+      trainerStatus.style.color = "#bbf7d0";
+      trainerStatus.textContent =
+        "Saved locally (beta). A future update will sync this to Supabase.";
+    });
+  }
+
+  // --- Chat submission handler ---
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const txt = input.value.trim();
+    if (!txt) return;
+
+    const safeTxt = txt.replace(/[<>]/g, (ch) =>
+      ch === "<" ? "&lt;" : "&gt;"
+    );
+
+    addMessage("user", safeTxt);
+    input.value = "";
+    showTyping();
+
+    // Simulate thinking
+    setTimeout(() => {
+      const scriptedReply = findScriptedReply(txt);
+      const reply = scriptedReply || buildGenericReply(txt);
+      addMessage("assistant", reply);
+      hideTyping();
+    }, 500);
+  });
+
+  // Allow Enter to send, Shift+Enter = newline
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      form.requestSubmit();
+    }
+  });
+
+  // --- Init everything ---
+  loadState();
+  updateOwnerUI();
+
+  // Tiny debug
+  console.log("Carrie chat JS initialized. Mode:", currentMode, "Avatar:", currentAvatar);
 })();
