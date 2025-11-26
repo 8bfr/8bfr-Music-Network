@@ -1,17 +1,17 @@
 // carrie-closet.js
-// Front-end logic for Carrie Closet (no coins yet, visual only).
+// Front-end logic for Carrie Closet (visual only for now).
 
 (function () {
-  const baseImg = document.getElementById("closetBaseImg");
-  const overlayHost = document.getElementById("closetOverlayHost");
-  const itemsGrid = document.getElementById("closetItemsGrid");
-  const errorBox = document.getElementById("closetError");
-  const emptyBox = document.getElementById("closetEmpty");
-  const previewLabel = document.getElementById("closetPreviewLabel");
-  const genderLabel = document.getElementById("closetGenderLabel");
-  const genderButtons = document.querySelectorAll("[data-gender]");
-  const skinToneContainer = document.getElementById("skinToneButtons");
-  const tabButtons = document.querySelectorAll(".tab-btn");
+  const baseImg          = document.getElementById("closetBaseImg");
+  const overlayHost      = document.getElementById("closetOverlayHost");
+  const itemsGrid        = document.getElementById("closetItemsGrid");
+  const errorBox         = document.getElementById("closetError");
+  const emptyBox         = document.getElementById("closetEmpty");
+  const previewLabel     = document.getElementById("closetPreviewLabel");
+  const genderLabel      = document.getElementById("closetGenderLabel");
+  const genderButtons    = document.querySelectorAll("[data-gender]");
+  const skinToneContainer= document.getElementById("skinToneButtons");
+  const tabButtons       = document.querySelectorAll(".tab-btn");
 
   if (!baseImg || !overlayHost || !itemsGrid) {
     console.warn("Carrie Closet: required DOM elements missing.");
@@ -31,8 +31,8 @@
   // --- State ---
 
   let currentGender = "female"; // female | male
-  let currentTone = "light";    // light | medium | dark
-  let currentCat = "hair";      // hair/top/bottom/jewelry/eyes/shoes/all
+  let currentTone   = "light";  // light | medium | dark
+  let currentCat    = "hair";   // hair/top/bottom/jewelry/eyes/shoes/all
 
   // One equipped item per overlay slot
   const equipped = {
@@ -49,21 +49,21 @@
   // Map gender + tone -> base PNG
   const BASES = {
     female: {
-      light: "assets/images/base/female/base_female_light.png",
+      light:  "assets/images/base/female/base_female_light.png",
       medium: "assets/images/base/female/base_female_medium.png",
-      dark: "assets/images/base/female/base_female_dark.png"
+      dark:   "assets/images/base/female/base_female_dark.png"
     },
     male: {
-      light: "assets/images/base/male/base_male_light.png",
+      light:  "assets/images/base/male/base_male_light.png",
       medium: "assets/images/base/male/base_male_medium.png",
-      dark: "assets/images/base/male/base_male_dark.png"
+      dark:   "assets/images/base/male/base_male_dark.png"
     }
   };
 
   const TONES = [
-    { id: "light", label: "Light" },
+    { id: "light",  label: "Light"  },
     { id: "medium", label: "Medium" },
-    { id: "dark", label: "Dark" }
+    { id: "dark",   label: "Dark"   }
   ];
 
   // --- Helpers ---
@@ -75,6 +75,7 @@
     if (src) {
       baseImg.src = src;
     }
+
     if (previewLabel) {
       const toneLabel =
         currentTone === "light"
@@ -109,7 +110,7 @@
       layer.src = imgSrc;
       layer.style.display = "block";
     } else {
-      layer.src = "";
+      layer.removeAttribute("src");
       layer.style.display = "none";
     }
   }
@@ -117,7 +118,8 @@
   function clearSlot(slot) {
     equipped[slot] = null;
     setOverlay(slot, null);
-    // Also un-highlight cards for this slot
+
+    // Un-highlight cards for this slot
     const cards = itemsGrid.querySelectorAll("[data-slot='" + slot + "']");
     cards.forEach((c) => c.classList.remove("active"));
   }
@@ -131,13 +133,14 @@
       return;
     }
 
+    // Equip
     equipped[item.slot] = item;
     setOverlay(item.slot, item.img || item.image || "");
 
-    // Highlight selected card in the grid
+    // Highlight selected card in the grid for that slot
     const cards = itemsGrid.querySelectorAll(".closet-item-card");
     cards.forEach((card) => {
-      const cid = card.getAttribute("data-id");
+      const cid  = card.getAttribute("data-id");
       const slot = card.getAttribute("data-slot");
       if (slot === item.slot && cid === item.id) {
         card.classList.add("active");
@@ -166,8 +169,7 @@
       const btn = document.createElement("button");
       btn.type = "button";
       btn.textContent = tone.label;
-      btn.className =
-        "seg-btn" + (tone.id === currentTone ? " active" : "");
+      btn.className = "seg-btn" + (tone.id === currentTone ? " active" : "");
       btn.dataset.tone = tone.id;
       btn.addEventListener("click", () => {
         currentTone = tone.id;
@@ -218,12 +220,12 @@
       noneCard.addEventListener("click", () => {
         // map cat -> slot(s)
         const map = {
-          hair: ["hair"],
-          top: ["top"],
-          bottom: ["bottom"],
+          hair:    ["hair"],
+          top:     ["top"],
+          bottom:  ["bottom"],
           jewelry: ["necklace", "ears", "belly"],
-          eyes: ["eyes"],
-          shoes: ["shoes"]
+          eyes:    ["eyes"],
+          shoes:   ["shoes"]
         };
         const slots = map[currentCat] || [];
         slots.forEach(clearSlot);
