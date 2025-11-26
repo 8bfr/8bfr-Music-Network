@@ -1,7 +1,7 @@
 // carrie-closet.js
-// ONE-FILE version: contains its own data so it does not depend on carrie-closet-data.js
+// Self-contained: includes its own data and logic. No dependency on carrie-closet--data.js.
 
-// ---------- Static base config (from your folders) ----------
+// ---------- Base config ----------
 
 const CLOSET_BASE_CONFIG = {
   female: {
@@ -50,13 +50,13 @@ const CLOSET_BASE_CONFIG = {
   },
 };
 
-// ---------- Static items (from your folders) ----------
+// ---------- Items (pulled from your folder names) ----------
 // gender: "female" | "male" | "unisex"
 // category: "hair" | "top" | "bottom" | "jewelry" | "eyes" | "shoes"
 // layer: "hair" | "top" | "bottom" | "necklace" | "ears" | "belly" | "eyes" | "shoes"
 
 const CLOSET_ITEMS = [
-  // ---- FEMALE HAIR – STRAIGHT ----
+  // FEMALE HAIR – STRAIGHT
   {
     id: "hair_f_straight_blonde",
     label: "Straight Blonde",
@@ -130,7 +130,7 @@ const CLOSET_ITEMS = [
     price: 70,
   },
 
-  // ---- FEMALE HAIR – WAVY ----
+  // FEMALE HAIR – WAVY
   {
     id: "hair_f_wavy_blonde",
     label: "Wavy Blonde",
@@ -204,7 +204,7 @@ const CLOSET_ITEMS = [
     price: 75,
   },
 
-  // ---- FEMALE CLOTHING (BOTTOMS) ----
+  // FEMALE CLOTHING (BOTTOMS)
   {
     id: "bottom_f_shorts",
     label: "Shorts",
@@ -223,7 +223,6 @@ const CLOSET_ITEMS = [
     src: "assets/images/female_cloths/female_skirt.png",
     price: 45,
   },
-  // Bikini is baked into the base art, but we keep as toggle:
   {
     id: "bottom_f_bikini",
     label: "Bikini (default)",
@@ -234,7 +233,7 @@ const CLOSET_ITEMS = [
     price: 0,
   },
 
-  // ---- FEMALE JEWELRY ----
+  // FEMALE JEWELRY
   {
     id: "jewelry_f_necklace",
     label: "Gold Necklace",
@@ -263,7 +262,7 @@ const CLOSET_ITEMS = [
     price: 70,
   },
 
-  // ---- MALE JEWELRY ----
+  // MALE JEWELRY
   {
     id: "jewelry_m_necklace",
     label: "Gold Necklace (M)",
@@ -274,7 +273,7 @@ const CLOSET_ITEMS = [
     price: 80,
   },
 
-  // ---- UNISEX TOPS ----
+  // UNISEX TOPS
   {
     id: "top_unisex_tank",
     label: "Tank Top",
@@ -294,7 +293,7 @@ const CLOSET_ITEMS = [
     price: 40,
   },
 
-  // ---- UNISEX EYES ----
+  // UNISEX EYES
   {
     id: "eyes_unisex_blue",
     label: "Blue Eyes",
@@ -323,7 +322,7 @@ const CLOSET_ITEMS = [
     price: 30,
   },
 
-  // ---- UNISEX SHOES ----
+  // UNISEX SHOES
   {
     id: "shoes_unisex_sneakers",
     label: "Sneakers",
@@ -346,9 +345,9 @@ const CLOSET_ITEMS = [
 
 // ---------- State ----------
 
-let closetGender = "female"; // "female" | "male"
-let closetSkinId = "light";
-let closetCategory = "hair"; // default tab
+let closetGender = "female";       // "female" | "male"
+let closetSkinId = "light";        // "light" | "medium" | "dark"
+let closetCategory = "hair";       // current tab
 
 // layer -> itemId (current selection)
 const closetSelections = {
@@ -364,17 +363,17 @@ const closetSelections = {
 
 // ---------- DOM refs ----------
 
-const baseImgEl = document.getElementById("closetBaseImg");
-const overlayHostEl = document.getElementById("closetOverlayHost");
-const previewLabelEl = document.getElementById("closetPreviewLabel");
-const genderLabelEl = document.getElementById("closetGenderLabel");
+const baseImgEl         = document.getElementById("closetBaseImg");
+const overlayHostEl     = document.getElementById("closetOverlayHost");
+const previewLabelEl    = document.getElementById("closetPreviewLabel");
+const genderLabelEl     = document.getElementById("closetGenderLabel");
 const skinToneButtonsEl = document.getElementById("skinToneButtons");
-const itemsGridEl = document.getElementById("closetItemsGrid");
-const errorEl = document.getElementById("closetError");
-const emptyEl = document.getElementById("closetEmpty");
+const itemsGridEl       = document.getElementById("closetItemsGrid");
+const errorEl           = document.getElementById("closetError");
+const emptyEl           = document.getElementById("closetEmpty");
 
 const genderButtons = document.querySelectorAll(".seg-btn[data-gender]");
-const tabButtons = document.querySelectorAll(".tab-btn[data-cat]");
+const tabButtons    = document.querySelectorAll(".tab-btn[data-cat]");
 
 // ---------- Helpers ----------
 
@@ -390,22 +389,22 @@ function updateBaseImage() {
   const cfg = getBaseConfig();
   if (!cfg || !baseImgEl) return;
 
-  const skin =
-    cfg.skins.find((s) => s.id === closetSkinId) || cfg.skins[0];
+  const skin = cfg.skins.find((s) => s.id === closetSkinId) || cfg.skins[0];
   if (!skin) return;
 
   baseImgEl.src = skin.src;
+
   const genderLabel = cfg.label;
-  const skinLabel = skin.label;
-  const baseDesc = cfg.baseDesc || "Base";
+  const skinLabel   = skin.label;
+  const baseDesc    = cfg.baseDesc || "Base";
 
   if (previewLabelEl) {
     previewLabelEl.textContent =
-      genderLabel + " • " + skinLabel + " skin • " + baseDesc;
+      `${genderLabel} • ${skinLabel} skin • ${baseDesc}`;
   }
   if (genderLabelEl) {
     genderLabelEl.innerHTML =
-      'Showing items for <b>' + genderLabel + "</b> avatar";
+      `Showing items for <b>${genderLabel}</b> avatar`;
   }
 }
 
@@ -432,13 +431,13 @@ function renderSkinToneButtons() {
   });
 }
 
-// Each layer gets ONE img in overlay host
+// Each layer gets ONE overlay <img>
 function getOrCreateLayerImg(layer) {
   if (!overlayHostEl) return null;
-  let img = overlayHostEl.querySelector('img[data-layer="' + layer + '"]');
+  let img = overlayHostEl.querySelector(`img[data-layer="${layer}"]`);
   if (!img) {
     img = document.createElement("img");
-    img.className = "layer-overlay layer-" + layer;
+    img.className = `layer-overlay layer-${layer}`;
     img.dataset.layer = layer;
     overlayHostEl.appendChild(img);
   }
@@ -447,12 +446,11 @@ function getOrCreateLayerImg(layer) {
 
 function clearLayer(layer) {
   if (!overlayHostEl) return;
-  const img = overlayHostEl.querySelector('img[data-layer="' + layer + '"]');
+  const img = overlayHostEl.querySelector(`img[data-layer="${layer}"]`);
   if (img) img.remove();
   closetSelections[layer] = null;
 }
 
-// Apply chosen item to its layer
 function applySelection(item) {
   const layer = item.layer;
   if (!layer) return;
@@ -465,7 +463,7 @@ function applySelection(item) {
   img.alt = item.label || "";
 }
 
-// Filter items by current gender + category
+// Filter items by gender + category
 function filteredItems() {
   const all = safeItems();
 
@@ -480,25 +478,25 @@ function filteredItems() {
 // ---------- Render items grid ----------
 
 function renderItemsGrid() {
-  if (!itemsGridEl || !errorEl || !emptyEl) return;
+  if (!itemsGridEl || !emptyEl) return;
 
   const items = filteredItems();
 
-  // No hard error now, just empty check
   if (!items.length) {
     emptyEl.classList.remove("hidden");
     itemsGridEl.innerHTML = "";
-  } else {
-    emptyEl.classList.add("hidden");
-    itemsGridEl.innerHTML = "";
+    return;
   }
+
+  emptyEl.classList.add("hidden");
+  itemsGridEl.innerHTML = "";
 
   items.forEach((item) => {
     const card = document.createElement("button");
     card.type = "button";
     card.className = "closet-item-card";
     card.dataset.itemId = item.id;
-    card.dataset.layer = item.layer;
+    card.dataset.layer  = item.layer;
 
     const thumb = document.createElement("div");
     thumb.className = "closet-item-thumb";
@@ -517,7 +515,7 @@ function renderItemsGrid() {
     const cat =
       item.category.charAt(0).toUpperCase() + item.category.slice(1);
     const price = item.price != null ? item.price : 0;
-    meta.textContent = cat + " • " + price + " coins";
+    meta.textContent = `${cat} • ${price} coins`;
 
     textWrap.appendChild(title);
     textWrap.appendChild(meta);
@@ -525,7 +523,6 @@ function renderItemsGrid() {
     card.appendChild(thumb);
     card.appendChild(textWrap);
 
-    // Active state if this item is selected for its layer
     if (closetSelections[item.layer] === item.id) {
       card.classList.add("active");
     }
@@ -533,12 +530,11 @@ function renderItemsGrid() {
     card.addEventListener("click", () => {
       const current = closetSelections[item.layer];
       if (current === item.id) {
-        // clicking again clears that layer
         clearLayer(item.layer);
       } else {
         applySelection(item);
       }
-      renderItemsGrid(); // refresh active highlighting
+      renderItemsGrid();
     });
 
     itemsGridEl.appendChild(card);
@@ -555,7 +551,6 @@ function initGenderButtons() {
 
       closetGender = g;
 
-      // reset selections on gender switch
       Object.keys(closetSelections).forEach(
         (k) => (closetSelections[k] = null)
       );
@@ -563,7 +558,6 @@ function initGenderButtons() {
       const cfg = getBaseConfig();
       closetSkinId = cfg ? cfg.defaultSkinId || "light" : "light";
 
-      // update UI active state
       genderButtons.forEach((b) =>
         b.classList.toggle(
           "active",
@@ -571,7 +565,6 @@ function initGenderButtons() {
         )
       );
 
-      // clear overlays
       if (overlayHostEl) overlayHostEl.innerHTML = "";
 
       updateBaseImage();
@@ -601,26 +594,35 @@ function initTabButtons() {
 // ---------- Init ----------
 
 (function initCarrieCloset() {
-  if (!baseImgEl || !overlayHostEl) {
-    console.warn("Carrie Closet: base or overlay host missing");
-    return;
+  try {
+    if (!baseImgEl || !overlayHostEl) {
+      console.warn("Carrie Closet: base or overlay host missing");
+      if (errorEl) errorEl.classList.remove("hidden");
+      return;
+    }
+
+    const cfg = getBaseConfig();
+    if (cfg) {
+      closetSkinId = cfg.defaultSkinId || "light";
+    }
+
+    updateBaseImage();
+    renderSkinToneButtons();
+    initGenderButtons();
+    initTabButtons();
+    renderItemsGrid();
+
+    console.log(
+      "Carrie Closet initialized with",
+      safeItems().length,
+      "items"
+    );
+  } catch (err) {
+    console.error("Carrie Closet init error:", err);
+    if (errorEl) {
+      errorEl.classList.remove("hidden");
+      errorEl.textContent =
+        "Carrie Closet failed to initialize: " + String(err);
+    }
   }
-
-  // Initial skin from config
-  const cfg = getBaseConfig();
-  if (cfg) {
-    closetSkinId = cfg.defaultSkinId || "light";
-  }
-
-  updateBaseImage();
-  renderSkinToneButtons();
-  initGenderButtons();
-  initTabButtons();
-  renderItemsGrid();
-
-  console.log(
-    "Carrie Closet initialized with",
-    safeItems().length,
-    "items"
-  );
 })();
