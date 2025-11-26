@@ -1,10 +1,9 @@
 // carrie-chat.js
 // Front-end logic for the Carrie chat page only (carrie-chat.html).
-// No Closet logic in here – that lives in carrie-closet*.js.
+// Does NOT touch Carrie Closet – that stays in carrie-closet*.js.
 
-// Wrap everything so we don't leak globals
 (function () {
-  // --- Grab core DOM nodes ---
+  // --- Grab DOM nodes ---
   const chatLog        = document.getElementById("chatLog");
   const typingRow      = document.getElementById("typingRow");
   const form           = document.getElementById("carrieForm");
@@ -21,6 +20,8 @@
   const maintToggle    = document.getElementById("maintToggle");
   const maintMenu      = document.getElementById("maintMenu");
   const btnClearLocal  = document.getElementById("maintClearLocal");
+  const btnSaveSelf    = document.getElementById("maintSaveSnapshot");
+  const btnArchiveAll  = document.getElementById("maintArchiveAll");
   const btnToggleRole  = document.getElementById("maintToggleRole");
   const maintRoleLabel = document.getElementById("maintToggleRoleLabel");
 
@@ -34,13 +35,17 @@
   const trainerForm    = document.getElementById("trainerForm");
   const trainerStatus  = document.getElementById("trainerStatus");
 
-  // If we’re not on the chat page, bail quietly
+  // Floating corner avatar (video)
+  const chatVideo      = document.getElementById("chatCarrieVideo");
+  const chatBubble     = document.getElementById("chatCarrieBubble");
+
+  // If we’re somehow not on the chat page, bail quietly
   if (!chatLog || !form || !input) {
     console.warn("Carrie chat: required DOM nodes not found, exiting.");
     return;
   }
 
-  // --- Simple owner mode flag (local only for now) ---
+  // --- Owner toggle (local only) ---
   const OWNER_KEY = "8bfr_owner_mode";
   let isOwner = false;
 
@@ -51,28 +56,25 @@
   }
 
   function updateOwnerUI() {
-    if (btnToggleRole && maintRoleLabel) {
+    if (maintRoleLabel) {
       maintRoleLabel.textContent = isOwner
         ? "View as regular user"
         : "View as owner";
     }
     if (trainerBtn) {
-      // Only show trainer if "owner" mode is on
-      if (isOwner) {
-        trainerBtn.classList.remove("hidden");
-      } else {
-        trainerBtn.classList.add("hidden");
-      }
+      if (isOwner) trainerBtn.classList.remove("hidden");
+      else trainerBtn.classList.add("hidden");
     }
   }
 
-  // --- Local chat storage (just on this device) ---
-  const LOG_KEY = "carrie_chat_log_v1";
-  const MODE_KEY = "carrie_chat_mode_v1";
-  const AVATAR_KEY = "carrie_chat_avatar_v1";
+  // --- Local state ---
+  const LOG_KEY       = "carrie_chat_log_v1";
+  const MODE_KEY      = "carrie_chat_mode_v1";
+  const AVATAR_KEY    = "carrie_chat_avatar_v1";
+  const ARCHIVE_KEY   = "carrie_chat_archive_v1"; // "Archive for me"
 
-  let currentMode = "business"; // business | personal | girlfriend | boyfriend
-  let currentAvatar = "carrie"; // carrie | james | azreen
+  let currentMode   = "business"; // business | personal | girlfriend | boyfriend
+  let currentAvatar = "carrie";   // carrie | james | azreen
 
   function loadState() {
     try {
@@ -90,6 +92,7 @@
     }
     updateModeLabel();
     updateAvatarLabel();
+    updateFloatingAvatar();
   }
 
   function saveLog() {
@@ -109,7 +112,7 @@
     }
   }
 
-  // --- Typing indicator helpers ---
+  // --- Typing indicator ---
   function showTyping() {
     if (typingRow) typingRow.classList.remove("hidden");
   }
@@ -117,20 +120,50 @@
     if (typingRow) typingRow.classList.add("hidden");
   }
 
-  // --- Message rendering ---
-  function getAvatarSrcForChat() {
-    // For now: use the business / casual Carrie PNGs for all three,
-    // you can swap these later for separate assets.
+  // --- Avatar art mapping ---
+  function getAvatarImageSrc() {
+    // Chat bubble thumbnail (in the log)
     if (currentAvatar === "james") {
       return "assets/images/default_user_25_30.png";
     }
     if (currentAvatar === "azreen") {
       return "assets/images/default_user_35_40_girl.png";
     }
-    // Carrie
+    // Carrie is default
     return "assets/images/carrie_business.png";
   }
 
+  function getVideoSrcForAvatar() {
+    // You can change these to more specific videos when you have them
+    if (currentAvatar === "james") {
+      return "assets/videos/carrie_business_animate.webm"; // placeholder
+    }
+    if (currentAvatar === "azreen") {
+      return "assets/videos/carrie_business_animate.webm"; // placeholder
+    }
+    return "assets/videos/carrie_business_animate.webm";
+  }
+
+  function updateFloatingAvatar() {
+    if (!chatVideo) return;
+    const newSrc = getVideoSrcForAvatar();
+    if (chatVideo.getAttribute("src") !== newSrc) {
+      chatVideo.setAttribute("src", newSrc);
+      try {
+        chatVideo.play().catch(() => {});
+      } catch (e) {}
+    }
+    if (chatBubble) {
+      const label = {
+        carrie: "Carrie (chat)",
+        james: "James (chat)",
+        azreen: "Azreen (chat)"
+      }[currentAvatar] || "Carrie (chat)";
+      chatBubble.textContent = label;
+    }
+  }
+
+  // --- Message rendering ---
   function addMessage(role, htmlContent) {
     const row = document.createElement("div");
     row.className = "msg-row" + (role === "user" ? " user" : "");
@@ -143,14 +176,20 @@
         </div>
       `;
     } else {
-      const avatarSrc = getAvatarSrcForChat();
+      const avatarSrc = getAvatarImageSrc();
+      const whoLabel = {
+        carrie: "Carrie",
+        james: "James",
+        azreen: "Azreen"
+      }[currentAvatar] || "Carrie";
+
       row.innerHTML = `
         <div class="msg-avatar">
-          <img src="${avatarSrc}" alt="Carrie avatar" onerror="this.style.display='none'">
+          <img src="${avatarSrc}" alt="${whoLabel} avatar" onerror="this.style.display='none'">
         </div>
         <div class="msg-bubble">
           <div class="msg-body">${htmlContent}</div>
-          <div class="msg-meta">Carrie • ${currentMode} mode</div>
+          <div class="msg-meta">${whoLabel} • ${currentMode} mode</div>
         </div>
       `;
     }
@@ -160,7 +199,7 @@
     saveLog();
   }
 
-  // --- Simple scripted replies (you can extend later) ---
+  // --- Scripted Q&A ---
   const scripted = [
     {
       id: "buy_8bfr_music",
@@ -171,13 +210,14 @@
         "where can i buy your music",
         "buy 8bfr music",
         "purchase 8bfr",
-        "stream 8bfr"
+        "stream 8bfr",
+        "listen to 8bfr"
       ],
       reply: `
         You can support 8BFR by <b>streaming or buying the music here:</b><br><br>
-        • 🎧 <a href="https://open.spotify.com/artist/127tw52iDXr7BvgB0IGG2x" target="_blank" rel="noopener">Spotify</a><br>
-        • 🛒 Search <b>"8BFR"</b> on your favorite music platform (Amazon, Apple, etc.)<br><br>
-        If you’d like, I can help you pick a track based on your mood. 💜
+        • 🎧 <a href="https://open.spotify.com/artist/127tw52iDXr7BvgB0IGG2x" target="_blank" rel="noopener">Spotify – 8BFR</a><br>
+        • 🛒 Search <b>"8BFR"</b> on Apple Music, Amazon, or your favorite platform.<br><br>
+        If you tell me your mood, I can suggest a type of track to start with. 💜
       `
     },
     {
@@ -188,12 +228,34 @@
         "change outfit",
         "change clothes",
         "dress carrie",
-        "change avatar clothes"
+        "dress avatar",
+        "change avatar clothes",
+        "bf chat",
+        "gf chat",
+        "boyfriend chat",
+        "girlfriend chat"
       ],
       reply: `
-        Want to try outfits and accessories? 👗<br><br>
-        • Open <a href="carrie-closet.html">Carrie Closet</a> to change hair, eyes, clothes, and accessories for BF / GF chat.<br>
-        • Coins and purchases will connect from the <a href="coinshop.html">Coin Shop</a> later.
+        Outfit changing is part of <b>BF / GF chat</b> and the <b>Carrie Closet</b> system. 👗<br><br>
+        • Open <a href="carrie-closet.html">Carrie Closet</a> to try hair, eyes, clothes, and accessories.<br>
+        • Coins and real purchases will connect from the <a href="coinshop.html">Coin Shop</a> later.<br><br>
+        On normal business/personal chat we keep Carrie in a standard outfit so she stays consistent across pages.
+      `
+    },
+    {
+      id: "coins",
+      patterns: [
+        "coins",
+        "buy coins",
+        "coin shop",
+        "how do coins work",
+        "what are coins for"
+      ],
+      reply: `
+        🪙 <b>8BFR Coins (beta design)</b><br><br>
+        • Use coins later for outfits, BF / GF chat upgrades, game entries, and special perks.<br>
+        • The design is being wired to the <a href="coinshop.html">Coin Shop</a> and game pages.<br><br>
+        Right now, Closet is visual only so you can design looks without spending coins yet.
       `
     },
     {
@@ -204,12 +266,14 @@
         "arcade",
         "pool game",
         "8 ball",
-        "9 ball"
+        "9 ball",
+        "tournaments"
       ],
       reply: `
         🎮 <b>Games & Arcade</b><br><br>
-        • Visit the <a href="arcade.html">Game Arcade</a> for tournaments and pool modes.<br>
-        • You can win coins, show up on leaderboards, and unlock future upgrades.
+        • Visit the <a href="arcade.html">Game Arcade</a> for pool and other games.<br>
+        • Leaderboards and tournaments will connect with coins and rewards.<br><br>
+        I can help explain any game rules if you want.
       `
     }
   ];
@@ -231,13 +295,13 @@
 
     let vibe = "";
     if (currentMode === "personal") {
-      vibe = "I'm in chill mode, so feel free to talk to me like a friend. 💜";
+      vibe = "I’m in personal / chill mode, so you can talk to me like a friend. 💜";
     } else if (currentMode === "girlfriend") {
-      vibe = "GF chat is in early beta, so I'm still learning how to talk like your partner. 💕";
+      vibe = "GF chat is in early beta – I’m still learning how to talk like a partner. 💕";
     } else if (currentMode === "boyfriend") {
-      vibe = "BF chat is in early beta, so I'm still learning how to talk like your partner. 💙";
+      vibe = "BF chat is in early beta – I’m still learning how to talk like a partner. 💙";
     } else {
-      vibe = "I'm here to help you with music, tools, and ideas for 8BFR.";
+      vibe = "I’m in business mode to help with music, tools, and site questions.";
     }
 
     return `
@@ -245,13 +309,12 @@
       <blockquote style="margin:4px 0 6px;border-left:2px solid rgba(148,163,255,.6);padding-left:6px;font-size:0.8rem;">
         ${safe}
       </blockquote>
-      I’m still in beta on this page, so I don’t always understand complex questions yet.<br>
+      I’m still in beta on this page, so I don’t always give perfect answers yet.<br>
       ${vibe}
     `;
   }
 
-  // --- Dropdown helpers (mode / avatar / maintenance / shop) ---
-
+  // --- Dropdown helpers ---
   function closeAllDropdowns() {
     [chatModeMenu, avatarMenu, maintMenu, shopMenu].forEach((menu) => {
       if (menu) menu.classList.remove("open");
@@ -294,6 +357,8 @@
       btn.addEventListener("click", (e) => {
         e.preventDefault();
         const mode = btn.getAttribute("data-mode") || "business";
+        // You mentioned business/personal main + BF/GF for avatars later.
+        // For now, we just switch the label + reply style.
         currentMode = mode;
         updateModeLabel();
         saveModeAvatar();
@@ -321,6 +386,7 @@
         currentAvatar = av;
         updateAvatarLabel();
         saveModeAvatar();
+        updateFloatingAvatar();
         closeAllDropdowns();
       });
     });
@@ -332,6 +398,45 @@
       e.preventDefault();
       chatLog.innerHTML = "";
       saveLog();
+      closeAllDropdowns();
+      addMessage(
+        "assistant",
+        "Chat cleared on this device only. (History on other devices is not affected.)"
+      );
+    });
+  }
+
+  if (btnSaveSelf) {
+    btnSaveSelf.addEventListener("click", (e) => {
+      e.preventDefault();
+      try {
+        const payload = {
+          savedAt: new Date().toISOString(),
+          html: chatLog.innerHTML
+        };
+        localStorage.setItem(ARCHIVE_KEY, JSON.stringify(payload));
+        addMessage(
+          "assistant",
+          "Archived this conversation <b>locally for you</b>. (Only on this device, not in the cloud yet.)"
+        );
+      } catch (err) {
+        addMessage(
+          "assistant",
+          "I couldn’t archive this chat locally (storage error). Try clearing some space."
+        );
+      }
+      closeAllDropdowns();
+    });
+  }
+
+  if (btnArchiveAll) {
+    btnArchiveAll.addEventListener("click", (e) => {
+      e.preventDefault();
+      // Full “everyone” archive needs Supabase / backend wiring later.
+      addMessage(
+        "assistant",
+        "Owner archive for everyone will be connected to Supabase later. Right now this button is just a preview."
+      );
       closeAllDropdowns();
     });
   }
@@ -348,7 +453,7 @@
     });
   }
 
-  // --- Trainer modal (owner only; local only for now) ---
+  // --- Trainer modal (owner-only UI, local only) ---
   function openTrainer() {
     if (!trainerModal) return;
     trainerModal.classList.remove("hidden");
@@ -389,15 +494,15 @@
         trainerStatus.style.color = "#fed7d7";
         return;
       }
-      // For now, this is just local / temporary — no Supabase yet.
+      // For now, just show a success – actual storage to Supabase comes later.
       trainerStatus.style.display = "block";
       trainerStatus.style.color = "#bbf7d0";
       trainerStatus.textContent =
-        "Saved locally (beta). A future update will sync this to Supabase.";
+        "Saved for this session (beta). A future update will sync this trainer to Supabase.";
     });
   }
 
-  // --- Chat submission handler ---
+  // --- Chat submission ---
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     const txt = input.value.trim();
@@ -411,16 +516,15 @@
     input.value = "";
     showTyping();
 
-    // Simulate thinking
     setTimeout(() => {
       const scriptedReply = findScriptedReply(txt);
       const reply = scriptedReply || buildGenericReply(txt);
       addMessage("assistant", reply);
       hideTyping();
-    }, 500);
+    }, 450);
   });
 
-  // Allow Enter to send, Shift+Enter = newline
+  // Enter sends, Shift+Enter new line
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -428,10 +532,15 @@
     }
   });
 
-  // --- Init everything ---
+  // --- Init ---
   loadState();
   updateOwnerUI();
+  updateFloatingAvatar();
 
-  // Tiny debug
-  console.log("Carrie chat JS initialized. Mode:", currentMode, "Avatar:", currentAvatar);
+  console.log(
+    "Carrie chat JS initialized.",
+    "Mode:", currentMode,
+    "Avatar:", currentAvatar,
+    "Owner:", isOwner
+  );
 })();
