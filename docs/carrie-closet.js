@@ -31,7 +31,7 @@
   // --- State ---
 
   let currentGender = "female"; // female | male
-  let currentTone   = "light";  // light | medium | dark
+  let currentTone   = "light";  // light | dark
   let currentCat    = "hair";   // hair/top/bottom/jewelry/eyes/shoes/all
 
   // One equipped item per overlay slot
@@ -46,24 +46,21 @@
     belly: null
   };
 
-  // Map gender + tone -> base PNG
+  // Map gender + tone -> base PNG (light/dark only)
   const BASES = {
     female: {
-      light:  "assets/images/base/female/base_female_light.png",
-      medium: "assets/images/base/female/base_female_medium.png",
-      dark:   "assets/images/base/female/base_female_dark.png"
+      light: "assets/images/base/female/base_female_light.png",
+      dark:  "assets/images/base/female/base_female_dark.png"
     },
     male: {
-      light:  "assets/images/base/male/base_male_light.png",
-      medium: "assets/images/base/male/base_male_medium.png",
-      dark:   "assets/images/base/male/base_male_dark.png"
+      light: "assets/images/base/male/base_male_light.png",
+      dark:  "assets/images/base/male/base_male_dark.png"
     }
   };
 
   const TONES = [
-    { id: "light",  label: "Light"  },
-    { id: "medium", label: "Medium" },
-    { id: "dark",   label: "Dark"   }
+    { id: "light", label: "Light" },
+    { id: "dark",  label: "Dark"  }
   ];
 
   // --- Helpers ---
@@ -77,12 +74,7 @@
     }
 
     if (previewLabel) {
-      const toneLabel =
-        currentTone === "light"
-          ? "Light skin"
-          : currentTone === "medium"
-          ? "Medium skin"
-          : "Dark skin";
+      const toneLabel = currentTone === "light" ? "Light skin" : "Dark skin";
       const genderLabelText = currentGender === "female" ? "Female" : "Male";
       previewLabel.textContent =
         genderLabelText + " • " + toneLabel + " • Bikini / Shorts base";
