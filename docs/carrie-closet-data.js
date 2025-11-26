@@ -10,7 +10,7 @@
       {
         id: "",
         gender: "female", // "female" | "male" | "unisex"
-        cat: "hair",      // UI category tab: hair/top/bottom/jewelry/eyes/shoes/all
+        cat: "hair",      // UI category: hair/top/bottom/jewelry/eyes/shoes/all
         slot: "hair",     // overlay slot: hair/top/bottom/eyes/shoes/necklace/ears/belly
         name: "",
         label: "",
@@ -340,6 +340,5 @@
     })
   ];
 
-  // Expose globally
   window.CARRIE_CLOSET_ITEMS = items;
 })();
