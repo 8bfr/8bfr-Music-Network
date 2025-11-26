@@ -285,7 +285,7 @@
       img: `${base}/male_jewlery/male_gold_necklace.png`
     }),
 
-    // ---- EYES (unisex) ----
+    // ---- EYES (unisex, iris overlays) ----
     item({
       id: "u_eyes_blue",
       gender: "unisex",
@@ -317,17 +317,7 @@
       img: `${base}/unisex/eyes/unisex_eyes_brown.png`
     }),
 
-    // ---- SHOES (unisex) ----
-    item({
-      id: "u_shoes_sandals",
-      gender: "unisex",
-      cat: "shoes",
-      slot: "shoes",
-      name: "Sandals",
-      label: "unisex sandals",
-      coins: 12,
-      img: `${base}/unisex/shoes/unisex_sandles.png`
-    }),
+    // ---- SHOES (unisex sneakers only) ----
     item({
       id: "u_shoes_sneakers",
       gender: "unisex",
