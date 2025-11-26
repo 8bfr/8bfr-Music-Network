@@ -63,6 +63,8 @@
     { id: "dark",  label: "Dark"  }
   ];
 
+  const PAIR_SLOTS = ["eyes", "shoes", "ears"];
+
   // --- Helpers ---
 
   function updateBase() {
@@ -89,27 +91,41 @@
       "</b> avatar";
   }
 
-  // Create / update overlay <img> for a slot
+  // Create / update overlay elements for a slot.
+  // For normal slots, we create ONE img.
+  // For PAIR_SLOTS (eyes, shoes, ears), we create LEFT + RIGHT copies.
   function setOverlay(slot, imgSrc) {
-    let layer = overlayHost.querySelector(".layer-" + slot);
-    if (!layer) {
-      layer = document.createElement("img");
+    // Remove any existing layers for this slot
+    const existing = overlayHost.querySelectorAll("[data-slot='" + slot + "']");
+    existing.forEach((el) => el.remove());
+
+    if (!imgSrc) return;
+
+    if (PAIR_SLOTS.includes(slot)) {
+      ["left", "right"].forEach((side) => {
+        const layer = document.createElement("img");
+        layer.className = "layer-overlay layer-" + slot + " layer-" + slot + "-" + side;
+        layer.alt = slot + " " + side + " overlay";
+        layer.dataset.slot = slot;
+        layer.src = imgSrc;
+        overlayHost.appendChild(layer);
+      });
+    } else {
+      const layer = document.createElement("img");
       layer.className = "layer-overlay layer-" + slot;
       layer.alt = slot + " overlay";
-      overlayHost.appendChild(layer);
-    }
-    if (imgSrc) {
+      layer.dataset.slot = slot;
       layer.src = imgSrc;
-      layer.style.display = "block";
-    } else {
-      layer.removeAttribute("src");
-      layer.style.display = "none";
+      overlayHost.appendChild(layer);
     }
   }
 
   function clearSlot(slot) {
     equipped[slot] = null;
-    setOverlay(slot, null);
+
+    // Remove ANY overlay elements tied to this slot
+    const layers = overlayHost.querySelectorAll("[data-slot='" + slot + "']");
+    layers.forEach((layer) => layer.remove());
 
     // Un-highlight cards for this slot
     const cards = itemsGrid.querySelectorAll("[data-slot='" + slot + "']");
