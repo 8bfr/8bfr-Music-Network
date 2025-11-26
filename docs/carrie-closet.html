@@ -4,301 +4,375 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Carrie Closet — 8BFR Music Network</title>
-  <meta name="description" content="Change outfits, hair, eyes, jewelry and more using coins in the Carrie Closet." />
+  <meta name="description" content="Customize your Carrie, James, or partner avatar with outfits, hair, accessories and more using 8BFR coins." />
   <link rel="icon" href="assets/images/favicon.png" />
   <script src="https://cdn.tailwindcss.com"></script>
 
   <style>
     :root {
       --ring: rgba(124,58,237,.55);
-      --glass: rgba(12,6,24,.85);
+      --glass: rgba(12,6,24,.80);
     }
-    html,body { scroll-behavior:smooth; }
-    body{
-      font-family: system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
+
+    html, body { scroll-behavior:smooth; }
+
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, sans-serif;
       background:
-        radial-gradient(1200px 600px at 10% -10%, rgba(124,58,237,.35), transparent 60%),
+        radial-gradient(1200px 600px at 10% -10%, rgba(124,58,237,.30), transparent 60%),
         radial-gradient(900px 400px at 110% 10%, rgba(0,217,255,.22), transparent 60%),
-        linear-gradient(#0b0014,#000);
+        linear-gradient(#050011,#000);
       color:#eae6ff;
       margin:0;
       min-height:100vh;
       overflow-x:hidden;
     }
-    header{
+
+    header {
       position:relative;
       z-index:5;
-      background:rgba(15,0,30,.9);
+      background:rgba(10,0,25,.96);
       border-bottom:1px solid rgba(124,58,237,.5);
+      box-shadow:0 18px 40px rgba(0,0,0,.7);
     }
 
-    .closet-shell{
-      border-radius:18px;
-      border:1px solid rgba(124,58,237,.6);
-      background:rgba(10,2,26,.95);
-      box-shadow:0 16px 40px rgba(0,0,0,.9);
-      padding:1rem;
-    }
-
-    /* Preview avatar */
-    #closetPreviewBox{
-      border-radius:14px;
-      border:1px solid rgba(129,140,248,.7);
+    .shell {
+      border-radius:20px;
+      border:1px solid rgba(129,140,248,.6);
       background:
-        radial-gradient(circle at 20% 0, rgba(129,140,248,.25), transparent 55%),
-        radial-gradient(circle at 80% 100%, rgba(45,212,191,.18), transparent 60%),
-        #020014;
-      padding:.75rem;
+        radial-gradient(circle at 0 0,rgba(76,29,149,.40),transparent 60%),
+        radial-gradient(circle at 100% 0,rgba(14,165,233,.22),transparent 60%),
+        rgba(10,6,30,.96);
+      box-shadow:0 18px 50px rgba(0,0,0,.8);
     }
-    #closetPreview{
+
+    /* --- Preview frame + layering --- */
+    #closetPreviewFrame {
       position:relative;
-      width:320px;              /* avatar bigger so items feel smaller */
-      max-width:85vw;
-      aspect-ratio:3/5;
+      width:100%;
+      max-width:500px;
       margin:0 auto;
+      border-radius:18px;
+      border:1px solid rgba(148,163,255,.55);
+      background:#020014;
+      overflow:hidden;
+      aspect-ratio: 500 / 282; /* matches your PNG art size */
+      display:flex;
+      align-items:center;
+      justify-content:center;
     }
-    .closet-layer{
+
+    #closetBaseImg {
+      width:100%;
+      height:100%;
+      object-fit:contain;
+      display:block;
+    }
+
+    #closetOverlayHost {
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+    }
+
+    /* Every overlay is full-frame, same canvas as base (500x282) */
+    .layer-overlay {
       position:absolute;
       inset:0;
       width:100%;
       height:100%;
       object-fit:contain;
-      image-rendering:auto;
-      transform-origin:center;
+      pointer-events:none;
     }
 
-    /* ----- Layer order + alignment tweaks
-       These numbers are tuned for your current PNGs.
-       If something is a little off, tweak translateY / scale. */
-
-    .closet-layer-base {
-      z-index: 10;
-      transform: translateY(0) scale(1);
-    }
-
-    .closet-layer-outfit {
-      z-index: 20;
-      transform: translateY(0) scale(1);
-    }
-
-    /* Hair slightly above the head */
-    .closet-layer-hair {
-      z-index: 30;
-      transform: translateY(-8%) scale(1);
-      transform-origin: center top;
-    }
-
-    /* Eyes: up + smaller (they were huge in center) */
-    .closet-layer-eyes {
-      z-index: 40;
-      transform: translateY(-30%) scale(0.35);
-      transform-origin: center;
-    }
-
-    /* Jewelry: around chest/neck area, slightly smaller */
-    .closet-layer-jewelry {
-      z-index: 50;
-      transform: translateY(-5%) scale(0.6);
-      transform-origin: center;
-    }
-
-    /* Shoes: down + smaller towards bottom */
-    .closet-layer-shoes {
-      z-index: 60;
-      transform: translateY(22%) scale(0.55);
-      transform-origin: center bottom;
-    }
-
-    .gender-pill{
-      border-radius:999px;
-      border:1px solid rgba(129,140,248,.6);
-      padding:3px 10px;
-      font-size:11px;
-      cursor:pointer;
-      background:rgba(15,23,42,.9);
-      color:#e5e7eb;
-    }
-    .gender-pill-active{
-      background:linear-gradient(135deg,#7c3aed,#4c1d95);
-      border-color:#a855f7;
-      box-shadow:0 0 12px rgba(168,85,247,.6);
-    }
-
-    .closet-slot-btn{
-      font-size:11px;
-      border-radius:999px;
-      padding:4px 10px;
-      border:1px solid rgba(129,140,248,.6);
-      background:rgba(15,23,42,.9);
-      color:#e5e7eb;
-      cursor:pointer;
-      margin-right:.25rem;
-      margin-bottom:.25rem;
-      white-space:nowrap;
-    }
-    .closet-slot-btn-active{
-      background:linear-gradient(135deg,#7c3aed,#4c1d95);
-      border-color:#a855f7;
-      box-shadow:0 0 10px rgba(168,85,247,.6);
-    }
-
-    .closet-item-row{
-      width:100%;
-      text-align:left;
-      border-radius:10px;
-      padding:6px 8px;
-      border:1px solid transparent;
-      background:rgba(15,23,42,.85);
-      display:flex;
-      justify-content:space-between;
-      align-items:flex-start;
-      gap:.5rem;
-      margin-bottom:4px;
-      cursor:pointer;
-    }
-    .closet-item-row:hover{
-      border-color:rgba(129,140,248,.9);
-      background:rgba(30,64,175,.85);
-    }
-    .closet-item-row-active{
-      border-color:#a855f7;
-      background:linear-gradient(135deg,#7c3aed,#4c1d95);
-      box-shadow:0 0 12px rgba(168,85,247,.75);
-    }
-
-    .coin-pill{
-      border-radius:999px;
-      padding:3px 9px;
-      border:1px solid rgba(251,191,36,.6);
-      background:rgba(24,16,6,.95);
-      font-size:11px;
+    .pill-tag {
       display:inline-flex;
       align-items:center;
-      gap:4px;
-      color:#fef3c7;
-    }
-    .coin-pill img{
-      width:14px;
-      height:14px;
+      gap:.25rem;
+      font-size:.7rem;
+      border-radius:999px;
+      padding:.15rem .6rem;
+      border:1px solid rgba(129,140,248,.85);
+      background:rgba(15,23,42,.9);
+      text-transform:uppercase;
+      letter-spacing:.08em;
     }
 
-    #closetStatus{
-      font-size:12px;
-      text-align:center;
-      padding:.35rem .5rem;
+    .pill-tag-soft {
+      border-color:rgba(147,197,253,.55);
+      background:rgba(15,23,42,.85);
+    }
+
+    .seg-btn {
+      font-size:11px;
+      padding:4px 10px;
       border-radius:999px;
-      border:1px solid rgba(129,140,248,.5);
-      background:rgba(15,23,42,.9);
-      color:#e0e7ff;
-      margin-bottom:.5rem;
+      border:1px solid rgba(148,163,255,.45);
+      background:rgba(15,23,42,.85);
+      cursor:pointer;
+      color:#e5e7eb;
+      transition:all .12s ease;
+    }
+    .seg-btn.active {
+      border-color:#a855f7;
+      background:linear-gradient(135deg,#7c3aed,#a855f7);
+      color:#fff;
+      box-shadow:0 0 0 1px rgba(129,140,248,.7),0 0 16px rgba(168,85,247,.65);
+    }
+    .seg-btn:hover {
+      background:rgba(30,64,175,.85);
+    }
+
+    .tab-btn {
+      font-size:11px;
+      padding:4px 10px;
+      border-radius:999px;
+      border:1px solid rgba(148,163,255,.35);
+      background:rgba(15,23,42,.8);
+      cursor:pointer;
+      color:#e5e7eb;
+      transition:all .12s ease;
+      white-space:nowrap;
+    }
+    .tab-btn.active {
+      border-color:#38bdf8;
+      background:radial-gradient(circle at 0 0,#38bdf8,#6366f1);
+      color:#0f172a;
+    }
+
+    .closet-item-card {
+      border-radius:12px;
+      border:1px solid rgba(148,163,255,.4);
+      background:rgba(15,23,42,.96);
+      padding:.45rem .55rem;
+      text-align:left;
+      cursor:pointer;
+      transition:transform .08s ease, box-shadow .08s ease,
+                 border-color .08s ease, background .08s ease;
+      display:flex;
+      gap:.45rem;
+      align-items:center;
+    }
+    .closet-item-card:hover {
+      transform:translateY(-1px);
+      border-color:#a855f7;
+      box-shadow:0 0 0 1px rgba(129,140,248,.85),0 0 18px rgba(124,58,237,.55);
+      background:rgba(30,64,175,.85);
+    }
+    .closet-item-card.active {
+      border-color:#22c55e;
+      box-shadow:0 0 0 1px rgba(22,163,74,.8),0 0 18px rgba(22,163,74,.7);
+      background:rgba(5,46,22,.92);
+    }
+
+    .closet-item-thumb {
+      width:44px;
+      height:44px;
+      border-radius:10px;
+      border:1px solid rgba(148,163,255,.4);
+      background:#020617;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      overflow:hidden;
+      flex-shrink:0;
+    }
+    .closet-item-thumb img {
+      width:100%;
+      height:100%;
+      object-fit:contain;
+      display:block;
+    }
+
+    #closetError {
+      border-radius:999px;
+      border:1px solid rgba(248,113,113,.8);
+      background:rgba(127,29,29,.90);
+      padding:.4rem .75rem;
+      font-size:11px;
+    }
+    #closetEmpty {
+      border-radius:999px;
+      border:1px dashed rgba(148,163,255,.5);
+      background:rgba(15,23,42,.86);
+      padding:.4rem .75rem;
+      font-size:11px;
+    }
+
+    /* Hide global Carrie avatar / bubbles on this page (but keep menu etc.) */
+    #bubbleStack,
+    #bubble-top-single,
+    #carrieWrap,
+    #globalAvatarSwitch {
+      display:none !important;
+    }
+    #carrieToggleBar,
+    .carrie-toggle-bar,
+    #carrieModeButtons {
+      display:none !important;
     }
 
     @media (max-width:768px){
-      .closet-shell{
-        padding:.75rem;
-      }
-      #closetPreview{
-        width:260px;
-      }
+      .shell { border-radius:16px; }
     }
   </style>
 </head>
-<body>
-<header class="px-4 py-4">
-  <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
-    <div class="flex items-center gap-3">
-      <img src="assets/images/logo_8bfr.svg"
-           alt="8BFR logo"
-           class="h-9 w-auto"
-           onerror="this.onerror=null;this.src='assets/images/8bfr.png'">
-      <div>
-        <h1 class="text-xl sm:text-2xl font-extrabold">
-          <span class="text-[#a855f7]">Carrie Closet</span>
-          <span class="text-xs align-middle ml-2 px-2 py-0.5 rounded-full border border-purple-400/70 text-purple-100 bg-purple-900/40">BETA</span>
-        </h1>
-        <p class="text-[11px] text-purple-300/80 -mt-0.5">
-          Mix outfits, hair, eyes, accessories — then use coins to unlock more looks.
-        </p>
+<body data-no-global-carrie="true">
+  <header class="px-4 py-4">
+    <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <img src="assets/images/logo_8bfr.svg"
+             alt="8BFR logo"
+             class="h-9 w-auto"
+             onerror="this.onerror=null;this.src='assets/images/8bfr.png'">
+        <div>
+          <h1 class="text-xl sm:text-2xl font-extrabold">
+            <span class="text-[#a855f7]">Carrie Closet</span>
+            <span class="text-xs sm:text-sm font-semibold align-middle ml-1 text-emerald-300/80">beta</span>
+          </h1>
+          <p class="text-[11px] text-purple-300/80 -mt-0.5">
+            Dress your BF / GF avatar with outfits, hair and accessories.
+          </p>
+        </div>
+      </div>
+      <div class="flex flex-col items-end gap-1">
+        <a href="carrie-chat.html"
+           class="text-[#00d9ff] text-[11px] sm:text-xs underline/50 hover:underline">
+          ⬅ Back to Carrie Chat
+        </a>
+        <span class="pill-tag pill-tag-soft text-[10px]">
+          <span>🪙</span> Coin prices coming later
+        </span>
       </div>
     </div>
-    <a href="carrie-chat.html"
-       class="hidden sm:inline text-[#00d9ff] text-xs sm:text-sm underline/50 hover:underline">
-      ⬅ Back to Carrie Chat
-    </a>
-  </div>
-</header>
+  </header>
 
-<main class="max-w-5xl mx-auto px-4 pb-10 pt-4">
-  <div id="closetStatus">Loading Carrie Closet…</div>
-
-  <div id="closetApp" class="closet-shell hidden">
-    <div class="flex flex-col lg:flex-row gap-4">
-      <!-- LEFT: Preview + gender + coins -->
-      <section class="w-full lg:w-1/3">
-        <div class="flex items-center justify-between mb-2">
-          <div class="flex gap-1.5">
-            <button type="button"
-                    class="gender-pill gender-pill-active"
-                    data-gender-toggle="female">
-              ♀ Female
-            </button>
-            <button type="button"
-                    class="gender-pill"
-                    data-gender-toggle="male">
-              ♂ Male
-            </button>
+  <main class="max-w-6xl mx-auto px-4 pb-10 pt-5">
+    <div class="shell p-4 sm:p-5 lg:p-6">
+      <div class="flex flex-col lg:flex-row gap-6 lg:gap-8">
+        <!-- LEFT: Preview + base controls -->
+        <section class="lg:w-[45%] space-y-4">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="pill-tag text-[10px]">
+                🧬 Avatar Preview
+              </span>
+              <span id="closetPreviewLabel" class="text-[11px] text-purple-200/80">
+                Female • Light skin • Bikini base
+              </span>
+            </div>
+            <span class="text-[10px] text-purple-200/80">
+              BF / GF chat only
+            </span>
           </div>
-          <div class="coin-pill">
-            <img src="assets/images/icon_coin.png" alt="coins">
-            <span id="closetCoins">0</span>
+
+          <div id="closetPreviewFrame">
+            <img id="closetBaseImg"
+                 src="assets/images/base/female/base_female_light.png"
+                 alt="Avatar base">
+            <div id="closetOverlayHost"></div>
           </div>
-        </div>
 
-        <div id="closetPreviewBox">
-          <div id="closetPreview">
-            <div id="closetPreviewLayers"></div>
+          <div class="space-y-3 mt-2">
+            <!-- Gender -->
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="uppercase tracking-[0.16em] text-[9px] text-purple-200/75">
+                  Gender
+                </span>
+              </div>
+              <div class="flex gap-2">
+                <button type="button"
+                        class="seg-btn active"
+                        data-gender="female">
+                  ♀ Female
+                </button>
+                <button type="button"
+                        class="seg-btn"
+                        data-gender="male">
+                  ♂ Male
+                </button>
+              </div>
+            </div>
+
+            <!-- Skin tone -->
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="uppercase tracking-[0.16em] text-[9px] text-purple-200/75">
+                  Skin tone
+                </span>
+              </div>
+              <div id="skinToneButtons" class="flex flex-wrap gap-2">
+                <!-- Filled by JS -->
+              </div>
+            </div>
           </div>
-          <p class="mt-2 text-[10px] text-purple-200/80 text-center">
-            Avatar preview updates as you change slots and items.
-            All layers use your PNG art stacked on top of each other.
-          </p>
-        </div>
-      </section>
 
-      <!-- RIGHT: Slots + items -->
-      <section class="w-full lg:w-2/3">
-        <div class="mb-3">
-          <p class="text-[11px] text-purple-200/85 mb-1.5">
-            Choose what you want to change:
+          <p class="mt-3 text-[11px] text-purple-200/80">
+            All layers use the same 500×282 canvas as the base PNGs, so what you
+            see here should match your BF / GF chat avatar.
           </p>
-          <div id="closetSlotButtons" class="flex flex-wrap"></div>
-        </div>
+        </section>
 
-        <div>
-          <p class="text-[11px] text-purple-200/90 mb-1">
-            Items in this category:
+        <!-- RIGHT: Filters + items -->
+        <section class="lg:flex-1 space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="pill-tag text-[10px]">
+                🛒 Closet Items
+              </span>
+              <span id="closetGenderLabel" class="text-[11px] text-purple-200/85">
+                Showing items for <b>Female</b> avatar
+              </span>
+            </div>
+          </div>
+
+          <!-- Category tabs -->
+          <div class="flex flex-wrap gap-2 mt-1">
+            <button type="button" class="tab-btn active" data-cat="hair">Hair</button>
+            <button type="button" class="tab-btn" data-cat="top">Tops</button>
+            <button type="button" class="tab-btn" data-cat="bottom">Bottoms</button>
+            <button type="button" class="tab-btn" data-cat="jewelry">Jewelry</button>
+            <button type="button" class="tab-btn" data-cat="eyes">Eyes</button>
+            <button type="button" class="tab-btn" data-cat="shoes">Shoes</button>
+            <button type="button" class="tab-btn" data-cat="all">All</button>
+          </div>
+
+          <!-- Error / empty messages -->
+          <div id="closetError" class="hidden mt-2 text-red-50 text-[11px]">
+            Closet data failed to load. Make sure
+            <code class="text-xs">carrie-closet-data.js</code> is present and loaded.
+          </div>
+
+          <div id="closetEmpty" class="hidden mt-2 text-purple-100/90 text-[11px]">
+            No items for this category yet. Try switching categories or gender.
+          </div>
+
+          <!-- Items grid -->
+          <div id="closetItemsGrid" class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <!-- JS will inject cards -->
+          </div>
+
+          <p class="mt-3 text-[10px] text-purple-300/75">
+            In the full release, each item will cost 8BFR coins and connect to your
+            <a href="coinshop.html" class="underline text-sky-300 hover:text-sky-200">Coin Shop</a>.
+            For now this is a visual beta so you can design outfits without charging coins.
           </p>
-          <div id="closetItemList" class="max-h-[380px] overflow-y-auto pr-1"></div>
-          <p class="mt-2 text-[10px] text-purple-300/75">
-            Prices are per unlock. Once an item is purchased, you can switch back to it freely while your session is open.
-            In the future, these coins will sync to your 8BFR account.
-          </p>
-        </div>
-      </section>
+        </section>
+      </div>
     </div>
-  </div>
 
-  <p class="mt-3 text-[11px] text-purple-300/70 text-center max-w-xl mx-auto">
-    Closet is in beta. Only Carrie’s photo avatar uses these outfits for now. Business / Personal chat still use video avatars.
-    Boyfriend / Girlfriend chat will use this system once the Pro upgrade is ready.
-  </p>
-</main>
+    <p class="mt-4 text-[11px] text-purple-300/70 text-center max-w-3xl mx-auto">
+      Default male base has shorts and no shirt. Default female base uses a bikini.
+      Tops, bottoms, hair, eyes, jewelry, and shoes layer over those bases.
+    </p>
+  </main>
 
-<!-- Global 8BFR UI (menu, etc.) -->
-<script src="scripts.js?v=1" defer></script>
+  <!-- Global UI (menu / etc) -->
+  <script src="scripts.js?v=1" defer></script>
 
-<!-- Closet data + logic -->
-<script src="carrie-closet--data.js?v=4"></script>
-<script src="carrie-closet.js?v=4"></script>
+  <!-- Closet data + logic -->
+  <script src="carrie-closet-data.js?v=1"></script>
+  <script src="carrie-closet.js?v=1"></script>
 </body>
 </html>
