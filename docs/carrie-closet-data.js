@@ -43,7 +43,7 @@
       img: base + "/hair/straight/female_straight_blonde.png",
       scale: 0.95,
       offsetX: 0,
-      offsetY: -4
+      offsetY: -
     }),
     item({
       id: "f_hair_straight_brown",
@@ -56,7 +56,7 @@
       img: base + "/hair/straight/female_straight_brown.png",
       scale: 0.95,
       offsetX: 0,
-      offsetY: -4
+      offsetY: -10
     }),
     item({
       id: "f_hair_straight_copper",
