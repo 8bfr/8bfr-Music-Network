@@ -64,18 +64,8 @@
     { id: "dark",  label: "Dark"  }
   ];
 
-  // "Pair" slots (left+right copies via CSS)
+  // Slots that draw *pairs* of images (left/right)
   const PAIR_SLOTS = ["shoes", "ears"];
-
-  // Slots that use per-item transforms (scale/offsetX/offsetY)
-  const PER_ITEM_TRANSFORM_SLOTS = [
-    "hair",
-    "top",
-    "bottom",
-    "necklace",
-    "belly",
-    "eyes"
-  ];
 
   // --- Helpers ---
 
@@ -103,48 +93,53 @@
       "</b> avatar";
   }
 
-  // Create / update overlay elements for a slot.
+  /**
+   * Create / update overlay elements for a slot.
+   * THIS is where scale / offsetX / offsetY are applied.
+   */
   function setOverlay(slot, imgSrc) {
-    // Remove existing layers for this slot
+    // Remove existing overlays for this slot
     const existing = overlayHost.querySelectorAll("[data-slot='" + slot + "']");
     existing.forEach((el) => el.remove());
 
     if (!imgSrc) return;
 
-    const perItemTransform = PER_ITEM_TRANSFORM_SLOTS.includes(slot);
-    const itemForSlot = equipped[slot];
+    const itemForSlot = equipped[slot] || {};
+
+    const s  = typeof itemForSlot.scale   === "number" ? itemForSlot.scale   : 1;
+    const ox = typeof itemForSlot.offsetX === "number" ? itemForSlot.offsetX : 0;
+    const oy = typeof itemForSlot.offsetY === "number" ? itemForSlot.offsetY : 0;
 
     if (PAIR_SLOTS.includes(slot)) {
-      // Left + right copies, positioned by CSS
+      // Left + right copies (earrings / shoes)
       ["left", "right"].forEach((side) => {
         const layer = document.createElement("img");
         layer.className = "layer-overlay layer-" + slot + "-" + side;
         layer.alt = slot + " " + side + " overlay";
         layer.dataset.slot = slot;
         layer.src = imgSrc;
+
+        // Allow scale for pairs too
+        layer.style.transformOrigin = side === "left" ? "center bottom" : "center bottom";
+        if (s !== 1 || ox !== 0 || oy !== 0) {
+          layer.style.transform =
+            `scale(${s}) translate(${ox}%, ${oy}%)`;
+        }
+
         overlayHost.appendChild(layer);
       });
     } else {
+      // Single overlay (hair, top, bottom, eyes, necklace, belly)
       const layer = document.createElement("img");
       layer.className = "layer-overlay layer-" + slot;
       layer.alt = slot + " overlay";
       layer.dataset.slot = slot;
       layer.src = imgSrc;
 
-      // Per-item transforms (scale/offsetX/offsetY) for supported slots
-      if (perItemTransform && itemForSlot) {
-        const hasScale   = typeof itemForSlot.scale   === "number";
-        const hasOffsetX = typeof itemForSlot.offsetX === "number";
-        const hasOffsetY = typeof itemForSlot.offsetY === "number";
-
-        if (hasScale || hasOffsetX || hasOffsetY) {
-          const s  = hasScale   ? itemForSlot.scale   : 1;
-          const ox = hasOffsetX ? itemForSlot.offsetX : 0;
-          const oy = hasOffsetY ? itemForSlot.offsetY : 0;
-
-          layer.style.transform = `scale(${s}) translate(${ox}%, ${oy}%)`;
-          layer.style.transformOrigin = "center top";
-        }
+      layer.style.transformOrigin = "center top";
+      if (s !== 1 || ox !== 0 || oy !== 0) {
+        layer.style.transform =
+          `scale(${s}) translate(${ox}%, ${oy}%)`;
       }
 
       overlayHost.appendChild(layer);
