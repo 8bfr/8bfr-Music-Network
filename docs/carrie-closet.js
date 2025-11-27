@@ -63,8 +63,19 @@
     { id: "dark",  label: "Dark"  }
   ];
 
-  // Only shoes and ears are “pair” slots now.
+  // Only shoes and ears are “pair” slots now (left + right).
   const PAIR_SLOTS = ["shoes", "ears"];
+
+  // Slots that will use per-item transforms (scale / offsetX / offsetY)
+  // We leave shoes/ears using CSS so left/right offsets keep working.
+  const PER_ITEM_TRANSFORM_SLOTS = [
+    "hair",
+    "top",
+    "bottom",
+    "necklace",
+    "belly",
+    "eyes"
+  ];
 
   // --- Helpers ---
 
@@ -95,6 +106,7 @@
   // Create / update overlay elements for a slot.
   // For normal slots (hair, eyes, top, bottom, necklace, belly) we create ONE img.
   // For PAIR_SLOTS (shoes, ears), we create LEFT + RIGHT copies.
+  // For PER_ITEM_TRANSFORM_SLOTS, we read scale/offsetX/offsetY from the item.
   function setOverlay(slot, imgSrc) {
     // Remove any existing layers for this slot
     const existing = overlayHost.querySelectorAll("[data-slot='" + slot + "']");
@@ -102,7 +114,11 @@
 
     if (!imgSrc) return;
 
+    const perItemTransform = PER_ITEM_TRANSFORM_SLOTS.includes(slot);
+    const itemForSlot = equipped[slot];
+
     if (PAIR_SLOTS.includes(slot)) {
+      // Left + right copies, still positioned mainly by CSS
       ["left", "right"].forEach((side) => {
         const layer = document.createElement("img");
         layer.className = "layer-overlay layer-" + slot + "-" + side;
@@ -117,6 +133,24 @@
       layer.alt = slot + " overlay";
       layer.dataset.slot = slot;
       layer.src = imgSrc;
+
+      // --- APPLY PER-ITEM TRANSFORMS (if defined) ---
+      if (perItemTransform && itemForSlot) {
+        const hasScale   = typeof itemForSlot.scale   === "number";
+        const hasOffsetX = typeof itemForSlot.offsetX === "number";
+        const hasOffsetY = typeof itemForSlot.offsetY === "number";
+
+        if (hasScale || hasOffsetX || hasOffsetY) {
+          const s  = hasScale   ? itemForSlot.scale   : 1;
+          const ox = hasOffsetX ? itemForSlot.offsetX : 0;
+          const oy = hasOffsetY ? itemForSlot.offsetY : 0;
+
+          // translate percentages relative to image
+          layer.style.transform = `scale(${s}) translate(${ox}%, ${oy}%)`;
+          layer.style.transformOrigin = "center top";
+        }
+      }
+
       overlayHost.appendChild(layer);
     }
   }
