@@ -56,7 +56,7 @@
       img: base + "/hair/straight/female_straight_brown.png",
       scale: 0.95,
       offsetX: 0,
-      offsetY: 50
+      offsetY: 200
     }),
     item({
       id: "f_hair_straight_copper",
