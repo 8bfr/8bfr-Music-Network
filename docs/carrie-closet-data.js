@@ -40,8 +40,8 @@
       rarity: "rare",
       img: `${base}/hair/straight/female_straight_blonde.png`,
       scale: 1,
-      offsetX: 0,
-      offsetY: 50
+      offsetX: 100,
+      offsetY: 0
     }),
     item({
       id: "f_hair_straight_brown",
