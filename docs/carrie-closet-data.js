@@ -41,7 +41,7 @@
       img: `${base}/hair/straight/female_straight_blonde.png`,
       scale: 1,
       offsetX: 0,
-      offsetY: -50
+      offsetY: -100
     }),
     item({
       id: "f_hair_straight_brown",
