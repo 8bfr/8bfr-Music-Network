@@ -101,7 +101,7 @@
       label: "straight • pastel purple",
       coins: 22,
       rarity: "epic",
-      img: base + "/hair/straight/female_straight_pastel_purple.png"
+      img: base + "/hair/straight/female_straight_purple.png"
     }),
     item({
       id: "f_hair_straight_platinum",
