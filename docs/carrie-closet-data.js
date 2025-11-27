@@ -56,7 +56,7 @@
       img: base + "/hair/straight/female_straight_brown.png",
       scale: 0.95,
       offsetX: 0,
-      offsetY: -10
+      offsetY: 10
     }),
     item({
       id: "f_hair_straight_copper",
@@ -64,7 +64,7 @@
       cat: "hair",
       slot: "hair",
       name: "Straight Copper",
-      label: "straight • copper",
+      lael: "straight • copper",
       coins: 18,
       img: base + "/hair/straight/female_straight_copper.png",
       scale: 0.95,
