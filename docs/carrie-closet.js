@@ -19,7 +19,6 @@
   }
 
   const catalog = window.CARRIE_CLOSET_ITEMS || [];
-  console.log("Carrie Closet: catalog length =", catalog.length);
   if (!Array.isArray(catalog) || catalog.length === 0) {
     if (errorBox) {
       errorBox.classList.remove("hidden");
@@ -94,8 +93,9 @@
   }
 
   /**
-   * Create / update overlay elements for a slot.
-   * THIS is where scale / offsetX / offsetY are applied.
+   * Create overlay elements for a slot.
+   * Each overlay gets a class: item-<item-id>
+   * You will control transforms in CSS using that class.
    */
   function setOverlay(slot, imgSrc) {
     // Remove existing overlays for this slot
@@ -104,44 +104,32 @@
 
     if (!imgSrc) return;
 
-    const itemForSlot = equipped[slot] || {};
+    const itemForSlot = equipped[slot];
 
-    const s  = typeof itemForSlot.scale   === "number" ? itemForSlot.scale   : 1;
-    const ox = typeof itemForSlot.offsetX === "number" ? itemForSlot.offsetX : 0;
-    const oy = typeof itemForSlot.offsetY === "number" ? itemForSlot.offsetY : 0;
+    const itemClass =
+      itemForSlot && itemForSlot.id
+        ? "item-" + itemForSlot.id
+        : "";
 
     if (PAIR_SLOTS.includes(slot)) {
       // Left + right copies (earrings / shoes)
       ["left", "right"].forEach((side) => {
         const layer = document.createElement("img");
         layer.className = "layer-overlay layer-" + slot + "-" + side;
+        if (itemClass) layer.classList.add(itemClass);
         layer.alt = slot + " " + side + " overlay";
         layer.dataset.slot = slot;
         layer.src = imgSrc;
-
-        // Allow scale for pairs too
-        layer.style.transformOrigin = side === "left" ? "center bottom" : "center bottom";
-        if (s !== 1 || ox !== 0 || oy !== 0) {
-          layer.style.transform =
-            `scale(${s}) translate(${ox}%, ${oy}%)`;
-        }
-
         overlayHost.appendChild(layer);
       });
     } else {
       // Single overlay (hair, top, bottom, eyes, necklace, belly)
       const layer = document.createElement("img");
       layer.className = "layer-overlay layer-" + slot;
+      if (itemClass) layer.classList.add(itemClass);
       layer.alt = slot + " overlay";
       layer.dataset.slot = slot;
       layer.src = imgSrc;
-
-      layer.style.transformOrigin = "center top";
-      if (s !== 1 || ox !== 0 || oy !== 0) {
-        layer.style.transform =
-          `scale(${s}) translate(${ox}%, ${oy}%)`;
-      }
-
       overlayHost.appendChild(layer);
     }
   }
