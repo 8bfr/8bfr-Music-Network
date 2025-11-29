@@ -2,16 +2,16 @@
 // Front-end logic for Carrie Closet (visual only for now).
 
 (function () {
-  const baseImg           = document.getElementById("closetBaseImg");
-  const overlayHost       = document.getElementById("closetOverlayHost");
-  const itemsGrid         = document.getElementById("closetItemsGrid");
-  const errorBox          = document.getElementById("closetError");
-  const emptyBox          = document.getElementById("closetEmpty");
-  const previewLabel      = document.getElementById("closetPreviewLabel");
-  const genderLabel       = document.getElementById("closetGenderLabel");
-  const genderButtons     = document.querySelectorAll("[data-gender]");
-  const skinToneContainer = document.getElementById("skinToneButtons");
-  const tabButtons        = document.querySelectorAll(".tab-btn");
+  const baseImg          = document.getElementById("closetBaseImg");
+  const overlayHost      = document.getElementById("closetOverlayHost");
+  const itemsGrid        = document.getElementById("closetItemsGrid");
+  const errorBox         = document.getElementById("closetError");
+  const emptyBox         = document.getElementById("closetEmpty");
+  const previewLabel     = document.getElementById("closetPreviewLabel");
+  const genderLabel      = document.getElementById("closetGenderLabel");
+  const genderButtons    = document.querySelectorAll("[data-gender]");
+  const skinToneContainer= document.getElementById("skinToneButtons");
+  const tabButtons       = document.querySelectorAll(".tab-btn");
 
   if (!baseImg || !overlayHost || !itemsGrid) {
     console.warn("Carrie Closet: required DOM elements missing.");
@@ -34,7 +34,7 @@
   let currentTone   = "light";  // light | dark
   let currentCat    = "hair";   // hair/top/bottom/jewelry/eyes/shoes/all
 
-  const bodyEl = document.body;
+  const bodyEl = document.body; // <--- added
 
   // One equipped item per overlay slot
   const equipped = {
@@ -72,7 +72,7 @@
 
   function applyGenderToBody() {
     if (!bodyEl) return;
-    bodyEl.dataset.gender = currentGender; // sets data-gender="female" or "male"
+    bodyEl.dataset.gender = currentGender; // data-gender="female" or "male"
   }
 
   function updateBase() {
@@ -191,11 +191,9 @@
       const it = equipped[slot];
       if (!it) return;
 
-      // If this item doesn’t match the new gender, clear it
       if (!matchesGender(it)) {
         clearSlot(slot);
       } else {
-        // Re-apply overlay to be safe
         setOverlay(slot, it.img || it.image || "");
       }
     });
@@ -317,13 +315,9 @@
       btn.addEventListener("click", () => {
         currentGender = g === "male" ? "male" : "female";
 
-        // 1) Update body attribute for CSS like body[data-gender="..."]
-        applyGenderToBody();
+        applyGenderToBody();     // <--- added
+        pruneEquippedForGender(); // <--- added
 
-        // 2) Clean up any items that don't match this gender
-        pruneEquippedForGender();
-
-        // 3) Update UI + items
         genderButtons.forEach((b) => b.classList.remove("active"));
         btn.classList.add("active");
         updateGenderLabel();
@@ -346,7 +340,7 @@
   }
 
   function init() {
-    applyGenderToBody();      // set data-gender="female" on first load
+    applyGenderToBody();      // <--- added (initial gender on body)
     updateBase();
     updateGenderLabel();
     buildSkinToneButtons();
