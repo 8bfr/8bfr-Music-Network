@@ -56,7 +56,7 @@
       img: base + "/hair/straight/female_straight_brown.png",
       scale: 0.95,
       offsetX: 0,
-      offsetY: 200
+      offsetY: -10
     }),
     item({
       id: "f_hair_straight_copper",
@@ -64,7 +64,7 @@
       cat: "hair",
       slot: "hair",
       name: "Straight Copper",
-      lael: "straight • copper",
+      label: "straight • copper",
       coins: 18,
       img: base + "/hair/straight/female_straight_copper.png",
       scale: 0.95,
@@ -253,8 +253,7 @@
     }),
 
     // ---- TOPS (unisex tank + tee) ----
-    // You said tops were a bit too high and big:
-    // -> slightly smaller, nudged down.
+    // Visual tweaks will now mostly be in CSS via body[data-gender].
     item({
       id: "u_top_tank",
       gender: "unisex",
@@ -283,8 +282,6 @@
     }),
 
     // ---- BOTTOMS (female shorts / skirt) ----
-    // Shorts: a little too big → shrink + nudge up.
-    // Skirt: too small & low → slightly bigger + move up.
     item({
       id: "f_bottom_shorts",
       gender: "female",
@@ -313,8 +310,6 @@
     }),
 
     // ---- JEWELRY – FEMALE ----
-    // Necklace: too tall (above head) → smaller, moved down.
-    // Belly ring: too big, too low → smaller, moved up.
     item({
       id: "f_jewel_necklace",
       gender: "female",
@@ -341,8 +336,6 @@
       offsetX: 0,
       offsetY: -6
     }),
-    // Earrings: ears are handled by CSS left/right; scale here does nothing *yet*
-    // but we keep it so you're consistent if we change logic later.
     item({
       id: "f_jewel_ears",
       gender: "female",
@@ -373,7 +366,6 @@
     }),
 
     // ---- EYES (unisex, iris overlays) ----
-    // Previously huge & centered → now much smaller and moved up.
     item({
       id: "u_eyes_blue",
       gender: "unisex",
@@ -415,7 +407,6 @@
     }),
 
     // ---- SHOES (unisex sneakers only) ----
-    // Shoes were already close; keep scale 1 for now.
     item({
       id: "u_shoes_sneakers",
       gender: "unisex",
