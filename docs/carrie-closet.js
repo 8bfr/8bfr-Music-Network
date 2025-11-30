@@ -310,22 +310,22 @@
   }
 
   function initGenderButtons() {
-    genderButtons.forEach((btn) => {
-      const g = btn.getAttribute("data-gender");
-      btn.addEventListener("click", () => {
-        currentGender = g === "male" ? "male" : "female";
+  btn.addEventListener("click", () => {
+  // Set the gender
+  currentGender = g === "male" ? "male" : "female";
 
-        applyGenderToBody();     // <--- added
-        pruneEquippedForGender(); // <--- added
+  // ⭐ IMPORTANT — update the <body> so CSS switches to male/female rules
+  document.body.dataset.gender = currentGender;
 
-        genderButtons.forEach((b) => b.classList.remove("active"));
-        btn.classList.add("active");
-        updateGenderLabel();
-        updateBase();
-        renderItems();
-      });
-    });
-  }
+  // Update button state
+  genderButtons.forEach((b) => b.classList.remove("active"));
+  btn.classList.add("active");
+
+  // Refresh UI + items
+  updateGenderLabel();
+  updateBase();
+  renderItems();
+});
 
   function initTabs() {
     tabButtons.forEach((btn) => {
