@@ -1,25 +1,25 @@
 // carrie-closet-data.js
-// Static closet catalog using your actual image paths / names
-// with per-item transform defaults + starting values.
+// Static closet catalog using your actual image paths / names.
 
 (function () {
   const base = "assets/images";
 
-  // Helper to build item objects with per-item transform defaults
+  // Helper to build item objects with defaults
   function item(opts) {
     return Object.assign(
       {
         id: "",
-        gender: "female", // "female" | "male" | "unisex"
-        cat: "hair",      // UI category: hair/top/bottom/jewelry/eyes/shoes/all
-        slot: "hair",     // overlay slot: hair/top/bottom/eyes/shoes/necklace/ears/belly
+        gender: "female",      // "female" | "male" | "unisex"
+        category: "hair",      // UI category: hair/top/bottom/jewelry/eyes/shoes
+        cat: "hair",           // alias for older/newer JS
+        slot: "hair",          // overlay slot: hair/top/bottom/eyes/shoes/necklace/ears/belly
         name: "",
         label: "",
         coins: 0,
         rarity: "common",
         img: "",
         thumb: "",
-        // per-item transform defaults
+        // per-item transform defaults (optional, for future logic)
         scale: 1,
         offsetX: 0,
         offsetY: 0
@@ -30,10 +30,10 @@
 
   const items = [
     // ---- FEMALE HAIR – STRAIGHT ----
-    // General idea: slightly smaller, nudged a bit up
     item({
       id: "f_hair_straight_blonde",
       gender: "female",
+      category: "hair",
       cat: "hair",
       slot: "hair",
       name: "Straight Blonde",
@@ -48,6 +48,7 @@
     item({
       id: "f_hair_straight_brown",
       gender: "female",
+      category: "hair",
       cat: "hair",
       slot: "hair",
       name: "Straight Brown",
@@ -56,15 +57,16 @@
       img: base + "/hair/straight/female_straight_brown.png",
       scale: 0.95,
       offsetX: 0,
-      offsetY: 200
+      offsetY: -10   // was 200, which would push it way off-screen
     }),
     item({
       id: "f_hair_straight_copper",
       gender: "female",
+      category: "hair",
       cat: "hair",
       slot: "hair",
       name: "Straight Copper",
-      lael: "straight • copper",
+      label: "straight • copper",  // fixed "lael" typo
       coins: 18,
       img: base + "/hair/straight/female_straight_copper.png",
       scale: 0.95,
@@ -74,6 +76,7 @@
     item({
       id: "f_hair_straight_ginger",
       gender: "female",
+      category: "hair",
       cat: "hair",
       slot: "hair",
       name: "Straight Ginger",
@@ -87,6 +90,7 @@
     item({
       id: "f_hair_straight_pastel_blue",
       gender: "female",
+      category: "hair",
       cat: "hair",
       slot: "hair",
       name: "Straight Pastel Blue",
@@ -101,6 +105,7 @@
     item({
       id: "f_hair_straight_pastel_pink",
       gender: "female",
+      category: "hair",
       cat: "hair",
       slot: "hair",
       name: "Straight Pastel Pink",
@@ -115,6 +120,7 @@
     item({
       id: "f_hair_straight_pastel_purple",
       gender: "female",
+      category: "hair",
       cat: "hair",
       slot: "hair",
       name: "Straight Pastel Purple",
@@ -129,6 +135,7 @@
     item({
       id: "f_hair_straight_platinum",
       gender: "female",
+      category: "hair",
       cat: "hair",
       slot: "hair",
       name: "Straight Platinum",
@@ -142,10 +149,10 @@
     }),
 
     // ---- FEMALE HAIR – WAVY ----
-    // Similar treatment; you can tweak each color later if needed.
     item({
       id: "f_hair_wavy_blonde",
       gender: "female",
+      category: "hair",
       cat: "hair",
       slot: "hair",
       name: "Wavy Blonde",
@@ -159,6 +166,7 @@
     item({
       id: "f_hair_wavy_brown",
       gender: "female",
+      category: "hair",
       cat: "hair",
       slot: "hair",
       name: "Wavy Brown",
@@ -172,6 +180,7 @@
     item({
       id: "f_hair_wavy_copper",
       gender: "female",
+      category: "hair",
       cat: "hair",
       slot: "hair",
       name: "Wavy Copper",
@@ -185,6 +194,7 @@
     item({
       id: "f_hair_wavy_ginger",
       gender: "female",
+      category: "hair",
       cat: "hair",
       slot: "hair",
       name: "Wavy Ginger",
@@ -198,13 +208,14 @@
     item({
       id: "f_hair_wavy_pastel_blue",
       gender: "female",
+      category: "hair",
       cat: "hair",
       slot: "hair",
       name: "Wavy Pastel Blue",
       label: "wavy • pastel blue",
       coins: 22,
       rarity: "epic",
-      img: base + "/hair/wavy/female_pastel_blue.png",
+      img: base + "/hair/wavy/female_wavy_pastel_blue.png", // fixed filename
       scale: 0.96,
       offsetX: 0,
       offsetY: -3
@@ -212,6 +223,7 @@
     item({
       id: "f_hair_wavy_pastel_pink",
       gender: "female",
+      category: "hair",
       cat: "hair",
       slot: "hair",
       name: "Wavy Pastel Pink",
@@ -226,6 +238,7 @@
     item({
       id: "f_hair_wavy_pastel_purple",
       gender: "female",
+      category: "hair",
       cat: "hair",
       slot: "hair",
       name: "Wavy Pastel Purple",
@@ -240,6 +253,7 @@
     item({
       id: "f_hair_wavy_platinum",
       gender: "female",
+      category: "hair",
       cat: "hair",
       slot: "hair",
       name: "Wavy Platinum",
@@ -253,11 +267,10 @@
     }),
 
     // ---- TOPS (unisex tank + tee) ----
-    // You said tops were a bit too high and big:
-    // -> slightly smaller, nudged down.
     item({
       id: "u_top_tank",
       gender: "unisex",
+      category: "top",
       cat: "top",
       slot: "top",
       name: "8BFR Tank Top",
@@ -271,6 +284,7 @@
     item({
       id: "u_top_tee",
       gender: "unisex",
+      category: "top",
       cat: "top",
       slot: "top",
       name: "8BFR Tee",
@@ -283,11 +297,10 @@
     }),
 
     // ---- BOTTOMS (female shorts / skirt) ----
-    // Shorts: a little too big → shrink + nudge up.
-    // Skirt: too small & low → slightly bigger + move up.
     item({
       id: "f_bottom_shorts",
       gender: "female",
+      category: "bottom",
       cat: "bottom",
       slot: "bottom",
       name: "Denim Shorts",
@@ -301,6 +314,7 @@
     item({
       id: "f_bottom_skirt",
       gender: "female",
+      category: "bottom",
       cat: "bottom",
       slot: "bottom",
       name: "Mini Skirt",
@@ -313,11 +327,10 @@
     }),
 
     // ---- JEWELRY – FEMALE ----
-    // Necklace: too tall (above head) → smaller, moved down.
-    // Belly ring: too big, too low → smaller, moved up.
     item({
       id: "f_jewel_necklace",
       gender: "female",
+      category: "jewelry",
       cat: "jewelry",
       slot: "necklace",
       name: "Gold Necklace",
@@ -331,6 +344,7 @@
     item({
       id: "f_jewel_belly",
       gender: "female",
+      category: "jewelry",
       cat: "jewelry",
       slot: "belly",
       name: "Belly Ring",
@@ -341,11 +355,10 @@
       offsetX: 0,
       offsetY: -6
     }),
-    // Earrings: ears are handled by CSS left/right; scale here does nothing *yet*
-    // but we keep it so you're consistent if we change logic later.
     item({
       id: "f_jewel_ears",
       gender: "female",
+      category: "jewelry",
       cat: "jewelry",
       slot: "ears",
       name: "Gold Earrings",
@@ -361,6 +374,7 @@
     item({
       id: "m_jewel_necklace",
       gender: "male",
+      category: "jewelry",
       cat: "jewelry",
       slot: "necklace",
       name: "Gold Chain",
@@ -372,11 +386,11 @@
       offsetY: 10
     }),
 
-    // ---- EYES (unisex, iris overlays) ----
-    // Previously huge & centered → now much smaller and moved up.
+    // ---- EYES (unisex) ----
     item({
       id: "u_eyes_blue",
       gender: "unisex",
+      category: "eyes",
       cat: "eyes",
       slot: "eyes",
       name: "Blue Eyes",
@@ -390,6 +404,7 @@
     item({
       id: "u_eyes_green",
       gender: "unisex",
+      category: "eyes",
       cat: "eyes",
       slot: "eyes",
       name: "Green Eyes",
@@ -403,6 +418,7 @@
     item({
       id: "u_eyes_brown",
       gender: "unisex",
+      category: "eyes",
       cat: "eyes",
       slot: "eyes",
       name: "Brown Eyes",
@@ -414,17 +430,31 @@
       offsetY: -18
     }),
 
-    // ---- SHOES (unisex sneakers only) ----
-    // Shoes were already close; keep scale 1 for now.
+    // ---- SHOES (unisex) ----
     item({
       id: "u_shoes_sneakers",
       gender: "unisex",
+      category: "shoes",
       cat: "shoes",
       slot: "shoes",
       name: "Sneakers",
       label: "unisex shoes",
       coins: 14,
       img: base + "/unisex/shoes/unisex_shoes.png",
+      scale: 1,
+      offsetX: 0,
+      offsetY: 0
+    }),
+    item({
+      id: "u_shoes_sandles",
+      gender: "unisex",
+      category: "shoes",
+      cat: "shoes",
+      slot: "shoes",
+      name: "Sandals",
+      label: "unisex sandals",
+      coins: 12,
+      img: base + "/unisex/shoes/unisex_sandles.png",
       scale: 1,
       offsetX: 0,
       offsetY: 0
