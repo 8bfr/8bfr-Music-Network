@@ -1,7 +1,7 @@
-// carrie-closet.js v11 — works with body[data-gender] + separate scale/x/y CSS
+// carrie-closet.js — version synced to your data file
 
 (function () {
-  // ---- pull closet data from carrie-closet-data.js ----
+  // ---- grab data from carrie-closet-data.js ----
   const DATA =
     window.CARRIE_CLOSET_ITEMS ||
     window.carrieClosetItems ||
@@ -21,13 +21,13 @@
   const tabButtons = document.querySelectorAll(".tab-btn[data-cat]");
 
   if (!grid || !overlayHost || !baseImg) {
-    console.warn("Carrie Closet: missing required HTML (grid/overlay/base).");
+    console.warn("Carrie Closet: preview HTML not found.");
     return;
   }
 
   if (!Array.isArray(DATA) || DATA.length === 0) {
     console.warn(
-      "Carrie Closet: no data found. Expected CARRIE_CLOSET_ITEMS / carrieClosetItems / closetItems."
+      "Carrie Closet: no data. Expected CARRIE_CLOSET_ITEMS / carrieClosetItems / closetItems."
     );
     if (errorEl) errorEl.classList.remove("hidden");
     return;
@@ -40,14 +40,12 @@
       ? body.dataset.gender
       : "female";
 
-  let currentSkinTone = "light"; // matches base_female_light / base_male_light
+  let currentSkinTone = "light";
   let currentCategory = "hair";
   let activeSelections = {}; // slot -> itemId
 
   const SKIN_TONES = [
     { id: "light", label: "Light" },
-    { id: "tan", label: "Tan" },
-    { id: "brown", label: "Brown" },
     { id: "dark", label: "Dark" },
   ];
 
@@ -82,15 +80,32 @@
     }
   }
 
+  function normalizeCategory(raw) {
+    const v = (raw || "").toString().toLowerCase();
+    if (!v) return "";
+    if (v === "tops") return "top";
+    if (v === "bottoms") return "bottom";
+    if (v === "jewellery") return "jewelry";
+    return v;
+  }
+
   function getFilteredItems() {
     return DATA.filter((item) => {
       if (!item) return false;
 
-      const cat = (item.category || item.cat || item.slot || "").toLowerCase();
+      const catRaw =
+        item.category ||
+        item.cat ||
+        item.slot ||
+        "";
+      const cat = normalizeCategory(catRaw);
+
       const g = (item.gender || item.g || "unisex").toLowerCase();
 
       const catOk =
-        currentCategory === "all" ? true : cat === currentCategory;
+        currentCategory === "all"
+          ? true
+          : cat === currentCategory;
 
       const genderOk =
         g === "unisex" ||
@@ -121,9 +136,13 @@
       if (!item.id) return;
 
       const id = item.id;
-      const slot = item.slot || item.category || item.cat || "misc";
-      const imgSrc = item.img || item.image || item.src;
-      const thumbSrc = item.thumb || item.thumbnail || imgSrc;
+      const slot =
+        item.slot ||
+        item.category ||
+        item.cat ||
+        "misc";
+      const imgSrc = item.thumb || item.img || item.image || item.src;
+      const thumbSrc = imgSrc;
 
       const card = document.createElement("button");
       card.type = "button";
@@ -138,7 +157,7 @@
       if (thumbSrc) {
         const img = document.createElement("img");
         img.src = thumbSrc;
-        img.alt = item.label || id;
+        img.alt = item.label || item.name || id;
         thumb.appendChild(img);
       }
 
@@ -147,11 +166,13 @@
 
       const title = document.createElement("div");
       title.className = "text-[11px] font-semibold text-slate-50";
-      title.textContent = item.label || id;
+      title.textContent = item.label || item.name || id;
 
       const meta = document.createElement("div");
       meta.className = "text-[10px] text-purple-200/80";
-      const catLabel = (item.category || item.cat || slot || "")
+      const catLabel = normalizeCategory(
+        item.category || item.cat || slot || ""
+      )
         .toString()
         .toUpperCase();
       meta.textContent = catLabel;
@@ -170,7 +191,7 @@
           // one item per slot
           activeSelections[slot] = id;
         }
-        renderItems();   // refresh active highlight
+        renderItems(); // refresh active highlight
         renderOverlays();
       });
 
@@ -188,7 +209,9 @@
       "bottom",
       "shoes",
       "top",
-      "jewelry",
+      "belly",
+      "necklace",
+      "ears",
       "eyes",
       "hair",
       "misc",
@@ -211,9 +234,9 @@
 
       const img = document.createElement("img");
       img.src = imgSrc;
-      img.alt = item.label || id;
+      img.alt = item.label || item.name || id;
 
-      // This class hooks into your CSS:
+      // Hook into your CSS:
       // .layer-overlay.item-<ID> { ... }
       img.className = "layer-overlay item-" + id;
 
@@ -284,7 +307,7 @@
 
   function wireTabs() {
     tabButtons.forEach((btn) => {
-      const cat = (btn.dataset.cat || "").toLowerCase();
+      const cat = normalizeCategory(btn.dataset.cat || "");
       if (!cat) return;
 
       if (cat === currentCategory) {
