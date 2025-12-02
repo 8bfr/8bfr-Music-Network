@@ -40,7 +40,7 @@
       label: "straight • blonde",
       coins: 20,
       rarity: "rare",
-      img: base + "/hair/straight/female_straight_blonde.png",
+      img: base + "/hair/straight/female_straight_blonde.png?v=3",
       scale: 0.95,
       offsetX: 0,
       offsetY: -10
@@ -54,7 +54,7 @@
       name: "Straight Brown",
       label: "straight • brown",
       coins: 15,
-      img: base + "/hair/straight/female_straight_brown.png",
+      img: base + "/hair/straight/female_straight_brown.png?v=3",
       scale: 0.95,
       offsetX: 0,
       offsetY: -10   // was 200, which would push it way off-screen
@@ -68,7 +68,7 @@
       name: "Straight Copper",
       label: "straight • copper",  // fixed "lael" typo
       coins: 18,
-      img: base + "/hair/straight/female_straight_copper.png",
+      img: base + "/hair/straight/female_straight_copper.png?v=3",
       scale: 0.95,
       offsetX: 0,
       offsetY: -4
@@ -82,7 +82,7 @@
       name: "Straight Ginger",
       label: "straight • ginger",
       coins: 18,
-      img: base + "/hair/straight/female_straight_ginger.png",
+      img: base + "/hair/straight/female_straight_ginger.png?v=3",
       scale: 0.95,
       offsetX: 0,
       offsetY: -4
@@ -97,7 +97,7 @@
       label: "straight • pastel blue",
       coins: 22,
       rarity: "epic",
-      img: base + "/hair/straight/female_straight_pastel_blue.png",
+      img: base + "/hair/straight/female_straight_pastel_blue.png?v=3",
       scale: 0.95,
       offsetX: 0,
       offsetY: -4
@@ -112,7 +112,7 @@
       label: "straight • pastel pink",
       coins: 22,
       rarity: "epic",
-      img: base + "/hair/straight/female_straight_pastel_pink.png",
+      img: base + "/hair/straight/female_straight_pastel_pink.png?v=3",
       scale: 0.95,
       offsetX: 0,
       offsetY: -4
@@ -127,7 +127,7 @@
       label: "straight • pastel purple",
       coins: 22,
       rarity: "epic",
-      img: base + "/hair/straight/female_straight_pastel_purple.png",
+      img: base + "/hair/straight/female_straight_pastel_purple.png?v=3",
       scale: 0.95,
       offsetX: 0,
       offsetY: -4
@@ -142,7 +142,23 @@
       label: "straight • platinum blonde",
       coins: 25,
       rarity: "legendary",
-      img: base + "/hair/straight/female_straight_platinum_blonde.png",
+      img: base + "/hair/straight/female_straight_platinum_blonde.png?v=3",
+      scale: 0.95,
+      offsetX: 0,
+      offsetY: -4
+    }),
+
+    // NEW: Straight Black hair
+    item({
+      id: "f_hair_straight_black",
+      gender: "female",
+      category: "hair",
+      cat: "hair",
+      slot: "hair",
+      name: "Straight Black",
+      label: "straight • black",
+      coins: 18,
+      img: base + "/hair/straight/female_straight_black.png?v=3",
       scale: 0.95,
       offsetX: 0,
       offsetY: -4
@@ -158,7 +174,7 @@
       name: "Wavy Blonde",
       label: "wavy • blonde",
       coins: 20,
-      img: base + "/hair/wavy/female_wavy_blonde.png",
+      img: base + "/hair/wavy/female_wavy_blonde.png?v=3",
       scale: 0.96,
       offsetX: 0,
       offsetY: -3
@@ -172,7 +188,7 @@
       name: "Wavy Brown",
       label: "wavy • brown",
       coins: 18,
-      img: base + "/hair/wavy/female_wavy_brown.png",
+      img: base + "/hair/wavy/female_wavy_brown.png?v=3",
       scale: 0.96,
       offsetX: 0,
       offsetY: -3
@@ -186,7 +202,7 @@
       name: "Wavy Copper",
       label: "wavy • copper",
       coins: 18,
-      img: base + "/hair/wavy/female_wavy_copper.png",
+      img: base + "/hair/wavy/female_wavy_copper.png?v=3",
       scale: 0.96,
       offsetX: 0,
       offsetY: -3
@@ -200,7 +216,7 @@
       name: "Wavy Ginger",
       label: "wavy • ginger",
       coins: 18,
-      img: base + "/hair/wavy/female_wavy_ginger.png",
+      img: base + "/hair/wavy/female_wavy_ginger.png?v=3",
       scale: 0.96,
       offsetX: 0,
       offsetY: -3
@@ -215,7 +231,7 @@
       label: "wavy • pastel blue",
       coins: 22,
       rarity: "epic",
-      img: base + "/hair/wavy/female_wavy_pastel_blue.png", // fixed filename
+      img: base + "/hair/wavy/female_wavy_pastel_blue.png?v=3", // fixed filename
       scale: 0.96,
       offsetX: 0,
       offsetY: -3
@@ -230,7 +246,7 @@
       label: "wavy • pastel pink",
       coins: 22,
       rarity: "epic",
-      img: base + "/hair/wavy/female_wavy_pastel_pink.png",
+      img: base + "/hair/wavy/female_wavy_pastel_pink.png?v=3",
       scale: 0.96,
       offsetX: 0,
       offsetY: -3
@@ -245,7 +261,7 @@
       label: "wavy • pastel purple",
       coins: 22,
       rarity: "epic",
-      img: base + "/hair/wavy/female_wavy_pastel_purple.png",
+      img: base + "/hair/wavy/female_wavy_pastel_purple.png?v=3",
       scale: 0.96,
       offsetX: 0,
       offsetY: -3
@@ -260,13 +276,29 @@
       label: "wavy • platinum blonde",
       coins: 25,
       rarity: "legendary",
-      img: base + "/hair/wavy/female_wavy_platinum_blonde.png",
+      img: base + "/hair/wavy/female_wavy_platinum_blonde.png?v=3",
       scale: 0.96,
       offsetX: 0,
       offsetY: -3
     }),
 
-    // ---- TOPS (unisex tank + tee) ----
+    // NEW: Wavy Black hair
+    item({
+      id: "f_hair_wavy_black",
+      gender: "female",
+      category: "hair",
+      cat: "hair",
+      slot: "hair",
+      name: "Wavy Black",
+      label: "wavy • black",
+      coins: 18,
+      img: base + "/hair/wavy/female_wavy_black.png?v=3",
+      scale: 0.96,
+      offsetX: 0,
+      offsetY: -3
+    }),
+
+    // ---- TOPS (unisex tank + tee + new crop top) ----
     item({
       id: "u_top_tank",
       gender: "unisex",
@@ -276,7 +308,7 @@
       name: "8BFR Tank Top",
       label: "unisex tank",
       coins: 15,
-      img: base + "/unisex/cloths/unisex_tank-top.png",
+      img: base + "/unisex/cloths/unisex_tank-top.png?v=3",
       scale: 0.92,
       offsetX: 0,
       offsetY: 6
@@ -290,10 +322,26 @@
       name: "8BFR Tee",
       label: "unisex tee",
       coins: 15,
-      img: base + "/unisex/cloths/unisex_tee-shirt.png",
+      img: base + "/unisex/cloths/unisex_tee-shirt.png?v=3",
       scale: 0.9,
       offsetX: 0,
       offsetY: 5
+    }),
+
+    // NEW: Female crop top
+    item({
+      id: "f_top_crop",
+      gender: "female",
+      category: "top",
+      cat: "top",
+      slot: "top",
+      name: "8BFR Crop Top",
+      label: "female crop top",
+      coins: 16,
+      img: base + "/female_cloths/female_crop-top.png?v=3",
+      scale: 0.92,
+      offsetX: 0,
+      offsetY: 6
     }),
 
     // ---- BOTTOMS (female shorts / skirt) ----
@@ -306,7 +354,7 @@
       name: "Denim Shorts",
       label: "female shorts",
       coins: 15,
-      img: base + "/female_cloths/female_shorts.png",
+      img: base + "/female_cloths/female_shorts.png?v=3",
       scale: 0.92,
       offsetX: 0,
       offsetY: -2
@@ -320,7 +368,7 @@
       name: "Mini Skirt",
       label: "female skirt",
       coins: 18,
-      img: base + "/female_cloths/female_skirt.png",
+      img: base + "/female_cloths/female_skirt.png?v=3",
       scale: 1.06,
       offsetX: 0,
       offsetY: -4
@@ -336,7 +384,7 @@
       name: "Gold Necklace",
       label: "necklace",
       coins: 20,
-      img: base + "/female_jewlery/female_gold_necklace.png",
+      img: base + "/female_jewlery/female_gold_necklace.png?v=3",
       scale: 0.82,
       offsetX: 0,
       offsetY: 8
@@ -350,7 +398,7 @@
       name: "Belly Ring",
       label: "belly ring",
       coins: 15,
-      img: base + "/female_jewlery/female_gold_belly-ring.png",
+      img: base + "/female_jewlery/female_gold_belly-ring.png?v=3",
       scale: 0.7,
       offsetX: 0,
       offsetY: -6
@@ -364,7 +412,7 @@
       name: "Gold Earrings",
       label: "ear rings",
       coins: 18,
-      img: base + "/female_jewlery/female_gold_ear-ring.png",
+      img: base + "/female_jewlery/female_gold_ear-ring.png?v=3",
       scale: 0.85,
       offsetX: 0,
       offsetY: -8
@@ -380,7 +428,7 @@
       name: "Gold Chain",
       label: "male necklace",
       coins: 20,
-      img: base + "/male_jewlery/male_gold_necklace.png",
+      img: base + "/male_jewlery/male_gold_necklace.png?v=3",
       scale: 0.85,
       offsetX: 0,
       offsetY: 10
@@ -396,7 +444,7 @@
       name: "Blue Eyes",
       label: "blue",
       coins: 10,
-      img: base + "/unisex/eyes/unisex_eyes_blue.png",
+      img: base + "/unisex/eyes/unisex_eyes_blue.png?v=3",
       scale: 0.28,
       offsetX: 0,
       offsetY: -18
@@ -410,7 +458,7 @@
       name: "Green Eyes",
       label: "green",
       coins: 10,
-      img: base + "/unisex/eyes/unisex_eyes_green.png",
+      img: base + "/unisex/eyes/unisex_eyes_green.png?v=3",
       scale: 0.28,
       offsetX: 0,
       offsetY: -18
@@ -424,7 +472,7 @@
       name: "Brown Eyes",
       label: "brown",
       coins: 10,
-      img: base + "/unisex/eyes/unisex_eyes_brown.png",
+      img: base + "/unisex/eyes/unisex_eyes_brown.png?v=3",
       scale: 0.28,
       offsetX: 0,
       offsetY: -18
@@ -440,7 +488,7 @@
       name: "Sneakers",
       label: "unisex shoes",
       coins: 14,
-      img: base + "/unisex/shoes/unisex_shoes.png",
+      img: base + "/unisex/shoes/unisex_shoes.png?v=3",
       scale: 1,
       offsetX: 0,
       offsetY: 0
@@ -454,7 +502,7 @@
       name: "Sandals",
       label: "unisex sandals",
       coins: 12,
-      img: base + "/unisex/shoes/unisex_sandles.png",
+      img: base + "/unisex/shoes/unisex_sandles.png?v=3",
       scale: 1,
       offsetX: 0,
       offsetY: 0
