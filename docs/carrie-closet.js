@@ -1,6 +1,8 @@
-// carrie-closet.js — version synced to your data file
+// carrie-closet.js — v15
 
 (function () {
+  const VERSION = "?v=15";
+
   // ---- grab data from carrie-closet-data.js ----
   const DATA =
     window.CARRIE_CLOSET_ITEMS ||
@@ -62,8 +64,8 @@
 
     const src =
       currentGender === "male"
-        ? `assets/images/base/male/base_male_${currentSkinTone}.png`
-        : `assets/images/base/female/base_female_${currentSkinTone}.png`;
+        ? `assets/images/base/male/base_male_${currentSkinTone}.png${VERSION}`
+        : `assets/images/base/female/base_female_${currentSkinTone}.png${VERSION}`;
 
     baseImg.src = src;
 
