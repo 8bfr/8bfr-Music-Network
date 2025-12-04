@@ -1,334 +1,823 @@
-// carrie-closet.js — version synced to your data file
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Carrie Closet — 8BFR Music Network</title>
+  <meta name="description" content="Customize your Carrie, James, or partner avatar with outfits, hair, accessories and more using 8BFR coins." />
+  <link rel="icon" href="assets/images/favicon.png?v=15" />
+  <script src="https://cdn.tailwindcss.com"></script>
 
-(function () {
-  // ---- grab data from carrie-closet-data.js ----
-  const DATA =
-    window.CARRIE_CLOSET_ITEMS ||
-    window.carrieClosetItems ||
-    window.closetItems ||
-    [];
-
-  const errorEl = document.getElementById("closetError");
-  const emptyEl = document.getElementById("closetEmpty");
-  const grid = document.getElementById("closetItemsGrid");
-  const overlayHost = document.getElementById("closetOverlayHost");
-  const baseImg = document.getElementById("closetBaseImg");
-  const previewLabel = document.getElementById("closetPreviewLabel");
-  const closetGenderLabel = document.getElementById("closetGenderLabel");
-  const skinToneWrap = document.getElementById("skinToneButtons");
-
-  const genderButtons = document.querySelectorAll(".seg-btn[data-gender]");
-  const tabButtons = document.querySelectorAll(".tab-btn[data-cat]");
-
-  if (!grid || !overlayHost || !baseImg) {
-    console.warn("Carrie Closet: preview HTML not found.");
-    return;
-  }
-
-  if (!Array.isArray(DATA) || DATA.length === 0) {
-    console.warn(
-      "Carrie Closet: no data. Expected CARRIE_CLOSET_ITEMS / carrieClosetItems / closetItems."
-    );
-    if (errorEl) errorEl.classList.remove("hidden");
-    return;
-  }
-
-  // ---- state ----
-  const body = document.body;
-  let currentGender =
-    body.dataset.gender === "male" || body.dataset.gender === "female"
-      ? body.dataset.gender
-      : "female";
-
-  let currentSkinTone = "light";
-  let currentCategory = "hair";
-  let activeSelections = {}; // slot -> itemId
-
-  const SKIN_TONES = [
-    { id: "light", label: "Light" },
-    { id: "dark", label: "Dark" },
-  ];
-
-  // ---- helpers ----
-
-  function updateBodyDataset() {
-    body.dataset.gender = currentGender;
-    body.dataset.skinTone = currentSkinTone;
-  }
-
-  function updateBase() {
-    const toneInfo = SKIN_TONES.find((t) => t.id === currentSkinTone);
-    const toneLabel = toneInfo ? toneInfo.label : currentSkinTone;
-
-    const src =
-      currentGender === "male"
-        ? `assets/images/base/male/base_male_${currentSkinTone}.png`
-        : `assets/images/base/female/base_female_${currentSkinTone}.png`;
-
-    baseImg.src = src;
-
-    if (previewLabel) {
-      const gLabel = currentGender === "male" ? "Male" : "Female";
-      const baseDesc =
-        currentGender === "male" ? "Shorts base" : "Bikini base";
-      previewLabel.textContent = `${gLabel} • ${toneLabel} skin • ${baseDesc}`;
+  <style>
+    :root {
+      --ring: rgba(124,58,237,.55);
+      --glass: rgba(12,6,24,.80);
     }
 
-    if (closetGenderLabel) {
-      const gLabel = currentGender === "male" ? "Male" : "Female";
-      closetGenderLabel.innerHTML = `Showing items for <b>${gLabel}</b> avatar`;
+    html, body { scroll-behavior:smooth; }
+
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, sans-serif;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(124,58,237,.30), transparent 60%),
+        radial-gradient(900px 400px at 110% 10%, rgba(0,217,255,.22), transparent 60%),
+        linear-gradient(#050011,#000);
+      color:#eae6ff;
+      margin:0;
+      min-height:100vh;
+      overflow-x:hidden;
     }
-  }
 
-  function normalizeCategory(raw) {
-    const v = (raw || "").toString().toLowerCase();
-    if (!v) return "";
-    if (v === "tops") return "top";
-    if (v === "bottoms") return "bottom";
-    if (v === "jewellery") return "jewelry";
-    return v;
-  }
-
-  function getFilteredItems() {
-    return DATA.filter((item) => {
-      if (!item) return false;
-
-      const catRaw =
-        item.category ||
-        item.cat ||
-        item.slot ||
-        "";
-      const cat = normalizeCategory(catRaw);
-
-      const g = (item.gender || item.g || "unisex").toLowerCase();
-
-      const catOk =
-        currentCategory === "all"
-          ? true
-          : cat === currentCategory;
-
-      const genderOk =
-        g === "unisex" ||
-        g === "u" ||
-        g === "all" ||
-        g === "both" ||
-        g === currentGender;
-
-      return catOk && genderOk;
-    });
-  }
-
-  // ---- render items list (right side) ----
-
-  function renderItems() {
-    if (!grid) return;
-    grid.innerHTML = "";
-
-    const items = getFilteredItems();
-
-    if (!items.length) {
-      if (emptyEl) emptyEl.classList.remove("hidden");
-      return;
+    header {
+      position:relative;
+      z-index:5;
+      background:rgba(10,0,25,.96);
+      border-bottom:1px solid rgba(124,58,237,.5);
+      box-shadow:0 18px 40px rgba(0,0,0,.7);
     }
-    if (emptyEl) emptyEl.classList.add("hidden");
 
-    items.forEach((item) => {
-      if (!item.id) return;
+    .shell {
+      border-radius:20px;
+      border:1px solid rgba(129,140,248,.6);
+      background:
+        radial-gradient(circle at 0 0,rgba(76,29,149,.40),transparent 60%),
+        radial-gradient(circle at 100% 0,rgba(14,165,233,.22),transparent 60%),
+        rgba(10,6,30,.96);
+      box-shadow:0 18px 50px rgba(0,0,0,.8);
+    }
 
-      const id = item.id;
-      const slot =
-        item.slot ||
-        item.category ||
-        item.cat ||
-        "misc";
-      const imgSrc = item.thumb || item.img || item.image || item.src;
-      const thumbSrc = imgSrc;
+    /* --- Preview frame + dressing room background --- */
+    #closetPreviewFrame {
+      width: 100%;
+      max-width: 1100px;
+      margin: 0 auto;
+      border-radius: 18px;
+      border: 1px solid rgba(148,163,255,0.55);
+      overflow: hidden;
 
-      const card = document.createElement("button");
-      card.type = "button";
-      card.className =
-        "closet-item-card" +
-        (activeSelections[slot] === id ? " active" : "");
-      card.dataset.itemId = id;
-      card.dataset.slot = slot;
+      height: 800px;                 /* overall avatar stage height */
+      display: flex;
+      align-items: center;
+      justify-content: center;
 
-      const thumb = document.createElement("div");
-      thumb.className = "closet-item-thumb";
-      if (thumbSrc) {
-        const img = document.createElement("img");
-        img.src = thumbSrc;
-        img.alt = item.label || item.name || id;
-        thumb.appendChild(img);
+      background-image: url("assets/images/closet/dressingroom.png?v=15");
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+
+      position: relative;
+    }
+
+    /* Inner canvas where base + layers sit */
+    #closetPreviewInner {
+      position: relative;
+      width: 100%;
+      max-width: 480px;
+      height: 100%;
+      transform: translateY(30px);  /* move avatar + overlays down a bit so feet hit floor */
+    }
+
+    /* Base avatar */
+    #closetBaseImg {
+      position: absolute;
+      inset: 0;
+      height: 100%;
+      width: auto;
+      object-fit: cover;
+      display: block;
+      z-index: 1;
+      left: 50%;
+      transform: translateX(-50%);
+      filter: drop-shadow(0 0 3px #000);
+    }
+
+    /* Overlays drop-shadow */
+    #closetOverlayHost img {
+      filter: drop-shadow(0 0 2px #000);
+    }
+
+    /* Overlay host */
+    #closetOverlayHost {
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      z-index:2;
+    }
+
+    /* All overlays share these base settings */
+    .layer-overlay {
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      object-fit:contain;
+      pointer-events:none;
+      image-rendering:auto;
+    }
+
+    /* Earrings: two copies (left + right) */
+    .layer-ears-left {
+      transform-origin:center top;
+      transform: scale(1) translate(-30%, -18%);
+    }
+
+    .layer-ears-right {
+      transform-origin:center top;
+      transform: scale(1) translate(30%, -18%);
+    }
+
+    /* Shoes: a pair, near feet */
+    .layer-shoes-left {
+      transform-origin:center bottom;
+      transform: scale(1) translate(-20%, 30%);
+    }
+
+    .layer-shoes-right {
+      transform-origin:center bottom;
+      transform: scale(1) translate(20%, 30%);
+    }
+
+    .pill-tag {
+      display:inline-flex;
+      align-items:center;
+      gap:.25rem;
+      font-size:.7rem;
+      border-radius:999px;
+      padding:.15rem .6rem;
+      border:1px solid rgba(129,140,248,.85);
+      background:rgba(15,23,42,.9);
+      text-transform:uppercase;
+      letter-spacing:.08em;
+    }
+
+    .pill-tag-soft {
+      border-color:rgba(147,197,253,.55);
+      background:rgba(15,23,42,.85);
+    }
+
+    .seg-btn {
+      font-size:11px;
+      padding:4px 10px;
+      border-radius:999px;
+      border:1px solid rgba(148,163,255,.45);
+      background:rgba(15,23,42,.85);
+      cursor:pointer;
+      color:#e5e7eb;
+      transition:all .12s ease;
+    }
+
+    .seg-btn.active {
+      border-color:#a855f7;
+      background:linear-gradient(135deg,#7c3aed,#a855f7);
+      color:#fff;
+      box-shadow:0 0 0 1px rgba(129,140,248,.7),0 0 16px rgba(168,85,247,.65);
+    }
+
+    .seg-btn:hover {
+      background:rgba(30,64,175,.85);
+    }
+
+    .tab-btn {
+      font-size:11px;
+      padding:4px 10px;
+      border-radius:999px;
+      border:1px solid rgba(148,163,255,.35);
+      background:rgba(15,23,42,.8);
+      cursor:pointer;
+      color:#e5e7eb;
+      transition:all .12s ease;
+      white-space:nowrap;
+    }
+
+    .tab-btn.active {
+      border-color:#38bdf8;
+      background:radial-gradient(circle at 0 0,#38bdf8,#6366f1);
+      color:#0f172a;
+    }
+
+    .closet-item-card {
+      border-radius:12px;
+      border:1px solid rgba(148,163,255,.4);
+      background:rgba(15,23,42,.96);
+      padding:.45rem .55rem;
+      text-align:left;
+      cursor:pointer;
+      transition:transform .08s ease, box-shadow .08s ease, border-color .08s ease, background .08s ease;
+      display:flex;
+      gap:.45rem;
+      align-items:center;
+    }
+
+    .closet-item-card:hover {
+      transform:translateY(-1px);
+      border-color:#a855f7;
+      box-shadow:0 0 0 1px rgba(129,140,248,.85),0 0 18px rgba(124,58,237,.55);
+      background:rgba(30,64,175,.85);
+    }
+
+    .closet-item-card.active {
+      border-color:#22c55e;
+      box-shadow:0 0 0 1px rgba(22,163,74,.8),0 0 18px rgba(22,163,74,.7);
+      background:rgba(5,46,22,.92);
+    }
+
+    .closet-item-thumb {
+      width:44px;
+      height:44px;
+      border-radius:10px;
+      border:1px solid rgba(148,163,255,.4);
+      background:#020617;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      overflow:hidden;
+      flex-shrink:0;
+    }
+
+    .closet-item-thumb img {
+      width:100%;
+      height:100%;
+      object-fit:contain;
+      display:block;
+    }
+
+    #closetError {
+      border-radius:999px;
+      border:1px solid rgba(248,113,113,.8);
+      background:rgba(127,29,29,.90);
+      padding:.4rem .75rem;
+      font-size:11px;
+    }
+
+    #closetEmpty {
+      border-radius:999px;
+      border:1px dashed rgba(148,163,255,.5);
+      background:rgba(15,23,42,.86);
+      padding:.4rem .75rem;
+      font-size:11px;
+    }
+
+    /* Hide global Carrie avatar / bubbles on this page */
+    #bubbleStack,
+    #bubble-top-single,
+    #carrieWrap,
+    #globalAvatarSwitch {
+      display:none !important;
+    }
+
+    #carrieToggleBar,
+    .carrie-toggle-bar,
+    #carrieModeButtons {
+      display:none !important;
+    }
+
+    @media (max-width:768px){
+      .shell { border-radius:16px; }
+
+      #closetPreviewFrame {
+        max-width:100%;
+        height: 650px;
+        padding:10px 0;
+        background-size: cover;
+        background-position: center;
       }
 
-      const info = document.createElement("div");
-      info.className = "flex flex-col gap-0.5";
-
-      const title = document.createElement("div");
-      title.className = "text-[11px] font-semibold text-slate-50";
-      title.textContent = item.label || item.name || id;
-
-      const meta = document.createElement("div");
-      meta.className = "text-[10px] text-purple-200/80";
-      const catLabel = normalizeCategory(
-        item.category || item.cat || slot || ""
-      )
-        .toString()
-        .toUpperCase();
-      meta.textContent = catLabel;
-
-      info.appendChild(title);
-      info.appendChild(meta);
-
-      card.appendChild(thumb);
-      card.appendChild(info);
-
-      card.addEventListener("click", () => {
-        if (activeSelections[slot] === id) {
-          // toggle off
-          delete activeSelections[slot];
-        } else {
-          // one item per slot
-          activeSelections[slot] = id;
-        }
-        renderItems(); // refresh active highlight
-        renderOverlays();
-      });
-
-      grid.appendChild(card);
-    });
-  }
-
-  // ---- render overlays on avatar (left side) ----
-
-  function renderOverlays() {
-    if (!overlayHost) return;
-    overlayHost.innerHTML = "";
-
-    const slotOrder = [
-      "bottom",
-      "shoes",
-      "top",
-      "belly",
-      "necklace",
-      "ears",
-      "eyes",
-      "hair",
-      "misc",
-    ];
-
-    const ordered = Object.entries(activeSelections).sort((a, b) => {
-      const [slotA] = a;
-      const [slotB] = b;
-      const ia = slotOrder.indexOf(slotA);
-      const ib = slotOrder.indexOf(slotB);
-      return ia - ib;
-    });
-
-    ordered.forEach(([slot, id]) => {
-      const item = DATA.find((it) => it && it.id === id);
-      if (!item) return;
-
-      const imgSrc = item.img || item.image || item.src;
-      if (!imgSrc) return;
-
-      const img = document.createElement("img");
-      img.src = imgSrc;
-      img.alt = item.label || item.name || id;
-
-      // Hook into your CSS:
-      // .layer-overlay.item-<ID> { ... }
-      img.className = "layer-overlay item-" + id;
-
-      if (typeof item.layer === "number") {
-        img.style.zIndex = String(item.layer);
+      #closetPreviewInner {
+        max-width:360px;
+        height:100%;
       }
+    }
 
-      overlayHost.appendChild(img);
-    });
-  }
+    /* --------------------------------------------------
+       PER-ITEM ADJUSTMENTS WITH SEPARATE SCALE / X / Y
+       -------------------------------------------------- */
 
-  // ---- skin tone buttons ----
+    /* ========== FEMALE ITEMS ========== */
 
-  function buildSkinToneButtons() {
-    if (!skinToneWrap) return;
-    skinToneWrap.innerHTML = "";
+    /* HAIR – STRAIGHT (FEMALE) */
+    body[data-gender="female"] .layer-overlay.item-f_hair_straight_blonde {
+      transform-origin: center top;
+      --scale: 0.50;
+      --offset-x: 0%;
+      --offset-y: -12%;
+      transform:
+        scale(var(--scale))
+        translateX(var(--offset-x))
+        translateY(var(--offset-y));
+    }
 
-    SKIN_TONES.forEach((tone) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className =
-        "seg-btn" + (tone.id === currentSkinTone ? " active" : "");
-      btn.dataset.skinTone = tone.id;
-      btn.textContent = tone.label;
+    body[data-gender="female"] .layer-overlay.item-f_hair_straight_brown {
+      transform-origin: center top;
+      --scale: 0.60;
+      --offset-x: 0%;
+      --offset-y: -20%;
+      transform:
+        scale(var(--scale))
+        translateX(var(--offset-x))
+        translateY(var(--offset-y));
+    }
 
-      btn.addEventListener("click", () => {
-        currentSkinTone = tone.id;
-        skinToneWrap
-          .querySelectorAll(".seg-btn")
-          .forEach((b) => b.classList.remove("active"));
-        btn.classList.add("active");
-        updateBodyDataset();
-        updateBase();
-        renderOverlays(); // keep clothing, just recolor base
-      });
+    body[data-gender="female"] .layer-overlay.item-f_hair_straight_copper {
+      transform-origin: center top;
+      --scale: 0.60;
+      --offset-x: 0%;
+      --offset-y: -22%;
+      transform:
+        scale(var(--scale))
+        translateX(var(--offset-x))
+        translateY(var(--offset-y));
+    }
 
-      skinToneWrap.appendChild(btn);
-    });
-  }
+    body[data-gender="female"] .layer-overlay.item-f_hair_straight_ginger {
+      transform-origin: center top;
+      --scale: 0.60;
+      --offset-x: 0%;
+      --offset-y: -20%;
+      transform:
+        scale(var(--scale))
+        translateX(var(--offset-x))
+        translateY(var(--offset-y));
+    }
 
-  // ---- gender buttons (♀ / ♂) ----
+    body[data-gender="female"] .layer-overlay.item-f_hair_straight_pastel_blue {
+      transform-origin: center top;
+      --scale: 0.60;
+      --offset-x: 0%;
+      --offset-y: -21%;
+      transform:
+        scale(var(--scale))
+        translateX(var(--offset-x))
+        translateY(var(--offset-y));
+    }
 
-  function wireGenderButtons() {
-    genderButtons.forEach((btn) => {
-      const g = (btn.dataset.gender || "female").toLowerCase();
-      if (g === currentGender) {
-        btn.classList.add("active");
-      }
+    body[data-gender="female"] .layer-overlay.item-f_hair_straight_pastel_pink {
+      transform-origin: center top;
+      --scale: 0.60;
+      --offset-x: 0%;
+      --offset-y: -20%;
+      transform:
+        scale(var(--scale))
+        translateX(var(--offset-x))
+        translateY(var(--offset-y));
+    }
 
-      btn.addEventListener("click", () => {
-        currentGender = g === "male" ? "male" : "female";
+    body[data-gender="female"] .layer-overlay.item-f_hair_straight_pastel_purple {
+      transform-origin: center top;
+      --scale: 0.60;
+      --offset-x: 0%;
+      --offset-y: -20%;
+      transform:
+        scale(var(--scale))
+        translateX(var(--offset-x))
+        translateY(var(--offset-y));
+    }
 
-        genderButtons.forEach((b) => b.classList.remove("active"));
-        btn.classList.add("active");
+    body[data-gender="female"] .layer-overlay.item-f_hair_straight_platinum {
+      transform-origin: center top;
+      --scale: 0.60;
+      --offset-x: 0%;
+      --offset-y: -21%;
+      transform:
+        scale(var(--scale))
+        translateX(var(--offset-x))
+        translateY(var(--offset-y));
+    }
 
-        // reset clothing when swapping body shape
-        activeSelections = {};
+    body[data-gender="female"] .layer-overlay.item-f_hair_straight_black {
+      transform-origin: center top;
+      --scale: 0.70;
+      --offset-x: 0%;
+      --offset-y: -3%;
+      transform:
+        scale(var(--scale))
+        translateX(var(--offset-x))
+        translateY(var(--offset-y));
+    }
 
-        updateBodyDataset();
-        updateBase();
-        renderItems();
-        renderOverlays();
-      });
-    });
-  }
+    /* HAIR – WAVY (FEMALE) */
+    body[data-gender="female"] .layer-overlay.item-f_hair_wavy_blonde {
+      transform-origin: center top;
+      --scale: 0.60;
+      --offset-x: -1%;
+      --offset-y: -20%;
+      transform:
+        scale(var(--scale))
+        translateX(var(--offset-x))
+        translateY(var(--offset-y));
+    }
 
-  // ---- category tabs (Hair / Tops / Bottoms / ...) ----
+    body[data-gender="female"] .layer-overlay.item-f_hair_wavy_brown {
+      transform-origin: center top;
+      --scale: 0.99;
+      --offset-x: 1%;
+      --offset-y: -36%;
+      transform:
+        scale(var(--scale))
+        translateX(var(--offset-x))
+        translateY(var(--offset-y));
+    }
 
-  function wireTabs() {
-    tabButtons.forEach((btn) => {
-      const cat = normalizeCategory(btn.dataset.cat || "");
-      if (!cat) return;
+    body[data-gender="female"] .layer-overlay.item-f_hair_wavy_copper {
+      transform-origin: center top;
+      --scale: 0.60;
+      --offset-x: -1%;
+      --offset-y: -20%;
+      transform:
+        scale(var(--scale))
+        translateX(var(--offset-x))
+        translateY(var(--offset-y));
+    }
 
-      if (cat === currentCategory) {
-        btn.classList.add("active");
-      }
+    body[data-gender="female"] .layer-overlay.item-f_hair_wavy_ginger {
+      transform-origin: center top;
+      --scale: 0.60;
+      --offset-x: -1%;
+      --offset-y: -20%;
+      transform:
+        scale(var(--scale))
+        translateX(var(--offset-x))
+        translateY(var(--offset-y));
+    }
 
-      btn.addEventListener("click", () => {
-        currentCategory = cat;
-        tabButtons.forEach((b) => b.classList.remove("active"));
-        btn.classList.add("active");
-        renderItems();
-      });
-    });
-  }
+    body[data-gender="female"] .layer-overlay.item-f_hair_wavy_pastel_blue {
+      transform-origin: center top;
+      --scale: 0.60;
+      --offset-x: -1%;
+      --offset-y: -20%;
+      transform:
+        scale(var(--scale))
+        translateX(var(--offset-x))
+        translateY(var(--offset-y));
+    }
 
-  // ---- init ----
-  updateBodyDataset();
-  buildSkinToneButtons();
-  wireGenderButtons();
-  wireTabs();
-  updateBase();
-  renderItems();
-  renderOverlays();
-})();
+    body[data-gender="female"] .layer-overlay.item-f_hair_wavy_pastel_pink {
+      transform-origin: center top;
+      --scale: 0.60;
+      --offset-x: -1%;
+      --offset-y: -21%;
+      transform:
+        scale(var(--scale))
+        translateX(var(--offset-x))
+        translateY(var(--offset-y));
+    }
+
+    body[data-gender="female"] .layer-overlay.item-f_hair_wavy_pastel_purple {
+      transform-origin: center top;
+      --scale: 0.60;
+      --offset-x: -1%;
+      --offset-y: -20%;
+      transform:
+        scale(var(--scale))
+        translateX(var(--offset-x))
+        translateY(var(--offset-y));
+    }
+
+    body[data-gender="female"] .layer-overlay.item-f_hair_wavy_platinum {
+      transform-origin: center top;
+      --scale: 0.60;
+      --offset-x: -1%;
+      --offset-y: -20%;
+      transform:
+        scale(var(--scale))
+        translateX(var(--offset-x))
+        translateY(var(--offset-y));
+    }
+
+    body[data-gender="female"] .layer-overlay.item-f_hair_wavy_black {
+      transform-origin: center top;
+      --scale: 0.60;
+      --offset-x: -1%;
+      --offset-y: -20%;
+      transform:
+        scale(var(--scale))
+        translateX(var(--offset-x))
+        translateY(var(--offset-y));
+    }
+
+    /* TOPS – FEMALE VIEW FOR UNISEX + RED BIKINI TOP */
+    body[data-gender="female"] .layer-overlay.item-u_top_tank {
+      transform-origin: center top;
+      --scale: 0.92;
+      --offset-x: 0%;
+      --offset-y: -15%;
+      transform:
+        translateX(var(--offset-x))
+        translateY(var(--offset-y))
+        scale(var(--scale));
+    }
+
+    body[data-gender="female"] .layer-overlay.item-u_top_tee {
+      transform-origin: center top;
+      --scale: 0.75;
+      --offset-x: 0%;
+      --offset-y: -4%;
+      transform:
+        translateX(var(--offset-x))
+        translateY(var(--offset-y))
+        scale(var(--scale));
+    }
+
+    body[data-gender="female"] .layer-overlay.item-f_top_bikini_red {
+      transform-origin: center top;
+      --scale: 0.45;
+      --offset-x: 0%;
+      --offset-y: 8%;
+      transform:
+        translateX(var(--offset-x))
+        translateY(var(--offset-y))
+        scale(var(--scale));
+    }
+
+    /* BOTTOMS – FEMALE */
+    body[data-gender="female"] .layer-overlay.item-f_bottom_shorts {
+      transform-origin: center top;
+      --scale: .64;
+      --offset-x: -1%;
+      --offset-y: 22%;
+      transform:
+        translateX(var(--offset-x))
+        translateY(var(--offset-y))
+        scale(var(--scale));
+    }
+
+    body[data-gender="female"] .layer-overlay.item-f_bottom_skirt {
+      transform-origin: center top;
+      --scale: .64;
+      --offset-x: -1%;
+      --offset-y: 24%;
+      transform:
+        scale(var(--scale))
+        translateX(var(--offset-x))
+        translateY(var(--offset-y));
+    }
+
+    body[data-gender="female"] .layer-overlay.item-f_bottom_bikini_red {
+      transform-origin: center top;
+      --scale: .60;
+      --offset-x: -1%;
+      --offset-y: 50%;
+      transform:
+        scale(var(--scale))
+        translateX(var(--offset-x))
+        translateY(var(--offset-y));
+    }
+
+    /* JEWELRY – FEMALE */
+    body[data-gender="female"] .layer-overlay.item-f_jewel_necklace {
+      transform-origin: center top;
+      --scale: 1;
+      --offset-x: 0%;
+      --offset-y: 0%;
+      transform:
+        scale(var(--scale))
+        translateX(var(--offset-x))
+        translateY(var(--offset-y));
+    }
+
+    body[data-gender="female"] .layer-overlay.item-f_jewel_belly {
+      transform-origin: center top;
+      --scale: 1;
+      --offset-x: 0%;
+      --offset-y: 0%;
+      transform:
+        scale(var(--scale))
+        translateX(var(--offset-x))
+        translateY(var(--offset-y));
+    }
+
+    body[data-gender="female"] .layer-overlay.item-f_jewel_ears {
+      transform-origin: center top;
+      --scale: 1;
+      --offset-x: 0%;
+      --offset-y: 0%;
+      transform:
+        scale(var(--scale))
+        translateX(var(--offset-x))
+        translateY(var(--offset-y));
+    }
+
+    /* ========== MALE ITEMS ========== */
+
+    /* TOPS – MALE VIEW FOR UNISEX */
+    body[data-gender="male"] .layer-overlay.item-u_top_tank {
+      transform-origin: center top;
+      --scale: 0.70;
+      --offset-x: 0%;
+      --offset-y: -6%;
+      transform:
+        translateX(var(--offset-x))
+        translateY(var(--offset-y))
+        scale(var(--scale));
+    }
+
+    body[data-gender="male"] .layer-overlay.item-u_top_tee {
+      transform-origin: center top;
+      --scale: 0.90;
+      --offset-x: 0%;
+      --offset-y: -7%;
+      transform:
+        translateX(var(--offset-x))
+        translateY(var(--offset-y))
+        scale(var(--scale));
+    }
+
+    /* JEWELRY – MALE */
+    body[data-gender="male"] .layer-overlay.item-m_jewel_necklace {
+      transform-origin: center top;
+      --scale: 1;
+      --offset-x: 0%;
+      --offset-y: 0%;
+      transform:
+        scale(var(--scale))
+        translateX(var(--offset-x))
+        translateY(var(--offset-y));
+    }
+
+    /* ========== UNISEX ITEMS (EYES / SHOES) ========== */
+
+    body[data-gender="female"] .layer-overlay.item-u_eyes_blue,
+    body[data-gender="female"] .layer-overlay.item-u_eyes_green,
+    body[data-gender="female"] .layer-overlay.item-u_eyes_brown,
+    body[data-gender="male"]   .layer-overlay.item-u_eyes_blue,
+    body[data-gender="male"]   .layer-overlay.item-u_eyes_green,
+    body[data-gender="male"]   .layer-overlay.item-u_eyes_brown {
+      transform-origin: center top;
+      --scale: 1;
+      --offset-x: 0%;
+      --offset-y: 0%;
+      transform:
+        scale(var(--scale))
+        translateX(var(--offset-x))
+        translateY(var(--offset-y));
+    }
+
+    body[data-gender="female"] .layer-overlay.item-u_shoes_sneakers,
+    body[data-gender="male"]   .layer-overlay.item-u_shoes_sneakers {
+      transform-origin: center bottom;
+      --scale: 1;
+      --offset-x: 0%;
+      --offset-y: 0%;
+      transform:
+        scale(var(--scale))
+        translateX(var(--offset-x))
+        translateY(var(--offset-y));
+    }
+  </style>
+</head>
+<body data-no-global-carrie="true" data-gender="female">
+  <header class="px-4 py-4">
+    <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <img src="assets/images/logo_8bfr.svg?v=15"
+             alt="8BFR logo"
+             class="h-9 w-auto"
+             onerror="this.onerror=null;this.src='assets/images/8bfr.png?v=15'">
+        <div>
+          <h1 class="text-xl sm:text-2xl font-extrabold">
+            <span class="text-[#a855f7]">Carrie Closet</span>
+            <span class="text-xs sm:text-sm font-semibold align-middle ml-1 text-emerald-300/80">beta</span>
+          </h1>
+          <p class="text-[11px] text-purple-300/80 -mt-0.5">
+            Dress your AI avatar for BF / GF chat and future upgrades.
+          </p>
+        </div>
+      </div>
+      <div class="flex flex-col items-end gap-1">
+        <a href="carrie-chat.html"
+           class="text-[#00d9ff] text-[11px] sm:text-xs underline/50 hover:underline">
+          ⬅ Back to Carrie Chat
+        </a>
+        <span class="pill-tag pill-tag-soft text-[10px]">
+          <span>🪙</span> Coins shop connects from here later
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 pb-10 pt-5">
+    <div class="shell p-4 sm:p-5 lg:p-6">
+      <div class="flex flex-col lg:flex-row gap-6 lg:gap-8">
+        <!-- LEFT: Preview + base controls -->
+        <section class="lg:w-[60%] space-y-4">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="pill-tag text-[10px]">
+                🧬 Avatar Preview
+              </span>
+              <span id="closetPreviewLabel" class="text-[11px] text-purple-200/80">
+                Female • Light skin • Bikini base
+              </span>
+            </div>
+            <span class="text-[10px] text-purple-200/80">
+              BF / GF chat only
+            </span>
+          </div>
+
+          <div id="closetPreviewFrame">
+            <div id="closetPreviewInner">
+              <img id="closetBaseImg"
+                   src="assets/images/base/female/base_female_light.png?v=15"
+                   alt="Avatar base">
+              <div id="closetOverlayHost"></div>
+            </div>
+          </div>
+
+          <div class="space-y-3 mt-2">
+            <!-- Gender -->
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="uppercase tracking-[0.16em] text-[9px] text-purple-200/75">
+                  Gender
+                </span>
+              </div>
+              <div class="flex gap-2">
+                <button type="button"
+                        class="seg-btn active"
+                        data-gender="female">
+                  ♀ Female
+                </button>
+                <button type="button"
+                        class="seg-btn"
+                        data-gender="male">
+                  ♂ Male
+                </button>
+              </div>
+            </div>
+
+            <!-- Skin tone -->
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="uppercase tracking-[0.16em] text-[9px] text-purple-200/75">
+                  Skin tone
+                </span>
+              </div>
+              <div id="skinToneButtons" class="flex flex-wrap gap-2">
+                <!-- Filled by JS -->
+              </div>
+            </div>
+          </div>
+
+          <p class="mt-3 text-[11px] text-purple-200/80">
+            Tip: All outfits, hair, and accessories are drawn on the same canvas as the base,
+            so what you see here will match BF / GF chat exactly.
+          </p>
+        </section>
+
+        <!-- RIGHT: Filters + items -->
+        <section class="lg:flex-1 space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="pill-tag text-[10px]">
+                🛒 Closet Items
+              </span>
+              <span id="closetGenderLabel" class="text-[11px] text-purple-200/85">
+                Showing items for <b>Female</b> avatar
+              </span>
+            </div>
+          </div>
+
+          <!-- Category tabs -->
+          <div class="flex flex-wrap gap-2 mt-1">
+            <button type="button" class="tab-btn active" data-cat="hair">Hair</button>
+            <button type="button" class="tab-btn" data-cat="top">Tops</button>
+            <button type="button" class="tab-btn" data-cat="bottom">Bottoms</button>
+            <button type="button" class="tab-btn" data-cat="jewelry">Jewelry</button>
+            <button type="button" class="tab-btn" data-cat="eyes">Eyes</button>
+            <button type="button" class="tab-btn" data-cat="shoes">Shoes</button>
+            <button type="button" class="tab-btn" data-cat="all">All</button>
+          </div>
+
+          <!-- Error / empty messages -->
+          <div id="closetError" class="hidden mt-2 text-red-50 text-[11px]">
+            Closet data failed to load. Please check carrie-closet-data.js.
+          </div>
+
+          <div id="closetEmpty" class="hidden mt-2 text-purple-100/90 text-[11px]">
+            No items for this category yet. Try switching categories or gender.
+          </div>
+
+          <!-- Items grid -->
+          <div id="closetItemsGrid" class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <!-- JS will inject cards -->
+          </div>
+
+          <p class="mt-3 text-[10px] text-purple-300/75">
+            In the full release, each item will cost 8BFR coins and connect to your
+            <a href="coinshop.html" class="underline text-sky-300 hover:text-sky-200">Coin Shop</a>.
+            For now this is a visual beta so you can design outfits without charging coins.
+          </p>
+        </section>
+      </div>
+    </div>
+
+    <p class="mt-4 text-[11px] text-purple-300/70 text-center max-w-3xl mx-auto">
+      Default male base has shorts and no shirt. Default female base uses a bikini.
+      Tops, bottoms, hair, eyes, jewelry, and shoes layer over those bases.
+    </p>
+  </main>
+
+  <!-- Closet data + logic (DATA FIRST, then LOGIC) -->
+  <script src="carrie-closet-data.js?v=15"></script>
+  <script src="carrie-closet.js?v=15"></script>
+</body>
+</html>
