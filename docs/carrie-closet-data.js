@@ -384,7 +384,7 @@
       name: "Red Bikini Bottom",
       label: "bikini bottom • red",
       coins: 12,
-      img: base + "/female_cloths/female_bikini-bottom_red.png",
+      img: base + "/female_cloths/female_bikini-bottom_redv2.png",
       scale: 0.92,
       offsetX: 0,
       offsetY: -2
