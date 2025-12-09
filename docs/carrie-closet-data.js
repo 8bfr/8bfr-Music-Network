@@ -375,20 +375,22 @@
     }),
 
     // NEW: Female red bikini bottom overlay
-    item({
-      id: "f_bottom_bikini_red",
-      gender: "female",
-      category: "bottom",
-      cat: "bottom",
-      slot: "bottom",
-      name: "Red Bikini Bottom",
-      label: "bikini bottom • red",
-      coins: 12,
-      img: base + "/female_cloths/female_bikini-bottom_redv2.png?v=99",
-      scale: 0.92,
-      offsetX: 0,
-      offsetY: -2
-    }),
+item({
+  id: "f_bottom_bikini_red",
+  gender: "female",
+  category: "bottom",
+  cat: "bottom",
+  slot: "bottom",
+  name: "Red Bikini Bottom",
+  label: "bikini bottom • red",
+  coins: 12,
+  // Use same file for both full-size and button thumb
+  img:   base + "/female_cloths/female_bikini-bottom_redv2.png?v=106",
+  thumb: base + "/female_cloths/female_bikini-bottom_redv2.png?v=106",
+  scale: 0.92,
+  offsetX: 0,
+  offsetY: -2
+}),
 
     // ---- JEWELRY – FEMALE ----
     item({
