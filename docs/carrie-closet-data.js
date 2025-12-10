@@ -308,7 +308,7 @@
       name: "8BFR Tank Top",
       label: "unisex tank",
       coins: 15,
-      img: base + "/unisex/cloths/unisex_tank-top.png"?v=2,
+      img: base + "/unisex/cloths/unisex_tank-top.png",
       scale: 0.92,
       offsetX: 0,
       offsetY: 6
