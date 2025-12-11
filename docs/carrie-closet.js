@@ -36,8 +36,8 @@
 
   // We’ll keep tones simple: light / medium / dark
   const SKIN_TONES = {
-    female: ["light", "medium", "dark"],
-    male: ["light", "medium", "dark"],
+    female: ["light", "dark"],
+    male: ["light",  "dark"],
   };
 
   let currentTone = "light";
@@ -65,12 +65,10 @@
   const BASE_IMAGES = {
     female: {
       light: "assets/images/base/female/base_female_light.png?v=15",
-      medium: "assets/images/base/female/base_female_medium.png?v=15",
       dark: "assets/images/base/female/base_female_dark.png?v=15",
     },
     male: {
       light: "assets/images/base/male/base_male_light.png?v=15",
-      medium: "assets/images/base/male/base_male_medium.png?v=15",
       dark: "assets/images/base/male/base_male_dark.png?v=15",
     },
   };
@@ -96,8 +94,6 @@
     const toneText =
       currentTone === "light"
         ? "Light skin"
-        : currentTone === "medium"
-        ? "Medium skin"
         : "Dark skin";
 
     const baseText =
@@ -128,7 +124,7 @@
       const btn = document.createElement("button");
       btn.type = "button";
       btn.textContent =
-        tone === "light" ? "Light" : tone === "medium" ? "Medium" : "Dark";
+        tone === "light" ? "Light" : tone === "Dark";
       btn.className =
         "seg-btn text-[10px]" +
         (tone === currentTone ? " active" : "");
