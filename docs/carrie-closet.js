@@ -1,315 +1,377 @@
 // carrie-closet.js
-// Logic to drive the Carrie Closet page using window.CARRIE_CLOSET_ITEMS
+// Logic for Carrie Closet preview + item selection + saved state
 
 (function () {
-  // --- DOM refs ---
-  const body = document.body;
-  const baseImg = document.getElementById("closetBaseImg");
-  const overlayHost = document.getElementById("closetOverlayHost");
+  const items = window.CARRIE_CLOSET_ITEMS || [];
 
-  const genderButtons = document.querySelectorAll(".seg-btn[data-gender]");
-  const skinToneButtonsHost = document.getElementById("skinToneButtons");
+  // ----- DOM refs -----
+  const bodyEl             = document.body;
+  const baseImgEl          = document.getElementById("closetBaseImg");
+  const overlayHostEl      = document.getElementById("closetOverlayHost");
+  const previewLabelEl     = document.getElementById("closetPreviewLabel");
+  const genderLabelEl      = document.getElementById("closetGenderLabel");
+  const genderButtons      = document.querySelectorAll(".seg-btn[data-gender]");
+  const skinToneButtonsBox = document.getElementById("skinToneButtons");
+  const tabButtons         = document.querySelectorAll(".tab-btn");
+  const itemsGridEl        = document.getElementById("closetItemsGrid");
+  const closetErrorEl      = document.getElementById("closetError");
+  const closetEmptyEl      = document.getElementById("closetEmpty");
 
-  const previewLabel = document.getElementById("closetPreviewLabel");
-  const genderLabel = document.getElementById("closetGenderLabel");
-
-  const tabButtons = document.querySelectorAll(".tab-btn[data-cat]");
-  const itemsGrid = document.getElementById("closetItemsGrid");
-  const errorBox = document.getElementById("closetError");
-  const emptyBox = document.getElementById("closetEmpty");
-
-  // --- Safety: check data ---
-  const ALL_ITEMS = Array.isArray(window.CARRIE_CLOSET_ITEMS)
-    ? window.CARRIE_CLOSET_ITEMS
-    : [];
-
-  if (!ALL_ITEMS.length) {
-    if (errorBox) errorBox.classList.remove("hidden");
-    console.warn("CARRIE_CLOSET_ITEMS is empty or missing.");
+  if (!items.length || !baseImgEl || !overlayHostEl || !itemsGridEl) {
+    if (closetErrorEl) {
+      closetErrorEl.classList.remove("hidden");
+      closetErrorEl.textContent = "Closet data or key DOM elements are missing.";
+    }
     return;
-  } else {
-    if (errorBox) errorBox.classList.add("hidden");
   }
 
-  // --- State ---
-  let currentGender = body.dataset.gender === "male" ? "male" : "female";
-
-  // We’ll keep tones simple: light / medium / dark
-  const SKIN_TONES = {
-    female: ["light", "dark"],
-    male: ["light",  "dark"],
+  // ----- Base image paths -----
+  const BASE_SRC = {
+    female: {
+      light: "assets/images/base/female/base_female_light.png?v=15",
+      dark:  "assets/images/base/female/base_female_dark.png?v=15"
+    },
+    male: {
+      light: "assets/images/base/male/base_male_light.png?v=15",
+      dark:  "assets/images/base/male/base_male_dark.png?v=15"
+    }
   };
 
-  let currentTone = "light";
+  const SKIN_TONES = [
+    { id: "light", label: "Light" },
+    { id: "dark",  label: "Dark" }
+    // medium is intentionally removed for now
+  ];
 
-  // Which category tab is active
-  let currentCategory = "hair";
-
-  // Equipped items by slot
-  // slot = hair / top / bottom / eyes / shoes / necklace / ears / belly
-  const equippedBySlot = {};
-
-  // Layer order: earlier = behind, later = in front
-  const SLOT_ORDER = [
+  const SLOT_RENDER_ORDER = [
     "shoes",
     "bottom",
     "top",
     "belly",
     "necklace",
-    "eyes",
-    "hair",
     "ears",
+    "eyes",
+    "hair"
   ];
 
-  // --- Base images for each gender + tone ---
-  const BASE_IMAGES = {
-    female: {
-      light: "assets/images/base/female/base_female_light.png?v=15",
-      dark: "assets/images/base/female/base_female_dark.png?v=15",
-    },
-    male: {
-      light: "assets/images/base/male/base_male_light.png?v=15",
-      dark: "assets/images/base/male/base_male_dark.png?v=15",
-    },
-  };
+  const STORAGE_KEY = "carrieClosetState_v1";
 
-  // If some images don't exist yet, it's ok – they'll 404 but not break JS.
+  // ----- State with restore from localStorage -----
+  let currentGender = "female";
+  let currentSkin   = "light";
+  let selectedBySlot = {}; // { slot: itemId }
 
-  // --- Helpers ---
+  (function restoreState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") {
+        if (parsed.gender === "female" || parsed.gender === "male") {
+          currentGender = parsed.gender;
+        }
+        if (parsed.skin === "light" || parsed.skin === "dark") {
+          currentSkin = parsed.skin;
+        }
+        if (parsed.selectedBySlot && typeof parsed.selectedBySlot === "object") {
+          selectedBySlot = parsed.selectedBySlot;
+        }
+      }
+    } catch (e) {
+      console.warn("Closet: could not restore state", e);
+    }
+  })();
 
-  function updateBodyGender() {
-    body.dataset.gender = currentGender;
-  }
-
-  function updateBase() {
-    const genderMap = BASE_IMAGES[currentGender] || {};
-    const src = genderMap[currentTone] || genderMap["light"];
-    if (baseImg && src) {
-      baseImg.src = src;
+  function saveState() {
+    try {
+      const payload = {
+        gender: currentGender,
+        skin: currentSkin,
+        selectedBySlot
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    } catch (e) {
+      console.warn("Closet: could not save state", e);
     }
   }
 
-  function updatePreviewLabel() {
-    if (!previewLabel) return;
-    const toneText =
-      currentTone === "light"
-        ? "Light skin"
-        : "Dark skin";
-
-    const baseText =
-      currentGender === "female" ? "Bikini base" : "Shorts base";
-
-    previewLabel.textContent =
-      (currentGender === "female" ? "Female" : "Male") +
-      " • " +
-      toneText +
-      " • " +
-      baseText;
+  // ----- Helpers -----
+  function capitalize(s) {
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
   }
 
-  function updateGenderLabel() {
-    if (!genderLabel) return;
-    genderLabel.innerHTML =
-      'Showing items for <b>' +
-      (currentGender === "female" ? "Female" : "Male") +
-      "</b> avatar";
+  function skinToneLabel(id) {
+    const tone = SKIN_TONES.find(t => t.id === id);
+    return tone ? tone.label : id;
+  }
+
+  // ----- UI updates -----
+  function updateBodyAttributes() {
+    if (bodyEl) {
+      bodyEl.setAttribute("data-gender", currentGender);
+      bodyEl.setAttribute("data-skin", currentSkin);
+    }
+  }
+
+  function updateBaseImage() {
+    const genderMap = BASE_SRC[currentGender] || BASE_SRC["female"];
+    const src = genderMap[currentSkin] || genderMap["light"];
+    if (baseImgEl) {
+      baseImgEl.src = src;
+    }
+
+    if (previewLabelEl) {
+      const baseText = currentGender === "female" ? "Bikini base" : "Shorts base";
+      previewLabelEl.textContent =
+        `${capitalize(currentGender)} • ${skinToneLabel(currentSkin)} skin • ${baseText}`;
+    }
+  }
+
+  function updateGenderButtonsUI() {
+    genderButtons.forEach(btn => {
+      const g = btn.getAttribute("data-gender");
+      if (!g) return;
+      if (g === currentGender) {
+        btn.classList.add("active");
+      } else {
+        btn.classList.remove("active");
+      }
+    });
+
+    if (genderLabelEl) {
+      genderLabelEl.innerHTML =
+        `Showing items for <b>${capitalize(currentGender)}</b> avatar`;
+    }
   }
 
   function renderSkinToneButtons() {
-    if (!skinToneButtonsHost) return;
-    skinToneButtonsHost.innerHTML = "";
+    if (!skinToneButtonsBox) return;
+    skinToneButtonsBox.innerHTML = "";
 
-    const tones = SKIN_TONES[currentGender] || [];
-    tones.forEach((tone) => {
+    SKIN_TONES.forEach(tone => {
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.textContent =
-        tone === "light" ? "Light" : tone === "Dark";
-      btn.className =
-        "seg-btn text-[10px]" +
-        (tone === currentTone ? " active" : "");
-
-      btn.dataset.tone = tone;
+      btn.className = "seg-btn" + (tone.id === currentSkin ? " active" : "");
+      btn.setAttribute("data-skin", tone.id);
+      btn.textContent = tone.label;
 
       btn.addEventListener("click", () => {
-        currentTone = tone;
-        // Re-render tone buttons for active state
+        if (currentSkin === tone.id) return;
+        currentSkin = tone.id;
+        // Re-render skin buttons to update active class
         renderSkinToneButtons();
-        updateBase();
-        updatePreviewLabel();
+        updateBodyAttributes();
+        updateBaseImage();
+        renderOverlays(); // clothes stay, just on new base
+        saveState();
       });
 
-      skinToneButtonsHost.appendChild(btn);
+      skinToneButtonsBox.appendChild(btn);
     });
   }
 
-  function getFilteredItems() {
-    return ALL_ITEMS.filter((item) => {
-      // gender filter
-      if (item.gender !== "unisex" && item.gender !== currentGender) {
-        return false;
+  let currentCategory = "hair"; // default tab
+  function updateTabsUI() {
+    tabButtons.forEach(btn => {
+      const cat = btn.getAttribute("data-cat") || "all";
+      if (cat === currentCategory) {
+        btn.classList.add("active");
+      } else {
+        btn.classList.remove("active");
       }
-
-      // category filter
-      if (currentCategory !== "all" && item.category !== currentCategory) {
-        return false;
-      }
-
-      return true;
     });
   }
 
+  // ----- Data filters -----
+  function itemMatchesCurrentGender(item) {
+    return item.gender === "unisex" || item.gender === currentGender;
+  }
+
+  function getVisibleItemsForCategory() {
+    return items.filter(it => {
+      if (!itemMatchesCurrentGender(it)) return false;
+      if (currentCategory === "all") return true;
+      return it.category === currentCategory;
+    });
+  }
+
+  function getItemById(id) {
+    if (!id) return null;
+    return items.find(it => it.id === id) || null;
+  }
+
+  // ----- Rendering overlays on top of base -----
+  function renderOverlays() {
+    if (!overlayHostEl) return;
+    overlayHostEl.innerHTML = "";
+
+    // Ensure body attributes for CSS alignment
+    updateBodyAttributes();
+
+    SLOT_RENDER_ORDER.forEach(slot => {
+      const itemId = selectedBySlot[slot];
+      if (!itemId) return;
+
+      const item = getItemById(itemId);
+      if (!item) return;
+      if (!itemMatchesCurrentGender(item)) return;
+
+      const src = item.img;
+      if (!src) return;
+
+      // Special handling for ears & shoes (left + right)
+      if (slot === "ears") {
+        const left = document.createElement("img");
+        left.src = src;
+        left.alt = item.name || item.label || "Earrings";
+        left.className = "layer-overlay layer-ears-left item-" + item.id;
+
+        const right = document.createElement("img");
+        right.src = src;
+        right.alt = item.name || item.label || "Earrings";
+        right.className = "layer-overlay layer-ears-right item-" + item.id;
+
+        overlayHostEl.appendChild(left);
+        overlayHostEl.appendChild(right);
+        return;
+      }
+
+      if (slot === "shoes") {
+        const left = document.createElement("img");
+        left.src = src;
+        left.alt = item.name || item.label || "Shoes";
+        left.className = "layer-overlay layer-shoes-left item-" + item.id;
+
+        const right = document.createElement("img");
+        right.src = src;
+        right.alt = item.name || item.label || "Shoes";
+        right.className = "layer-overlay layer-shoes-right item-" + item.id;
+
+        overlayHostEl.appendChild(left);
+        overlayHostEl.appendChild(right);
+        return;
+      }
+
+      // Normal single overlay (hair, top, bottom, eyes, necklace, belly)
+      const imgEl = document.createElement("img");
+      imgEl.src = src;
+      imgEl.alt = item.name || item.label || slot;
+      imgEl.className = "layer-overlay item-" + item.id;
+      overlayHostEl.appendChild(imgEl);
+    });
+  }
+
+  // ----- Rendering item cards -----
   function renderItemsGrid() {
-    if (!itemsGrid) return;
-    const items = getFilteredItems();
+    if (!itemsGridEl) return;
+    itemsGridEl.innerHTML = "";
 
-    itemsGrid.innerHTML = "";
+    const visible = getVisibleItemsForCategory();
 
-    if (!items.length) {
-      if (emptyBox) emptyBox.classList.remove("hidden");
-      return;
-    } else {
-      if (emptyBox) emptyBox.classList.add("hidden");
+    if (closetEmptyEl) {
+      closetEmptyEl.classList.toggle("hidden", visible.length > 0);
     }
 
-    items.forEach((item) => {
+    if (!visible.length) return;
+
+    visible.forEach(item => {
       const card = document.createElement("button");
       card.type = "button";
-      card.className = "closet-item-card text-left";
+      card.className = "closet-item-card";
 
-      // Mark active if equipped
-      if (equippedBySlot[item.slot] === item.id) {
-        card.classList.add("active");
-      }
+      const thumbWrap = document.createElement("div");
+      thumbWrap.className = "closet-item-thumb";
 
-      card.dataset.itemId = item.id;
-
-      const thumb = document.createElement("div");
-      thumb.className = "closet-item-thumb";
-
-      const img = document.createElement("img");
-      img.src = item.img;
-      img.alt = item.name || item.id;
-
-      thumb.appendChild(img);
+      const imgEl = document.createElement("img");
+      imgEl.src = item.thumb || item.img || "";
+      imgEl.alt = item.name || item.label || "";
+      thumbWrap.appendChild(imgEl);
 
       const textWrap = document.createElement("div");
-      textWrap.className = "flex flex-col";
+      textWrap.style.flex = "1";
 
       const title = document.createElement("div");
-      title.className = "text-[11px] font-semibold text-slate-50";
-      title.textContent = item.name || "Item";
+      title.style.fontSize = "11px";
+      title.style.fontWeight = "600";
+      title.textContent = item.name || item.label || item.id;
 
       const meta = document.createElement("div");
-      meta.className = "text-[10px] text-purple-200/80";
-      meta.textContent = item.label || "";
+      meta.style.fontSize = "10px";
+      meta.style.opacity = "0.8";
+      meta.textContent = (item.label || "") + (item.coins ? ` • ${item.coins}🪙` : "");
 
       textWrap.appendChild(title);
       textWrap.appendChild(meta);
 
-      card.appendChild(thumb);
+      card.appendChild(thumbWrap);
       card.appendChild(textWrap);
 
+      const isSelected = selectedBySlot[item.slot] === item.id;
+      if (isSelected) {
+        card.classList.add("active");
+      }
+
       card.addEventListener("click", () => {
-        handleItemToggle(item);
+        const currentSelectedId = selectedBySlot[item.slot];
+        if (currentSelectedId === item.id) {
+          // For now we keep it selected on second click
+        } else {
+          selectedBySlot[item.slot] = item.id;
+        }
+
+        saveState();
+        renderOverlays();
+        renderItemsGrid(); // re-render to update active states
       });
 
-      itemsGrid.appendChild(card);
+      itemsGridEl.appendChild(card);
     });
   }
 
-  function handleItemToggle(item) {
-    const slot = item.slot;
-    if (!slot) return;
-
-    // Toggle: if already equipped in this slot, remove it. Otherwise equip this item.
-    if (equippedBySlot[slot] === item.id) {
-      delete equippedBySlot[slot];
-    } else {
-      equippedBySlot[slot] = item.id;
-    }
-
-    // Re-render overlays + item cards (for active state)
-    renderOverlays();
-    renderItemsGrid();
-  }
-
-  function renderOverlays() {
-    if (!overlayHost) return;
-    overlayHost.innerHTML = "";
-
-    // Build ordered list of equipped items by SLOT_ORDER
-    const equippedItems = [];
-
-    SLOT_ORDER.forEach((slot) => {
-      const id = equippedBySlot[slot];
-      if (!id) return;
-      const found = ALL_ITEMS.find((it) => it.id === id);
-      if (found) equippedItems.push(found);
+  // ----- Event wiring -----
+  function initEvents() {
+    // Gender buttons
+    genderButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        const g = btn.getAttribute("data-gender");
+        if (!g || g === currentGender) return;
+        currentGender = g;
+        updateGenderButtonsUI();
+        updateBodyAttributes();
+        updateBaseImage();
+        renderOverlays();
+        renderItemsGrid();
+        saveState();
+      });
     });
 
-    equippedItems.forEach((item) => {
-      const img = document.createElement("img");
-      img.src = item.img;
-      img.alt = item.name || item.id;
-
-      // Classes: base overlay + item-specific class for CSS transforms
-      img.className = "layer-overlay item-" + item.id;
-
-      overlayHost.appendChild(img);
+    // Category tabs
+    tabButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        const cat = btn.getAttribute("data-cat") || "all";
+        if (cat === currentCategory) return;
+        currentCategory = cat;
+        updateTabsUI();
+        renderItemsGrid();
+      });
     });
   }
 
-  // --- Event wiring ---
-
-  // Gender buttons
-  genderButtons.forEach((btn) => {
-    const g = btn.dataset.gender;
-    btn.addEventListener("click", () => {
-      if (!g || (g !== "female" && g !== "male")) return;
-
-      currentGender = g;
-      updateBodyGender();
-
-      genderButtons.forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-
-      // Reset equipped items on gender change
-      Object.keys(equippedBySlot).forEach((key) => delete equippedBySlot[key]);
-
-      renderSkinToneButtons();
-      updateBase();
-      updatePreviewLabel();
-      updateGenderLabel();
-      renderItemsGrid();
-      renderOverlays();
-    });
-  });
-
-  // Category tabs
-  tabButtons.forEach((btn) => {
-    const cat = btn.dataset.cat;
-    btn.addEventListener("click", () => {
-      if (!cat) return;
-      currentCategory = cat;
-
-      tabButtons.forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-
-      renderItemsGrid();
-    });
-  });
-
-  // --- Initial boot ---
+  // ----- Init -----
   function init() {
-    updateBodyGender();
+    updateBodyAttributes();
+    updateGenderButtonsUI();
     renderSkinToneButtons();
-    updateBase();
-    updatePreviewLabel();
-    updateGenderLabel();
-    renderItemsGrid();
+    updateTabsUI();
+    updateBaseImage();
     renderOverlays();
+    renderItemsGrid();
+    initEvents();
   }
 
-  document.addEventListener("DOMContentLoaded", init);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
 })();
