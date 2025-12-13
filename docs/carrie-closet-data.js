@@ -147,7 +147,6 @@
       offsetX: 0,
       offsetY: -4
     }),
-    // Straight Black
     item({
       id: "f_hair_straight_black",
       gender: "female",
@@ -280,7 +279,6 @@
       offsetX: 0,
       offsetY: -3
     }),
-    // Wavy Black
     item({
       id: "f_hair_wavy_black",
       gender: "female",
@@ -379,18 +377,18 @@
       label: "bikini bottom • red",
       coins: 12,
 
-      // LIGHT image (your normal one)
+      // LIGHT image
       img: base + "/female_cloths/female_bikini-bottom_red.png",
 
-      // DARK image (your new file)
+      // DARK image (optional; used only if your JS supports it)
       imgDark: base + "/female_cloths/female_bikini-bottom_red_dark.png",
 
-      // keep these so nothing changes unless you want it to
+      // keep your defaults
       scale: 1,
       offsetX: 0,
       offsetY: 0
     }),
-}
+
     // ---- JEWELRY – FEMALE ----
     item({
       id: "f_jewel_necklace",
