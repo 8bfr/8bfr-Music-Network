@@ -369,8 +369,7 @@
       offsetX: 0,
       offsetY: -4
     }),
-    
-{
+    item({
   id: "f_bottom_bikini_red",
   label: "Red Bikini Bottom",
   category: "bottom",
