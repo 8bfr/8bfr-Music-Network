@@ -1,7 +1,6 @@
 // carrie-closet-data.js
 // Static closet catalog using your actual image paths / names.
-
-(function () {
+ (function () {
   const base = "assets/images";
 
   // Helper to build item objects with defaults
