@@ -43,6 +43,52 @@
     ears: 55,
     hair: 60
   };
+  // ---------------------------
+  // ✅ PERSIST (so refresh keeps outfit)
+  // ---------------------------
+  const STORE_KEY = "carrieClosetState_v1";
+
+  function saveState() {
+    try {
+      const payload = {
+        gender: currentGender,
+        skin: currentSkin,
+        cat: currentCat,
+        equippedIds: Object.fromEntries(
+          Object.entries(equipped).map(([slot, obj]) => [slot, obj ? obj.id : null])
+        )
+      };
+      localStorage.setItem(STORE_KEY, JSON.stringify(payload));
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  function loadState(items) {
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (!raw) return;
+
+      const data = JSON.parse(raw);
+      if (!data || typeof data !== "object") return;
+
+      if (data.gender) currentGender = data.gender;
+      if (data.skin) currentSkin = data.skin;
+      if (data.cat) currentCat = data.cat;
+
+      // rebuild equipped objects from IDs
+      if (data.equippedIds && typeof data.equippedIds === "object") {
+        Object.keys(equipped).forEach((slot) => (equipped[slot] = null));
+        Object.entries(data.equippedIds).forEach(([slot, id]) => {
+          if (!id) return;
+          const found = items.find((it) => it.id === id);
+          if (found && slot in equipped) equipped[slot] = found;
+        });
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
 
   function safeItems() {
     const items = window.CARRIE_CLOSET_ITEMS;
