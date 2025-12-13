@@ -367,7 +367,10 @@
       offsetX: 0,
       offsetY: -4
     }),
-    id: "f_bottom_bikini_red",
+
+    /* ✅ FIXED: bikini bottom was breaking the file */
+    item({
+      id: "f_bottom_bikini_red",
       gender: "female",
       category: "bottom",
       cat: "bottom",
@@ -379,13 +382,10 @@
       // LIGHT image
       img: base + "/female_cloths/female_bikini-bottom_red.png",
 
-      // LIGHT image
-      img: base + "/female_cloths/female_bikini-bottom_red.png",
-
-      // DARK image (optional; used only if your JS supports it)
+      // DARK image (used by carrie-closet.js only when skin=dark)
       imgDark: base + "/female_cloths/female_bikini-bottom_red_dark.png",
 
-      // keep your defaults
+      // keep your defaults (unchanged)
       scale: 1,
       offsetX: 0,
       offsetY: 0
@@ -510,7 +510,6 @@
       offsetX: 0,
       offsetY: 0
     })
-    // Sandals removed on purpose
   ];
 
   window.CARRIE_CLOSET_ITEMS = items;
