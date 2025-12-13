@@ -369,22 +369,18 @@
       offsetX: 0,
       offsetY: -4
     }),
-    item({
-      id: "f_bottom_bikini_red",
-      gender: "female",
-      category: "bottom",
-      cat: "bottom",
-      slot: "bottom",
-      name: "Red Bikini Bottom",
-      label: "bikini bottom • red",
-      coins: 12,
-      img:   base + "/female_cloths/female_bikini-bottom_redv2.png?v=106",
-      thumb: base + "/female_cloths/female_bikini-bottom_redv2.png?v=106",
-      scale: 0.92,
-      offsetX: 0,
-      offsetY: -2
-    }),
+    
+{
+  id: "f_bottom_bikini_red",
+  label: "Red Bikini Bottom",
+  category: "bottom",
+  gender: "female",
 
+  images: {
+    light: "assets/images/items/female_bikini-bottom_red.png",
+    dark:  "assets/images/items/female_bikini-bottom_red_dark.png"
+  }
+}
     // ---- JEWELRY – FEMALE ----
     item({
       id: "f_jewel_necklace",
