@@ -43,6 +43,7 @@
     ears: 55,
     hair: 60
   };
+
   // ---------------------------
   // ✅ PERSIST (so refresh keeps outfit)
   // ---------------------------
@@ -144,6 +145,7 @@
         updateLabels();
         renderOverlays();
         renderItems();
+        saveState(); // ✅
       });
 
       skinToneButtons.appendChild(btn);
@@ -160,6 +162,7 @@
     updateLabels();
     renderItems();
     renderOverlays();
+    saveState(); // ✅
   }
 
   function pickImgForSkin(itemObj) {
@@ -206,6 +209,7 @@
 
       renderItems();
       renderOverlays();
+      saveState(); // ✅
     });
 
     return card;
@@ -304,6 +308,7 @@
         btn.classList.add("active");
         currentCat = btn.dataset.cat || "hair";
         renderItems();
+        saveState(); // ✅
       });
     });
   }
@@ -330,6 +335,23 @@
       errBox && errBox.classList.add("hidden");
     }
 
+    // ✅ restore saved outfit + skin + gender + tab
+    loadState(items);
+
+    // keep body in sync after loadState
+    document.body.dataset.gender = currentGender;
+    document.body.dataset.skin = currentSkin;
+
+    // set active tab button to the restored tab (if any)
+    $$(".tab-btn").forEach((b) => b.classList.remove("active"));
+    const activeTab = document.querySelector(`.tab-btn[data-cat="${currentCat}"]`);
+    if (activeTab) activeTab.classList.add("active");
+    else {
+      currentCat = "hair";
+      const hairTab = document.querySelector(`.tab-btn[data-cat="hair"]`);
+      hairTab && hairTab.classList.add("active");
+    }
+
     initTabs();
     initGenderButtons();
     buildSkinButtons();
@@ -338,6 +360,7 @@
     updateLabels();
     renderItems();
     renderOverlays();
+    saveState(); // ✅ ensures STORE has the normalized state
   }
 
   document.addEventListener("DOMContentLoaded", boot);
