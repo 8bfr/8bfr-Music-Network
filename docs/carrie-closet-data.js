@@ -367,8 +367,7 @@
       offsetX: 0,
       offsetY: -4
     }),
-    item({
-      id: "f_bottom_bikini_red",
+    id: "f_bottom_bikini_red",
       gender: "female",
       category: "bottom",
       cat: "bottom",
@@ -376,6 +375,9 @@
       name: "Red Bikini Bottom",
       label: "bikini bottom • red",
       coins: 12,
+
+      // LIGHT image
+      img: base + "/female_cloths/female_bikini-bottom_red.png",
 
       // LIGHT image
       img: base + "/female_cloths/female_bikini-bottom_red.png",
