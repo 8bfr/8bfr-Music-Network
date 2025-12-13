@@ -1,6 +1,7 @@
 // carrie-closet.js
 // Minimal working closet logic for your current HTML/CSS + carrie-closet-data.js
 // Adds support for item.imgDark when body[data-skin="dark"].
+// ✅ Persists equipped items + gender + skin + selected tab across refresh.
 
 (function () {
   const $ = (s) => document.querySelector(s);
@@ -79,7 +80,7 @@
 
       // rebuild equipped objects from IDs
       if (data.equippedIds && typeof data.equippedIds === "object") {
-        Object.keys(equipped).forEach((slot) => (equipped[slot] = null));
+        Object.keys(equipped).forEach((k) => (equipped[k] = null));
         Object.entries(data.equippedIds).forEach(([slot, id]) => {
           if (!id) return;
           const found = items.find((it) => it.id === id);
@@ -139,13 +140,16 @@
       btn.addEventListener("click", () => {
         currentSkin = s.key;
         document.body.dataset.skin = currentSkin;
+
         $$("#skinToneButtons .seg-btn").forEach((b) => b.classList.remove("active"));
         btn.classList.add("active");
+
         setBaseImage();
         updateLabels();
         renderOverlays();
         renderItems();
-        saveState(); // ✅
+
+        saveState(); // ✅ persist
       });
 
       skinToneButtons.appendChild(btn);
@@ -156,13 +160,15 @@
     currentGender = newGender;
     document.body.dataset.gender = currentGender;
 
+    // keep your original behavior: reset equipped on gender swap
     Object.keys(equipped).forEach((k) => (equipped[k] = null));
 
     setBaseImage();
     updateLabels();
     renderItems();
     renderOverlays();
-    saveState(); // ✅
+
+    saveState(); // ✅ persist
   }
 
   function pickImgForSkin(itemObj) {
@@ -209,7 +215,8 @@
 
       renderItems();
       renderOverlays();
-      saveState(); // ✅
+
+      saveState(); // ✅ persist
     });
 
     return card;
@@ -308,7 +315,7 @@
         btn.classList.add("active");
         currentCat = btn.dataset.cat || "hair";
         renderItems();
-        saveState(); // ✅
+        saveState(); // ✅ persist
       });
     });
   }
@@ -323,10 +330,19 @@
     });
   }
 
-  function boot() {
-    document.body.dataset.gender = currentGender;
-    document.body.dataset.skin = currentSkin;
+  function syncUIButtons() {
+    // gender buttons
+    $$(".seg-btn[data-gender]").forEach((b) => {
+      b.classList.toggle("active", (b.dataset.gender === currentGender));
+    });
 
+    // tabs
+    $$(".tab-btn").forEach((b) => {
+      b.classList.toggle("active", (b.dataset.cat === currentCat));
+    });
+  }
+
+  function boot() {
     const items = safeItems();
     if (!items) {
       errBox && errBox.classList.remove("hidden");
@@ -335,32 +351,27 @@
       errBox && errBox.classList.add("hidden");
     }
 
-    // ✅ restore saved outfit + skin + gender + tab
+    // ✅ load saved state BEFORE building UI
     loadState(items);
 
-    // keep body in sync after loadState
+    // ensure attributes exist for CSS
     document.body.dataset.gender = currentGender;
     document.body.dataset.skin = currentSkin;
-
-    // set active tab button to the restored tab (if any)
-    $$(".tab-btn").forEach((b) => b.classList.remove("active"));
-    const activeTab = document.querySelector(`.tab-btn[data-cat="${currentCat}"]`);
-    if (activeTab) activeTab.classList.add("active");
-    else {
-      currentCat = "hair";
-      const hairTab = document.querySelector(`.tab-btn[data-cat="hair"]`);
-      hairTab && hairTab.classList.add("active");
-    }
 
     initTabs();
     initGenderButtons();
     buildSkinButtons();
 
+    // ✅ set correct active tab/gender after loadState
+    syncUIButtons();
+
     setBaseImage();
     updateLabels();
     renderItems();
     renderOverlays();
-    saveState(); // ✅ ensures STORE has the normalized state
+
+    // ✅ save once (keeps future keys consistent)
+    saveState();
   }
 
   document.addEventListener("DOMContentLoaded", boot);
