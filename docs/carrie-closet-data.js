@@ -380,7 +380,7 @@
       coins: 12,
 
       // LIGHT image
-      img: base + "/female_cloths/female_bikini-bottom_red.png",
+      img: base + "/female_cloths/female_bikini-bottom_redv2.png",
 
       // DARK image (used by carrie-closet.js only when skin=dark)
       imgDark: base + "/female_cloths/female_bikini-bottom_red_dark.png",
