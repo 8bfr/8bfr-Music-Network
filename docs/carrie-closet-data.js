@@ -1,6 +1,6 @@
 // carrie-closet-data.js
 // Static closet catalog using your actual image paths / names.
- (function () {
+(function () {
   const base = "assets/images";
 
   // Helper to build item objects with defaults
@@ -303,7 +303,7 @@
       name: "8BFR Tank Top",
       label: "unisex tank",
       coins: 15,
-      img: base + "/unisex/cloths/unisex_tank-top_v5.png?v=999",
+      img: base + "/unisex/cloths/unisex_tank-top_v5.png",
       scale: 0.92,
       offsetX: 0,
       offsetY: 6
@@ -366,8 +366,6 @@
       offsetX: 0,
       offsetY: -4
     }),
-
-    /* ✅ FIXED: bikini bottom was breaking the file */
     item({
       id: "f_bottom_bikini_red",
       gender: "female",
@@ -377,14 +375,8 @@
       name: "Red Bikini Bottom",
       label: "bikini bottom • red",
       coins: 12,
-
-      // LIGHT image
       img: base + "/female_cloths/female_bikini-bottom_redv2.png",
-
-      // DARK image (used by carrie-closet.js only when skin=dark)
       imgDark: base + "/female_cloths/female_bikini-bottom_red_dark.png",
-
-      // keep your defaults (unchanged)
       scale: 1,
       offsetX: 0,
       offsetY: 0
