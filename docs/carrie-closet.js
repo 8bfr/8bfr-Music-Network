@@ -54,10 +54,6 @@
     const baseImg = $("#closetBaseImg");
     if (!baseImg) return;
 
-    // IMPORTANT: match your actual filenames
-    // base + gender + skin
-    // female: assets/images/base/female/base_female_light.png
-    // male:   assets/images/base/male/base_male_light.png  (adjust if yours differs)
     const g = currentGender;
     const s = currentSkin;
 
@@ -101,7 +97,6 @@
         setBaseImage();
         updateLabels();
         renderOverlays();
-        // cards don't change for skin, but keep active highlighting in case:
         renderItems();
       });
 
@@ -113,7 +108,6 @@
     currentGender = newGender;
     document.body.dataset.gender = currentGender;
 
-    // Clear equipped items that don’t apply (simple reset to avoid weirdness)
     Object.keys(equipped).forEach((k) => (equipped[k] = null));
 
     setBaseImage();
@@ -123,7 +117,6 @@
   }
 
   function pickImgForSkin(itemObj) {
-    // If dark skin and item has imgDark, use it. Otherwise use img.
     if (currentSkin === "dark" && itemObj.imgDark) return itemObj.imgDark;
     return itemObj.img;
   }
@@ -136,7 +129,6 @@
     thumbWrap.className = "closet-item-thumb";
 
     const t = document.createElement("img");
-    // Use thumb if you ever add it; fallback to img (or imgDark if dark)
     t.src = itemObj.thumb || pickImgForSkin(itemObj);
     t.alt = itemObj.name || itemObj.id;
     thumbWrap.appendChild(t);
@@ -158,13 +150,11 @@
     card.appendChild(thumbWrap);
     card.appendChild(meta);
 
-    // Active highlight if equipped in that slot
     const slot = itemObj.slot;
     const isOn = equipped[slot] && equipped[slot].id === itemObj.id;
     if (isOn) card.classList.add("active");
 
     card.addEventListener("click", () => {
-      // toggle equip
       if (equipped[slot] && equipped[slot].id === itemObj.id) equipped[slot] = null;
       else equipped[slot] = itemObj;
 
@@ -177,11 +167,9 @@
 
   function filterItems(items) {
     return items.filter((it) => {
-      // gender filter
       const gOK = it.gender === "unisex" || it.gender === currentGender;
       if (!gOK) return false;
 
-      // category filter
       if (currentCat === "all") return true;
       return (it.category === currentCat || it.cat === currentCat);
     });
@@ -214,8 +202,6 @@
 
     const slot = itemObj.slot;
 
-    // Special-case: ears & shoes use 2 copies (left/right) if you want them.
-    // If your images are single centered overlays, you can remove this and just create 1.
     if (slot === "ears") {
       const left = document.createElement("img");
       left.src = src;
@@ -250,7 +236,6 @@
       return;
     }
 
-    // Normal single overlay
     const img = document.createElement("img");
     img.src = src;
     img.alt = itemObj.name || itemObj.id;
@@ -288,7 +273,6 @@
   }
 
   function boot() {
-    // Ensure these exist so your CSS switching works:
     document.body.dataset.gender = currentGender;
     document.body.dataset.skin = currentSkin;
 
