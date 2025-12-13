@@ -1,390 +1,314 @@
 // carrie-closet.js
-// Logic for Carrie Closet preview + item selection + saved state
+// Minimal working closet logic for your current HTML/CSS + carrie-closet-data.js
+// Adds support for item.imgDark when body[data-skin="dark"].
 
 (function () {
-  const STORAGE_KEY = "carrieClosetState_v1";
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => Array.from(document.querySelectorAll(s));
 
-  function init() {
-    // ----- Data -----
-    const items = Array.isArray(window.CARRIE_CLOSET_ITEMS)
-      ? window.CARRIE_CLOSET_ITEMS
-      : [];
+  const grid = $("#closetItemsGrid");
+  const emptyMsg = $("#closetEmpty");
+  const errBox = $("#closetError");
+  const overlayHost = $("#closetOverlayHost");
 
-    // ----- DOM refs -----
-    const bodyEl             = document.body;
-    const baseImgEl          = document.getElementById("closetBaseImg");
-    const overlayHostEl      = document.getElementById("closetOverlayHost");
-    const previewLabelEl     = document.getElementById("closetPreviewLabel");
-    const genderLabelEl      = document.getElementById("closetGenderLabel");
-    const genderButtons      = document.querySelectorAll(".seg-btn[data-gender]");
-    const skinToneButtonsBox = document.getElementById("skinToneButtons");
-    const tabButtons         = document.querySelectorAll(".tab-btn[data-cat]");
-    const itemsGridEl        = document.getElementById("closetItemsGrid");
-    const closetErrorEl      = document.getElementById("closetError");
-    const closetEmptyEl      = document.getElementById("closetEmpty");
+  const previewLabel = $("#closetPreviewLabel");
+  const closetGenderLabel = $("#closetGenderLabel");
+  const skinToneButtons = $("#skinToneButtons");
 
-    // Safety check
-    if (!items.length || !baseImgEl || !overlayHostEl || !itemsGridEl) {
-      if (closetErrorEl) {
-        closetErrorEl.classList.remove("hidden");
-        closetErrorEl.textContent =
-          "Closet data or key DOM elements are missing.";
-      }
-      console.warn("Carrie Closet: no items or missing DOM nodes.");
-      return;
-    } else if (closetErrorEl) {
-      closetErrorEl.classList.add("hidden");
-    }
+  // --- hard defaults ---
+  let currentGender = document.body.dataset.gender || "female";
+  let currentSkin = document.body.dataset.skin || "light";
+  let currentCat = "hair";
 
-    // ----- Base image paths -----
-    const BASE_SRC = {
-      female: {
-        light: "assets/images/base/female/base_female_light.png?v=15",
-        dark:  "assets/images/base/female/base_female_dark.png?v=15",
-      },
-      male: {
-        light: "assets/images/base/male/base_male_light.png?v=15",
-        dark:  "assets/images/base/male/base_male_dark.png?v=15",
-      },
-    };
+  // Equipped items by slot
+  const equipped = {
+    hair: null,
+    top: null,
+    bottom: null,
+    eyes: null,
+    shoes: null,
+    necklace: null,
+    ears: null,
+    belly: null
+  };
 
-    // Light / dark only
-    const SKIN_TONES = [
-      { id: "light", label: "Light" },
-      { id: "dark",  label: "Dark" },
+  // Layer order (bigger number = on top)
+  const zBySlot = {
+    shoes: 10,
+    bottom: 30,
+    belly: 35,
+    top: 40,
+    necklace: 45,
+    eyes: 50,
+    ears: 55,
+    hair: 60
+  };
+
+  function safeItems() {
+    const items = window.CARRIE_CLOSET_ITEMS;
+    if (!Array.isArray(items)) return null;
+    return items;
+  }
+
+  function setBaseImage() {
+    const baseImg = $("#closetBaseImg");
+    if (!baseImg) return;
+
+    // IMPORTANT: match your actual filenames
+    // base + gender + skin
+    // female: assets/images/base/female/base_female_light.png
+    // male:   assets/images/base/male/base_male_light.png  (adjust if yours differs)
+    const g = currentGender;
+    const s = currentSkin;
+
+    let src = "";
+    if (g === "female") src = `assets/images/base/female/base_female_${s}.png?v=15`;
+    else src = `assets/images/base/male/base_male_${s}.png?v=15`;
+
+    baseImg.src = src;
+  }
+
+  function updateLabels() {
+    const gLabel = currentGender === "female" ? "Female" : "Male";
+    const sLabel = currentSkin === "light" ? "Light skin" : "Dark skin";
+
+    if (previewLabel) previewLabel.textContent = `${gLabel} • ${sLabel} • Bikini base`;
+    if (closetGenderLabel) closetGenderLabel.innerHTML = `Showing items for <b>${gLabel}</b> avatar`;
+  }
+
+  function buildSkinButtons() {
+    if (!skinToneButtons) return;
+
+    skinToneButtons.innerHTML = "";
+
+    const skins = [
+      { key: "light", label: "☀️ Light" },
+      { key: "dark", label: "🌙 Dark" }
     ];
 
-    // Layer order: earlier = behind, later = in front
-    const SLOT_RENDER_ORDER = [
-      "shoes",
-      "bottom",
-      "top",
-      "belly",
-      "necklace",
-      "eyes",
-      "hair",
-      "ears",
-    ];
+    skins.forEach((s) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "seg-btn" + (currentSkin === s.key ? " active" : "");
+      btn.textContent = s.label;
+      btn.dataset.skin = s.key;
 
-    // ----- State (with restore from localStorage) -----
-    let currentGender   = "female";
-    let currentSkin     = "light";
-    let currentCategory = "hair"; // default tab
-    let selectedBySlot  = {};     // { slot: itemId }
-
-    (function restoreState() {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return;
-        const parsed = JSON.parse(raw);
-        if (!parsed || typeof parsed !== "object") return;
-
-        if (parsed.gender === "female" || parsed.gender === "male") {
-          currentGender = parsed.gender;
-        }
-        if (parsed.skin === "light" || parsed.skin === "dark") {
-          currentSkin = parsed.skin;
-        }
-        if (parsed.selectedBySlot && typeof parsed.selectedBySlot === "object") {
-          selectedBySlot = parsed.selectedBySlot;
-        }
-      } catch (e) {
-        console.warn("Closet: could not restore state", e);
-      }
-    })();
-
-    function saveState() {
-      try {
-        const payload = {
-          gender: currentGender,
-          skin: currentSkin,
-          selectedBySlot,
-        };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-      } catch (e) {
-        console.warn("Closet: could not save state", e);
-      }
-    }
-
-    // ----- Helpers -----
-    function capitalize(s) {
-      return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
-    }
-
-    function skinToneLabel(id) {
-      const tone = SKIN_TONES.find((t) => t.id === id);
-      return tone ? tone.label : id;
-    }
-
-    function itemMatchesCurrentGender(item) {
-      return item.gender === "unisex" || item.gender === currentGender;
-    }
-
-    function getVisibleItemsForCategory() {
-      return items.filter((it) => {
-        if (!itemMatchesCurrentGender(it)) return false;
-        if (currentCategory === "all") return true;
-        return it.category === currentCategory;
-      });
-    }
-
-    function getItemById(id) {
-      if (!id) return null;
-      return items.find((it) => it.id === id) || null;
-    }
-
-    // ----- UI updates -----
-    function updateBodyAttributes() {
-      if (!bodyEl) return;
-      bodyEl.setAttribute("data-gender", currentGender);
-      bodyEl.setAttribute("data-skin", currentSkin);
-    }
-
-    function updateBaseImage() {
-      const genderMap = BASE_SRC[currentGender] || BASE_SRC["female"];
-      const src = genderMap[currentSkin] || genderMap["light"];
-      if (baseImgEl && src) {
-        baseImgEl.src = src;
-      }
-
-      if (previewLabelEl) {
-        const baseText =
-          currentGender === "female" ? "Bikini base" : "Shorts base";
-        previewLabelEl.textContent =
-          `${capitalize(currentGender)} • ${skinToneLabel(currentSkin)} skin • ${baseText}`;
-      }
-    }
-
-    function updateGenderButtonsUI() {
-      genderButtons.forEach((btn) => {
-        const g = btn.getAttribute("data-gender");
-        if (!g) return;
-        if (g === currentGender) {
-          btn.classList.add("active");
-        } else {
-          btn.classList.remove("active");
-        }
+      btn.addEventListener("click", () => {
+        currentSkin = s.key;
+        document.body.dataset.skin = currentSkin;
+        $$("#skinToneButtons .seg-btn").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        setBaseImage();
+        updateLabels();
+        renderOverlays();
+        // cards don't change for skin, but keep active highlighting in case:
+        renderItems();
       });
 
-      if (genderLabelEl) {
-        genderLabelEl.innerHTML =
-          `Showing items for <b>${capitalize(currentGender)}</b> avatar`;
-      }
-    }
+      skinToneButtons.appendChild(btn);
+    });
+  }
 
-    function renderSkinToneButtons() {
-      if (!skinToneButtonsBox) return;
-      skinToneButtonsBox.innerHTML = "";
+  function setGender(newGender) {
+    currentGender = newGender;
+    document.body.dataset.gender = currentGender;
 
-      SKIN_TONES.forEach((tone) => {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className =
-          "seg-btn text-[10px]" +
-          (tone.id === currentSkin ? " active" : "");
-        btn.setAttribute("data-skin", tone.id);
-        btn.textContent = tone.label;
+    // Clear equipped items that don’t apply (simple reset to avoid weirdness)
+    Object.keys(equipped).forEach((k) => (equipped[k] = null));
 
-        btn.addEventListener("click", () => {
-          if (currentSkin === tone.id) return;
-          currentSkin = tone.id;
-          renderSkinToneButtons(); // refresh active state
-          updateBodyAttributes();
-          updateBaseImage();
-          renderOverlays(); // keep clothes, just swap base
-          saveState();
-        });
-
-        skinToneButtonsBox.appendChild(btn);
-      });
-    }
-
-    function updateTabsUI() {
-      tabButtons.forEach((btn) => {
-        const cat = btn.getAttribute("data-cat") || "all";
-        if (cat === currentCategory) {
-          btn.classList.add("active");
-        } else {
-          btn.classList.remove("active");
-        }
-      });
-    }
-
-    // ----- Render overlays on the avatar -----
-    function renderOverlays() {
-      if (!overlayHostEl) return;
-      overlayHostEl.innerHTML = "";
-
-      updateBodyAttributes();
-
-      SLOT_RENDER_ORDER.forEach((slot) => {
-        const itemId = selectedBySlot[slot];
-        if (!itemId) return;
-
-        const item = getItemById(itemId);
-        if (!item) return;
-        if (!itemMatchesCurrentGender(item)) return;
-
-        const src = item.img;
-        if (!src) return;
-
-        // Earrings: two copies (left + right)
-        if (slot === "ears") {
-          const left = document.createElement("img");
-          left.src = src;
-          left.alt = item.name || item.label || "Earrings";
-          left.className = "layer-overlay layer-ears-left item-" + item.id;
-
-          const right = document.createElement("img");
-          right.src = src;
-          right.alt = item.name || item.label || "Earrings";
-          right.className = "layer-overlay layer-ears-right item-" + item.id;
-
-          overlayHostEl.appendChild(left);
-          overlayHostEl.appendChild(right);
-          return;
-        }
-
-        // Shoes: two copies (left + right)
-        if (slot === "shoes") {
-          const left = document.createElement("img");
-          left.src = src;
-          left.alt = item.name || item.label || "Shoes";
-          left.className = "layer-overlay layer-shoes-left item-" + item.id;
-
-          const right = document.createElement("img");
-          right.src = src;
-          right.alt = item.name || item.label || "Shoes";
-          right.className = "layer-overlay layer-shoes-right item-" + item.id;
-
-          overlayHostEl.appendChild(left);
-          overlayHostEl.appendChild(right);
-          return;
-        }
-
-        // Normal single overlay (hair, top, bottom, eyes, necklace, belly)
-        const imgEl = document.createElement("img");
-        imgEl.src = src;
-        imgEl.alt = item.name || item.label || slot;
-        imgEl.className = "layer-overlay item-" + item.id;
-        overlayHostEl.appendChild(imgEl);
-      });
-    }
-
-    // ----- Render the item cards on the right -----
-    function renderItemsGrid() {
-      if (!itemsGridEl) return;
-      itemsGridEl.innerHTML = "";
-
-      const visible = getVisibleItemsForCategory();
-
-      if (closetEmptyEl) {
-        closetEmptyEl.classList.toggle("hidden", visible.length > 0);
-      }
-
-      if (!visible.length) return;
-
-      visible.forEach((item) => {
-        const card = document.createElement("button");
-        card.type = "button";
-        card.className = "closet-item-card";
-
-        const thumbWrap = document.createElement("div");
-        thumbWrap.className = "closet-item-thumb";
-
-        const imgEl = document.createElement("img");
-        imgEl.src = item.thumb || item.img || "";
-        imgEl.alt = item.name || item.label || "";
-        thumbWrap.appendChild(imgEl);
-
-        const textWrap = document.createElement("div");
-        textWrap.style.flex = "1";
-
-        const title = document.createElement("div");
-        title.style.fontSize = "11px";
-        title.style.fontWeight = "600";
-        title.textContent = item.name || item.label || item.id;
-
-        const meta = document.createElement("div");
-        meta.style.fontSize = "10px";
-        meta.style.opacity = "0.8";
-        meta.textContent =
-          (item.label || "") +
-          (item.coins ? ` • ${item.coins}🪙` : "");
-
-        textWrap.appendChild(title);
-        textWrap.appendChild(meta);
-
-        card.appendChild(thumbWrap);
-        card.appendChild(textWrap);
-
-        const isSelected = selectedBySlot[item.slot] === item.id;
-        if (isSelected) {
-          card.classList.add("active");
-        }
-
-        card.addEventListener("click", () => {
-          const currentSelectedId = selectedBySlot[item.slot];
-          if (currentSelectedId === item.id) {
-            // Clicking again will clear this slot
-            delete selectedBySlot[item.slot];
-          } else {
-            selectedBySlot[item.slot] = item.id;
-          }
-
-          saveState();
-          renderOverlays();
-          renderItemsGrid(); // refresh active states
-        });
-
-        itemsGridEl.appendChild(card);
-      });
-    }
-
-    // ----- Event wiring -----
-    function initEvents() {
-      // Gender buttons
-      genderButtons.forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const g = btn.getAttribute("data-gender");
-          if (!g || g === currentGender) return;
-          currentGender = g;
-          updateGenderButtonsUI();
-          updateBodyAttributes();
-          updateBaseImage();
-          renderOverlays();
-          renderItemsGrid();
-          saveState();
-        });
-      });
-
-      // Category tabs
-      tabButtons.forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const cat = btn.getAttribute("data-cat") || "all";
-          if (cat === currentCategory) return;
-          currentCategory = cat;
-          updateTabsUI();
-          renderItemsGrid();
-        });
-      });
-    }
-
-    // ----- Initial boot -----
-    updateBodyAttributes();
-    updateGenderButtonsUI();
-    renderSkinToneButtons();
-    updateTabsUI();
-    updateBaseImage();
+    setBaseImage();
+    updateLabels();
+    renderItems();
     renderOverlays();
-    renderItemsGrid();
-    initEvents();
   }
 
-  // Wait for DOM if needed
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
+  function pickImgForSkin(itemObj) {
+    // If dark skin and item has imgDark, use it. Otherwise use img.
+    if (currentSkin === "dark" && itemObj.imgDark) return itemObj.imgDark;
+    return itemObj.img;
   }
+
+  function cardForItem(itemObj) {
+    const card = document.createElement("div");
+    card.className = "closet-item-card";
+
+    const thumbWrap = document.createElement("div");
+    thumbWrap.className = "closet-item-thumb";
+
+    const t = document.createElement("img");
+    // Use thumb if you ever add it; fallback to img (or imgDark if dark)
+    t.src = itemObj.thumb || pickImgForSkin(itemObj);
+    t.alt = itemObj.name || itemObj.id;
+    thumbWrap.appendChild(t);
+
+    const meta = document.createElement("div");
+    meta.className = "min-w-0";
+
+    const title = document.createElement("div");
+    title.className = "text-[12px] font-semibold truncate";
+    title.textContent = itemObj.name || itemObj.id;
+
+    const sub = document.createElement("div");
+    sub.className = "text-[10px] text-purple-200/70 truncate";
+    sub.textContent = itemObj.label || itemObj.category;
+
+    meta.appendChild(title);
+    meta.appendChild(sub);
+
+    card.appendChild(thumbWrap);
+    card.appendChild(meta);
+
+    // Active highlight if equipped in that slot
+    const slot = itemObj.slot;
+    const isOn = equipped[slot] && equipped[slot].id === itemObj.id;
+    if (isOn) card.classList.add("active");
+
+    card.addEventListener("click", () => {
+      // toggle equip
+      if (equipped[slot] && equipped[slot].id === itemObj.id) equipped[slot] = null;
+      else equipped[slot] = itemObj;
+
+      renderItems();
+      renderOverlays();
+    });
+
+    return card;
+  }
+
+  function filterItems(items) {
+    return items.filter((it) => {
+      // gender filter
+      const gOK = it.gender === "unisex" || it.gender === currentGender;
+      if (!gOK) return false;
+
+      // category filter
+      if (currentCat === "all") return true;
+      return (it.category === currentCat || it.cat === currentCat);
+    });
+  }
+
+  function renderItems() {
+    const items = safeItems();
+    if (!items) return;
+
+    const list = filterItems(items);
+
+    grid.innerHTML = "";
+    if (list.length === 0) {
+      emptyMsg && emptyMsg.classList.remove("hidden");
+      return;
+    } else {
+      emptyMsg && emptyMsg.classList.add("hidden");
+    }
+
+    list.forEach((it) => grid.appendChild(cardForItem(it)));
+  }
+
+  function clearOverlays() {
+    overlayHost.innerHTML = "";
+  }
+
+  function addOverlayImg(itemObj) {
+    const src = pickImgForSkin(itemObj);
+    if (!src) return;
+
+    const slot = itemObj.slot;
+
+    // Special-case: ears & shoes use 2 copies (left/right) if you want them.
+    // If your images are single centered overlays, you can remove this and just create 1.
+    if (slot === "ears") {
+      const left = document.createElement("img");
+      left.src = src;
+      left.alt = itemObj.name || itemObj.id;
+      left.className = `layer-overlay item-${itemObj.id} layer-ears-left`;
+      left.style.zIndex = String(zBySlot.ears || 50);
+      overlayHost.appendChild(left);
+
+      const right = document.createElement("img");
+      right.src = src;
+      right.alt = itemObj.name || itemObj.id;
+      right.className = `layer-overlay item-${itemObj.id} layer-ears-right`;
+      right.style.zIndex = String(zBySlot.ears || 50);
+      overlayHost.appendChild(right);
+      return;
+    }
+
+    if (slot === "shoes") {
+      const left = document.createElement("img");
+      left.src = src;
+      left.alt = itemObj.name || itemObj.id;
+      left.className = `layer-overlay item-${itemObj.id} layer-shoes-left`;
+      left.style.zIndex = String(zBySlot.shoes || 10);
+      overlayHost.appendChild(left);
+
+      const right = document.createElement("img");
+      right.src = src;
+      right.alt = itemObj.name || itemObj.id;
+      right.className = `layer-overlay item-${itemObj.id} layer-shoes-right`;
+      right.style.zIndex = String(zBySlot.shoes || 10);
+      overlayHost.appendChild(right);
+      return;
+    }
+
+    // Normal single overlay
+    const img = document.createElement("img");
+    img.src = src;
+    img.alt = itemObj.name || itemObj.id;
+    img.className = `layer-overlay item-${itemObj.id}`;
+    img.style.zIndex = String(zBySlot[slot] || 20);
+    overlayHost.appendChild(img);
+  }
+
+  function renderOverlays() {
+    clearOverlays();
+    Object.keys(equipped).forEach((slot) => {
+      if (equipped[slot]) addOverlayImg(equipped[slot]);
+    });
+  }
+
+  function initTabs() {
+    $$(".tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        $$(".tab-btn").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentCat = btn.dataset.cat || "hair";
+        renderItems();
+      });
+    });
+  }
+
+  function initGenderButtons() {
+    $$(".seg-btn[data-gender]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        $$(".seg-btn[data-gender]").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        setGender(btn.dataset.gender === "male" ? "male" : "female");
+      });
+    });
+  }
+
+  function boot() {
+    // Ensure these exist so your CSS switching works:
+    document.body.dataset.gender = currentGender;
+    document.body.dataset.skin = currentSkin;
+
+    const items = safeItems();
+    if (!items) {
+      errBox && errBox.classList.remove("hidden");
+      return;
+    } else {
+      errBox && errBox.classList.add("hidden");
+    }
+
+    initTabs();
+    initGenderButtons();
+    buildSkinButtons();
+
+    setBaseImage();
+    updateLabels();
+    renderItems();
+    renderOverlays();
+  }
+
+  document.addEventListener("DOMContentLoaded", boot);
 })();
