@@ -374,5 +374,12 @@
     saveState();
   }
 
+  // ✅ Mobile-safe: save state when refreshing/leaving page
+window.addEventListener("pagehide", saveState);
+window.addEventListener("beforeunload", saveState);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") saveState();
+});
+
   document.addEventListener("DOMContentLoaded", boot);
 })();
