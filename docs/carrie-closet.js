@@ -22,16 +22,20 @@
   let currentSkin = document.body.dataset.skin || "light";
   let currentCat = "hair";
 
-  const equipped = {
-    hair: null,
-    top: null,
-    bottom: null,
-    eyes: null,
-    shoes: null,
-    necklace: null,
-    ears: null,
-    belly: null
+  // ✅ CHANGE: keep a separate equipped set per gender (so switching doesn't wipe)
+  const equippedSets = {
+    female: {
+      hair: null, top: null, bottom: null, eyes: null, shoes: null,
+      necklace: null, ears: null, belly: null
+    },
+    male: {
+      hair: null, top: null, bottom: null, eyes: null, shoes: null,
+      necklace: null, ears: null, belly: null
+    }
   };
+
+  // ✅ CHANGE: this is the active equipped object used by the rest of the code
+  let equipped = equippedSets[currentGender] || equippedSets.female;
 
   const zBySlot = {
     shoes: 10,
@@ -153,28 +157,34 @@
     };
   }
 
+  // ✅ CHANGE: save BOTH gender outfits (instead of just current)
   function saveState() {
     try {
-      const equippedIds = Object.fromEntries(
-        Object.entries(equipped).map(([slot, obj]) => [slot, obj ? obj.id : null])
-      );
+      const makeIds = (setObj) =>
+        Object.fromEntries(Object.entries(setObj).map(([slot, obj]) => [slot, obj ? obj.id : null]));
 
-      const equippedFallback = Object.fromEntries(
-        Object.entries(equipped).map(([slot, obj]) => [slot, obj ? snapshotItem(obj) : null])
-      );
+      const makeFallback = (setObj) =>
+        Object.fromEntries(Object.entries(setObj).map(([slot, obj]) => [slot, obj ? snapshotItem(obj) : null]));
 
       const payload = {
         gender: currentGender,
         skin: currentSkin,
         cat: currentCat,
-        equippedIds,
-        equippedFallback
+        equippedByGender: {
+          female: makeIds(equippedSets.female),
+          male: makeIds(equippedSets.male)
+        },
+        equippedFallbackByGender: {
+          female: makeFallback(equippedSets.female),
+          male: makeFallback(equippedSets.male)
+        }
       };
 
       storageSet(JSON.stringify(payload));
     } catch (e) {}
   }
 
+  // ✅ CHANGE: load BOTH gender outfits + set active "equipped" pointer
   function loadState(itemsMaybe) {
     try {
       const raw = storageGet();
@@ -187,26 +197,49 @@
       if (data.skin) currentSkin = data.skin;
       if (data.cat) currentCat = data.cat;
 
-      Object.keys(equipped).forEach((k) => (equipped[k] = null));
-
       const items = Array.isArray(itemsMaybe) ? itemsMaybe : null;
 
-      if (items && data.equippedIds && typeof data.equippedIds === "object") {
-        Object.entries(data.equippedIds).forEach(([slot, id]) => {
-          if (!id) return;
-          const found = items.find((it) => it.id === id);
-          if (found && slot in equipped) equipped[slot] = found;
-        });
+      const restoreSet = (genderKey, idsObj, fallbackObj) => {
+        const setObj = equippedSets[genderKey];
+        if (!setObj) return;
+
+        Object.keys(setObj).forEach((k) => (setObj[k] = null));
+
+        if (items && idsObj && typeof idsObj === "object") {
+          Object.entries(idsObj).forEach(([slot, id]) => {
+            if (!id) return;
+            const found = items.find((it) => it.id === id);
+            if (found && slot in setObj) setObj[slot] = found;
+          });
+        }
+
+        if (fallbackObj && typeof fallbackObj === "object") {
+          Object.entries(fallbackObj).forEach(([slot, snap]) => {
+            if (!(slot in setObj)) return;
+            if (setObj[slot]) return;
+            if (!snap || typeof snap !== "object") return;
+            setObj[slot] = snap;
+          });
+        }
+      };
+
+      // New format
+      if (data.equippedByGender || data.equippedFallbackByGender) {
+        restoreSet("female",
+          data.equippedByGender && data.equippedByGender.female,
+          data.equippedFallbackByGender && data.equippedFallbackByGender.female
+        );
+        restoreSet("male",
+          data.equippedByGender && data.equippedByGender.male,
+          data.equippedFallbackByGender && data.equippedFallbackByGender.male
+        );
+      } else {
+        // Backward compatibility (old single-set saves)
+        const g = (data.gender === "male") ? "male" : "female";
+        restoreSet(g, data.equippedIds, data.equippedFallback);
       }
 
-      if (data.equippedFallback && typeof data.equippedFallback === "object") {
-        Object.entries(data.equippedFallback).forEach(([slot, snap]) => {
-          if (!(slot in equipped)) return;
-          if (equipped[slot]) return;
-          if (!snap || typeof snap !== "object") return;
-          equipped[slot] = snap;
-        });
-      }
+      equipped = equippedSets[currentGender] || equippedSets.female;
     } catch (e) {}
   }
 
@@ -274,11 +307,14 @@
     });
   }
 
+  // ✅ CHANGE: switching gender swaps outfits instead of clearing them
   function setGender(newGender) {
+    saveState(); // save current outfit first
+
     currentGender = newGender;
     document.body.dataset.gender = currentGender;
 
-    Object.keys(equipped).forEach((k) => (equipped[k] = null));
+    equipped = equippedSets[currentGender] || equippedSets.female; // swap to that gender's outfit
 
     setBaseImage();
     updateLabels();
