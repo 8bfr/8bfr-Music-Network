@@ -50,6 +50,97 @@
   // ---------------------------
   const STORE_KEY = "carrieClosetState_v1";
 
+  // ✅ Storage wrapper: localStorage → sessionStorage → cookie → URL hash fallback
+  const STORAGE = (() => {
+    const HASH_KEY = "cc"; // URL hash key: #cc=...
+
+    function canUse(storage) {
+      try {
+        const k = "__t";
+        storage.setItem(k, "1");
+        storage.removeItem(k);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    const hasLS = canUse(window.localStorage);
+    const hasSS = canUse(window.sessionStorage);
+
+    function cookieSet(val) {
+      try {
+        document.cookie =
+          STORE_KEY +
+          "=" +
+          encodeURIComponent(val) +
+          "; path=/; max-age=31536000; SameSite=Lax";
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function cookieGet() {
+      try {
+        const m = document.cookie.match(new RegExp("(^| )" + STORE_KEY + "=([^;]+)"));
+        return m ? decodeURIComponent(m[2]) : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function hashSet(val) {
+      try {
+        const encoded = encodeURIComponent(val);
+        const base = window.location.href.split("#")[0];
+        history.replaceState(null, "", base + "#" + HASH_KEY + "=" + encoded);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function hashGet() {
+      try {
+        const h = window.location.hash || "";
+        const m = h.match(new RegExp(HASH_KEY + "=([^&]+)"));
+        return m ? decodeURIComponent(m[1]) : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    return {
+      set(val) {
+        if (hasLS) {
+          try { localStorage.setItem(STORE_KEY, val); return; } catch (e) {}
+        }
+        if (hasSS) {
+          try { sessionStorage.setItem(STORE_KEY, val); return; } catch (e) {}
+        }
+        if (cookieSet(val)) return;
+        hashSet(val); // last resort (works even when storage is blocked)
+      },
+      get() {
+        // Prefer hash if present (survives “storage wiped” situations)
+        const hv = hashGet();
+        if (hv) return hv;
+
+        if (hasLS) {
+          try { return localStorage.getItem(STORE_KEY); } catch (e) {}
+        }
+        if (hasSS) {
+          try { return sessionStorage.getItem(STORE_KEY); } catch (e) {}
+        }
+        const cv = cookieGet();
+        if (cv) return cv;
+
+        return null;
+      }
+    };
+  })();
+
   function saveState() {
     try {
       const payload = {
@@ -60,7 +151,32 @@
           Object.entries(equipped).map(([slot, obj]) => [slot, obj ? obj.id : null])
         )
       };
-      localStorage.setItem(STORE_KEY, JSON.stringify(payload));
+      STORAGE.set(JSON.stringify(payload));
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  function loadState(items) {
+    try {
+      const raw = STORAGE.get();
+      if (!raw) return;
+
+      const data = JSON.parse(raw);
+      if (!data || typeof data !== "object") return;
+
+      if (data.gender) currentGender = data.gender;
+      if (data.skin) currentSkin = data.skin;
+      if (data.cat) currentCat = data.cat;
+
+      if (data.equippedIds && typeof data.equippedIds === "object") {
+        Object.keys(equipped).forEach((k) => (equipped[k] = null));
+        Object.entries(data.equippedIds).forEach(([slot, id]) => {
+          if (!id) return;
+          const found = items.find((it) => it.id === id);
+          if (found && slot in equipped) equipped[slot] = found;
+        });
+      }
     } catch (e) {
       // ignore
     }
