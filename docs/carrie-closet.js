@@ -1,9 +1,14 @@
 // carrie-closet.js
-// Minimal working closet logic for your current HTML/CSS + carrie-closet-data.js
-// Adds support for item.imgDark when body[data-skin="dark"].
-// ✅ Persists equipped items + gender + skin + selected tab across refresh.
+// ✅ Persist outfit across refresh even if storage is blocked
+// ✅ Guard against double-loading / duplicate scripts
 
 (function () {
+  // ---------------------------
+  // ✅ HARD GUARD: if this file is loaded twice, do nothing the 2nd time
+  // ---------------------------
+  if (window.__CARRIE_CLOSET_ALREADY_RUNNING__) return;
+  window.__CARRIE_CLOSET_ALREADY_RUNNING__ = true;
+
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => Array.from(document.querySelectorAll(s));
 
@@ -16,7 +21,7 @@
   const closetGenderLabel = $("#closetGenderLabel");
   const skinToneButtons = $("#skinToneButtons");
 
-  // --- hard defaults ---
+  // --- defaults ---
   let currentGender = document.body.dataset.gender || "female";
   let currentSkin = document.body.dataset.skin || "light";
   let currentCat = "hair";
@@ -46,74 +51,98 @@
   };
 
   // ---------------------------
-  // ✅ PERSIST (so refresh keeps outfit)
+  // ✅ PERSIST
   // ---------------------------
 
-  // ✅ Page-specific key so other pages/scripts can't overwrite it
-  const STORE_KEY = "carrieClosetState_v2:" + location.pathname;
+  // One stable key (NOT path-based) so refresh/path quirks won't break it
+  const STORE_KEY = "carrieClosetState_v3";
+  const HASH_KEY = "cc"; // #cc=...
 
-  // ✅ Storage wrapper: localStorage + cookie (cookie is a safety net)
-  const STORAGE = (() => {
-    function canUse(storage) {
-      try {
-        const k = "__t";
-        storage.setItem(k, "1");
-        storage.removeItem(k);
-        return true;
-      } catch (e) {
-        return false;
+  function canUse(storage) {
+    try {
+      const k = "__t";
+      storage.setItem(k, "1");
+      storage.removeItem(k);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  const hasLS = canUse(window.localStorage);
+
+  function cookieSet(val) {
+    try {
+      document.cookie =
+        encodeURIComponent(STORE_KEY) +
+        "=" +
+        encodeURIComponent(val) +
+        "; path=/; max-age=31536000; SameSite=Lax";
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function cookieGet() {
+    try {
+      const key = encodeURIComponent(STORE_KEY) + "=";
+      const parts = (document.cookie || "").split("; ");
+      for (const p of parts) {
+        if (p.indexOf(key) === 0) return decodeURIComponent(p.slice(key.length));
       }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // ✅ Always write to URL hash too (this survives “storage not allowed”)
+  function hashSet(val) {
+    try {
+      const encoded = encodeURIComponent(val);
+      const base = window.location.href.split("#")[0];
+      history.replaceState(null, "", base + "#" + HASH_KEY + "=" + encoded);
+    } catch (e) {}
+  }
+
+  function hashGet() {
+    try {
+      const h = window.location.hash || "";
+      const m = h.match(new RegExp(HASH_KEY + "=([^&]+)"));
+      return m ? decodeURIComponent(m[1]) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function storageSet(val) {
+    // localStorage
+    if (hasLS) {
+      try { localStorage.setItem(STORE_KEY, val); } catch (e) {}
+    }
+    // cookie backup
+    cookieSet(val);
+    // URL hash backup (always)
+    hashSet(val);
+  }
+
+  function storageGet() {
+    // Prefer hash if present (most reliable)
+    const hv = hashGet();
+    if (hv) return hv;
+
+    // then localStorage
+    if (hasLS) {
+      try {
+        const v = localStorage.getItem(STORE_KEY);
+        if (v) return v;
+      } catch (e) {}
     }
 
-    const hasLS = canUse(window.localStorage);
-
-    function cookieSet(val) {
-      try {
-        // 1 year
-        document.cookie =
-          encodeURIComponent(STORE_KEY) +
-          "=" +
-          encodeURIComponent(val) +
-          "; path=/; max-age=31536000; SameSite=Lax";
-        return true;
-      } catch (e) {
-        return false;
-      }
-    }
-
-    function cookieGet() {
-      try {
-        const key = encodeURIComponent(STORE_KEY) + "=";
-        const parts = (document.cookie || "").split("; ");
-        for (const p of parts) {
-          if (p.indexOf(key) === 0) return decodeURIComponent(p.slice(key.length));
-        }
-        return null;
-      } catch (e) {
-        return null;
-      }
-    }
-
-    return {
-      set(val) {
-        // Try LS first (fast), but ALWAYS also write cookie (backup)
-        if (hasLS) {
-          try { localStorage.setItem(STORE_KEY, val); } catch (e) {}
-        }
-        cookieSet(val);
-      },
-      get() {
-        // Prefer LS if present, otherwise cookie
-        if (hasLS) {
-          try {
-            const v = localStorage.getItem(STORE_KEY);
-            if (v) return v;
-          } catch (e) {}
-        }
-        return cookieGet();
-      }
-    };
-  })();
+    // then cookie
+    return cookieGet();
+  }
 
   function saveState() {
     try {
@@ -125,15 +154,13 @@
           Object.entries(equipped).map(([slot, obj]) => [slot, obj ? obj.id : null])
         )
       };
-      STORAGE.set(JSON.stringify(payload));
-    } catch (e) {
-      // ignore
-    }
+      storageSet(JSON.stringify(payload));
+    } catch (e) {}
   }
 
   function loadState(items) {
     try {
-      const raw = STORAGE.get();
+      const raw = storageGet();
       if (!raw) return;
 
       const data = JSON.parse(raw);
@@ -151,9 +178,7 @@
           if (found && slot in equipped) equipped[slot] = found;
         });
       }
-    } catch (e) {
-      // ignore
-    }
+    } catch (e) {}
   }
 
   function safeItems() {
@@ -412,7 +437,6 @@
       errBox && errBox.classList.add("hidden");
     }
 
-    // ✅ load saved state FIRST
     loadState(items);
 
     document.body.dataset.gender = currentGender;
@@ -428,8 +452,6 @@
     updateLabels();
     renderItems();
     renderOverlays();
-
-    // ✅ IMPORTANT: DO NOT save here (prevents overwriting saved state on load)
   }
 
   // Save when leaving / backgrounding (mobile safe)
