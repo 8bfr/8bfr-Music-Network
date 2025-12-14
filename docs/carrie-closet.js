@@ -157,6 +157,7 @@
     }
   }
 
+  // ✅ IMPORTANT: only ONE loadState() (your file had two; that breaks saving)
   function loadState(items) {
     try {
       const raw = STORAGE.get();
@@ -169,32 +170,6 @@
       if (data.skin) currentSkin = data.skin;
       if (data.cat) currentCat = data.cat;
 
-      if (data.equippedIds && typeof data.equippedIds === "object") {
-        Object.keys(equipped).forEach((k) => (equipped[k] = null));
-        Object.entries(data.equippedIds).forEach(([slot, id]) => {
-          if (!id) return;
-          const found = items.find((it) => it.id === id);
-          if (found && slot in equipped) equipped[slot] = found;
-        });
-      }
-    } catch (e) {
-      // ignore
-    }
-  }
-
-  function loadState(items) {
-    try {
-      const raw = localStorage.getItem(STORE_KEY);
-      if (!raw) return;
-
-      const data = JSON.parse(raw);
-      if (!data || typeof data !== "object") return;
-
-      if (data.gender) currentGender = data.gender;
-      if (data.skin) currentSkin = data.skin;
-      if (data.cat) currentCat = data.cat;
-
-      // rebuild equipped objects from IDs
       if (data.equippedIds && typeof data.equippedIds === "object") {
         Object.keys(equipped).forEach((k) => (equipped[k] = null));
         Object.entries(data.equippedIds).forEach(([slot, id]) => {
@@ -265,7 +240,7 @@
         renderOverlays();
         renderItems();
 
-        saveState(); // ✅ persist
+        saveState();
       });
 
       skinToneButtons.appendChild(btn);
@@ -284,7 +259,7 @@
     renderItems();
     renderOverlays();
 
-    saveState(); // ✅ persist
+    saveState();
   }
 
   function pickImgForSkin(itemObj) {
@@ -331,8 +306,7 @@
 
       renderItems();
       renderOverlays();
-
-      saveState(); // ✅ persist
+      saveState();
     });
 
     return card;
@@ -431,7 +405,7 @@
         btn.classList.add("active");
         currentCat = btn.dataset.cat || "hair";
         renderItems();
-        saveState(); // ✅ persist
+        saveState();
       });
     });
   }
@@ -447,12 +421,10 @@
   }
 
   function syncUIButtons() {
-    // gender buttons
     $$(".seg-btn[data-gender]").forEach((b) => {
       b.classList.toggle("active", (b.dataset.gender === currentGender));
     });
 
-    // tabs
     $$(".tab-btn").forEach((b) => {
       b.classList.toggle("active", (b.dataset.cat === currentCat));
     });
@@ -467,10 +439,8 @@
       errBox && errBox.classList.add("hidden");
     }
 
-    // ✅ load saved state BEFORE building UI
     loadState(items);
 
-    // ensure attributes exist for CSS
     document.body.dataset.gender = currentGender;
     document.body.dataset.skin = currentSkin;
 
@@ -478,7 +448,6 @@
     initGenderButtons();
     buildSkinButtons();
 
-    // ✅ set correct active tab/gender after loadState
     syncUIButtons();
 
     setBaseImage();
@@ -486,11 +455,8 @@
     renderItems();
     renderOverlays();
 
-    // ✅ save once (keeps future keys consistent)
     saveState();
   }
-
-  
 
   // ✅ Mobile/BFCache-safe persistence
   window.addEventListener("pagehide", saveState);
@@ -500,7 +466,7 @@
   });
 
   // ✅ When coming back from BFCache, re-load + re-render
-  window.addEventListener("pageshow", (e) => {
+  window.addEventListener("pageshow", () => {
     const items = safeItems();
     if (!items) return;
 
