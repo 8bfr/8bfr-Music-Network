@@ -1,11 +1,9 @@
 // carrie-closet.js
-// ✅ Persist outfit across refresh even if storage is blocked
-// ✅ Guard against double-loading / duplicate scripts
+// ✅ Persist outfit across refresh (even if catalog loads late)
+// ✅ Restores from saved "fallback item snapshot" if IDs aren't found yet
+// ✅ Guard against double-loading
 
 (function () {
-  // ---------------------------
-  // ✅ HARD GUARD: if this file is loaded twice, do nothing the 2nd time
-  // ---------------------------
   if (window.__CARRIE_CLOSET_ALREADY_RUNNING__) return;
   window.__CARRIE_CLOSET_ALREADY_RUNNING__ = true;
 
@@ -21,12 +19,10 @@
   const closetGenderLabel = $("#closetGenderLabel");
   const skinToneButtons = $("#skinToneButtons");
 
-  // --- defaults ---
   let currentGender = document.body.dataset.gender || "female";
   let currentSkin = document.body.dataset.skin || "light";
   let currentCat = "hair";
 
-  // Equipped items by slot
   const equipped = {
     hair: null,
     top: null,
@@ -38,7 +34,6 @@
     belly: null
   };
 
-  // Layer order (bigger number = on top)
   const zBySlot = {
     shoes: 10,
     bottom: 30,
@@ -53,10 +48,7 @@
   // ---------------------------
   // ✅ PERSIST
   // ---------------------------
-
-  // One stable key (NOT path-based) so refresh/path quirks won't break it
-  const STORE_KEY = "carrieClosetState_v3";
-  const HASH_KEY = "cc"; // #cc=...
+  const STORE_KEY = "carrieClosetState_v4";
 
   function canUse(storage) {
     try {
@@ -68,7 +60,6 @@
       return false;
     }
   }
-
   const hasLS = canUse(window.localStorage);
 
   function cookieSet(val) {
@@ -83,7 +74,6 @@
       return false;
     }
   }
-
   function cookieGet() {
     try {
       const key = encodeURIComponent(STORE_KEY) + "=";
@@ -97,68 +87,65 @@
     }
   }
 
-  // ✅ Always write to URL hash too (this survives “storage not allowed”)
-  function hashSet(val) {
-    try {
-      const encoded = encodeURIComponent(val);
-      const base = window.location.href.split("#")[0];
-      history.replaceState(null, "", base + "#" + HASH_KEY + "=" + encoded);
-    } catch (e) {}
-  }
-
-  function hashGet() {
-    try {
-      const h = window.location.hash || "";
-      const m = h.match(new RegExp(HASH_KEY + "=([^&]+)"));
-      return m ? decodeURIComponent(m[1]) : null;
-    } catch (e) {
-      return null;
-    }
-  }
-
   function storageSet(val) {
-    // localStorage
     if (hasLS) {
       try { localStorage.setItem(STORE_KEY, val); } catch (e) {}
     }
-    // cookie backup
     cookieSet(val);
-    // URL hash backup (always)
-    hashSet(val);
   }
-
   function storageGet() {
-    // Prefer hash if present (most reliable)
-    const hv = hashGet();
-    if (hv) return hv;
-
-    // then localStorage
     if (hasLS) {
       try {
         const v = localStorage.getItem(STORE_KEY);
         if (v) return v;
       } catch (e) {}
     }
-
-    // then cookie
     return cookieGet();
+  }
+
+  function snapshotItem(obj) {
+    if (!obj) return null;
+    return {
+      id: obj.id || null,
+      gender: obj.gender || null,
+      category: obj.category || obj.cat || null,
+      cat: obj.cat || obj.category || null,
+      slot: obj.slot || null,
+      name: obj.name || null,
+      label: obj.label || null,
+      img: obj.img || null,
+      imgDark: obj.imgDark || null,
+      thumb: obj.thumb || null,
+      scale: (typeof obj.scale === "number" ? obj.scale : 1),
+      offsetX: (typeof obj.offsetX === "number" ? obj.offsetX : 0),
+      offsetY: (typeof obj.offsetY === "number" ? obj.offsetY : 0)
+    };
   }
 
   function saveState() {
     try {
+      const equippedIds = Object.fromEntries(
+        Object.entries(equipped).map(([slot, obj]) => [slot, obj ? obj.id : null])
+      );
+
+      // ✅ fallback snapshots so restore works even if catalog isn't ready yet
+      const equippedFallback = Object.fromEntries(
+        Object.entries(equipped).map(([slot, obj]) => [slot, obj ? snapshotItem(obj) : null])
+      );
+
       const payload = {
         gender: currentGender,
         skin: currentSkin,
         cat: currentCat,
-        equippedIds: Object.fromEntries(
-          Object.entries(equipped).map(([slot, obj]) => [slot, obj ? obj.id : null])
-        )
+        equippedIds,
+        equippedFallback
       };
+
       storageSet(JSON.stringify(payload));
     } catch (e) {}
   }
 
-  function loadState(items) {
+  function loadState(itemsMaybe) {
     try {
       const raw = storageGet();
       if (!raw) return;
@@ -170,12 +157,27 @@
       if (data.skin) currentSkin = data.skin;
       if (data.cat) currentCat = data.cat;
 
-      if (data.equippedIds && typeof data.equippedIds === "object") {
-        Object.keys(equipped).forEach((k) => (equipped[k] = null));
+      // Clear current equipped first
+      Object.keys(equipped).forEach((k) => (equipped[k] = null));
+
+      const items = Array.isArray(itemsMaybe) ? itemsMaybe : null;
+
+      // Prefer real items from catalog by ID
+      if (items && data.equippedIds && typeof data.equippedIds === "object") {
         Object.entries(data.equippedIds).forEach(([slot, id]) => {
           if (!id) return;
           const found = items.find((it) => it.id === id);
           if (found && slot in equipped) equipped[slot] = found;
+        });
+      }
+
+      // If some slots still null, use fallback snapshots
+      if (data.equippedFallback && typeof data.equippedFallback === "object") {
+        Object.entries(data.equippedFallback).forEach(([slot, snap]) => {
+          if (!(slot in equipped)) return;
+          if (equipped[slot]) return; // already restored from catalog
+          if (!snap || typeof snap !== "object") return;
+          equipped[slot] = snap; // snapshot object is enough for overlay rendering
         });
       }
     } catch (e) {}
@@ -322,7 +324,7 @@
 
   function renderItems() {
     const items = safeItems();
-    if (!items) return;
+    if (!items || !grid) return;
 
     const list = filterItems(items);
 
@@ -338,10 +340,13 @@
   }
 
   function clearOverlays() {
+    if (!overlayHost) return;
     overlayHost.innerHTML = "";
   }
 
   function addOverlayImg(itemObj) {
+    if (!overlayHost) return;
+
     const src = pickImgForSkin(itemObj);
     if (!src) return;
 
@@ -428,33 +433,66 @@
     });
   }
 
-  function boot() {
-    const items = safeItems();
-    if (!items) {
-      errBox && errBox.classList.remove("hidden");
-      return;
-    } else {
+  // ✅ Wait for catalog to exist (this is the main fix)
+  function bootWhenReady() {
+    // Load state immediately (works even before catalog)
+    loadState(null);
+
+    // If catalog is ready now, finish boot
+    const itemsNow = safeItems();
+    if (itemsNow) {
       errBox && errBox.classList.add("hidden");
+
+      // Re-load state using real items so IDs map correctly
+      loadState(itemsNow);
+
+      document.body.dataset.gender = currentGender;
+      document.body.dataset.skin = currentSkin;
+
+      initTabs();
+      initGenderButtons();
+      buildSkinButtons();
+      syncUIButtons();
+
+      setBaseImage();
+      updateLabels();
+      renderItems();
+      renderOverlays();
+
+      return;
     }
 
-    loadState(items);
+    // Otherwise poll briefly until data loads
+    let tries = 0;
+    const timer = setInterval(() => {
+      tries++;
+      const items = safeItems();
+      if (items) {
+        clearInterval(timer);
+        errBox && errBox.classList.add("hidden");
 
-    document.body.dataset.gender = currentGender;
-    document.body.dataset.skin = currentSkin;
+        loadState(items);
 
-    initTabs();
-    initGenderButtons();
-    buildSkinButtons();
+        document.body.dataset.gender = currentGender;
+        document.body.dataset.skin = currentSkin;
 
-    syncUIButtons();
+        initTabs();
+        initGenderButtons();
+        buildSkinButtons();
+        syncUIButtons();
 
-    setBaseImage();
-    updateLabels();
-    renderItems();
-    renderOverlays();
+        setBaseImage();
+        updateLabels();
+        renderItems();
+        renderOverlays();
+      } else if (tries >= 50) {
+        clearInterval(timer);
+        errBox && errBox.classList.remove("hidden");
+      }
+    }, 50);
   }
 
-  // Save when leaving / backgrounding (mobile safe)
+  // Save when leaving / backgrounding
   window.addEventListener("pagehide", saveState);
   window.addEventListener("beforeunload", saveState);
   document.addEventListener("visibilitychange", () => {
@@ -464,9 +502,7 @@
   // BFCache restore
   window.addEventListener("pageshow", () => {
     const items = safeItems();
-    if (!items) return;
-
-    loadState(items);
+    loadState(items); // items may be null; fallback still works
 
     document.body.dataset.gender = currentGender;
     document.body.dataset.skin = currentSkin;
@@ -478,5 +514,5 @@
     renderOverlays();
   });
 
-  document.addEventListener("DOMContentLoaded", boot);
+  document.addEventListener("DOMContentLoaded", bootWhenReady);
 })();
