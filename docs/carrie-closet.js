@@ -381,5 +381,29 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") saveState();
 });
 
+  // ✅ Mobile/BFCache-safe persistence
+  window.addEventListener("pagehide", saveState);
+  window.addEventListener("beforeunload", saveState);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") saveState();
+  });
+
+  // ✅ When coming back from BFCache, re-load + re-render
+  window.addEventListener("pageshow", (e) => {
+    const items = safeItems();
+    if (!items) return;
+
+    loadState(items);
+
+    document.body.dataset.gender = currentGender;
+    document.body.dataset.skin = currentSkin;
+
+    syncUIButtons();
+    setBaseImage();
+    updateLabels();
+    renderItems();
+    renderOverlays();
+  });
+
   document.addEventListener("DOMContentLoaded", boot);
 })();
