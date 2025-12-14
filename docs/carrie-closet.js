@@ -48,7 +48,7 @@
   // ---------------------------
   // ✅ PERSIST
   // ---------------------------
-  const STORE_KEY = "carrieClosetState_v4";
+ const STORE_KEY = "carrieClosetState_v5:" + location.pathname;
 
   function canUse(storage) {
     try {
