@@ -48,12 +48,12 @@
   // ---------------------------
   // ✅ PERSIST (so refresh keeps outfit)
   // ---------------------------
-  const STORE_KEY = "carrieClosetState_v1";
 
-  // ✅ Storage wrapper: localStorage → sessionStorage → cookie → URL hash fallback
+  // ✅ Page-specific key so other pages/scripts can't overwrite it
+  const STORE_KEY = "carrieClosetState_v2:" + location.pathname;
+
+  // ✅ Storage wrapper: localStorage + cookie (cookie is a safety net)
   const STORAGE = (() => {
-    const HASH_KEY = "cc"; // URL hash key: #cc=...
-
     function canUse(storage) {
       try {
         const k = "__t";
@@ -66,12 +66,12 @@
     }
 
     const hasLS = canUse(window.localStorage);
-    const hasSS = canUse(window.sessionStorage);
 
     function cookieSet(val) {
       try {
+        // 1 year
         document.cookie =
-          STORE_KEY +
+          encodeURIComponent(STORE_KEY) +
           "=" +
           encodeURIComponent(val) +
           "; path=/; max-age=31536000; SameSite=Lax";
@@ -83,29 +83,12 @@
 
     function cookieGet() {
       try {
-        const m = document.cookie.match(new RegExp("(^| )" + STORE_KEY + "=([^;]+)"));
-        return m ? decodeURIComponent(m[2]) : null;
-      } catch (e) {
+        const key = encodeURIComponent(STORE_KEY) + "=";
+        const parts = (document.cookie || "").split("; ");
+        for (const p of parts) {
+          if (p.indexOf(key) === 0) return decodeURIComponent(p.slice(key.length));
+        }
         return null;
-      }
-    }
-
-    function hashSet(val) {
-      try {
-        const encoded = encodeURIComponent(val);
-        const base = window.location.href.split("#")[0];
-        history.replaceState(null, "", base + "#" + HASH_KEY + "=" + encoded);
-        return true;
-      } catch (e) {
-        return false;
-      }
-    }
-
-    function hashGet() {
-      try {
-        const h = window.location.hash || "";
-        const m = h.match(new RegExp(HASH_KEY + "=([^&]+)"));
-        return m ? decodeURIComponent(m[1]) : null;
       } catch (e) {
         return null;
       }
@@ -113,29 +96,21 @@
 
     return {
       set(val) {
+        // Try LS first (fast), but ALWAYS also write cookie (backup)
         if (hasLS) {
-          try { localStorage.setItem(STORE_KEY, val); return; } catch (e) {}
+          try { localStorage.setItem(STORE_KEY, val); } catch (e) {}
         }
-        if (hasSS) {
-          try { sessionStorage.setItem(STORE_KEY, val); return; } catch (e) {}
-        }
-        if (cookieSet(val)) return;
-        hashSet(val); // last resort
+        cookieSet(val);
       },
       get() {
-        const hv = hashGet();
-        if (hv) return hv;
-
+        // Prefer LS if present, otherwise cookie
         if (hasLS) {
-          try { return localStorage.getItem(STORE_KEY); } catch (e) {}
+          try {
+            const v = localStorage.getItem(STORE_KEY);
+            if (v) return v;
+          } catch (e) {}
         }
-        if (hasSS) {
-          try { return sessionStorage.getItem(STORE_KEY); } catch (e) {}
-        }
-        const cv = cookieGet();
-        if (cv) return cv;
-
-        return null;
+        return cookieGet();
       }
     };
   })();
@@ -156,7 +131,6 @@
     }
   }
 
-  // ✅ ONLY ONE loadState() — uses STORAGE.get()
   function loadState(items) {
     try {
       const raw = STORAGE.get();
@@ -421,11 +395,11 @@
 
   function syncUIButtons() {
     $$(".seg-btn[data-gender]").forEach((b) => {
-      b.classList.toggle("active", (b.dataset.gender === currentGender));
+      b.classList.toggle("active", b.dataset.gender === currentGender);
     });
 
     $$(".tab-btn").forEach((b) => {
-      b.classList.toggle("active", (b.dataset.cat === currentCat));
+      b.classList.toggle("active", b.dataset.cat === currentCat);
     });
   }
 
@@ -438,6 +412,7 @@
       errBox && errBox.classList.add("hidden");
     }
 
+    // ✅ load saved state FIRST
     loadState(items);
 
     document.body.dataset.gender = currentGender;
@@ -454,17 +429,17 @@
     renderItems();
     renderOverlays();
 
-    saveState();
+    // ✅ IMPORTANT: DO NOT save here (prevents overwriting saved state on load)
   }
 
-  // ✅ Mobile/BFCache-safe persistence
+  // Save when leaving / backgrounding (mobile safe)
   window.addEventListener("pagehide", saveState);
   window.addEventListener("beforeunload", saveState);
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") saveState();
   });
 
-  // ✅ When coming back from BFCache, re-load + re-render
+  // BFCache restore
   window.addEventListener("pageshow", () => {
     const items = safeItems();
     if (!items) return;
