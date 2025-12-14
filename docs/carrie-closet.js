@@ -120,10 +120,9 @@
           try { sessionStorage.setItem(STORE_KEY, val); return; } catch (e) {}
         }
         if (cookieSet(val)) return;
-        hashSet(val); // last resort (works even when storage is blocked)
+        hashSet(val); // last resort
       },
       get() {
-        // Prefer hash if present (survives “storage wiped” situations)
         const hv = hashGet();
         if (hv) return hv;
 
@@ -157,7 +156,7 @@
     }
   }
 
-  // ✅ IMPORTANT: only ONE loadState() (your file had two; that breaks saving)
+  // ✅ ONLY ONE loadState() — uses STORAGE.get()
   function loadState(items) {
     try {
       const raw = STORAGE.get();
