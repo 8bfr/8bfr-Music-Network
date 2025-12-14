@@ -1,4 +1,3 @@
-// carrie-closet.js
 // ✅ Persist outfit across refresh (even if catalog loads late)
 // ✅ Restores from saved "fallback item snapshot" if IDs aren't found yet
 // ✅ Guard against double-loading
@@ -46,9 +45,9 @@
   };
 
   // ---------------------------
-  // ✅ PERSIST
+  // ✅ PERSIST (LS + cookie + window.name fallback)
   // ---------------------------
- const STORE_KEY = "carrieClosetState_v5:" + location.pathname;
+  const STORE_KEY = "carrieClosetState_v6:" + location.pathname;
 
   function canUse(storage) {
     try {
@@ -87,11 +86,40 @@
     }
   }
 
+  // ✅ window.name (survives localStorage.clear / some privacy wipes)
+  function nameGet() {
+    try {
+      const raw = window.name || "";
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      if (!data || typeof data !== "object") return null;
+      return data[STORE_KEY] || null;
+    } catch (e) {
+      return null;
+    }
+  }
+  function nameSet(val) {
+    try {
+      const raw = window.name || "";
+      let data = {};
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object") data = parsed;
+      }
+      data[STORE_KEY] = val;
+      window.name = JSON.stringify(data);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   function storageSet(val) {
     if (hasLS) {
       try { localStorage.setItem(STORE_KEY, val); } catch (e) {}
     }
     cookieSet(val);
+    nameSet(val);
   }
   function storageGet() {
     if (hasLS) {
@@ -100,6 +128,9 @@
         if (v) return v;
       } catch (e) {}
     }
+    const nv = nameGet();
+    if (nv) return nv;
+
     return cookieGet();
   }
 
@@ -128,7 +159,6 @@
         Object.entries(equipped).map(([slot, obj]) => [slot, obj ? obj.id : null])
       );
 
-      // ✅ fallback snapshots so restore works even if catalog isn't ready yet
       const equippedFallback = Object.fromEntries(
         Object.entries(equipped).map(([slot, obj]) => [slot, obj ? snapshotItem(obj) : null])
       );
@@ -157,12 +187,10 @@
       if (data.skin) currentSkin = data.skin;
       if (data.cat) currentCat = data.cat;
 
-      // Clear current equipped first
       Object.keys(equipped).forEach((k) => (equipped[k] = null));
 
       const items = Array.isArray(itemsMaybe) ? itemsMaybe : null;
 
-      // Prefer real items from catalog by ID
       if (items && data.equippedIds && typeof data.equippedIds === "object") {
         Object.entries(data.equippedIds).forEach(([slot, id]) => {
           if (!id) return;
@@ -171,13 +199,12 @@
         });
       }
 
-      // If some slots still null, use fallback snapshots
       if (data.equippedFallback && typeof data.equippedFallback === "object") {
         Object.entries(data.equippedFallback).forEach(([slot, snap]) => {
           if (!(slot in equipped)) return;
-          if (equipped[slot]) return; // already restored from catalog
+          if (equipped[slot]) return;
           if (!snap || typeof snap !== "object") return;
-          equipped[slot] = snap; // snapshot object is enough for overlay rendering
+          equipped[slot] = snap;
         });
       }
     } catch (e) {}
@@ -251,7 +278,6 @@
     currentGender = newGender;
     document.body.dataset.gender = currentGender;
 
-    // keep your original behavior: reset equipped on gender swap
     Object.keys(equipped).forEach((k) => (equipped[k] = null));
 
     setBaseImage();
@@ -433,17 +459,13 @@
     });
   }
 
-  // ✅ Wait for catalog to exist (this is the main fix)
   function bootWhenReady() {
-    // Load state immediately (works even before catalog)
     loadState(null);
 
-    // If catalog is ready now, finish boot
     const itemsNow = safeItems();
     if (itemsNow) {
       errBox && errBox.classList.add("hidden");
 
-      // Re-load state using real items so IDs map correctly
       loadState(itemsNow);
 
       document.body.dataset.gender = currentGender;
@@ -462,7 +484,6 @@
       return;
     }
 
-    // Otherwise poll briefly until data loads
     let tries = 0;
     const timer = setInterval(() => {
       tries++;
@@ -492,17 +513,15 @@
     }, 50);
   }
 
-  // Save when leaving / backgrounding
   window.addEventListener("pagehide", saveState);
   window.addEventListener("beforeunload", saveState);
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") saveState();
   });
 
-  // BFCache restore
   window.addEventListener("pageshow", () => {
     const items = safeItems();
-    loadState(items); // items may be null; fallback still works
+    loadState(items);
 
     document.body.dataset.gender = currentGender;
     document.body.dataset.skin = currentSkin;
