@@ -409,7 +409,7 @@
 
     // ---- JEWELRY – FEMALE  Dark----
     item({
-      id: "f_jewel_necklace_dark",
+      id: "f_jewel_necklace",
       gender: "female",
       category: "jewelry",
       cat: "jewelry",
