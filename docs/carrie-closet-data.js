@@ -431,7 +431,7 @@
       name: "Belly Ring",
       label: "belly ring",
       coins: 15,
-      img: base + "/female_jewlery/female_gold_belly-ring.png",
+      img: base + "/female_jewlery/female_belly-ring.png",
       scale: 0.7,
       offsetX: 0,
       offsetY: -6
