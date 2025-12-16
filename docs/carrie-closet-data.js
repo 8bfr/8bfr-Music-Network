@@ -390,38 +390,36 @@
       offsetX: 0,
       offsetY: 0
     }),
+// ---- FEMALE NECKLACE – LIGHT ----
+item({
+  id: "f_jewel_necklace_light",
+  gender: "female",
+  category: "jewelry",
+  cat: "jewelry",
+  slot: "necklace",
+  name: "Gold Necklace",
+  label: "necklace • light",
+  img: base + "/female_jewlery/female_gold_necklace.png",
+  scale: 0.82,
+  offsetX: 0,
+  offsetY: 8
+}),
 
-    // ---- JEWELRY – FEMALE ----
-    item({
-      id: "f_jewel_necklace",
-      gender: "female",
-      category: "jewelry",
-      cat: "jewelry",
-      slot: "necklace",
-      name: "Gold Necklace",
-      label: "necklace",
-      coins: 20,
-      img: base + "/female_jewlery/female_gold_necklace.png",
-      scale: 0.82,
-      offsetX: 0,
-      offsetY: 8
-    }),
+// ---- FEMALE NECKLACE – DARK ----
+item({
+  id: "f_jewel_necklace_dark",
+  gender: "female",
+  category: "jewelry",
+  cat: "jewelry",
+  slot: "necklace",
+  name: "Gold Necklace",
+  label: "necklace • dark",
+  img: base + "/female_jewlery/female_gold_necklace_dark.png",
+  scale: 0.78,      // 👈 your dark tuning
+  offsetX: 0,
+  offsetY: 10       // 👈 your dark tuning
+}),
 
-    // ---- JEWELRY – FEMALE  Dark----
-    item({
-      id: "f_jewel_necklace",
-      gender: "female",
-      category: "jewelry",
-      cat: "jewelry",
-      slot: "necklace",
-      name: "Gold Necklace",
-      label: "necklace",
-      coins: 20,
-      img: base + "/female_jewlery/female_gold_necklace_dark.png",
-      scale: 0.82,
-      offsetX: 0,
-      offsetY: 8
-    }),
     item({
       id: "f_jewel_belly",
       gender: "female",
