@@ -437,9 +437,8 @@
       offsetY: -6
     }),
     item({
-      id: "f_jewel_ears.layer-left_light",
+      id: "f_jewel_ears",
       gender: "female",
-      skin: "light",
       category: "jewelry",
       cat: "jewelry",
       slot: "ears",
@@ -454,7 +453,7 @@
 
 
    item({
-      id: "f_jewel_ears_layer-right",
+      id: "f_jewel_ears",
       gender: "female",
       category: "jewelry",
       cat: "jewelry",
