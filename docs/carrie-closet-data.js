@@ -439,6 +439,7 @@
     item({
       id: "f_jewel_ears.layer-left",
       gender: "female",
+      skin: "light",
       category: "jewelry",
       cat: "jewelry",
       slot: "ears",
