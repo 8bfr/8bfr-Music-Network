@@ -4,6 +4,14 @@
 (function () {
   const base = "assets/images";
 
+  // side tagging (SAFE — no existing logic touched)
+if (item.side === "left") img.classList.add("layer-left");
+if (item.side === "right") img.classList.add("layer-right");
+
+if (item.type === "eyes") img.classList.add(`layer-eyes-${item.side}`);
+if (item.type === "ears") img.classList.add(`layer-ears-${item.side}`);
+if (item.type === "shoes") img.classList.add(`layer-shoes-${item.side}`);
+
   // Helper to build item objects with defaults
   function item(opts) {
     return Object.assign(
