@@ -244,5 +244,21 @@
     document.body.dataset.skin=currentSkin;
     syncUIButtons(); setBaseImage(); updateLabels(); renderItems(); renderOverlays();
   });
-  document.addEventListener("DOMContentLoaded",bootWhenReady);
+
+  // ================= PATCH: WAIT FOR ITEMS =================
+  document.addEventListener("DOMContentLoaded", () => {
+    const maxTries = 100; // ~5s
+    let tries = 0;
+    const waitForItems = setInterval(() => {
+      tries++;
+      if (window.CARRIE_CLOSET_ITEMS && Array.isArray(window.CARRIE_CLOSET_ITEMS)) {
+        clearInterval(waitForItems);
+        if (typeof bootWhenReady === "function") bootWhenReady();
+      } else if (tries >= maxTries) {
+        clearInterval(waitForItems);
+        if (errBox) errBox.classList.remove("hidden");
+        console.error("Carrie Closet catalog not loaded after 5s");
+      }
+    }, 50);
+  });
 })();
