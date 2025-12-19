@@ -22,7 +22,6 @@
   let currentSkin = document.body.dataset.skin || "light";
   let currentCat = "hair";
 
-  // ✅ CHANGE: keep a separate equipped set per gender (so switching doesn't wipe)
   const equippedSets = {
     female: {
       hair: null, top: null, bottom: null, eyes: null, shoes: null,
@@ -34,7 +33,6 @@
     }
   };
 
-  // ✅ CHANGE: this is the active equipped object used by the rest of the code
   let equipped = equippedSets[currentGender] || equippedSets.female;
 
   const zBySlot = {
@@ -48,9 +46,6 @@
     hair: 60
   };
 
-  // ---------------------------
-  // ✅ PERSIST (LS + cookie + window.name fallback)
-  // ---------------------------
   const STORE_KEY = "carrieClosetState_v6:" + location.pathname;
 
   function canUse(storage) {
@@ -90,7 +85,6 @@
     }
   }
 
-  // ✅ window.name (survives localStorage.clear / some privacy wipes)
   function nameGet() {
     try {
       const raw = window.name || "";
@@ -157,7 +151,6 @@
     };
   }
 
-  // ✅ CHANGE: save BOTH gender outfits (instead of just current)
   function saveState() {
     try {
       const makeIds = (setObj) =>
@@ -184,7 +177,6 @@
     } catch (e) {}
   }
 
-  // ✅ CHANGE: load BOTH gender outfits + set active "equipped" pointer
   function loadState(itemsMaybe) {
     try {
       const raw = storageGet();
@@ -223,7 +215,6 @@
         }
       };
 
-      // New format
       if (data.equippedByGender || data.equippedFallbackByGender) {
         restoreSet("female",
           data.equippedByGender && data.equippedByGender.female,
@@ -234,7 +225,6 @@
           data.equippedFallbackByGender && data.equippedFallbackByGender.male
         );
       } else {
-        // Backward compatibility (old single-set saves)
         const g = (data.gender === "male") ? "male" : "female";
         restoreSet(g, data.equippedIds, data.equippedFallback);
       }
@@ -245,8 +235,7 @@
 
   function safeItems() {
     const items = window.CARRIE_CLOSET_ITEMS;
-    if (!Array.isArray(items)) return null;
-    return items;
+    return Array.isArray(items) ? items : null;
   }
 
   function setBaseImage() {
@@ -307,14 +296,11 @@
     });
   }
 
-  // ✅ CHANGE: switching gender swaps outfits instead of clearing them
   function setGender(newGender) {
-    saveState(); // save current outfit first
-
+    saveState();
     currentGender = newGender;
     document.body.dataset.gender = currentGender;
-
-    equipped = equippedSets[currentGender] || equippedSets.female; // swap to that gender's outfit
+    equipped = equippedSets[currentGender] || equippedSets.female;
 
     setBaseImage();
     updateLabels();
@@ -406,6 +392,9 @@
     overlayHost.innerHTML = "";
   }
 
+  //------------------------------------------------------------------
+  //  ⭐⭐⭐ FIXED OVERLAY FUNCTION — SHOES + EARS + EYES
+  //------------------------------------------------------------------
   function addOverlayImg(itemObj) {
     if (!overlayHost) return;
 
@@ -414,49 +403,57 @@
 
     const slot = itemObj.slot;
 
+    // EARRINGS (2 pieces)
     if (slot === "ears") {
       const left = document.createElement("img");
       left.src = src;
       left.alt = itemObj.name || itemObj.id;
       left.className = `layer-overlay item-${itemObj.id} layer-ears-left`;
-      left.style.zIndex = String(zBySlot.ears || 50);
       left.classList.add("layer-left");
+      left.style.zIndex = String(zBySlot.ears || 50);
       overlayHost.appendChild(left);
 
       const right = document.createElement("img");
       right.src = src;
       right.alt = itemObj.name || itemObj.id;
       right.className = `layer-overlay item-${itemObj.id} layer-ears-right`;
-      right.style.zIndex = String(zBySlot.ears || 50);
       right.classList.add("layer-right");
+      right.style.zIndex = String(zBySlot.ears || 50);
       overlayHost.appendChild(right);
       return;
     }
 
+    // SHOES (2 pieces)
     if (slot === "shoes") {
       const left = document.createElement("img");
       left.src = src;
       left.alt = itemObj.name || itemObj.id;
       left.className = `layer-overlay item-${itemObj.id} layer-shoes-left`;
+      left.classList.add("layer-left");
       left.style.zIndex = String(zBySlot.shoes || 10);
-      left.classList.add("layer-left");  // ⬅ FIX
-overlayHost.appendChild(left);
       overlayHost.appendChild(left);
 
       const right = document.createElement("img");
       right.src = src;
       right.alt = itemObj.name || itemObj.id;
       right.className = `layer-overlay item-${itemObj.id} layer-shoes-right`;
+      right.classList.add("layer-right");
       right.style.zIndex = String(zBySlot.shoes || 10);
-      left.classList.add("layer-left");  // ⬅ FIX
-overlayHost.appendChild(right);
-      
+      overlayHost.appendChild(right);
+
+      return;
     }
 
+    // ALL OTHER OVERLAYS (eyes included)
     const img = document.createElement("img");
     img.src = src;
     img.alt = itemObj.name || itemObj.id;
     img.className = `layer-overlay item-${itemObj.id}`;
+
+    // Auto-detect left / right by ID
+    if (itemObj.id.includes("_left")) img.classList.add("layer-left");
+    if (itemObj.id.includes("_right")) img.classList.add("layer-right");
+
     img.style.zIndex = String(zBySlot[slot] || 20);
     overlayHost.appendChild(img);
   }
