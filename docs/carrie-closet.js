@@ -396,51 +396,70 @@
   //  ⭐⭐⭐ FIXED OVERLAY FUNCTION — SHOES + EARS + EYES
   //------------------------------------------------------------------
   function addOverlayImg(itemObj) {
-    if (!overlayHost) return;
+  function addOverlayImg(itemObj) {
+  if (!overlayHost) return;
+  const src = pickImgForSkin(itemObj);
+  if (!src) return;
 
-    const src = pickImgForSkin(itemObj);
-    if (!src) return;
+  const slot = itemObj.slot;
 
-    const slot = itemObj.slot;
+  // EARRINGS (2 pieces)
+  if (slot === "ears") {
+    const offset = itemObj.offsetX || 20; // adjust spacing
+    const left = document.createElement("img");
+    left.src = src;
+    left.alt = itemObj.name || itemObj.id;
+    left.className = `layer-overlay item-${itemObj.id} layer-ears-left layer-left`;
+    left.style.zIndex = String(zBySlot.ears || 50);
+    left.style.position = "absolute";
+    left.style.left = `calc(50% - ${offset}px)`;
+    overlayHost.appendChild(left);
 
-    // EARRINGS (2 pieces)
-    if (slot === "ears") {
-      const left = document.createElement("img");
-      left.src = src;
-      left.alt = itemObj.name || itemObj.id;
-      left.className = `layer-overlay item-${itemObj.id} layer-ears-left`;
-      left.classList.add("layer-left");
-      left.style.zIndex = String(zBySlot.ears || 50);
-      overlayHost.appendChild(left);
+    const right = document.createElement("img");
+    right.src = src;
+    right.alt = itemObj.name || itemObj.id;
+    right.className = `layer-overlay item-${itemObj.id} layer-ears-right layer-right`;
+    right.style.zIndex = String(zBySlot.ears || 50);
+    right.style.position = "absolute";
+    right.style.left = `calc(50% + ${offset}px)`;
+    overlayHost.appendChild(right);
+    return;
+  }
 
-      const right = document.createElement("img");
-      right.src = src;
-      right.alt = itemObj.name || itemObj.id;
-      right.className = `layer-overlay item-${itemObj.id} layer-ears-right`;
-      right.classList.add("layer-right");
-      right.style.zIndex = String(zBySlot.ears || 50);
-      overlayHost.appendChild(right);
-      return;
-    }
+  // SHOES (2 pieces)
+  if (slot === "shoes") {
+    const offset = itemObj.offsetX || 20; // adjust spacing
+    const left = document.createElement("img");
+    left.src = src;
+    left.alt = itemObj.name || itemObj.id;
+    left.className = `layer-overlay item-${itemObj.id} layer-shoes-left layer-left`;
+    left.style.zIndex = String(zBySlot.shoes || 10);
+    left.style.position = "absolute";
+    left.style.left = `calc(50% - ${offset}px)`;
+    overlayHost.appendChild(left);
 
-    // SHOES (2 pieces)
-    if (slot === "shoes") {
-      const left = document.createElement("img");
-      left.src = src;
-      left.alt = itemObj.name || itemObj.id;
-      left.className = `layer-overlay item-${itemObj.id} layer-shoes-left`;
-      left.classList.add("layer-left");
-      left.style.zIndex = String(zBySlot.shoes || 10);
-      overlayHost.appendChild(left);
+    const right = document.createElement("img");
+    right.src = src;
+    right.alt = itemObj.name || itemObj.id;
+    right.className = `layer-overlay item-${itemObj.id} layer-shoes-right layer-right`;
+    right.style.zIndex = String(zBySlot.shoes || 10);
+    right.style.position = "absolute";
+    right.style.left = `calc(50% + ${offset}px)`;
+    overlayHost.appendChild(right);
+    return;
+  }
 
-      const right = document.createElement("img");
-      right.src = src;
-      right.alt = itemObj.name || itemObj.id;
-      right.className = `layer-overlay item-${itemObj.id} layer-shoes-right`;
-      right.classList.add("layer-right");
-      right.style.zIndex = String(zBySlot.shoes || 10);
-      overlayHost.appendChild(right);
+  // ALL OTHER OVERLAYS (eyes included)
+  const img = document.createElement("img");
+  img.src = src;
+  img.alt = itemObj.name || itemObj.id;
+  img.className = `layer-overlay item-${itemObj.id}`;
+  if (itemObj.id.includes("_left")) img.classList.add("layer-left");
+  if (itemObj.id.includes("_right")) img.classList.add("layer-right");
 
+  img.style.zIndex = String(zBySlot[slot] || 20);
+  overlayHost.appendChild(img);
+  }
       return;
     }
 
