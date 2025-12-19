@@ -420,6 +420,7 @@
       left.alt = itemObj.name || itemObj.id;
       left.className = `layer-overlay item-${itemObj.id} layer-ears-left`;
       left.style.zIndex = String(zBySlot.ears || 50);
+      left.classList.add("layer-left");
       overlayHost.appendChild(left);
 
       const right = document.createElement("img");
@@ -427,6 +428,7 @@
       right.alt = itemObj.name || itemObj.id;
       right.className = `layer-overlay item-${itemObj.id} layer-ears-right`;
       right.style.zIndex = String(zBySlot.ears || 50);
+      right.classList.add("layer-right");
       overlayHost.appendChild(right);
       return;
     }
@@ -437,6 +439,8 @@
       left.alt = itemObj.name || itemObj.id;
       left.className = `layer-overlay item-${itemObj.id} layer-shoes-left`;
       left.style.zIndex = String(zBySlot.shoes || 10);
+      left.classList.add("layer-left");  // ⬅ FIX
+overlayHost.appendChild(left);
       overlayHost.appendChild(left);
 
       const right = document.createElement("img");
@@ -444,8 +448,9 @@
       right.alt = itemObj.name || itemObj.id;
       right.className = `layer-overlay item-${itemObj.id} layer-shoes-right`;
       right.style.zIndex = String(zBySlot.shoes || 10);
-      overlayHost.appendChild(right);
-      return;
+      left.classList.add("layer-left");  // ⬅ FIX
+overlayHost.appendChild(right);
+      
     }
 
     const img = document.createElement("img");
