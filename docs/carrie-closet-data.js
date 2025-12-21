@@ -401,7 +401,7 @@
       name: "Gold Necklace",
       label: "necklace",
       coins: 20,
-      img: base + "/female_jewlery/female_gold_necklace.png",
+      img: base + "/female_jewlery/female_gold_necklace_light.png",
       scale: 0.82,
       offsetX: 0,
       offsetY: 8
@@ -493,7 +493,22 @@
       name: "Blue Eyes",
       label: "blue",
       coins: 10,
-      img: base + "/unisex/eyes/unisex_eyes_blue.png",
+      img: base + "/unisex/eyes/unisex_eyes_blue_left.png",
+      scale: 0.28,
+      offsetX: 0,
+      offsetY: -18
+    }),
+
+    item({
+      id: "u_eyes_blue",
+      gender: "unisex",
+      category: "eyes",
+      cat: "eyes",
+      slot: "eyes",
+      name: "Blue Eyes",
+      label: "blue",
+      coins: 10,
+      img: base + "/unisex/eyes/unisex_eyes_blue_rigjt.png",
       scale: 0.28,
       offsetX: 0,
       offsetY: -18
@@ -507,7 +522,22 @@
       name: "Green Eyes",
       label: "green",
       coins: 10,
-      img: base + "/unisex/eyes/unisex_eyes_green.png",
+      img: base + "/unisex/eyes/unisex_eyes_green_left.png",
+      scale: 0.28,
+      offsetX: 0,
+      offsetY: -18
+    }),
+
+    item({
+      id: "u_eyes_green",
+      gender: "unisex",
+      category: "eyes",
+      cat: "eyes",
+      slot: "eyes",
+      name: "Green Eyes",
+      label: "green",
+      coins: 10,
+      img: base + "/unisex/eyes/unisex_eyes_green_right.png",
       scale: 0.28,
       offsetX: 0,
       offsetY: -18
@@ -521,13 +551,28 @@
       name: "Brown Eyes",
       label: "brown",
       coins: 10,
-      img: base + "/unisex/eyes/unisex_eyes_brown.png",
+      img: base + "/unisex/eyes/unisex_eyes_brown_right.png",
       scale: 0.28,
       offsetX: 0,
       offsetY: -18
     }),
 
-    // ---- SHOES (unisex) ----
+    item({
+      id: "u_eyes_brown",
+      gender: "unisex",
+      category: "eyes",
+      cat: "eyes",
+      slot: "eyes",
+      name: "Brown Eyes",
+      label: "brown",
+      coins: 10,
+      img: base + "/unisex/eyes/unisex_eyes_brown_left.png",
+      scale: 0.28,
+      offsetX: 0,
+      offsetY: -18
+    }),
+
+    // ---- SHOES (unisex) left ----
     item({
       id: "u_shoes_sneakers",
       gender: "unisex",
@@ -537,7 +582,24 @@
       name: "Sneakers",
       label: "unisex shoes",
       coins: 14,
-      img: base + "/unisex/shoes/unisex_shoes.png",
+      img: base + "/unisex/shoes/unisex_shoes_left.png",
+      scale: 1,
+      offsetX: 0,
+      offsetY: 0
+    })
+  ];
+
+  // ---- SHOES (unisex) right ----
+    item({
+      id: "u_shoes_sneakers",
+      gender: "unisex",
+      category: "shoes",
+      cat: "shoes",
+      slot: "shoes",
+      name: "Sneakers",
+      label: "unisex shoes",
+      coins: 14,
+      img: base + "/unisex/shoes/unisex_shoes_right.png",
       scale: 1,
       offsetX: 0,
       offsetY: 0
