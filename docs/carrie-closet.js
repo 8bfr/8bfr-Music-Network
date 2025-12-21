@@ -1,10 +1,3 @@
-console.log("Closet Items:", window.CARRIE_CLOSET_ITEMS);
-console.log("Overlay host exists?", !!document.getElementById("closetOverlayHost"));
-console.log("Items grid exists?", !!document.getElementById("closetItemsGrid"));
-
-
-
-
 // ✅ Persist outfit across refresh (even if catalog loads late)
 // ✅ Restores from saved "fallback item snapshot" if IDs aren't found yet
 // ✅ Guard against double-loading
