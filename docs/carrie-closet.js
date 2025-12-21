@@ -1,4 +1,3 @@
-// carrie-closet.js
 // ✅ Persist outfit across refresh (even if catalog loads late)
 // ✅ Restores from saved "fallback item snapshot" if IDs aren't found yet
 // ✅ Guard against double-loading
@@ -21,13 +20,31 @@
   let currentSkin = document.body.dataset.skin || "light";
   let currentCat = "hair";
 
-  // ✅ Separate equipped sets per gender
+  // ✅ CHANGE: keep a separate equipped set per gender (so switching doesn't wipe)
   const equippedSets = {
-    female: { hair: null, top: null, bottom: null, eyes: null, shoes: null, necklace: null, ears: null, belly: null },
-    male: { hair: null, top: null, bottom: null, eyes: null, shoes: null, necklace: null, ears: null, belly: null }
+    female: {
+      hair: null,
+      top: null,
+      bottom: null,
+      eyes: null,
+      shoes: null,
+      necklace: null,
+      ears: null,
+      belly: null
+    },
+    male: {
+      hair: null,
+      top: null,
+      bottom: null,
+      eyes: null,
+      shoes: null,
+      necklace: null,
+      ears: null,
+      belly: null
+    }
   };
 
-  // ✅ Active equipped object
+  // ✅ CHANGE: this is the active equipped object used by the rest of the code
   let equipped = equippedSets[currentGender] || equippedSets.female;
 
   const zBySlot = {
@@ -52,24 +69,39 @@
       storage.setItem(k, "1");
       storage.removeItem(k);
       return true;
-    } catch (e) { return false; }
+    } catch (e) {
+      return false;
+    }
   }
+
   const hasLS = canUse(window.localStorage);
 
   function cookieSet(val) {
     try {
-      document.cookie = encodeURIComponent(STORE_KEY) + "=" + encodeURIComponent(val) + "; path=/; max-age=31536000; SameSite=Lax";
+      document.cookie =
+        encodeURIComponent(STORE_KEY) +
+        "=" +
+        encodeURIComponent(val) +
+        "; path=/; max-age=31536000; SameSite=Lax";
       return true;
-    } catch (e) { return false; }
+    } catch (e) {
+      return false;
+    }
   }
+
   function cookieGet() {
     try {
       const key = encodeURIComponent(STORE_KEY) + "=";
       const parts = (document.cookie || "").split("; ");
-      for (const p of parts) { if (p.indexOf(key) === 0) return decodeURIComponent(p.slice(key.length)); }
+      for (const p of parts) {
+        if (p.indexOf(key) === 0) return decodeURIComponent(p.slice(key.length));
+      }
       return null;
-    } catch (e) { return null; }
+    } catch (e) {
+      return null;
+    }
   }
+
   function nameGet() {
     try {
       const raw = window.name || "";
@@ -77,8 +109,11 @@
       const data = JSON.parse(raw);
       if (!data || typeof data !== "object") return null;
       return data[STORE_KEY] || null;
-    } catch (e) { return null; }
+    } catch (e) {
+      return null;
+    }
   }
+
   function nameSet(val) {
     try {
       const raw = window.name || "";
@@ -90,8 +125,11 @@
       data[STORE_KEY] = val;
       window.name = JSON.stringify(data);
       return true;
-    } catch (e) { return false; }
+    } catch (e) {
+      return false;
+    }
   }
+
   function storageSet(val) {
     if (hasLS) {
       try { localStorage.setItem(STORE_KEY, val); } catch (e) {}
@@ -99,6 +137,7 @@
     cookieSet(val);
     nameSet(val);
   }
+
   function storageGet() {
     if (hasLS) {
       try {
@@ -130,11 +169,12 @@
     };
   }
 
-  // ✅ Save BOTH gender outfits
   function saveState() {
     try {
-      const makeIds = (setObj) => Object.fromEntries(Object.entries(setObj).map(([slot, obj]) => [slot, obj ? obj.id : null]));
-      const makeFallback = (setObj) => Object.fromEntries(Object.entries(setObj).map(([slot, obj]) => [slot, obj ? snapshotItem(obj) : null]));
+      const makeIds = (setObj) =>
+        Object.fromEntries(Object.entries(setObj).map(([slot, obj]) => [slot, obj ? obj.id : null]));
+      const makeFallback = (setObj) =>
+        Object.fromEntries(Object.entries(setObj).map(([slot, obj]) => [slot, obj ? snapshotItem(obj) : null]));
       const payload = {
         gender: currentGender,
         skin: currentSkin,
@@ -161,7 +201,6 @@
       if (data.gender) currentGender = data.gender;
       if (data.skin) currentSkin = data.skin;
       if (data.cat) currentCat = data.cat;
-
       const items = Array.isArray(itemsMaybe) ? itemsMaybe : null;
       const restoreSet = (genderKey, idsObj, fallbackObj) => {
         const setObj = equippedSets[genderKey];
@@ -183,14 +222,14 @@
           });
         }
       };
-
-      // New format
       if (data.equippedByGender || data.equippedFallbackByGender) {
-        restoreSet("female",
+        restoreSet(
+          "female",
           data.equippedByGender && data.equippedByGender.female,
           data.equippedFallbackByGender && data.equippedFallbackByGender.female
         );
-        restoreSet("male",
+        restoreSet(
+          "male",
           data.equippedByGender && data.equippedByGender.male,
           data.equippedFallbackByGender && data.equippedFallbackByGender.male
         );
@@ -198,7 +237,6 @@
         const g = (data.gender === "male") ? "male" : "female";
         restoreSet(g, data.equippedIds, data.equippedFallback);
       }
-
       equipped = equippedSets[currentGender] || equippedSets.female;
     } catch (e) {}
   }
@@ -255,12 +293,11 @@
     });
   }
 
-  // ✅ Gender switching swaps outfits
   function setGender(newGender) {
-    saveState(); // save current outfit first
+    saveState();
     currentGender = newGender;
     document.body.dataset.gender = currentGender;
-    equipped = equippedSets[currentGender] || equippedSets.female; // swap to that gender's outfit
+    equipped = equippedSets[currentGender] || equippedSets.female;
     setBaseImage();
     updateLabels();
     renderItems();
@@ -279,6 +316,7 @@
 
     const thumbWrap = document.createElement("div");
     thumbWrap.className = "closet-item-thumb";
+
     const t = document.createElement("img");
     t.src = itemObj.thumb || pickImgForSkin(itemObj);
     t.alt = itemObj.name || itemObj.id;
@@ -286,21 +324,24 @@
 
     const meta = document.createElement("div");
     meta.className = "min-w-0";
+
     const title = document.createElement("div");
     title.className = "text-[12px] font-semibold truncate";
     title.textContent = itemObj.name || itemObj.id;
+
     const sub = document.createElement("div");
     sub.className = "text-[10px] text-purple-200/70 truncate";
     sub.textContent = itemObj.label || itemObj.category;
+
     meta.appendChild(title);
     meta.appendChild(sub);
-
     card.appendChild(thumbWrap);
     card.appendChild(meta);
 
     const slot = itemObj.slot;
     const isOn = equipped[slot] && equipped[slot].id === itemObj.id;
     if (isOn) card.classList.add("active");
+
     card.addEventListener("click", () => {
       if (equipped[slot] && equipped[slot].id === itemObj.id) equipped[slot] = null;
       else equipped[slot] = itemObj;
@@ -308,6 +349,7 @@
       renderOverlays();
       saveState();
     });
+
     return card;
   }
 
@@ -345,18 +387,17 @@
     if (!src) return;
     const slot = itemObj.slot;
 
-    // ---- EARS (single pair only)
     if (slot === "ears") {
-      const img = document.createElement("img");
-      img.src = src;
-      img.alt = itemObj.name || itemObj.id;
-      img.className = `layer-overlay item-${itemObj.id} layer-ears`;
-      img.style.zIndex = String(zBySlot.ears || 50);
-      overlayHost.appendChild(img);
+      // SINGLE pair of earrings
+      const earring = document.createElement("img");
+      earring.src = src;
+      earring.alt = itemObj.name || itemObj.id;
+      earring.className = `layer-overlay item-${itemObj.id} layer-ears`;
+      earring.style.zIndex = String(zBySlot.ears || 55);
+      overlayHost.appendChild(earring);
       return;
     }
 
-    // ---- SHOES
     if (slot === "shoes") {
       const left = document.createElement("img");
       left.src = src;
@@ -374,7 +415,6 @@
       return;
     }
 
-    // ---- EYES
     if (slot === "eyes") {
       const left = document.createElement("img");
       left.src = src;
@@ -392,6 +432,7 @@
       return;
     }
 
+    // everything else
     const img = document.createElement("img");
     img.src = src;
     img.alt = itemObj.name || itemObj.id;
@@ -483,9 +524,3 @@
 
   window.addEventListener("pagehide", saveState);
   window.addEventListener("beforeunload", saveState);
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") saveState(); });
-  window.addEventListener("pageshow", () => {
-    const items = safeItems();
-    loadState(items);
-    document.body.dataset.gender = currentGender;
-    document
