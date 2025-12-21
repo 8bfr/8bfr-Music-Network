@@ -1,210 +1,237 @@
-// carrie-closet-data.js
-// Static closet catalog using your actual image paths / names.
+// ✅ Persist outfit across refresh (even if catalog loads late)
+// ✅ Restores from saved "fallback item snapshot" if IDs aren't found yet
+// ✅ Guard against double-loading
 
 (function () {
-  const base = "assets/images";
+  if (window.__CARRIE_CLOSET_ALREADY_RUNNING__) return;
+  window.__CARRIE_CLOSET_ALREADY_RUNNING__ = true;
 
-  // Helper to build item objects with defaults
-  function item(opts) {
-    return Object.assign(
-      {
-        id: "",
-        gender: "female",
-        category: "hair",
-        cat: "hair",
-        slot: "hair",
-        name: "",
-        label: "",
-        coins: 0,
-        rarity: "common",
-        img: "",
-        thumb: "",
-        scale: 1,
-        offsetX: 0,
-        offsetY: 0
-      },
-      opts
-    );
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => Array.from(document.querySelectorAll(s));
+
+  const grid = $("#closetItemsGrid");
+  const emptyMsg = $("#closetEmpty");
+  const errBox = $("#closetError");
+  const overlayHost = $("#closetOverlayHost");
+
+  const previewLabel = $("#closetPreviewLabel");
+  const closetGenderLabel = $("#closetGenderLabel");
+  const skinToneButtons = $("#skinToneButtons");
+
+  let currentGender = document.body.dataset.gender || "female";
+  let currentSkin = document.body.dataset.skin || "light";
+  let currentCat = "hair";
+
+  // ✅ Separate equipped sets per gender
+  const equippedSets = {
+    female: {
+      hair: null, top: null, bottom: null, eyes: null, shoes: null,
+      necklace: null, ears: null, belly: null
+    },
+    male: {
+      hair: null, top: null, bottom: null, eyes: null, shoes: null,
+      necklace: null, ears: null, belly: null
+    }
+  };
+
+  let equipped = equippedSets[currentGender];
+
+  const zBySlot = {
+    shoes: 10,
+    bottom: 30,
+    belly: 35,
+    top: 40,
+    necklace: 45,
+    eyes: 50,
+    ears: 55,
+    hair: 60
+  };
+
+  // ---------------------------
+  // STORAGE
+  // ---------------------------
+  const STORE_KEY = "carrieClosetState_v6:" + location.pathname;
+
+  function canUse(storage) {
+    try {
+      storage.setItem("__t", "1");
+      storage.removeItem("__t");
+      return true;
+    } catch {
+      return false;
+    }
   }
 
-  const items = [
+  const hasLS = canUse(localStorage);
 
-    /* ===================== HAIR (UNCHANGED) ===================== */
-    /* (all your hair items remain exactly as-is) */
+  function storageSet(val) {
+    try { hasLS && localStorage.setItem(STORE_KEY, val); } catch {}
+    try { document.cookie = `${STORE_KEY}=${encodeURIComponent(val)};path=/;max-age=31536000`; } catch {}
+    try {
+      const obj = JSON.parse(window.name || "{}");
+      obj[STORE_KEY] = val;
+      window.name = JSON.stringify(obj);
+    } catch {}
+  }
 
-    /* ===================== TOPS (UNCHANGED) ===================== */
+  function storageGet() {
+    try {
+      if (hasLS) {
+        const v = localStorage.getItem(STORE_KEY);
+        if (v) return v;
+      }
+    } catch {}
+    try {
+      const obj = JSON.parse(window.name || "{}");
+      if (obj[STORE_KEY]) return obj[STORE_KEY];
+    } catch {}
+    try {
+      const m = document.cookie.match(new RegExp(`${STORE_KEY}=([^;]+)`));
+      return m ? decodeURIComponent(m[1]) : null;
+    } catch {}
+    return null;
+  }
 
-    /* ===================== BOTTOMS ===================== */
+  function snapshotItem(obj) {
+    if (!obj) return null;
+    return {
+      id: obj.id,
+      slot: obj.slot,
+      gender: obj.gender,
+      category: obj.category,
+      img: obj.img,
+      imgDark: obj.imgDark,
+      scale: obj.scale ?? 1,
+      offsetX: obj.offsetX ?? 0,
+      offsetY: obj.offsetY ?? 0
+    };
+  }
 
-    item({
-      id: "f_bottom_shorts",
-      gender: "female",
-      category: "bottom",
-      cat: "bottom",
-      slot: "bottom",
-      name: "Denim Shorts",
-      label: "female shorts",
-      coins: 15,
-      img: base + "/female_cloths/female_shorts.png",
-      scale: 0.92,
-      offsetX: 0,
-      offsetY: -2
-    }),
+  function saveState() {
+    const pack = (set) =>
+      Object.fromEntries(Object.entries(set).map(([k, v]) => [k, v ? v.id : null]));
 
-    item({
-      id: "f_bottom_skirt",
-      gender: "female",
-      category: "bottom",
-      cat: "bottom",
-      slot: "bottom",
-      name: "Mini Skirt",
-      label: "female skirt",
-      coins: 18,
-      img: base + "/female_cloths/female_skirt.png",
-      scale: 1.06,
-      offsetX: 0,
-      offsetY: -4
-    }),
+    const snap = (set) =>
+      Object.fromEntries(Object.entries(set).map(([k, v]) => [k, snapshotItem(v)]));
 
-    /* ✅ FIX: bikini bottom light/dark handled correctly */
-    item({
-      id: "f_bottom_bikini_red",
-      gender: "female",
-      category: "bottom",
-      cat: "bottom",
-      slot: "bottom",
-      name: "Red Bikini Bottom",
-      label: "bikini bottom • red",
-      coins: 12,
-      img: base + "/female_cloths/female_bikini-bottom_redv2.png",
-      imgDark: base + "/female_cloths/female_bikini-bottom_red_dark.png",
-      scale: 1,
-      offsetX: 0,
-      offsetY: 0
-    }),
+    storageSet(JSON.stringify({
+      gender: currentGender,
+      skin: currentSkin,
+      cat: currentCat,
+      equippedByGender: {
+        female: pack(equippedSets.female),
+        male: pack(equippedSets.male)
+      },
+      equippedFallbackByGender: {
+        female: snap(equippedSets.female),
+        male: snap(equippedSets.male)
+      }
+    }));
+  }
 
-    /* ===================== JEWELRY ===================== */
+  function loadState(items) {
+    const raw = storageGet();
+    if (!raw) return;
 
-    /* ✅ FIX: necklace uses ONE item with img / imgDark */
-    item({
-      id: "f_jewel_necklace",
-      gender: "female",
-      category: "jewelry",
-      cat: "jewelry",
-      slot: "necklace",
-      name: "Gold Necklace",
-      label: "necklace",
-      coins: 20,
-      img: base + "/female_jewlery/female_gold_necklace.png",
-      imgDark: base + "/female_jewlery/female_gold_necklace_dark.png",
-      scale: 0.82,
-      offsetX: 0,
-      offsetY: 8
-    }),
+    try {
+      const data = JSON.parse(raw);
+      currentGender = data.gender || currentGender;
+      currentSkin = data.skin || currentSkin;
+      currentCat = data.cat || currentCat;
 
-    item({
-      id: "f_jewel_belly",
-      gender: "female",
-      category: "jewelry",
-      cat: "jewelry",
-      slot: "belly",
-      name: "Belly Ring",
-      label: "belly ring",
-      coins: 15,
-      img: base + "/female_jewlery/female_belly-ring.png",
-      scale: 0.7,
-      offsetX: 0,
-      offsetY: -6
-    }),
+      ["female", "male"].forEach((g) => {
+        const ids = data.equippedByGender?.[g];
+        const fb = data.equippedFallbackByGender?.[g];
+        Object.keys(equippedSets[g]).forEach((slot) => {
+          equippedSets[g][slot] =
+            items?.find((i) => i.id === ids?.[slot]) ||
+            fb?.[slot] ||
+            null;
+        });
+      });
 
-    /* ✅ FIX: earrings are ONE item with left/right images */
-    item({
-      id: "f_jewel_ears",
-      gender: "female",
-      category: "jewelry",
-      cat: "jewelry",
-      slot: "ears",
-      name: "Gold Earrings",
-      label: "ear rings",
-      coins: 18,
-      imgLeft: base + "/female_jewlery/female_gold_ear-ring_left.png",
-      imgRight: base + "/female_jewlery/female_gold_ear-ring_right.png",
-      scale: 0.85,
-      offsetX: 0,
-      offsetY: -8
-    }),
+      equipped = equippedSets[currentGender];
+    } catch {}
+  }
 
-    /* ===================== EYES ===================== */
+  function safeItems() {
+    return Array.isArray(window.CARRIE_CLOSET_ITEMS)
+      ? window.CARRIE_CLOSET_ITEMS
+      : null;
+  }
 
-    /* ✅ FIX: eyes split into left/right images */
-    item({
-      id: "u_eyes_blue",
-      gender: "unisex",
-      category: "eyes",
-      cat: "eyes",
-      slot: "eyes",
-      name: "Blue Eyes",
-      label: "blue",
-      coins: 10,
-      imgLeft: base + "/unisex/eyes/unisex_eyes_blue_left.png",
-      imgRight: base + "/unisex/eyes/unisex_eyes_blue_right.png",
-      scale: 0.28,
-      offsetX: 0,
-      offsetY: -18
-    }),
+  function pickImg(item) {
+    return currentSkin === "dark" && item.imgDark ? item.imgDark : item.img;
+  }
 
-    item({
-      id: "u_eyes_green",
-      gender: "unisex",
-      category: "eyes",
-      cat: "eyes",
-      slot: "eyes",
-      name: "Green Eyes",
-      label: "green",
-      coins: 10,
-      imgLeft: base + "/unisex/eyes/unisex_eyes_green_left.png",
-      imgRight: base + "/unisex/eyes/unisex_eyes_green_right.png",
-      scale: 0.28,
-      offsetX: 0,
-      offsetY: -18
-    }),
+  function setBaseImage() {
+    const base = $("#closetBaseImg");
+    if (!base) return;
+    base.src = `assets/images/base/${currentGender}/base_${currentGender}_${currentSkin}.png`;
+  }
 
-    item({
-      id: "u_eyes_brown",
-      gender: "unisex",
-      category: "eyes",
-      cat: "eyes",
-      slot: "eyes",
-      name: "Brown Eyes",
-      label: "brown",
-      coins: 10,
-      imgLeft: base + "/unisex/eyes/unisex_eyes_brown_left.png",
-      imgRight: base + "/unisex/eyes/unisex_eyes_brown_right.png",
-      scale: 0.28,
-      offsetX: 0,
-      offsetY: -18
-    }),
+  function renderOverlays() {
+    overlayHost.innerHTML = "";
 
-    /* ===================== SHOES ===================== */
+    Object.values(equipped).forEach((item) => {
+      if (!item) return;
 
-    /* ✅ FIX: shoes split left/right */
-    item({
-      id: "u_shoes_sneakers",
-      gender: "unisex",
-      category: "shoes",
-      cat: "shoes",
-      slot: "shoes",
-      name: "Sneakers",
-      label: "unisex shoes",
-      coins: 14,
-      imgLeft: base + "/unisex/shoes/unisex_shoes_left.png",
-      imgRight: base + "/unisex/shoes/unisex_shoes_right.png",
-      scale: 1,
-      offsetX: 0,
-      offsetY: 0
-    })
+      if (item.slot === "ears" || item.slot === "shoes") {
+        ["left", "right"].forEach((side) => {
+          const img = document.createElement("img");
+          img.src = pickImg(item);
+          img.className = `layer-overlay layer-${item.slot}-${side}`;
+          img.style.zIndex = zBySlot[item.slot];
+          overlayHost.appendChild(img);
+        });
+        return;
+      }
 
-  ];
+      const img = document.createElement("img");
+      img.src = pickImg(item);
+      img.className = "layer-overlay";
+      img.style.zIndex = zBySlot[item.slot] || 20;
+      overlayHost.appendChild(img);
+    });
+  }
 
-  window.CARRIE_CLOSET_ITEMS = items;
+  function renderItems() {
+    const items = safeItems();
+    if (!items) return;
+
+    grid.innerHTML = "";
+
+    items
+      .filter(i =>
+        (i.gender === "unisex" || i.gender === currentGender) &&
+        (currentCat === "all" || i.category === currentCat)
+      )
+      .forEach((item) => {
+        const card = document.createElement("div");
+        card.className = "closet-item-card";
+        card.innerHTML = `<img src="${item.thumb || item.img}"><div>${item.name}</div>`;
+        card.onclick = () => {
+          equipped[item.slot] =
+            equipped[item.slot]?.id === item.id ? null : item;
+          renderOverlays();
+          saveState();
+        };
+        grid.appendChild(card);
+      });
+  }
+
+  function boot() {
+    const items = safeItems();
+    loadState(items);
+
+    document.body.dataset.gender = currentGender;
+    document.body.dataset.skin = currentSkin;
+
+    setBaseImage();
+    renderItems();
+    renderOverlays();
+  }
+
+  window.addEventListener("beforeunload", saveState);
+  document.addEventListener("DOMContentLoaded", boot);
 })();
