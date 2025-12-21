@@ -1,5 +1,6 @@
 // carrie-closet-data.js
-// Static closet catalog using your actual image paths / names
+// Static closet catalog using your actual image paths / names.
+
 (function () {
   const base = "assets/images";
 
@@ -160,6 +161,7 @@
       offsetX: 0,
       offsetY: -4
     }),
+
     // ---- FEMALE HAIR – WAVY ----
     item({
       id: "f_hair_wavy_blonde",
@@ -291,6 +293,7 @@
       offsetX: 0,
       offsetY: -3
     }),
+
     // ---- TOPS (unisex tank + tee + red bikini top) ----
     item({
       id: "u_top_tank",
@@ -334,6 +337,7 @@
       offsetX: 0,
       offsetY: 6
     }),
+
     // ---- BOTTOMS (female shorts / skirt + red bikini bottom) ----
     item({
       id: "f_bottom_shorts",
@@ -363,6 +367,7 @@
       offsetX: 0,
       offsetY: -4
     }),
+
     /* ✅ FIXED: bikini bottom was breaking the file */
     item({
       id: "f_bottom_bikini_red",
@@ -373,15 +378,19 @@
       name: "Red Bikini Bottom",
       label: "bikini bottom • red",
       coins: 12,
+
       // LIGHT image
       img: base + "/female_cloths/female_bikini-bottom_redv2.png",
+
       // DARK image (used by carrie-closet.js only when skin=dark)
       imgDark: base + "/female_cloths/female_bikini-bottom_red_dark.png",
+
       // keep your defaults (unchanged)
       scale: 1,
       offsetX: 0,
       offsetY: 0
     }),
+
     // ---- JEWELRY – FEMALE ----
     item({
       id: "f_jewel_necklace",
@@ -393,6 +402,22 @@
       label: "necklace",
       coins: 20,
       img: base + "/female_jewlery/female_gold_necklace.png",
+      scale: 0.82,
+      offsetX: 0,
+      offsetY: 8
+    }),
+
+    // ---- JEWELRY – FEMALE  Dark----
+    item({
+      id: "f_jewel_necklace",
+      gender: "female",
+      category: "jewelry",
+      cat: "jewelry",
+      slot: "necklace",
+      name: "Gold Necklace",
+      label: "necklace",
+      coins: 20,
+      img: base + "/female_jewlery/female_gold_necklace_dark.png",
       scale: 0.82,
       offsetX: 0,
       offsetY: 8
@@ -425,20 +450,23 @@
       offsetX: 0,
       offsetY: -8
     }),
-    item({
-      id: "f_jewel_ears_right",
+
+
+   item({
+      id: "f_jewel_ears",
       gender: "female",
       category: "jewelry",
       cat: "jewelry",
       slot: "ears",
-      name: "Gold Earrings Right",
+      name: "Gold Earrings",
       label: "ear rings",
       coins: 18,
       img: base + "/female_jewlery/female_gold_ear-ring_right.png",
       scale: 0.85,
       offsetX: 0,
       offsetY: -8
-    }),
+    }), 
+
     // ---- JEWELRY – MALE ----
     item({
       id: "m_jewel_necklace",
@@ -454,7 +482,7 @@
       offsetX: 0,
       offsetY: 10
     }),
-    // ---- EYES (unisex, left + right) ----
+// ---- EYES (unisex, left + right) ----
 item({
   id: "u_eyes_blue_left",
   gender: "unisex",
@@ -569,4 +597,3 @@ item({
   offsetX: 0,
   offsetY: 0
 })
-    
