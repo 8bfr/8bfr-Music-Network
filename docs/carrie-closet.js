@@ -493,7 +493,7 @@
       name: "Blue Eyes",
       label: "blue",
       coins: 10,
-      img: base + "/unisex/eyes/unisex_eyes_blue.png",
+      img: base + "/unisex/eyes/unisex_eyes_blue_,left.png",
       scale: 0.28,
       offsetX: 0,
       offsetY: -18
@@ -507,7 +507,7 @@
       name: "Green Eyes",
       label: "green",
       coins: 10,
-      img: base + "/unisex/eyes/unisex_eyes_green.png",
+      img: base + "/unisex/eyes/unisex_eyes_green_left.png",
       scale: 0.28,
       offsetX: 0,
       offsetY: -18
@@ -521,7 +521,7 @@
       name: "Brown Eyes",
       label: "brown",
       coins: 10,
-      img: base + "/unisex/eyes/unisex_eyes_brown.png",
+      img: base + "/unisex/eyes/unisex_eyes_brown_left.png",
       scale: 0.28,
       offsetX: 0,
       offsetY: -18
@@ -537,7 +537,7 @@
       name: "Sneakers",
       label: "unisex shoes",
       coins: 14,
-      img: base + "/unisex/shoes/unisex_shoes.png",
+      img: base + "/unisex/shoes/unisex_shoes_left.png",
       scale: 1,
       offsetX: 0,
       offsetY: 0
