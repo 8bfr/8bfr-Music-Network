@@ -4,6 +4,14 @@
 (function () {
   const base = "assets/images";
 
+  // side tagging (SAFE — no existing logic touched)
+if (item.side === "left") img.classList.add("layer-left");
+if (item.side === "right") img.classList.add("layer-right");
+
+if (item.type === "eyes") img.classList.add(`layer-eyes-${item.side}`);
+if (item.type === "ears") img.classList.add(`layer-ears-${item.side}`);
+if (item.type === "shoes") img.classList.add(`layer-shoes-${item.side}`);
+
   // Helper to build item objects with defaults
   function item(opts) {
     return Object.assign(
@@ -401,7 +409,7 @@
       name: "Gold Necklace",
       label: "necklace",
       coins: 20,
-      img: base + "/female_jewlery/female_gold_necklace_light.png",
+      img: base + "/female_jewlery/female_gold_necklace.png",
       scale: 0.82,
       offsetX: 0,
       offsetY: 8
@@ -493,22 +501,7 @@
       name: "Blue Eyes",
       label: "blue",
       coins: 10,
-      img: base + "/unisex/eyes/unisex_eyes_blue_left.png",
-      scale: 0.28,
-      offsetX: 0,
-      offsetY: -18
-    }),
-
-    item({
-      id: "u_eyes_blue",
-      gender: "unisex",
-      category: "eyes",
-      cat: "eyes",
-      slot: "eyes",
-      name: "Blue Eyes",
-      label: "blue",
-      coins: 10,
-      img: base + "/unisex/eyes/unisex_eyes_blue_rigjt.png",
+      img: base + "/unisex/eyes/unisex_eyes_blue.png",
       scale: 0.28,
       offsetX: 0,
       offsetY: -18
@@ -522,22 +515,7 @@
       name: "Green Eyes",
       label: "green",
       coins: 10,
-      img: base + "/unisex/eyes/unisex_eyes_green_left.png",
-      scale: 0.28,
-      offsetX: 0,
-      offsetY: -18
-    }),
-
-    item({
-      id: "u_eyes_green",
-      gender: "unisex",
-      category: "eyes",
-      cat: "eyes",
-      slot: "eyes",
-      name: "Green Eyes",
-      label: "green",
-      coins: 10,
-      img: base + "/unisex/eyes/unisex_eyes_green_right.png",
+      img: base + "/unisex/eyes/unisex_eyes_green.png",
       scale: 0.28,
       offsetX: 0,
       offsetY: -18
@@ -551,28 +529,13 @@
       name: "Brown Eyes",
       label: "brown",
       coins: 10,
-      img: base + "/unisex/eyes/unisex_eyes_brown_right.png",
+      img: base + "/unisex/eyes/unisex_eyes_brown.png",
       scale: 0.28,
       offsetX: 0,
       offsetY: -18
     }),
 
-    item({
-      id: "u_eyes_brown",
-      gender: "unisex",
-      category: "eyes",
-      cat: "eyes",
-      slot: "eyes",
-      name: "Brown Eyes",
-      label: "brown",
-      coins: 10,
-      img: base + "/unisex/eyes/unisex_eyes_brown_left.png",
-      scale: 0.28,
-      offsetX: 0,
-      offsetY: -18
-    }),
-
-    // ---- SHOES (unisex) left ----
+    // ---- SHOES (unisex) ----
     item({
       id: "u_shoes_sneakers",
       gender: "unisex",
@@ -582,24 +545,7 @@
       name: "Sneakers",
       label: "unisex shoes",
       coins: 14,
-      img: base + "/unisex/shoes/unisex_shoes_left.png",
-      scale: 1,
-      offsetX: 0,
-      offsetY: 0
-    })
-  ];
-
-  // ---- SHOES (unisex) right ----
-    item({
-      id: "u_shoes_sneakers",
-      gender: "unisex",
-      category: "shoes",
-      cat: "shoes",
-      slot: "shoes",
-      name: "Sneakers",
-      label: "unisex shoes",
-      coins: 14,
-      img: base + "/unisex/shoes/unisex_shoes_right.png",
+      img: base + "/unisex/shoes/unisex_shoes.png",
       scale: 1,
       offsetX: 0,
       offsetY: 0
