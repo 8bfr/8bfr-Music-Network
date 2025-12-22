@@ -418,17 +418,13 @@
       const left = document.createElement("img");
       left.src = src;
       left.alt = itemObj.name || itemObj.id;
-      left.className = `layer-overlay item-${itemObj.id} layer-ears-left`;
-      left.style.zIndex = String(zBySlot.ears || 50);
-      overlayHost.appendChild(left);
+      left.className = `layer-overlay item-${itemObj.id} layer-left`;
 
       const right = document.createElement("img");
       right.src = src;
       right.alt = itemObj.name || itemObj.id;
       right.className = `layer-overlay item-${itemObj.id} layer-ears-right`;
-      right.style.zIndex = String(zBySlot.ears || 50);
-      overlayHost.appendChild(right);
-      return;
+      right.className = `layer-overlay item-${itemObj.id} layer-right`;
     }
 
     if (slot === "shoes") {
