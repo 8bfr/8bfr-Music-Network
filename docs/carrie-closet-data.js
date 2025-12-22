@@ -408,7 +408,20 @@
     }),
 
     // ---- JEWELRY – FEMALE  Dark----
-    
+    item({
+      id: "f_jewel_necklace",
+      gender: "female",
+      category: "jewelry",
+      cat: "jewelry",
+      slot: "necklace",
+      name: "Gold Necklace",
+      label: "necklace",
+      coins: 20,
+      img: base + "/female_jewlery/female_gold_necklace_dark.png",
+      scale: 0.82,
+      offsetX: 0,
+      offsetY: 8
+    }),
     item({
       id: "f_jewel_belly",
       gender: "female",
@@ -424,12 +437,12 @@
       offsetY: -6
     }),
     item({
-      id: "f_jewel_ears_left",
+      id: "f_jewel_ears",
       gender: "female",
       category: "jewelry",
       cat: "jewelry",
       slot: "ears",
-      name: "Gold Earrings Left",
+      name: "Gold Earrings",
       label: "ear rings",
       coins: 18,
       img: base + "/female_jewlery/female_gold_ear-ring_left.png",
@@ -440,12 +453,12 @@
 
 
    item({
-      id: "f_jewel_ears_right",
+      id: "f_jewel_ears",
       gender: "female",
       category: "jewelry",
       cat: "jewelry",
-      slot: "ears_right",
-      name: "Gold Earrings Right",
+      slot: "ears",
+      name: "Gold Earrings",
       label: "ear rings",
       coins: 18,
       img: base + "/female_jewlery/female_gold_ear-ring_right.png",
@@ -500,7 +513,7 @@
       offsetY: -18
     }),
     item({
-      id: "u_eyes_brown_left",
+      id: "u_eyes_brown",
       gender: "unisex",
       category: "eyes",
       cat: "eyes",
@@ -514,40 +527,9 @@
       offsetY: -18
     }),
 
-    item({
-      id: "u_eyes_brown_right",
-      gender: "unisex",
-      category: "eyes",
-      cat: "eyes",
-      slot: "eyes",
-      name: "Brown Eyes",
-      label: "brown",
-      coins: 10,
-      img: base + "/unisex/eyes/unisex_eyes_brown_right.png",
-      scale: 0.28,
-      offsetX: 0,
-      offsetY: -18
-    }),
-
     // ---- SHOES (unisex) ----
     item({
-      id: "u_shoes_sneakers_left",
-      gender: "unisex",
-      category: "shoes",
-      cat: "shoes",
-      slot: "shoes",
-      name: "Sneakers",
-      label: "unisex shoes",
-      coins: 14,
-      img: base + "/unisex/shoes/unisex_shoes_left.png",
-      scale: 1,
-      offsetX: 0,
-      offsetY: 0
-    })
-  ];
-
-  item({
-      id: "u_shoes_sneakers_right",
+      id: "u_shoes_sneakers",
       gender: "unisex",
       category: "shoes",
       cat: "shoes",
