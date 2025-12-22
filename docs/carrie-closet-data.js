@@ -445,27 +445,14 @@
       name: "Gold Earrings",
       label: "ear rings",
       coins: 18,
-      img: base + "/female_jewlery/female_gold_ear-ring_left.png",
+      srcBase: base + "/female_jewlery/female_gold_ear-ring",
       scale: 0.85,
       offsetX: 0,
       offsetY: -8
     }),
 
 
-   item({
-      id: "f_jewel_ears",
-      gender: "female",
-      category: "jewelry",
-      cat: "jewelry",
-      slot: "ears",
-      name: "Gold Earrings",
-      label: "ear rings",
-      coins: 18,
-      img: base + "/female_jewlery/female_gold_ear-ring_right.png",
-      scale: 0.85,
-      offsetX: 0,
-      offsetY: -8
-    }), 
+   
 
     // ---- JEWELRY – MALE ----
     item({
@@ -493,7 +480,7 @@
       name: "Blue Eyes",
       label: "blue",
       coins: 10,
-      img: base + "/unisex/eyes/unisex_eyes_blue_left.png",
+      img: base + "/unisex/eyes/unisex_eyes_blue_left",
       scale: 0.28,
       offsetX: 0,
       offsetY: -18
@@ -507,7 +494,7 @@
       name: "Green Eyes",
       label: "green",
       coins: 10,
-      img: base + "/unisex/eyes/unisex_eyes_green_left.png",
+      img: base + "/unisex/eyes/unisex_eyes_green_left",
       scale: 0.28,
       offsetX: 0,
       offsetY: -18
@@ -521,7 +508,7 @@
       name: "Brown Eyes",
       label: "brown",
       coins: 10,
-      img: base + "/unisex/eyes/unisex_eyes_brown_left.png",
+      img: base + "/unisex/eyes/unisex_eyes_brown_left",
       scale: 0.28,
       offsetX: 0,
       offsetY: -18
@@ -537,7 +524,7 @@
       name: "Sneakers",
       label: "unisex shoes",
       coins: 14,
-      img: base + "/unisex/shoes/unisex_shoes_left.png",
+      img: base + "/unisex/shoes/unisex_shoes_left",
       scale: 1,
       offsetX: 0,
       offsetY: 0
