@@ -440,7 +440,7 @@
 
 
    item({
-      id: "f_jewel_ears",
+      id: "f_jewel_ears_right",
       gender: "female",
       category: "jewelry",
       cat: "jewelry",
