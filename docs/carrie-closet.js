@@ -429,7 +429,7 @@
       category: "jewelry",
       cat: "jewelry",
       slot: "ears",
-      name: "Gold Earrings",
+      name: "Gold Earrings Left",
       label: "ear rings",
       coins: 18,
       img: base + "/female_jewlery/female_gold_ear-ring_left.png",
@@ -445,7 +445,7 @@
       category: "jewelry",
       cat: "jewelry",
       slot: "ears_right",
-      name: "Gold Earrings",
+      name: "Gold Earrings Right",
       label: "ear rings",
       coins: 18,
       img: base + "/female_jewlery/female_gold_ear-ring_right.png",
@@ -500,7 +500,7 @@
       offsetY: -18
     }),
     item({
-      id: "u_eyes_brown",
+      id: "u_eyes_brown_left",
       gender: "unisex",
       category: "eyes",
       cat: "eyes",
@@ -514,9 +514,40 @@
       offsetY: -18
     }),
 
+    item({
+      id: "u_eyes_brown_right",
+      gender: "unisex",
+      category: "eyes",
+      cat: "eyes",
+      slot: "eyes",
+      name: "Brown Eyes",
+      label: "brown",
+      coins: 10,
+      img: base + "/unisex/eyes/unisex_eyes_brown_right.png",
+      scale: 0.28,
+      offsetX: 0,
+      offsetY: -18
+    }),
+
     // ---- SHOES (unisex) ----
     item({
-      id: "u_shoes_sneakers",
+      id: "u_shoes_sneakers_left",
+      gender: "unisex",
+      category: "shoes",
+      cat: "shoes",
+      slot: "shoes",
+      name: "Sneakers",
+      label: "unisex shoes",
+      coins: 14,
+      img: base + "/unisex/shoes/unisex_shoes_left.png",
+      scale: 1,
+      offsetX: 0,
+      offsetY: 0
+    })
+  ];
+
+  item({
+      id: "u_shoes_sneakers_right",
       gender: "unisex",
       category: "shoes",
       cat: "shoes",
