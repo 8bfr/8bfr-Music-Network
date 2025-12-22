@@ -437,17 +437,31 @@
       offsetY: -6
     }),
     
+// ---- JEWELRY – FEMALE EARRINGS ----
 item({
-  id: "f_jewel_ears",
+  id: "f_jewel_ear_left",
   gender: "female",
   category: "jewelry",
   cat: "jewelry",
   slot: "ears",
-  name: "Gold Earrings",
-  label: "ear rings",
+  name: "Gold Earring Left",
+  label: "ear ring left",
   coins: 18,
-  srcBase: base + "/female_jewlery/female_gold_ear-ring",
-  img: base + "/female_jewlery/female_gold_ear-ring", // <-- NO _left.png
+  img: base + "/female_jewlery/female_gold_ear-ring_left.png",
+  scale: 0.85,
+  offsetX: 0,
+  offsetY: -8
+}),
+item({
+  id: "f_jewel_ear_right",
+  gender: "female",
+  category: "jewelry",
+  cat: "jewelry",
+  slot: "ears",
+  name: "Gold Earring Right",
+  label: "ear ring right",
+  coins: 18,
+  img: base + "/female_jewlery/female_gold_ear-ring_right.png",
   scale: 0.85,
   offsetX: 0,
   offsetY: -8
