@@ -415,16 +415,21 @@
     const slot = itemObj.slot;
 
     if (slot === "ears") {
-      const left = document.createElement("img");
-      left.src = src;
-      left.alt = itemObj.name || itemObj.id;
-      left.className = `layer-overlay item-${itemObj.id} layer-left`;
+  const left = document.createElement("img");
+  left.src = src;
+  left.alt = itemObj.name || itemObj.id;
+  left.className = `layer-overlay item-${itemObj.id} layer-ears-left`;
+  left.style.zIndex = String(zBySlot.ears || 55);
+  overlayHost.appendChild(left);
 
-      const right = document.createElement("img");
-      right.src = src;
-      right.alt = itemObj.name || itemObj.id;
-      right.className = `layer-overlay item-${itemObj.id} layer-ears-right`;
-      right.className = `layer-overlay item-${itemObj.id} layer-right`;
+  const right = document.createElement("img");
+  right.src = src;
+  right.alt = itemObj.name || itemObj.id;
+  right.className = `layer-overlay item-${itemObj.id} layer-ears-right`;
+  right.style.zIndex = String(zBySlot.ears || 55);
+  overlayHost.appendChild(right);
+
+  return;
     }
 
     if (slot === "shoes") {
