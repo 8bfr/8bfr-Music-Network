@@ -530,32 +530,32 @@
     }),
 
     // ---- SHOES (unisex) ----
+    // ---- SHOES (unisex) ----
     item({
       id: "u_shoes_sneakers_left",
       gender: "unisex",
       category: "shoes",
       cat: "shoes",
       slot: "shoes",
-      name: "Sneakers",
+      name: "Sneakers Left",
       label: "unisex shoes",
       coins: 14,
       img: base + "/unisex/shoes/unisex_shoes_left.png",
       scale: 1,
       offsetX: 0,
       offsetY: 0
-    })
-  ];
+    }),
 
-  item({
+    item({
       id: "u_shoes_sneakers_right",
       gender: "unisex",
       category: "shoes",
       cat: "shoes",
       slot: "shoes",
-      name: "Sneakers",
+      name: "Sneakers Right",
       label: "unisex shoes",
       coins: 14,
-      img: base + "/unisex/shoes/unisex_shoes_left.png",
+      img: base + "/unisex/shoes/unisex_shoes_right.png",
       scale: 1,
       offsetX: 0,
       offsetY: 0
