@@ -424,7 +424,7 @@
       offsetY: -6
     }),
     item({
-      id: "f_jewel_ears",
+      id: "f_jewel_ears_left",
       gender: "female",
       category: "jewelry",
       cat: "jewelry",
@@ -444,7 +444,7 @@
       gender: "female",
       category: "jewelry",
       cat: "jewelry",
-      slot: "ears",
+      slot: "ears_right",
       name: "Gold Earrings",
       label: "ear rings",
       coins: 18,
