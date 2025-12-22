@@ -444,8 +444,9 @@ item({
   category: "jewelry",
   cat: "jewelry",
   slot: "ears",
+  side: "left",                // specify side
   name: "Gold Earring Left",
-  label: "ear ring left",
+  label: "ear ring • left",
   coins: 18,
   img: base + "/female_jewlery/female_gold_ear-ring_left.png",
   scale: 0.85,
@@ -458,8 +459,9 @@ item({
   category: "jewelry",
   cat: "jewelry",
   slot: "ears",
+  side: "right",               // specify side
   name: "Gold Earring Right",
-  label: "ear ring right",
+  label: "ear ring • right",
   coins: 18,
   img: base + "/female_jewlery/female_gold_ear-ring_right.png",
   scale: 0.85,
