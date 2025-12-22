@@ -325,8 +325,14 @@
   }
 
   function pickImgForSkin(itemObj) {
-    if (currentSkin === "dark" && itemObj.imgDark) return itemObj.imgDark;
-    return itemObj.img;
+  // NEW system: left/right base
+  if (itemObj.srcBase) {
+    return itemObj.srcBase;
+  }
+
+  // OLD system fallback (tops, hair, etc)
+  if (currentSkin === "dark" && itemObj.imgDark) return itemObj.imgDark;
+  return itemObj.img;
   }
 
   function cardForItem(itemObj) {
