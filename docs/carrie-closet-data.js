@@ -447,17 +447,16 @@ item({
   label: "ear rings",
   coins: 18,
 
-  // used by renderer (left + right)
+  // renderer uses this
   srcBase: base + "/female_jewlery/female_gold_ear-ring",
 
-  // used by UI + thumbs
+  // UI + button thumb MUST be a real file
   img: base + "/female_jewlery/female_gold_ear-ring_left.png",
 
   scale: 0.85,
   offsetX: 0,
   offsetY: -8
 }),
-
    
 
     // ---- JEWELRY – MALE ----
