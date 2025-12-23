@@ -1,4 +1,4 @@
-
+```javascript
 // carrie-closet-data.js
 // Static closet catalog using your actual image paths / names.
 
@@ -385,7 +385,6 @@
       offsetY: 0
     }),
 
-  
     // ---- JEWELRY – FEMALE ----
     item({
       id: "f_jewel_necklace",
@@ -397,22 +396,7 @@
       label: "necklace",
       coins: 20,
       img: base + "/female_jewlery/female_gold_necklace.png",
-      scale: 0.82,
-      offsetX: 0,
-      offsetY: 8
-    }),
-
-    // ---- JEWELRY – FEMALE  Dark----
-    item({
-      id: "f_jewel_necklace",
-      gender: "female",
-      category: "jewelry",
-      cat: "jewelry",
-      slot: "necklace",
-      name: "Gold Necklace",
-      label: "necklace",
-      coins: 20,
-      img: base + "/female_jewlery/female_gold_necklace.png",
+      imgDark: base + "/female_jewlery/female_gold_necklace_dark.png",
       scale: 0.82,
       offsetX: 0,
       offsetY: 8
@@ -530,4 +514,3 @@
   window.CARRIE_CLOSET_ITEMS = items;
 })();
 ```
-
