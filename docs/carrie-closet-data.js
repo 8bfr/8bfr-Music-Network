@@ -436,7 +436,8 @@
       offsetX: 0,
       offsetY: -6
     }),
-   item({
+   
+item({
   id: "f_jewel_ears",
   gender: "female",
   category: "jewelry",
@@ -445,13 +446,13 @@
   name: "Gold Earrings",
   label: "ear rings",
   coins: 18,
+  img: base + "/female_jewlery/female_gold_ear-ring_left.png",      // For thumbnail
   imgLeft: base + "/female_jewlery/female_gold_ear-ring_left.png",   // Left ear image
   imgRight: base + "/female_jewlery/female_gold_ear-ring_right.png", // Right ear image
   scale: 0.85,
   offsetX: 0,
   offsetY: -8
-}), 
-
+}),
 
    
 
