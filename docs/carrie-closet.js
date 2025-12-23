@@ -420,78 +420,66 @@
 
   const slot = itemObj.slot;
 
-  // EARRINGS
+  // -------------------- EARRINGS --------------------
   if (slot === "ears") {
-    if (itemObj.side === "left") {
-      const left = document.createElement("img");
-      left.src = src;
-      left.alt = itemObj.name || itemObj.id;
-      left.className = `layer-overlay item-${itemObj.id} layer-ears-left`;
-      left.style.zIndex = String(zBySlot.ears || 55);
-      overlayHost.appendChild(left);
-    }
-    if (itemObj.side === "right") {
-      const right = document.createElement("img");
-      right.src = src;
-      right.alt = itemObj.name || itemObj.id;
-      right.className = `layer-overlay item-${itemObj.id} layer-ears-right`;
-      right.style.zIndex = String(zBySlot.ears || 55);
-      overlayHost.appendChild(right);
-    }
+    // Remove any existing earring of the same side first
+    const existing = overlayHost.querySelectorAll(`.layer-ears-${itemObj.side}`);
+    existing.forEach(e => e.remove());
+
+    const img = document.createElement("img");
+    img.src = src;
+    img.alt = itemObj.name || itemObj.id;
+    img.className = `layer-overlay item-${itemObj.id} layer-ears-${itemObj.side}`;
+
+    // CSS variables for positioning & scale
+    img.style.setProperty("--offset-x-use", `${itemObj.offsetX}px`);
+    img.style.setProperty("--offset-y-use", `${itemObj.offsetY}px`);
+    img.style.setProperty("--scale-use", itemObj.scale);
+
+    // z-index
+    img.style.zIndex = String(zBySlot.ears || 55);
+    overlayHost.appendChild(img);
     return;
   }
 
-  // SHOES
+  // -------------------- SHOES --------------------
   if (slot === "shoes") {
-    if (itemObj.side === "left") {
-      const left = document.createElement("img");
-      left.src = src;
-      left.alt = itemObj.name || itemObj.id;
-      left.className = `layer-overlay item-${itemObj.id} layer-shoes-left`;
-      left.style.zIndex = String(zBySlot.shoes || 10);
-      overlayHost.appendChild(left);
-    }
-    if (itemObj.side === "right") {
-      const right = document.createElement("img");
-      right.src = src;
-      right.alt = itemObj.name || itemObj.id;
-      right.className = `layer-overlay item-${itemObj.id} layer-shoes-right`;
-      right.style.zIndex = String(zBySlot.shoes || 10);
-      overlayHost.appendChild(right);
-    }
+    ["left", "right"].forEach((side) => {
+      // Remove existing shoe of this side first
+      const existing = overlayHost.querySelectorAll(`.layer-shoes-${side}`);
+      existing.forEach(e => e.remove());
+
+      const img = document.createElement("img");
+      img.src = src;
+      img.alt = itemObj.name || itemObj.id;
+      img.className = `layer-overlay item-${itemObj.id} layer-shoes-${side}`;
+
+      img.style.setProperty("--offset-x-use", `${itemObj.offsetX}px`);
+      img.style.setProperty("--offset-y-use", `${itemObj.offsetY}px`);
+      img.style.setProperty("--scale-use", itemObj.scale);
+
+      img.style.zIndex = String(zBySlot.shoes || 10);
+      overlayHost.appendChild(img);
+    });
     return;
   }
 
-  // EYES (if side-specific)
-  if (slot === "eyes" && itemObj.side) {
-    const eye = document.createElement("img");
-    eye.src = src;
-    eye.alt = itemObj.name || itemObj.id;
-    eye.className = `layer-overlay item-${itemObj.id} layer-eyes-${itemObj.side}`;
-    eye.style.zIndex = String(zBySlot.eyes || 50);
-    overlayHost.appendChild(eye);
-    return;
-  }
+  // -------------------- OTHER SLOTS (top, bottom, hair, necklace, belly, eyes) --------------------
+  // Remove existing overlay of same slot/id
+  const existingSlot = overlayHost.querySelectorAll(`.item-${itemObj.id}`);
+  existingSlot.forEach(e => e.remove());
 
-  // DEFAULT single image for other slots
   const img = document.createElement("img");
   img.src = src;
   img.alt = itemObj.name || itemObj.id;
   img.className = `layer-overlay item-${itemObj.id}`;
+
+  img.style.setProperty("--offset-x-use", `${itemObj.offsetX}px`);
+  img.style.setProperty("--offset-y-use", `${itemObj.offsetY}px`);
+  img.style.setProperty("--scale-use", itemObj.scale);
+
   img.style.zIndex = String(zBySlot[slot] || 20);
   overlayHost.appendChild(img);
-  }
-
-  function initTabs() {
-    $$(".tab-btn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        $$(".tab-btn").forEach((b) => b.classList.remove("active"));
-        btn.classList.add("active");
-        currentCat = btn.dataset.cat || "hair";
-        renderItems();
-        saveState();
-      });
-    });
   }
 
   function initGenderButtons() {
