@@ -411,8 +411,7 @@
     if (!overlayHost) return;
     overlayHost.innerHTML = "";
   }
-
-  function addOverlayImg(itemObj) {
+function addOverlayImg(itemObj) {
   if (!overlayHost) return;
 
   const src = pickImgForSkin(itemObj);
@@ -422,22 +421,15 @@
 
   // -------------------- EARRINGS --------------------
   if (slot === "ears") {
-    // Remove any existing earring of the same side first
-    const existing = overlayHost.querySelectorAll(`.layer-ears-${itemObj.side}`);
-    existing.forEach(e => e.remove());
+    // Remove all previous earrings of same side
+    overlayHost.querySelectorAll(`.layer-ears-${itemObj.side}`).forEach(e => e.remove());
 
     const img = document.createElement("img");
     img.src = src;
     img.alt = itemObj.name || itemObj.id;
     img.className = `layer-overlay item-${itemObj.id} layer-ears-${itemObj.side}`;
+    img.style.zIndex = zBySlot.ears || 55;
 
-    // CSS variables for positioning & scale
-    img.style.setProperty("--offset-x-use", `${itemObj.offsetX}px`);
-    img.style.setProperty("--offset-y-use", `${itemObj.offsetY}px`);
-    img.style.setProperty("--scale-use", itemObj.scale);
-
-    // z-index
-    img.style.zIndex = String(zBySlot.ears || 55);
     overlayHost.appendChild(img);
     return;
   }
@@ -445,52 +437,30 @@
   // -------------------- SHOES --------------------
   if (slot === "shoes") {
     ["left", "right"].forEach((side) => {
-      // Remove existing shoe of this side first
-      const existing = overlayHost.querySelectorAll(`.layer-shoes-${side}`);
-      existing.forEach(e => e.remove());
+      // Remove previous shoe of same side
+      overlayHost.querySelectorAll(`.layer-shoes-${side}`).forEach(e => e.remove());
 
       const img = document.createElement("img");
       img.src = src;
       img.alt = itemObj.name || itemObj.id;
       img.className = `layer-overlay item-${itemObj.id} layer-shoes-${side}`;
+      img.style.zIndex = zBySlot.shoes || 10;
 
-      img.style.setProperty("--offset-x-use", `${itemObj.offsetX}px`);
-      img.style.setProperty("--offset-y-use", `${itemObj.offsetY}px`);
-      img.style.setProperty("--scale-use", itemObj.scale);
-
-      img.style.zIndex = String(zBySlot.shoes || 10);
       overlayHost.appendChild(img);
     });
     return;
   }
 
-  // -------------------- OTHER SLOTS (top, bottom, hair, necklace, belly, eyes) --------------------
-  // Remove existing overlay of same slot/id
-  const existingSlot = overlayHost.querySelectorAll(`.item-${itemObj.id}`);
-  existingSlot.forEach(e => e.remove());
-
+  // -------------------- OTHER SLOTS (hair, top, bottom, etc.) --------------------
+  // Keep original behavior for all other items
   const img = document.createElement("img");
   img.src = src;
   img.alt = itemObj.name || itemObj.id;
   img.className = `layer-overlay item-${itemObj.id}`;
+  img.style.zIndex = zBySlot[slot] || 20;
 
-  img.style.setProperty("--offset-x-use", `${itemObj.offsetX}px`);
-  img.style.setProperty("--offset-y-use", `${itemObj.offsetY}px`);
-  img.style.setProperty("--scale-use", itemObj.scale);
-
-  img.style.zIndex = String(zBySlot[slot] || 20);
   overlayHost.appendChild(img);
-  }
-
-  function initGenderButtons() {
-    $$(".seg-btn[data-gender]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        $$(".seg-btn[data-gender]").forEach((b) => b.classList.remove("active"));
-        btn.classList.add("active");
-        setGender(btn.dataset.gender === "male" ? "male" : "female");
-      });
-    });
-  }
+}
 
   function syncUIButtons() {
     $$(".seg-btn[data-gender]").forEach((b) => {
