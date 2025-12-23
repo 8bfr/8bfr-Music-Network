@@ -468,6 +468,70 @@ item({
   offsetX: 0,
   offsetY: -8
 }),
+
+// ---- SHOES (unisex) ----
+item({
+  id: "u_shoes_sneakers_left",
+  gender: "unisex",
+  category: "shoes",
+  cat: "shoes",
+  slot: "shoes",
+  side: "left",
+  name: "Sneakers Left",
+  label: "unisex shoes left",
+  coins: 14,
+  img: base + "/unisex/shoes/unisex_shoes_left.png",
+  scale: 1,
+  offsetX: 0,
+  offsetY: 0
+}),
+item({
+  id: "u_shoes_sneakers_right",
+  gender: "unisex",
+  category: "shoes",
+  cat: "shoes",
+  slot: "shoes",
+  side: "right",
+  name: "Sneakers Right",
+  label: "unisex shoes right",
+  coins: 14,
+  img: base + "/unisex/shoes/unisex_shoes_right.png",
+  scale: 1,
+  offsetX: 0,
+  offsetY: 0
+}),
+
+// ---- EYES (if left/right needed, optional) ----
+item({
+  id: "u_eyes_left",
+  gender: "unisex",
+  category: "eyes",
+  cat: "eyes",
+  slot: "eyes",
+  side: "left",
+  name: "Blue Eyes Left",
+  label: "blue left",
+  coins: 10,
+  img: base + "/unisex/eyes/unisex_eyes_blue_left.png",
+  scale: 0.28,
+  offsetX: 0,
+  offsetY: -18
+}),
+item({
+  id: "u_eyes_right",
+  gender: "unisex",
+  category: "eyes",
+  cat: "eyes",
+  slot: "eyes",
+  side: "right",
+  name: "Blue Eyes Right",
+  label: "blue right",
+  coins: 10,
+  img: base + "/unisex/eyes/unisex_eyes_blue_right.png",
+  scale: 0.28,
+  offsetX: 0,
+  offsetY: -18
+}),
    
 
     // ---- JEWELRY – MALE ----
