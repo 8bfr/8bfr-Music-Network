@@ -325,14 +325,8 @@
   }
 
   function pickImgForSkin(itemObj) {
-  // NEW system: left/right base
-  if (itemObj.srcBase) {
-    return itemObj.srcBase;
-  }
-
-  // OLD system fallback (tops, hair, etc)
-  if (currentSkin === "dark" && itemObj.imgDark) return itemObj.imgDark;
-  return itemObj.img;
+    if (currentSkin === "dark" && itemObj.imgDark) return itemObj.imgDark;
+    return itemObj.img;
   }
 
   function cardForItem(itemObj) {
@@ -411,56 +405,81 @@
     if (!overlayHost) return;
     overlayHost.innerHTML = "";
   }
-function addOverlayImg(itemObj) {
-  if (!overlayHost) return;
 
-  const src = pickImgForSkin(itemObj);
-  if (!src) return;
+  function addOverlayImg(itemObj) {
+    if (!overlayHost) return;
 
-  const slot = itemObj.slot;
+    const src = pickImgForSkin(itemObj);
+    if (!src) return;
 
-  // -------------------- EARRINGS --------------------
-  if (slot === "ears") {
-    // Remove all previous earrings of same side
-    overlayHost.querySelectorAll(`.layer-ears-${itemObj.side}`).forEach(e => e.remove());
+    const slot = itemObj.slot;
+
+    if (slot === "ears") {
+      const left = document.createElement("img");
+      left.src = src;
+      left.alt = itemObj.name || itemObj.id;
+      left.className = `layer-overlay item-${itemObj.id} layer-left`;
+
+      const right = document.createElement("img");
+      right.src = src;
+      right.alt = itemObj.name || itemObj.id;
+      right.className = `layer-overlay item-${itemObj.id} layer-ears-right`;
+      right.className = `layer-overlay item-${itemObj.id} layer-right`;
+    }
+
+    if (slot === "shoes") {
+      const left = document.createElement("img");
+      left.src = src;
+      left.alt = itemObj.name || itemObj.id;
+      left.className = `layer-overlay item-${itemObj.id} layer-shoes-left`;
+      left.style.zIndex = String(zBySlot.shoes || 10);
+      overlayHost.appendChild(left);
+
+      const right = document.createElement("img");
+      right.src = src;
+      right.alt = itemObj.name || itemObj.id;
+      right.className = `layer-overlay item-${itemObj.id} layer-shoes-right`;
+      right.style.zIndex = String(zBySlot.shoes || 10);
+      overlayHost.appendChild(right);
+      return;
+    }
 
     const img = document.createElement("img");
     img.src = src;
     img.alt = itemObj.name || itemObj.id;
-    img.className = `layer-overlay item-${itemObj.id} layer-ears-${itemObj.side}`;
-    img.style.zIndex = zBySlot.ears || 55;
-
+    img.className = `layer-overlay item-${itemObj.id}`;
+    img.style.zIndex = String(zBySlot[slot] || 20);
     overlayHost.appendChild(img);
-    return;
   }
 
-  // -------------------- SHOES --------------------
-  if (slot === "shoes") {
-    ["left", "right"].forEach((side) => {
-      // Remove previous shoe of same side
-      overlayHost.querySelectorAll(`.layer-shoes-${side}`).forEach(e => e.remove());
-
-      const img = document.createElement("img");
-      img.src = src;
-      img.alt = itemObj.name || itemObj.id;
-      img.className = `layer-overlay item-${itemObj.id} layer-shoes-${side}`;
-      img.style.zIndex = zBySlot.shoes || 10;
-
-      overlayHost.appendChild(img);
+  function renderOverlays() {
+    clearOverlays();
+    Object.keys(equipped).forEach((slot) => {
+      if (equipped[slot]) addOverlayImg(equipped[slot]);
     });
-    return;
   }
 
-  // -------------------- OTHER SLOTS (hair, top, bottom, etc.) --------------------
-  // Keep original behavior for all other items
-  const img = document.createElement("img");
-  img.src = src;
-  img.alt = itemObj.name || itemObj.id;
-  img.className = `layer-overlay item-${itemObj.id}`;
-  img.style.zIndex = zBySlot[slot] || 20;
+  function initTabs() {
+    $$(".tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        $$(".tab-btn").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentCat = btn.dataset.cat || "hair";
+        renderItems();
+        saveState();
+      });
+    });
+  }
 
-  overlayHost.appendChild(img);
-}
+  function initGenderButtons() {
+    $$(".seg-btn[data-gender]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        $$(".seg-btn[data-gender]").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        setGender(btn.dataset.gender === "male" ? "male" : "female");
+      });
+    });
+  }
 
   function syncUIButtons() {
     $$(".seg-btn[data-gender]").forEach((b) => {
