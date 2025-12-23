@@ -502,7 +502,7 @@ item({
   offsetX: 0,
   offsetY: -18
 }),
-// ---item({
+item({
   id: "u_eyes_right",
   gender: "unisex",
   category: "eyes",
