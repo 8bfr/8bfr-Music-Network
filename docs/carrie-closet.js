@@ -414,21 +414,23 @@
 
     const slot = itemObj.slot;
 
-    if (slot === "ears") {
+if (slot === "ears") {
   const left = document.createElement("img");
   left.src = itemObj.imgLeft || src;
   left.alt = itemObj.name || itemObj.id;
   left.className = `layer-overlay item-${itemObj.id} layer-left`;
+  left.style.zIndex = String(zBySlot.ears || 55);  // Add z-index
 
   const right = document.createElement("img");
   right.src = itemObj.imgRight || src;
   right.alt = itemObj.name || itemObj.id;
   right.className = `layer-overlay item-${itemObj.id} layer-right`;
+  right.style.zIndex = String(zBySlot.ears || 55);  // Add z-index
 
   overlayHost.appendChild(left);
   overlayHost.appendChild(right);
   return;
-    }
+}
   
 
     if (slot === "shoes") {
