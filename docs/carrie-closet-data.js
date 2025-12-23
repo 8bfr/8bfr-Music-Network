@@ -434,9 +434,9 @@ item({
   label: "ear ring • left",
   coins: 18,
   img: base + "/female_jewlery/female_gold_ear-ring_left.png",
-  scale: 0.85,
-  offsetX: 0,
-  offsetY: -8
+  scale: 0.35,
+  offsetX: -4,
+  offsetY: -20
 }),
 item({
   id: "f_jewel_ear_right",
@@ -449,9 +449,9 @@ item({
   label: "ear ring • right",
   coins: 18,
   img: base + "/female_jewlery/female_gold_ear-ring_right.png",
-  scale: 0.85,
-  offsetX: 0,
-  offsetY: -8
+  scale: 0.35,
+  offsetX: 2,
+  offsetY: -20
 }),
 
 // ---- SHOES (unisex) ----
