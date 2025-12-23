@@ -413,61 +413,73 @@
   }
 
   function addOverlayImg(itemObj) {
-    if (!overlayHost) return;
+  if (!overlayHost) return;
 
-    const src = pickImgForSkin(itemObj);
-    if (!src) return;
+  const src = pickImgForSkin(itemObj);
+  if (!src) return;
 
-    const slot = itemObj.slot;
+  const slot = itemObj.slot;
 
-    if (slot === "ears") {
-  if (itemObj.side === "left" && currentMode === "left") {
-    const left = document.createElement("img");
-    left.src = src;
-    left.className = `layer-overlay item-${itemObj.id} layer-ears-left`;
-    left.style.zIndex = String(zBySlot.ears || 55);
-    overlayHost.appendChild(left);
-  }
-  if (itemObj.side === "right" && currentMode === "right") {
-    const right = document.createElement("img");
-    right.src = src;
-    right.className = `layer-overlay item-${itemObj.id} layer-ears-right`;
-    right.style.zIndex = String(zBySlot.ears || 55);
-    overlayHost.appendChild(right);
-  }
-  return;
+  // EARRINGS
+  if (slot === "ears") {
+    if (itemObj.side === "left") {
+      const left = document.createElement("img");
+      left.src = src;
+      left.alt = itemObj.name || itemObj.id;
+      left.className = `layer-overlay item-${itemObj.id} layer-ears-left`;
+      left.style.zIndex = String(zBySlot.ears || 55);
+      overlayHost.appendChild(left);
     }
+    if (itemObj.side === "right") {
+      const right = document.createElement("img");
+      right.src = src;
+      right.alt = itemObj.name || itemObj.id;
+      right.className = `layer-overlay item-${itemObj.id} layer-ears-right`;
+      right.style.zIndex = String(zBySlot.ears || 55);
+      overlayHost.appendChild(right);
+    }
+    return;
+  }
 
-    if (slot === "shoes") {
+  // SHOES
+  if (slot === "shoes") {
+    if (itemObj.side === "left") {
       const left = document.createElement("img");
       left.src = src;
       left.alt = itemObj.name || itemObj.id;
       left.className = `layer-overlay item-${itemObj.id} layer-shoes-left`;
       left.style.zIndex = String(zBySlot.shoes || 10);
       overlayHost.appendChild(left);
-
+    }
+    if (itemObj.side === "right") {
       const right = document.createElement("img");
       right.src = src;
       right.alt = itemObj.name || itemObj.id;
       right.className = `layer-overlay item-${itemObj.id} layer-shoes-right`;
       right.style.zIndex = String(zBySlot.shoes || 10);
       overlayHost.appendChild(right);
-      return;
     }
-
-    const img = document.createElement("img");
-    img.src = src;
-    img.alt = itemObj.name || itemObj.id;
-    img.className = `layer-overlay item-${itemObj.id}`;
-    img.style.zIndex = String(zBySlot[slot] || 20);
-    overlayHost.appendChild(img);
+    return;
   }
 
-  function renderOverlays() {
-    clearOverlays();
-    Object.keys(equipped).forEach((slot) => {
-      if (equipped[slot]) addOverlayImg(equipped[slot]);
-    });
+  // EYES (if side-specific)
+  if (slot === "eyes" && itemObj.side) {
+    const eye = document.createElement("img");
+    eye.src = src;
+    eye.alt = itemObj.name || itemObj.id;
+    eye.className = `layer-overlay item-${itemObj.id} layer-eyes-${itemObj.side}`;
+    eye.style.zIndex = String(zBySlot.eyes || 50);
+    overlayHost.appendChild(eye);
+    return;
+  }
+
+  // DEFAULT single image for other slots
+  const img = document.createElement("img");
+  img.src = src;
+  img.alt = itemObj.name || itemObj.id;
+  img.className = `layer-overlay item-${itemObj.id}`;
+  img.style.zIndex = String(zBySlot[slot] || 20);
+  overlayHost.appendChild(img);
   }
 
   function initTabs() {
