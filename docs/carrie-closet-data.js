@@ -1,3 +1,4 @@
+
 // carrie-closet-data.js
 // Static closet catalog using your actual image paths / names.
 
@@ -512,3 +513,5 @@
 
   window.CARRIE_CLOSET_ITEMS = items;
 })();
+```
+
