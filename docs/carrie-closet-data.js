@@ -437,7 +437,7 @@
       offsetY: -6
     }),
     item({
-      id: "f_earring",
+      id: "f_jewel_ears",
       gender: "female",
       category: "jewelry",
       cat: "jewelry",
