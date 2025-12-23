@@ -396,7 +396,7 @@
       label: "necklace",
       coins: 20,
       img: base + "/female_jewlery/female_gold_necklace.png",
-      imgDark: base + "/female_jewlery/female_gold_necklace_dark.png",
+      imgDark: base + "/female_jewlery/female_gold_necklace.png",
       scale: 0.82,
       offsetX: 0,
       offsetY: 8
