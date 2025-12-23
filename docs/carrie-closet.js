@@ -429,11 +429,7 @@
   overlayHost.appendChild(right);  // Append right earring
   return;
     }
-  // APPEND BOTH TO THE OVERLAY HOST
-  overlayHost.appendChild(left);
-  overlayHost.appendChild(right);
-  return; // Exit early since we handled this slot
-    }
+  
 
     if (slot === "shoes") {
       const left = document.createElement("img");
