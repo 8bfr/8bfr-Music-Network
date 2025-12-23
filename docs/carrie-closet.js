@@ -416,17 +416,17 @@
 
     if (slot === "ears") {
   const left = document.createElement("img");
-  left.src = itemObj.imgLeft || src;  // Use imgLeft if available
+  left.src = itemObj.imgLeft || src;
   left.alt = itemObj.name || itemObj.id;
   left.className = `layer-overlay item-${itemObj.id} layer-left`;
 
   const right = document.createElement("img");
-  right.src = itemObj.imgRight || src;  // Use imgRight if available
+  right.src = itemObj.imgRight || src;
   right.alt = itemObj.name || itemObj.id;
   right.className = `layer-overlay item-${itemObj.id} layer-right`;
 
-  overlayHost.appendChild(left);   // Append left earring
-  overlayHost.appendChild(right);  // Append right earring
+  overlayHost.appendChild(left);
+  overlayHost.appendChild(right);
   return;
     }
   
