@@ -433,22 +433,6 @@
       offsetY: -8
     }),
 
-    // ---- JEWELRY – MALE ----
-    item({
-      id: "m_jewel_necklace",
-      gender: "male",
-      category: "jewelry",
-      cat: "jewelry",
-      slot: "necklace",
-      name: "Gold Chain",
-      label: "male necklace",
-      coins: 20,
-      img: base + "/male_jewlery/male_gold_necklace.png",
-      scale: 0.85,
-      offsetX: 0,
-      offsetY: 10
-    }),
-
     // ---- EYES (unisex) ----
     item({
       id: "u_eyes_blue",
