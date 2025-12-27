@@ -407,53 +407,79 @@
   }
 
   function addOverlayImg(itemObj) {
-    if (!overlayHost) return;
+  if (!overlayHost) return;
 
-    const src = pickImgForSkin(itemObj);
-    if (!src) return;
+  const src = pickImgForSkin(itemObj);
+  if (!src) return;
 
-    const slot = itemObj.slot;
-
+  const slot = itemObj.slot;
 
   if (slot === "ears") {
-  const left = document.createElement("img");
-  left.src = itemObj.imgLeft || src;
-  left.alt = itemObj.name || itemObj.id;
-  left.className = `layer-overlay item-${itemObj.id} layer-left`;
+    const left = document.createElement("img");
+    left.src = itemObj.imgLeft || src;
+    left.alt = itemObj.name || itemObj.id;
+    left.className = `layer-overlay item-${itemObj.id} layer-left`;
 
-  const right = document.createElement("img");
-  right.src = itemObj.imgRight || src;
-  right.alt = itemObj.name || itemObj.id;
-  right.className = `layer-overlay item-${itemObj.id} layer-right`;
+    const right = document.createElement("img");
+    right.src = itemObj.imgRight || src;
+    right.alt = itemObj.name || itemObj.id;
+    right.className = `layer-overlay item-${itemObj.id} layer-right`;
 
-  overlayHost.appendChild(left);
-  overlayHost.appendChild(right);
-  return;
-}
+    overlayHost.appendChild(left);
+    overlayHost.appendChild(right);
+    return;
+  }
 
-    if (slot === "shoes") {
-      const left = document.createElement("img");
-      left.src = src;
-      left.alt = itemObj.name || itemObj.id;
-      left.className = `layer-overlay item-${itemObj.id} layer-shoes-left`;
-      left.style.zIndex = String(zBySlot.shoes || 10);
-      overlayHost.appendChild(left);
+  if (slot === "shoes") {
+    const left = document.createElement("img");
+    left.src = src;
+    left.alt = itemObj.name || itemObj.id;
+    left.className = `layer-overlay item-${itemObj.id} layer-shoes-left`;
+    left.style.zIndex = String(zBySlot.shoes || 10);
+    overlayHost.appendChild(left);
 
-      const right = document.createElement("img");
-      right.src = src;
-      right.alt = itemObj.name || itemObj.id;
-      right.className = `layer-overlay item-${itemObj.id} layer-shoes-right`;
-      right.style.zIndex = String(zBySlot.shoes || 10);
-      overlayHost.appendChild(right);
-      return;
-    }
+    const right = document.createElement("img");
+    right.src = src;
+    right.alt = itemObj.name || itemObj.id;
+    right.className = `layer-overlay item-${itemObj.id} layer-shoes-right`;
+    right.style.zIndex = String(zBySlot.shoes || 10);
+    overlayHost.appendChild(right);
+    return;
+  }
 
-    const img = document.createElement("img");
-    img.src = src;
-    img.alt = itemObj.name || itemObj.id;
-    img.className = `layer-overlay item-${itemObj.id}`;
-    img.style.zIndex = String(zBySlot[slot] || 20);
-    overlayHost.appendChild(img);
+  // ✅ ONLY CHANGE FOR EYES
+  if (slot === "eyes") {
+    const leftEye = document.createElement("img");
+    leftEye.src = itemObj.imgLeft || src;
+    leftEye.alt = itemObj.name || itemObj.id;
+    leftEye.className = `layer-overlay item-${itemObj.id} layer-left`;
+    leftEye.style.zIndex = String(zBySlot.eyes || 50);
+
+    const rightEye = document.createElement("img");
+    rightEye.src = itemObj.imgRight || src;
+    rightEye.alt = itemObj.name || itemObj.id;
+    rightEye.className = `layer-overlay item-${itemObj.id} layer-right`;
+    rightEye.style.zIndex = String(zBySlot.eyes || 50);
+
+    // Apply offsets and scale from your data.js
+    const scale = itemObj.scale || 1;
+    const offsetX = itemObj.offsetX || 0;
+    const offsetY = itemObj.offsetY || 0;
+    leftEye.style.transform = `scale(${scale}) translateX(${offsetX}px) translateY(${offsetY}px)`;
+    rightEye.style.transform = `scale(${scale}) translateX(${-offsetX}px) translateY(${offsetY}px)`;
+
+    overlayHost.appendChild(leftEye);
+    overlayHost.appendChild(rightEye);
+    return;
+  }
+
+  // Default for all other slots (unchanged)
+  const img = document.createElement("img");
+  img.src = src;
+  img.alt = itemObj.name || itemObj.id;
+  img.className = `layer-overlay item-${itemObj.id}`;
+  img.style.zIndex = String(zBySlot[slot] || 20);
+  overlayHost.appendChild(img);
   }
 
   function renderOverlays() {
