@@ -469,16 +469,7 @@ if (slot === "shoes") {
 }
   
     // Apply offsets and scale from your data.js
-    const scale = itemObj.scale || 1;
-    const offsetX = itemObj.offsetX || 0;
-    const offsetY = itemObj.offsetY || 0;
-    leftEye.style.transform = `scale(${scale}) translateX(${offsetX}px) translateY(${offsetY}px)`;
-    rightEye.style.transform = `scale(${scale}) translateX(${-offsetX}px) translateY(${offsetY}px)`;
-
-    overlayHost.appendChild(leftEye);
-    overlayHost.appendChild(rightEye);
-    return;
-  }
+    
 
   // Default for all other slots (unchanged)
   const img = document.createElement("img");
