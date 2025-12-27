@@ -429,38 +429,45 @@
     overlayHost.appendChild(right);
     return;
   }
+if (slot === "eyes") {
+  const left = document.createElement("img");
+  left.src = itemObj.imgLeft || src;
+  left.alt = itemObj.name || itemObj.id;
+  left.className = `layer-overlay item-${itemObj.id} layer-left`;
+  left.style.transform = `scale(${itemObj.scale || 1}) translateX(${-Math.abs(itemObj.offsetX || 0)}px) translateY(${itemObj.offsetY || 0}px)`;
+  left.style.zIndex = String(zBySlot.eyes || 50);
 
-  if (slot === "shoes") {
-    const left = document.createElement("img");
-    left.src = src;
-    left.alt = itemObj.name || itemObj.id;
-    left.className = `layer-overlay item-${itemObj.id} layer-shoes-left`;
-    left.style.zIndex = String(zBySlot.shoes || 10);
-    overlayHost.appendChild(left);
+  const right = document.createElement("img");
+  right.src = itemObj.imgRight || src;
+  right.alt = itemObj.name || itemObj.id;
+  right.className = `layer-overlay item-${itemObj.id} layer-right`;
+  right.style.transform = `scale(${itemObj.scale || 1}) translateX(${itemObj.offsetX || 0}px) translateY(${itemObj.offsetY || 0}px)`;
+  right.style.zIndex = String(zBySlot.eyes || 50);
 
-    const right = document.createElement("img");
-    right.src = src;
-    right.alt = itemObj.name || itemObj.id;
-    right.className = `layer-overlay item-${itemObj.id} layer-shoes-right`;
-    right.style.zIndex = String(zBySlot.shoes || 10);
-    overlayHost.appendChild(right);
-    return;
-  }
+  overlayHost.appendChild(left);
+  overlayHost.appendChild(right);
+  return;
+}
 
-  // ✅ ONLY CHANGE FOR EYES
-  if (slot === "eyes") {
-    const leftEye = document.createElement("img");
-    leftEye.src = itemObj.imgLeft || src;
-    leftEye.alt = itemObj.name || itemObj.id;
-    leftEye.className = `layer-overlay item-${itemObj.id} layer-left`;
-    leftEye.style.zIndex = String(zBySlot.eyes || 50);
+if (slot === "shoes") {
+  const left = document.createElement("img");
+  left.src = src;
+  left.alt = itemObj.name || itemObj.id;
+  left.className = `layer-overlay item-${itemObj.id} layer-shoes-left`;
+  left.style.zIndex = String(zBySlot.shoes || 10);
+  left.style.transform = `scale(${itemObj.scale || 1}) translateX(${-Math.abs(itemObj.offsetX || 0)}px) translateY(${itemObj.offsetY || 0}px)`;
+  overlayHost.appendChild(left);
 
-    const rightEye = document.createElement("img");
-    rightEye.src = itemObj.imgRight || src;
-    rightEye.alt = itemObj.name || itemObj.id;
-    rightEye.className = `layer-overlay item-${itemObj.id} layer-right`;
-    rightEye.style.zIndex = String(zBySlot.eyes || 50);
-
+  const right = document.createElement("img");
+  right.src = src;
+  right.alt = itemObj.name || itemObj.id;
+  right.className = `layer-overlay item-${itemObj.id} layer-shoes-right`;
+  right.style.zIndex = String(zBySlot.shoes || 10);
+  right.style.transform = `scale(${itemObj.scale || 1}) translateX(${itemObj.offsetX || 0}px) translateY(${itemObj.offsetY || 0}px)`;
+  overlayHost.appendChild(right);
+  return;
+}
+  
     // Apply offsets and scale from your data.js
     const scale = itemObj.scale || 1;
     const offsetX = itemObj.offsetX || 0;
