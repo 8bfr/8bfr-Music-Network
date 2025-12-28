@@ -277,12 +277,79 @@
   // --- DEFAULT ---
   const img = document.createElement("img");
   img.src = src;
+function addOverlayImg(itemObj) {
+  if (!overlayHost) return;
+
+  const src = pickImgForSkin(itemObj);
+  if (!src) return;
+
+  const slot = itemObj.slot;
+
+  // --- EARS ---
+  if (slot === "ears") {
+    const left = document.createElement("img");
+    left.src = itemObj.imgLeft || src;
+    left.alt = itemObj.name || itemObj.id;
+    left.className = `layer-overlay item-${itemObj.id} layer-left`;
+    left.style.zIndex = String(zBySlot[slot] || 55);
+
+    const right = document.createElement("img");
+    right.src = itemObj.imgRight || src;
+    right.alt = itemObj.name || itemObj.id;
+    right.className = `layer-overlay item-${itemObj.id} layer-right`;
+    right.style.zIndex = String(zBySlot[slot] || 55);
+
+    overlayHost.appendChild(left);
+    overlayHost.appendChild(right);
+    return;
+  }
+
+  // --- EYES ---
+  if (slot === "eyes") {
+    const left = document.createElement("img");
+    left.src = itemObj.imgLeft || src;
+    left.alt = itemObj.name || itemObj.id;
+    left.className = `layer-overlay item-${itemObj.id} layer-left`;
+    left.style.zIndex = String(zBySlot.eyes || 50);
+
+    const right = document.createElement("img");
+    right.src = itemObj.imgRight || src;
+    right.alt = itemObj.name || itemObj.id;
+    right.className = `layer-overlay item-${itemObj.id} layer-right`;
+    right.style.zIndex = String(zBySlot.eyes || 50);
+
+    overlayHost.appendChild(left);
+    overlayHost.appendChild(right);
+    return;
+  }
+
+  // --- SHOES ---
+  if (slot === "shoes") {
+    const left = document.createElement("img");
+    left.src = src;
+    left.alt = itemObj.name || itemObj.id;
+    left.className = `layer-overlay item-${itemObj.id} layer-shoes-left`;
+    left.style.zIndex = String(zBySlot.shoes || 10);
+
+    const right = document.createElement("img");
+    right.src = src;
+    right.alt = itemObj.name || itemObj.id;
+    right.className = `layer-overlay item-${itemObj.id} layer-shoes-right`;
+    right.style.zIndex = String(zBySlot.shoes || 10);
+
+    overlayHost.appendChild(left);
+    overlayHost.appendChild(right);
+    return;
+  }
+
+  // --- DEFAULT (hair, top, bottom, necklace, belly, etc.) ---
+  const img = document.createElement("img");
+  img.src = src;
   img.alt = itemObj.name || itemObj.id;
   img.className = `layer-overlay item-${itemObj.id}`;
   img.style.zIndex = String(zBySlot[slot] || 20);
   overlayHost.appendChild(img);
-  }
-
+}
 
   function renderOverlays(){ clearOverlays(); Object.keys(equipped).forEach(slot=>{ if(equipped[slot]) addOverlayImg(equipped[slot]); }); }
 
