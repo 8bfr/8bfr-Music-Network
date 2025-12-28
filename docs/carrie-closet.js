@@ -283,16 +283,6 @@
   overlayHost.appendChild(img);
   }
 
-  
-
-  // --- DEFAULT ---
-  const img = document.createElement("img");
-  img.src = src;
-  img.alt = itemObj.name || itemObj.id;
-  img.className = `layer-overlay item-${itemObj.id}`;
-  img.style.zIndex = String(zBySlot[slot] || 20);
-  overlayHost.appendChild(img);
-  }
 
   function renderOverlays(){ clearOverlays(); Object.keys(equipped).forEach(slot=>{ if(equipped[slot]) addOverlayImg(equipped[slot]); }); }
 
