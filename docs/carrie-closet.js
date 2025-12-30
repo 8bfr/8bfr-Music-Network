@@ -1,3 +1,6 @@
+
+
+```javascript
 (function () {
   if (window.__CARRIE_CLOSET_ALREADY_RUNNING__) return;
   window.__CARRIE_CLOSET_ALREADY_RUNNING__ = true;
@@ -209,18 +212,18 @@
 
     const slot = itemObj.slot;
 
-    // --- EARS ---
+    // --- EARS (FIXED CLASS NAMES) ---
     if (slot === "ears") {
       const left = document.createElement("img");
       left.src = itemObj.imgLeft || src;
       left.alt = itemObj.name || itemObj.id;
-      left.className = `layer-overlay item-${itemObj.id} layer-left`;
+      left.className = `layer-overlay layer-ears-left item-${itemObj.id}`;
       left.style.zIndex = String(zBySlot[slot] || 55);
 
       const right = document.createElement("img");
       right.src = itemObj.imgRight || src;
       right.alt = itemObj.name || itemObj.id;
-      right.className = `layer-overlay item-${itemObj.id} layer-right`;
+      right.className = `layer-overlay layer-ears-right item-${itemObj.id}`;
       right.style.zIndex = String(zBySlot[slot] || 55);
 
       overlayHost.appendChild(left);
@@ -228,18 +231,18 @@
       return;
     }
 
-    // --- EYES ---
+    // --- EYES (FIXED CLASS NAMES) ---
     if (slot === "eyes") {
       const left = document.createElement("img");
       left.src = itemObj.imgLeft || src;
       left.alt = itemObj.name || itemObj.id;
-      left.className = `layer-overlay item-${itemObj.id} layer-left`;
+      left.className = `layer-overlay layer-eyes-left item-${itemObj.id}`;
       left.style.zIndex = String(zBySlot.eyes || 50);
 
       const right = document.createElement("img");
       right.src = itemObj.imgRight || src;
       right.alt = itemObj.name || itemObj.id;
-      right.className = `layer-overlay item-${itemObj.id} layer-right`;
+      right.className = `layer-overlay layer-eyes-right item-${itemObj.id}`;
       right.style.zIndex = String(zBySlot.eyes || 50);
 
       overlayHost.appendChild(left);
@@ -252,13 +255,13 @@
       const left = document.createElement("img");
       left.src = src;
       left.alt = itemObj.name || itemObj.id;
-      left.className = `layer-overlay item-${itemObj.id} layer-shoes-left`;
+      left.className = `layer-overlay layer-shoes-left item-${itemObj.id}`;
       left.style.zIndex = String(zBySlot.shoes || 10);
 
       const right = document.createElement("img");
       right.src = src;
       right.alt = itemObj.name || itemObj.id;
-      right.className = `layer-overlay item-${itemObj.id} layer-shoes-right`;
+      right.className = `layer-overlay layer-shoes-right item-${itemObj.id}`;
       right.style.zIndex = String(zBySlot.shoes || 10);
 
       overlayHost.appendChild(left);
@@ -319,3 +322,4 @@
 
   document.addEventListener("DOMContentLoaded", bootWhenReady);
 })();
+
