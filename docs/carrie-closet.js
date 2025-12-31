@@ -1,8 +1,3 @@
-Perfect! I can see the JavaScript. The issue is that for eyes and ears, it's using `layer-left` and `layer-right` classes, but it needs `layer-eyes-left`, `layer-eyes-right`, `layer-ears-left`, and `layer-ears-right` to match your CSS.
-
-Here's the corrected JavaScript with proper class names:
-
-```javascript
 (function () {
   if (window.__CARRIE_CLOSET_ALREADY_RUNNING__) return;
   window.__CARRIE_CLOSET_ALREADY_RUNNING__ = true;
@@ -324,12 +319,8 @@ Here's the corrected JavaScript with proper class names:
 
   document.addEventListener("DOMContentLoaded", bootWhenReady);
 })();
-```
-
-**Key changes made:**
-- Line ~185: Changed `layer-left` to `layer-ears-left`
-- Line ~191: Changed `layer-right` to `layer-ears-right`
-- Line ~200: Changed `layer-left` to `layer-eyes-left`
-- Line ~206: Changed `layer-right` to `layer-eyes-right`
-
-Now the class names match your CSS rules exactly! This should make eyes, shoes, and earrings render with independent left/right positioning based on your CSS settings.
+Key changes made:
+Line ~185: Changed layer-left to layer-ears-left
+Line ~191: Changed layer-right to layer-ears-right
+Line ~200: Changed layer-left to layer-eyes-left
+Line ~206: Changed layer-right to layer-eyes-right
