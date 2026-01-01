@@ -1,175 +1,400 @@
+Ah! Got it — this is a huge single-page HTML. We need to split it into sections so nothing gets cut off. Let’s do it in parts. I’ll give you Section 1 first (up through the main HTML and preview), then subsequent sections will cover items, overlay logic, and the script.
+
+
+---
+
+Section 1: HTML & Base Layout + CSS
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Carrie Closet</title>
+<script src="https://cdn.tailwindcss.com"></script>
 <style>
-/* ===================== WORKING STYLE ===================== */
-body {
-  margin:0;
-  font-family:system-ui;
-  overflow-x:hidden;
-  background:#000;
-  color:#eae6ff;
-}
-#closetPreviewFrame {
-  width:100%;
-  max-width:480px;
-  height:800px;
-  margin:0 auto;
-  position:relative;
-  background:#111;
-  border:1px solid #555;
-  border-radius:20px;
-  overflow:hidden;
-}
-#closetBaseImg {
-  position:absolute;
-  top:0;
-  left:50%;
-  transform:translateX(-50%);
-  height:100%;
-}
-#closetOverlayHost {
-  position:absolute;
-  inset:0;
-  pointer-events:none;
-  z-index:2;
-}
-.layer-overlay {
-  position:absolute;
-  inset:0;
-  transform:scale(1) translate(0,0);
-  pointer-events:none;
-}
-.closet-item-card {
-  display:flex;
-  align-items:center;
-  gap:0.5rem;
-  padding:0.5rem;
-  border:1px solid #666;
-  border-radius:12px;
-  cursor:pointer;
-  transition:0.1s;
-}
-.closet-item-card:hover {
-  border-color:#a855f7;
-  box-shadow:0 0 10px #a855f7;
-}
-.closet-item-card.active {
-  border-color:#22c55e;
-  box-shadow:0 0 10px #22c55e;
-}
-.closet-item-thumb {
-  width:44px;
-  height:44px;
-  border-radius:10px;
-  background:#020617;
-  overflow:hidden;
-  flex-shrink:0;
-}
-.closet-item-thumb img {
-  width:100%;
-  height:100%;
-  object-fit:contain;
-}
-#closetItemsGrid {
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
-  gap:0.5rem;
-  padding:0.5rem;
-  max-width:480px;
-  margin:1rem auto;
-}
-/* ======================================================= */
+:root{--ring:rgba(124,58,237,.55);--glass:rgba(12,6,24,.80)}
+html,body{scroll-behavior:smooth}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial,sans-serif;
+background:radial-gradient(1200px 600px at 10% -10%,rgba(124,58,237,.30),transparent 60%),
+radial-gradient(900px 400px at 110% 10%,rgba(0,217,255,.22),transparent 60%),
+linear-gradient(#050011,#000);color:#eae6ff;margin:0;min-height:100vh;overflow-x:hidden}
+header{position:relative;z-index:5;background:rgba(10,0,25,.96);border-bottom:1px solid rgba(124,58,237,.5);box-shadow:0 18px 40px rgba(0,0,0,.7)}
+.shell{border-radius:20px;border:1px solid rgba(129,140,248,.6);
+background:radial-gradient(circle at 0 0,rgba(76,29,149,.40),transparent 60%),
+radial-gradient(circle at 100% 0,rgba(14,165,233,.22),transparent 60%),rgba(10,6,30,.96);box-shadow:0 18px 50px rgba(0,0,0,.8)}
+#closetPreviewFrame{width:100%;max-width:1100px;margin:0 auto;border-radius:18px;border:1px solid rgba(148,163,255,0.55);
+overflow:hidden;height:800px;display:flex;align-items:center;justify-content:center;
+background-image:url("assets/images/closet/dressingroom.png?v=15");background-size:cover;
+background-position:center;background-repeat:no-repeat;position:relative}
+#closetPreviewInner{position:relative;width:100%;max-width:480px;height:100%;transform:translateY(30px)}
+#closetBaseImg{position:absolute;inset:0;height:100%;width:auto;object-fit:cover;display:block;z-index:1;
+left:50%;transform:translateX(-50%);filter:drop-shadow(0 0 3px #000)}
+body[data-gender="female"][data-skin="light"]{--base-width:.89;--base-height:.99}
+body[data-gender="female"][data-skin="dark"]{--base-width:.63;--base-height:.96}
+body[data-gender="male"][data-skin="light"]{--base-width:1.00;--base-height:1.00}
+body[data-gender="male"][data-skin="dark"]{--base-width:0.96;--base-height:1.00}
+body[data-skin] #closetBaseImg{transform:translateX(-50%) scaleX(var(--base-width,1)) scaleY(var(--base-height,1))}
+#closetOverlayHost img{filter:drop-shadow(0 0 2px #000)}
+#closetOverlayHost{position:absolute;inset:0;pointer-events:none;z-index:2}
+.layer-overlay{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;image-rendering:auto;
+--scale:1;--offset-x:0%;--offset-y:0%;transform:scale(var(--scale)) translateX(var(--offset-x)) translateY(var(--offset-y))}
+/* UI Tags, Buttons, Cards */
+.pill-tag{display:inline-flex;align-items:center;gap:.25rem;font-size:.7rem;border-radius:999px;padding:.15rem .6rem;
+border:1px solid rgba(129,140,248,.85);background:rgba(15,23,42,.9);text-transform:uppercase;letter-spacing:.08em}
+.seg-btn{font-size:11px;padding:4px 10px;border-radius:999px;border:1px solid rgba(148,163,255,.45);background:rgba(15,23,42,.85);cursor:pointer;color:#e5e7eb;transition:all .12s ease}
+.seg-btn.active{border-color:#a855f7;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;box-shadow:0 0 0 1px rgba(129,140,248,.7),0 0 16px rgba(168,85,247,.65)}
+.tab-btn{font-size:11px;padding:4px 10px;border-radius:999px;border:1px solid rgba(148,163,255,.35);background:rgba(15,23,42,.8);cursor:pointer;color:#e5e7eb;transition:all .12s ease;white-space:nowrap}
+.tab-btn.active{border-color:#38bdf8;background:radial-gradient(circle at 0 0,#38bdf8,#6366f1);color:#0f172a}
+/* Correct eyes values for female dark skin */
+body[data-gender="female"][data-skin="dark"] .layer-overlay.item-u_eyes_blue.layer-left{transform-origin:center top;--scale:0.28;--offset-x:-18%;--offset-y:-18%}
+body[data-gender="female"][data-skin="dark"] .layer-overlay.item-u_eyes_blue.layer-right{transform-origin:center top;--scale:0.28;--offset-x:18%;--offset-y:-18%}
+body[data-gender="female"][data-skin="dark"] .layer-overlay.item-u_eyes_green.layer-left{transform-origin:center top;--scale:0.28;--offset-x:-18%;--offset-y:-18%}
+body[data-gender="female"][data-skin="dark"] .layer-overlay.item-u_eyes_green.layer-right{transform-origin:center top;--scale:0.28;--offset-x:18%;--offset-y:-18%}
+body[data-gender="female"][data-skin="dark"] .layer-overlay.item-u_eyes_brown.layer-left{transform-origin:center top;--scale:0.28;--offset-x:-18%;--offset-y:-18%}
+body[data-gender="female"][data-skin="dark"] .layer-overlay.item-u_eyes_brown.layer-right{transform-origin:center top;--scale:0.28;--offset-x:18%;--offset-y:-18%}
 </style>
 </head>
 <body data-gender="female" data-skin="light">
-<h1 style="text-align:center;">Carrie Closet</h1>
-<div id="closetPreviewFrame">
-  <img id="closetBaseImg" src="assets/images/base/female/base_female_light.png" alt="Base avatar">
-  <div id="closetOverlayHost"></div>
+
+<header class="px-4 py-4">
+<div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
+<div class="flex items-center gap-3">
+<h1 class="text-xl sm:text-2xl font-extrabold">
+<span class="text-[#a855f7]">Carrie Closet</span>
+<span class="text-xs sm:text-sm font-semibold align-middle ml-1 text-emerald-300/80">beta</span>
+</h1>
+<p class="text-[11px] text-purple-300/80 -mt-0.5">Dress your AI avatar</p>
+</div>
+</div>
+</header>
+
+<main class="max-w-6xl mx-auto px-4 pb-10 pt-5">
+<div class="shell p-4 sm:p-5 lg:p-6">
+<div class="flex flex-col lg:flex-row gap-6 lg:gap-8">
+
+<section class="lg:w-[60%] space-y-4">
+<div class="flex items-center justify-between gap-2">
+<div class="flex flex-wrap items-center gap-2">
+<span class="pill-tag text-[10px]">🧬 Avatar Preview</span>
+<span id="closetPreviewLabel" class="text-[11px] text-purple-200/80">Female • Light skin</span>
+</div>
 </div>
 
-<div id="closetItemsGrid"></div>
+<div id="closetPreviewFrame">
+<div id="closetPreviewInner">
+<img id="closetBaseImg" src="assets/images/base/female/base_female_light.png?v=15" alt="Avatar base">
+<div id="closetOverlayHost"></div>
+</div>
+</div>
+
+
+---
+Perfect! Here’s Section 2: Controls, Tabs, and Closet Items Grid. This continues from where Section 1 left off:
+
+
+---
+
+Section 2: Sidebar Controls & Tabs
+
+<div class="space-y-3 mt-2">
+  <!-- Gender Selection -->
+  <div>
+    <div class="flex items-center gap-2 mb-1">
+      <span class="uppercase tracking-[0.16em] text-[9px] text-purple-200/75">Gender</span>
+    </div>
+    <div class="flex gap-2">
+      <button type="button" class="seg-btn active" data-gender="female">♀ Female</button>
+      <button type="button" class="seg-btn" data-gender="male">♂ Male</button>
+    </div>
+  </div>
+
+  <!-- Skin Tone Selection -->
+  <div>
+    <div class="flex items-center gap-2 mb-1">
+      <span class="uppercase tracking-[0.16em] text-[9px] text-purple-200/75">Skin tone</span>
+    </div>
+    <div id="skinToneButtons" class="flex flex-wrap gap-2"></div>
+  </div>
+</div>
+</section>
+
+<!-- Closet Items Section -->
+<section class="lg:flex-1 space-y-3">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+    <div class="flex flex-wrap items-center gap-2">
+      <span class="pill-tag text-[10px]">🛒 Closet Items</span>
+      <span id="closetGenderLabel" class="text-[11px] text-purple-200/85">Showing items for <b>Female</b> avatar</span>
+    </div>
+  </div>
+
+  <!-- Category Tabs -->
+  <div class="flex flex-wrap gap-2 mt-1">
+    <button type="button" class="tab-btn active" data-cat="hair">Hair</button>
+    <button type="button" class="tab-btn" data-cat="top">Tops</button>
+    <button type="button" class="tab-btn" data-cat="bottom">Bottoms</button>
+    <button type="button" class="tab-btn" data-cat="jewelry">Jewelry</button>
+    <button type="button" class="tab-btn" data-cat="eyes">Eyes</button>
+    <button type="button" class="tab-btn" data-cat="shoes">Shoes</button>
+    <button type="button" class="tab-btn" data-cat="all">All</button>
+  </div>
+
+  <!-- Messages -->
+  <div id="closetError" class="hidden mt-2 text-red-50 text-[11px]">Data failed to load</div>
+  <div id="closetEmpty" class="hidden mt-2 text-purple-100/90 text-[11px]">No items yet</div>
+
+  <!-- Items Grid -->
+  <div id="closetItemsGrid" class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5"></div>
+</section>
+
+</div> <!-- end flex row -->
+</div> <!-- end shell -->
+</main>
+
+
+---
+Perfect! Here’s Section 3: Full JavaScript for Closet Functionality, continuing from Section 2. This includes all logic for items, overlays, tabs, gender/skin switching, and eyes handling.
+
+
+---
+
+Section 3: JavaScript
+
 <script>
-const closetItems = [
-  // =================== HAIR ===================
-  { id:'hair1', category:'hair', gender:'female', skin:'light', img:'assets/images/hair/female/hair1_light.png', x:0, y:0, width:100, height:100 },
-  { id:'hair2', category:'hair', gender:'female', skin:'dark', img:'assets/images/hair/female/hair2_dark.png', x:0, y:0, width:100, height:100 },
-  { id:'hair3', category:'hair', gender:'male', skin:'light', img:'assets/images/hair/male/hair3_light.png', x:0, y:0, width:100, height:100 },
-  { id:'hair4', category:'hair', gender:'male', skin:'dark', img:'assets/images/hair/male/hair4_dark.png', x:0, y:0, width:100, height:100 },
+(function(){
+  const base="assets/images";
 
-  // =================== EYES ===================
-  { id:'eyeLeft1', category:'eyes', side:'left', gender:'female', skin:'light', img:'assets/images/eyes/female/eyeLeft1_light.png', x:50, y:80, width:20, height:20 },
-  { id:'eyeRight1', category:'eyes', side:'right', gender:'female', skin:'light', img:'assets/images/eyes/female/eyeRight1_light.png', x:100, y:80, width:20, height:20 },
-  { id:'eyeLeft2', category:'eyes', side:'left', gender:'female', skin:'dark', img:'assets/images/eyes/female/eyeLeft2_dark.png', x:50, y:80, width:20, height:20 },
-  { id:'eyeRight2', category:'eyes', side:'right', gender:'female', skin:'dark', img:'assets/images/eyes/female/eyeRight2_dark.png', x:100, y:80, width:20, height:20 },
+  // Helper to create closet item object
+  function item(opts){
+    return Object.assign({
+      id:"",
+      gender:"female",
+      category:"hair",
+      cat:"hair",
+      slot:"hair",
+      name:"",
+      label:"",
+      coins:0,
+      img:"",
+      imgLeft:"",
+      imgRight:""
+    }, opts);
+  }
 
-  { id:'eyeLeft3', category:'eyes', side:'left', gender:'male', skin:'light', img:'assets/images/eyes/male/eyeLeft3_light.png', x:50, y:80, width:20, height:20 },
-  { id:'eyeRight3', category:'eyes', side:'right', gender:'male', skin:'light', img:'assets/images/eyes/male/eyeRight3_light.png', x:100, y:80, width:20, height:20 },
-  { id:'eyeLeft4', category:'eyes', side:'left', gender:'male', skin:'dark', img:'assets/images/eyes/male/eyeLeft4_dark.png', x:50, y:80, width:20, height:20 },
-  { id:'eyeRight4', category:'eyes', side:'right', gender:'male', skin:'dark', img:'assets/images/eyes/male/eyeRight4_dark.png', x:100, y:80, width:20, height:20 },
+  // Closet items
+  const items = [
+    item({id:"f_hair_straight_blonde",gender:"female",category:"hair",cat:"hair",slot:"hair",name:"Straight Blonde",label:"straight • blonde",coins:20,img:base+"/hair/straight/female_straight_blonde.png"}),
+    item({id:"f_hair_straight_brown",gender:"female",category:"hair",cat:"hair",slot:"hair",name:"Straight Brown",label:"straight • brown",coins:15,img:base+"/hair/straight/female_straight_brown.png"}),
+    item({id:"u_top_tank",gender:"unisex",category:"top",cat:"top",slot:"top",name:"8BFR Tank",label:"unisex tank",coins:15,img:base+"/unisex/cloths/unisex_tank-top_v1.png"}),
+    item({id:"u_top_tee",gender:"unisex",category:"top",cat:"top",slot:"top",name:"8BFR Tee",label:"unisex tee",coins:15,img:base+"/unisex/cloths/unisex_tee-shirt.png"}),
+    item({id:"f_bottom_shorts",gender:"female",category:"bottom",cat:"bottom",slot:"bottom",name:"Shorts",label:"shorts",coins:15,img:base+"/female_cloths/female_shorts.png"}),
+    item({id:"f_jewel_necklace",gender:"female",category:"jewelry",cat:"jewelry",slot:"necklace",name:"Necklace",label:"necklace",coins:20,img:base+"/female_jewlery/female_gold_necklace.png"}),
 
-  // =================== SHOES ===================
-  { id:'shoe1', category:'shoes', gender:'female', skin:'light', img:'assets/images/shoes/female/shoe1_light.png', x:60, y:400, width:80, height:40 },
-  { id:'shoe2', category:'shoes', gender:'female', skin:'dark', img:'assets/images/shoes/female/shoe2_dark.png', x:60, y:400, width:80, height:40 },
-  { id:'shoe3', category:'shoes', gender:'male', skin:'light', img:'assets/images/shoes/male/shoe3_light.png', x:60, y:400, width:80, height:40 },
-  { id:'shoe4', category:'shoes', gender:'male', skin:'dark', img:'assets/images/shoes/male/shoe4_dark.png', x:60, y:400, width:80, height:40 },
+    // Eyes (with correct offsets/scales for female dark skin)
+    item({id:"u_eyes_blue",gender:"unisex",category:"eyes",cat:"eyes",slot:"eyes",name:"Blue Eyes",label:"blue",coins:10,img:base+"/unisex/eyes/unisex_eyes_blue_left.png",imgLeft:base+"/unisex/eyes/unisex_eyes_blue_left.png",imgRight:base+"/unisex/eyes/unisex_eyes_blue_right.png"}),
+    item({id:"u_eyes_green",gender:"unisex",category:"eyes",cat:"eyes",slot:"eyes",name:"Green Eyes",label:"green",coins:10,img:base+"/unisex/eyes/unisex_eyes_green_left.png",imgLeft:base+"/unisex/eyes/unisex_eyes_green_left.png",imgRight:base+"/unisex/eyes/unisex_eyes_green_right.png"}),
+    item({id:"u_eyes_brown",gender:"unisex",category:"eyes",cat:"eyes",slot:"eyes",name:"Brown Eyes",label:"brown",coins:10,img:base+"/unisex/eyes/unisex_eyes_brown_left.png",imgLeft:base+"/unisex/eyes/unisex_eyes_brown_left.png",imgRight:base+"/unisex/eyes/unisex_eyes_brown_right.png"}),
 
-  // =================== EARRINGS ===================
-  { id:'earLeft1', category:'earrings', side:'left', gender:'female', skin:'light', img:'assets/images/earrings/female/earLeft1_light.png', x:40, y:100, width:12, height:20 },
-  { id:'earRight1', category:'earrings', side:'right', gender:'female', skin:'light', img:'assets/images/earrings/female/earRight1_light.png', x:110, y:100, width:12, height:20 },
-  { id:'earLeft2', category:'earrings', side:'left', gender:'female', skin:'dark', img:'assets/images/earrings/female/earLeft2_dark.png', x:40, y:100, width:12, height:20 },
-  { id:'earRight2', category:'earrings', side:'right', gender:'female', skin:'dark', img:'assets/images/earrings/female/earRight2_dark.png', x:110, y:100, width:12, height:20 },
+    item({id:"u_shoes_sneakers",gender:"unisex",category:"shoes",cat:"shoes",slot:"shoes",name:"Sneakers",label:"shoes",coins:14,img:base+"/unisex/shoes/unisex_shoes_left.png"})
+  ];
 
-  { id:'earLeft3', category:'earrings', side:'left', gender:'male', skin:'light', img:'assets/images/earrings/male/earLeft3_light.png', x:40, y:100, width:12, height:20 },
-  { id:'earRight3', category:'earrings', side:'right', gender:'male', skin:'light', img:'assets/images/earrings/male/earRight3_light.png', x:110, y:100, width:12, height:20 },
-  { id:'earLeft4', category:'earrings', side:'left', gender:'male', skin:'dark', img:'assets/images/earrings/male/earLeft4_dark.png', x:40, y:100, width:12, height:20 },
-  { id:'earRight4', category:'earrings', side:'right', gender:'male', skin:'dark', img:'assets/images/earrings/male/earRight4_dark.png', x:110, y:100, width:12, height:20 },
+  window.CARRIE_CLOSET_ITEMS = items;
 
-  // =================== OUTFITS (example) ===================
-  { id:'dress1', category:'outfit', gender:'female', skin:'light', img:'assets/images/outfits/female/dress1_light.png', x:20, y:140, width:140, height:220 },
-  { id:'dress2', category:'outfit', gender:'female', skin:'dark', img:'assets/images/outfits/female/dress2_dark.png', x:20, y:140, width:140, height:220 },
-  { id:'suit1', category:'outfit', gender:'male', skin:'light', img:'assets/images/outfits/male/suit1_light.png', x:20, y:140, width:140, height:220 },
-  { id:'suit2', category:'outfit', gender:'male', skin:'dark', img:'assets/images/outfits/male/suit2_dark.png', x:20, y:140, width:140, height:220 }
-];
+  // DOM shortcuts
+  const $ = s => document.querySelector(s);
+  const $$ = s => Array.from(document.querySelectorAll(s));
 
-// =================== RENDER FUNCTION ===================
-const closetGrid = document.getElementById('closetItemsGrid');
-closetItems.forEach(item => {
-  const card = document.createElement('div');
-  card.className = 'closet-item-card';
-  card.dataset.id = item.id;
-  card.dataset.category = item.category;
-  const thumb = document.createElement('div');
-  thumb.className = 'closet-item-thumb';
-  const img = document.createElement('img');
-  img.src = item.img;
-  thumb.appendChild(img);
-  card.appendChild(thumb);
-  card.appendChild(document.createTextNode(item.id));
-  closetGrid.appendChild(card);
+  const grid = $("#closetItemsGrid"),
+        emptyMsg = $("#closetEmpty"),
+        errBox = $("#closetError"),
+        overlayHost = $("#closetOverlayHost"),
+        previewLabel = $("#closetPreviewLabel"),
+        closetGenderLabel = $("#closetGenderLabel"),
+        skinToneButtons = $("#skinToneButtons");
 
-  // click event
-  card.addEventListener('click', () => {
-    const overlayHost = document.getElementById('closetOverlayHost');
-    // remove previous same category
-    const existing = overlayHost.querySelectorAll(`img[data-category='${item.category}']`);
-    existing.forEach(e => e.remove());
-    // add new
-    const overlayImg = document.createElement('img');
-    overlayImg.src = item.img;
-    overlayImg.style.position = 'absolute';
-    overlayImg.style.left = item.x + 'px';
-    overlayImg.style.top = item.y + 'px';
-    overlayImg.style.width = item.width + 'px';
-    overlayImg.style.height = item.height + 'px';
-    overlayImg.dataset.category = item.category;
-    overlayHost.appendChild(overlayImg);
-  });
-});
-   </script>
-   </body>
+  let currentGender = "female",
+      currentSkin = "light",
+      currentCat = "hair";
+
+  const equippedSets = {
+    female: { hair:null, top:null, bottom:null, eyes:null, shoes:null, necklace:null, ears:null, belly:null },
+    male: { hair:null, top:null, bottom:null, eyes:null, shoes:null, necklace:null, ears:null, belly:null }
+  };
+
+  let equipped = equippedSets.female;
+
+  const zBySlot = { shoes:10, bottom:30, belly:35, top:40, necklace:45, eyes:50, ears:55, hair:60 };
+
+  // Utilities
+  function safeItems() { const items = window.CARRIE_CLOSET_ITEMS; return Array.isArray(items) ? items : null; }
+  function setBaseImage() { const baseImg=$("#closetBaseImg"); if(baseImg) baseImg.src=`assets/images/base/${currentGender}/base_${currentGender}_${currentSkin}.png?v=15`; }
+  function updateLabels() {
+    const gLabel = currentGender==="female"?"Female":"Male";
+    const sLabel = currentSkin==="light"?"Light skin":"Dark skin";
+    if(previewLabel) previewLabel.textContent=`${gLabel} • ${sLabel}`;
+    if(closetGenderLabel) closetGenderLabel.innerHTML=`Showing items for <b>${gLabel}</b> avatar`;
+  }
+
+  function buildSkinButtons(){
+    if(!skinToneButtons) return;
+    skinToneButtons.innerHTML="";
+    const skins=[{key:"light",label:"☀️ Light"},{key:"dark",label:"🌙 Dark"}];
+    skins.forEach(s=>{
+      const btn = document.createElement("button");
+      btn.type="button";
+      btn.className="seg-btn"+(currentSkin===s.key?" active":"");
+      btn.textContent=s.label;
+      btn.dataset.skin=s.key;
+      btn.addEventListener("click",()=>{
+        currentSkin = s.key;
+        document.body.dataset.skin = currentSkin;
+        $$("#skinToneButtons .seg-btn").forEach(b=>b.classList.remove("active"));
+        btn.classList.add("active");
+        setBaseImage();
+        updateLabels();
+        renderOverlays();
+      });
+      skinToneButtons.appendChild(btn);
+    });
+  }
+
+  function filterItems(items){ 
+    return items.filter(it=>{
+      const gOK = it.gender==="unisex" || it.gender===currentGender;
+      if(!gOK) return false;
+      if(currentCat==="all") return true;
+      return it.category===currentCat || it.cat===currentCat;
+    });
+  }
+
+  function cardForItem(itemObj){
+    const card = document.createElement("div");
+    card.className="closet-item-card";
+
+    const thumbWrap = document.createElement("div");
+    thumbWrap.className="closet-item-thumb";
+    const t = document.createElement("img");
+    t.src=itemObj.img; t.alt=itemObj.name||itemObj.id;
+    thumbWrap.appendChild(t);
+
+    const meta = document.createElement("div"); meta.className="min-w-0";
+    const title = document.createElement("div"); title.className="text-[12px] font-semibold truncate";
+    title.textContent = itemObj.name || itemObj.id;
+    const sub = document.createElement("div"); sub.className="text-[10px] text-purple-200/70 truncate";
+    sub.textContent = itemObj.label || itemObj.category;
+    meta.appendChild(title); meta.appendChild(sub);
+
+    card.appendChild(thumbWrap);
+    card.appendChild(meta);
+
+    const slot = itemObj.slot;
+    const isOn = equipped[slot] && equipped[slot].id===itemObj.id;
+    if(isOn) card.classList.add("active");
+
+    card.addEventListener("click",()=>{
+      if(equipped[slot] && equipped[slot].id===itemObj.id){
+        equipped[slot] = null;
+      } else {
+        equipped[slot] = itemObj;
+      }
+      renderItems();
+      renderOverlays();
+    });
+
+    return card;
+  }
+
+  function renderItems(){
+    const items=safeItems();
+    if(!items || !grid){ if(errBox) errBox.classList.remove("hidden"); return; }
+    const list = filterItems(items);
+    grid.innerHTML="";
+    if(list.length===0){ if(emptyMsg) emptyMsg.classList.remove("hidden"); }
+    else { if(emptyMsg) emptyMsg.classList.add("hidden"); list.forEach(it=>grid.appendChild(cardForItem(it))); }
+  }
+
+  function clearOverlays(){ if(!overlayHost) return; overlayHost.innerHTML=""; }
+
+  function addOverlayImg(itemObj){
+    if(!overlayHost || !itemObj) return;
+    const slot = itemObj.slot;
+    if(slot==="eyes"){
+      const left=document.createElement("img"); left.src=itemObj.imgLeft||itemObj.img;
+      left.className=`layer-overlay layer-left item-${itemObj.id}`; left.style.zIndex = zBySlot.eyes;
+      const right=document.createElement("img"); right.src=itemObj.imgRight||itemObj.img;
+      right.className=`layer-overlay layer-right item-${itemObj.id}`; right.style.zIndex = zBySlot.eyes;
+      overlayHost.appendChild(left); overlayHost.appendChild(right);
+      return;
+    }
+    const img=document.createElement("img"); img.src=itemObj.img;
+    img.className=`layer-overlay item-${itemObj.id}`; img.style.zIndex = zBySlot[slot]||20;
+    overlayHost.appendChild(img);
+  }
+
+  function renderOverlays(){
+    clearOverlays();
+    Object.keys(equipped).forEach(slot=>{
+      if(equipped[slot]) addOverlayImg(equipped[slot]);
+    });
+  }
+
+  // Tabs
+  function initTabs(){
+    $$(".tab-btn").forEach(btn=>{
+      btn.addEventListener("click",()=>{
+        $$(".tab-btn").forEach(b=>b.classList.remove("active"));
+        btn.classList.add("active");
+        currentCat = btn.dataset.cat || "hair";
+        renderItems();
+      });
+    });
+  }
+
+  // Gender buttons
+  function initGenderButtons(){
+    $$(".seg-btn[data-gender]").forEach(btn=>{
+      btn.addEventListener("click",()=>{
+        $$(".seg-btn[data-gender]").forEach(b=>b.classList.remove("active"));
+        btn.classList.add("active");
+        currentGender = btn.dataset.gender==="male"?"male":"female";
+        document.body.dataset.gender = currentGender;
+        equipped = equippedSets[currentGender];
+        setBaseImage();
+        updateLabels();
+        renderItems();
+        renderOverlays();
+      });
+    });
+  }
+
+  function init(){
+    const items=safeItems();
+    if(!items){ if(errBox) errBox.classList.remove("hidden"); return; }
+    if(errBox) errBox.classList.add("hidden");
+
+    document.body.dataset.gender = currentGender;
+    document.body.dataset.skin = currentSkin;
+
+    initTabs();
+    initGenderButtons();
+    buildSkinButtons();
+    setBaseImage();
+    updateLabels();
+    renderItems();
+    renderOverlays();
+  }
+
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',init); }
+  else{ init(); }
+})();
+</script>
+
+
+---
+
+<!-- End of main content -->
+
+  <!-- Optionally, you can add any footer scripts here -->
+
+</body>
 </html>
