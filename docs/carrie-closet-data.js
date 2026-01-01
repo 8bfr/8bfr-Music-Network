@@ -368,6 +368,7 @@
       offsetY: -4
     }),
 
+    /* ✅ FIXED: bikini bottom was breaking the file */
     item({
       id: "f_bottom_bikini_red",
       gender: "female",
@@ -377,8 +378,14 @@
       name: "Red Bikini Bottom",
       label: "bikini bottom • red",
       coins: 12,
+
+      // LIGHT image
       img: base + "/female_cloths/female_bikini-bottom_redv2.png",
+
+      // DARK image (used by carrie-closet.js only when skin=dark)
       imgDark: base + "/female_cloths/female_bikini-bottom_red_dark.png",
+
+      // keep your defaults (unchanged)
       scale: 1,
       offsetX: 0,
       offsetY: 0
@@ -395,12 +402,26 @@
       label: "necklace",
       coins: 20,
       img: base + "/female_jewlery/female_gold_necklace.png",
-      imgDark: base + "/female_jewlery/female_gold_necklace_dark.png",
       scale: 0.82,
       offsetX: 0,
       offsetY: 8
     }),
 
+    // ---- JEWELRY – FEMALE  Dark----
+    item({
+      id: "f_jewel_necklace",
+      gender: "female",
+      category: "jewelry",
+      cat: "jewelry",
+      slot: "necklace",
+      name: "Gold Necklace",
+      label: "necklace",
+      coins: 20,
+      img: base + "/female_jewlery/female_gold_necklace_dark.png",
+      scale: 0.82,
+      offsetX: 0,
+      offsetY: 8
+    }),
     item({
       id: "f_jewel_belly",
       gender: "female",
@@ -415,7 +436,6 @@
       offsetX: 0,
       offsetY: -6
     }),
-
     item({
       id: "f_jewel_ears",
       gender: "female",
@@ -425,12 +445,29 @@
       name: "Gold Earrings",
       label: "ear rings",
       coins: 18,
-      img: base + "/female_jewlery/female_gold_ear-ring_left.png",
-      imgLeft: base + "/female_jewlery/female_gold_ear-ring_left.png",
-      imgRight: base + "/female_jewlery/female_gold_ear-ring_right.png",
+      srcBase: base + "/female_jewlery/female_gold_ear-ring",
       scale: 0.85,
       offsetX: 0,
       offsetY: -8
+    }),
+
+
+   
+
+    // ---- JEWELRY – MALE ----
+    item({
+      id: "m_jewel_necklace",
+      gender: "male",
+      category: "jewelry",
+      cat: "jewelry",
+      slot: "necklace",
+      name: "Gold Chain",
+      label: "male necklace",
+      coins: 20,
+      img: base + "/male_jewlery/male_gold_necklace.png",
+      scale: 0.85,
+      offsetX: 0,
+      offsetY: 10
     }),
 
     // ---- EYES (unisex) ----
@@ -443,7 +480,7 @@
       name: "Blue Eyes",
       label: "blue",
       coins: 10,
-      img: base + "/unisex/eyes/unisex_eyes_blue_left.png",
+      img: base + "/unisex/eyes/unisex_eyes_blue_left",
       scale: 0.28,
       offsetX: 0,
       offsetY: -18
@@ -457,7 +494,7 @@
       name: "Green Eyes",
       label: "green",
       coins: 10,
-      img: base + "/unisex/eyes/unisex_eyes_green_left.png",
+      img: base + "/unisex/eyes/unisex_eyes_green_left",
       scale: 0.28,
       offsetX: 0,
       offsetY: -18
@@ -471,7 +508,7 @@
       name: "Brown Eyes",
       label: "brown",
       coins: 10,
-      img: base + "/unisex/eyes/unisex_eyes_brown_left.png",
+      img: base + "/unisex/eyes/unisex_eyes_brown_left",
       scale: 0.28,
       offsetX: 0,
       offsetY: -18
@@ -487,7 +524,7 @@
       name: "Sneakers",
       label: "unisex shoes",
       coins: 14,
-      img: base + "/unisex/shoes/unisex_shoes_left.png",
+      img: base + "/unisex/shoes/unisex_shoes_left",
       scale: 1,
       offsetX: 0,
       offsetY: 0
