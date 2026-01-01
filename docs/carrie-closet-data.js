@@ -1,25 +1,29 @@
-// carrie-closet-data.js
-// Static closet catalog using your actual image paths / names.
 
+
+**carrie-closet-data.js** (Complete rewrite to match HTML expectations):
+
+```javascript
+// carrie-closet-data.js
 (function () {
   const base = "assets/images";
 
-  // Helper to build item objects with defaults
   function item(opts) {
     return Object.assign(
       {
         id: "",
-        gender: "female",      // "female" | "male" | "unisex"
-        category: "hair",      // UI category: hair/top/bottom/jewelry/eyes/shoes
-        cat: "hair",           // alias for older/newer JS
-        slot: "hair",          // overlay slot: hair/top/bottom/eyes/shoes/necklace/ears/belly
+        gender: "female",
+        category: "hair",
+        cat: "hair",
+        slot: "hair",
         name: "",
         label: "",
         coins: 0,
         rarity: "common",
         img: "",
         thumb: "",
-        // per-item transform defaults (optional, for future logic)
+        imgLeft: "",
+        imgRight: "",
+        imgDark: "",
         scale: 1,
         offsetX: 0,
         offsetY: 0
@@ -29,7 +33,7 @@
   }
 
   const items = [
-    // ---- FEMALE HAIR – STRAIGHT ----
+    // FEMALE HAIR – STRAIGHT
     item({
       id: "f_hair_straight_blonde",
       gender: "female",
@@ -162,7 +166,7 @@
       offsetY: -4
     }),
 
-    // ---- FEMALE HAIR – WAVY ----
+    // FEMALE HAIR – WAVY
     item({
       id: "f_hair_wavy_blonde",
       gender: "female",
@@ -294,7 +298,7 @@
       offsetY: -3
     }),
 
-    // ---- TOPS (unisex tank + tee + red bikini top) ----
+    // TOPS
     item({
       id: "u_top_tank",
       gender: "unisex",
@@ -338,7 +342,7 @@
       offsetY: 6
     }),
 
-    // ---- BOTTOMS (female shorts / skirt + red bikini bottom) ----
+    // BOTTOMS
     item({
       id: "f_bottom_shorts",
       gender: "female",
@@ -367,8 +371,6 @@
       offsetX: 0,
       offsetY: -4
     }),
-
-    /* ✅ FIXED: bikini bottom was breaking the file */
     item({
       id: "f_bottom_bikini_red",
       gender: "female",
@@ -378,20 +380,14 @@
       name: "Red Bikini Bottom",
       label: "bikini bottom • red",
       coins: 12,
-
-      // LIGHT image
       img: base + "/female_cloths/female_bikini-bottom_redv2.png",
-
-      // DARK image (used by carrie-closet.js only when skin=dark)
       imgDark: base + "/female_cloths/female_bikini-bottom_red_dark.png",
-
-      // keep your defaults (unchanged)
       scale: 1,
       offsetX: 0,
       offsetY: 0
     }),
 
-    // ---- JEWELRY – FEMALE ----
+    // JEWELRY
     item({
       id: "f_jewel_necklace",
       gender: "female",
@@ -402,22 +398,7 @@
       label: "necklace",
       coins: 20,
       img: base + "/female_jewlery/female_gold_necklace.png",
-      scale: 0.82,
-      offsetX: 0,
-      offsetY: 8
-    }),
-
-    // ---- JEWELRY – FEMALE  Dark----
-    item({
-      id: "f_jewel_necklace",
-      gender: "female",
-      category: "jewelry",
-      cat: "jewelry",
-      slot: "necklace",
-      name: "Gold Necklace",
-      label: "necklace",
-      coins: 20,
-      img: base + "/female_jewlery/female_gold_necklace_dark.png",
+      imgDark: base + "/female_jewlery/female_gold_necklace_dark.png",
       scale: 0.82,
       offsetX: 0,
       offsetY: 8
@@ -445,32 +426,15 @@
       name: "Gold Earrings",
       label: "ear rings",
       coins: 18,
-      srcBase: base + "/female_jewlery/female_gold_ear-ring",
+      img: base + "/female_jewlery/female_gold_ear-ring_left.png",
+      imgLeft: base + "/female_jewlery/female_gold_ear-ring_left.png",
+      imgRight: base + "/female_jewlery/female_gold_ear-ring_right.png",
       scale: 0.85,
       offsetX: 0,
       offsetY: -8
     }),
 
-
-   
-
-    // ---- JEWELRY – MALE ----
-    item({
-      id: "m_jewel_necklace",
-      gender: "male",
-      category: "jewelry",
-      cat: "jewelry",
-      slot: "necklace",
-      name: "Gold Chain",
-      label: "male necklace",
-      coins: 20,
-      img: base + "/male_jewlery/male_gold_necklace.png",
-      scale: 0.85,
-      offsetX: 0,
-      offsetY: 10
-    }),
-
-    // ---- EYES (unisex) ----
+    // EYES
     item({
       id: "u_eyes_blue",
       gender: "unisex",
@@ -480,7 +444,9 @@
       name: "Blue Eyes",
       label: "blue",
       coins: 10,
-      img: base + "/unisex/eyes/unisex_eyes_blue_left",
+      img: base + "/unisex/eyes/unisex_eyes_blue_left.png",
+      imgLeft: base + "/unisex/eyes/unisex_eyes_blue_left.png",
+      imgRight: base + "/unisex/eyes/unisex_eyes_blue_right.png",
       scale: 0.28,
       offsetX: 0,
       offsetY: -18
@@ -494,7 +460,9 @@
       name: "Green Eyes",
       label: "green",
       coins: 10,
-      img: base + "/unisex/eyes/unisex_eyes_green_left",
+      img: base + "/unisex/eyes/unisex_eyes_green_left.png",
+      imgLeft: base + "/unisex/eyes/unisex_eyes_green_left.png",
+      imgRight: base + "/unisex/eyes/unisex_eyes_green_right.png",
       scale: 0.28,
       offsetX: 0,
       offsetY: -18
@@ -508,13 +476,15 @@
       name: "Brown Eyes",
       label: "brown",
       coins: 10,
-      img: base + "/unisex/eyes/unisex_eyes_brown_left",
+      img: base + "/unisex/eyes/unisex_eyes_brown_left.png",
+      imgLeft: base + "/unisex/eyes/unisex_eyes_brown_left.png",
+      imgRight: base + "/unisex/eyes/unisex_eyes_brown_right.png",
       scale: 0.28,
       offsetX: 0,
       offsetY: -18
     }),
 
-    // ---- SHOES (unisex) ----
+    // SHOES
     item({
       id: "u_shoes_sneakers",
       gender: "unisex",
@@ -524,7 +494,7 @@
       name: "Sneakers",
       label: "unisex shoes",
       coins: 14,
-      img: base + "/unisex/shoes/unisex_shoes_left",
+      img: base + "/unisex/shoes/unisex_shoes_left.png",
       scale: 1,
       offsetX: 0,
       offsetY: 0
@@ -533,3 +503,12 @@
 
   window.CARRIE_CLOSET_ITEMS = items;
 })();
+```
+
+Now save this as **carrie-closet-data.js** and make sure it's loaded in your HTML with:
+
+```html
+<script src="carrie-closet-data.js?v=15"></script>
+```
+
+ 
