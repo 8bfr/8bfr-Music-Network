@@ -444,51 +444,55 @@
         >
       </div>
 
-      <!-- Avatar Controls (Positioned at bottom right) -->
+      <!-- Avatar Controls (Positioned at bottom, horizontal layout) -->
       <div style="
         position: absolute;
         bottom: 20px;
-        right: 20px;
+        left: 50%;
+        transform: translateX(-50%);
         background: rgba(10,6,30,.95);
         border: 1px solid rgba(124,58,237,.6);
         border-radius: 12px;
-        padding: 1rem;
+        padding: .75rem 1.5rem;
         box-shadow: 0 8px 24px rgba(0,0,0,.6);
         pointer-events: auto;
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
       ">
-        <div class="text-sm font-bold text-purple-100 mb-2">
+        <div class="text-sm font-bold text-purple-100">
           👤 Your Avatar
         </div>
         
         <!-- Gender Switcher -->
-        <div class="mb-2">
-          <div class="text-xs text-purple-200/80 mb-1">Gender:</div>
-          <div class="flex gap-2">
-            <button id="genderFemale" class="mode-btn active flex-1">
+        <div class="flex items-center gap-2">
+          <div class="text-xs text-purple-200/80">Gender:</div>
+          <div class="flex gap-1">
+            <button id="genderFemale" class="mode-btn active" style="padding:.25rem .5rem;font-size:.7rem;">
               👩 Female
             </button>
-            <button id="genderMale" class="mode-btn flex-1">
+            <button id="genderMale" class="mode-btn" style="padding:.25rem .5rem;font-size:.7rem;">
               👨 Male
             </button>
           </div>
         </div>
         
         <!-- Skin Tone Switcher -->
-        <div>
-          <div class="text-xs text-purple-200/80 mb-1">Skin Tone:</div>
-          <div class="flex gap-2">
-            <button id="skinLight" class="mode-btn active flex-1">
+        <div class="flex items-center gap-2">
+          <div class="text-xs text-purple-200/80">Skin:</div>
+          <div class="flex gap-1">
+            <button id="skinLight" class="mode-btn active" style="padding:.25rem .5rem;font-size:.7rem;">
               ☀️ Light
             </button>
-            <button id="skinDark" class="mode-btn flex-1">
+            <button id="skinDark" class="mode-btn" style="padding:.25rem .5rem;font-size:.7rem;">
               🌙 Dark
             </button>
           </div>
         </div>
 
-        <div class="text-[10px] text-purple-300/70 mt-2">
-          Customize clothes in <a href="carrie-closet.html" class="text-purple-400 underline">Closet</a>
-        </div>
+        <a href="carrie-closet.html" class="text-[10px] text-purple-400 underline whitespace-nowrap">
+          🎀 Full Closet
+        </a>
       </div>
     </div>
 
@@ -903,6 +907,29 @@
     }
 
     // ===== AVATAR SWITCHING =====
+    function loadEquippedItemsFromCloset() {
+      // Load what user equipped in the closet
+      const savedKey = `closet_equipped_${userGender}`;
+      const saved = localStorage.getItem(savedKey);
+      
+      if (!saved) {
+        console.log("📦 No equipped items found in closet");
+        return;
+      }
+      
+      try {
+        const equipped = JSON.parse(saved);
+        console.log("👗 Loaded equipped items:", equipped);
+        
+        // TODO: Add overlay images for hair, shoes, eyes, etc.
+        // For now, just log what's equipped
+        // Later we'll add <img> overlays on top of the base avatar
+        
+      } catch (e) {
+        console.error("Error loading equipped items:", e);
+      }
+    }
+
     function updateUserAvatar() {
       // Correct path from closet: assets/images/base/female/base_female_light.png
       const baseSrc = `assets/images/base/${userGender}/base_${userGender}_${userSkin}.png?v=15`;
@@ -945,6 +972,9 @@
       
       localStorage.setItem("userGender", userGender);
       localStorage.setItem("userSkin", userSkin);
+      
+      // Load equipped items from closet
+      loadEquippedItemsFromCloset();
     }
 
     genderFemale.addEventListener("click", () => {
@@ -1030,22 +1060,38 @@
     function unlockAllItems() {
       // Owner gets everything unlocked
       const lockedItems = document.querySelectorAll('.outfit-thumb.locked');
+      console.log("🔓 Unlocking", lockedItems.length, "items...");
+      
       lockedItems.forEach(item => {
         item.classList.remove('locked');
-        const lockOverlay = item.querySelector('.outfit-lock-overlay');
-        if (lockOverlay) lockOverlay.remove();
         
+        // Remove lock overlay
+        const lockOverlay = item.querySelector('.outfit-lock-overlay');
+        if (lockOverlay) {
+          lockOverlay.remove();
+          console.log("✅ Lock removed from:", item.querySelector('.outfit-thumb-label')?.textContent);
+        }
+        
+        // Update badge
         const badge = item.querySelector('.outfit-thumb-badge');
         if (badge) {
           badge.classList.remove('coins');
           badge.classList.add('unlocked');
           badge.textContent = 'OWNED';
         }
+        
+        // Ensure image is visible
+        const img = item.querySelector('.outfit-thumb-img');
+        if (img) {
+          img.style.opacity = '1';
+        }
       });
       
       if (coinItemsLabel) {
         coinItemsLabel.innerHTML = '✨ Your Premium Items (All Unlocked)';
       }
+      
+      console.log("✅ All items unlocked!");
     }
 
     async function loadUserCoins() {
