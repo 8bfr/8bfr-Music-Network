@@ -1,0 +1,371 @@
+<!-- FLOATING AVATAR HTML STRUCTURE -->
+<!-- Complete guide for implementing floating, draggable, zoomable avatar -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Carrie Chat - Floating Avatar Guide</title>
+  <style>
+    /* CRITICAL: Copy ALL positioning rules from your carrie-closet.css */
+    /* These are the rules that make items appear correctly on the avatar */
+    
+    /* Base avatar scaling by gender/skin */
+    body[data-gender="female"][data-skin="light"] {
+      --base-width: .89;
+      --base-height: .99;
+    }
+    body[data-gender="female"][data-skin="dark"] {
+      --base-width: .63;
+      --base-height: .96;
+    }
+    body[data-gender="male"][data-skin="light"] {
+      --base-width: 1.00;
+      --base-height: 1.00;
+    }
+    body[data-gender="male"][data-skin="dark"] {
+      --base-width: 0.96;
+      --base-height: 1.00;
+    }
+
+    /* Layer overlay base styles */
+    .layer-overlay {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      pointer-events: none;
+      image-rendering: auto;
+      --scale: 1;
+      --offset-x: 0%;
+      --offset-y: 0%;
+      --rotate: 0deg;
+      --scale-light: var(--scale);
+      --offset-x-light: var(--offset-x);
+      --offset-y-light: var(--offset-y);
+      --rotate-light: var(--rotate);
+      --scale-dark: var(--scale);
+      --offset-x-dark: var(--offset-x);
+      --offset-y-dark: var(--offset-y);
+      --rotate-dark: var(--rotate);
+      --scale-use: var(--scale);
+      --offset-x-use: var(--offset-x);
+      --offset-y-use: var(--offset-y);
+      --rotate-use: var(--rotate);
+      transform: scale(var(--scale-use)) translateX(var(--offset-x-use)) translateY(var(--offset-y-use)) rotate(var(--rotate-use));
+    }
+
+    body[data-skin="light"] .layer-overlay {
+      --scale-use: var(--scale-light);
+      --offset-x-use: var(--offset-x-light);
+      --offset-y-use: var(--offset-y-light);
+      --rotate-use: var(--rotate-light);
+    }
+
+    body[data-skin="dark"] .layer-overlay {
+      --scale-use: var(--scale-dark);
+      --offset-x-use: var(--offset-x-dark);
+      --offset-y-use: var(--offset-y-dark);
+      --rotate-use: var(--rotate-dark);
+    }
+
+    /* 
+    ⚠️ IMPORTANT: Copy ALL item-specific positioning from your carrie-closet.css
+    Example rules you need (copy ALL 800+ lines from your closet):
+    
+    body[data-gender="female"][data-skin="light"] .layer-overlay.item-f_hair_straight_blonde {
+      transform-origin: center top;
+      --scale: 0.50;
+      --offset-x: 0%;
+      --offset-y: -12%;
+    }
+    
+    ... copy all your item positioning rules ...
+    */
+
+    /* Zoom controls */
+    .btn-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 1px solid rgba(124,58,237,.6);
+      background: rgba(15,23,42,.9);
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .btn-icon:hover {
+      background: rgba(124,58,237,.8);
+      transform: scale(1.1);
+    }
+
+    /* Item grid styles */
+    .items-grid-mini {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+      gap: 0.6rem;
+    }
+
+    .mini-item {
+      cursor: pointer;
+      background: rgba(30,27,75,.6);
+      border: 2px solid rgba(124,58,237,.4);
+      border-radius: 8px;
+      padding: 0.4rem;
+      transition: all .2s ease;
+      position: relative;
+    }
+
+    .mini-item:hover {
+      transform: translateY(-2px);
+      border-color: #a855f7;
+      box-shadow: 0 4px 16px rgba(168,85,247,.4);
+    }
+
+    .mini-item.active {
+      border-color: #10b981;
+      background: rgba(16,185,129,.15);
+      box-shadow: 0 0 20px rgba(16,185,129,.3);
+    }
+
+    .mini-item.locked {
+      opacity: 0.6;
+    }
+
+    .mini-item-img {
+      width: 100%;
+      aspect-ratio: 1;
+      background: rgba(0,0,0,.4);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 0.3rem;
+      position: relative;
+    }
+
+    .mini-item-img img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .mini-item-name {
+      font-size: 0.6rem;
+      text-align: center;
+      color: #e5e7eb;
+      font-weight: 500;
+      margin-bottom: 0.25rem;
+    }
+
+    .item-price-mini {
+      font-size: 0.6rem;
+      text-align: center;
+      color: #fbbf24;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .btn-buy-mini {
+      display: block;
+      width: 100%;
+      background: linear-gradient(135deg,#10b981,#059669);
+      border: 1px solid #10b981;
+      color: #fff;
+      padding: 0.2rem 0.3rem;
+      border-radius: 0.4rem;
+      font-size: 0.6rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s ease;
+      text-align: center;
+    }
+
+    .btn-buy-mini:hover {
+      filter: brightness(1.15);
+      box-shadow: 0 2px 8px rgba(16,185,129,.4);
+    }
+
+    .badge-mini {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      font-size: 0.5rem;
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-weight: 600;
+      text-transform: uppercase;
+      z-index: 5;
+    }
+
+    .badge-owned {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+    }
+
+    .badge-active {
+      background: linear-gradient(135deg, #fbbf24, #f59e0b);
+      color: #000;
+      font-weight: 700;
+    }
+
+    .seg-btn {
+      padding: 0.4rem 0.8rem;
+      font-size: 0.8rem;
+      border-radius: 999px;
+      border: 1px solid rgba(124,58,237,.6);
+      background: rgba(15,23,42,.85);
+      cursor: pointer;
+      color: #e5e7eb;
+      transition: all .15s ease;
+    }
+
+    .seg-btn:hover {
+      background: rgba(30,64,175,.85);
+    }
+
+    .seg-btn.active {
+      border-color: #a855f7;
+      background: linear-gradient(135deg,#7c3aed,#a855f7);
+      color: #fff;
+      box-shadow: 0 0 0 1px rgba(129,140,248,.7), 0 0 16px rgba(168,85,247,.65);
+    }
+  </style>
+</head>
+<body data-gender="female" data-skin="light">
+
+  <!-- 1. FLOATING AVATAR (draggable, zoomable, no background, no box) -->
+  <div id="floatingAvatar" style="position:fixed; left:100px; top:100px; z-index:9999; cursor:grab;">
+    
+    <!-- Avatar Container (gets scaled by zoom) -->
+    <div id="avatarContainer" style="position:relative; width:300px; height:400px; transform-origin:center center;">
+      
+      <!-- Base Image -->
+      <img id="baseImg" 
+           src="assets/images/base/female/base_female_light.png?v=15" 
+           alt="Carrie"
+           style="position:absolute; inset:0; width:100%; height:100%; object-fit:contain; z-index:1; filter:drop-shadow(0 0 3px #000);">
+      
+      <!-- Overlay Host (equipped items render here) -->
+      <div id="overlayHost" style="position:absolute; inset:0; pointer-events:none; z-index:2;"></div>
+    
+    </div>
+
+    <!-- Zoom/Reset Controls (top right corner of avatar) -->
+    <div class="avatar-controls" style="position:absolute; top:10px; right:10px; display:flex; flex-direction:column; gap:5px; pointer-events:all;">
+      <button id="zoomIn" class="btn-icon" title="Zoom In">➕</button>
+      <button id="zoomOut" class="btn-icon" title="Zoom Out">➖</button>
+      <button id="resetPos" class="btn-icon" title="Reset Position">🔄</button>
+    </div>
+
+  </div>
+
+  <!-- 2. CHAT SECTION (your existing chat UI) -->
+  <div style="padding:20px;">
+    <h2>Chat with Carrie</h2>
+    
+    <div id="chatStream" style="height:300px; overflow-y:auto; border:1px solid #ccc; padding:10px; margin-bottom:10px;">
+      <!-- Messages appear here -->
+    </div>
+
+    <div style="display:flex; gap:10px; margin-bottom:20px;">
+      <input id="chatInput" type="text" placeholder="Type a message..." style="flex:1; padding:10px;">
+      <button id="sendBtn" style="padding:10px 20px;">Send</button>
+    </div>
+
+    <div style="display:flex; gap:10px; margin-bottom:20px;">
+      <button id="modePro" class="seg-btn active">Pro</button>
+      <button id="modeFun" class="seg-btn">Fun</button>
+      <span id="modeLabel">Professional</span>
+      <button id="clearChat" style="margin-left:auto;">Clear Chat</button>
+    </div>
+  </div>
+
+  <!-- 3. AVATAR CONTROLS SECTION -->
+  <div style="padding:20px; border-top:1px solid #ccc;">
+    
+    <h3>Avatar Controls</h3>
+    
+    <!-- Gender Selection -->
+    <div style="margin-bottom:15px;">
+      <label>Gender:</label>
+      <button data-gender="female" class="seg-btn active">♀ Female</button>
+      <button data-gender="male" class="seg-btn">♂ Male</button>
+    </div>
+
+    <!-- Skin Tone Selection -->
+    <div style="margin-bottom:15px;">
+      <label>Skin Tone:</label>
+      <div id="skinToneButtons"></div>
+    </div>
+
+    <!-- Coins Display -->
+    <div style="margin-bottom:20px;">
+      <span style="font-size:1.2rem;">💰 <span id="coinDisplay">0</span> coins</span>
+      <button id="btnBuyCoins" style="margin-left:10px;">Buy More Coins</button>
+    </div>
+
+    <!-- Owner Badge (hidden by default) -->
+    <span id="ownerBadge" style="display:none; background:#fbbf24; color:#000; padding:5px 10px; border-radius:999px; font-weight:700;">
+      👑 Owner Mode
+    </span>
+
+  </div>
+
+  <!-- 4. ITEMS SECTIONS -->
+  <div style="padding:20px;">
+    
+    <!-- FREE ITEMS -->
+    <div style="margin-bottom:30px;">
+      <h3>🎁 Free Items</h3>
+      <p>Base avatar is always free and equipped</p>
+    </div>
+
+    <!-- OWNED ITEMS (Your Collection) -->
+    <div id="ownedSection" style="display:none; margin-bottom:30px;">
+      <h3>✨ Your Collection <span id="ownedCount" style="font-size:0.9rem; color:#10b981;"></span></h3>
+      <p style="font-size:0.85rem; color:#888; margin-bottom:10px;">Click items to equip/unequip</p>
+      <div id="ownedItemsGrid" class="items-grid-mini"></div>
+    </div>
+
+    <!-- SHOP ITEMS (Unpurchased) -->
+    <div style="margin-bottom:30px;">
+      <h3>🛍️ Shop <span id="shopCount" style="font-size:0.9rem; color:#888;"></span></h3>
+      <p style="font-size:0.85rem; color:#888; margin-bottom:10px;">Buy items with coins</p>
+      <div id="shopItemsGrid" class="items-grid-mini"></div>
+    </div>
+
+  </div>
+
+  <!-- 5. LOAD SCRIPTS -->
+  <script src="carrie-chat-data.js"></script>
+  <script src="carrie-chat.js"></script>
+
+</body>
+</html>
+
+<!-- 
+  KEY FEATURES:
+  ✅ Floating avatar (position:fixed)
+  ✅ NO background frame
+  ✅ NO box around avatar
+  ✅ Draggable - click and drag anywhere
+  ✅ Zoomable - use ➕➖ buttons (0.3x to 2.0x)
+  ✅ Reset button - returns to default position/zoom
+  ✅ Saves position & zoom to localStorage
+  ✅ Click owned items to equip/unequip
+  ✅ Buy items from shop with coins
+  ✅ Owner mode auto-enabled (999,999 coins, all items unlocked)
+  ✅ Uses your EXACT closet CSS positioning
+
+  IMPORTANT:
+  - Copy ALL .layer-overlay positioning rules from your carrie-closet.css
+  - Your closet files remain 100% untouched
+  - These are separate files ONLY for chat page
+-->
