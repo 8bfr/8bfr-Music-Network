@@ -1,7 +1,6 @@
-// carrie-chat.js — Enhanced with closet integration
-// Manages chat, avatar display, and item purchasing/equipping
+// carrie-chat.js — Enhanced with FLOATING, DRAGGABLE, ZOOMABLE avatar
+// NO background, NO box - just floating avatar that can be moved and zoomed
 // Works with carrie-chat-data.js for items
-// DOES NOT modify carrie-closet files
 
 (function () {
   const $ = (s) => document.querySelector(s);
@@ -15,12 +14,17 @@
   const modePro = $("#modePro");
   const modeFun = $("#modeFun");
   const modeLabel = $("#modeLabel");
-  const carrieBubble = $("#carrieBubble");
-  const carrieAvatar = $("#carrieAvatar");
 
-  // Closet DOM refs
-  const closetBaseImg = $("#closetBaseImg");
-  const overlayHost = $("#closetOverlayHost");
+  // Floating Avatar refs
+  const floatingAvatar = $("#floatingAvatar");
+  const avatarContainer = $("#avatarContainer");
+  const overlayHost = $("#overlayHost");
+  const baseImg = $("#baseImg");
+  const zoomIn = $("#zoomIn");
+  const zoomOut = $("#zoomOut");
+  const resetPos = $("#resetPos");
+
+  // Item controls
   const skinToneButtons = $("#skinToneButtons");
   const coinDisplay = $("#coinDisplay");
   const ownedSection = $("#ownedSection");
@@ -30,7 +34,6 @@
   const shopCount = $("#shopCount");
   const btnBuyCoins = $("#btnBuyCoins");
   const ownerBadge = $("#ownerBadge");
-  const ownerControls = $("#ownerControls");
 
   // Storage keys
   const CHAT_KEY = "carrieChatState_v1";
@@ -38,7 +41,7 @@
 
   // Chat state
   const chatState = {
-    mode: "pro", // "pro" | "fun"
+    mode: "pro",
     messages: []
   };
 
@@ -48,30 +51,23 @@
     skin: "light",
     coins: 0,
     ownedItems: [],
-    equipped: {}
+    equipped: {},
+    avatarPos: { x: 100, y: 100 }, // Position
+    avatarZoom: 1.0 // Zoom level
   };
 
-  // Z-index by slot (from closet)
   const zBySlot = { 
-    shoes: 10, 
-    bottom: 30, 
-    belly: 35, 
-    top: 40, 
-    necklace: 45, 
-    eyes: 50, 
-    ears: 55, 
-    hair: 60 
+    shoes: 10, bottom: 30, belly: 35, top: 40, 
+    necklace: 45, eyes: 50, ears: 55, hair: 60 
   };
 
   let isOwner = false;
+  let isDragging = false;
+  let dragStart = { x: 0, y: 0 };
 
   // ========== STORAGE ==========
   function saveChat() {
-    try { 
-      localStorage.setItem(CHAT_KEY, JSON.stringify(chatState)); 
-    } catch(e) {
-      console.warn("Could not save chat:", e);
-    }
+    try { localStorage.setItem(CHAT_KEY, JSON.stringify(chatState)); } catch(e) {}
   }
 
   function loadChat() {
@@ -79,20 +75,13 @@
       const raw = localStorage.getItem(CHAT_KEY);
       if (!raw) return;
       const data = JSON.parse(raw);
-      if (!data) return;
       if (data.mode) chatState.mode = data.mode;
       if (Array.isArray(data.messages)) chatState.messages = data.messages;
-    } catch (e) {
-      console.warn("Could not load chat:", e);
-    }
+    } catch (e) {}
   }
 
   function saveCloset() {
-    try {
-      localStorage.setItem(CLOSET_KEY, JSON.stringify(closetState));
-    } catch(e) {
-      console.warn("Could not save closet:", e);
-    }
+    try { localStorage.setItem(CLOSET_KEY, JSON.stringify(closetState)); } catch(e) {}
   }
 
   function loadCloset() {
@@ -100,14 +89,100 @@
       const raw = localStorage.getItem(CLOSET_KEY);
       if (!raw) return;
       const data = JSON.parse(raw);
-      if (!data) return;
       if (data.gender) closetState.gender = data.gender;
       if (data.skin) closetState.skin = data.skin;
       if (typeof data.coins === "number") closetState.coins = data.coins;
       if (Array.isArray(data.ownedItems)) closetState.ownedItems = data.ownedItems;
       if (data.equipped) closetState.equipped = data.equipped;
-    } catch (e) {
-      console.warn("Could not load closet:", e);
+      if (data.avatarPos) closetState.avatarPos = data.avatarPos;
+      if (data.avatarZoom) closetState.avatarZoom = data.avatarZoom;
+    } catch (e) {}
+  }
+
+  // ========== FLOATING AVATAR CONTROLS ==========
+  function updateAvatarTransform() {
+    if (!floatingAvatar) return;
+    floatingAvatar.style.left = closetState.avatarPos.x + "px";
+    floatingAvatar.style.top = closetState.avatarPos.y + "px";
+    
+    if (avatarContainer) {
+      avatarContainer.style.transform = `scale(${closetState.avatarZoom})`;
+    }
+    saveCloset();
+  }
+
+  function setupDragging() {
+    if (!floatingAvatar) return;
+
+    floatingAvatar.addEventListener("mousedown", (e) => {
+      if (e.target.closest(".avatar-controls")) return; // Don't drag if clicking controls
+      isDragging = true;
+      dragStart.x = e.clientX - closetState.avatarPos.x;
+      dragStart.y = e.clientY - closetState.avatarPos.y;
+      floatingAvatar.style.cursor = "grabbing";
+      e.preventDefault();
+    });
+
+    document.addEventListener("mousemove", (e) => {
+      if (!isDragging) return;
+      closetState.avatarPos.x = e.clientX - dragStart.x;
+      closetState.avatarPos.y = e.clientY - dragStart.y;
+      updateAvatarTransform();
+    });
+
+    document.addEventListener("mouseup", () => {
+      if (isDragging) {
+        isDragging = false;
+        floatingAvatar.style.cursor = "grab";
+        saveCloset();
+      }
+    });
+
+    // Touch support
+    floatingAvatar.addEventListener("touchstart", (e) => {
+      if (e.target.closest(".avatar-controls")) return;
+      const touch = e.touches[0];
+      isDragging = true;
+      dragStart.x = touch.clientX - closetState.avatarPos.x;
+      dragStart.y = touch.clientY - closetState.avatarPos.y;
+      e.preventDefault();
+    });
+
+    document.addEventListener("touchmove", (e) => {
+      if (!isDragging) return;
+      const touch = e.touches[0];
+      closetState.avatarPos.x = touch.clientX - dragStart.x;
+      closetState.avatarPos.y = touch.clientY - dragStart.y;
+      updateAvatarTransform();
+    });
+
+    document.addEventListener("touchend", () => {
+      isDragging = false;
+      saveCloset();
+    });
+  }
+
+  function setupZoom() {
+    if (zoomIn) {
+      zoomIn.addEventListener("click", () => {
+        closetState.avatarZoom = Math.min(closetState.avatarZoom + 0.1, 2.0);
+        updateAvatarTransform();
+      });
+    }
+
+    if (zoomOut) {
+      zoomOut.addEventListener("click", () => {
+        closetState.avatarZoom = Math.max(closetState.avatarZoom - 0.1, 0.3);
+        updateAvatarTransform();
+      });
+    }
+
+    if (resetPos) {
+      resetPos.addEventListener("click", () => {
+        closetState.avatarPos = { x: 100, y: 100 };
+        closetState.avatarZoom = 1.0;
+        updateAvatarTransform();
+      });
     }
   }
 
@@ -117,22 +192,12 @@
   }
 
   function filterByGender(items) {
-    return items.filter(it => 
-      it.gender === "unisex" || it.gender === closetState.gender
-    );
+    return items.filter(it => it.gender === "unisex" || it.gender === closetState.gender);
   }
 
   // ========== COIN SYSTEM ==========
   function updateCoinDisplay() {
-    if (coinDisplay) {
-      coinDisplay.textContent = closetState.coins.toLocaleString();
-    }
-  }
-
-  function addCoins(amount) {
-    closetState.coins += amount;
-    saveCloset();
-    updateCoinDisplay();
+    if (coinDisplay) coinDisplay.textContent = closetState.coins.toLocaleString();
   }
 
   function buyItem(item) {
@@ -140,12 +205,10 @@
       alert("You already own this item!");
       return;
     }
-
     if (closetState.coins < item.coins) {
-      alert(`Not enough coins! You need ${item.coins} coins but only have ${closetState.coins}.`);
+      alert(`Not enough coins! Need ${item.coins}, have ${closetState.coins}.`);
       return;
     }
-
     if (confirm(`Buy "${item.name}" for ${item.coins} coins?`)) {
       closetState.coins -= item.coins;
       closetState.ownedItems.push(item.id);
@@ -158,8 +221,8 @@
 
   // ========== AVATAR DISPLAY ==========
   function updateBaseImage() {
-    if (closetBaseImg) {
-      closetBaseImg.src = `assets/images/base/${closetState.gender}/base_${closetState.gender}_${closetState.skin}.png?v=15`;
+    if (baseImg) {
+      baseImg.src = `assets/images/base/${closetState.gender}/base_${closetState.gender}_${closetState.skin}.png?v=15`;
     }
     document.body.dataset.gender = closetState.gender;
     document.body.dataset.skin = closetState.skin;
@@ -199,7 +262,6 @@
     overlayHost.innerHTML = "";
 
     const items = getItems();
-
     Object.keys(closetState.equipped).forEach(slot => {
       const itemId = closetState.equipped[slot];
       if (!itemId) return;
@@ -207,7 +269,7 @@
       const item = items.find(it => it.id === itemId);
       if (!item) return;
 
-      // Handle dual items (eyes, ears, shoes)
+      // Handle dual items
       if (slot === "eyes" || slot === "ears") {
         const left = document.createElement("img");
         left.src = item.imgLeft || item.img;
@@ -235,7 +297,6 @@
         overlayHost.appendChild(left);
         overlayHost.appendChild(right);
       } else {
-        // Single item
         const overlay = document.createElement("img");
         overlay.src = item.img;
         overlay.className = `layer-overlay item-${item.id}`;
@@ -245,13 +306,11 @@
     });
   }
 
-  // ========== EQUIP/UNEQUIP ==========
+  // ========== EQUIP ==========
   function toggleEquip(item) {
     if (closetState.equipped[item.slot] === item.id) {
-      // Unequip
       closetState.equipped[item.slot] = null;
     } else {
-      // Equip
       closetState.equipped[item.slot] = item.id;
     }
     saveCloset();
@@ -263,39 +322,23 @@
   function renderItems() {
     const items = getItems();
     const filtered = filterByGender(items);
-
-    // Separate owned and shop items
     const owned = filtered.filter(it => closetState.ownedItems.includes(it.id));
     const shop = filtered.filter(it => !closetState.ownedItems.includes(it.id));
 
-    // Show/hide owned section
     if (ownedSection) {
-      if (owned.length > 0) {
-        ownedSection.style.display = "block";
-        if (ownedCount) ownedCount.textContent = `${owned.length} items`;
-      } else {
-        ownedSection.style.display = "none";
-      }
+      ownedSection.style.display = owned.length > 0 ? "block" : "none";
+      if (ownedCount) ownedCount.textContent = `${owned.length} items`;
     }
-
     if (shopCount) shopCount.textContent = `${shop.length} items`;
 
-    // Render owned items
     if (ownedItemsGrid) {
       ownedItemsGrid.innerHTML = "";
-      owned.forEach(item => {
-        const card = createItemCard(item, true);
-        ownedItemsGrid.appendChild(card);
-      });
+      owned.forEach(item => ownedItemsGrid.appendChild(createItemCard(item, true)));
     }
 
-    // Render shop items
     if (shopItemsGrid) {
       shopItemsGrid.innerHTML = "";
-      shop.forEach(item => {
-        const card = createItemCard(item, false);
-        shopItemsGrid.appendChild(card);
-      });
+      shop.forEach(item => shopItemsGrid.appendChild(createItemCard(item, false)));
     }
   }
 
@@ -306,12 +349,8 @@
     const isActive = closetState.equipped[item.slot] === item.id;
     if (isActive) div.classList.add("active");
 
-    const badge = isActive ? 
-      '<div class="badge-mini badge-active">ON</div>' :
-      isOwned ? '<div class="badge-mini badge-owned">OWNED</div>' : '';
-
-    const priceHTML = isOwned ? '' : `<div class="item-price-mini">${item.coins} 💰</div>`;
-    const buttonHTML = isOwned ? '' : `<button class="btn-buy-mini">Buy</button>`;
+    const badge = isActive ? '<div class="badge-mini badge-active">ON</div>' :
+                  isOwned ? '<div class="badge-mini badge-owned">OWNED</div>' : '';
 
     div.innerHTML = `
       <div class="mini-item-img">
@@ -319,8 +358,7 @@
         ${badge}
       </div>
       <div class="mini-item-name">${item.name}</div>
-      ${priceHTML}
-      ${buttonHTML}
+      ${isOwned ? '' : `<div class="item-price-mini">${item.coins} 💰</div><button class="btn-buy-mini">Buy</button>`}
     `;
 
     if (isOwned) {
@@ -353,31 +391,12 @@
     });
   }
 
-  // ========== CHAT FUNCTIONS ==========
+  // ========== CHAT ==========
   function setMode(mode) {
     chatState.mode = mode;
-
     if (modePro) modePro.classList.toggle("active", mode === "pro");
     if (modeFun) modeFun.classList.toggle("active", mode === "fun");
-    if (modeLabel) modeLabel.textContent = (mode === "pro") ? "Professional" : "Personal";
-
-    // Swap avatar if you have both files
-    if (carrieAvatar) {
-      if (mode === "pro") {
-        carrieAvatar.src = "assets/images/Carrie_Business.png";
-      } else {
-        carrieAvatar.src = "assets/images/Carrie_Casual.png";
-      }
-    }
-
-    if (carrieBubble) {
-      if (mode === "pro") {
-        carrieBubble.textContent = "Professional mode: I can help with music + tools.";
-      } else {
-        carrieBubble.textContent = "Personal mode: I'm here for vibes + fun too 💜";
-      }
-    }
-
+    if (modeLabel) modeLabel.textContent = mode === "pro" ? "Professional" : "Personal";
     saveChat();
     renderChat();
   }
@@ -390,125 +409,85 @@
 
   function replyFor(text) {
     const msg = (text || "").toLowerCase().trim();
-
-    if (!msg) return "Say something and I'll respond 🙂";
-
-    if (msg.includes("closet")) {
-      return "Use the Closet to preview items before buying! Click items in 'Your Collection' to dress me up.";
-    }
-    
-    if (msg.includes("buy") || msg.includes("purchase") || msg.includes("coin")) {
-      return "You can buy items from the Shop section with coins. Click 'Buy More Coins' if you need more!";
-    }
-
-    if (msg.includes("outfit") || msg.includes("dress") || msg.includes("clothes")) {
-      return "Click any item in 'Your Collection' to equip or unequip it. My avatar updates instantly! 👗";
-    }
-
-    if (msg.includes("spotify")) {
-      return "8BFR is on Spotify — you can link it on your featured section anytime.";
-    }
-    
-    if (msg.includes("help") || msg.includes("how")) {
-      return (chatState.mode === "pro")
-        ? "Tell me what you're building (song, beat, page, or feature) and I'll guide you step-by-step."
-        : "Tell me what you want to do and I'll hype you up and help you get it done 💜";
-    }
-
-    return (chatState.mode === "pro")
-      ? "Got it. Describe the exact problem and paste the snippet you want to change."
-      : "Okayyy 😄 tell me more — what are we making today?";
+    if (!msg) return "Say something 🙂";
+    if (msg.includes("closet")) return "Use Closet to preview items! Click items in 'Your Collection' to dress me.";
+    if (msg.includes("buy") || msg.includes("coin")) return "Buy items from Shop with coins. Click 'Buy More' if needed!";
+    if (msg.includes("outfit") || msg.includes("dress")) return "Click items in 'Your Collection' to equip/unequip! 👗";
+    if (msg.includes("move") || msg.includes("drag")) return "You can drag me anywhere! Use zoom buttons to resize me.";
+    if (msg.includes("help")) return chatState.mode === "pro" ? "Tell me what you're building." : "Tell me what you want to do 💜";
+    return chatState.mode === "pro" ? "Got it. What's the exact problem?" : "Okayyy 😄 tell me more!";
   }
 
   function renderChat() {
     if (!chatStream) return;
-    
     chatStream.innerHTML = "";
     chatState.messages.forEach((m) => {
       const row = document.createElement("div");
       row.className = "msg " + (m.role === "user" ? "user" : "assistant");
-
       const role = document.createElement("div");
       role.className = "role";
       role.textContent = m.role;
-
       const bubble = document.createElement("div");
       bubble.className = "bubble";
       bubble.textContent = m.text;
-
       row.appendChild(role);
       row.appendChild(bubble);
       chatStream.appendChild(row);
     });
-
     chatStream.scrollTop = chatStream.scrollHeight;
   }
 
   function send() {
     if (!chatInput) return;
-    
     const text = (chatInput.value || "").trim();
     if (!text) return;
-
     chatInput.value = "";
     addMsg("user", text);
-
-    setTimeout(() => {
-      addMsg("assistant", replyFor(text));
-    }, 150);
+    setTimeout(() => addMsg("assistant", replyFor(text)), 150);
   }
 
   // ========== OWNER MODE ==========
   function enableOwnerMode() {
     isOwner = true;
     closetState.coins = 999999;
-    
-    // Unlock all items
-    const items = getItems();
-    closetState.ownedItems = items.map(it => it.id);
-    
+    closetState.ownedItems = getItems().map(it => it.id);
     if (ownerBadge) ownerBadge.style.display = "inline-flex";
-    if (ownerControls) ownerControls.style.display = "flex";
-    
     saveCloset();
     updateCoinDisplay();
     renderItems();
-    
-    console.log("👑 Owner mode enabled!");
+    console.log("👑 Owner mode!");
   }
 
   // ========== INIT ==========
   function init() {
-    console.log("🎬 Carrie Chat + Closet initializing...");
+    console.log("🎬 Carrie Chat initializing...");
 
-    // Load saved state
     loadChat();
     loadCloset();
 
-    // Setup UI
     updateBaseImage();
     buildSkinButtons();
     setupGenderControls();
+    setupDragging();
+    setupZoom();
+    updateAvatarTransform();
     updateCoinDisplay();
     renderItems();
     renderAvatarOverlays();
     renderChat();
 
-    // Default greeting if empty
     if (chatState.messages.length === 0) {
-      addMsg("assistant", "Hi! 👋 I'm Carrie. Click items to dress me up, or just chat with me! 💜");
+      addMsg("assistant", "Hi! 👋 I'm Carrie. Drag me anywhere, zoom me, dress me up, or just chat! 💜");
     }
 
     setMode(chatState.mode || "pro");
 
-    // Chat event listeners
     if (sendBtn) sendBtn.addEventListener("click", send);
     if (chatInput) {
       chatInput.addEventListener("keydown", (e) => {
         if (e.key === "Enter") send();
       });
     }
-
     if (clearBtn) {
       clearBtn.addEventListener("click", () => {
         chatState.messages = [];
@@ -517,29 +496,24 @@
         addMsg("assistant", "Chat cleared ✅");
       });
     }
-
     if (modePro) modePro.addEventListener("click", () => setMode("pro"));
     if (modeFun) modeFun.addEventListener("click", () => setMode("fun"));
-
-    // Buy coins button
     if (btnBuyCoins) {
       btnBuyCoins.addEventListener("click", () => {
-        const amount = prompt("How many coins to add?", "1000");
+        const amount = prompt("Add coins:", "1000");
         if (amount && !isNaN(amount)) {
-          addCoins(parseInt(amount));
+          closetState.coins += parseInt(amount);
+          saveCloset();
+          updateCoinDisplay();
           alert(`✅ Added ${amount} coins!`);
         }
       });
     }
 
-    // Auto-enable owner mode for testing
-    // Comment this out in production
-    enableOwnerMode();
-
-    console.log("✅ Carrie Chat ready!");
+    enableOwnerMode(); // Auto-enable for testing
+    console.log("✅ Ready!");
   }
 
-  // Boot on DOM ready
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);
   } else {
