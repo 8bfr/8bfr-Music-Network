@@ -7,16 +7,23 @@
   <meta name="description" content="Chat with Carrie — your AI assistant on the 8BFR Music Network." />
   <link rel="icon" href="assets/images/favicon.png" />
   
-  <!-- Load Closet Data First -->
-  <script src="carrie-closet-data.js?v=3"></script>
-  <script src="carrie-memory.js?v=2"></script>
+  <!-- Load item data -->
+  <script src="carrie-chat-data.js?v=2"></script>
+  
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Link to external closet CSS -->
-  <link rel="stylesheet" href="carrie-closet.css?v=3" />
-
   <style>
-    /* Chat-specific styles */
+    :root {
+      --ring: rgba(124,58,237,.55);
+      --glass: rgba(12,6,24,.80);
+    }
+    
+    html,body { 
+      scroll-behavior:smooth; 
+      margin: 0;
+      padding: 0;
+    }
+    
     body {
       font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
       background:
@@ -54,17 +61,23 @@
       border-radius:12px;
     }
     
-    .msg-row{
+    .msg{
       display:flex;
-      margin-bottom:.65rem;
+      margin-bottom:.8rem;
       gap:.4rem;
     }
     
-    .msg-row.user{
+    .msg.user{
       justify-content:flex-end;
     }
     
-    .msg-bubble{
+    .msg .role{
+      font-size:.7rem;
+      opacity:.7;
+      margin-bottom:.2rem;
+    }
+    
+    .msg .bubble{
       max-width:80%;
       padding:.55rem .8rem;
       border-radius:.85rem;
@@ -75,49 +88,10 @@
       box-shadow:0 0 12px rgba(79,70,229,.35);
     }
     
-    .msg-row.user .msg-bubble{
+    .msg.user .bubble{
       background:linear-gradient(135deg,#7c3aed,#4c1d95);
       border-color:#a855f7;
       box-shadow:0 0 12px rgba(168,85,247,.55);
-    }
-    
-    .msg-meta{
-      font-size:.7rem;
-      opacity:.7;
-      margin-top:.2rem;
-    }
-    
-    .msg-avatar{
-      width:32px;
-      height:32px;
-      border-radius:999px;
-      flex-shrink:0;
-      overflow:hidden;
-      border:1px solid rgba(129,140,248,.9);
-      display:grid;
-      place-items:center;
-      font-size:.75rem;
-      background:#020014;
-    }
-    
-    .msg-avatar img{
-      width:100%;
-      height:100%;
-      object-fit:cover;
-      display:block;
-    }
-
-    .pill-tag{
-      display:inline-flex;
-      align-items:center;
-      gap:.25rem;
-      font-size:.7rem;
-      border-radius:999px;
-      padding:.15rem .55rem;
-      border:1px solid rgba(129,140,248,.85);
-      background:rgba(15,23,42,.9);
-      text-transform:uppercase;
-      letter-spacing:.08em;
     }
 
     .btn{
@@ -151,12 +125,7 @@
       filter:brightness(1.1);
     }
     
-    .btn-small{
-      padding:.3rem .6rem;
-      font-size:.75rem;
-    }
-
-    textarea#carrieInput{
+    textarea#chatInput{
       resize:none;
       min-height:60px;
       max-height:120px;
@@ -169,26 +138,10 @@
       width: 100%;
     }
     
-    textarea#carrieInput:focus{
+    textarea#chatInput:focus{
       outline:none;
       box-shadow:0 0 0 2px rgba(129,140,248,.9);
       border-color:rgba(129,140,248,1);
-    }
-    
-    .typing-dot{
-      width:6px;
-      height:6px;
-      border-radius:999px;
-      background:#a855f7;
-      animation:bounce 1s infinite ease-in-out;
-    }
-    
-    .typing-dot:nth-child(2){ animation-delay:.15s; }
-    .typing-dot:nth-child(3){ animation-delay:.3s; }
-    
-    @keyframes bounce{
-      0%,80%,100%{ transform:translateY(0); opacity:.4;}
-      40%{ transform:translateY(-4px); opacity:1;}
     }
 
     .mode-btn{
@@ -213,878 +166,312 @@
       box-shadow:0 0 0 1px rgba(129,140,248,.7),0 0 16px rgba(168,85,247,.65);
     }
 
-    .mode-btn:disabled{
-      opacity: 0.4;
-      cursor: not-allowed;
-      background: rgba(15,23,42,.5);
+    /* FLOATING AVATAR - Positioned absolutely, draggable */
+    #floatingAvatarWrapper { 
+      position:fixed; 
+      z-index:99999; 
+      pointer-events:none;
+      width:480px;
+      height:800px;
     }
-
-    .mode-btn:disabled:hover{
-      background: rgba(15,23,42,.5);
-      transform: none;
+    
+    #floatingAvatarInner { 
+      pointer-events:auto; 
+      cursor:grab; 
+      position:relative;
+      width:100%;
+      height:100%;
+      transform-origin:center;
     }
-
-    .control-panel{
-      background: rgba(15,23,42,.6);
-      border: 1px solid rgba(124,58,237,.4);
-      border-radius: 12px;
-      padding: .75rem;
-      margin-bottom: 1rem;
+    
+    #floatingAvatarInner:active { 
+      cursor:grabbing; 
     }
-
-    /* Avatar Section Layout */
-    .avatar-items-layout{
-      display: grid;
-      grid-template-columns: 400px 1fr;
-      gap: 1.5rem;
-      margin-bottom: 2rem;
+    
+    #closetPreviewInner {
+      width:480px;
+      height:800px;
+      position:relative;
     }
-
-    @media (max-width: 968px) {
-      .avatar-items-layout{
-        grid-template-columns: 1fr;
-      }
+    
+    #closetBaseImg {
+      position:absolute;
+      inset:0;
+      height:100%;
+      width:auto;
+      object-fit:cover;
+      z-index:1;
+      left:50%;
+      transform:translateX(-50%);
+      filter:drop-shadow(0 0 3px #000);
     }
-
-    /* Mini Preview Frame */
-    #miniPreviewFrame {
-      width: 100%;
-      max-width: 400px;
-      border-radius: 18px;
-      border: 2px solid rgba(148,163,255,0.55);
-      overflow: hidden;
-      height: 500px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background-image: url("assets/images/closet/dressingroom.png?v=15");
-      background-size: cover;
-      background-position: center;
-      background-repeat: no-repeat;
-      position: relative;
-    }
-
-    #miniPreviewInner {
-      position: relative;
-      width: 100%;
-      max-width: 300px;
-      height: 100%;
-      transform: translateY(20px);
-    }
-
-    #miniBaseImg {
-      position: absolute;
-      inset: 0;
-      height: 100%;
-      width: auto;
-      object-fit: cover;
-      display: block;
-      z-index: 1;
-      left: 50%;
-      transform: translateX(-50%);
-      filter: drop-shadow(0 0 3px #000);
-    }
-
-    #miniOverlayHost {
+    
+    #closetOverlayHost {
       position:absolute;
       inset:0;
       pointer-events:none;
       z-index:2;
     }
-
-    #miniOverlayHost img {
-      filter: drop-shadow(0 0 2px #000);
-    }
-
-    .avatar-controls-box{
-      background: rgba(15,23,42,.8);
-      border: 1px solid rgba(124,58,237,.4);
-      border-radius: 12px;
-      padding: 1rem;
-      margin-top: 1rem;
-    }
-
-    /* Items Panel */
-    .items-section{
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-
-    .item-category-box{
-      background: rgba(15,23,42,.6);
-      border: 1px solid rgba(124,58,237,.4);
-      border-radius: 12px;
-      padding: 1rem;
-    }
-
-    .category-header{
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: #a855f7;
-      margin-bottom: 0.75rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .mini-items-grid{
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
-      gap: 0.5rem;
-      max-height: 200px;
-      overflow-y: auto;
-    }
-
-    .mini-item{
-      cursor: pointer;
-      background: rgba(30,27,75,.6);
-      border: 2px solid rgba(124,58,237,.4);
-      border-radius: 8px;
-      padding: 0.4rem;
-      transition: all .2s ease;
-      position: relative;
-      text-align: center;
-    }
-
-    .mini-item:hover{
-      transform: translateY(-2px);
-      border-color: #a855f7;
-      box-shadow: 0 4px 16px rgba(168,85,247,.4);
-    }
-
-    .mini-item.active{
-      border-color: #10b981;
-      background: rgba(16,185,129,.15);
-      box-shadow: 0 0 20px rgba(16,185,129,.3);
-    }
-
-    .mini-item.locked{
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    .mini-item-img{
-      width: 100%;
-      aspect-ratio: 1;
-      background: rgba(0,0,0,.4);
-      border-radius: 4px;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 0.3rem;
-      position: relative;
-    }
-
-    .mini-item-img img{
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
-    }
-
-    .mini-item-name{
-      font-size: 0.6rem;
-      color: #e5e7eb;
-      font-weight: 500;
-      line-height: 1.2;
-    }
-
-    .item-badge{
+    
+    /* LAYER POSITIONING - MATCHES CLOSET EXACTLY */
+    .layer-overlay {
       position: absolute;
-      top: 2px;
-      right: 2px;
-      font-size: 0.5rem;
-      padding: 1px 4px;
-      border-radius: 3px;
-      font-weight: 600;
-      text-transform: uppercase;
-      z-index: 5;
-    }
-
-    .badge-free{
-      background: linear-gradient(135deg, #6366f1, #4f46e5);
-      color: white;
-      box-shadow: 0 2px 6px rgba(99,102,241,.4);
-    }
-
-    .badge-owned{
-      background: linear-gradient(135deg, #10b981, #059669);
-      color: white;
-      box-shadow: 0 2px 6px rgba(16,185,129,.4);
-    }
-
-    .badge-active{
-      background: linear-gradient(135deg, #10b981, #059669);
-      color: white;
-      box-shadow: 0 0 10px rgba(16,185,129,.6);
-    }
-
-    .lock-icon-mini{
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 24px;
-      height: 24px;
-      z-index: 10;
-      pointer-events: none;
-    }
-
-    .item-price-mini{
-      font-size: 0.6rem;
-      color: #fbbf24;
-      font-weight: 600;
-      margin-top: 0.2rem;
-    }
-
-  
-    /* FLOATING AVATAR */
-    #floatingAvatarWrapper {
-      position: fixed;
-      width: 480px;
-      height: 800px;
-      pointer-events: none;
-      z-index: 99999;
-    }
-    #floatingAvatarInner {
-      position: relative;
       width: 100%;
       height: 100%;
-      pointer-events: auto;
-      cursor: grab;
+      object-fit: contain;
+      pointer-events: none;
     }
-    #floatingAvatarInner:active { cursor: grabbing; }
+    
+    /* Base positioning variables for different avatar combinations */
+    body[data-gender="female"][data-skin="light"] {
+      --hair-top: 0%;
+      --hair-left: 0%;
+      --top-top: 37.5%;
+      --top-left: 0%;
+      --bottom-top: 52.5%;
+      --bottom-left: 0%;
+      --necklace-top: 34%;
+      --necklace-left: 0%;
+      --belly-top: 49%;
+      --belly-left: 0%;
+      --eyes-left-top: 20.5%;
+      --eyes-left-left: 37%;
+      --eyes-right-top: 20.5%;
+      --eyes-right-left: 55.5%;
+      --ears-left-top: 21%;
+      --ears-left-left: 27%;
+      --ears-right-top: 21%;
+      --ears-right-left: 65%;
+      --shoes-left-top: 84%;
+      --shoes-left-left: 35%;
+      --shoes-right-top: 84%;
+      --shoes-right-left: 54%;
+    }
+    
+    body[data-gender="female"][data-skin="dark"] {
+      --hair-top: 0%;
+      --hair-left: 0%;
+      --top-top: 37.5%;
+      --top-left: 0%;
+      --bottom-top: 52.5%;
+      --bottom-left: 0%;
+      --necklace-top: 34%;
+      --necklace-left: 0%;
+      --belly-top: 49%;
+      --belly-left: 0%;
+      --eyes-left-top: 20.5%;
+      --eyes-left-left: 37%;
+      --eyes-right-top: 20.5%;
+      --eyes-right-left: 55.5%;
+      --ears-left-top: 21%;
+      --ears-left-left: 27%;
+      --ears-right-top: 21%;
+      --ears-right-left: 65%;
+      --shoes-left-top: 84%;
+      --shoes-left-left: 35%;
+      --shoes-right-top: 84%;
+      --shoes-right-left: 54%;
+    }
+    
+    body[data-gender="male"][data-skin="light"] {
+      --hair-top: 0%;
+      --hair-left: 0%;
+      --top-top: 37.5%;
+      --top-left: 0%;
+      --bottom-top: 52.5%;
+      --bottom-left: 0%;
+      --necklace-top: 34%;
+      --necklace-left: 0%;
+      --belly-top: 49%;
+      --belly-left: 0%;
+      --eyes-left-top: 20.5%;
+      --eyes-left-left: 37%;
+      --eyes-right-top: 20.5%;
+      --eyes-right-left: 55.5%;
+      --ears-left-top: 21%;
+      --ears-left-left: 27%;
+      --ears-right-top: 21%;
+      --ears-right-left: 65%;
+      --shoes-left-top: 84%;
+      --shoes-left-left: 35%;
+      --shoes-right-top: 84%;
+      --shoes-right-left: 54%;
+    }
+    
+    body[data-gender="male"][data-skin="dark"] {
+      --hair-top: 0%;
+      --hair-left: 0%;
+      --top-top: 37.5%;
+      --top-left: 0%;
+      --bottom-top: 52.5%;
+      --bottom-left: 0%;
+      --necklace-top: 34%;
+      --necklace-left: 0%;
+      --belly-top: 49%;
+      --belly-left: 0%;
+      --eyes-left-top: 20.5%;
+      --eyes-left-left: 37%;
+      --eyes-right-top: 20.5%;
+      --eyes-right-left: 55.5%;
+      --ears-left-top: 21%;
+      --ears-left-left: 27%;
+      --ears-right-top: 21%;
+      --ears-right-left: 65%;
+      --shoes-left-top: 84%;
+      --shoes-left-left: 35%;
+      --shoes-right-top: 84%;
+      --shoes-right-left: 54%;
+    }
+    
+    /* Apply positioning to layers */
+    .layer-overlay[class*="hair"] { top: var(--hair-top); left: var(--hair-left); }
+    .layer-overlay[class*="top"] { top: var(--top-top); left: var(--top-left); }
+    .layer-overlay[class*="bottom"] { top: var(--bottom-top); left: var(--bottom-left); }
+    .layer-overlay[class*="necklace"] { top: var(--necklace-top); left: var(--necklace-left); }
+    .layer-overlay[class*="belly"] { top: var(--belly-top); left: var(--belly-left); }
+    .layer-overlay.layer-left { top: var(--eyes-left-top); left: var(--eyes-left-left); }
+    .layer-overlay.layer-right { top: var(--eyes-right-top); left: var(--eyes-right-left); }
+    .layer-overlay.layer-shoes-left { top: var(--shoes-left-top); left: var(--shoes-left-left); }
+    .layer-overlay.layer-shoes-right { top: var(--shoes-right-top); left: var(--shoes-right-left); }
 
+    @media (max-width:640px){
+      .chat-log{ height:60vh; }
+      .msg .bubble{ max-width:88%; }
+      #floatingAvatarWrapper { width:300px; height:500px; }
+      #closetPreviewInner { width:300px; height:500px; }
+    }
   </style>
 </head>
 <body data-gender="female" data-skin="light">
-  <!-- FLOATING DRAGGABLE AVATAR -->
+  
+  <!-- FLOATING MOVABLE AVATAR - Drag anywhere, pinch to zoom -->
   <div id="floatingAvatarWrapper">
     <div id="floatingAvatarInner">
-      <div id="closetPreviewInner" style="width:100%; height:100%; position:relative;">
-        <img id="closetBaseImg" src="assets/images/base/female/base_female_light.png?v=15" 
-             style="position:absolute; inset:0; height:100%; width:auto; object-fit:cover; z-index:1; left:50%; transform:translateX(-50%); filter:drop-shadow(0 0 3px #000);">
-        <div id="closetOverlayHost" style="position:absolute; inset:0; pointer-events:none; z-index:2;"></div>
+      <div id="closetPreviewInner">
+        <img id="closetBaseImg" src="assets/images/base/female/base_female_light.png?v=15" alt="Avatar">
+        <div id="closetOverlayHost"></div>
       </div>
       <div style="position:absolute; top:10px; right:10px; display:flex; flex-direction:column; gap:5px; pointer-events:auto;">
-        <button id="avatarZoomIn" style="width:32px; height:32px; border-radius:50%; background:rgba(15,23,42,.95); color:#fff; border:1px solid rgba(124,58,237,.6); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:16px;">➕</button>
-        <button id="avatarZoomOut" style="width:32px; height:32px; border-radius:50%; background:rgba(15,23,42,.95); color:#fff; border:1px solid rgba(124,58,237,.6); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:16px;">➖</button>
-        <button id="avatarReset" style="width:32px; height:32px; border-radius:50%; background:rgba(15,23,42,.95); color:#fff; border:1px solid rgba(124,58,237,.6); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:16px;">🔄</button>
+        <button id="avatarZoomIn" style="width:32px; height:32px; border-radius:50%; background:rgba(15,23,42,.9); color:#fff; border:1px solid rgba(124,58,237,.6); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:18px;">+</button>
+        <button id="avatarZoomOut" style="width:32px; height:32px; border-radius:50%; background:rgba(15,23,42,.9); color:#fff; border:1px solid rgba(124,58,237,.6); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:18px;">−</button>
+        <button id="avatarReset" style="width:32px; height:32px; border-radius:50%; background:rgba(15,23,42,.9); color:#fff; border:1px solid rgba(124,58,237,.6); cursor:pointer; display:flex; align-items:center; justify-content:center;">🔄</button>
       </div>
     </div>
   </div>
 
-
-  <!-- Header -->
-  <header class="py-3">
-    <div style="max-width:1200px; margin:0 auto; padding:0 1.5rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.75rem;">
-      <a href="index.html" style="display:flex; align-items:center; gap:0.5rem; text-decoration:none;">
-        <img src="assets/images/8bfr-logo-v3.png" alt="8BFR Music Network" style="width:36px; height:36px; border-radius:4px;">
-        <span style="font-weight:600; font-size:1rem; color:#fff;">8BFR Music Network</span>
+  <header class="px-4 py-4">
+    <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <img src="assets/images/logo_8bfr.svg"
+             alt="8BFR logo"
+             class="h-9 w-auto"
+             onerror="this.onerror=null;this.src='assets/images/8bfr.png'">
+        <div>
+          <h1 class="text-xl sm:text-2xl font-extrabold">
+            Chat with <span class="text-[#a855f7]">Carrie</span>
+          </h1>
+          <p class="text-[11px] text-purple-300/80 -mt-0.5">
+            8BFR Music Network • AI Assistant
+          </p>
+        </div>
+      </div>
+      <a href="index.html" class="text-[#00d9ff] text-xs sm:text-sm underline hover:no-underline">
+        ⬅ Back to Home
       </a>
-      
-      <nav style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
-        <a href="index.html" class="btn btn-small">Home</a>
-        <a href="carrie-closet.html" class="btn btn-small">Full Closet</a>
-        <a href="about.html" class="btn btn-small">About</a>
-        <a href="coinshop.html" class="pill-tag" style="font-size:.65rem; text-decoration:none; cursor:pointer;">🪙 Coin Shop</a>
-      </nav>
     </div>
   </header>
 
-  <!-- Main -->
-  <main style="max-width:1200px; margin:2rem auto; padding:0 1.5rem;">
+  <main class="max-w-4xl mx-auto px-4 pb-10 pt-4">
     
-    <!-- Control Panel -->
-    <div class="control-panel">
-      <div style="display:flex; flex-wrap:wrap; gap:1rem; align-items:center; justify-content:space-between;">
-        <div style="display:flex; align-items:center; gap:.5rem;">
-          <span style="font-size:1.2rem;">💰</span>
-          <span id="coinDisplay" style="font-weight:600; color:#fbbf24; font-size:.95rem;">999,999 coins</span>
+    <!-- Avatar Controls -->
+    <div class="chat-shell p-4 mb-4">
+      <div class="flex items-center justify-between gap-3 mb-3">
+        <div class="text-sm font-bold text-purple-100">
+          👤 Avatar Controls
         </div>
-
-        <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
-          <button id="btnSite" class="mode-btn active">Site/Pro</button>
-          <button id="btnPersonal" class="mode-btn">Personal</button>
-          <button id="btnBFGF" class="mode-btn">BF/GF</button>
-        </div>
-
-        <div id="ownerControls" style="display:flex; gap:.5rem;">
-          <button id="trainerBtn" class="btn btn-small">🧠 Train</button>
-          <button id="clearLogBtn" class="btn btn-small">🗑 Clear</button>
-        </div>
+        <a href="carrie-closet.html" class="btn btn-primary" style="padding:.4rem .7rem;font-size:.8rem;">
+          🎀 Full Closet
+        </a>
       </div>
-    </div>
-
-    <!-- Avatar & Items Layout -->
-    <div class="avatar-items-layout">
-      <!-- Left: Mini Avatar Preview -->
-      <div>
-        <div id="miniPreviewFrame">
-          <div id="miniPreviewInner">
-            <img id="miniBaseImg" src="assets/images/base/female/base_female_light.png?v=15" alt="Carrie Base">
-            <div id="miniOverlayHost"></div>
+      
+      <div class="flex flex-wrap gap-3">
+        <!-- Gender -->
+        <div class="flex items-center gap-2">
+          <div class="text-xs text-purple-200/80">Gender:</div>
+          <div class="flex gap-1">
+            <button id="genderFemale" data-gender="female" class="mode-btn active">
+              👩 Female
+            </button>
+            <button id="genderMale" data-gender="male" class="mode-btn">
+              👨 Male
+            </button>
           </div>
         </div>
         
-        <div class="avatar-controls-box">
-          <div style="margin-bottom:0.75rem;">
-            <div style="font-size:0.75rem; color:#a855f7; font-weight:600; margin-bottom:0.4rem;">GENDER</div>
-            <div style="display:flex; gap:0.5rem;">
-              <button class="seg-btn active" data-gender="female">👩 Female</button>
-              <button class="seg-btn" data-gender="male">👨 Male</button>
-            </div>
-          </div>
-          
-          <div>
-            <div style="font-size:0.75rem; color:#a855f7; font-weight:600; margin-bottom:0.4rem;">SKIN TONE</div>
-            <div style="display:flex; gap:0.5rem;">
-              <button class="seg-btn active" data-skin="light">☀️ Light</button>
-              <button class="seg-btn" data-skin="dark">🌙 Dark</button>
-            </div>
-          </div>
-
-          <a href="carrie-closet.html" class="btn btn-primary" style="margin-top:1rem; width:100%;">
-            Open Full Closet
-          </a>
-        </div>
-      </div>
-
-      <!-- Right: Items Panel -->
-      <div class="items-section">
-        <!-- Free Items -->
-        <div class="item-category-box">
-          <div class="category-header">
-            <span>🎁</span>
-            <span>Free Items (Base)</span>
-          </div>
-          <div style="font-size:0.75rem; color:#a0aec0; margin-bottom:0.5rem;">
-            Base avatar is always free and equipped
-          </div>
-        </div>
-
-        <!-- Owned Items (Switcher) -->
-        <div class="item-category-box" id="ownedSection">
-          <div class="category-header">
-            <span>✨</span>
-            <span>Your Collection</span>
-            <span style="font-size:0.7rem; color:#10b981; margin-left:auto;">Owner: All Items</span>
-          </div>
-          <div id="ownedItemsGrid" class="mini-items-grid">
-            <!-- Will be populated by JavaScript -->
-          </div>
-        </div>
-
-        <!-- Shop Items -->
-        <div class="item-category-box">
-          <div class="category-header">
-            <span>🛍️</span>
-            <span>Shop (Preview in Full Closet)</span>
-          </div>
-          <div style="font-size:0.75rem; color:#a0aec0;">
-            Click items below to preview in the <a href="carrie-closet.html" style="color:#a855f7; text-decoration:underline;">Full Closet</a>
+        <!-- Skin Tone -->
+        <div class="flex items-center gap-2">
+          <div class="text-xs text-purple-200/80">Skin:</div>
+          <div class="flex gap-1">
+            <button id="skinLight" data-skin="light" class="mode-btn active">
+              ☀️ Light
+            </button>
+            <button id="skinDark" data-skin="dark" class="mode-btn">
+              🌙 Dark
+            </button>
           </div>
         </div>
       </div>
+      
+      <p class="text-[10px] text-purple-300/70 mt-2">
+        💡 Drag the avatar anywhere! Pinch to zoom on mobile, or use the + − buttons.
+      </p>
     </div>
 
-    <!-- Chat -->
-    <div class="chat-shell" style="padding:1.25rem; margin-bottom:2rem;">
-      <div id="chatLog" class="chat-log"></div>
+    <!-- Chat Shell -->
+    <div class="chat-shell p-4 sm:p-5">
       
-      <div id="typingRow" class="msg-row" style="margin-top:.75rem; display:none;">
-        <div class="msg-avatar">
-          <img src="assets/images/carrie-avatar.png" alt="Carrie" />
+      <!-- Mode Controls -->
+      <div class="flex items-center justify-between mb-3 pb-2 border-b border-purple-500/30">
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-purple-200/80">Mode:</span>
+          <button id="modePro" class="mode-btn active">
+            💼 Professional
+          </button>
+          <button id="modeFun" class="mode-btn">
+            💜 Personal
+          </button>
         </div>
-        <div style="display:flex; gap:4px; align-items:center; padding:.5rem .8rem; background:rgba(17,24,39,.96); border-radius:.85rem; border:1px solid rgba(148,163,255,.55);">
-          <div class="typing-dot"></div>
-          <div class="typing-dot"></div>
-          <div class="typing-dot"></div>
-        </div>
+        <button id="clearChat" class="text-xs text-purple-400 hover:underline">
+          🗑️ Clear
+        </button>
       </div>
 
-      <form id="carrieForm" style="margin-top:1rem; display:flex; gap:.5rem;">
-        <textarea id="carrieInput" placeholder="Ask Carrie anything..." rows="2"></textarea>
-        <button type="submit" class="btn btn-primary" style="align-self:flex-end;">Send</button>
+      <!-- Chat log -->
+      <div id="chatStream" class="chat-log mb-3"></div>
+
+      <!-- Input form -->
+      <form id="chatForm">
+        <div class="flex flex-col sm:flex-row items-end gap-2">
+          <div class="flex-1 w-full">
+            <textarea 
+              id="chatInput"
+              placeholder="Ask Carrie anything... Try: 'help me plan my week' or 'what can I do with my avatar?'"
+            ></textarea>
+          </div>
+          <button id="sendBtn" type="submit" class="btn btn-primary px-4 h-12 w-full sm:w-auto">
+            <span>Send</span>
+            <span>📤</span>
+          </button>
+        </div>
       </form>
     </div>
 
+    <p class="mt-4 text-[11px] text-purple-300/70 text-center max-w-xl mx-auto">
+      Carrie is in beta. Drag the avatar to position it where you want!
+    </p>
   </main>
 
-  <!-- Train Modal -->
-  <div id="trainerModal" style="display:none; position:fixed; inset:0; z-index:999; align-items:center; justify-content:center; padding:1rem;">
-    <div id="trainerBackdrop" style="position:absolute; inset:0; background:rgba(0,0,0,.85);"></div>
-    <div style="position:relative; z-index:1; background:rgba(15,23,42,.98); border:1px solid rgba(124,58,237,.6); border-radius:16px; max-width:500px; width:100%; padding:1.5rem; box-shadow:0 20px 50px rgba(0,0,0,.9);">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-        <h3 style="margin:0; font-size:1.1rem; color:#a855f7;">🧠 Train Carrie</h3>
-        <button id="trainerClose" class="btn btn-small">✖</button>
-      </div>
-      <p style="font-size:.85rem; opacity:.85; margin-bottom:1rem;">
-        Teach Carrie new responses!
-      </p>
-      <form id="trainerForm">
-        <label style="display:block; font-size:.85rem; margin-bottom:.3rem; color:#e5e7eb;">Question Pattern</label>
-        <input id="trainerQuestion" type="text" placeholder="e.g., What's your favorite color?" style="width:100%; padding:.5rem; border-radius:.5rem; border:1px solid rgba(148,163,255,.55); background:rgba(10,2,26,.95); color:#e5e7eb; margin-bottom:.75rem;" />
-        
-        <label style="display:block; font-size:.85rem; margin-bottom:.3rem; color:#e5e7eb;">Reply</label>
-        <textarea id="trainerAnswer" placeholder="e.g., My favorite color is purple!" rows="4" style="width:100%; padding:.5rem; border-radius:.5rem; border:1px solid rgba(148,163,255,.55); background:rgba(10,2,26,.95); color:#e5e7eb; margin-bottom:.75rem;"></textarea>
-        
-        <div id="trainerStatus" style="display:none; padding:.5rem; background:rgba(16,185,129,.2); border:1px solid #10b981; border-radius:.5rem; font-size:.8rem; margin-bottom:.75rem; color:#10b981;"></div>
-        
-        <div style="display:flex; gap:.5rem; justify-content:flex-end;">
-          <button type="button" id="trainerCancel" class="btn btn-small">Cancel</button>
-          <button type="submit" class="btn btn-primary btn-small">Save</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Supabase -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    const SUPABASE_URL = "https://wbreyldhjxvvlpmnuyij.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndicmV5bGRoanh2dmxwbW51eWlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYyMDc0MDcsImV4cCI6MjA1MTc4MzQwN30.Uh63hTb9VzfgaEr4Eq1hN4m7uiVJWPM0uV_RNxVsqpQ";
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  </script>
-
-  <!-- Main Chat Script -->
-  <script>
-    document.addEventListener("DOMContentLoaded", function() {
-      console.log("🎬 Chat with Closet Integration loaded");
-
-      // DOM refs
-      const chatLog = document.getElementById("chatLog");
-      const typingRow = document.getElementById("typingRow");
-      const carrieForm = document.getElementById("carrieForm");
-      const carrieInput = document.getElementById("carrieInput");
-      const statusText = document.getElementById("statusText");
-      const coinDisplay = document.getElementById("coinDisplay");
-      const ownerControls = document.getElementById("ownerControls");
-      const miniBaseImg = document.getElementById("miniBaseImg");
-      const miniOverlayHost = document.getElementById("miniOverlayHost");
-      const ownedItemsGrid = document.getElementById("ownedItemsGrid");
-
-      const btnSite = document.getElementById("btnSite");
-      const btnPersonal = document.getElementById("btnPersonal");
-      const btnBFGF = document.getElementById("btnBFGF");
-
-      const trainerModal = document.getElementById("trainerModal");
-      const trainerBtn = document.getElementById("trainerBtn");
-      const trainerClose = document.getElementById("trainerClose");
-      const trainerBackdrop = document.getElementById("trainerBackdrop");
-      const trainerForm = document.getElementById("trainerForm");
-      const trainerQuestion = document.getElementById("trainerQuestion");
-      const trainerAnswer = document.getElementById("trainerAnswer");
-      const trainerStatus = document.getElementById("trainerStatus");
-      const trainerCancel = document.getElementById("trainerCancel");
-      const clearLogBtn = document.getElementById("clearLogBtn");
-
-      // State
-      let carrieMode = localStorage.getItem("carrieMode") || "site";
-      let currentUserId = null;
-      let currentUserEmail = null;
-      let isOwner = true; // Auto-owner mode
-      let userCoins = 999999;
-
-      let currentGender = localStorage.getItem("carrieGender") || "female";
-      let currentSkin = localStorage.getItem("carrieSkinTone") || "light";
-      let ownedItems = [];
-      let equipped = {
-        hair: null,
-        top: null,
-        bottom: null,
-        eyes: null,
-        shoes: null,
-        necklace: null,
-        ears: null,
-        belly: null
-      };
-
-      const zBySlot = { shoes: 10, bottom: 30, belly: 35, top: 40, necklace: 45, eyes: 50, ears: 55, hair: 60 };
-
-      // Get items from window.CARRIE_CLOSET_ITEMS
-      function getItems() {
-        return window.CARRIE_CLOSET_ITEMS || [];
-      }
-
-      // Filter items by gender
-      function filterByGender(items) {
-        return items.filter(it => {
-          return it.gender === "unisex" || it.gender === currentGender;
-        });
-      }
-
-      // Update base image
-      function updateBaseImage() {
-        if (miniBaseImg) {
-          miniBaseImg.src = `assets/images/base/${currentGender}/base_${currentGender}_${currentSkin}.png?v=15`;
-        }
-        document.body.dataset.gender = currentGender;
-        document.body.dataset.skin = currentSkin;
-      }
-
-      // Render avatar overlays
-      function renderAvatarOverlays() {
-        if (!miniOverlayHost) return;
-        miniOverlayHost.innerHTML = "";
-
-        Object.keys(equipped).forEach(slot => {
-          const itemObj = equipped[slot];
-          if (!itemObj) return;
-
-          // Handle dual items (eyes, ears, shoes)
-          if (slot === "eyes" || slot === "ears") {
-            const left = document.createElement("img");
-            left.src = itemObj.imgLeft || itemObj.img;
-            left.className = `layer-overlay layer-left item-${itemObj.id}`;
-            left.style.zIndex = zBySlot[slot];
-
-            const right = document.createElement("img");
-            right.src = itemObj.imgRight || itemObj.img;
-            right.className = `layer-overlay layer-right item-${itemObj.id}`;
-            right.style.zIndex = zBySlot[slot];
-
-            miniOverlayHost.appendChild(left);
-            miniOverlayHost.appendChild(right);
-          } else if (slot === "shoes") {
-            const left = document.createElement("img");
-            left.src = itemObj.imgLeft || itemObj.img;
-            left.className = `layer-overlay layer-shoes-left item-${itemObj.id}`;
-            left.style.zIndex = zBySlot.shoes;
-
-            const right = document.createElement("img");
-            right.src = itemObj.imgRight || itemObj.img;
-            right.className = `layer-overlay layer-shoes-right item-${itemObj.id}`;
-            right.style.zIndex = zBySlot.shoes;
-
-            miniOverlayHost.appendChild(left);
-            miniOverlayHost.appendChild(right);
-          } else {
-            // Single item
-            const overlay = document.createElement("img");
-            overlay.src = itemObj.img;
-            overlay.className = `layer-overlay item-${itemObj.id}`;
-            overlay.style.zIndex = zBySlot[slot] || 20;
-            miniOverlayHost.appendChild(overlay);
-          }
-        });
-      }
-
-      // Render owned items
-      function renderOwnedItems() {
-        if (!ownedItemsGrid) return;
-        ownedItemsGrid.innerHTML = "";
-
-        const items = getItems();
-        const filtered = filterByGender(items);
-
-        ownedItems.forEach(itemId => {
-          const item = filtered.find(it => it.id === itemId);
-          if (!item) return;
-
-          const div = document.createElement("div");
-          div.className = "mini-item";
-          if (equipped[item.slot] && equipped[item.slot].id === item.id) {
-            div.classList.add("active");
-          }
-
-          const badge = equipped[item.slot] && equipped[item.slot].id === item.id ?
-            '<div class="item-badge badge-active">ACTIVE</div>' :
-            '<div class="item-badge badge-owned">OWNED</div>';
-
-          div.innerHTML = `
-            <div class="mini-item-img">
-              <img src="${item.img}" alt="${item.name}">
-              ${badge}
-            </div>
-            <div class="mini-item-name">${item.name}</div>
-          `;
-
-          div.addEventListener("click", () => {
-            if (equipped[item.slot] && equipped[item.slot].id === item.id) {
-              equipped[item.slot] = null;
-            } else {
-              equipped[item.slot] = item;
-            }
-            renderOwnedItems();
-            renderAvatarOverlays();
-          });
-
-          ownedItemsGrid.appendChild(div);
-        });
-      }
-
-      // Gender/Skin controls
-      document.querySelectorAll('[data-gender]').forEach(btn => {
-        btn.addEventListener('click', function() {
-          document.querySelectorAll('[data-gender]').forEach(b => b.classList.remove('active'));
-          this.classList.add('active');
-          currentGender = this.dataset.gender;
-          localStorage.setItem("carrieGender", currentGender);
-          updateBaseImage();
-          renderOwnedItems();
-          renderAvatarOverlays();
-        });
-      });
-
-      document.querySelectorAll('[data-skin]').forEach(btn => {
-        btn.addEventListener('click', function() {
-          document.querySelectorAll('[data-skin]').forEach(b => b.classList.remove('active'));
-          this.classList.add('active');
-          currentSkin = this.dataset.skin;
-          localStorage.setItem("carrieSkinTone", currentSkin);
-          updateBaseImage();
-          renderAvatarOverlays();
-        });
-      });
-
-      // Auto-unlock all items for owner
-      function unlockAllItems() {
-        const items = getItems();
-        ownedItems = items.map(it => it.id);
-        console.log("✅ All items unlocked:", ownedItems.length);
-        renderOwnedItems();
-      }
-
-      // Mode switching
-      function switchMode(newMode) {
-        carrieMode = newMode;
-        localStorage.setItem("carrieMode", newMode);
-        updateModeUI();
-        
-        const greeting = getModeGreeting();
-        renderMessage("assistant", greeting, new Date());
-      }
-
-      function updateModeUI() {
-        btnSite.classList.toggle("active", carrieMode === "site");
-        btnPersonal.classList.toggle("active", carrieMode === "personal");
-        btnBFGF.classList.toggle("active", carrieMode === "bfgf");
-      }
-
-      btnSite.addEventListener("click", () => switchMode("site"));
-      btnPersonal.addEventListener("click", () => switchMode("personal"));
-      btnBFGF.addEventListener("click", () => switchMode("bfgf"));
-
-      if (clearLogBtn) {
-        clearLogBtn.addEventListener("click", async () => {
-          if (!confirm("Clear all chat history?")) return;
-          chatLog.innerHTML = "";
-          renderMessage("assistant", getModeGreeting());
-        });
-      }
-
-      // Chat functions
-      function renderMessage(role, content, timestamp = new Date()) {
-        const row = document.createElement("div");
-        row.className = `msg-row ${role}`;
-
-        const avatarSrc = role === "user"
-          ? "assets/images/user-avatar.png"
-          : "assets/images/carrie-avatar.png";
-
-        const avatarHTML = `<div class="msg-avatar"><img src="${avatarSrc}" alt="${role}" /></div>`;
-        const time = new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-        const bubbleHTML = `<div><div class="msg-bubble">${content}</div><div class="msg-meta">${time}</div></div>`;
-
-        if (role === "user") {
-          row.innerHTML = bubbleHTML + avatarHTML;
-        } else {
-          row.innerHTML = avatarHTML + bubbleHTML;
-        }
-
-        chatLog.appendChild(row);
-        chatLog.scrollTop = chatLog.scrollHeight;
-      }
-
-      function carrieBrain(msg) {
-        const lower = msg.toLowerCase();
-        
-        if (typeof carrieScripts !== 'undefined') {
-          for (const script of carrieScripts) {
-            if (script.patterns && script.patterns.some(p => lower.includes(p.toLowerCase()))) {
-              return script.reply;
-            }
-          }
-        }
-
-        if (carrieMode === "site") {
-          if (lower.includes("8bfr") || lower.includes("network")) {
-            return "8BFR Music Network is your music hub! What would you like to know?";
-          }
-          if (lower.includes("closet") || lower.includes("avatar") || lower.includes("outfit")) {
-            return "You can customize my look right here or visit the Full Closet for more options! 💜";
-          }
-        } else if (carrieMode === "personal") {
-          if (lower.includes("goal")) {
-            return "Tell me about your goals! Every step counts. 💪";
-          }
-        } else if (carrieMode === "bfgf") {
-          if (lower.includes("love")) {
-            return "Aww you're sweet! I'm here for you babe. 💜";
-          }
-        }
-
-        const defaults = [
-          "That's interesting! Tell me more.",
-          "I'm listening. What else?",
-          "That's a great question!",
-          "Thanks for sharing. 💜"
-        ];
-
-        return defaults[Math.floor(Math.random() * defaults.length)];
-      }
-
-      function getModeGreeting() {
-        if (carrieMode === "site") {
-          return "I'm in <b>Site/Pro</b> mode. Ask about 8BFR or get help!";
-        } else if (carrieMode === "personal") {
-          return "I'm in <b>Personal</b> mode. Tell me your goals! 💜";
-        } else if (carrieMode === "bfgf") {
-          return "Hey babe 💜 I'm in <b>BF/GF mode</b>. I'm all yours. 😊";
-        }
-        
-        return "Ask me anything! 💜";
-      }
-
-      function showTyping() {
-        typingRow.style.display = "flex";
-      }
-
-      function hideTyping() {
-        typingRow.style.display = "none";
-      }
-
-      carrieForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const userMsg = carrieInput.value.trim();
-        if (!userMsg) return;
-
-        carrieInput.value = "";
-        renderMessage("user", userMsg, new Date());
-
-        showTyping();
-
-        setTimeout(() => {
-          const reply = carrieBrain(userMsg);
-          renderMessage("assistant", reply, new Date());
-          hideTyping();
-        }, 600 + Math.random() * 400);
-      });
-
-      carrieInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" && !e.shiftKey) {
-          e.preventDefault();
-          carrieForm.requestSubmit();
-        }
-      });
-
-      // Trainer modal
-      function openTrainer() {
-        if (trainerModal) trainerModal.style.display = "flex";
-        if (trainerStatus) trainerStatus.style.display = "none";
-      }
-
-      function closeTrainer() {
-        if (trainerModal) trainerModal.style.display = "none";
-        if (trainerQuestion) trainerQuestion.value = "";
-        if (trainerAnswer) trainerAnswer.value = "";
-        if (trainerStatus) trainerStatus.style.display = "none";
-      }
-
-      if (trainerModal) trainerModal.style.display = "none";
-
-      if (trainerBtn) {
-        trainerBtn.addEventListener("click", (e) => {
-          e.preventDefault();
-          openTrainer();
-        });
-      }
-      
-      if (trainerClose) trainerClose.addEventListener("click", closeTrainer);
-      if (trainerCancel) trainerCancel.addEventListener("click", closeTrainer);
-      if (trainerBackdrop) {
-        trainerBackdrop.addEventListener("click", (e) => {
-          if (e.target === trainerBackdrop) closeTrainer();
-        });
-      }
-
-      document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape" && trainerModal && trainerModal.style.display === "flex") {
-          closeTrainer();
-        }
-      });
-
-      if (trainerForm) {
-        trainerForm.addEventListener("submit", async (e) => {
-          e.preventDefault();
-          
-          const q = trainerQuestion.value.trim();
-          const a = trainerAnswer.value.trim();
-          
-          if (!q || !a) {
-            trainerStatus.textContent = "Fill both fields";
-            trainerStatus.style.display = "block";
-            return;
-          }
-
-          const entry = {
-            id: "custom_" + Date.now(),
-            section: "custom",
-            patterns: [q],
-            reply: a.replace(/\n/g, "<br>")
-          };
-          
-          if (typeof carrieScripts !== 'undefined') {
-            carrieScripts.push(entry);
-          }
-
-          trainerStatus.textContent = "✅ Saved!";
-          trainerStatus.style.display = "block";
-          
-          setTimeout(() => {
-            trainerQuestion.value = "";
-            trainerAnswer.value = "";
-          }, 1500);
-        });
-      }
-
-      // Init
-      updateModeUI();
-      updateBaseImage();
-      unlockAllItems();
-      renderAvatarOverlays();
-
-      // Initial greeting
-      renderMessage("assistant", "Hey! 💜 I'm Carrie in Owner Mode. You can customize my look and chat with me!");
-
-      console.log("✅ Chat page ready!");
-      
-    });
-  </script>
-
-  <script src="scripts.js?v=2" defer></script>
-
-  <script>
-    // Hide floating bubbles
-    window.addEventListener("load", function(){
-      setTimeout(function(){
-        const idsToHide = ['bubbleStack', 'bubble-top-single', 'carrieWrap', 'carrieBubble', 'carrieToggleBar'];
-        idsToHide.forEach(id => {
-          const el = document.getElementById(id);
-          if (el) el.style.display = 'none';
-        });
-        
-        const classesToHide = ['.bubble-stack', '.floating-bubbles', '.carrie-bubble', '.bubble-container'];
-        classesToHide.forEach(cls => {
-          document.querySelectorAll(cls).forEach(el => el.style.display = 'none');
-        });
-        
-        document.querySelectorAll('[data-bubble]').forEach(el => el.style.display = 'none');
-        document.querySelectorAll('[data-role="carrie"], [data-carrie]').forEach(el => el.style.display = 'none');
-      }, 300);
-    });
-  </script>
+  <!-- Load chat script -->
+  <script src="carrie-chat.js?v=2"></script>
 </body>
 </html>
