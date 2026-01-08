@@ -1,17 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  ```
-<link rel="stylesheet" href="carrie-avatar-positioning.css?v=1" />
-```
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Chat with Carrie — 8BFR Music Network</title>
   <meta name="description" content="Chat with Carrie — your AI assistant on the 8BFR Music Network." />
   <link rel="icon" href="assets/images/favicon.png" />
   
-  <!-- Load Carrie's AI Memory/Knowledge Base -->
-  <script src="carrie-memory.js?v=2"></script>
+  <!-- Load item data -->
+  <script src="carrie-chat-data.js?v=2"></script>
   
   <script src="https://cdn.tailwindcss.com"></script>
 
@@ -64,17 +61,23 @@
       border-radius:12px;
     }
     
-    .msg-row{
+    .msg{
       display:flex;
-      margin-bottom:.65rem;
+      margin-bottom:.8rem;
       gap:.4rem;
     }
     
-    .msg-row.user{
+    .msg.user{
       justify-content:flex-end;
     }
     
-    .msg-bubble{
+    .msg .role{
+      font-size:.7rem;
+      opacity:.7;
+      margin-bottom:.2rem;
+    }
+    
+    .msg .bubble{
       max-width:80%;
       padding:.55rem .8rem;
       border-radius:.85rem;
@@ -85,54 +88,10 @@
       box-shadow:0 0 12px rgba(79,70,229,.35);
     }
     
-    .msg-row.user .msg-bubble{
+    .msg.user .bubble{
       background:linear-gradient(135deg,#7c3aed,#4c1d95);
       border-color:#a855f7;
       box-shadow:0 0 12px rgba(168,85,247,.55);
-    }
-    
-    .msg-meta{
-      font-size:.7rem;
-      opacity:.7;
-      margin-top:.2rem;
-    }
-    
-    .msg-avatar{
-      width:32px;
-      height:32px;
-      border-radius:999px;
-      flex-shrink:0;
-      overflow:hidden;
-      border:1px solid rgba(129,140,248,.9);
-      display:grid;
-      place-items:center;
-      font-size:.75rem;
-      background:#020014;
-    }
-    
-    .msg-avatar img{
-      width:100%;
-      height:100%;
-      object-fit:cover;
-      display:block;
-    }
-    
-    /* Show avatars for both user and assistant */
-    .msg-row.user{
-      justify-content:flex-end;
-    }
-
-    .pill-tag{
-      display:inline-flex;
-      align-items:center;
-      gap:.25rem;
-      font-size:.7rem;
-      border-radius:999px;
-      padding:.15rem .55rem;
-      border:1px solid rgba(129,140,248,.85);
-      background:rgba(15,23,42,.9);
-      text-transform:uppercase;
-      letter-spacing:.08em;
     }
 
     .btn{
@@ -166,12 +125,7 @@
       filter:brightness(1.1);
     }
     
-    .btn-small{
-      padding:.3rem .6rem;
-      font-size:.75rem;
-    }
-
-    textarea#carrieInput{
+    textarea#chatInput{
       resize:none;
       min-height:60px;
       max-height:120px;
@@ -184,26 +138,10 @@
       width: 100%;
     }
     
-    textarea#carrieInput:focus{
+    textarea#chatInput:focus{
       outline:none;
       box-shadow:0 0 0 2px rgba(129,140,248,.9);
       border-color:rgba(129,140,248,1);
-    }
-    
-    .typing-dot{
-      width:6px;
-      height:6px;
-      border-radius:999px;
-      background:#a855f7;
-      animation:bounce 1s infinite ease-in-out;
-    }
-    
-    .typing-dot:nth-child(2){ animation-delay:.15s; }
-    .typing-dot:nth-child(3){ animation-delay:.3s; }
-    
-    @keyframes bounce{
-      0%,80%,100%{ transform:translateY(0); opacity:.4;}
-      40%{ transform:translateY(-4px); opacity:1;}
     }
 
     .mode-btn{
@@ -228,116 +166,199 @@
       box-shadow:0 0 0 1px rgba(129,140,248,.7),0 0 16px rgba(168,85,247,.65);
     }
 
-    .mode-btn:disabled{
-      opacity: 0.4;
-      cursor: not-allowed;
-      background: rgba(15,23,42,.5);
+    /* FLOATING AVATAR - Positioned absolutely, draggable */
+    #floatingAvatarWrapper { 
+      position:fixed; 
+      z-index:99999; 
+      pointer-events:none;
+      width:480px;
+      height:800px;
     }
-
-    .mode-btn:disabled:hover{
-      background: rgba(15,23,42,.5);
-      transform: none;
+    
+    #floatingAvatarInner { 
+      pointer-events:auto; 
+      cursor:grab; 
+      position:relative;
+      width:100%;
+      height:100%;
+      transform-origin:center;
     }
-
-    .control-panel{
-      background: rgba(15,23,42,.6);
-      border: 1px solid rgba(124,58,237,.4);
-      border-radius: 12px;
-      padding: .75rem;
-      margin-bottom: 1rem;
+    
+    #floatingAvatarInner:active { 
+      cursor:grabbing; 
     }
-
-    .outfit-thumb{
-      display: block;
-      text-decoration: none;
-      background: rgba(15,23,42,.8);
-      border: 1px solid rgba(124,58,237,.5);
-      border-radius: 12px;
-      padding: .5rem;
-      transition: all .2s ease;
-      position: relative;
+    
+    #closetPreviewInner {
+      width:480px;
+      height:800px;
+      position:relative;
     }
-
-    .outfit-thumb:hover{
-      transform: translateY(-2px);
-      border-color: #a855f7;
-      box-shadow: 0 4px 12px rgba(168,85,247,.3);
+    
+    #closetBaseImg {
+      position:absolute;
+      inset:0;
+      height:100%;
+      width:auto;
+      object-fit:cover;
+      z-index:1;
+      left:50%;
+      transform:translateX(-50%);
+      filter:drop-shadow(0 0 3px #000);
     }
-
-    .outfit-thumb.locked .outfit-thumb-img{
-      opacity: 0.5;
+    
+    #closetOverlayHost {
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      z-index:2;
     }
-
-    .outfit-thumb-img{
-      width: 100%;
-      aspect-ratio: 1;
-      background: rgba(0,0,0,.5);
-      border-radius: 8px;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      margin-bottom: .4rem;
-    }
-
-    .outfit-thumb-img img{
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
-    }
-
-    .outfit-lock-overlay{
+    
+    /* LAYER POSITIONING - MATCHES CLOSET EXACTLY */
+    .layer-overlay {
       position: absolute;
-      inset: 0;
-      display: grid;
-      place-items: center;
-      font-size: 2rem;
-      background: rgba(0,0,0,.4);
-      backdrop-filter: blur(2px);
-    }
-
-    .outfit-thumb-label{
-      font-size: .7rem;
-      color: #e5e7eb;
-      text-align: center;
-      margin-bottom: .3rem;
-      font-weight: 500;
-    }
-
-    .outfit-thumb-badge{
-      display: inline-block;
-      font-size: .65rem;
-      padding: .15rem .4rem;
-      border-radius: 999px;
-      text-align: center;
       width: 100%;
-      font-weight: 600;
+      height: 100%;
+      object-fit: contain;
+      pointer-events: none;
     }
-
-    .outfit-thumb-badge.free{
-      background: #10b981;
-      color: #000;
+    
+    /* Base positioning variables for different avatar combinations */
+    body[data-gender="female"][data-skin="light"] {
+      --hair-top: 0%;
+      --hair-left: 0%;
+      --top-top: 37.5%;
+      --top-left: 0%;
+      --bottom-top: 52.5%;
+      --bottom-left: 0%;
+      --necklace-top: 34%;
+      --necklace-left: 0%;
+      --belly-top: 49%;
+      --belly-left: 0%;
+      --eyes-left-top: 20.5%;
+      --eyes-left-left: 37%;
+      --eyes-right-top: 20.5%;
+      --eyes-right-left: 55.5%;
+      --ears-left-top: 21%;
+      --ears-left-left: 27%;
+      --ears-right-top: 21%;
+      --ears-right-left: 65%;
+      --shoes-left-top: 84%;
+      --shoes-left-left: 35%;
+      --shoes-right-top: 84%;
+      --shoes-right-left: 54%;
     }
-
-    .outfit-thumb-badge.coins{
-      background: #f59e0b;
-      color: #000;
+    
+    body[data-gender="female"][data-skin="dark"] {
+      --hair-top: 0%;
+      --hair-left: 0%;
+      --top-top: 37.5%;
+      --top-left: 0%;
+      --bottom-top: 52.5%;
+      --bottom-left: 0%;
+      --necklace-top: 34%;
+      --necklace-left: 0%;
+      --belly-top: 49%;
+      --belly-left: 0%;
+      --eyes-left-top: 20.5%;
+      --eyes-left-left: 37%;
+      --eyes-right-top: 20.5%;
+      --eyes-right-left: 55.5%;
+      --ears-left-top: 21%;
+      --ears-left-left: 27%;
+      --ears-right-top: 21%;
+      --ears-right-left: 65%;
+      --shoes-left-top: 84%;
+      --shoes-left-left: 35%;
+      --shoes-right-top: 84%;
+      --shoes-right-left: 54%;
     }
-
-    .outfit-thumb-badge.unlocked{
-      background: #8b5cf6;
-      color: #fff;
+    
+    body[data-gender="male"][data-skin="light"] {
+      --hair-top: 0%;
+      --hair-left: 0%;
+      --top-top: 37.5%;
+      --top-left: 0%;
+      --bottom-top: 52.5%;
+      --bottom-left: 0%;
+      --necklace-top: 34%;
+      --necklace-left: 0%;
+      --belly-top: 49%;
+      --belly-left: 0%;
+      --eyes-left-top: 20.5%;
+      --eyes-left-left: 37%;
+      --eyes-right-top: 20.5%;
+      --eyes-right-left: 55.5%;
+      --ears-left-top: 21%;
+      --ears-left-left: 27%;
+      --ears-right-top: 21%;
+      --ears-right-left: 65%;
+      --shoes-left-top: 84%;
+      --shoes-left-left: 35%;
+      --shoes-right-top: 84%;
+      --shoes-right-left: 54%;
     }
+    
+    body[data-gender="male"][data-skin="dark"] {
+      --hair-top: 0%;
+      --hair-left: 0%;
+      --top-top: 37.5%;
+      --top-left: 0%;
+      --bottom-top: 52.5%;
+      --bottom-left: 0%;
+      --necklace-top: 34%;
+      --necklace-left: 0%;
+      --belly-top: 49%;
+      --belly-left: 0%;
+      --eyes-left-top: 20.5%;
+      --eyes-left-left: 37%;
+      --eyes-right-top: 20.5%;
+      --eyes-right-left: 55.5%;
+      --ears-left-top: 21%;
+      --ears-left-left: 27%;
+      --ears-right-top: 21%;
+      --ears-right-left: 65%;
+      --shoes-left-top: 84%;
+      --shoes-left-left: 35%;
+      --shoes-right-top: 84%;
+      --shoes-right-left: 54%;
+    }
+    
+    /* Apply positioning to layers */
+    .layer-overlay[class*="hair"] { top: var(--hair-top); left: var(--hair-left); }
+    .layer-overlay[class*="top"] { top: var(--top-top); left: var(--top-left); }
+    .layer-overlay[class*="bottom"] { top: var(--bottom-top); left: var(--bottom-left); }
+    .layer-overlay[class*="necklace"] { top: var(--necklace-top); left: var(--necklace-left); }
+    .layer-overlay[class*="belly"] { top: var(--belly-top); left: var(--belly-left); }
+    .layer-overlay.layer-left { top: var(--eyes-left-top); left: var(--eyes-left-left); }
+    .layer-overlay.layer-right { top: var(--eyes-right-top); left: var(--eyes-right-left); }
+    .layer-overlay.layer-shoes-left { top: var(--shoes-left-top); left: var(--shoes-left-left); }
+    .layer-overlay.layer-shoes-right { top: var(--shoes-right-top); left: var(--shoes-right-left); }
 
     @media (max-width:640px){
       .chat-log{ height:60vh; }
-      .msg-bubble{ max-width:88%; }
+      .msg .bubble{ max-width:88%; }
+      #floatingAvatarWrapper { width:300px; height:500px; }
+      #closetPreviewInner { width:300px; height:500px; }
     }
   </style>
 </head>
-<body>
+<body data-gender="female" data-skin="light">
   
+  <!-- FLOATING MOVABLE AVATAR - Drag anywhere, pinch to zoom -->
+  <div id="floatingAvatarWrapper">
+    <div id="floatingAvatarInner">
+      <div id="closetPreviewInner">
+        <img id="closetBaseImg" src="assets/images/base/female/base_female_light.png?v=15" alt="Avatar">
+        <div id="closetOverlayHost"></div>
+      </div>
+      <div style="position:absolute; top:10px; right:10px; display:flex; flex-direction:column; gap:5px; pointer-events:auto;">
+        <button id="avatarZoomIn" style="width:32px; height:32px; border-radius:50%; background:rgba(15,23,42,.9); color:#fff; border:1px solid rgba(124,58,237,.6); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:18px;">+</button>
+        <button id="avatarZoomOut" style="width:32px; height:32px; border-radius:50%; background:rgba(15,23,42,.9); color:#fff; border:1px solid rgba(124,58,237,.6); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:18px;">−</button>
+        <button id="avatarReset" style="width:32px; height:32px; border-radius:50%; background:rgba(15,23,42,.9); color:#fff; border:1px solid rgba(124,58,237,.6); cursor:pointer; display:flex; align-items:center; justify-content:center;">🔄</button>
+      </div>
+    </div>
+  </div>
+
   <header class="px-4 py-4">
     <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
       <div class="flex items-center gap-3">
@@ -362,204 +383,82 @@
 
   <main class="max-w-4xl mx-auto px-4 pb-10 pt-4">
     
-    <!-- MANUAL UNLOCK BUTTON (TESTING) -->
-    <button id="manualUnlockBtn" onclick="manualUnlock()" style="
-      width: 100%;
-      padding: 1rem;
-      background: linear-gradient(135deg, #dc2626, #991b1b);
-      color: white;
-      font-size: 1.2rem;
-      font-weight: bold;
-      border: 2px solid #fca5a5;
-      border-radius: 12px;
-      margin-bottom: 1rem;
-      cursor: pointer;
-    ">
-      🔓 MANUAL UNLOCK (CLICK ME!)
-    </button>
-    
-    <!-- Control Panel -->
-    <div class="control-panel">
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        
-        <!-- Left: Mode & Status -->
-        <div class="flex flex-col gap-2">
-          <div class="flex items-center gap-2">
-            <span class="pill-tag">
-              <span class="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-              <span>Live Carrie</span>
-            </span>
-            <span id="statusText" class="text-[11px] text-purple-200/80">
-              Ready to chat
-            </span>
-          </div>
-          
-          <div class="flex items-center gap-2 flex-wrap">
-            <span class="text-[10px] text-purple-200/70">Mode:</span>
-            <button id="modeBusinessBtn" class="mode-btn active">
-              💼 Site / Pro
-            </button>
-            <button id="modePersonalBtn" class="mode-btn">
-              💜 Personal
-            </button>
-            <button id="modeBFGFBtn" class="mode-btn" disabled>
-              💕 BF/GF
-              <span class="text-[9px] ml-1">🔒</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Right: Quick Actions -->
-        <div class="flex flex-col gap-2 items-end">
-          <a href="carrie-closet.html" class="btn btn-small btn-primary">
-            🎀 Carrie Closet
-          </a>
-          
-          <!-- Owner Controls (hidden by default) -->
-          <div id="ownerControls" class="hidden flex flex-col gap-2">
-            <button id="trainerBtn" class="btn btn-small">
-              🎓 Carrie Trainer
-            </button>
-          </div>
-          
-          <!-- Buy Coins Button -->
-          <a href="coinshop.html" class="btn btn-small" style="background:#f59e0b;border-color:#f59e0b;color:#000;">
-            🪙 Buy Coins
-          </a>
-        </div>
-      </div>
-    </div>
-
-    <!-- Full-Size Avatar Preview (Floating, No Box) -->
-    <div style="position: relative; width: 100%; max-width: 600px; margin: 0 auto 2rem auto; height: 600px;">
-      
-      <!-- Avatar Display (Floating) -->
-      <div id="avatarPreviewInner" style="
-        position: absolute;
-        left: 50%;
-        top: 0;
-        transform: translateX(-50%);
-        width: 350px;
-        height: 100%;
-        pointer-events: none;
-      ">
-        <!-- Base avatar image -->
-        <img 
-          id="avatarBaseImg" 
-          src="assets/images/base/female/base_female_light.png?v=15" 
-          alt="Your avatar"
-          style="
-            width: 100%;
-            height: auto;
-            object-fit: contain;
-            display: block;
-            filter: drop-shadow(0 4px 12px rgba(0,0,0,.5));
-          "
-        >
-        
-        <!-- Overlay container for equipped items -->
-        <div id="avatarOverlays" style="
-          position: absolute;
-          inset: 0;
-          pointer-events: none;
-        "></div>
-      </div>
-
-      <!-- Avatar Controls (Positioned at bottom, horizontal layout) -->
-      <div style="
-        position: absolute;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(10,6,30,.95);
-        border: 1px solid rgba(124,58,237,.6);
-        border-radius: 12px;
-        padding: .75rem 1.5rem;
-        box-shadow: 0 8px 24px rgba(0,0,0,.6);
-        pointer-events: auto;
-        display: flex;
-        align-items: center;
-        gap: 1.5rem;
-      ">
+    <!-- Avatar Controls -->
+    <div class="chat-shell p-4 mb-4">
+      <div class="flex items-center justify-between gap-3 mb-3">
         <div class="text-sm font-bold text-purple-100">
-          👤 Your Avatar
+          👤 Avatar Controls
         </div>
-        
-        <!-- Gender Switcher -->
+        <a href="carrie-closet.html" class="btn btn-primary" style="padding:.4rem .7rem;font-size:.8rem;">
+          🎀 Full Closet
+        </a>
+      </div>
+      
+      <div class="flex flex-wrap gap-3">
+        <!-- Gender -->
         <div class="flex items-center gap-2">
           <div class="text-xs text-purple-200/80">Gender:</div>
           <div class="flex gap-1">
-            <button id="genderFemale" class="mode-btn active" style="padding:.25rem .5rem;font-size:.7rem;">
+            <button id="genderFemale" data-gender="female" class="mode-btn active">
               👩 Female
             </button>
-            <button id="genderMale" class="mode-btn" style="padding:.25rem .5rem;font-size:.7rem;">
+            <button id="genderMale" data-gender="male" class="mode-btn">
               👨 Male
             </button>
           </div>
         </div>
         
-        <!-- Skin Tone Switcher -->
+        <!-- Skin Tone -->
         <div class="flex items-center gap-2">
           <div class="text-xs text-purple-200/80">Skin:</div>
           <div class="flex gap-1">
-            <button id="skinLight" class="mode-btn active" style="padding:.25rem .5rem;font-size:.7rem;">
+            <button id="skinLight" data-skin="light" class="mode-btn active">
               ☀️ Light
             </button>
-            <button id="skinDark" class="mode-btn" style="padding:.25rem .5rem;font-size:.7rem;">
+            <button id="skinDark" data-skin="dark" class="mode-btn">
               🌙 Dark
             </button>
           </div>
         </div>
-
-        <a href="carrie-closet.html" class="text-[10px] text-purple-400 underline whitespace-nowrap">
-          🎀 Full Closet
-        </a>
       </div>
+      
+      <p class="text-[10px] text-purple-300/70 mt-2">
+        💡 Drag the avatar anywhere! Pinch to zoom on mobile, or use the + − buttons.
+      </p>
     </div>
 
     <!-- Chat Shell -->
     <div class="chat-shell p-4 sm:p-5">
       
-      <!-- Small Avatar Circle (Top Left) -->
-      <div class="flex items-center gap-2 mb-3 pb-2 border-b border-purple-500/30">
-        <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-purple-400/50 bg-black/30 flex-shrink-0">
-          <img id="chatAvatarSmall" src="assets/images/base/female/base_female_light.png?v=15" alt="You" class="w-full h-full object-cover">
+      <!-- Mode Controls -->
+      <div class="flex items-center justify-between mb-3 pb-2 border-b border-purple-500/30">
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-purple-200/80">Mode:</span>
+          <button id="modePro" class="mode-btn active">
+            💼 Professional
+          </button>
+          <button id="modeFun" class="mode-btn">
+            💜 Personal
+          </button>
         </div>
-        <div class="text-xs text-purple-200/80">
-          <div class="font-semibold">Chatting as: You</div>
-          <div class="text-[10px] opacity-70">Your messages appear on the right</div>
-        </div>
+        <button id="clearChat" class="text-xs text-purple-400 hover:underline">
+          🗑️ Clear
+        </button>
       </div>
 
       <!-- Chat log -->
-      <div id="chatLog" class="chat-log mb-3"></div>
-
-      <!-- Typing indicator -->
-      <div id="typingRow" class="hidden mb-3 text-xs text-purple-200/80 flex items-center gap-2">
-        <span class="pill-tag">Carrie typing</span>
-        <div class="flex items-center gap-1 ml-1">
-          <span class="typing-dot"></span>
-          <span class="typing-dot"></span>
-          <span class="typing-dot"></span>
-        </div>
-      </div>
+      <div id="chatStream" class="chat-log mb-3"></div>
 
       <!-- Input form -->
-      <form id="carrieForm">
+      <form id="chatForm">
         <div class="flex flex-col sm:flex-row items-end gap-2">
           <div class="flex-1 w-full">
-            <label for="carrieInput" class="text-xs text-purple-200/80 mb-1 inline-block">
-              Ask Carrie anything about 8BFR, music, goals, or just chat (PG-13)
-            </label>
             <textarea 
-              id="carrieInput"
-              placeholder="Example: Help me plan my week of music and writing"
+              id="chatInput"
+              placeholder="Ask Carrie anything... Try: 'help me plan my week' or 'what can I do with my avatar?'"
             ></textarea>
-            <p class="text-[10px] text-purple-300/70 mt-1">
-              Press <b>Enter</b> to send • <b>Shift+Enter</b> for new line
-            </p>
           </div>
-          <button type="submit" class="btn btn-primary px-4 h-12 w-full sm:w-auto">
+          <button id="sendBtn" type="submit" class="btn btn-primary px-4 h-12 w-full sm:w-auto">
             <span>Send</span>
             <span>📤</span>
           </button>
@@ -568,1109 +467,11 @@
     </div>
 
     <p class="mt-4 text-[11px] text-purple-300/70 text-center max-w-xl mx-auto">
-      Carrie is in beta. Conversations may be stored to improve your experience on 8BFR.
+      Carrie is in beta. Drag the avatar to position it where you want!
     </p>
-
-    <!-- Coin Balance & Purchase Options -->
-    <div class="shell p-4 sm:p-5 mt-4">
-      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <div class="flex items-center gap-3">
-          <div class="text-3xl">🪙</div>
-          <div>
-            <div class="text-sm font-bold text-yellow-300">Your Coins</div>
-            <div id="coinBalance" class="text-2xl font-extrabold text-yellow-400">0</div>
-          </div>
-        </div>
-        
-        <div class="flex flex-wrap gap-2">
-          <a href="coinshop.html" class="btn btn-small" style="background:#f59e0b;border-color:#f59e0b;color:#000;">
-            🪙 Buy More Coins
-          </a>
-          <button id="premiumUpgradeBtn" class="btn btn-small btn-primary">
-            ⬆️ Upgrade to Premium ($4.99/mo)
-          </button>
-        </div>
-      </div>
-
-      <div class="text-[11px] text-purple-300/70">
-        Use coins to unlock avatar outfits, game upgrades, profile boosts, and more!
-      </div>
-    </div>
-
-    <!-- Your Outfits Section -->
-    <div class="shell p-4 sm:p-5 mt-4">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-bold text-purple-100">
-          👗 Your Outfits
-        </h2>
-        <a href="carrie-closet.html" class="btn btn-small btn-primary">
-          🎀 Open Full Closet
-        </a>
-      </div>
-
-      <p class="text-xs text-purple-200/80 mb-4">
-        Click any item to preview it in the <strong>Carrie Closet</strong>. Owned items can be equipped.
-        Locked items show their coin cost.
-      </p>
-
-      <!-- Free Items -->
-      <div class="mb-4">
-        <div class="text-sm font-semibold text-green-300 mb-2 flex items-center gap-2">
-          <span>✅ Free Items (Unlocked)</span>
-        </div>
-        <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
-          <!-- Bikini Base -->
-          <a href="carrie-closet.html#bikini-base" class="outfit-thumb">
-            <div class="outfit-thumb-img">
-              <img src="assets/images/base/female/base_female_light.png?v=15" alt="Bikini Base">
-            </div>
-            <div class="outfit-thumb-label">Bikini Base</div>
-            <div class="outfit-thumb-badge free">FREE</div>
-          </a>
-        </div>
-      </div>
-
-      <!-- Coin Items (Owner unlocked, others locked) -->
-      <div id="coinItemsSection">
-        <div class="text-sm font-semibold text-yellow-300 mb-2 flex items-center gap-2">
-          <span id="coinItemsLabel">🔒 Premium Items</span>
-        </div>
-        <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
-          
-          <!-- Straight Black Hair -->
-          <a href="carrie-closet.html#straight-black-hair" class="outfit-thumb locked" data-cost="150">
-            <div class="outfit-thumb-img">
-              <img src="assets/images/closet/hair/straight/female_straight_black.png?v=15" alt="Straight Black Hair">
-              <div class="outfit-lock-overlay">🔒</div>
-            </div>
-            <div class="outfit-thumb-label">Straight Black Hair</div>
-            <div class="outfit-thumb-badge coins">150 🪙</div>
-          </a>
-
-          <!-- Blonde Hair -->
-          <a href="carrie-closet.html#blonde-hair" class="outfit-thumb locked" data-cost="150">
-            <div class="outfit-thumb-img">
-              <img src="assets/images/closet/hair/wavy/female_wavy_blonde.png?v=15" alt="Blonde Hair">
-              <div class="outfit-lock-overlay">🔒</div>
-            </div>
-            <div class="outfit-thumb-label">Blonde Hair</div>
-            <div class="outfit-thumb-badge coins">150 🪙</div>
-          </a>
-
-          <!-- Brown Wavy Hair -->
-          <a href="carrie-closet.html#brown-wavy-hair" class="outfit-thumb locked" data-cost="150">
-            <div class="outfit-thumb-img">
-              <img src="assets/images/closet/hair/wavy/female_wavy_brown.png?v=15" alt="Brown Wavy Hair">
-              <div class="outfit-lock-overlay">🔒</div>
-            </div>
-            <div class="outfit-thumb-label">Brown Wavy Hair</div>
-            <div class="outfit-thumb-badge coins">150 🪙</div>
-          </a>
-
-          <!-- Curly Hair -->
-          <a href="carrie-closet.html#curly-hair" class="outfit-thumb locked" data-cost="150">
-            <div class="outfit-thumb-img">
-              <img src="assets/images/closet/hair/curly/female_curly_black.png?v=15" alt="Curly Hair">
-              <div class="outfit-lock-overlay">🔒</div>
-            </div>
-            <div class="outfit-thumb-label">Curly Hair</div>
-            <div class="outfit-thumb-badge coins">150 🪙</div>
-          </a>
-
-          <!-- Red Hair -->
-          <a href="carrie-closet.html#red-hair" class="outfit-thumb locked" data-cost="150">
-            <div class="outfit-thumb-img">
-              <img src="assets/images/closet/hair/wavy/female_wavy_ginger.png?v=15" alt="Red Hair">
-              <div class="outfit-lock-overlay">🔒</div>
-            </div>
-            <div class="outfit-thumb-label">Red Hair</div>
-            <div class="outfit-thumb-badge coins">150 🪙</div>
-          </a>
-
-          <!-- Shoes -->
-          <a href="carrie-closet.html#shoes-left" class="outfit-thumb locked" data-cost="100">
-            <div class="outfit-thumb-img">
-              <img src="assets/images/closet/unisex/shoes/unisex_shoes_left.png?v=15" alt="Shoes">
-              <div class="outfit-lock-overlay">🔒</div>
-            </div>
-            <div class="outfit-thumb-label">Shoes</div>
-            <div class="outfit-thumb-badge coins">100 🪙</div>
-          </a>
-
-          <!-- Brown Eyes -->
-          <a href="carrie-closet.html#eyes-brown" class="outfit-thumb locked" data-cost="50">
-            <div class="outfit-thumb-img">
-              <img src="assets/images/closet/unisex/eyes/unisex_eyes_brown_left.png?v=15" alt="Brown Eyes">
-              <div class="outfit-lock-overlay">🔒</div>
-            </div>
-            <div class="outfit-thumb-label">Brown Eyes</div>
-            <div class="outfit-thumb-badge coins">50 🪙</div>
-          </a>
-
-          <!-- Blue Eyes -->
-          <a href="carrie-closet.html#eyes-blue" class="outfit-thumb locked" data-cost="50">
-            <div class="outfit-thumb-img">
-              <img src="assets/images/closet/unisex/eyes/unisex_eyes_blue_left.png?v=15" alt="Blue Eyes">
-              <div class="outfit-lock-overlay">🔒</div>
-            </div>
-            <div class="outfit-thumb-label">Blue Eyes</div>
-            <div class="outfit-thumb-badge coins">50 🪙</div>
-          </a>
-
-          <!-- Green Eyes -->
-          <a href="carrie-closet.html#eyes-green" class="outfit-thumb locked" data-cost="50">
-            <div class="outfit-thumb-img">
-              <img src="assets/images/closet/unisex/eyes/unisex_eyes_green_left.png?v=15" alt="Green Eyes">
-              <div class="outfit-lock-overlay">🔒</div>
-            </div>
-            <div class="outfit-thumb-label">Green Eyes</div>
-            <div class="outfit-thumb-badge coins">50 🪙</div>
-          </a>
-
-        </div>
-      </div>
-
-      <div class="mt-4 p-3 bg-purple-900/20 border border-purple-500/30 rounded-lg text-xs text-purple-200/80">
-        💡 <strong>Tip:</strong> Click any item to preview it on your avatar in the Closet.
-        Items you own will automatically appear here and can be equipped.
-      </div>
-    </div>
   </main>
 
-  <!-- Carrie Trainer Modal (Owner Only) -->
-  <div id="trainerModal" class="fixed inset-0 z-50 hidden">
-    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" id="trainerBackdrop"></div>
-    <div class="relative max-w-md mx-auto mt-24 bg-[#0c0618] border border-purple-500/60 rounded-xl p-5 shadow-2xl">
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="text-base font-bold text-purple-100">
-          🎓 Carrie Trainer (Owner Only)
-        </h2>
-        <button id="trainerClose" class="text-sm text-purple-200 hover:underline">
-          ✕ Close
-        </button>
-      </div>
-      
-      <p class="text-xs text-purple-200/80 mb-3">
-        Teach Carrie new responses. Add a question pattern and the reply you want her to use.
-        HTML is allowed in replies.
-      </p>
-      
-      <form id="trainerForm" class="space-y-3">
-        <div>
-          <label class="text-xs text-purple-200/90 block mb-1">
-            User Question Pattern
-          </label>
-          <textarea
-            id="trainerQuestion"
-            class="w-full text-sm rounded-md border border-purple-500/50 bg-[#120327] px-3 py-2 text-purple-50"
-            rows="2"
-            placeholder="Example: how do i purchase 8bfr music"
-          ></textarea>
-        </div>
-        
-        <div>
-          <label class="text-xs text-purple-200/90 block mb-1">
-            Carrie's Reply (HTML allowed)
-          </label>
-          <textarea
-            id="trainerAnswer"
-            class="w-full text-sm rounded-md border border-purple-500/50 bg-[#120327] px-3 py-2 text-purple-50"
-            rows="5"
-            placeholder="You can buy 8BFR music on <a href='...'>Spotify</a>..."
-          ></textarea>
-        </div>
-        
-        <div class="flex justify-end gap-2 pt-2">
-          <button type="button" id="trainerCancel" class="btn btn-small">
-            Cancel
-          </button>
-          <button type="submit" class="btn btn-small btn-primary">
-            💾 Save & Train
-          </button>
-        </div>
-        
-        <div id="trainerStatus" class="text-xs text-green-300/80 hidden"></div>
-      </form>
-    </div>
-  </div>
-
-  <!-- BF/GF Upgrade Modal (Premium Feature) -->
-  <div id="upgradeModal" class="fixed inset-0 z-50 hidden">
-    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" id="upgradeBackdrop"></div>
-    <div class="relative max-w-md mx-auto mt-24 bg-gradient-to-br from-[#1e1b4b] to-[#0c0618] border-2 border-pink-500/60 rounded-xl p-6 shadow-2xl">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-bold text-pink-100 flex items-center gap-2">
-          💕 BF/GF Mode - Premium Feature
-        </h2>
-        <button id="upgradeClose" class="text-sm text-purple-200 hover:underline">
-          ✕ Close
-        </button>
-      </div>
-      
-      <div class="text-center mb-4">
-        <div class="text-6xl mb-3">🔒</div>
-        <p class="text-sm text-purple-200/90 mb-3">
-          <strong>BF/GF Mode</strong> unlocks Carrie's romantic, supportive companion personality (PG-13).
-        </p>
-        <p class="text-xs text-purple-300/80 mb-4">
-          Get affectionate conversations, daily check-ins, goal support, and a loving AI companion who's always there for you. 💜
-        </p>
-      </div>
-
-      <div class="bg-black/30 border border-purple-500/40 rounded-lg p-4 mb-4">
-        <div class="text-sm font-bold text-purple-100 mb-2">What You Get:</div>
-        <ul class="text-xs text-purple-200/90 space-y-1.5">
-          <li>✨ Romantic & affectionate conversations</li>
-          <li>💜 Supportive companion personality</li>
-          <li>🌙 Good morning/goodnight messages</li>
-          <li>🎯 Personal goal tracking & motivation</li>
-          <li>💕 Flirty (but PG-13) interactions</li>
-          <li>🎁 Exclusive BF/GF avatar outfits</li>
-        </ul>
-      </div>
-
-      <div class="flex flex-col gap-2">
-        <a href="upgrade.html" class="btn btn-primary w-full justify-center">
-          ⬆️ Upgrade to Premium - $4.99/month
-        </a>
-        <button id="upgradeCancel" class="btn btn-small w-full justify-center">
-          Maybe Later
-        </button>
-      </div>
-
-      <p class="text-[10px] text-purple-300/70 text-center mt-3">
-        All interactions remain PG-13. Cancel anytime.
-      </p>
-    </div>
-  </div>
-
-  <!-- Supabase Client -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    const SUPABASE_URL = "https://novbuvwpjnxwwvdekjhr.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0";
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  </script>
-
-  <script>
-    // ===== MANUAL UNLOCK FUNCTION (TESTING) - Must be global for onclick =====
-    function manualUnlock() {
-      alert("🔓 Starting manual unlock...");
-      
-      const lockedItems = document.querySelectorAll('.outfit-thumb.locked');
-      alert("📦 Found " + lockedItems.length + " locked items");
-      
-      // Set owner mode
-      const statusText = document.getElementById('statusText');
-      if (statusText) statusText.textContent = "Owner Mode ✨ (Manual)";
-      
-      const coinBalance = document.getElementById('coinBalance');
-      if (coinBalance) coinBalance.textContent = "999,999";
-      
-      const ownerControls = document.getElementById('ownerControls');
-      if (ownerControls) ownerControls.classList.remove('hidden');
-      
-      // Unlock BF/GF
-      const modeBFGFBtn = document.getElementById('modeBFGFBtn');
-      if (modeBFGFBtn) {
-        modeBFGFBtn.disabled = false;
-        modeBFGFBtn.innerHTML = '💕 BF/GF';
-      }
-      
-      // Unlock items
-      lockedItems.forEach(item => {
-        item.classList.remove('locked');
-        
-        const lockOverlay = item.querySelector('.outfit-lock-overlay');
-        if (lockOverlay) lockOverlay.remove();
-        
-        const badge = item.querySelector('.outfit-thumb-badge');
-        if (badge) {
-          badge.classList.remove('coins');
-          badge.classList.add('unlocked');
-          badge.textContent = 'OWNED';
-        }
-        
-        const imgContainer = item.querySelector('.outfit-thumb-img');
-        if (imgContainer) imgContainer.style.opacity = '1';
-        
-        const imgTag = item.querySelector('.outfit-thumb-img img');
-        if (imgTag) imgTag.style.opacity = '1';
-      });
-      
-      const coinItemsLabel = document.getElementById('coinItemsLabel');
-      if (coinItemsLabel) coinItemsLabel.innerHTML = '✨ Your Premium Items (All Unlocked)';
-      
-      // Change background to show it worked
-      document.body.style.background = 'green';
-      
-      alert("✅ Manual unlock complete!");
-    }
-    
-    // Wait for DOM before running the rest
-    document.addEventListener('DOMContentLoaded', function() {
-    
-    // ===== DOM ELEMENTS =====
-    const chatLog = document.getElementById("chatLog");
-    const carrieForm = document.getElementById("carrieForm");
-    const carrieInput = document.getElementById("carrieInput");
-    const typingRow = document.getElementById("typingRow");
-    const statusText = document.getElementById("statusText");
-    const modeBusinessBtn = document.getElementById("modeBusinessBtn");
-    const modePersonalBtn = document.getElementById("modePersonalBtn");
-    const modeBFGFBtn = document.getElementById("modeBFGFBtn");
-    const ownerControls = document.getElementById("ownerControls");
-    const trainerBtn = document.getElementById("trainerBtn");
-    const trainerModal = document.getElementById("trainerModal");
-    const trainerForm = document.getElementById("trainerForm");
-    const trainerClose = document.getElementById("trainerClose");
-    const trainerCancel = document.getElementById("trainerCancel");
-    const trainerBackdrop = document.getElementById("trainerBackdrop");
-    const trainerQuestion = document.getElementById("trainerQuestion");
-    const trainerAnswer = document.getElementById("trainerAnswer");
-    const trainerStatus = document.getElementById("trainerStatus");
-    
-    // Avatar elements
-    const avatarBaseImg = document.getElementById("avatarBaseImg");
-    const chatAvatarSmall = document.getElementById("chatAvatarSmall");
-    const genderFemale = document.getElementById("genderFemale");
-    const genderMale = document.getElementById("genderMale");
-    const skinLight = document.getElementById("skinLight");
-    const skinDark = document.getElementById("skinDark");
-    
-    // Upgrade modal elements
-    const upgradeModal = document.getElementById("upgradeModal");
-    const upgradeClose = document.getElementById("upgradeClose");
-    const upgradeCancel = document.getElementById("upgradeCancel");
-    const upgradeBackdrop = document.getElementById("upgradeBackdrop");
-    
-    // Coin & outfit elements
-    const coinBalance = document.getElementById("coinBalance");
-    const premiumUpgradeBtn = document.getElementById("premiumUpgradeBtn");
-    const coinItemsLabel = document.getElementById("coinItemsLabel");
-
-    // ===== STATE =====
-    let currentUserId = null;
-    let currentUserEmail = null;
-    let isOwner = false;
-    let hasPremium = false;
-    let userCoins = 0;
-    let carrieMode = localStorage.getItem("carrieMode") || "business";
-    let carriePersona = "global";
-    
-    // Avatar state
-    let userGender = localStorage.getItem("userGender") || "female";
-    let userSkin = localStorage.getItem("userSkin") || "light";
-
-    // ===== UTILITY FUNCTIONS =====
-    function fmtTime(dt) {
-      try {
-        const d = typeof dt === "string" ? new Date(dt) : dt;
-        return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-      } catch {
-        return "";
-      }
-    }
-
-    function scrollChatToBottom() {
-      requestAnimationFrame(() => {
-        chatLog.scrollTop = chatLog.scrollHeight;
-      });
-    }
-
-    function getCarrieAvatarSrc() {
-      // Default to business avatar
-      return "assets/images/Carrie_Business.png";
-    }
-
-    // ===== AVATAR SWITCHING =====
-    
-    // Item database with image paths (matches closet structure)
-    const ITEM_DATABASE = {
-      'f_hair_straight_black': { img: 'assets/images/closet/hair/straight/female_straight_black.png?v=15', name: 'Straight Black Hair' },
-      'f_hair_wavy_blonde': { img: 'assets/images/closet/hair/wavy/female_wavy_blonde.png?v=15', name: 'Blonde Hair' },
-      'f_hair_wavy_brown': { img: 'assets/images/closet/hair/wavy/female_wavy_brown.png?v=15', name: 'Brown Wavy Hair' },
-      'f_hair_curly_black': { img: 'assets/images/closet/hair/curly/female_curly_black.png?v=15', name: 'Curly Hair' },
-      'f_hair_wavy_ginger': { img: 'assets/images/closet/hair/wavy/female_wavy_ginger.png?v=15', name: 'Red Hair' },
-      'u_shoes_sneakers': { 
-        imgLeft: 'assets/images/closet/unisex/shoes/unisex_shoes_left.png?v=15',
-        imgRight: 'assets/images/closet/unisex/shoes/unisex_shoes_right.png?v=15',
-        name: 'Shoes'
-      },
-      'u_eyes_brown': {
-        imgLeft: 'assets/images/closet/unisex/eyes/unisex_eyes_brown_left.png?v=15',
-        imgRight: 'assets/images/closet/unisex/eyes/unisex_eyes_brown_right.png?v=15',
-        name: 'Brown Eyes'
-      },
-      'u_eyes_blue': {
-        imgLeft: 'assets/images/closet/unisex/eyes/unisex_eyes_blue_left.png?v=15',
-        imgRight: 'assets/images/closet/unisex/eyes/unisex_eyes_blue_right.png?v=15',
-        name: 'Blue Eyes'
-      },
-      'u_eyes_green': {
-        imgLeft: 'assets/images/closet/unisex/eyes/unisex_eyes_green_left.png?v=15',
-        imgRight: 'assets/images/closet/unisex/eyes/unisex_eyes_green_right.png?v=15',
-        name: 'Green Eyes'
-      }
-    };
-    
-    function clearAvatarOverlays() {
-      const overlayContainer = document.getElementById('avatarOverlays');
-      if (overlayContainer) {
-        overlayContainer.innerHTML = '';
-      }
-    }
-    
-    function addAvatarOverlay(itemId) {
-      const item = ITEM_DATABASE[itemId];
-      if (!item) {
-        console.warn("Item not found in database:", itemId);
-        return;
-      }
-      
-      const overlayContainer = document.getElementById('avatarOverlays');
-      if (!overlayContainer) return;
-      
-      // If item has left/right images (shoes, eyes)
-      if (item.imgLeft && item.imgRight) {
-        const imgLeft = document.createElement('img');
-        imgLeft.src = item.imgLeft;
-        imgLeft.style.cssText = 'position:absolute;inset:0;width:100%;height:auto;object-fit:contain;';
-        overlayContainer.appendChild(imgLeft);
-        
-        const imgRight = document.createElement('img');
-        imgRight.src = item.imgRight;
-        imgRight.style.cssText = 'position:absolute;inset:0;width:100%;height:auto;object-fit:contain;';
-        overlayContainer.appendChild(imgRight);
-      } else {
-        // Single image (hair, etc.)
-        const img = document.createElement('img');
-        img.src = item.img;
-        img.style.cssText = 'position:absolute;inset:0;width:100%;height:auto;object-fit:contain;';
-        overlayContainer.appendChild(img);
-      }
-      
-      console.log("✅ Added overlay:", item.name);
-    }
-    
-    function loadEquippedItemsFromCloset() {
-      const savedKey = `closet_equipped_${userGender}`;
-      const saved = localStorage.getItem(savedKey);
-      
-      clearAvatarOverlays();
-      
-      if (!saved) {
-        console.log("📦 No equipped items found in closet");
-        return;
-      }
-      
-      try {
-        const equipped = JSON.parse(saved);
-        console.log("👗 Loaded equipped items:", equipped);
-        
-        // Add overlays for each equipped item
-        Object.keys(equipped).forEach(slot => {
-          if (equipped[slot] && equipped[slot].id) {
-            addAvatarOverlay(equipped[slot].id);
-          }
-        });
-        
-      } catch (e) {
-        console.error("Error loading equipped items:", e);
-      }
-    }
-
-    function updateUserAvatar() {
-      // Correct path from closet: assets/images/base/female/base_female_light.png
-      const baseSrc = `assets/images/base/${userGender}/base_${userGender}_${userSkin}.png?v=15`;
-      
-      // Update large preview avatar
-      if (avatarBaseImg) {
-        avatarBaseImg.src = baseSrc;
-        avatarBaseImg.onerror = function() {
-          this.onerror = null;
-          console.warn("Avatar not found:", baseSrc);
-          this.src = "assets/images/default_user_35_40_girl.png";
-        };
-      }
-      
-      // Update small chat avatar
-      if (chatAvatarSmall) {
-        chatAvatarSmall.src = baseSrc;
-        chatAvatarSmall.onerror = function() {
-          this.onerror = null;
-          this.src = "assets/images/default_user_35_40_girl.png";
-        };
-      }
-      
-      // Update active button states
-      if (userGender === "female") {
-        genderFemale.classList.add("active");
-        genderMale.classList.remove("active");
-      } else {
-        genderMale.classList.add("active");
-        genderFemale.classList.remove("active");
-      }
-      
-      if (userSkin === "light") {
-        skinLight.classList.add("active");
-        skinDark.classList.remove("active");
-      } else {
-        skinDark.classList.add("active");
-        skinLight.classList.remove("active");
-      }
-      
-      localStorage.setItem("userGender", userGender);
-      localStorage.setItem("userSkin", userSkin);
-      
-      // Load equipped items from closet
-      loadEquippedItemsFromCloset();
-    }
-
-    if (genderFemale) {
-      genderFemale.addEventListener("click", () => {
-        userGender = "female";
-        updateUserAvatar();
-      });
-    }
-
-    if (genderMale) {
-      genderMale.addEventListener("click", () => {
-        userGender = "male";
-        updateUserAvatar();
-      });
-    }
-
-    if (skinLight) {
-      skinLight.addEventListener("click", () => {
-        userSkin = "light";
-        updateUserAvatar();
-      });
-    }
-
-    if (skinDark) {
-      skinDark.addEventListener("click", () => {
-        userSkin = "dark";
-        updateUserAvatar();
-      });
-    }
-
-    // ===== BF/GF MODE UNLOCK =====
-    function unlockBFGFMode() {
-      modeBFGFBtn.disabled = false;
-      modeBFGFBtn.innerHTML = '💕 BF/GF';
-      console.log("✅ BF/GF mode unlocked!");
-    }
-
-    function openUpgradeModal() {
-      upgradeModal.classList.remove("hidden");
-    }
-
-    function closeUpgradeModal() {
-      upgradeModal.classList.add("hidden");
-    }
-
-    if (upgradeClose) upgradeClose.addEventListener("click", closeUpgradeModal);
-    if (upgradeCancel) upgradeCancel.addEventListener("click", closeUpgradeModal);
-    if (upgradeBackdrop) upgradeBackdrop.addEventListener("click", closeUpgradeModal);
-    
-    if (premiumUpgradeBtn) {
-      premiumUpgradeBtn.addEventListener("click", openUpgradeModal);
-    }
-
-    modeBFGFBtn.addEventListener("click", () => {
-      if (isOwner || hasPremium) {
-        carrieMode = "bfgf";
-        updateModeUI();
-        renderMessage("assistant",
-          "Switched to <b>💕 BF/GF</b> mode. Hey babe 💜 I'm here for you — let's talk, plan your day, or just hang out together.",
-          new Date()
-        );
-      } else {
-        openUpgradeModal();
-      }
-    });
-
-    // ===== COIN & OUTFIT MANAGEMENT =====
-    function updateCoinDisplay() {
-      if (coinBalance) {
-        coinBalance.textContent = userCoins.toLocaleString();
-      }
-    }
-
-    function unlockAllItems() {
-      // TESTING: Change background to red to prove this function ran
-      document.body.style.background = 'red';
-      
-      // Owner gets everything unlocked
-      const lockedItems = document.querySelectorAll('.outfit-thumb.locked');
-      console.log("🔓 Unlocking", lockedItems.length, "items...");
-      
-      lockedItems.forEach(item => {
-        // Remove locked class FIRST (this removes the opacity: 0.5 CSS rule)
-        item.classList.remove('locked');
-        
-        // Remove lock overlay
-        const lockOverlay = item.querySelector('.outfit-lock-overlay');
-        if (lockOverlay) {
-          lockOverlay.remove();
-          console.log("✅ Lock removed from:", item.querySelector('.outfit-thumb-label')?.textContent);
-        }
-        
-        // Update badge
-        const badge = item.querySelector('.outfit-thumb-badge');
-        if (badge) {
-          badge.classList.remove('coins');
-          badge.classList.add('unlocked');
-          badge.textContent = 'OWNED';
-        }
-        
-        // Force image container to be fully visible
-        const imgContainer = item.querySelector('.outfit-thumb-img');
-        if (imgContainer) {
-          imgContainer.style.opacity = '1';
-        }
-        
-        // Force actual img tag to be fully visible too
-        const imgTag = item.querySelector('.outfit-thumb-img img');
-        if (imgTag) {
-          imgTag.style.opacity = '1';
-          console.log("✅ Image visible:", imgTag.src);
-        }
-      });
-      
-      if (coinItemsLabel) {
-        coinItemsLabel.innerHTML = '✨ Your Premium Items (All Unlocked)';
-      }
-      
-      console.log("✅ All items unlocked! Images should be visible now.");
-    }
-
-    async function loadUserCoins() {
-      if (!currentUserId) return;
-      
-      try {
-        / Fetch user's coin balance from Supabase
-        const { data, error } = await supabase
-          .from("user_profiles")
-          .select("coins")
-          .eq("user_id", currentUserId)
-          .single();
-        
-        if (error) throw error;
-        
-        if (data) {
-          userCoins = data.coins || 0;
-          updateCoinDisplay();
-        }
-      } catch (e) {
-        console.warn("Could not load coin balance:", e);
-        userCoins = 0;
-        updateCoinDisplay();
-      }
-    }
-
-    // ===== RENDER MESSAGE =====
-    function renderMessage(role, content, createdAt) {
-      const row = document.createElement("div");
-      row.className = "msg-row " + (role === "user" ? "user" : "assistant");
-
-      const avatar = document.createElement("div");
-      avatar.className = "msg-avatar";
-
-      if (role === "assistant") {
-        const img = document.createElement("img");
-        img.src = getCarrieAvatarSrc();
-        img.alt = "Carrie";
-        img.onerror = function () {
-          this.onerror = null;
-          this.src = "assets/images/default_user_35_40_girl.png";
-        };
-        avatar.appendChild(img);
-      } else {
-        // User avatar - show their customized avatar
-        const img = document.createElement("img");
-        img.src = `assets/images/base/${userGender}/base_${userGender}_${userSkin}.png?v=15`;
-        img.alt = "You";
-        img.onerror = function () {
-          this.onerror = null;
-          this.src = "assets/images/default_user_35_40_girl.png";
-        };
-        avatar.appendChild(img);
-      }
-
-      const bubble = document.createElement("div");
-      bubble.className = "msg-bubble";
-
-      const text = document.createElement("div");
-      if (role === "assistant") {
-        text.innerHTML = content;
-      } else {
-        text.textContent = content;
-      }
-      bubble.appendChild(text);
-
-      const meta = document.createElement("div");
-      meta.className = "msg-meta";
-      meta.textContent = (role === "assistant" ? "Carrie • " : "You • ") + fmtTime(createdAt || new Date());
-      bubble.appendChild(meta);
-
-      if (role === "assistant") {
-        row.appendChild(avatar);
-        row.appendChild(bubble);
-      } else {
-        row.appendChild(bubble);
-        row.appendChild(avatar);
-      }
-
-      chatLog.appendChild(row);
-      scrollChatToBottom();
-    }
-
-    // ===== SAVE MESSAGE TO SUPABASE =====
-    async function saveMessage(role, content) {
-      if (!currentUserId) return; // Don't save if not logged in
-      try {
-        await supabase.from("carrie_chat_logs").insert({
-          user_id: currentUserId,
-          role,
-          content
-        });
-      } catch (e) {
-        console.warn("Failed to save message:", e);
-      }
-    }
-
-    // ===== MODE TOGGLE =====
-    function updateModeUI() {
-      // Remove active from all
-      modeBusinessBtn.classList.remove("active");
-      modePersonalBtn.classList.remove("active");
-      modeBFGFBtn.classList.remove("active");
-      
-      // Add active to current mode
-      if (carrieMode === "business") {
-        modeBusinessBtn.classList.add("active");
-      } else if (carrieMode === "personal") {
-        modePersonalBtn.classList.add("active");
-      } else if (carrieMode === "bfgf") {
-        modeBFGFBtn.classList.add("active");
-      }
-      
-      localStorage.setItem("carrieMode", carrieMode);
-    }
-
-    modeBusinessBtn.addEventListener("click", () => {
-      carrieMode = "business";
-      updateModeUI();
-      renderMessage("assistant", 
-        "Switched to <b>💼 Site / Pro</b> mode. I'll help with 8BFR tools, features, music, and business questions.",
-        new Date()
-      );
-    });
-
-    modePersonalBtn.addEventListener("click", () => {
-      carrieMode = "personal";
-      updateModeUI();
-      renderMessage("assistant",
-        "Switched to <b>💜 Personal</b> mode. Let's talk about your goals, routines, creative ideas, or just unwind (PG-13).",
-        new Date()
-      );
-    });
-
-    // ===== CARRIE BRAIN =====
-    function carrieBrain(userText) {
-      const t = userText.trim();
-      if (!t) return "I didn't catch that — ask me anything! 💜";
-
-      // Check if carrie-memory.js loaded properly
-      if (typeof findCarrieScriptReply !== 'function') {
-        return "I'm having trouble accessing my knowledge right now. Try refreshing the page!";
-      }
-
-      // Try to find a scripted response (with mode filter)
-      const scripted = findCarrieScriptReply(t, carrieMode === "bfgf" ? "bfgf" : null);
-      if (scripted) return scripted;
-
-      // Default responses based on mode
-      if (carrieMode === "business") {
-        return "I'm in <b>Site / Pro</b> mode. Ask me about 8BFR features, music tools, coins, games, or how the platform works!";
-      } else if (carrieMode === "personal") {
-        return "I'm in <b>Personal</b> mode. Tell me about your goals, what you're working on, or what's on your mind (PG-13). 💜";
-      } else if (carrieMode === "bfgf") {
-        return "Hey babe 💜 I'm here for you in <b>BF/GF mode</b>. Tell me about your day, your goals, or just talk to me about anything. I'm all yours. 😊";
-      }
-      
-      return "Ask me anything! I'm here to help. 💜";
-    }
-
-    // ===== SHOW/HIDE TYPING =====
-    function showTyping() {
-      typingRow.classList.remove("hidden");
-    }
-
-    function hideTyping() {
-      typingRow.classList.add("hidden");
-    }
-
-    // ===== FORM SUBMIT =====
-    carrieForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const userMsg = carrieInput.value.trim();
-      if (!userMsg) return;
-
-      carrieInput.value = "";
-      renderMessage("user", userMsg, new Date());
-      saveMessage("user", userMsg);
-
-      showTyping();
-
-      setTimeout(() => {
-        const reply = carrieBrain(userMsg);
-        renderMessage("assistant", reply, new Date());
-        hideTyping();
-        saveMessage("assistant", reply);
-      }, 600 + Math.random() * 400);
-    });
-
-    // Enter to submit, Shift+Enter for new line
-    carrieInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        carrieForm.requestSubmit();
-      }
-    });
-
-    // ===== TRAINER MODAL =====
-    function openTrainer() {
-      trainerModal.classList.remove("hidden");
-      trainerStatus.classList.add("hidden");
-    }
-
-    function closeTrainer() {
-      trainerModal.classList.add("hidden");
-      trainerQuestion.value = "";
-      trainerAnswer.value = "";
-      trainerStatus.classList.add("hidden");
-    }
-
-    if (trainerBtn) {
-      trainerBtn.addEventListener("click", openTrainer);
-    }
-
-    if (trainerClose) {
-      trainerClose.addEventListener("click", closeTrainer);
-    }
-
-    if (trainerCancel) {
-      trainerCancel.addEventListener("click", closeTrainer);
-    }
-
-    if (trainerBackdrop) {
-      trainerBackdrop.addEventListener("click", closeTrainer);
-    }
-
-    if (trainerForm) {
-      trainerForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        
-        const q = trainerQuestion.value.trim();
-        const a = trainerAnswer.value.trim();
-        
-        if (!q || !a) {
-          trainerStatus.textContent = "Please fill in both fields";
-          trainerStatus.classList.remove("hidden");
-          return;
-        }
-
-        // Add to live carrieScripts array
-        const entry = {
-          id: "custom_" + Date.now(),
-          section: "custom",
-          patterns: [q],
-          reply: a.replace(/\n/g, "<br>")
-        };
-        
-        if (typeof carrieScripts !== 'undefined') {
-          carrieScripts.push(entry);
-        }
-
-        // Save to Supabase
-        try {
-          await supabase.from("carrie_scripts").insert({
-            user_id: currentUserId,
-            email: currentUserEmail,
-            question_pattern: q,
-            reply_html: a
-          });
-          
-          trainerStatus.textContent = "✅ Saved! Carrie will now recognize that pattern.";
-          trainerStatus.classList.remove("hidden");
-          
-          setTimeout(() => {
-            trainerQuestion.value = "";
-            trainerAnswer.value = "";
-          }, 1500);
-        } catch (err) {
-          console.warn("Could not save to database:", err);
-          trainerStatus.textContent = "✅ Added to session (database save failed, but pattern will work now)";
-          trainerStatus.classList.remove("hidden");
-        }
-      });
-    }
-
-    
-
-    // ===== SESSION CHECK WITH TIMEOUT =====
-    async function checkSession() {
-      console.log("🔍 Checking session...");
-      try {
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout')), 3000)
-        );
-        
-        const { data, error } = await Promise.race([sessionPromise, timeoutPromise]);
-        
-        if (error) throw error;
-
-        if (data && data.session && data.session.user) {
-          currentUserId = data.session.user.id;
-          currentUserEmail = data.session.user.email || null;
-          
-          console.log("✅ Logged in as:", currentUserEmail);
-          
-          // Check if owner
-          isOwner = (currentUserEmail === "8bfr.music@gmail.com");
-          console.log("🔑 Is owner?", isOwner);
-
-          if (isOwner) {
-            statusText.textContent = "Logged in as 8BFR (Owner) ✨";
-            ownerControls.classList.remove("hidden");
-            unlockBFGFMode();
-            unlockAllItems(); // Owner gets all items
-            userCoins = 999999; // Owner gets unlimited coins
-            updateCoinDisplay();
-            console.log("👑 Owner controls unlocked!");
-          } else {
-            statusText.textContent = "Logged in as " + (currentUserEmail || "User");
-            await loadUserCoins(); // Load real coin balance for regular users
-            // Check if user has premium subscription
-            // TODO: Check premium status and unlock items based on purchases
-          }
-          
-          // Load chat history
-          await loadHistory();
-        } else {
-          console.log("❌ Not logged in");
-          statusText.textContent = "Not logged in • Chat still works!";
-          userCoins = 0;
-          updateCoinDisplay();
-        }
-      } catch (e) {
-        console.warn("⚠️ Session check failed or timed out:", e);
-        statusText.textContent = "Ready to chat";
-        userCoins = 0;
-        updateCoinDisplay();
-      }
-    }
-
-    // ===== LOAD HISTORY =====
-    async function loadHistory() {
-      if (!currentUserId) return;
-      
-      try {
-        const { data: rows, error } = await supabase
-          .from("carrie_chat_logs")
-          .select("*")
-          .eq("user_id", currentUserId)
-          .order("created_at", { ascending: true })
-          .limit(40);
-
-        if (error) throw error;
-
-        if (rows && rows.length) {
-          rows.forEach(r => renderMessage(r.role, r.content, r.created_at));
-        } else {
-          // First time greeting
-          const greeting = isOwner
-            ? "Hey 8BFR! 💜 I'm Carrie. This is your private space — switch modes as needed or use the trainer to teach me new responses."
-            : "Hey! 💜 I'm Carrie. Ask me about 8BFR, music, goals, or just chat. Switch between Site/Pro and Personal mode anytime!";
-          renderMessage("assistant", greeting);
-        }
-      } catch (e) {
-        console.warn("Could not load history:", e);
-        renderMessage("assistant", "Hey! 💜 I'm Carrie. Ask me anything about 8BFR or just chat!");
-      }
-    }
-
-    // ===== INIT =====
-    updateModeUI();
-    
-    // Load avatars and auto-unlock after page is ready
-    window.addEventListener('load', function() {
-      console.log("🎨 Page loaded, initializing...");
-      updateUserAvatar();
-      
-      // Set owner mode immediately
-      isOwner = true;
-      hasPremium = true;
-      userCoins = 999999;
-      updateCoinDisplay();
-      ownerControls.classList.remove("hidden");
-      statusText.textContent = "Owner Mode ✨ (Auto-Unlocked)";
-      unlockBFGFMode();
-      
-      // Try unlocking multiple times to catch DOM load
-      console.log("🔓 AUTO-UNLOCK ATTEMPT 1 (immediate)...");
-      let itemCount = document.querySelectorAll('.outfit-thumb.locked').length;
-      console.log("📦 Found", itemCount, "locked items");
-      if (itemCount > 0) unlockAllItems();
-      
-      setTimeout(() => {
-        console.log("🔓 AUTO-UNLOCK ATTEMPT 2 (after 300ms)...");
-        itemCount = document.querySelectorAll('.outfit-thumb.locked').length;
-        console.log("📦 Found", itemCount, "locked items");
-        if (itemCount > 0) unlockAllItems();
-      }, 300);
-      
-      setTimeout(() => {
-        console.log("🔓 AUTO-UNLOCK ATTEMPT 3 (after 1000ms)...");
-        itemCount = document.querySelectorAll('.outfit-thumb.locked').length;
-        console.log("📦 Found", itemCount, "locked items");
-        if (itemCount > 0) unlockAllItems();
-        console.log("✅ Auto-unlock complete!");
-      }, 1000);
-    });
-    
-    // Also check session (might work later)
-    checkSession();
-    
-    }); // End DOMContentLoaded
-  </script>
-
-  <!-- Global Scripts -->
-  <script src="scripts.js?v=2" defer></script>
-
-  <!-- Hide Floating Bubbles on Chat Page -->
-  <script>
-    window.addEventListener("load", function(){
-      setTimeout(function(){
-        const idsToHide = ['bubbleStack', 'bubble-top-single', 'carrieWrap', 'carrieBubble', 'carrieToggleBar'];
-        idsToHide.forEach(id => {
-          const el = document.getElementById(id);
-          if (el) el.style.display = 'none';
-        });
-        
-        const classesToHide = ['.bubble-stack', '.floating-bubbles', '.carrie-bubble', '.bubble-container'];
-        classesToHide.forEach(cls => {
-          document.querySelectorAll(cls).forEach(el => el.style.display = 'none');
-        });
-        
-        document.querySelectorAll('[data-bubble]').forEach(el => el.style.display = 'none');
-        document.querySelectorAll('[data-role="carrie"], [data-carrie]').forEach(el => el.style.display = 'none');
-      }, 300);
-    });
-  </script>
+  <!-- Load chat script -->
+  <script src="carrie-chat.js?v=2"></script>
 </body>
-  </html>
+</html>
