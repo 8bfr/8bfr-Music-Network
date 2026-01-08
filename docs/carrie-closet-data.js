@@ -100,7 +100,16 @@
       coins: 25,
       img: base + "/hair/straight/female_straight_pastel_purple.png"
     }),
-    
+    item({
+      id: "f_hair_straight_platinum",
+      gender: "female",
+      category: "hair",
+      cat: "hair",
+      slot: "hair",
+      name: "Straight Platinum",
+      label: "straight • platinum",
+      coins: 25,
+      img: base + "/hair/straight/female_straight_platinum.png"
     }),
     item({
       id: "f_hair_straight_black",
