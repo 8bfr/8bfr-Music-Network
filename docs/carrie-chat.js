@@ -17,15 +17,15 @@
   const coinBalance = $("#coinBalance");
   const coinItemsLabel = $("#coinItemsLabel");
 
-  // Floating avatar refs
-  const floatingWrapper = $("#floatingAvatarWrapper");
-  const floatingInner = $("#floatingAvatarInner");
-  const closetBaseImg = $("#closetBaseImg");
-  const closetOverlayHost = $("#closetOverlayHost");
-  const chatAvatarSmall = $("#chatAvatarSmall");
-  const avatarZoomIn = $("#avatarZoomIn");
-  const avatarZoomOut = $("#avatarZoomOut");
-  const avatarReset = $("#avatarReset");
+  // Floating avatar refs (REMOVED - using mini avatar only)
+  const floatingWrapper = null;
+  const floatingInner = null;
+  const closetBaseImg = $("#miniBaseImg"); // Use mini avatar
+  const closetOverlayHost = $("#miniOverlayHost"); // Use mini avatar
+  const chatAvatarSmall = null;
+  const avatarZoomIn = null;
+  const avatarZoomOut = null;
+  const avatarReset = null;
 
   // Gender/skin controls
   const genderFemale = $("#genderFemale");
@@ -443,7 +443,6 @@
   }
 
   function updateAvatarDisplay() {
-    if (!floatingInner) return;
     const body = document.body;
     body.dataset.gender = closetState.gender;
     body.dataset.skin = closetState.skin;
@@ -651,13 +650,10 @@
     updateModeButtons();
     updateGenderSkinButtons();
     updateAvatarDisplay();
-    updateAvatarPosition();
     updateCoinDisplay();
 
     setupModeButtons();
     setupGenderSkinControls();
-    setupDrag();
-    setupZoom();
     setupChatForm();
     
     // Log status
