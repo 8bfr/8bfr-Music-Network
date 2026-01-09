@@ -11,6 +11,9 @@
   <script src="carrie-closet-data.js?v=3"></script>
   <script src="carrie-memory.js?v=2"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Supabase Client Library -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Link to external closet CSS -->
   <link rel="stylesheet" href="carrie-closet.css?v=3" />
@@ -840,6 +843,62 @@ body[data-gender="male"][data-skin="light"] .layer-overlay.item-u_eyes_brown.lay
       color: #a855f7;
       margin-bottom: 0.5rem;
     }
+    
+    /* BUTTON STYLES */
+    .btn {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-decoration: none;
+      border: 1px solid rgba(148,163,255,.4);
+      background: rgba(71,85,105,.3);
+      color: #e5e7eb;
+    }
+    
+    .btn:hover {
+      transform: translateY(-1px);
+      background: rgba(71,85,105,.5);
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #7c3aed, #a855f7);
+      border: 1px solid rgba(168,85,247,.8);
+      color: white;
+      box-shadow: 0 0 20px rgba(168,85,247,.3);
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 30px rgba(168,85,247,.6);
+    }
+    
+    .btn-closet {
+      background: linear-gradient(135deg, #0ea5e9, #38bdf8);
+      border: 1px solid rgba(56,189,248,.8);
+      color: white;
+      box-shadow: 0 0 20px rgba(14,165,233,.3);
+      font-size: 0.95rem;
+      padding: 0.75rem 1.5rem;
+    }
+    
+    .btn-closet:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 30px rgba(14,165,233,.6);
+    }
+    
+    /* COIN ICON */
+    .coin-icon {
+      width: 1em;
+      height: 1em;
+      display: inline-block;
+      vertical-align: middle;
+      margin: 0 0.1em;
+    }
   </style>
 </head>
 <body data-no-global-carrie="true" data-gender="female" data-skin="light">
@@ -861,12 +920,12 @@ body[data-gender="male"][data-skin="light"] .layer-overlay.item-u_eyes_brown.lay
         </div>
       </div>
       <div class="flex flex-col items-end gap-1">
-        <a href="carrie-chat.html"
+        <a href="https://8bfr.github.io/8bfr-Music-Network/index.html"
            class="text-[#00d9ff] text-[11px] sm:text-xs underline/50 hover:underline">
-          ⬅ Back to Carrie Chat
+          ⬅ Back to Home
         </a>
         <span class="pill-tag pill-tag-soft text-[10px]">
-          <span>🪙</span> Coins shop connects from here later
+          <img src="assets/images/icon_8bfr_coin.png" class="coin-icon" alt="coin"> Coins shop connects from here later
         </span>
       </div>
     </div>
@@ -905,16 +964,55 @@ body[data-gender="male"][data-skin="light"] .layer-overlay.item-u_eyes_brown.lay
             </div>
           </div>
 
-          <a href="carrie-closet.html" class="btn btn-primary" style="margin-top:1rem; width:100%;">
-            Open Full Closet
+          <a href="carrie-closet.html" class="btn btn-closet" style="margin-top:1rem; width:100%; display:block;">
+            👗 Open Full Closet
           </a>
         </div>
 
         <!-- Chat Shell (Below Avatar) -->
         <div class="chat-shell" style="padding:1rem; margin-top:1rem;">
-          <div style="margin-bottom:.75rem;">
-            <div style="font-weight:600; font-size:.95rem; margin-bottom:.25rem;">💬 Chat with Carrie</div>
-            <div style="font-size:.7rem; opacity:.7;">Ask anything or customize my look!</div>
+          <div style="margin-bottom:.75rem; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-weight:600; font-size:.95rem; margin-bottom:.25rem;">💬 Chat with Carrie</div>
+              <div style="font-size:.7rem; opacity:.7;">Ask anything or customize my look!</div>
+            </div>
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+              <!-- Owner: Anonymous mode toggle -->
+              <label id="anonymousModeLabel" style="display:none; font-size:0.7rem; color:#a855f7; cursor:pointer; display:flex; align-items:center; gap:0.3rem;">
+                <input type="checkbox" id="anonymousModeToggle" style="cursor:pointer;">
+                <span>👻 Anonymous</span>
+              </label>
+              <!-- Owner: Simple clear button -->
+              <button id="clearChatBtn" class="seg-btn" style="font-size:0.7rem; display:none;">
+                🗑️ Clear Chat
+              </button>
+              <!-- Owner: Avatar Trainer button -->
+              <button id="trainerBtn" class="seg-btn" style="font-size:0.7rem; display:none;">
+                🧠 Trainer
+              </button>
+              <!-- Regular users: Select & delete/archive -->
+              <button id="selectModeBtn" class="seg-btn" style="font-size:0.7rem; display:none;">
+                ☑️ Select
+              </button>
+            </div>
+          </div>
+          
+          <!-- Selection toolbar (hidden by default) -->
+          <div id="selectionToolbar" style="display:none; margin-bottom:0.75rem; padding:0.5rem; background:rgba(124,58,237,.15); border:1px solid rgba(124,58,237,.4); border-radius:8px; display:flex; gap:0.5rem; align-items:center; justify-content:space-between;">
+            <div style="font-size:0.75rem; color:#a855f7;">
+              <span id="selectedCount">0</span> selected
+            </div>
+            <div style="display:flex; gap:0.5rem;">
+              <button id="deleteSelectedBtn" class="seg-btn" style="font-size:0.7rem; background:rgba(239,68,68,.2); border-color:rgba(239,68,68,.6);">
+                🗑️ Delete
+              </button>
+              <button id="archiveSelectedBtn" class="seg-btn" style="font-size:0.7rem;">
+                📦 Archive
+              </button>
+              <button id="cancelSelectBtn" class="seg-btn" style="font-size:0.7rem;">
+                Cancel
+              </button>
+            </div>
           </div>
 
           <div id="chatLog" class="chat-log">
@@ -976,31 +1074,77 @@ body[data-gender="male"][data-skin="light"] .layer-overlay.item-u_eyes_brown.lay
 
   </main>
 
-  <!-- Trainer Modal -->
-  <div id="trainerBackdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.85); z-index:9999; align-items:center; justify-content:center; padding:1rem;">
-    <div style="background:rgba(10,2,26,.98); border:1px solid rgba(124,58,237,.6); border-radius:18px; max-width:500px; width:100%; padding:1.5rem; position:relative;">
+  <!-- Avatar Trainer Modal (Owner Only) -->
+  <div id="trainerBackdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.9); z-index:9999; align-items:center; justify-content:center; padding:1rem; overflow-y:auto;">
+    <div style="background:rgba(10,2,26,.98); border:1px solid rgba(124,58,237,.6); border-radius:18px; max-width:700px; width:100%; padding:1.5rem; position:relative; margin:auto;">
       <button id="trainerClose" type="button" style="position:absolute; top:10px; right:10px; background:rgba(124,58,237,.5); border:1px solid rgba(124,58,237,.7); color:#fff; width:28px; height:28px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:16px;">×</button>
-      <div style="font-size:1.2rem; font-weight:600; margin-bottom:1rem; color:#a855f7;">🧠 Train Carrie</div>
-      <div style="font-size:.8rem; opacity:.8; margin-bottom:1rem;">Teach Carrie new responses!</div>
+      
+      <div style="font-size:1.3rem; font-weight:700; margin-bottom:.5rem; color:#a855f7;">🧠 Avatar Trainer</div>
+      <div style="font-size:.8rem; opacity:.75; margin-bottom:1.5rem;">Train Carrie's responses for different modes and avatars</div>
       
       <form id="trainerForm">
-        <div style="margin-bottom:1rem;">
-          <label style="display:block; font-size:.75rem; margin-bottom:.3rem; color:#a855f7;">QUESTION / PATTERN</label>
-          <input id="trainerQuestion" type="text" placeholder="e.g., 'tell me a joke'" style="width:100%; background:rgba(15,23,42,.9); border:1px solid rgba(124,58,237,.5); border-radius:8px; padding:.5rem; color:#e5e7eb; font-size:.85rem;" />
+        <!-- Apply To Section -->
+        <div style="margin-bottom:1.5rem; padding:1rem; background:rgba(124,58,237,.08); border:1px solid rgba(124,58,237,.25); border-radius:10px;">
+          <div style="font-size:.85rem; font-weight:600; margin-bottom:.75rem; color:#a855f7;">📍 APPLY TRAINING TO:</div>
+          
+          <!-- Mode Selection -->
+          <div style="margin-bottom:1rem;">
+            <label style="display:block; font-size:.7rem; margin-bottom:.4rem; color:#e5e7eb; text-transform:uppercase; letter-spacing:.05em;">Mode</label>
+            <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
+              <button type="button" class="seg-btn mode-select-btn active" data-mode="all">All Modes</button>
+              <button type="button" class="seg-btn mode-select-btn" data-mode="pro">Pro</button>
+              <button type="button" class="seg-btn mode-select-btn" data-mode="casual">Casual</button>
+              <button type="button" class="seg-btn mode-select-btn" data-mode="bfgf">BF/GF</button>
+            </div>
+          </div>
+          
+          <!-- Avatar Selection -->
+          <div>
+            <label style="display:block; font-size:.7rem; margin-bottom:.4rem; color:#e5e7eb; text-transform:uppercase; letter-spacing:.05em;">Avatar</label>
+            <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
+              <button type="button" class="seg-btn avatar-select-btn active" data-avatar="all">All Avatars</button>
+              <button type="button" class="seg-btn avatar-select-btn" data-avatar="female-light">👩☀️ F-Light</button>
+              <button type="button" class="seg-btn avatar-select-btn" data-avatar="female-dark">👩🌙 F-Dark</button>
+              <button type="button" class="seg-btn avatar-select-btn" data-avatar="male-light">👨☀️ M-Light</button>
+              <button type="button" class="seg-btn avatar-select-btn" data-avatar="male-dark">👨🌙 M-Dark</button>
+            </div>
+          </div>
         </div>
         
+        <!-- Training Input -->
         <div style="margin-bottom:1rem;">
-          <label style="display:block; font-size:.75rem; margin-bottom:.3rem; color:#a855f7;">ANSWER</label>
-          <textarea id="trainerAnswer" placeholder="Carrie's reply..." rows="3" style="width:100%; background:rgba(15,23,42,.9); border:1px solid rgba(124,58,237,.5); border-radius:8px; padding:.5rem; color:#e5e7eb; font-size:.85rem; resize:none;"></textarea>
+          <label style="display:block; font-size:.75rem; margin-bottom:.4rem; color:#a855f7; font-weight:600;">TRIGGER (Question/Pattern)</label>
+          <input id="trainerQuestion" type="text" placeholder="e.g., 'tell me a joke' or 'what's your favorite color'" style="width:100%; background:rgba(15,23,42,.9); border:1px solid rgba(124,58,237,.5); border-radius:8px; padding:.6rem; color:#e5e7eb; font-size:.85rem;" required />
+          <div style="font-size:.65rem; color:#a855f7; opacity:.7; margin-top:.3rem;">Keywords that trigger this response</div>
         </div>
         
-        <div id="trainerStatus" style="display:none; padding:.5rem; border-radius:8px; background:rgba(16,185,129,.15); border:1px solid rgba(16,185,129,.5); color:#10b981; font-size:.75rem; margin-bottom:1rem;"></div>
+        <div style="margin-bottom:1.5rem;">
+          <label style="display:block; font-size:.75rem; margin-bottom:.4rem; color:#a855f7; font-weight:600;">RESPONSE</label>
+          <textarea id="trainerAnswer" rows="4" placeholder="Carrie will respond with this when triggered..." style="width:100%; background:rgba(15,23,42,.9); border:1px solid rgba(124,58,237,.5); border-radius:8px; padding:.6rem; color:#e5e7eb; font-size:.85rem; resize:vertical;" required></textarea>
+          <div style="font-size:.65rem; color:#a855f7; opacity:.7; margin-top:.3rem;">You can use line breaks for multi-line responses</div>
+        </div>
         
-        <div style="display:flex; gap:.5rem; justify-content:flex-end;">
-          <button id="trainerCancel" type="button" class="btn">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save</button>
+        <!-- Status Message -->
+        <div id="trainerStatus" style="display:none; padding:.6rem; border-radius:8px; margin-bottom:1rem; font-size:.8rem; text-align:center;"></div>
+        
+        <!-- Action Buttons -->
+        <div style="display:flex; gap:.75rem; justify-content:flex-end;">
+          <button type="button" id="trainerCancel" style="background:rgba(71,85,105,.3); border:1px solid rgba(148,163,184,.4); color:#e5e7eb; padding:.5rem 1rem; border-radius:8px; cursor:pointer; font-size:.85rem;">
+            Cancel
+          </button>
+          <button type="submit" style="background:linear-gradient(135deg,#7c3aed,#a855f7); border:1px solid rgba(168,85,247,.8); color:#fff; padding:.5rem 1.5rem; border-radius:8px; cursor:pointer; font-weight:600; font-size:.85rem; box-shadow:0 0 15px rgba(168,85,247,.4);">
+            💾 Save Training
+          </button>
         </div>
       </form>
+      
+      <!-- Saved Trainings List -->
+      <div id="trainedResponsesList" style="margin-top:2rem; padding-top:1.5rem; border-top:1px solid rgba(124,58,237,.3);">
+        <div style="font-size:.9rem; font-weight:600; margin-bottom:.75rem; color:#a855f7;">📚 Saved Responses</div>
+        <div id="trainedResponsesGrid" style="max-height:300px; overflow-y:auto;">
+          <!-- Populated by JavaScript -->
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1026,4 +1170,4 @@ body[data-gender="male"][data-skin="light"] .layer-overlay.item-u_eyes_brown.lay
   </script>
   <script src="carrie-chat.js?v=4"></script>
 </body>
-      </html>
+                </html>
