@@ -10,9 +10,9 @@
   const carrieForm = $("#carrieForm");
   const typingRow = $("#typingRow");
   const statusText = $("#statusText");
-  const modeBusinessBtn = $("#modeBusinessBtn");
-  const modePersonalBtn = $("#modePersonalBtn");
-  const modeBFGFBtn = $("#modeBFGFBtn");
+  const modeProBtn = $("#modePro");
+  const modeCasualBtn = $("#modeCasual");
+  const modeBFGFBtn = $("#modeBFGF");
   const ownerControls = $("#ownerControls");
   const coinBalance = $("#coinBalance");
   const coinItemsLabel = $("#coinItemsLabel");
@@ -37,7 +37,7 @@
   const OWNER_EMAIL = "8bfr.music@gmail.com"; // Owner's email
   const OWNER_PASSWORD = "197594773839*Ab4444"; // Owner's password
 
-  const chatState = { mode: "business", messages: [] };
+  const chatState = { mode: "casual", messages: [] };
   
   // SYNCED: Use same localStorage keys as closet page
   let currentGender = localStorage.getItem('closet_gender') || "female";
@@ -445,7 +445,12 @@
   }
 
   function updateCoinDisplay() {
-    if (coinBalance) coinBalance.textContent = closetState.coins.toLocaleString();
+    const coins = closetState.coins.toLocaleString();
+    if (coinBalance) coinBalance.textContent = coins;
+    
+    // Also update header
+    const headerBalance = document.getElementById("coinBalanceHeader");
+    if (headerBalance) headerBalance.textContent = coins;
   }
 
   // OWNED ITEMS RENDERING
@@ -750,11 +755,11 @@
 
   // CHAT MODE
   function updateModeButtons() {
-    [modeBusinessBtn, modePersonalBtn, modeBFGFBtn].forEach(b => {
+    [modeProBtn, modeCasualBtn, modeBFGFBtn].forEach(b => {
       if (b) b.classList.remove("active");
     });
-    if (chatState.mode === "business" && modeBusinessBtn) modeBusinessBtn.classList.add("active");
-    if (chatState.mode === "personal" && modePersonalBtn) modePersonalBtn.classList.add("active");
+    if (chatState.mode === "pro" && modeProBtn) modeProBtn.classList.add("active");
+    if (chatState.mode === "casual" && modeCasualBtn) modeCasualBtn.classList.add("active");
     if (chatState.mode === "bfgf" && modeBFGFBtn) modeBFGFBtn.classList.add("active");
 
     if (ownerControls) {
@@ -763,16 +768,16 @@
   }
 
   function setupModeButtons() {
-    if (modeBusinessBtn) {
-      modeBusinessBtn.addEventListener("click", () => {
-        chatState.mode = "business";
+    if (modeProBtn) {
+      modeProBtn.addEventListener("click", () => {
+        chatState.mode = "pro";
         saveChat();
         updateModeButtons();
       });
     }
-    if (modePersonalBtn) {
-      modePersonalBtn.addEventListener("click", () => {
-        chatState.mode = "personal";
+    if (modeCasualBtn) {
+      modeCasualBtn.addEventListener("click", () => {
+        chatState.mode = "casual";
         saveChat();
         updateModeButtons();
       });
