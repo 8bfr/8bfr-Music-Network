@@ -1,4 +1,4 @@
-// carrie-chat.js — Floating avatar with closet integration
+// carrie-chat.js — Floating avatar with closet integration - OWNER AUTO-UNLOCK (EMAIL + PASSWORD)
 
 (function () {
   const $ = (s) => document.querySelector(s);
@@ -34,11 +34,27 @@
   const skinDark = $("#skinDark");
 
   const CHAT_KEY = "carrieChatState_v1";
-  const CLOSET_KEY = "carrieClosetState_v1";
   const AVATAR_KEY = "carrieAvatarPos_v1";
+  const OWNERSHIP_KEY = "carrieOwnedItems_v1";
+  const COINS_KEY = "carrieCoins_v1";
+  const USER_EMAIL_KEY = "carrieUserEmail_v1";
+  const USER_PASSWORD_KEY = "carrieUserPassword_v1";
+  
+  const OWNER_EMAIL = "8bfr.music@gmail.com"; // Owner's email
+  const OWNER_PASSWORD = "197594773839*Ab4444"; // Owner's password
 
   const chatState = { mode: "business", messages: [] };
-  const closetState = { gender: "female", skin: "light", coins: 999999, ownedItems: [], equipped: {} };
+  
+  // SYNCED: Use same localStorage keys as closet page
+  let currentGender = localStorage.getItem('closet_gender') || "female";
+  let currentSkin = localStorage.getItem('closet_skin') || "light";
+  const closetState = { 
+    gender: currentGender, 
+    skin: currentSkin, 
+    coins: 0, // Start at 0 coins for non-owners
+    ownedItems: [], // Array of item IDs the user owns
+    equipped: {} 
+  };
   const avatarState = { x: 100, y: 100, zoom: 0.6 };
 
   // Z-index by slot (matches closet)
@@ -48,45 +64,280 @@
     belly: 35, 
     top: 40, 
     necklace: 45, 
-    eyes: 50, 
-    ears: 55, 
-    hair: 60 
+    eyes: 50,
+    ears: 55,
+    hair: 60
   };
 
-  let isOwner = false;
-  let isDragging = false;
-  let dragStart = { x: 0, y: 0 };
-  let lastTouchDist = 0;
-  let carrieMode = "business";
+  // OWNER CHECK - Requires both email AND password
+  function isOwner() {
+    const userEmail = localStorage.getItem(USER_EMAIL_KEY);
+    const userPassword = localStorage.getItem(USER_PASSWORD_KEY);
+    return userEmail === OWNER_EMAIL && userPassword === OWNER_PASSWORD;
+  }
 
-  // STORAGE
+  // LOGIN CHECK - Show login modal if not logged in
+  function checkLogin() {
+    const userEmail = localStorage.getItem(USER_EMAIL_KEY);
+    const userPassword = localStorage.getItem(USER_PASSWORD_KEY);
+    
+    if (!userEmail || !userPassword) {
+      showLoginModal();
+      return false;
+    }
+    return true;
+  }
+
+  // LOGIN MODAL
+  function showLoginModal() {
+    const modal = document.createElement("div");
+    modal.id = "loginModal";
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+    `;
+
+    modal.innerHTML = `
+      <div style="
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 40px;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        max-width: 400px;
+        width: 90%;
+      ">
+        <h2 style="color: white; margin: 0 0 20px 0; text-align: center; font-size: 28px;">
+          Welcome to Carrie Chat
+        </h2>
+        <p style="color: rgba(255,255,255,0.9); margin: 0 0 30px 0; text-align: center;">
+          Please sign in to continue
+        </p>
+        
+        <div style="margin-bottom: 20px;">
+          <label style="color: white; display: block; margin-bottom: 8px; font-weight: 500;">Email</label>
+          <input 
+            type="email" 
+            id="loginEmail" 
+            placeholder="Enter your email"
+            style="
+              width: 100%;
+              padding: 12px;
+              border: none;
+              border-radius: 8px;
+              font-size: 16px;
+              box-sizing: border-box;
+            "
+          />
+        </div>
+        
+        <div style="margin-bottom: 30px;">
+          <label style="color: white; display: block; margin-bottom: 8px; font-weight: 500;">Password</label>
+          <input 
+            type="password" 
+            id="loginPassword" 
+            placeholder="Enter your password"
+            style="
+              width: 100%;
+              padding: 12px;
+              border: none;
+              border-radius: 8px;
+              font-size: 16px;
+              box-sizing: border-box;
+            "
+          />
+        </div>
+        
+        <button 
+          id="loginSubmit"
+          style="
+            width: 100%;
+            padding: 14px;
+            background: white;
+            color: #667eea;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+          "
+          onmouseover="this.style.transform='scale(1.05)'"
+          onmouseout="this.style.transform='scale(1)'"
+        >
+          Sign In
+        </button>
+        
+        <p id="loginError" style="
+          color: #ff6b6b;
+          margin: 15px 0 0 0;
+          text-align: center;
+          font-weight: 500;
+          display: none;
+        "></p>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const emailInput = modal.querySelector("#loginEmail");
+    const passwordInput = modal.querySelector("#loginPassword");
+    const submitBtn = modal.querySelector("#loginSubmit");
+    const errorMsg = modal.querySelector("#loginError");
+
+    function attemptLogin() {
+      const email = emailInput.value.trim();
+      const password = passwordInput.value.trim();
+
+      if (!email || !password) {
+        errorMsg.textContent = "Please enter both email and password";
+        errorMsg.style.display = "block";
+        return;
+      }
+
+      // Save credentials
+      localStorage.setItem(USER_EMAIL_KEY, email);
+      localStorage.setItem(USER_PASSWORD_KEY, password);
+
+      // Check if owner
+      if (isOwner()) {
+        console.log("🔓 Owner logged in!");
+        autoUnlockAllItems();
+        updateCoinDisplay();
+        updateAvatarDisplay();
+      } else {
+        console.log("👤 Regular user logged in");
+      }
+
+      // Close modal
+      document.body.removeChild(modal);
+    }
+
+    submitBtn.addEventListener("click", attemptLogin);
+    passwordInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") attemptLogin();
+    });
+  }
+
+  // AUTO-UNLOCK: Grant all items and max coins (OWNER ONLY)
+  function autoUnlockAllItems() {
+    if (!isOwner()) {
+      console.log("👤 Regular user - no auto-unlock");
+      return;
+    }
+    
+    const allItems = getItems();
+    closetState.ownedItems = allItems.map(item => item.id);
+    closetState.coins = 999999;
+    saveOwnedItems();
+    saveCoins();
+    console.log("🔓 OWNER AUTO-UNLOCK: All items granted! Total:", closetState.ownedItems.length, "items");
+  }
+
+  // OWNERSHIP CHECK
+  function isItemOwned(itemId) {
+    // Owner has everything
+    if (isOwner()) return true;
+    
+    // Check if item is in the ownedItems array
+    return closetState.ownedItems.includes(itemId);
+  }
+
+  function saveOwnedItems() {
+    try {
+      localStorage.setItem(OWNERSHIP_KEY, JSON.stringify(closetState.ownedItems));
+    } catch(e) {}
+  }
+
+  function loadOwnedItems() {
+    try {
+      const raw = localStorage.getItem(OWNERSHIP_KEY);
+      if (raw) {
+        closetState.ownedItems = JSON.parse(raw);
+      }
+    } catch(e) {}
+  }
+
+  function saveCoins() {
+    try {
+      localStorage.setItem(COINS_KEY, closetState.coins.toString());
+    } catch(e) {}
+  }
+
+  function loadCoins() {
+    try {
+      const raw = localStorage.getItem(COINS_KEY);
+      if (raw) {
+        closetState.coins = parseInt(raw, 10);
+      }
+    } catch(e) {}
+  }
+
+  // SAVE / LOAD
   function saveChat() {
     try { localStorage.setItem(CHAT_KEY, JSON.stringify(chatState)); } catch(e) {}
   }
   function loadChat() {
     try {
       const raw = localStorage.getItem(CHAT_KEY);
-      if (!raw) return;
-      const data = JSON.parse(raw);
-      if (data.mode) chatState.mode = data.mode;
-      if (Array.isArray(data.messages)) chatState.messages = data.messages;
+      if (raw) Object.assign(chatState, JSON.parse(raw));
     } catch (e) {}
   }
+  
+  // SYNCED: Save/load using same keys as closet page
   function saveCloset() {
-    try { localStorage.setItem(CLOSET_KEY, JSON.stringify(closetState)); } catch(e) {}
+    try { 
+      localStorage.setItem('closet_gender', closetState.gender);
+      localStorage.setItem('closet_skin', closetState.skin);
+      
+      // Save equipped items per gender (only save owned items)
+      const saveData = {};
+      Object.keys(closetState.equipped).forEach(slot => {
+        const item = closetState.equipped[slot];
+        if (item && isItemOwned(item.id)) {
+          saveData[slot] = item.id;
+        }
+      });
+      localStorage.setItem(`closet_equipped_${closetState.gender}`, JSON.stringify(saveData));
+    } catch(e) {}
   }
+  
   function loadCloset() {
     try {
-      const raw = localStorage.getItem(CLOSET_KEY);
-      if (!raw) return;
-      const data = JSON.parse(raw);
-      if (data.gender) closetState.gender = data.gender;
-      if (data.skin) closetState.skin = data.skin;
-      if (typeof data.coins === "number") closetState.coins = data.coins;
-      if (Array.isArray(data.ownedItems)) closetState.ownedItems = data.ownedItems;
-      if (data.equipped) closetState.equipped = data.equipped;
+      // Load gender and skin
+      const savedGender = localStorage.getItem('closet_gender');
+      const savedSkin = localStorage.getItem('closet_skin');
+      
+      if (savedGender) closetState.gender = savedGender;
+      if (savedSkin) closetState.skin = savedSkin;
+      
+      // Load equipped items for current gender
+      const saved = localStorage.getItem(`closet_equipped_${closetState.gender}`);
+      if (saved) {
+        const saveData = JSON.parse(saved);
+        const items = getItems();
+        
+        closetState.equipped = {};
+        Object.keys(saveData).forEach(slot => {
+          const itemId = saveData[slot];
+          const itemObj = items.find(it => it.id === itemId);
+          
+          // ONLY equip if the item is owned (or if owner)
+          if (itemObj && isItemOwned(itemId)) {
+            closetState.equipped[slot] = itemObj;
+          }
+        });
+      }
     } catch (e) {}
   }
+  
   function saveAvatar() {
     try { localStorage.setItem(AVATAR_KEY, JSON.stringify(avatarState)); } catch(e) {}
   }
@@ -97,413 +348,332 @@
     } catch (e) {}
   }
 
-  // ITEMS
-  function getItems() { return window.CARRIE_CHAT_ITEMS || []; }
+  // SYNCED: Use CLOSET items instead of CHAT items
+  function getItems() { return window.CARRIE_CLOSET_ITEMS || []; }
 
   // AVATAR DISPLAY
   function updateBaseImage() {
     if (closetBaseImg) {
       closetBaseImg.src = `assets/images/base/${closetState.gender}/base_${closetState.gender}_${closetState.skin}.png?v=15`;
     }
-    if (chatAvatarSmall) {
-      chatAvatarSmall.src = `assets/images/base/${closetState.gender}/base_${closetState.gender}_${closetState.skin}.png?v=15`;
-    }
-    document.body.dataset.gender = closetState.gender;
-    document.body.dataset.skin = closetState.skin;
   }
 
-  function renderAvatarOverlays() {
+  function clearOverlays() {
     if (!closetOverlayHost) return;
     closetOverlayHost.innerHTML = "";
-    const items = getItems();
+  }
+
+  function addOverlay(itemObj) {
+    if (!closetOverlayHost || !itemObj) return;
     
+    // OWNERSHIP CHECK: Only show overlay if item is owned
+    if (!isItemOwned(itemObj.id)) return;
+    
+    const slot = itemObj.slot;
+
+    // Eyes (dual)
+    if (slot === "eyes") {
+      const left = document.createElement("img");
+      left.src = itemObj.imgLeft || itemObj.img;
+      left.className = `layer-overlay layer-left item-${itemObj.id}`;
+      left.style.zIndex = zBySlot.eyes;
+
+      const right = document.createElement("img");
+      right.src = itemObj.imgRight || itemObj.img;
+      right.className = `layer-overlay layer-right item-${itemObj.id}`;
+      right.style.zIndex = zBySlot.eyes;
+
+      closetOverlayHost.appendChild(left);
+      closetOverlayHost.appendChild(right);
+      return;
+    }
+
+    // Ears (dual)
+    if (slot === "ears") {
+      const left = document.createElement("img");
+      left.src = itemObj.imgLeft || itemObj.img;
+      left.className = `layer-overlay layer-left item-${itemObj.id}`;
+      left.style.zIndex = zBySlot.ears;
+
+      const right = document.createElement("img");
+      right.src = itemObj.imgRight || itemObj.img;
+      right.className = `layer-overlay layer-right item-${itemObj.id}`;
+      right.style.zIndex = zBySlot.ears;
+
+      closetOverlayHost.appendChild(left);
+      closetOverlayHost.appendChild(right);
+      return;
+    }
+
+    // Shoes (dual)
+    if (slot === "shoes") {
+      const left = document.createElement("img");
+      left.src = itemObj.imgLeft || itemObj.img;
+      left.className = `layer-overlay layer-shoes-left item-${itemObj.id}`;
+      left.style.zIndex = zBySlot.shoes;
+
+      const right = document.createElement("img");
+      right.src = itemObj.imgRight || itemObj.img;
+      right.className = `layer-overlay layer-shoes-right item-${itemObj.id}`;
+      right.style.zIndex = zBySlot.shoes;
+
+      closetOverlayHost.appendChild(left);
+      closetOverlayHost.appendChild(right);
+      return;
+    }
+
+    // Single overlay
+    const img = document.createElement("img");
+    if (closetState.skin === "dark" && itemObj.imgDark) {
+      img.src = itemObj.imgDark;
+    } else {
+      img.src = itemObj.img;
+    }
+    img.className = `layer-overlay item-${itemObj.id}`;
+    img.style.zIndex = zBySlot[slot] || 20;
+    closetOverlayHost.appendChild(img);
+  }
+
+  function renderOverlays() {
+    clearOverlays();
+    if (!closetState.equipped) return;
     Object.keys(closetState.equipped).forEach(slot => {
-      const itemId = closetState.equipped[slot];
-      if (!itemId) return;
-      const item = items.find(it => it.id === itemId);
-      if (!item) return;
-
-      // Use closet positioning classes that match your CSS
-      if (slot === "eyes" || slot === "ears") {
-        const left = document.createElement("img");
-        left.src = item.imgLeft || item.img;
-        left.className = `layer-overlay layer-left item-${item.id}`;
-        left.style.zIndex = zBySlot[slot];
-        const right = document.createElement("img");
-        right.src = item.imgRight || item.img;
-        right.className = `layer-overlay layer-right item-${item.id}`;
-        right.style.zIndex = zBySlot[slot];
-        closetOverlayHost.appendChild(left);
-        closetOverlayHost.appendChild(right);
-      } else if (slot === "shoes") {
-        const left = document.createElement("img");
-        left.src = item.imgLeft || item.img;
-        left.className = `layer-overlay layer-shoes-left item-${item.id}`;
-        left.style.zIndex = zBySlot.shoes;
-        const right = document.createElement("img");
-        right.src = item.imgRight || item.img;
-        right.className = `layer-overlay layer-shoes-right item-${item.id}`;
-        right.style.zIndex = zBySlot.shoes;
-        closetOverlayHost.appendChild(left);
-        closetOverlayHost.appendChild(right);
-      } else {
-        const overlay = document.createElement("img");
-        overlay.src = item.img;
-        overlay.className = `layer-overlay item-${item.id}`;
-        overlay.style.zIndex = zBySlot[slot] || 20;
-        closetOverlayHost.appendChild(overlay);
-      }
+      if (closetState.equipped[slot]) addOverlay(closetState.equipped[slot]);
     });
   }
 
-  // FLOATING AVATAR CONTROLS - Keep within viewport
-  function updateAvatarPosition() {
-    if (!floatingWrapper) return;
-    
-    // Get current size based on zoom
-    const currentWidth = 480 * avatarState.zoom;
-    const currentHeight = 800 * avatarState.zoom;
-    
-    // Keep within viewport bounds
-    const maxX = Math.max(0, window.innerWidth - currentWidth);
-    const maxY = Math.max(0, window.innerHeight - currentHeight);
-    
-    avatarState.x = Math.max(0, Math.min(avatarState.x, maxX));
-    avatarState.y = Math.max(0, Math.min(avatarState.y, maxY));
-    
-    floatingWrapper.style.left = avatarState.x + 'px';
-    floatingWrapper.style.top = avatarState.y + 'px';
-    
-    if (floatingInner) {
-      floatingInner.style.transform = `scale(${avatarState.zoom})`;
-      floatingInner.style.transformOrigin = 'top left';
-    }
-    
-    saveAvatar();
+  function updateAvatarDisplay() {
+    if (!floatingInner) return;
+    const body = document.body;
+    body.dataset.gender = closetState.gender;
+    body.dataset.skin = closetState.skin;
+    updateBaseImage();
+    renderOverlays();
   }
 
-  function setupFloatingAvatar() {
-    if (!floatingWrapper || !floatingInner) return;
-    
-    // Mouse drag
-    floatingInner.addEventListener('mousedown', (e) => {
-      // Don't drag if clicking a button
-      if (e.target.closest('button')) return;
-      
-      isDragging = true;
-      dragStart.x = e.clientX - avatarState.x;
-      dragStart.y = e.clientY - avatarState.y;
-      e.preventDefault();
-    });
-    
-    document.addEventListener('mousemove', (e) => {
-      if (!isDragging) return;
-      avatarState.x = e.clientX - dragStart.x;
-      avatarState.y = e.clientY - dragStart.y;
-      updateAvatarPosition();
-    });
-    
-    document.addEventListener('mouseup', () => {
-      if (isDragging) {
-        isDragging = false;
-        saveAvatar();
-      }
-    });
-
-    // Touch drag and pinch zoom
-    floatingInner.addEventListener('touchstart', (e) => {
-      if (e.target.closest('button')) return;
-      
-      if (e.touches.length === 1) {
-        const touch = e.touches[0];
-        isDragging = true;
-        dragStart.x = touch.clientX - avatarState.x;
-        dragStart.y = touch.clientY - avatarState.y;
-        e.preventDefault();
-      } else if (e.touches.length === 2) {
-        isDragging = false;
-        const dx = e.touches[0].clientX - e.touches[1].clientX;
-        const dy = e.touches[0].clientY - e.touches[1].clientY;
-        lastTouchDist = Math.sqrt(dx * dx + dy * dy);
-        e.preventDefault();
-      }
-    });
-    
-    document.addEventListener('touchmove', (e) => {
-      if (e.touches.length === 1 && isDragging) {
-        const touch = e.touches[0];
-        avatarState.x = touch.clientX - dragStart.x;
-        avatarState.y = touch.clientY - dragStart.y;
-        updateAvatarPosition();
-        e.preventDefault();
-      } else if (e.touches.length === 2) {
-        const dx = e.touches[0].clientX - e.touches[1].clientX;
-        const dy = e.touches[0].clientY - e.touches[1].clientY;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (lastTouchDist > 0) {
-          const delta = dist - lastTouchDist;
-          avatarState.zoom = Math.max(0.3, Math.min(2.0, avatarState.zoom + delta * 0.005));
-          updateAvatarPosition();
-        }
-        lastTouchDist = dist;
-        e.preventDefault();
-      }
-    });
-    
-    document.addEventListener('touchend', () => {
-      isDragging = false;
-      lastTouchDist = 0;
-      saveAvatar();
-    });
-
-    // Button zoom
-    if (avatarZoomIn) {
-      avatarZoomIn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        avatarState.zoom = Math.min(avatarState.zoom + 0.1, 2.0);
-        updateAvatarPosition();
-      });
-    }
-    if (avatarZoomOut) {
-      avatarZoomOut.addEventListener('click', (e) => {
-        e.stopPropagation();
-        avatarState.zoom = Math.max(avatarState.zoom - 0.1, 0.3);
-        updateAvatarPosition();
-      });
-    }
-    if (avatarReset) {
-      avatarReset.addEventListener('click', (e) => {
-        e.stopPropagation();
-        avatarState.x = 100;
-        avatarState.y = 100;
-        avatarState.zoom = 0.6;
-        updateAvatarPosition();
-      });
-    }
-
-    // Window resize handler
-    window.addEventListener('resize', () => {
-      updateAvatarPosition();
-    });
-
-    loadAvatar();
-    updateAvatarPosition();
+  function updateCoinDisplay() {
+    if (coinBalance) coinBalance.textContent = closetState.coins.toLocaleString();
   }
 
-  // GENDER/SKIN CONTROLS
+  // CONTROLS
   function setupGenderSkinControls() {
     if (genderFemale) {
       genderFemale.addEventListener("click", () => {
         closetState.gender = "female";
-        updateBaseImage();
-        renderAvatarOverlays();
-        updateGenderSkinUI();
+        loadCloset(); // Reload equipped items for new gender
         saveCloset();
+        updateAvatarDisplay();
+        updateGenderSkinButtons();
       });
     }
     if (genderMale) {
       genderMale.addEventListener("click", () => {
         closetState.gender = "male";
-        updateBaseImage();
-        renderAvatarOverlays();
-        updateGenderSkinUI();
+        loadCloset(); // Reload equipped items for new gender
         saveCloset();
+        updateAvatarDisplay();
+        updateGenderSkinButtons();
       });
     }
     if (skinLight) {
       skinLight.addEventListener("click", () => {
         closetState.skin = "light";
-        updateBaseImage();
-        renderAvatarOverlays();
-        updateGenderSkinUI();
         saveCloset();
+        updateAvatarDisplay();
+        updateGenderSkinButtons();
       });
     }
     if (skinDark) {
       skinDark.addEventListener("click", () => {
         closetState.skin = "dark";
-        updateBaseImage();
-        renderAvatarOverlays();
-        updateGenderSkinUI();
         saveCloset();
+        updateAvatarDisplay();
+        updateGenderSkinButtons();
       });
     }
   }
 
-  function updateGenderSkinUI() {
-    $$("[data-gender]").forEach(btn => {
-      btn.classList.toggle("active", btn.dataset.gender === closetState.gender);
+  function updateGenderSkinButtons() {
+    [genderFemale, genderMale, skinLight, skinDark].forEach(btn => {
+      if (btn) btn.classList.remove("active");
     });
-    $$("[data-skin]").forEach(btn => {
-      btn.classList.toggle("active", btn.dataset.skin === closetState.skin);
+    if (closetState.gender === "female" && genderFemale) genderFemale.classList.add("active");
+    if (closetState.gender === "male" && genderMale) genderMale.classList.add("active");
+    if (closetState.skin === "light" && skinLight) skinLight.classList.add("active");
+    if (closetState.skin === "dark" && skinDark) skinDark.classList.add("active");
+  }
+
+  // DRAGGABLE AVATAR
+  let isDragging = false;
+  let startX = 0, startY = 0;
+
+  function setupDrag() {
+    if (!floatingWrapper) return;
+
+    floatingWrapper.addEventListener("mousedown", (e) => {
+      if (e.target.closest("#avatarZoomIn, #avatarZoomOut, #avatarReset")) return;
+      isDragging = true;
+      startX = e.clientX - avatarState.x;
+      startY = e.clientY - avatarState.y;
+      floatingWrapper.style.cursor = "grabbing";
+    });
+
+    document.addEventListener("mousemove", (e) => {
+      if (!isDragging) return;
+      avatarState.x = e.clientX - startX;
+      avatarState.y = e.clientY - startY;
+      updateAvatarPosition();
+    });
+
+    document.addEventListener("mouseup", () => {
+      if (isDragging) {
+        isDragging = false;
+        floatingWrapper.style.cursor = "grab";
+        saveAvatar();
+      }
     });
   }
 
-  // CHAT
-  function updateModeUI() {
-    modeBusinessBtn?.classList.toggle("active", carrieMode === "business");
-    modePersonalBtn?.classList.toggle("active", carrieMode === "personal");
-    modeBFGFBtn?.classList.toggle("active", carrieMode === "bfgf");
+  function updateAvatarPosition() {
+    if (!floatingWrapper) return;
+    floatingWrapper.style.left = avatarState.x + "px";
+    floatingWrapper.style.top = avatarState.y + "px";
+    if (floatingInner) floatingInner.style.transform = `scale(${avatarState.zoom})`;
   }
 
-  function addMsg(role, text) {
-    chatState.messages.push({ role, text, t: Date.now() });
-    saveChat();
-    renderChat();
+  function setupZoom() {
+    if (avatarZoomIn) {
+      avatarZoomIn.addEventListener("click", () => {
+        avatarState.zoom = Math.min(avatarState.zoom + 0.1, 2);
+        updateAvatarPosition();
+        saveAvatar();
+      });
+    }
+    if (avatarZoomOut) {
+      avatarZoomOut.addEventListener("click", () => {
+        avatarState.zoom = Math.max(avatarState.zoom - 0.1, 0.3);
+        updateAvatarPosition();
+        saveAvatar();
+      });
+    }
+    if (avatarReset) {
+      avatarReset.addEventListener("click", () => {
+        avatarState.x = 100;
+        avatarState.y = 100;
+        avatarState.zoom = 0.6;
+        updateAvatarPosition();
+        saveAvatar();
+      });
+    }
   }
 
-  function replyFor(text) {
-    const msg = (text || "").toLowerCase().trim();
-    if (!msg) return "Say something 🙂";
-    if (msg.includes("closet") || msg.includes("outfit")) return "Check out the Carrie Closet to customize my look! 🎀";
-    if (msg.includes("avatar") || msg.includes("drag")) return "Drag me anywhere! Pinch or use the + − buttons to zoom! 👗";
-    if (msg.includes("help")) return carrieMode === "business" ? "I can help with 8BFR features, music, and site questions!" : "Tell me what you want to do 💜";
-    return carrieMode === "business" ? "Got it. What else can I help with?" : "Okayyy 😄 tell me more!";
+  // CHAT MODE
+  function updateModeButtons() {
+    [modeBusinessBtn, modePersonalBtn, modeBFGFBtn].forEach(b => {
+      if (b) b.classList.remove("active");
+    });
+    if (chatState.mode === "business" && modeBusinessBtn) modeBusinessBtn.classList.add("active");
+    if (chatState.mode === "personal" && modePersonalBtn) modePersonalBtn.classList.add("active");
+    if (chatState.mode === "bfgf" && modeBFGFBtn) modeBFGFBtn.classList.add("active");
+
+    if (ownerControls) {
+      ownerControls.style.display = chatState.mode === "bfgf" ? "block" : "none";
+    }
   }
 
-  function renderChat() {
+  function setupModeButtons() {
+    if (modeBusinessBtn) {
+      modeBusinessBtn.addEventListener("click", () => {
+        chatState.mode = "business";
+        saveChat();
+        updateModeButtons();
+      });
+    }
+    if (modePersonalBtn) {
+      modePersonalBtn.addEventListener("click", () => {
+        chatState.mode = "personal";
+        saveChat();
+        updateModeButtons();
+      });
+    }
+    if (modeBFGFBtn) {
+      modeBFGFBtn.addEventListener("click", () => {
+        chatState.mode = "bfgf";
+        saveChat();
+        updateModeButtons();
+      });
+    }
+  }
+
+  // CHAT LOGIC (stub)
+  function addMessage(role, text) {
     if (!chatLog) return;
-    chatLog.innerHTML = "";
-    chatState.messages.forEach((m) => {
-      const row = document.createElement("div");
-      row.className = "msg-row " + (m.role === "user" ? "user" : "assistant");
-      
-      const avatar = document.createElement("div");
-      avatar.className = "msg-avatar";
-      const avatarImg = document.createElement("img");
-      if (m.role === "user") {
-        avatarImg.src = `assets/images/base/${closetState.gender}/base_${closetState.gender}_${closetState.skin}.png?v=15`;
-      } else {
-        avatarImg.src = "assets/images/Carrie_Business.png";
-      }
-      avatar.appendChild(avatarImg);
-      
-      const bubble = document.createElement("div");
-      bubble.className = "msg-bubble";
-      bubble.textContent = m.text;
-      
-      if (m.role === "user") {
-        row.appendChild(bubble);
-        row.appendChild(avatar);
-      } else {
-        row.appendChild(avatar);
-        row.appendChild(bubble);
-      }
-      
-      chatLog.appendChild(row);
-    });
+    const msg = document.createElement("div");
+    msg.className = role === "user" ? "chat-msg-user" : "chat-msg-assistant";
+    msg.textContent = text;
+    chatLog.appendChild(msg);
     chatLog.scrollTop = chatLog.scrollHeight;
   }
 
-  function send() {
-    if (!carrieInput) return;
-    const text = (carrieInput.value || "").trim();
-    if (!text) return;
-    carrieInput.value = "";
-    addMsg("user", text);
-    
-    if (typingRow) typingRow.classList.remove("hidden");
-    
-    setTimeout(() => {
-      if (typingRow) typingRow.classList.add("hidden");
-      addMsg("assistant", replyFor(text));
-    }, 600 + Math.random() * 400);
-  }
-
-  // OWNER MODE
-  function enableOwnerMode() {
-    isOwner = true;
-    closetState.coins = 999999;
-    closetState.ownedItems = getItems().map(it => it.id);
-    
-    if (statusText) statusText.textContent = "Owner Mode ✨";
-    if (ownerControls) ownerControls.classList.remove("hidden");
-    if (modeBFGFBtn) {
-      modeBFGFBtn.disabled = false;
-      modeBFGFBtn.innerHTML = '💕 BF/GF';
-    }
-    if (coinBalance) coinBalance.textContent = "999,999";
-    if (coinItemsLabel) coinItemsLabel.innerHTML = '✨ Your Premium Items (All Unlocked)';
-    
-    // Unlock all outfit items
-    $$('.outfit-thumb.locked').forEach(item => {
-      item.classList.remove('locked');
-      const lockOverlay = item.querySelector('.outfit-lock-overlay');
-      if (lockOverlay) lockOverlay.remove();
-      const badge = item.querySelector('.outfit-thumb-badge');
-      if (badge) {
-        badge.classList.remove('coins');
-        badge.classList.add('unlocked');
-        badge.textContent = 'OWNED';
-      }
+  function setupChatForm() {
+    if (!carrieForm) return;
+    carrieForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const text = carrieInput.value.trim();
+      if (!text) return;
+      addMessage("user", text);
+      carrieInput.value = "";
+      
+      // Stub response
+      setTimeout(() => {
+        addMessage("assistant", "Hi! This is a demo response.");
+      }, 800);
     });
-    
-    saveCloset();
-    console.log("👑 Owner mode enabled!");
   }
 
   // INIT
   function init() {
+    // Check if user is logged in
+    if (!checkLogin()) {
+      return; // Login modal will show
+    }
+
     loadChat();
+    loadOwnedItems(); // Load which items user owns
+    loadCoins(); // Load coin balance
+    
+    // AUTO-UNLOCK: Give all items and max coins if owner
+    autoUnlockAllItems();
+    
     loadCloset();
-    updateBaseImage();
+    loadAvatar();
+
+    updateModeButtons();
+    updateGenderSkinButtons();
+    updateAvatarDisplay();
+    updateAvatarPosition();
+    updateCoinDisplay();
+
+    setupModeButtons();
     setupGenderSkinControls();
-    updateGenderSkinUI();
-    setupFloatingAvatar();
-    renderAvatarOverlays();
-    renderChat();
-
-    if (chatState.messages.length === 0) {
-      addMsg("assistant", "Hi! 👋 Drag my avatar anywhere! Pinch to zoom!");
-    }
-
-    carrieMode = chatState.mode || "business";
-    updateModeUI();
-
-    if (carrieForm) {
-      carrieForm.addEventListener("submit", (e) => {
-        e.preventDefault();
-        send();
-      });
-    }
-
-    if (carrieInput) {
-      carrieInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" && !e.shiftKey) {
-          e.preventDefault();
-          send();
-        }
-      });
-    }
-
-    if (modeBusinessBtn) modeBusinessBtn.addEventListener("click", () => {
-      carrieMode = "business";
-      updateModeUI();
-      addMsg("assistant", "Switched to Site / Pro mode. I'll help with 8BFR features!");
-    });
+    setupDrag();
+    setupZoom();
+    setupChatForm();
     
-    if (modePersonalBtn) modePersonalBtn.addEventListener("click", () => {
-      carrieMode = "personal";
-      updateModeUI();
-      addMsg("assistant", "Switched to Personal mode. Let's talk about your goals! 💜");
-    });
-    
-    if (modeBFGFBtn) modeBFGFBtn.addEventListener("click", () => {
-      if (isOwner) {
-        carrieMode = "bfgf";
-        updateModeUI();
-        addMsg("assistant", "Switched to BF/GF mode. Hey babe 💜");
-      }
-    });
-
-    // Enable owner mode automatically
-    enableOwnerMode();
-    
-    console.log("✅ Carrie chat ready!");
+    // Log status
+    if (isOwner()) {
+      console.log("🔓 Owner mode - auto-unlock enabled!");
+      console.log("💰 Coins:", closetState.coins);
+      console.log("📦 Owned items:", closetState.ownedItems.length);
+    } else {
+      console.log("👤 Regular user mode");
+      console.log("💰 Coins:", closetState.coins);
+      console.log("📦 Owned items:", closetState.ownedItems.length);
+    }
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
   } else {
     init();
   }
