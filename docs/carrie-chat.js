@@ -1108,6 +1108,8 @@
   }
   
   function setupChatControls() {
+    console.log("🎛️ Setting up chat controls...");
+    
     const clearChatBtn = document.getElementById("clearChatBtn");
     const selectModeBtn = document.getElementById("selectModeBtn");
     const deleteSelectedBtn = document.getElementById("deleteSelectedBtn");
@@ -1117,18 +1119,36 @@
     const anonymousModeToggle = document.getElementById("anonymousModeToggle");
     const anonymousModeLabel = document.getElementById("anonymousModeLabel");
     
+    console.log("  clearChatBtn:", clearChatBtn);
+    console.log("  selectModeBtn:", selectModeBtn);
+    console.log("  deleteSelectedBtn:", deleteSelectedBtn);
+    console.log("  archiveSelectedBtn:", archiveSelectedBtn);
+    console.log("  cancelSelectBtn:", cancelSelectBtn);
+    console.log("  trainerBtn:", trainerBtn);
+    
     // Show appropriate buttons based on owner status
     if (isOwner()) {
+      console.log("  👑 Owner mode - showing owner controls");
+      
       if (clearChatBtn) {
         clearChatBtn.style.display = "inline-block";
-        clearChatBtn.addEventListener("click", clearAllChat);
+        clearChatBtn.addEventListener("click", () => {
+          console.log("🗑️ Clear chat clicked");
+          clearAllChat();
+        });
+        console.log("  ✅ Clear chat button ready");
       }
       if (trainerBtn) {
         trainerBtn.style.display = "inline-block";
-        trainerBtn.addEventListener("click", openTrainer);
+        trainerBtn.addEventListener("click", () => {
+          console.log("🧠 Trainer button clicked");
+          openTrainer();
+        });
+        console.log("  ✅ Trainer button ready");
       }
       if (anonymousModeLabel) {
         anonymousModeLabel.style.display = "flex";
+        console.log("  ✅ Anonymous mode toggle visible");
       }
       
       // Anonymous mode toggle
@@ -1139,26 +1159,45 @@
         anonymousModeToggle.addEventListener("change", function() {
           localStorage.setItem("anonymousMode", this.checked);
           console.log("👻 Anonymous mode:", this.checked ? "ON" : "OFF");
-          // In a real implementation, this would affect how messages are sent/displayed
         });
       }
     } else {
+      console.log("  👤 Regular user mode - showing select button");
+      
       if (selectModeBtn) {
         selectModeBtn.style.display = "inline-block";
-        selectModeBtn.addEventListener("click", enterSelectMode);
+        selectModeBtn.addEventListener("click", () => {
+          console.log("☑️ Select mode clicked");
+          enterSelectMode();
+        });
+        console.log("  ✅ Select button ready");
       }
     }
     
-    // Selection mode buttons
+    // Selection mode buttons (available to all)
     if (deleteSelectedBtn) {
-      deleteSelectedBtn.addEventListener("click", deleteSelectedMessages);
+      deleteSelectedBtn.addEventListener("click", () => {
+        console.log("🗑️ Delete selected clicked");
+        deleteSelectedMessages();
+      });
+      console.log("  ✅ Delete button ready");
     }
     if (archiveSelectedBtn) {
-      archiveSelectedBtn.addEventListener("click", archiveSelectedMessages);
+      archiveSelectedBtn.addEventListener("click", () => {
+        console.log("📦 Archive selected clicked");
+        archiveSelectedMessages();
+      });
+      console.log("  ✅ Archive button ready");
     }
     if (cancelSelectBtn) {
-      cancelSelectBtn.addEventListener("click", exitSelectMode);
+      cancelSelectBtn.addEventListener("click", () => {
+        console.log("❌ Cancel select clicked");
+        exitSelectMode();
+      });
+      console.log("  ✅ Cancel button ready");
     }
+    
+    console.log("✅ Chat controls setup complete");
   }
   
   // AVATAR TRAINER
@@ -1321,21 +1360,47 @@
   }
 
   function setupChatForm() {
-    if (!carrieForm) return;
+    if (!carrieForm) {
+      console.log("❌ carrieForm not found!");
+      return;
+    }
+    
+    console.log("✅ Setting up chat form");
+    
     carrieForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       const text = carrieInput.value.trim();
       if (!text) return;
       
+      console.log("💬 User message:", text);
+      
       // Send user message
       await addMessage("user", text);
       carrieInput.value = "";
       
-      // Stub response (in production, this would call your AI API)
+      // Check for trained response from memory
+      let response = null;
+      if (window.CARRIE_MEMORY) {
+        const currentAvatarKey = `${closetState.gender}-${closetState.skin}`;
+        response = window.CARRIE_MEMORY.findResponse(text, chatState.mode, currentAvatarKey);
+        
+        if (response) {
+          console.log("🧠 Using trained response");
+        }
+      }
+      
+      // If no trained response, use default
+      if (!response) {
+        response = "Hi! This is a demo response. Use the Avatar Trainer to teach me custom responses!";
+      }
+      
+      // Send assistant response
       setTimeout(async () => {
-        await addMessage("assistant", "Hi! This is a demo response.");
+        await addMessage("assistant", response);
       }, 800);
     });
+    
+    console.log("✅ Chat form ready");
   }
 
   // INIT
