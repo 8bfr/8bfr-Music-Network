@@ -449,6 +449,13 @@
   }
 
   // OWNED ITEMS RENDERING
+  let currentCategory = "all";
+  
+  function filterByCategory(items) {
+    if (currentCategory === "all") return items;
+    return items.filter(it => it.category === currentCategory);
+  }
+  
   function renderOwnedItems() {
     const ownedItemsGrid = $("#ownedItemsGrid");
     if (!ownedItemsGrid) return;
@@ -456,12 +463,18 @@
     ownedItemsGrid.innerHTML = "";
     
     const items = getItems();
-    const filtered = items.filter(it => it.gender === "unisex" || it.gender === closetState.gender);
+    const filtered = items.filter(it => 
+      (it.gender === "unisex" || it.gender === closetState.gender) &&
+      closetState.ownedItems.includes(it.id)
+    );
+    const categoryFiltered = filterByCategory(filtered);
     
-    closetState.ownedItems.forEach(itemId => {
-      const item = filtered.find(it => it.id === itemId);
-      if (!item) return;
-      
+    if (categoryFiltered.length === 0) {
+      ownedItemsGrid.innerHTML = '<div style="padding:1rem; text-align:center; color:#a855f7; font-size:0.85rem;">No owned items in this category</div>';
+      return;
+    }
+    
+    categoryFiltered.forEach(item => {
       const div = document.createElement("div");
       div.className = "mini-item";
       
@@ -491,9 +504,78 @@
         saveCloset();
         updateAvatarDisplay();
         renderOwnedItems();
+        renderShopItems();
       });
       
       ownedItemsGrid.appendChild(div);
+    });
+  }
+  
+  function renderShopItems() {
+    const shopItemsGrid = $("#shopItemsGrid");
+    if (!shopItemsGrid) return;
+    
+    shopItemsGrid.innerHTML = "";
+    
+    const items = getItems();
+    const filtered = items.filter(it => 
+      (it.gender === "unisex" || it.gender === closetState.gender) &&
+      !closetState.ownedItems.includes(it.id)
+    );
+    const categoryFiltered = filterByCategory(filtered);
+    
+    if (categoryFiltered.length === 0) {
+      shopItemsGrid.innerHTML = '<div style="padding:1rem; text-align:center; color:#a855f7; font-size:0.85rem;">All items purchased!</div>';
+      return;
+    }
+    
+    categoryFiltered.forEach(item => {
+      const div = document.createElement("div");
+      div.className = "mini-item shop-item";
+      
+      const canAfford = closetState.coins >= item.price;
+      if (!canAfford) div.classList.add("cant-afford");
+      
+      div.innerHTML = `
+        <div class="mini-item-img">
+          <img src="${item.img}" alt="${item.name}">
+          <div class="item-badge badge-price">${item.price} 🪙</div>
+        </div>
+        <div class="mini-item-name">${item.name}</div>
+      `;
+      
+      div.addEventListener("click", () => {
+        if (!canAfford) {
+          alert("Not enough coins!");
+          return;
+        }
+        
+        if (confirm(`Purchase ${item.name} for ${item.price} coins?`)) {
+          closetState.coins -= item.price;
+          closetState.ownedItems.push(item.id);
+          saveCloset();
+          saveCoins();
+          saveOwnedItems();
+          updateCoinDisplay();
+          renderOwnedItems();
+          renderShopItems();
+        }
+      });
+      
+      shopItemsGrid.appendChild(div);
+    });
+  }
+  
+  function setupCategoryTabs() {
+    const tabs = document.querySelectorAll('[data-cat]');
+    tabs.forEach(tab => {
+      tab.addEventListener('click', function() {
+        tabs.forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+        currentCategory = this.dataset.cat;
+        renderOwnedItems();
+        renderShopItems();
+      });
     });
   }
 
@@ -507,6 +589,7 @@
         updateAvatarDisplay();
         updateGenderSkinButtons();
         renderOwnedItems(); // Update items for new gender
+        renderShopItems(); // Update shop for new gender
       });
     }
     if (genderMale) {
@@ -517,8 +600,22 @@
         updateAvatarDisplay();
         updateGenderSkinButtons();
         renderOwnedItems(); // Update items for new gender
+        renderShopItems(); // Update shop for new gender
       });
     }
+    
+    // Skin tone buttons
+    const skinButtons = document.querySelectorAll('[data-skin]');
+    skinButtons.forEach(btn => {
+      btn.addEventListener('click', function() {
+        skinButtons.forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        closetState.skin = this.dataset.skin;
+        saveCloset();
+        updateAvatarDisplay();
+      });
+    });
+  }
     if (skinLight) {
       skinLight.addEventListener("click", () => {
         closetState.skin = "light";
@@ -697,9 +794,11 @@
     updateAvatarDisplay();
     updateCoinDisplay();
     renderOwnedItems(); // Show owned items
+    renderShopItems(); // Show shop items
 
     setupModeButtons();
     setupGenderSkinControls();
+    setupCategoryTabs(); // Setup category filtering
     setupChatForm();
     
     // Log status
