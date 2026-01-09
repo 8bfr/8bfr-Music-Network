@@ -4,16 +4,11 @@
   const $ = s => document.querySelector(s);
   const $$ = s => Array.from(document.querySelectorAll(s));
 
-  const grid = $("#closetItemsGrid");
-  const emptyMsg = $("#closetEmpty");
-  const errBox = $("#closetError");
-  const overlayHost = $("#closetOverlayHost");
-  const previewLabel = $("#closetPreviewLabel");
-  const closetGenderLabel = $("#closetGenderLabel");
-  const skinToneButtons = $("#skinToneButtons");
+  // DON'T assign these yet - elements don't exist!
+  let grid, emptyMsg, errBox, overlayHost, previewLabel, closetGenderLabel, skinToneButtons;
 
-  let currentGender = "female";
-  let currentSkin = "light";
+  let currentGender = localStorage.getItem('closet_gender') || "female";
+  let currentSkin = localStorage.getItem('closet_skin') || "light";
   let currentCat = "hair";
 
   const equippedSets = {
@@ -21,7 +16,7 @@
     male: { hair: null, top: null, bottom: null, eyes: null, shoes: null, necklace: null, ears: null, belly: null }
   };
 
-  let equipped = equippedSets.female;
+  let equipped = equippedSets[currentGender];
 
   const zBySlot = { shoes: 10, bottom: 30, belly: 35, top: 40, necklace: 45, eyes: 50, ears: 55, hair: 60 };
 
@@ -40,12 +35,8 @@
   function updateLabels() {
     const gLabel = currentGender === "female" ? "Female" : "Male";
     const sLabel = currentSkin === "light" ? "Light skin" : "Dark skin";
-    if (previewLabel) {
-      previewLabel.textContent = `${gLabel} • ${sLabel} • Bikini base`;
-    }
-    if (closetGenderLabel) {
-      closetGenderLabel.innerHTML = `Showing items for <b>${gLabel}</b> avatar`;
-    }
+    if (previewLabel) previewLabel.textContent = `${gLabel} • ${sLabel} • Bikini base`;
+    if (closetGenderLabel) closetGenderLabel.innerHTML = `Showing items for <b>${gLabel}</b> avatar`;
   }
 
   function buildSkinButtons() {
@@ -63,6 +54,7 @@
       btn.dataset.skin = s.key;
       btn.addEventListener("click", () => {
         currentSkin = s.key;
+        localStorage.setItem('closet_skin', currentSkin);
         document.body.dataset.skin = currentSkin;
         $$("#skinToneButtons .seg-btn").forEach(b => b.classList.remove("active"));
         btn.classList.add("active");
@@ -120,9 +112,37 @@
       }
       renderItems();
       renderOverlays();
+      saveEquipped();
     });
 
     return card;
+  }
+
+  function saveEquipped() {
+    const saveData = {};
+    Object.keys(equipped).forEach(slot => {
+      if (equipped[slot]) saveData[slot] = equipped[slot].id;
+    });
+    localStorage.setItem(`closet_equipped_${currentGender}`, JSON.stringify(saveData));
+  }
+
+  function loadEquipped() {
+    const saved = localStorage.getItem(`closet_equipped_${currentGender}`);
+    if (!saved) return;
+    
+    try {
+      const saveData = JSON.parse(saved);
+      const items = safeItems();
+      if (!items) return;
+      
+      Object.keys(saveData).forEach(slot => {
+        const itemId = saveData[slot];
+        const itemObj = items.find(it => it.id === itemId);
+        if (itemObj) equipped[slot] = itemObj;
+      });
+    } catch (e) {
+      console.error("Error loading saved outfit:", e);
+    }
   }
 
   function renderItems() {
@@ -150,7 +170,6 @@
     if (!overlayHost || !itemObj) return;
     const slot = itemObj.slot;
 
-    // Handle eyes (dual images - left and right)
     if (slot === "eyes") {
       const left = document.createElement("img");
       left.src = itemObj.imgLeft || itemObj.img;
@@ -167,7 +186,6 @@
       return;
     }
 
-    // Handle earrings (dual images - left and right)
     if (slot === "ears") {
       const left = document.createElement("img");
       left.src = itemObj.imgLeft || itemObj.img;
@@ -184,7 +202,6 @@
       return;
     }
 
-    // Handle shoes (dual images - left and right)
     if (slot === "shoes") {
       const left = document.createElement("img");
       left.src = itemObj.imgLeft || itemObj.img;
@@ -201,7 +218,6 @@
       return;
     }
 
-    // Handle items with dark skin variant
     const img = document.createElement("img");
     if (currentSkin === "dark" && itemObj.imgDark) {
       img.src = itemObj.imgDark;
@@ -220,7 +236,6 @@
     });
   }
 
-  // Tabs
   function initTabs() {
     $$(".tab-btn").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -232,15 +247,16 @@
     });
   }
 
-  // Gender buttons
   function initGenderButtons() {
     $$(".seg-btn[data-gender]").forEach(btn => {
       btn.addEventListener("click", () => {
         $$(".seg-btn[data-gender]").forEach(b => b.classList.remove("active"));
         btn.classList.add("active");
         currentGender = btn.dataset.gender === "male" ? "male" : "female";
+        localStorage.setItem('closet_gender', currentGender);
         document.body.dataset.gender = currentGender;
         equipped = equippedSets[currentGender];
+        loadEquipped();
         setBaseImage();
         updateLabels();
         renderItems();
@@ -250,6 +266,15 @@
   }
 
   function init() {
+    // NOW assign the DOM elements - they exist now!
+    grid = $("#closetItemsGrid");
+    emptyMsg = $("#closetEmpty");
+    errBox = $("#closetError");
+    overlayHost = $("#closetOverlayHost");
+    previewLabel = $("#closetPreviewLabel");
+    closetGenderLabel = $("#closetGenderLabel");
+    skinToneButtons = $("#skinToneButtons");
+
     const items = safeItems();
     if (!items) {
       if (errBox) errBox.classList.remove("hidden");
@@ -263,8 +288,18 @@
     initTabs();
     initGenderButtons();
     buildSkinButtons();
+    
+    $$(".seg-btn[data-gender]").forEach(btn => {
+      if (btn.dataset.gender === currentGender) {
+        btn.classList.add("active");
+      } else {
+        btn.classList.remove("active");
+      }
+    });
+    
     setBaseImage();
     updateLabels();
+    loadEquipped();
     renderItems();
     renderOverlays();
   }
