@@ -453,21 +453,45 @@
   
   function filterByCategory(items) {
     if (currentCategory === "all") return items;
-    return items.filter(it => it.category === currentCategory);
+    
+    // Map category names to slot names
+    const categoryToSlot = {
+      "hair": "hair",
+      "top": "top",
+      "bottom": "bottom",
+      "jewelry": ["necklace", "ears", "belly"],
+      "eyes": "eyes",
+      "shoes": "shoes"
+    };
+    
+    const slots = categoryToSlot[currentCategory];
+    if (Array.isArray(slots)) {
+      return items.filter(it => slots.includes(it.slot));
+    }
+    return items.filter(it => it.slot === slots);
   }
   
   function renderOwnedItems() {
     const ownedItemsGrid = $("#ownedItemsGrid");
-    if (!ownedItemsGrid) return;
+    if (!ownedItemsGrid) {
+      console.log("❌ ownedItemsGrid not found!");
+      return;
+    }
     
     ownedItemsGrid.innerHTML = "";
     
     const items = getItems();
+    console.log("📦 Total items available:", items.length);
+    console.log("✅ Owned item IDs:", closetState.ownedItems.length);
+    
     const filtered = items.filter(it => 
       (it.gender === "unisex" || it.gender === closetState.gender) &&
       closetState.ownedItems.includes(it.id)
     );
+    console.log("🔍 Filtered owned items for", closetState.gender + ":", filtered.length);
+    
     const categoryFiltered = filterByCategory(filtered);
+    console.log("📂 Category filtered (", currentCategory, "):", categoryFiltered.length);
     
     if (categoryFiltered.length === 0) {
       ownedItemsGrid.innerHTML = '<div style="padding:1rem; text-align:center; color:#a855f7; font-size:0.85rem;">No owned items in this category</div>';
@@ -509,11 +533,16 @@
       
       ownedItemsGrid.appendChild(div);
     });
+    
+    console.log("✅ Rendered", categoryFiltered.length, "owned items");
   }
   
   function renderShopItems() {
     const shopItemsGrid = $("#shopItemsGrid");
-    if (!shopItemsGrid) return;
+    if (!shopItemsGrid) {
+      console.log("❌ shopItemsGrid not found!");
+      return;
+    }
     
     shopItemsGrid.innerHTML = "";
     
@@ -522,6 +551,8 @@
       (it.gender === "unisex" || it.gender === closetState.gender) &&
       !closetState.ownedItems.includes(it.id)
     );
+    console.log("🛒 Shop items for", closetState.gender + ":", filtered.length);
+    
     const categoryFiltered = filterByCategory(filtered);
     
     if (categoryFiltered.length === 0) {
@@ -564,12 +595,17 @@
       
       shopItemsGrid.appendChild(div);
     });
+    
+    console.log("✅ Rendered", categoryFiltered.length, "shop items");
   }
   
   function setupCategoryTabs() {
     const tabs = document.querySelectorAll('[data-cat]');
+    console.log("🏷️ Found", tabs.length, "category tabs");
+    
     tabs.forEach(tab => {
       tab.addEventListener('click', function() {
+        console.log("📂 Category clicked:", this.dataset.cat);
         tabs.forEach(t => t.classList.remove('active'));
         this.classList.add('active');
         currentCategory = this.dataset.cat;
@@ -604,18 +640,6 @@
       });
     }
     
-    // Skin tone buttons
-    const skinButtons = document.querySelectorAll('[data-skin]');
-    skinButtons.forEach(btn => {
-      btn.addEventListener('click', function() {
-        skinButtons.forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
-        closetState.skin = this.dataset.skin;
-        saveCloset();
-        updateAvatarDisplay();
-      });
-    });
-  }
     if (skinLight) {
       skinLight.addEventListener("click", () => {
         closetState.skin = "light";
@@ -774,25 +798,44 @@
 
   // INIT
   function init() {
+    console.log("🚀 Carrie Chat initializing...");
+    console.log("📊 closetState:", closetState);
+    
     // Check if user is logged in
     if (!checkLogin()) {
+      console.log("❌ Not logged in - showing login modal");
       return; // Login modal will show
     }
+    
+    console.log("✅ User logged in");
 
     loadChat();
     loadOwnedItems(); // Load which items user owns
     loadCoins(); // Load coin balance
     
+    console.log("💾 After loading - Owned items:", closetState.ownedItems.length);
+    console.log("💾 After loading - Coins:", closetState.coins);
+    
     // AUTO-UNLOCK: Give all items and max coins if owner
     autoUnlockAllItems();
     
+    console.log("🔓 After auto-unlock - Owned items:", closetState.ownedItems.length);
+    console.log("🔓 After auto-unlock - Coins:", closetState.coins);
+    
     loadCloset();
     loadAvatar();
+
+    // Set body attributes
+    document.body.dataset.gender = closetState.gender;
+    document.body.dataset.skin = closetState.skin;
+    console.log("🎨 Set body attributes: gender=" + closetState.gender + ", skin=" + closetState.skin);
 
     updateModeButtons();
     updateGenderSkinButtons();
     updateAvatarDisplay();
     updateCoinDisplay();
+    
+    console.log("📦 About to render items...");
     renderOwnedItems(); // Show owned items
     renderShopItems(); // Show shop items
 
@@ -811,6 +854,8 @@
       console.log("💰 Coins:", closetState.coins);
       console.log("📦 Owned items:", closetState.ownedItems.length);
     }
+    
+    console.log("✅ Initialization complete!");
   }
 
   if (document.readyState === 'loading') {
