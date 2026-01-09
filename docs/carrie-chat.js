@@ -570,7 +570,7 @@
       div.innerHTML = `
         <div class="mini-item-img">
           <img src="${item.img}" alt="${item.name}">
-          <div class="item-badge badge-price">${item.price} 🪙</div>
+          <div class="item-badge badge-price">${item.price} <img src="assets/images/icon_8bfr_coin.png" class="coin-icon" alt="coin"></div>
         </div>
         <div class="mini-item-name">${item.name}</div>
       `;
@@ -617,43 +617,59 @@
 
   // CONTROLS
   function setupGenderSkinControls() {
+    console.log("🎮 Setting up gender/skin controls...");
+    console.log("  genderFemale:", genderFemale);
+    console.log("  genderMale:", genderMale);
+    console.log("  skinLight:", skinLight);
+    console.log("  skinDark:", skinDark);
+    
     if (genderFemale) {
       genderFemale.addEventListener("click", () => {
+        console.log("👩 Female clicked! Current:", closetState.gender);
         closetState.gender = "female";
+        console.log("  Set to:", closetState.gender);
         loadCloset(); // Reload equipped items for new gender
         saveCloset();
         updateAvatarDisplay();
         updateGenderSkinButtons();
         renderOwnedItems(); // Update items for new gender
         renderShopItems(); // Update shop for new gender
+        console.log("  ✅ Female switch complete");
       });
     }
     if (genderMale) {
       genderMale.addEventListener("click", () => {
+        console.log("👨 Male clicked! Current:", closetState.gender);
         closetState.gender = "male";
+        console.log("  Set to:", closetState.gender);
         loadCloset(); // Reload equipped items for new gender
         saveCloset();
         updateAvatarDisplay();
         updateGenderSkinButtons();
         renderOwnedItems(); // Update items for new gender
         renderShopItems(); // Update shop for new gender
+        console.log("  ✅ Male switch complete");
       });
     }
     
     if (skinLight) {
       skinLight.addEventListener("click", () => {
+        console.log("☀️ Light skin clicked!");
         closetState.skin = "light";
         saveCloset();
         updateAvatarDisplay();
         updateGenderSkinButtons();
+        console.log("  ✅ Light skin applied");
       });
     }
     if (skinDark) {
       skinDark.addEventListener("click", () => {
+        console.log("🌙 Dark skin clicked!");
         closetState.skin = "dark";
         saveCloset();
         updateAvatarDisplay();
         updateGenderSkinButtons();
+        console.log("  ✅ Dark skin applied");
       });
     }
   }
@@ -770,34 +786,555 @@
     }
   }
 
-  // CHAT LOGIC (stub)
-  function addMessage(role, text) {
+  // SUPABASE CONFIGURATION
+  // Replace these with your actual Supabase credentials
+  const SUPABASE_URL = 'YOUR_SUPABASE_URL'; // e.g., 'https://xxxxx.supabase.co'
+  const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+  
+  // Initialize Supabase client (loaded from CDN in HTML)
+  let supabase = null;
+  
+  function initSupabase() {
+    if (typeof window.supabase !== 'undefined') {
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      console.log('✅ Supabase initialized');
+    } else {
+      console.error('❌ Supabase library not loaded');
+    }
+  }
+
+  // CHAT STORAGE
+  async function saveMessageToDb(role, content) {
+    if (!supabase) return null;
+    
+    try {
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .insert([
+          {
+            user_id: getCurrentUserId(),
+            role: role,
+            content: content,
+            created_at: new Date().toISOString()
+          }
+        ])
+        .select();
+      
+      if (error) throw error;
+      
+      console.log('💾 Message saved to Supabase:', data);
+      return data[0];
+    } catch (error) {
+      console.error('Error saving message:', error);
+      return null;
+    }
+  }
+  
+  async function loadMessagesFromDb() {
+    if (!supabase) return [];
+    
+    try {
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('user_id', getCurrentUserId())
+        .eq('archived', false)
+        .order('created_at', { ascending: true });
+      
+      if (error) throw error;
+      
+      console.log('📥 Loaded messages from Supabase:', data?.length || 0);
+      return data || [];
+    } catch (error) {
+      console.error('Error loading messages:', error);
+      return [];
+    }
+  }
+  
+  async function deleteMessagesFromDb(messageIds) {
+    if (!supabase) return false;
+    
+    try {
+      const { error } = await supabase
+        .from('chat_messages')
+        .delete()
+        .in('id', messageIds)
+        .eq('user_id', getCurrentUserId());
+      
+      if (error) throw error;
+      
+      console.log('🗑️ Deleted messages from Supabase:', messageIds.length);
+      return true;
+    } catch (error) {
+      console.error('Error deleting messages:', error);
+      return false;
+    }
+  }
+  
+  async function archiveMessagesInDb(messageIds) {
+    if (!supabase) return false;
+    
+    try {
+      const { error } = await supabase
+        .from('chat_messages')
+        .update({ 
+          archived: true, 
+          archived_at: new Date().toISOString() 
+        })
+        .in('id', messageIds)
+        .eq('user_id', getCurrentUserId());
+      
+      if (error) throw error;
+      
+      console.log('📦 Archived messages in Supabase:', messageIds.length);
+      return true;
+    } catch (error) {
+      console.error('Error archiving messages:', error);
+      return false;
+    }
+  }
+  
+  async function clearAllMessagesInDb() {
+    if (!supabase) return false;
+    
+    try {
+      const { error } = await supabase
+        .from('chat_messages')
+        .delete()
+        .eq('user_id', getCurrentUserId());
+      
+      if (error) throw error;
+      
+      console.log('🗑️ Cleared all messages from Supabase');
+      return true;
+    } catch (error) {
+      console.error('Error clearing all messages:', error);
+      return false;
+    }
+  }
+
+  // HELPERS
+  function getCurrentUserId() {
+    // Get user ID from localStorage
+    const user = JSON.parse(localStorage.getItem("carrieUser") || "{}");
+    return user.email || "anonymous";
+  }
+
+  // CHAT LOGIC
+  let isSelectMode = false;
+  let selectedMessages = new Set();
+  
+  async function addMessage(role, text, messageId = null) {
     if (!chatLog) return;
+    
+    // Save to Supabase first if this is a new message
+    let dbMessage = null;
+    if (!messageId) {
+      dbMessage = await saveMessageToDb(role, text);
+      messageId = dbMessage?.id || `msg_${Date.now()}_${Math.random()}`;
+    }
+    
+    const id = messageId;
     const msg = document.createElement("div");
     msg.className = role === "user" ? "chat-msg-user" : "chat-msg-assistant";
-    msg.textContent = text;
+    msg.dataset.messageId = id;
+    
+    // Add checkbox for selection mode (regular users only)
+    if (!isOwner() && isSelectMode) {
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.className = "msg-checkbox";
+      checkbox.style.cssText = "margin-right:0.5rem; cursor:pointer;";
+      checkbox.addEventListener("change", function() {
+        if (this.checked) {
+          selectedMessages.add(id);
+        } else {
+          selectedMessages.delete(id);
+        }
+        updateSelectionCount();
+      });
+      msg.appendChild(checkbox);
+    }
+    
+    const textSpan = document.createElement("span");
+    textSpan.textContent = text;
+    msg.appendChild(textSpan);
+    
     chatLog.appendChild(msg);
     chatLog.scrollTop = chatLog.scrollHeight;
+    
+    return id;
+  }
+  
+  async function loadMessagesFromSupabase() {
+    const messages = await loadMessagesFromDb();
+    
+    if (chatLog) {
+      chatLog.innerHTML = "";
+    }
+    
+    for (const msg of messages) {
+      await addMessage(msg.role, msg.content, msg.id);
+    }
+    
+    console.log('✅ Loaded', messages.length, 'messages from Supabase');
+  }
+  
+  function updateSelectionCount() {
+    const countEl = document.getElementById("selectedCount");
+    if (countEl) countEl.textContent = selectedMessages.size;
+  }
+  
+  function enterSelectMode() {
+    isSelectMode = true;
+    selectedMessages.clear();
+    
+    // Show selection toolbar
+    const toolbar = document.getElementById("selectionToolbar");
+    if (toolbar) toolbar.style.display = "flex";
+    
+    // Add checkboxes to all messages
+    const messages = chatLog.querySelectorAll(".chat-msg-user, .chat-msg-assistant");
+    messages.forEach(msg => {
+      if (!msg.querySelector(".msg-checkbox")) {
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.className = "msg-checkbox";
+        checkbox.style.cssText = "margin-right:0.5rem; cursor:pointer;";
+        checkbox.addEventListener("change", function() {
+          const id = msg.dataset.messageId;
+          if (this.checked) {
+            selectedMessages.add(id);
+          } else {
+            selectedMessages.delete(id);
+          }
+          updateSelectionCount();
+        });
+        msg.insertBefore(checkbox, msg.firstChild);
+      }
+    });
+    
+    updateSelectionCount();
+  }
+  
+  function exitSelectMode() {
+    isSelectMode = false;
+    selectedMessages.clear();
+    
+    // Hide selection toolbar
+    const toolbar = document.getElementById("selectionToolbar");
+    if (toolbar) toolbar.style.display = "none";
+    
+    // Remove all checkboxes
+    const checkboxes = chatLog.querySelectorAll(".msg-checkbox");
+    checkboxes.forEach(cb => cb.remove());
+  }
+  
+  async function deleteSelectedMessages() {
+    if (selectedMessages.size === 0) {
+      alert("No messages selected");
+      return;
+    }
+    
+    if (!confirm(`Delete ${selectedMessages.size} message(s) permanently?`)) {
+      return;
+    }
+    
+    // Delete from Supabase
+    const messageIds = Array.from(selectedMessages);
+    const success = await deleteMessagesFromDb(messageIds);
+    
+    if (success) {
+      // Remove from UI
+      selectedMessages.forEach(id => {
+        const msg = chatLog.querySelector(`[data-message-id="${id}"]`);
+        if (msg) msg.remove();
+      });
+      
+      console.log("🗑️ Deleted messages:", messageIds);
+      exitSelectMode();
+    } else {
+      alert("Failed to delete messages. Please try again.");
+    }
+  }
+  
+  async function archiveSelectedMessages() {
+    if (selectedMessages.size === 0) {
+      alert("No messages selected");
+      return;
+    }
+    
+    if (!confirm(`Archive ${selectedMessages.size} message(s)?`)) {
+      return;
+    }
+    
+    // Archive in Supabase
+    const messageIds = Array.from(selectedMessages);
+    const success = await archiveMessagesInDb(messageIds);
+    
+    if (success) {
+      // Remove from UI
+      selectedMessages.forEach(id => {
+        const msg = chatLog.querySelector(`[data-message-id="${id}"]`);
+        if (msg) msg.remove();
+      });
+      
+      console.log("📦 Archived messages:", messageIds);
+      exitSelectMode();
+    } else {
+      alert("Failed to archive messages. Please try again.");
+    }
+  }
+  
+  async function clearAllChat() {
+    if (!confirm("Clear all chat history? This cannot be undone.")) {
+      return;
+    }
+    
+    // Delete all messages from Supabase
+    const success = await clearAllMessagesInDb();
+    
+    if (success) {
+      chatLog.innerHTML = "";
+      console.log("🗑️ Owner cleared all chat");
+    } else {
+      alert("Failed to clear chat. Please try again.");
+    }
+  }
+  
+  function setupChatControls() {
+    const clearChatBtn = document.getElementById("clearChatBtn");
+    const selectModeBtn = document.getElementById("selectModeBtn");
+    const deleteSelectedBtn = document.getElementById("deleteSelectedBtn");
+    const archiveSelectedBtn = document.getElementById("archiveSelectedBtn");
+    const cancelSelectBtn = document.getElementById("cancelSelectBtn");
+    const trainerBtn = document.getElementById("trainerBtn");
+    const anonymousModeToggle = document.getElementById("anonymousModeToggle");
+    const anonymousModeLabel = document.getElementById("anonymousModeLabel");
+    
+    // Show appropriate buttons based on owner status
+    if (isOwner()) {
+      if (clearChatBtn) {
+        clearChatBtn.style.display = "inline-block";
+        clearChatBtn.addEventListener("click", clearAllChat);
+      }
+      if (trainerBtn) {
+        trainerBtn.style.display = "inline-block";
+        trainerBtn.addEventListener("click", openTrainer);
+      }
+      if (anonymousModeLabel) {
+        anonymousModeLabel.style.display = "flex";
+      }
+      
+      // Anonymous mode toggle
+      if (anonymousModeToggle) {
+        const isAnonymous = localStorage.getItem("anonymousMode") === "true";
+        anonymousModeToggle.checked = isAnonymous;
+        
+        anonymousModeToggle.addEventListener("change", function() {
+          localStorage.setItem("anonymousMode", this.checked);
+          console.log("👻 Anonymous mode:", this.checked ? "ON" : "OFF");
+          // In a real implementation, this would affect how messages are sent/displayed
+        });
+      }
+    } else {
+      if (selectModeBtn) {
+        selectModeBtn.style.display = "inline-block";
+        selectModeBtn.addEventListener("click", enterSelectMode);
+      }
+    }
+    
+    // Selection mode buttons
+    if (deleteSelectedBtn) {
+      deleteSelectedBtn.addEventListener("click", deleteSelectedMessages);
+    }
+    if (archiveSelectedBtn) {
+      archiveSelectedBtn.addEventListener("click", archiveSelectedMessages);
+    }
+    if (cancelSelectBtn) {
+      cancelSelectBtn.addEventListener("click", exitSelectMode);
+    }
+  }
+  
+  // AVATAR TRAINER
+  let selectedMode = "all";
+  let selectedAvatar = "all";
+  let trainedResponses = JSON.parse(localStorage.getItem("trainedResponses") || "[]");
+  
+  function openTrainer() {
+    const modal = document.getElementById("trainerBackdrop");
+    if (modal) {
+      modal.style.display = "flex";
+      renderTrainedResponses();
+    }
+  }
+  
+  function closeTrainer() {
+    const modal = document.getElementById("trainerBackdrop");
+    if (modal) modal.style.display = "none";
+    
+    // Reset form
+    document.getElementById("trainerQuestion").value = "";
+    document.getElementById("trainerAnswer").value = "";
+    document.getElementById("trainerStatus").style.display = "none";
+  }
+  
+  function setupTrainerControls() {
+    const trainerForm = document.getElementById("trainerForm");
+    const trainerClose = document.getElementById("trainerClose");
+    const trainerCancel = document.getElementById("trainerCancel");
+    const trainerBackdrop = document.getElementById("trainerBackdrop");
+    
+    // Mode selection buttons
+    document.querySelectorAll(".mode-select-btn").forEach(btn => {
+      btn.addEventListener("click", function() {
+        document.querySelectorAll(".mode-select-btn").forEach(b => b.classList.remove("active"));
+        this.classList.add("active");
+        selectedMode = this.dataset.mode;
+        console.log("📍 Selected mode:", selectedMode);
+      });
+    });
+    
+    // Avatar selection buttons
+    document.querySelectorAll(".avatar-select-btn").forEach(btn => {
+      btn.addEventListener("click", function() {
+        document.querySelectorAll(".avatar-select-btn").forEach(b => b.classList.remove("active"));
+        this.classList.add("active");
+        selectedAvatar = this.dataset.avatar;
+        console.log("📍 Selected avatar:", selectedAvatar);
+      });
+    });
+    
+    // Close buttons
+    if (trainerClose) trainerClose.addEventListener("click", closeTrainer);
+    if (trainerCancel) trainerCancel.addEventListener("click", closeTrainer);
+    if (trainerBackdrop) {
+      trainerBackdrop.addEventListener("click", (e) => {
+        if (e.target === trainerBackdrop) closeTrainer();
+      });
+    }
+    
+    // Form submit
+    if (trainerForm) {
+      trainerForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        
+        const question = document.getElementById("trainerQuestion").value.trim();
+        const answer = document.getElementById("trainerAnswer").value.trim();
+        const status = document.getElementById("trainerStatus");
+        
+        if (!question || !answer) {
+          status.textContent = "Please fill in both fields";
+          status.style.background = "rgba(239,68,68,.15)";
+          status.style.borderColor = "rgba(239,68,68,.5)";
+          status.style.color = "#ef4444";
+          status.style.display = "block";
+          return;
+        }
+        
+        // Create training entry
+        const training = {
+          id: Date.now(),
+          question,
+          answer: answer.replace(/\n/g, "<br>"),
+          mode: selectedMode,
+          avatar: selectedAvatar,
+          created: new Date().toISOString()
+        };
+        
+        trainedResponses.push(training);
+        localStorage.setItem("trainedResponses", JSON.stringify(trainedResponses));
+        
+        // Show success
+        status.textContent = `✅ Saved for ${selectedMode === "all" ? "All Modes" : selectedMode} / ${selectedAvatar === "all" ? "All Avatars" : selectedAvatar}`;
+        status.style.background = "rgba(34,197,94,.15)";
+        status.style.borderColor = "rgba(34,197,94,.5)";
+        status.style.color = "#22c55e";
+        status.style.display = "block";
+        
+        // Clear form after delay
+        setTimeout(() => {
+          document.getElementById("trainerQuestion").value = "";
+          document.getElementById("trainerAnswer").value = "";
+          status.style.display = "none";
+          renderTrainedResponses();
+        }, 1500);
+        
+        console.log("💾 Training saved:", training);
+      });
+    }
+  }
+  
+  function renderTrainedResponses() {
+    const grid = document.getElementById("trainedResponsesGrid");
+    if (!grid) return;
+    
+    grid.innerHTML = "";
+    
+    if (trainedResponses.length === 0) {
+      grid.innerHTML = '<div style="text-align:center; padding:2rem; color:#a855f7; opacity:.6; font-size:.85rem;">No trained responses yet</div>';
+      return;
+    }
+    
+    trainedResponses.slice().reverse().forEach(training => {
+      const card = document.createElement("div");
+      card.style.cssText = "background:rgba(15,23,42,.6); border:1px solid rgba(124,58,237,.3); border-radius:8px; padding:.75rem; margin-bottom:.5rem;";
+      
+      const modeLabel = training.mode === "all" ? "All Modes" : training.mode;
+      const avatarLabel = training.avatar === "all" ? "All Avatars" : training.avatar;
+      
+      card.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:.5rem;">
+          <div style="flex:1;">
+            <div style="font-size:.75rem; color:#a855f7; margin-bottom:.25rem;">
+              <span style="background:rgba(124,58,237,.2); padding:.15rem .4rem; border-radius:4px; margin-right:.3rem;">${modeLabel}</span>
+              <span style="background:rgba(59,130,246,.2); padding:.15rem .4rem; border-radius:4px;">${avatarLabel}</span>
+            </div>
+            <div style="font-size:.8rem; color:#e5e7eb; font-weight:600; margin-bottom:.25rem;">"${training.question}"</div>
+            <div style="font-size:.75rem; color:#94a3b8; line-height:1.4;">${training.answer}</div>
+          </div>
+          <button class="delete-training-btn" data-id="${training.id}" style="background:rgba(239,68,68,.2); border:1px solid rgba(239,68,68,.4); color:#ef4444; padding:.25rem .5rem; border-radius:6px; cursor:pointer; font-size:.7rem; margin-left:.5rem;">
+            Delete
+          </button>
+        </div>
+      `;
+      
+      grid.appendChild(card);
+    });
+    
+    // Add delete handlers
+    grid.querySelectorAll(".delete-training-btn").forEach(btn => {
+      btn.addEventListener("click", function() {
+        const id = parseInt(this.dataset.id);
+        if (confirm("Delete this training?")) {
+          trainedResponses = trainedResponses.filter(t => t.id !== id);
+          localStorage.setItem("trainedResponses", JSON.stringify(trainedResponses));
+          renderTrainedResponses();
+        }
+      });
+    });
   }
 
   function setupChatForm() {
     if (!carrieForm) return;
-    carrieForm.addEventListener("submit", (e) => {
+    carrieForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       const text = carrieInput.value.trim();
       if (!text) return;
-      addMessage("user", text);
+      
+      // Send user message
+      await addMessage("user", text);
       carrieInput.value = "";
       
-      // Stub response
-      setTimeout(() => {
-        addMessage("assistant", "Hi! This is a demo response.");
+      // Stub response (in production, this would call your AI API)
+      setTimeout(async () => {
+        await addMessage("assistant", "Hi! This is a demo response.");
       }, 800);
     });
   }
 
   // INIT
-  function init() {
+  async function init() {
     console.log("🚀 Carrie Chat initializing...");
     console.log("📊 closetState:", closetState);
     
@@ -808,6 +1345,9 @@
     }
     
     console.log("✅ User logged in");
+    
+    // Initialize Supabase
+    initSupabase();
 
     loadChat();
     loadOwnedItems(); // Load which items user owns
@@ -842,7 +1382,12 @@
     setupModeButtons();
     setupGenderSkinControls();
     setupCategoryTabs(); // Setup category filtering
+    setupChatControls(); // Setup clear/delete/archive buttons
+    setupTrainerControls(); // Setup avatar trainer
     setupChatForm();
+    
+    // Load chat messages from Supabase
+    await loadMessagesFromSupabase();
     
     // Log status
     if (isOwner()) {
