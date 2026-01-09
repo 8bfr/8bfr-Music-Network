@@ -448,6 +448,55 @@
     if (coinBalance) coinBalance.textContent = closetState.coins.toLocaleString();
   }
 
+  // OWNED ITEMS RENDERING
+  function renderOwnedItems() {
+    const ownedItemsGrid = $("#ownedItemsGrid");
+    if (!ownedItemsGrid) return;
+    
+    ownedItemsGrid.innerHTML = "";
+    
+    const items = getItems();
+    const filtered = items.filter(it => it.gender === "unisex" || it.gender === closetState.gender);
+    
+    closetState.ownedItems.forEach(itemId => {
+      const item = filtered.find(it => it.id === itemId);
+      if (!item) return;
+      
+      const div = document.createElement("div");
+      div.className = "mini-item";
+      
+      const isEquipped = closetState.equipped[item.slot] && closetState.equipped[item.slot].id === item.id;
+      if (isEquipped) div.classList.add("active");
+      
+      const badge = isEquipped ?
+        '<div class="item-badge badge-active">ACTIVE</div>' :
+        '<div class="item-badge badge-owned">OWNED</div>';
+      
+      div.innerHTML = `
+        <div class="mini-item-img">
+          <img src="${item.img}" alt="${item.name}">
+          ${badge}
+        </div>
+        <div class="mini-item-name">${item.name}</div>
+      `;
+      
+      div.addEventListener("click", () => {
+        if (closetState.equipped[item.slot] && closetState.equipped[item.slot].id === item.id) {
+          // Unequip
+          closetState.equipped[item.slot] = null;
+        } else {
+          // Equip
+          closetState.equipped[item.slot] = item;
+        }
+        saveCloset();
+        updateAvatarDisplay();
+        renderOwnedItems();
+      });
+      
+      ownedItemsGrid.appendChild(div);
+    });
+  }
+
   // CONTROLS
   function setupGenderSkinControls() {
     if (genderFemale) {
@@ -457,6 +506,7 @@
         saveCloset();
         updateAvatarDisplay();
         updateGenderSkinButtons();
+        renderOwnedItems(); // Update items for new gender
       });
     }
     if (genderMale) {
@@ -466,6 +516,7 @@
         saveCloset();
         updateAvatarDisplay();
         updateGenderSkinButtons();
+        renderOwnedItems(); // Update items for new gender
       });
     }
     if (skinLight) {
@@ -645,6 +696,7 @@
     updateGenderSkinButtons();
     updateAvatarDisplay();
     updateCoinDisplay();
+    renderOwnedItems(); // Show owned items
 
     setupModeButtons();
     setupGenderSkinControls();
