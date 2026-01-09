@@ -17,15 +17,9 @@
   const coinBalance = $("#coinBalance");
   const coinItemsLabel = $("#coinItemsLabel");
 
-  // Floating avatar refs (REMOVED - using mini avatar only)
-  const floatingWrapper = null;
-  const floatingInner = null;
-  const closetBaseImg = $("#miniBaseImg"); // Use mini avatar
-  const closetOverlayHost = $("#miniOverlayHost"); // Use mini avatar
-  const chatAvatarSmall = null;
-  const avatarZoomIn = null;
-  const avatarZoomOut = null;
-  const avatarReset = null;
+  // Avatar refs - SAME as closet
+  const closetBaseImg = $("#closetBaseImg");
+  const closetOverlayHost = $("#closetOverlayHost");
 
   // Gender/skin controls
   const genderFemale = $("#genderFemale");
