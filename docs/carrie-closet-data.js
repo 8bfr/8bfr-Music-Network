@@ -101,17 +101,6 @@
       img: base + "/hair/straight/female_straight_pastel_purple.png"
     }),
     item({
-      id: "f_hair_straight_platinum",
-      gender: "female",
-      category: "hair",
-      cat: "hair",
-      slot: "hair",
-      name: "Straight Platinum",
-      label: "straight • platinum",
-      coins: 25,
-      img: base + "/hair/straight/female_straight_platinum.png"
-    }),
-    item({
       id: "f_hair_straight_black",
       gender: "female",
       category: "hair",
@@ -201,28 +190,6 @@
       coins: 25,
       img: base + "/hair/wavy/female_wavy_pastel_purple.png"
     }),
-    item({
-      id: "f_hair_wavy_platinum",
-      gender: "female",
-      category: "hair",
-      cat: "hair",
-      slot: "hair",
-      name: "Wavy Platinum",
-      label: "wavy • platinum blonde",
-      coins: 25,
-      img: base + "/hair/wavy/female_wavy_platinum_blonde.png"
-    }),
-    item({
-      id: "f_hair_wavy_black",
-      gender: "female",
-      category: "hair",
-      cat: "hair",
-      slot: "hair",
-      name: "Wavy Black",
-      label: "wavy • black",
-      coins: 18,
-      img: base + "/hair/wavy/female_wavy_black.png"
-    }),
 
     // ========== TOPS ==========
     item({
@@ -306,7 +273,7 @@
       label: "necklace",
       coins: 20,
       img: base + "/female_jewlery/female_gold_necklace.png",
-      imgDark: base + "/female_jewlery/female_gold_necklace_dark.png"
+      imgDark: base + "/female_jewlery/female_gold_necklace.png"
     }),
     item({
       id: "f_jewel_belly",
