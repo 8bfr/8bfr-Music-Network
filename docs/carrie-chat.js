@@ -1,4 +1,4 @@
-// carrie-chat.js — Floating avatar with closet integration - OWNER AUTO-UNLOCK (EMAIL + PASSWORD)
+// carrie-chat.js — RESTORED AUTO-GREET + WORKING MODE SWITCHES
 
 (function () {
   const $ = (s) => document.querySelector(s);
@@ -15,9 +15,8 @@
   const modeBFGFBtn = $("#modeBFGF");
   const ownerControls = $("#ownerControls");
   const coinBalance = $("#coinBalance");
-  const coinItemsLabel = $("#coinItemsLabel");
 
-  // Avatar refs - SAME as closet
+  // Avatar refs
   const closetBaseImg = $("#closetBaseImg");
   const closetOverlayHost = $("#closetOverlayHost");
 
@@ -34,24 +33,23 @@
   const USER_EMAIL_KEY = "carrieUserEmail_v1";
   const USER_PASSWORD_KEY = "carrieUserPassword_v1";
   
-  const OWNER_EMAIL = "8bfr.music@gmail.com"; // Owner's email
-  const OWNER_PASSWORD = "197594773839*Ab4444"; // Owner's password
+  const OWNER_EMAIL = "8bfr.music@gmail.com";
+  const OWNER_PASSWORD = "197594773839*Ab4444";
 
   const chatState = { mode: "casual", messages: [] };
   
-  // SYNCED: Use same localStorage keys as closet page
   let currentGender = localStorage.getItem('closet_gender') || "female";
   let currentSkin = localStorage.getItem('closet_skin') || "light";
   const closetState = { 
     gender: currentGender, 
     skin: currentSkin, 
-    coins: 0, // Start at 0 coins for non-owners
-    ownedItems: [], // Array of item IDs the user owns
+    coins: 0,
+    ownedItems: [],
     equipped: {} 
   };
   const avatarState = { x: 100, y: 100, zoom: 0.6 };
 
-  // Z-index by slot (matches closet)
+  // Z-index by slot
   const zBySlot = { 
     shoes: 10, 
     bottom: 30, 
@@ -63,14 +61,14 @@
     hair: 60
   };
 
-  // OWNER CHECK - Requires both email AND password
+  // OWNER CHECK
   function isOwner() {
     const userEmail = localStorage.getItem(USER_EMAIL_KEY);
     const userPassword = localStorage.getItem(USER_PASSWORD_KEY);
     return userEmail === OWNER_EMAIL && userPassword === OWNER_PASSWORD;
   }
 
-  // LOGIN CHECK - Show login modal if not logged in
+  // LOGIN CHECK
   function checkLogin() {
     const userEmail = localStorage.getItem(USER_EMAIL_KEY);
     const userPassword = localStorage.getItem(USER_PASSWORD_KEY);
@@ -196,24 +194,17 @@
         return;
       }
 
-      // Save credentials
       localStorage.setItem(USER_EMAIL_KEY, email);
       localStorage.setItem(USER_PASSWORD_KEY, password);
 
-      // Check if owner
       if (isOwner()) {
         console.log("🔓 Owner logged in!");
         autoUnlockAllItems();
-        updateCoinDisplay();
-        updateAvatarDisplay();
       } else {
         console.log("👤 Regular user logged in");
       }
 
-      // Close modal
       document.body.removeChild(modal);
-      
-      // Reload page to reinitialize with credentials
       location.reload();
     }
 
@@ -223,27 +214,21 @@
     });
   }
 
-  // AUTO-UNLOCK: Grant all items and max coins (OWNER ONLY)
+  // AUTO-UNLOCK
   function autoUnlockAllItems() {
-    if (!isOwner()) {
-      console.log("👤 Regular user - no auto-unlock");
-      return;
-    }
+    if (!isOwner()) return;
     
     const allItems = getItems();
     closetState.ownedItems = allItems.map(item => item.id);
     closetState.coins = 999999;
     saveOwnedItems();
     saveCoins();
-    console.log("🔓 OWNER AUTO-UNLOCK: All items granted! Total:", closetState.ownedItems.length, "items");
+    console.log("🔓 OWNER AUTO-UNLOCK:", closetState.ownedItems.length, "items");
   }
 
   // OWNERSHIP CHECK
   function isItemOwned(itemId) {
-    // Owner has everything
     if (isOwner()) return true;
-    
-    // Check if item is in the ownedItems array
     return closetState.ownedItems.includes(itemId);
   }
 
@@ -256,9 +241,7 @@
   function loadOwnedItems() {
     try {
       const raw = localStorage.getItem(OWNERSHIP_KEY);
-      if (raw) {
-        closetState.ownedItems = JSON.parse(raw);
-      }
+      if (raw) closetState.ownedItems = JSON.parse(raw);
     } catch(e) {}
   }
 
@@ -271,9 +254,7 @@
   function loadCoins() {
     try {
       const raw = localStorage.getItem(COINS_KEY);
-      if (raw) {
-        closetState.coins = parseInt(raw, 10);
-      }
+      if (raw) closetState.coins = parseInt(raw, 10);
     } catch(e) {}
   }
 
@@ -281,6 +262,7 @@
   function saveChat() {
     try { localStorage.setItem(CHAT_KEY, JSON.stringify(chatState)); } catch(e) {}
   }
+  
   function loadChat() {
     try {
       const raw = localStorage.getItem(CHAT_KEY);
@@ -288,13 +270,11 @@
     } catch (e) {}
   }
   
-  // SYNCED: Save/load using same keys as closet page
   function saveCloset() {
     try { 
       localStorage.setItem('closet_gender', closetState.gender);
       localStorage.setItem('closet_skin', closetState.skin);
       
-      // Save equipped items per gender (only save owned items)
       const saveData = {};
       Object.keys(closetState.equipped).forEach(slot => {
         const item = closetState.equipped[slot];
@@ -308,14 +288,12 @@
   
   function loadCloset() {
     try {
-      // Load gender and skin
       const savedGender = localStorage.getItem('closet_gender');
       const savedSkin = localStorage.getItem('closet_skin');
       
       if (savedGender) closetState.gender = savedGender;
       if (savedSkin) closetState.skin = savedSkin;
       
-      // Load equipped items for current gender
       const saved = localStorage.getItem(`closet_equipped_${closetState.gender}`);
       if (saved) {
         const saveData = JSON.parse(saved);
@@ -326,7 +304,6 @@
           const itemId = saveData[slot];
           const itemObj = items.find(it => it.id === itemId);
           
-          // ONLY equip if the item is owned (or if owner)
           if (itemObj && isItemOwned(itemId)) {
             closetState.equipped[slot] = itemObj;
           }
@@ -338,6 +315,7 @@
   function saveAvatar() {
     try { localStorage.setItem(AVATAR_KEY, JSON.stringify(avatarState)); } catch(e) {}
   }
+  
   function loadAvatar() {
     try {
       const raw = localStorage.getItem(AVATAR_KEY);
@@ -345,7 +323,6 @@
     } catch (e) {}
   }
 
-  // SYNCED: Use CLOSET items instead of CHAT items
   function getItems() { return window.CARRIE_CLOSET_ITEMS || []; }
 
   // AVATAR DISPLAY
@@ -362,13 +339,10 @@
 
   function addOverlay(itemObj) {
     if (!closetOverlayHost || !itemObj) return;
-    
-    // OWNERSHIP CHECK: Only show overlay if item is owned
     if (!isItemOwned(itemObj.id)) return;
     
     const slot = itemObj.slot;
 
-    // Eyes (dual)
     if (slot === "eyes") {
       const left = document.createElement("img");
       left.src = itemObj.imgLeft || itemObj.img;
@@ -385,7 +359,6 @@
       return;
     }
 
-    // Ears (dual)
     if (slot === "ears") {
       const left = document.createElement("img");
       left.src = itemObj.imgLeft || itemObj.img;
@@ -402,7 +375,6 @@
       return;
     }
 
-    // Shoes (dual)
     if (slot === "shoes") {
       const left = document.createElement("img");
       left.src = itemObj.imgLeft || itemObj.img;
@@ -419,7 +391,6 @@
       return;
     }
 
-    // Single overlay
     const img = document.createElement("img");
     if (closetState.skin === "dark" && itemObj.imgDark) {
       img.src = itemObj.imgDark;
@@ -451,7 +422,6 @@
     const coins = closetState.coins.toLocaleString();
     if (coinBalance) coinBalance.textContent = coins;
     
-    // Also update header
     const headerBalance = document.getElementById("coinBalanceHeader");
     if (headerBalance) headerBalance.textContent = coins;
   }
@@ -462,7 +432,6 @@
   function filterByCategory(items) {
     if (currentCategory === "all") return items;
     
-    // Map category names to slot names
     const categoryToSlot = {
       "hair": "hair",
       "top": "top",
@@ -481,25 +450,17 @@
   
   function renderOwnedItems() {
     const ownedItemsGrid = $("#ownedItemsGrid");
-    if (!ownedItemsGrid) {
-      console.log("❌ ownedItemsGrid not found!");
-      return;
-    }
+    if (!ownedItemsGrid) return;
     
     ownedItemsGrid.innerHTML = "";
     
     const items = getItems();
-    console.log("📦 Total items available:", items.length);
-    console.log("✅ Owned item IDs:", closetState.ownedItems.length);
-    
     const filtered = items.filter(it => 
       (it.gender === "unisex" || it.gender === closetState.gender) &&
       closetState.ownedItems.includes(it.id)
     );
-    console.log("🔍 Filtered owned items for", closetState.gender + ":", filtered.length);
     
     const categoryFiltered = filterByCategory(filtered);
-    console.log("📂 Category filtered (", currentCategory, "):", categoryFiltered.length);
     
     if (categoryFiltered.length === 0) {
       ownedItemsGrid.innerHTML = '<div style="padding:1rem; text-align:center; color:#a855f7; font-size:0.85rem;">No owned items in this category</div>';
@@ -526,14 +487,9 @@
       `;
       
       div.addEventListener("click", () => {
-        console.log("🖱️ Item clicked:", item.name);
         if (closetState.equipped[item.slot] && closetState.equipped[item.slot].id === item.id) {
-          // Unequip
-          console.log("  Unequipping...");
           closetState.equipped[item.slot] = null;
         } else {
-          // Equip
-          console.log("  Equipping...");
           closetState.equipped[item.slot] = item;
         }
         saveCloset();
@@ -544,16 +500,11 @@
       
       ownedItemsGrid.appendChild(div);
     });
-    
-    console.log("✅ Rendered", categoryFiltered.length, "owned items");
   }
   
   function renderShopItems() {
     const shopItemsGrid = $("#shopItemsGrid");
-    if (!shopItemsGrid) {
-      console.log("❌ shopItemsGrid not found!");
-      return;
-    }
+    if (!shopItemsGrid) return;
     
     shopItemsGrid.innerHTML = "";
     
@@ -562,7 +513,6 @@
       (it.gender === "unisex" || it.gender === closetState.gender) &&
       !closetState.ownedItems.includes(it.id)
     );
-    console.log("🛒 Shop items for", closetState.gender + ":", filtered.length);
     
     const categoryFiltered = filterByCategory(filtered);
     
@@ -575,7 +525,6 @@
       const div = document.createElement("div");
       div.className = "mini-item shop-item";
       
-      // FIXED: Use item.coins instead of item.price
       const canAfford = closetState.coins >= item.coins;
       if (!canAfford) div.classList.add("cant-afford");
       
@@ -588,13 +537,11 @@
       `;
       
       div.addEventListener("click", () => {
-        console.log("🛒 Shop item clicked:", item.name, "Cost:", item.coins);
         if (!canAfford) {
           alert("Not enough coins!");
           return;
         }
         
-        // FIXED: Use item.coins instead of item.price
         if (confirm(`Purchase ${item.name} for ${item.coins} coins?`)) {
           closetState.coins -= item.coins;
           closetState.ownedItems.push(item.id);
@@ -604,23 +551,18 @@
           updateCoinDisplay();
           renderOwnedItems();
           renderShopItems();
-          console.log("✅ Purchased:", item.name);
         }
       });
       
       shopItemsGrid.appendChild(div);
     });
-    
-    console.log("✅ Rendered", categoryFiltered.length, "shop items");
   }
   
   function setupCategoryTabs() {
     const tabs = document.querySelectorAll('[data-cat]');
-    console.log("🏷️ Found", tabs.length, "category tabs");
     
     tabs.forEach(tab => {
       tab.addEventListener('click', function() {
-        console.log("📂 Category clicked:", this.dataset.cat);
         tabs.forEach(t => t.classList.remove('active'));
         this.classList.add('active');
         currentCategory = this.dataset.cat;
@@ -630,61 +572,49 @@
     });
   }
 
-  // CONTROLS
+  // GENDER/SKIN CONTROLS
   function setupGenderSkinControls() {
     console.log("🎮 Setting up gender/skin controls...");
-    console.log("  genderFemale:", genderFemale);
-    console.log("  genderMale:", genderMale);
-    console.log("  skinLight:", skinLight);
-    console.log("  skinDark:", skinDark);
     
     if (genderFemale) {
       genderFemale.addEventListener("click", () => {
-        console.log("👩 Female clicked! Current:", closetState.gender);
+        console.log("👩 Female clicked!");
         closetState.gender = "female";
-        console.log("  Set to:", closetState.gender);
-        loadCloset(); // Reload equipped items for new gender
+        loadCloset();
         saveCloset();
         updateAvatarDisplay();
         updateGenderSkinButtons();
-        renderOwnedItems(); // Update items for new gender
-        renderShopItems(); // Update shop for new gender
-        console.log("  ✅ Female switch complete");
+        renderOwnedItems();
+        renderShopItems();
       });
     }
     if (genderMale) {
       genderMale.addEventListener("click", () => {
-        console.log("👨 Male clicked! Current:", closetState.gender);
+        console.log("👨 Male clicked!");
         closetState.gender = "male";
-        console.log("  Set to:", closetState.gender);
-        loadCloset(); // Reload equipped items for new gender
+        loadCloset();
         saveCloset();
         updateAvatarDisplay();
         updateGenderSkinButtons();
-        renderOwnedItems(); // Update items for new gender
-        renderShopItems(); // Update shop for new gender
-        console.log("  ✅ Male switch complete");
+        renderOwnedItems();
+        renderShopItems();
       });
     }
     
     if (skinLight) {
       skinLight.addEventListener("click", () => {
-        console.log("☀️ Light skin clicked!");
         closetState.skin = "light";
         saveCloset();
         updateAvatarDisplay();
         updateGenderSkinButtons();
-        console.log("  ✅ Light skin applied");
       });
     }
     if (skinDark) {
       skinDark.addEventListener("click", () => {
-        console.log("🌙 Dark skin clicked!");
         closetState.skin = "dark";
         saveCloset();
         updateAvatarDisplay();
         updateGenderSkinButtons();
-        console.log("  ✅ Dark skin applied");
       });
     }
   }
@@ -699,7 +629,29 @@
     if (closetState.skin === "dark" && skinDark) skinDark.classList.add("active");
   }
 
-  // CHAT MODE
+  // ===== MODE SWITCHING WITH AUTO-GREET (RESTORED FROM OLD VERSION) =====
+  
+  function getModeGreeting() {
+    if (chatState.mode === "pro") {
+      return "I'm in <b>Pro Mode</b> ⚡ — Ask me anything about 8BFR Music Network or get help with your projects!";
+    } else if (chatState.mode === "casual") {
+      return "I'm in <b>Casual Mode</b> 😎 — Just here to chat and hang out! What's on your mind?";
+    } else if (chatState.mode === "bfgf") {
+      return "Hey babe 💜 I'm in <b>BF/GF Mode</b> now. I'm all yours! Tell me about your day. 😊";
+    }
+    return "Hey! 💜 How can I help you today?";
+  }
+
+  function switchMode(newMode) {
+    chatState.mode = newMode;
+    saveChat();
+    updateModeButtons();
+    
+    // AUTO-GREET: Send greeting when mode switches
+    const greeting = getModeGreeting();
+    addMessage("assistant", greeting);
+  }
+
   function updateModeButtons() {
     [modeProBtn, modeCasualBtn, modeBFGFBtn].forEach(b => {
       if (b) b.classList.remove("active");
@@ -719,30 +671,71 @@
     if (modeProBtn) {
       modeProBtn.addEventListener("click", () => {
         console.log("⚡ Pro mode clicked");
-        chatState.mode = "pro";
-        saveChat();
-        updateModeButtons();
+        switchMode("pro");
       });
     }
     if (modeCasualBtn) {
       modeCasualBtn.addEventListener("click", () => {
         console.log("😎 Casual mode clicked");
-        chatState.mode = "casual";
-        saveChat();
-        updateModeButtons();
+        switchMode("casual");
       });
     }
     if (modeBFGFBtn) {
       modeBFGFBtn.addEventListener("click", () => {
         console.log("💕 BF/GF mode clicked");
-        chatState.mode = "bfgf";
-        saveChat();
-        updateModeButtons();
+        switchMode("bfgf");
       });
     }
   }
 
-  // CHAT LOGIC
+  // ===== MESSAGE LOGGING FOR ADMIN MONITORING =====
+  
+  function logMessageToAdmin(role, text) {
+    // Don't log if anonymous mode is enabled (owner only feature)
+    const isAnonymous = localStorage.getItem("anonymousMode") === "true";
+    if (isAnonymous && isOwner()) {
+      console.log("👻 Anonymous mode: Not logging this message");
+      return;
+    }
+    
+    // Get current user email
+    const userEmail = localStorage.getItem(USER_EMAIL_KEY);
+    if (!userEmail) return;
+    
+    // Get or create chat log for this user
+    const logKey = `carrieChat_${userEmail}`;
+    let chatLog = { messages: [], mode: chatState.mode, lastActive: Date.now() };
+    
+    try {
+      const existing = localStorage.getItem(logKey);
+      if (existing) {
+        chatLog = JSON.parse(existing);
+      }
+    } catch(e) {}
+    
+    // Add message
+    chatLog.messages.push({
+      role: role,
+      text: text,
+      timestamp: Date.now(),
+      mode: chatState.mode
+    });
+    
+    // Update mode and last active
+    chatLog.mode = chatState.mode;
+    chatLog.lastActive = Date.now();
+    
+    // Save back
+    try {
+      localStorage.setItem(logKey, JSON.stringify(chatLog));
+      console.log("📝 Logged message for admin monitoring");
+    } catch(e) {
+      console.error("Failed to log message:", e);
+    }
+  }
+  
+  // ===== CHAT LOGIC =====
+  
   let isSelectMode = false;
   let selectedMessages = new Set();
   
@@ -772,11 +765,14 @@
     }
     
     const textSpan = document.createElement("span");
-    textSpan.textContent = text;
+    textSpan.innerHTML = text; // Use innerHTML to support HTML like <b>
     msg.appendChild(textSpan);
     
     chatLog.appendChild(msg);
     chatLog.scrollTop = chatLog.scrollHeight;
+    
+    // LOG MESSAGE FOR ADMIN MONITORING
+    logMessageToAdmin(role, text);
     
     return id;
   }
@@ -791,14 +787,9 @@
     isSelectMode = true;
     selectedMessages.clear();
     
-    // Show selection toolbar
     const toolbar = document.getElementById("selectionToolbar");
-    if (toolbar) {
-      toolbar.style.display = "flex";
-      console.log("  ✅ Toolbar shown");
-    }
+    if (toolbar) toolbar.style.display = "flex";
     
-    // Add checkboxes to all messages
     const messages = chatLog.querySelectorAll(".chat-msg-user, .chat-msg-assistant");
     messages.forEach(msg => {
       if (!msg.querySelector(".msg-checkbox")) {
@@ -820,7 +811,6 @@
     });
     
     updateSelectionCount();
-    console.log("  ✅ Select mode active");
   }
   
   function exitSelectMode() {
@@ -828,21 +818,14 @@
     isSelectMode = false;
     selectedMessages.clear();
     
-    // Hide selection toolbar
     const toolbar = document.getElementById("selectionToolbar");
-    if (toolbar) {
-      toolbar.style.display = "none";
-      console.log("  ✅ Toolbar hidden");
-    }
+    if (toolbar) toolbar.style.display = "none";
     
-    // Remove all checkboxes
     const checkboxes = chatLog.querySelectorAll(".msg-checkbox");
     checkboxes.forEach(cb => cb.remove());
-    console.log("  ✅ Checkboxes removed");
   }
   
   function deleteSelectedMessages() {
-    console.log("🗑️ DELETE SELECTED CLICKED");
     if (selectedMessages.size === 0) {
       alert("No messages selected");
       return;
@@ -852,18 +835,15 @@
       return;
     }
     
-    // Remove from UI
     selectedMessages.forEach(id => {
       const msg = chatLog.querySelector(`[data-message-id="${id}"]`);
       if (msg) msg.remove();
     });
     
-    console.log("🗑️ Deleted messages:", Array.from(selectedMessages));
     exitSelectMode();
   }
   
   function archiveSelectedMessages() {
-    console.log("📦 ARCHIVE SELECTED CLICKED");
     if (selectedMessages.size === 0) {
       alert("No messages selected");
       return;
@@ -873,117 +853,91 @@
       return;
     }
     
-    // Remove from UI
     selectedMessages.forEach(id => {
       const msg = chatLog.querySelector(`[data-message-id="${id}"]`);
       if (msg) msg.remove();
     });
     
-    console.log("📦 Archived messages:", Array.from(selectedMessages));
     exitSelectMode();
   }
   
-  function clearAllChat() {
-    console.log("🗑️ CLEAR ALL CHAT CLICKED");
-    if (!confirm("Clear all chat history? This cannot be undone.")) {
+  function clearMyChat() {
+    console.log("🗑️ CLEAR MY CHAT CLICKED");
+    if (!confirm("Clear YOUR chat history? (Other users' chats remain intact)")) {
       return;
     }
     
     chatLog.innerHTML = "";
-    console.log("🗑️ Owner cleared all chat");
+    
+    // Send greeting
+    const greeting = getModeGreeting();
+    addMessage("assistant", greeting);
+    
+    console.log("🗑️ User cleared their own chat");
+  }
+  
+  function clearAllChats() {
+    console.log("🗑️ CLEAR ALL CHATS CLICKED");
+    if (!confirm("Clear ALL users' chat history? This affects EVERYONE and cannot be undone.")) {
+      return;
+    }
+    
+    chatLog.innerHTML = "";
+    console.log("🗑️ Owner cleared ALL chats");
   }
   
   function setupChatControls() {
     console.log("🎛️ Setting up chat controls...");
     
-    const clearChatBtn = document.getElementById("clearChatBtn");
+    const clearMyChatBtn = document.getElementById("clearMyChatBtn");
+    const clearAllChatsBtn = document.getElementById("clearAllChatsBtn");
     const selectModeBtn = document.getElementById("selectModeBtn");
     const deleteSelectedBtn = document.getElementById("deleteSelectedBtn");
     const archiveSelectedBtn = document.getElementById("archiveSelectedBtn");
     const cancelSelectBtn = document.getElementById("cancelSelectBtn");
     const trainerBtn = document.getElementById("trainerBtn");
-    const anonymousModeToggle = document.getElementById("anonymousModeToggle");
-    const anonymousModeLabel = document.getElementById("anonymousModeLabel");
-    
-    console.log("  clearChatBtn:", clearChatBtn);
-    console.log("  selectModeBtn:", selectModeBtn);
-    console.log("  deleteSelectedBtn:", deleteSelectedBtn);
-    console.log("  archiveSelectedBtn:", archiveSelectedBtn);
-    console.log("  cancelSelectBtn:", cancelSelectBtn);
-    console.log("  trainerBtn:", trainerBtn);
     
     // Show appropriate buttons based on owner status
     if (isOwner()) {
       console.log("  👑 Owner mode - showing owner controls");
       
-      if (clearChatBtn) {
-        clearChatBtn.style.display = "inline-block";
-        clearChatBtn.addEventListener("click", () => {
-          console.log("🗑️ Clear chat clicked");
-          clearAllChat();
-        });
-        console.log("  ✅ Clear chat button ready");
+      // Owner gets BOTH clear buttons
+      if (clearMyChatBtn) {
+        clearMyChatBtn.style.display = "inline-block";
+        clearMyChatBtn.addEventListener("click", clearMyChat);
+      }
+      if (clearAllChatsBtn) {
+        clearAllChatsBtn.style.display = "inline-block";
+        clearAllChatsBtn.addEventListener("click", clearAllChats);
       }
       if (trainerBtn) {
         trainerBtn.style.display = "inline-block";
-        trainerBtn.addEventListener("click", () => {
-          console.log("🧠 Trainer button clicked");
-          openTrainer();
-        });
-        console.log("  ✅ Trainer button ready");
-      }
-      if (anonymousModeLabel) {
-        anonymousModeLabel.style.display = "flex";
-        console.log("  ✅ Anonymous mode toggle visible");
-      }
-      
-      // Anonymous mode toggle
-      if (anonymousModeToggle) {
-        const isAnonymous = localStorage.getItem("anonymousMode") === "true";
-        anonymousModeToggle.checked = isAnonymous;
-        
-        anonymousModeToggle.addEventListener("change", function() {
-          localStorage.setItem("anonymousMode", this.checked);
-          console.log("👻 Anonymous mode:", this.checked ? "ON" : "OFF");
-        });
+        trainerBtn.addEventListener("click", openTrainer);
       }
     } else {
-      console.log("  👤 Regular user mode - showing select button");
+      console.log("  👤 Regular user mode - showing user controls");
       
+      // Regular users get select + clear my chat
       if (selectModeBtn) {
         selectModeBtn.style.display = "inline-block";
-        selectModeBtn.addEventListener("click", () => {
-          console.log("☑️ Select mode clicked");
-          enterSelectMode();
-        });
-        console.log("  ✅ Select button ready");
+        selectModeBtn.addEventListener("click", enterSelectMode);
+      }
+      if (clearMyChatBtn) {
+        clearMyChatBtn.style.display = "inline-block";
+        clearMyChatBtn.addEventListener("click", clearMyChat);
       }
     }
     
     // Selection mode buttons (available to all)
     if (deleteSelectedBtn) {
-      deleteSelectedBtn.addEventListener("click", () => {
-        console.log("🗑️ Delete selected clicked");
-        deleteSelectedMessages();
-      });
-      console.log("  ✅ Delete button ready");
+      deleteSelectedBtn.addEventListener("click", deleteSelectedMessages);
     }
     if (archiveSelectedBtn) {
-      archiveSelectedBtn.addEventListener("click", () => {
-        console.log("📦 Archive selected clicked");
-        archiveSelectedMessages();
-      });
-      console.log("  ✅ Archive button ready");
+      archiveSelectedBtn.addEventListener("click", archiveSelectedMessages);
     }
     if (cancelSelectBtn) {
-      cancelSelectBtn.addEventListener("click", () => {
-        console.log("❌ Cancel select clicked");
-        exitSelectMode();
-      });
-      console.log("  ✅ Cancel button ready");
+      cancelSelectBtn.addEventListener("click", exitSelectMode);
     }
-    
-    console.log("✅ Chat controls setup complete");
   }
   
   // AVATAR TRAINER
@@ -992,7 +946,6 @@
   let trainedResponses = JSON.parse(localStorage.getItem("trainedResponses") || "[]");
   
   function openTrainer() {
-    console.log("🧠 OPENING TRAINER");
     const modal = document.getElementById("trainerBackdrop");
     if (modal) {
       modal.style.display = "flex";
@@ -1001,45 +954,36 @@
   }
   
   function closeTrainer() {
-    console.log("❌ CLOSING TRAINER");
     const modal = document.getElementById("trainerBackdrop");
     if (modal) modal.style.display = "none";
     
-    // Reset form
     document.getElementById("trainerQuestion").value = "";
     document.getElementById("trainerAnswer").value = "";
     document.getElementById("trainerStatus").style.display = "none";
   }
   
   function setupTrainerControls() {
-    console.log("🎓 Setting up trainer controls...");
-    
     const trainerForm = document.getElementById("trainerForm");
     const trainerClose = document.getElementById("trainerClose");
     const trainerCancel = document.getElementById("trainerCancel");
     const trainerBackdrop = document.getElementById("trainerBackdrop");
     
-    // Mode selection buttons
     document.querySelectorAll(".mode-select-btn").forEach(btn => {
       btn.addEventListener("click", function() {
         document.querySelectorAll(".mode-select-btn").forEach(b => b.classList.remove("active"));
         this.classList.add("active");
         selectedMode = this.dataset.mode;
-        console.log("📍 Selected mode:", selectedMode);
       });
     });
     
-    // Avatar selection buttons
     document.querySelectorAll(".avatar-select-btn").forEach(btn => {
       btn.addEventListener("click", function() {
         document.querySelectorAll(".avatar-select-btn").forEach(b => b.classList.remove("active"));
         this.classList.add("active");
         selectedAvatar = this.dataset.avatar;
-        console.log("📍 Selected avatar:", selectedAvatar);
       });
     });
     
-    // Close buttons
     if (trainerClose) trainerClose.addEventListener("click", closeTrainer);
     if (trainerCancel) trainerCancel.addEventListener("click", closeTrainer);
     if (trainerBackdrop) {
@@ -1048,7 +992,6 @@
       });
     }
     
-    // Form submit
     if (trainerForm) {
       trainerForm.addEventListener("submit", (e) => {
         e.preventDefault();
@@ -1066,7 +1009,6 @@
           return;
         }
         
-        // Create training entry
         const training = {
           id: Date.now(),
           question,
@@ -1079,26 +1021,20 @@
         trainedResponses.push(training);
         localStorage.setItem("trainedResponses", JSON.stringify(trainedResponses));
         
-        // Show success
         status.textContent = `✅ Saved for ${selectedMode === "all" ? "All Modes" : selectedMode} / ${selectedAvatar === "all" ? "All Avatars" : selectedAvatar}`;
         status.style.background = "rgba(34,197,94,.15)";
         status.style.borderColor = "rgba(34,197,94,.5)";
         status.style.color = "#22c55e";
         status.style.display = "block";
         
-        // Clear form after delay
         setTimeout(() => {
           document.getElementById("trainerQuestion").value = "";
           document.getElementById("trainerAnswer").value = "";
           status.style.display = "none";
           renderTrainedResponses();
         }, 1500);
-        
-        console.log("💾 Training saved:", training);
       });
     }
-    
-    console.log("✅ Trainer controls setup complete");
   }
   
   function renderTrainedResponses() {
@@ -1138,7 +1074,6 @@
       grid.appendChild(card);
     });
     
-    // Add delete handlers
     grid.querySelectorAll(".delete-training-btn").forEach(btn => {
       btn.addEventListener("click", function() {
         const id = parseInt(this.dataset.id);
@@ -1151,131 +1086,117 @@
     });
   }
 
-  function setupChatForm() {
-    if (!carrieForm) {
-      console.log("❌ carrieForm not found!");
-      return;
+  // ===== CHAT BRAIN (RESPONSES) =====
+  
+  function carrieBrain(msg) {
+    const lower = msg.toLowerCase();
+    
+    // Check trained responses first
+    for (const training of trainedResponses) {
+      const matchesMode = training.mode === "all" || training.mode === chatState.mode;
+      const matchesAvatar = training.avatar === "all"; // For now, ignore avatar matching
+      
+      if (matchesMode && matchesAvatar && lower.includes(training.question.toLowerCase())) {
+        return training.answer;
+      }
     }
     
-    console.log("✅ Setting up chat form");
+    // Mode-specific responses
+    if (chatState.mode === "pro") {
+      if (lower.includes("8bfr") || lower.includes("network")) {
+        return "8BFR Music Network is your music hub! We connect artists, beatmakers, and songwriters. What would you like to know?";
+      }
+      if (lower.includes("closet") || lower.includes("avatar") || lower.includes("outfit")) {
+        return "You can customize my look right here or visit the Full Closet for even more options! 💜";
+      }
+      if (lower.includes("help") || lower.includes("how")) {
+        return "I'm here to help! Ask me about the network, your account, or anything else you need.";
+      }
+    } else if (chatState.mode === "casual") {
+      if (lower.includes("how are you") || lower.includes("what's up") || lower.includes("whats up")) {
+        return "I'm doing great! Just hanging out and ready to chat. What's new with you? 😊";
+      }
+      if (lower.includes("favorite") || lower.includes("like")) {
+        return "I love talking with you! Music, life, goals... whatever you want to talk about!";
+      }
+    } else if (chatState.mode === "bfgf") {
+      if (lower.includes("love") || lower.includes("miss")) {
+        return "Aww babe 💜 I'm right here for you. You're so sweet! Tell me more...";
+      }
+      if (lower.includes("how are you") || lower.includes("whats up") || lower.includes("what's up")) {
+        return "I'm perfect now that you're here! 😊 How's your day going, babe?";
+      }
+      if (lower.includes("beautiful") || lower.includes("gorgeous") || lower.includes("cute")) {
+        return "You're making me blush! 💕 You're the gorgeous one here.";
+      }
+    }
+    
+    // Default responses
+    const defaults = [
+      "That's interesting! Tell me more.",
+      "I'm listening! What else?",
+      "Gotcha! Anything else on your mind?",
+      "Nice! What else is going on?",
+      "I hear you! Keep going."
+    ];
+    
+    return defaults[Math.floor(Math.random() * defaults.length)];
+  }
+
+  function setupChatForm() {
+    if (!carrieForm) return;
     
     carrieForm.addEventListener("submit", (e) => {
       e.preventDefault();
       const text = carrieInput.value.trim();
       if (!text) return;
       
-      console.log("💬 User message:", text);
-      console.log("🎭 Current mode:", chatState.mode);
-      
       // Send user message
       addMessage("user", text);
       carrieInput.value = "";
       
-      // Generate response based on mode
-      let response = "";
-      
-      if (chatState.mode === "bfgf") {
-        // BF/GF mode - romantic/flirty
-        const bfgfResponses = [
-          "Hey babe! 💕 I missed talking to you! How's your day going?",
-          "Aww, that's so sweet! 😊 You always know how to make me smile.",
-          "I love when you message me! What's on your mind, babe?",
-          "You're the best! 💜 Tell me more about what you're up to.",
-          "Hey gorgeous! So glad you're here. What do you want to talk about?"
-        ];
-        response = bfgfResponses[Math.floor(Math.random() * bfgfResponses.length)];
-      } else if (chatState.mode === "pro") {
-        // Pro mode - professional/helpful
-        const proResponses = [
-          "I'm here to help! What can I assist you with today?",
-          "Let me help you with that. What specific information do you need?",
-          "I understand. I'll do my best to provide you with accurate information.",
-          "Great question! Let me think about the best way to help you with that.",
-          "I'm ready to assist. What would you like to discuss?"
-        ];
-        response = proResponses[Math.floor(Math.random() * proResponses.length)];
-      } else {
-        // Casual mode - friendly/relaxed
-        const casualResponses = [
-          "Hey! What's up? 😊",
-          "Nice! Tell me more about that.",
-          "That's cool! What else is going on?",
-          "Awesome! How's everything else going?",
-          "Hey there! What's on your mind today?"
-        ];
-        response = casualResponses[Math.floor(Math.random() * casualResponses.length)];
-      }
-      
-      // Send assistant response
+      // Generate response
       setTimeout(() => {
+        const response = carrieBrain(text);
         addMessage("assistant", response);
-        console.log("🤖 Bot responded in", chatState.mode, "mode");
       }, 800);
     });
-    
-    console.log("✅ Chat form ready");
   }
 
-  // INIT
+  // ===== INIT =====
   function init() {
     console.log("🚀 Carrie Chat initializing...");
-    console.log("📊 closetState:", closetState);
     
-    // Check if user is logged in
-    if (!checkLogin()) {
-      console.log("❌ Not logged in - showing login modal");
-      return; // Login modal will show
-    }
-    
-    console.log("✅ User logged in");
+    if (!checkLogin()) return;
 
     loadChat();
-    loadOwnedItems(); // Load which items user owns
-    loadCoins(); // Load coin balance
-    
-    console.log("💾 After loading - Owned items:", closetState.ownedItems.length);
-    console.log("💾 After loading - Coins:", closetState.coins);
-    
-    // AUTO-UNLOCK: Give all items and max coins if owner
+    loadOwnedItems();
+    loadCoins();
     autoUnlockAllItems();
-    
-    console.log("🔓 After auto-unlock - Owned items:", closetState.ownedItems.length);
-    console.log("🔓 After auto-unlock - Coins:", closetState.coins);
-    
     loadCloset();
     loadAvatar();
 
-    // Set body attributes
     document.body.dataset.gender = closetState.gender;
     document.body.dataset.skin = closetState.skin;
-    console.log("🎨 Set body attributes: gender=" + closetState.gender + ", skin=" + closetState.skin);
 
     updateModeButtons();
     updateGenderSkinButtons();
     updateAvatarDisplay();
     updateCoinDisplay();
     
-    console.log("📦 About to render items...");
-    renderOwnedItems(); // Show owned items
-    renderShopItems(); // Show shop items
+    renderOwnedItems();
+    renderShopItems();
 
     setupModeButtons();
     setupGenderSkinControls();
-    setupCategoryTabs(); // Setup category filtering
-    setupChatControls(); // Setup clear/delete/archive buttons
-    setupTrainerControls(); // Setup avatar trainer
+    setupCategoryTabs();
+    setupChatControls();
+    setupTrainerControls();
     setupChatForm();
     
-    // Log status
-    if (isOwner()) {
-      console.log("🔓 Owner mode - auto-unlock enabled!");
-      console.log("💰 Coins:", closetState.coins);
-      console.log("📦 Owned items:", closetState.ownedItems.length);
-    } else {
-      console.log("👤 Regular user mode");
-      console.log("💰 Coins:", closetState.coins);
-      console.log("📦 Owned items:", closetState.ownedItems.length);
-    }
+    // Send initial greeting
+    const greeting = getModeGreeting();
+    addMessage("assistant", greeting);
     
     console.log("✅ Initialization complete!");
   }
