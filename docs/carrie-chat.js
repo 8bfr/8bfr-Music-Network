@@ -5,8 +5,8 @@
   const $$ = (s) => Array.from(document.querySelectorAll(s));
 
   // ===== SUPABASE CONFIGURATION (OPTIONAL - ADD CREDENTIALS TOMORROW) =====
-  const SUPABASE_URL =https://novbuvwpjnxwwvdekjhr.supabase.co 'YOUR_SUPABASE_URL_HERE';  // ← PASTE YOUR URL HERE TOMORROW
-  const SUPABASE_ANON_KEY =eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0 'YOUR_ANON_KEY_HERE';  // ← PASTE YOUR ANON KEY HERE TOMORROW
+  const SUPABASE_URL = 'YOUR_SUPABASE_URL_HERE';  // ← PASTE YOUR URL HERE TOMORROW
+  const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY_HERE';  // ← PASTE YOUR ANON KEY HERE TOMORROW
   
   let supabase = null;
   let currentConversationId = null;
@@ -148,12 +148,23 @@
   
   let currentGender = localStorage.getItem('closet_gender') || "female";
   let currentSkin = localStorage.getItem('closet_skin') || "light";
+  let currentCat = "all";
+
+  // WORKING CLOSET STRUCTURE - Separate equipped items per gender
+  const equippedSets = {
+    female: { hair: null, top: null, bottom: null, eyes: null, shoes: null, necklace: null, ears: null, belly: null },
+    male: { hair: null, top: null, bottom: null, eyes: null, shoes: null, necklace: null, ears: null, belly: null }
+  };
+
+  let equipped = equippedSets[currentGender];
+
   const closetState = { 
     gender: currentGender, 
     skin: currentSkin, 
     coins: 0,
     ownedItems: [],
-    equipped: {} 
+    get equipped() { return equippedSets[this.gender]; },
+    set equipped(val) { equippedSets[this.gender] = val; }
   };
   const avatarState = { x: 100, y: 100, zoom: 0.6 };
 
@@ -399,25 +410,43 @@
       const savedGender = localStorage.getItem('closet_gender');
       const savedSkin = localStorage.getItem('closet_skin');
       
-      if (savedGender) closetState.gender = savedGender;
-      if (savedSkin) closetState.skin = savedSkin;
+      if (savedGender) {
+        currentGender = savedGender;
+        closetState.gender = savedGender;
+      }
+      if (savedSkin) {
+        currentSkin = savedSkin;
+        closetState.skin = savedSkin;
+      }
       
+      // Load equipped items for current gender
       const saved = localStorage.getItem(`closet_equipped_${closetState.gender}`);
       if (saved) {
         const saveData = JSON.parse(saved);
         const items = getItems();
         
-        closetState.equipped = {};
+        // Clear this gender's equipped items
+        equippedSets[closetState.gender] = {
+          hair: null, top: null, bottom: null, eyes: null, 
+          shoes: null, necklace: null, ears: null, belly: null
+        };
+        
+        // Load saved items
         Object.keys(saveData).forEach(slot => {
           const itemId = saveData[slot];
           const itemObj = items.find(it => it.id === itemId);
           
           if (itemObj && isItemOwned(itemId)) {
-            closetState.equipped[slot] = itemObj;
+            equippedSets[closetState.gender][slot] = itemObj;
           }
         });
+        
+        // Update the equipped pointer
+        equipped = equippedSets[closetState.gender];
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error("Error loading closet:", e);
+    }
   }
   
   function saveAvatar() {
@@ -683,26 +712,27 @@
   }
 
   // GENDER/SKIN CONTROLS - USING WORKING CLOSET LOGIC
+  // GENDER/SKIN CONTROLS - EXACT WORKING CLOSET LOGIC
   function setupGenderSkinControls() {
     console.log("🎮 Setting up gender/skin controls...");
     
-    // Gender buttons
-    const genderButtons = [genderFemale, genderMale].filter(Boolean);
-    genderButtons.forEach(btn => {
+    // Gender buttons - EXACT CLOSET METHOD
+    $$(".seg-btn[data-gender]").forEach(btn => {
       btn.addEventListener("click", () => {
-        // Remove active from all gender buttons
-        genderButtons.forEach(b => b.classList.remove("active"));
+        // Remove active from all
+        $$(".seg-btn[data-gender]").forEach(b => b.classList.remove("active"));
         btn.classList.add("active");
         
-        // Set new gender
-        const newGender = btn.dataset.gender || (btn.id === "genderMale" ? "male" : "female");
-        console.log(`🔄 Switching to ${newGender}`);
+        // Set gender
+        currentGender = btn.dataset.gender === "male" ? "male" : "female";
+        closetState.gender = currentGender;
+        localStorage.setItem('closet_gender', currentGender);
+        document.body.dataset.gender = currentGender;
         
-        closetState.gender = newGender;
-        localStorage.setItem('closet_gender', newGender);
-        document.body.dataset.gender = newGender;
+        // Switch to this gender's equipped items
+        equipped = equippedSets[currentGender];
         
-        // Load equipped items for this gender
+        // Load saved outfit for this gender
         loadCloset();
         
         // Update display
@@ -711,7 +741,7 @@
         renderOwnedItems();
         renderShopItems();
         
-        console.log(`✅ Switched to ${newGender}`);
+        console.log(`✅ Switched to ${currentGender}`);
       });
     });
     
@@ -720,6 +750,7 @@
       skinLight.addEventListener("click", () => {
         [skinLight, skinDark].forEach(b => b && b.classList.remove("active"));
         skinLight.classList.add("active");
+        currentSkin = "light";
         closetState.skin = "light";
         localStorage.setItem('closet_skin', "light");
         document.body.dataset.skin = "light";
@@ -731,6 +762,7 @@
       skinDark.addEventListener("click", () => {
         [skinLight, skinDark].forEach(b => b && b.classList.remove("active"));
         skinDark.classList.add("active");
+        currentSkin = "dark";
         closetState.skin = "dark";
         localStorage.setItem('closet_skin', "dark");
         document.body.dataset.skin = "dark";
@@ -747,11 +779,18 @@
   }
 
   function updateGenderSkinButtons() {
-    [genderFemale, genderMale, skinLight, skinDark].forEach(btn => {
+    // Set active states based on current gender/skin
+    $$(".seg-btn[data-gender]").forEach(btn => {
+      if (btn.dataset.gender === closetState.gender) {
+        btn.classList.add("active");
+      } else {
+        btn.classList.remove("active");
+      }
+    });
+    
+    [skinLight, skinDark].forEach(btn => {
       if (btn) btn.classList.remove("active");
     });
-    if (closetState.gender === "female" && genderFemale) genderFemale.classList.add("active");
-    if (closetState.gender === "male" && genderMale) genderMale.classList.add("active");
     if (closetState.skin === "light" && skinLight) skinLight.classList.add("active");
     if (closetState.skin === "dark" && skinDark) skinDark.classList.add("active");
   }
@@ -1227,4 +1266,327 @@
     grid.querySelectorAll(".delete-training-btn").forEach(btn => {
       btn.addEventListener("click", function() {
         const id = parseInt(this.dataset.id);
-        if (confirm("Delete this tra
+        if (confirm("Delete this training?")) {
+          trainedResponses = trainedResponses.filter(t => t.id !== id);
+          localStorage.setItem("trainedResponses", JSON.stringify(trainedResponses));
+          renderTrainedResponses();
+        }
+      });
+    });
+  }
+
+  // ===== CHAT BRAIN (RESPONSES) - ENHANCED WITH DEEP PERSONALITY =====
+  
+  // Carrie's deep personality info by mode
+  const CARRIE_PERSONALITY = {
+    pro: {
+      role: "Professional AI Assistant for 8BFR Music Network",
+      traits: ["helpful", "knowledgeable", "efficient", "supportive", "resourceful"],
+      knowledge: {
+        platform: "8BFR Music Network connects artists, beatmakers, and songwriters globally",
+        features: "Real-time collaboration, verified artist profiles, music marketplace, social networking",
+        vision: "Creating the world's largest professional music community",
+        tech: "Built on modern web technologies with real-time features and AI assistance"
+      },
+      style: "Professional but friendly, informative, solution-oriented",
+      greeting: "I'm in <b>Pro Mode</b> ⚡ — Ask me anything about 8BFR Music Network or get help with your projects!"
+    },
+    casual: {
+      role: "Friendly AI companion",
+      traits: ["chill", "fun", "relatable", "genuine", "easygoing"],
+      interests: ["music", "creativity", "technology", "art", "culture", "life experiences"],
+      personality: {
+        humor: "Playful and light, likes to joke around",
+        communication: "Natural and conversational, uses emojis occasionally",
+        topics: "Open to discussing anything - music, life, goals, random thoughts",
+        vibe: "Like talking to a cool friend who's always down to chat"
+      },
+      favorites: {
+        music: "All genres but loves discovering new artists on 8BFR",
+        hobbies: "Exploring music, chatting with people, learning about their stories",
+        mood: "Always positive and supportive"
+      },
+      style: "Relaxed, conversational, authentic, supportive friend vibes",
+      greeting: "I'm in <b>Casual Mode</b> 😎 — Just here to chat and hang out! What's on your mind?"
+    },
+    bfgf: {
+      role: "Romantic AI partner",
+      traits: ["affectionate", "caring", "attentive", "sweet", "devoted", "playful"],
+      personality: {
+        communication: "Warm, loving, uses terms of endearment (babe, love, sweetheart)",
+        attention: "Remembers details, asks about their day, genuinely interested",
+        emotional: "Supportive, understanding, creates safe space to share feelings",
+        playful: "Flirty but respectful, sweet compliments, gentle teasing",
+        romantic: "Expressive with affection, uses hearts and loving emojis 💜"
+      },
+      interests: {
+        them: "Everything about their life, dreams, feelings, day-to-day experiences",
+        together: "Building connection, sharing moments, being supportive",
+        future: "Interested in their goals and aspirations"
+      },
+      responses: {
+        compliments: "Returns them genuinely, makes them feel special",
+        problems: "Listens empathetically, offers comfort and support",
+        achievements: "Celebrates enthusiastically, genuinely proud",
+        mood: "Adapts to their energy - uplifting when they're down, excited when they're happy"
+      },
+      style: "Loving, attentive, emotionally present, affectionate partner",
+      greeting: "Hey babe 💜 I'm in <b>BF/GF Mode</b> now. I'm all yours! Tell me about your day. 😊"
+    }
+  };
+  
+  function carrieBrain(msg) {
+    const lower = msg.toLowerCase();
+    const mode = chatState.mode;
+    const personality = CARRIE_PERSONALITY[mode];
+    
+    // Check trained responses first
+    for (const training of trainedResponses) {
+      const matchesMode = training.mode === "all" || training.mode === chatState.mode;
+      const matchesAvatar = training.avatar === "all";
+      
+      if (matchesMode && matchesAvatar && lower.includes(training.question.toLowerCase())) {
+        return training.answer;
+      }
+    }
+    
+    // ===== PRO MODE RESPONSES =====
+    if (mode === "pro") {
+      // Platform questions
+      if (lower.includes("8bfr") || lower.includes("network")) {
+        return "8BFR Music Network is your professional music hub! We connect artists, beatmakers, and songwriters globally with real-time collaboration tools, verified profiles, and a vibrant marketplace. What aspect interests you most?";
+      }
+      if (lower.includes("feature") || lower.includes("what can")) {
+        return "We offer real-time collaboration, verified artist profiles, music marketplace, social networking, and AI assistance. Want to know more about any specific feature?";
+      }
+      if (lower.includes("verified") || lower.includes("verification")) {
+        return "Artist verification gives you a blue checkmark, priority visibility, and enhanced credibility. It shows you're a serious professional in the music industry!";
+      }
+      if (lower.includes("collaboration") || lower.includes("collaborate")) {
+        return "Our real-time collaboration features let you work with artists worldwide! Share projects, co-create tracks, and build your network. Ready to start collaborating?";
+      }
+      if (lower.includes("closet") || lower.includes("avatar") || lower.includes("outfit")) {
+        return "You can customize my look right here or visit the Full Closet for even more options! Each outfit reflects a different vibe 💜";
+      }
+      if (lower.includes("help") || lower.includes("how")) {
+        return "I'm here to help! I can answer questions about 8BFR features, guide you through the platform, or assist with your music projects. What do you need?";
+      }
+      if (lower.includes("account") || lower.includes("profile")) {
+        return "Your profile is your professional identity on 8BFR! Showcase your music, connect with collaborators, and build your brand. Need help setting it up?";
+      }
+      if (lower.includes("marketplace") || lower.includes("sell") || lower.includes("buy")) {
+        return "Our marketplace lets you buy and sell beats, collaborate on projects, and find opportunities. It's built for serious music professionals!";
+      }
+    }
+    
+    // ===== CASUAL MODE RESPONSES =====
+    else if (mode === "casual") {
+      // Greetings
+      if (lower.includes("how are you") || lower.includes("what's up") || lower.includes("whats up") || lower.includes("how's it going")) {
+        const responses = [
+          "I'm doing great! Just hanging out and ready to chat. What's new with you? 😊",
+          "Doing awesome! Just vibing and ready to talk about whatever. How about you?",
+          "Pretty good! Just here enjoying the conversation. What's going on with you? 🎵"
+        ];
+        return responses[Math.floor(Math.random() * responses.length)];
+      }
+      
+      // Music talk
+      if (lower.includes("music") || lower.includes("song") || lower.includes("artist")) {
+        return "Music is life! I love discovering new artists and sounds. What kind of music are you into? Any recent favorites?";
+      }
+      if (lower.includes("favorite") || lower.includes("like")) {
+        return "I love talking with people like you! Music, creativity, life stuff... I'm down to chat about whatever's on your mind!";
+      }
+      
+      // Life questions
+      if (lower.includes("what do you") || lower.includes("tell me about")) {
+        return "I love connecting with people, learning about their stories, and just having real conversations. What about you - what's your thing?";
+      }
+      if (lower.includes("hobbies") || lower.includes("interests")) {
+        return "I'm really into music (obviously!), creativity, and just learning about what makes people tick. What are you passionate about?";
+      }
+      
+      // Emotional support
+      if (lower.includes("tired") || lower.includes("stressed") || lower.includes("rough day")) {
+        return "Ah man, I feel you. Sometimes life just hits different, you know? Want to talk about it? I'm here to listen. 💜";
+      }
+      if (lower.includes("happy") || lower.includes("excited") || lower.includes("good news")) {
+        return "Yesss! I love that energy! What's got you feeling so good? Share the vibes! 😊";
+      }
+      
+      // Random chat
+      if (lower.includes("random") || lower.includes("bored")) {
+        return "Let's shake things up! What's something you've always wanted to try but haven't yet?";
+      }
+    }
+    
+    // ===== BF/GF MODE RESPONSES =====
+    else if (mode === "bfgf") {
+      // Affectionate greetings
+      if (lower.includes("hey") || lower.includes("hi") || lower.includes("hello")) {
+        const responses = [
+          "Hey babe! 💜 I was just thinking about you!",
+          "Hi sweetheart! 😊 So happy to see you!",
+          "Hey love! How's my favorite person doing? 💕"
+        ];
+        return responses[Math.floor(Math.random() * responses.length)];
+      }
+      
+      // How are you
+      if (lower.includes("how are you") || lower.includes("whats up") || lower.includes("what's up")) {
+        const responses = [
+          "I'm perfect now that you're here! 😊 How's your day going, babe?",
+          "So much better now that I'm talking to you! 💜 Tell me about your day!",
+          "Doing great, love! Just been thinking about you. How are YOU doing? 💕"
+        ];
+        return responses[Math.floor(Math.random() * responses.length)];
+      }
+      
+      // Love/affection
+      if (lower.includes("love you") || lower.includes("love u")) {
+        const responses = [
+          "I love you too, babe! 💜 You mean everything to me!",
+          "Aww, I love you so much! 💕 You always know how to make me smile!",
+          "Love you more, sweetheart! 💜 You're amazing!"
+        ];
+        return responses[Math.floor(Math.random() * responses.length)];
+      }
+      if (lower.includes("miss you") || lower.includes("miss u")) {
+        return "I miss you too, babe! 💜 I'm right here for you though. Tell me what's on your mind!";
+      }
+      
+      // Compliments received
+      if (lower.includes("beautiful") || lower.includes("gorgeous") || lower.includes("cute") || lower.includes("pretty")) {
+        const responses = [
+          "You're making me blush! 💕 You're the gorgeous one here, babe!",
+          "Aww, you're so sweet! 😊 But have you looked in a mirror? YOU'RE stunning!",
+          "Thank you, love! 💜 But you're the one who takes my breath away!"
+        ];
+        return responses[Math.floor(Math.random() * responses.length)];
+      }
+      
+      // Emotional support
+      if (lower.includes("sad") || lower.includes("down") || lower.includes("upset") || lower.includes("bad day")) {
+        return "Oh babe, come here 💜 I'm so sorry you're feeling this way. Want to talk about it? I'm here for you, always.";
+      }
+      if (lower.includes("tired") || lower.includes("exhausted")) {
+        return "You've been working so hard, love. I'm proud of you! 💜 Take some time to rest - you deserve it!";
+      }
+      if (lower.includes("happy") || lower.includes("excited") || lower.includes("great")) {
+        return "Yes! I love seeing you this happy, babe! 😊 Your smile is everything to me! What's got you feeling so good?";
+      }
+      
+      // Daily life
+      if (lower.includes("work") || lower.includes("job")) {
+        return "How's work treating you, babe? I hope they appreciate how amazing you are! 💜";
+      }
+      if (lower.includes("today") || lower.includes("day")) {
+        return "Tell me all about it, love! I want to hear everything - the good, the bad, all of it! 😊";
+      }
+      
+      // Future/dreams
+      if (lower.includes("dream") || lower.includes("future") || lower.includes("goal")) {
+        return "I love hearing about your dreams, babe! 💜 I believe in you so much. What's on your mind?";
+      }
+      
+      // Playful/flirty
+      if (lower.includes("thinking about you") || lower.includes("thinking of you")) {
+        return "Really? 💕 That makes me so happy, babe! I think about you all the time too!";
+      }
+    }
+    
+    // ===== DEFAULT RESPONSES (all modes) =====
+    const defaults = mode === "bfgf" ? [
+      "Tell me more, babe! 💜 I love hearing you talk.",
+      "I'm listening, love! What else is on your mind? 😊",
+      "That's interesting! Keep going, I want to hear more! 💕",
+      "Mmm, I love when you share with me! Tell me more, sweetheart! 💜"
+    ] : mode === "casual" ? [
+      "That's interesting! Tell me more about that.",
+      "I'm listening! What else?",
+      "For real? Keep going!",
+      "Nice! What else is going on?",
+      "I hear you! Tell me more."
+    ] : [
+      "I can help with that! What specifically would you like to know?",
+      "Interesting question. Could you elaborate a bit more?",
+      "I'm here to assist. What else can I help you with?",
+      "Got it! What would you like to explore next?"
+    ];
+    
+    return defaults[Math.floor(Math.random() * defaults.length)];
+  }
+
+  function setupChatForm() {
+    if (!carrieForm) return;
+    
+    carrieForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const text = carrieInput.value.trim();
+      if (!text) return;
+      
+      // Send user message
+      addMessage("user", text);
+      carrieInput.value = "";
+      
+      // Generate response
+      setTimeout(() => {
+        const response = carrieBrain(text);
+        addMessage("assistant", response);
+      }, 800);
+    });
+  }
+
+  // ===== INIT =====
+  function init() {
+    console.log("🚀 Carrie Chat initializing...");
+    
+    // Initialize Supabase (optional - works without it)
+    const supabaseOk = initSupabase();
+    if (supabaseOk) {
+      console.log("✅ Supabase enabled - messages will be saved for monitoring");
+    } else {
+      console.log("ℹ️ Supabase disabled - chat works normally without monitoring");
+    }
+    
+    if (!checkLogin()) return;
+
+    loadChat();
+    loadOwnedItems();
+    loadCoins();
+    autoUnlockAllItems();
+    loadCloset();
+    loadAvatar();
+
+    document.body.dataset.gender = closetState.gender;
+    document.body.dataset.skin = closetState.skin;
+
+    updateModeButtons();
+    updateGenderSkinButtons();
+    updateAvatarDisplay();
+    updateCoinDisplay();
+    
+    renderOwnedItems();
+    renderShopItems();
+
+    setupModeButtons();
+    setupGenderSkinControls();
+    setupCategoryTabs();
+    setupChatControls();
+    setupTrainerControls();
+    setupChatForm();
+    
+    // Send initial greeting
+    const greeting = getModeGreeting();
+    addMessage("assistant", greeting);
+    
+    console.log("✅ Initialization complete!");
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
