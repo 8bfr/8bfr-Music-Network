@@ -212,6 +212,9 @@
 
       // Close modal
       document.body.removeChild(modal);
+      
+      // Reload page to reinitialize with credentials
+      location.reload();
     }
 
     submitBtn.addEventListener("click", attemptLogin);
@@ -523,11 +526,14 @@
       `;
       
       div.addEventListener("click", () => {
+        console.log("🖱️ Item clicked:", item.name);
         if (closetState.equipped[item.slot] && closetState.equipped[item.slot].id === item.id) {
           // Unequip
+          console.log("  Unequipping...");
           closetState.equipped[item.slot] = null;
         } else {
           // Equip
+          console.log("  Equipping...");
           closetState.equipped[item.slot] = item;
         }
         saveCloset();
@@ -569,25 +575,28 @@
       const div = document.createElement("div");
       div.className = "mini-item shop-item";
       
-      const canAfford = closetState.coins >= item.price;
+      // FIXED: Use item.coins instead of item.price
+      const canAfford = closetState.coins >= item.coins;
       if (!canAfford) div.classList.add("cant-afford");
       
       div.innerHTML = `
         <div class="mini-item-img">
           <img src="${item.img}" alt="${item.name}">
-          <div class="item-badge badge-price">${item.price} <img src="assets/images/icon_8bfr_coin.png" class="coin-icon" alt="coin"></div>
+          <div class="item-badge badge-price">${item.coins} <img src="assets/images/icon_8bfr_coin.png" class="coin-icon" alt="coin"></div>
         </div>
         <div class="mini-item-name">${item.name}</div>
       `;
       
       div.addEventListener("click", () => {
+        console.log("🛒 Shop item clicked:", item.name, "Cost:", item.coins);
         if (!canAfford) {
           alert("Not enough coins!");
           return;
         }
         
-        if (confirm(`Purchase ${item.name} for ${item.price} coins?`)) {
-          closetState.coins -= item.price;
+        // FIXED: Use item.coins instead of item.price
+        if (confirm(`Purchase ${item.name} for ${item.coins} coins?`)) {
+          closetState.coins -= item.coins;
           closetState.ownedItems.push(item.id);
           saveCloset();
           saveCoins();
@@ -595,6 +604,7 @@
           updateCoinDisplay();
           renderOwnedItems();
           renderShopItems();
+          console.log("✅ Purchased:", item.name);
         }
       });
       
@@ -689,70 +699,6 @@
     if (closetState.skin === "dark" && skinDark) skinDark.classList.add("active");
   }
 
-  // DRAGGABLE AVATAR
-  let isDragging = false;
-  let startX = 0, startY = 0;
-
-  function setupDrag() {
-    if (!floatingWrapper) return;
-
-    floatingWrapper.addEventListener("mousedown", (e) => {
-      if (e.target.closest("#avatarZoomIn, #avatarZoomOut, #avatarReset")) return;
-      isDragging = true;
-      startX = e.clientX - avatarState.x;
-      startY = e.clientY - avatarState.y;
-      floatingWrapper.style.cursor = "grabbing";
-    });
-
-    document.addEventListener("mousemove", (e) => {
-      if (!isDragging) return;
-      avatarState.x = e.clientX - startX;
-      avatarState.y = e.clientY - startY;
-      updateAvatarPosition();
-    });
-
-    document.addEventListener("mouseup", () => {
-      if (isDragging) {
-        isDragging = false;
-        floatingWrapper.style.cursor = "grab";
-        saveAvatar();
-      }
-    });
-  }
-
-  function updateAvatarPosition() {
-    if (!floatingWrapper) return;
-    floatingWrapper.style.left = avatarState.x + "px";
-    floatingWrapper.style.top = avatarState.y + "px";
-    if (floatingInner) floatingInner.style.transform = `scale(${avatarState.zoom})`;
-  }
-
-  function setupZoom() {
-    if (avatarZoomIn) {
-      avatarZoomIn.addEventListener("click", () => {
-        avatarState.zoom = Math.min(avatarState.zoom + 0.1, 2);
-        updateAvatarPosition();
-        saveAvatar();
-      });
-    }
-    if (avatarZoomOut) {
-      avatarZoomOut.addEventListener("click", () => {
-        avatarState.zoom = Math.max(avatarState.zoom - 0.1, 0.3);
-        updateAvatarPosition();
-        saveAvatar();
-      });
-    }
-    if (avatarReset) {
-      avatarReset.addEventListener("click", () => {
-        avatarState.x = 100;
-        avatarState.y = 100;
-        avatarState.zoom = 0.6;
-        updateAvatarPosition();
-        saveAvatar();
-      });
-    }
-  }
-
   // CHAT MODE
   function updateModeButtons() {
     [modeProBtn, modeCasualBtn, modeBFGFBtn].forEach(b => {
@@ -768,8 +714,11 @@
   }
 
   function setupModeButtons() {
+    console.log("🎛️ Setting up mode buttons...");
+    
     if (modeProBtn) {
       modeProBtn.addEventListener("click", () => {
+        console.log("⚡ Pro mode clicked");
         chatState.mode = "pro";
         saveChat();
         updateModeButtons();
@@ -777,6 +726,7 @@
     }
     if (modeCasualBtn) {
       modeCasualBtn.addEventListener("click", () => {
+        console.log("😎 Casual mode clicked");
         chatState.mode = "casual";
         saveChat();
         updateModeButtons();
@@ -784,6 +734,7 @@
     }
     if (modeBFGFBtn) {
       modeBFGFBtn.addEventListener("click", () => {
+        console.log("💕 BF/GF mode clicked");
         chatState.mode = "bfgf";
         saveChat();
         updateModeButtons();
@@ -791,155 +742,14 @@
     }
   }
 
-  // SUPABASE CONFIGURATION
-  // Replace these with your actual Supabase credentials
-  const SUPABASE_URL = 'YOUR_SUPABASE_URL'; // e.g., 'https://xxxxx.supabase.co'
-  const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
-  
-  // Initialize Supabase client (loaded from CDN in HTML)
-  let supabase = null;
-  
-  function initSupabase() {
-    if (typeof window.supabase !== 'undefined') {
-      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      console.log('✅ Supabase initialized');
-    } else {
-      console.error('❌ Supabase library not loaded');
-    }
-  }
-
-  // CHAT STORAGE
-  async function saveMessageToDb(role, content) {
-    if (!supabase) return null;
-    
-    try {
-      const { data, error } = await supabase
-        .from('chat_messages')
-        .insert([
-          {
-            user_id: getCurrentUserId(),
-            role: role,
-            content: content,
-            created_at: new Date().toISOString()
-          }
-        ])
-        .select();
-      
-      if (error) throw error;
-      
-      console.log('💾 Message saved to Supabase:', data);
-      return data[0];
-    } catch (error) {
-      console.error('Error saving message:', error);
-      return null;
-    }
-  }
-  
-  async function loadMessagesFromDb() {
-    if (!supabase) return [];
-    
-    try {
-      const { data, error } = await supabase
-        .from('chat_messages')
-        .select('*')
-        .eq('user_id', getCurrentUserId())
-        .eq('archived', false)
-        .order('created_at', { ascending: true });
-      
-      if (error) throw error;
-      
-      console.log('📥 Loaded messages from Supabase:', data?.length || 0);
-      return data || [];
-    } catch (error) {
-      console.error('Error loading messages:', error);
-      return [];
-    }
-  }
-  
-  async function deleteMessagesFromDb(messageIds) {
-    if (!supabase) return false;
-    
-    try {
-      const { error } = await supabase
-        .from('chat_messages')
-        .delete()
-        .in('id', messageIds)
-        .eq('user_id', getCurrentUserId());
-      
-      if (error) throw error;
-      
-      console.log('🗑️ Deleted messages from Supabase:', messageIds.length);
-      return true;
-    } catch (error) {
-      console.error('Error deleting messages:', error);
-      return false;
-    }
-  }
-  
-  async function archiveMessagesInDb(messageIds) {
-    if (!supabase) return false;
-    
-    try {
-      const { error } = await supabase
-        .from('chat_messages')
-        .update({ 
-          archived: true, 
-          archived_at: new Date().toISOString() 
-        })
-        .in('id', messageIds)
-        .eq('user_id', getCurrentUserId());
-      
-      if (error) throw error;
-      
-      console.log('📦 Archived messages in Supabase:', messageIds.length);
-      return true;
-    } catch (error) {
-      console.error('Error archiving messages:', error);
-      return false;
-    }
-  }
-  
-  async function clearAllMessagesInDb() {
-    if (!supabase) return false;
-    
-    try {
-      const { error } = await supabase
-        .from('chat_messages')
-        .delete()
-        .eq('user_id', getCurrentUserId());
-      
-      if (error) throw error;
-      
-      console.log('🗑️ Cleared all messages from Supabase');
-      return true;
-    } catch (error) {
-      console.error('Error clearing all messages:', error);
-      return false;
-    }
-  }
-
-  // HELPERS
-  function getCurrentUserId() {
-    // Get user ID from localStorage
-    const user = JSON.parse(localStorage.getItem("carrieUser") || "{}");
-    return user.email || "anonymous";
-  }
-
   // CHAT LOGIC
   let isSelectMode = false;
   let selectedMessages = new Set();
   
-  async function addMessage(role, text, messageId = null) {
+  function addMessage(role, text, messageId = null) {
     if (!chatLog) return;
     
-    // Save to Supabase first if this is a new message
-    let dbMessage = null;
-    if (!messageId) {
-      dbMessage = await saveMessageToDb(role, text);
-      messageId = dbMessage?.id || `msg_${Date.now()}_${Math.random()}`;
-    }
-    
-    const id = messageId;
+    const id = messageId || `msg_${Date.now()}_${Math.random()}`;
     const msg = document.createElement("div");
     msg.className = role === "user" ? "chat-msg-user" : "chat-msg-assistant";
     msg.dataset.messageId = id;
@@ -971,32 +781,22 @@
     return id;
   }
   
-  async function loadMessagesFromSupabase() {
-    const messages = await loadMessagesFromDb();
-    
-    if (chatLog) {
-      chatLog.innerHTML = "";
-    }
-    
-    for (const msg of messages) {
-      await addMessage(msg.role, msg.content, msg.id);
-    }
-    
-    console.log('✅ Loaded', messages.length, 'messages from Supabase');
-  }
-  
   function updateSelectionCount() {
     const countEl = document.getElementById("selectedCount");
     if (countEl) countEl.textContent = selectedMessages.size;
   }
   
   function enterSelectMode() {
+    console.log("☑️ ENTERING SELECT MODE");
     isSelectMode = true;
     selectedMessages.clear();
     
     // Show selection toolbar
     const toolbar = document.getElementById("selectionToolbar");
-    if (toolbar) toolbar.style.display = "flex";
+    if (toolbar) {
+      toolbar.style.display = "flex";
+      console.log("  ✅ Toolbar shown");
+    }
     
     // Add checkboxes to all messages
     const messages = chatLog.querySelectorAll(".chat-msg-user, .chat-msg-assistant");
@@ -1020,22 +820,29 @@
     });
     
     updateSelectionCount();
+    console.log("  ✅ Select mode active");
   }
   
   function exitSelectMode() {
+    console.log("❌ EXITING SELECT MODE");
     isSelectMode = false;
     selectedMessages.clear();
     
     // Hide selection toolbar
     const toolbar = document.getElementById("selectionToolbar");
-    if (toolbar) toolbar.style.display = "none";
+    if (toolbar) {
+      toolbar.style.display = "none";
+      console.log("  ✅ Toolbar hidden");
+    }
     
     // Remove all checkboxes
     const checkboxes = chatLog.querySelectorAll(".msg-checkbox");
     checkboxes.forEach(cb => cb.remove());
+    console.log("  ✅ Checkboxes removed");
   }
   
-  async function deleteSelectedMessages() {
+  function deleteSelectedMessages() {
+    console.log("🗑️ DELETE SELECTED CLICKED");
     if (selectedMessages.size === 0) {
       alert("No messages selected");
       return;
@@ -1045,25 +852,18 @@
       return;
     }
     
-    // Delete from Supabase
-    const messageIds = Array.from(selectedMessages);
-    const success = await deleteMessagesFromDb(messageIds);
+    // Remove from UI
+    selectedMessages.forEach(id => {
+      const msg = chatLog.querySelector(`[data-message-id="${id}"]`);
+      if (msg) msg.remove();
+    });
     
-    if (success) {
-      // Remove from UI
-      selectedMessages.forEach(id => {
-        const msg = chatLog.querySelector(`[data-message-id="${id}"]`);
-        if (msg) msg.remove();
-      });
-      
-      console.log("🗑️ Deleted messages:", messageIds);
-      exitSelectMode();
-    } else {
-      alert("Failed to delete messages. Please try again.");
-    }
+    console.log("🗑️ Deleted messages:", Array.from(selectedMessages));
+    exitSelectMode();
   }
   
-  async function archiveSelectedMessages() {
+  function archiveSelectedMessages() {
+    console.log("📦 ARCHIVE SELECTED CLICKED");
     if (selectedMessages.size === 0) {
       alert("No messages selected");
       return;
@@ -1073,38 +873,24 @@
       return;
     }
     
-    // Archive in Supabase
-    const messageIds = Array.from(selectedMessages);
-    const success = await archiveMessagesInDb(messageIds);
+    // Remove from UI
+    selectedMessages.forEach(id => {
+      const msg = chatLog.querySelector(`[data-message-id="${id}"]`);
+      if (msg) msg.remove();
+    });
     
-    if (success) {
-      // Remove from UI
-      selectedMessages.forEach(id => {
-        const msg = chatLog.querySelector(`[data-message-id="${id}"]`);
-        if (msg) msg.remove();
-      });
-      
-      console.log("📦 Archived messages:", messageIds);
-      exitSelectMode();
-    } else {
-      alert("Failed to archive messages. Please try again.");
-    }
+    console.log("📦 Archived messages:", Array.from(selectedMessages));
+    exitSelectMode();
   }
   
-  async function clearAllChat() {
+  function clearAllChat() {
+    console.log("🗑️ CLEAR ALL CHAT CLICKED");
     if (!confirm("Clear all chat history? This cannot be undone.")) {
       return;
     }
     
-    // Delete all messages from Supabase
-    const success = await clearAllMessagesInDb();
-    
-    if (success) {
-      chatLog.innerHTML = "";
-      console.log("🗑️ Owner cleared all chat");
-    } else {
-      alert("Failed to clear chat. Please try again.");
-    }
+    chatLog.innerHTML = "";
+    console.log("🗑️ Owner cleared all chat");
   }
   
   function setupChatControls() {
@@ -1206,6 +992,7 @@
   let trainedResponses = JSON.parse(localStorage.getItem("trainedResponses") || "[]");
   
   function openTrainer() {
+    console.log("🧠 OPENING TRAINER");
     const modal = document.getElementById("trainerBackdrop");
     if (modal) {
       modal.style.display = "flex";
@@ -1214,6 +1001,7 @@
   }
   
   function closeTrainer() {
+    console.log("❌ CLOSING TRAINER");
     const modal = document.getElementById("trainerBackdrop");
     if (modal) modal.style.display = "none";
     
@@ -1224,6 +1012,8 @@
   }
   
   function setupTrainerControls() {
+    console.log("🎓 Setting up trainer controls...");
+    
     const trainerForm = document.getElementById("trainerForm");
     const trainerClose = document.getElementById("trainerClose");
     const trainerCancel = document.getElementById("trainerCancel");
@@ -1307,6 +1097,8 @@
         console.log("💾 Training saved:", training);
       });
     }
+    
+    console.log("✅ Trainer controls setup complete");
   }
   
   function renderTrainedResponses() {
@@ -1367,7 +1159,7 @@
     
     console.log("✅ Setting up chat form");
     
-    carrieForm.addEventListener("submit", async (e) => {
+    carrieForm.addEventListener("submit", (e) => {
       e.preventDefault();
       const text = carrieInput.value.trim();
       if (!text) return;
@@ -1375,28 +1167,13 @@
       console.log("💬 User message:", text);
       
       // Send user message
-      await addMessage("user", text);
+      addMessage("user", text);
       carrieInput.value = "";
       
-      // Check for trained response from memory
-      let response = null;
-      if (window.CARRIE_MEMORY) {
-        const currentAvatarKey = `${closetState.gender}-${closetState.skin}`;
-        response = window.CARRIE_MEMORY.findResponse(text, chatState.mode, currentAvatarKey);
-        
-        if (response) {
-          console.log("🧠 Using trained response");
-        }
-      }
-      
-      // If no trained response, use default
-      if (!response) {
-        response = "Hi! This is a demo response. Use the Avatar Trainer to teach me custom responses!";
-      }
-      
       // Send assistant response
-      setTimeout(async () => {
-        await addMessage("assistant", response);
+      setTimeout(() => {
+        addMessage("assistant", "Hi! This is a demo response.");
+        console.log("🤖 Bot responded");
       }, 800);
     });
     
@@ -1404,7 +1181,7 @@
   }
 
   // INIT
-  async function init() {
+  function init() {
     console.log("🚀 Carrie Chat initializing...");
     console.log("📊 closetState:", closetState);
     
@@ -1415,9 +1192,6 @@
     }
     
     console.log("✅ User logged in");
-    
-    // Initialize Supabase
-    initSupabase();
 
     loadChat();
     loadOwnedItems(); // Load which items user owns
@@ -1455,9 +1229,6 @@
     setupChatControls(); // Setup clear/delete/archive buttons
     setupTrainerControls(); // Setup avatar trainer
     setupChatForm();
-    
-    // Load chat messages from Supabase
-    await loadMessagesFromSupabase();
     
     // Log status
     if (isOwner()) {
