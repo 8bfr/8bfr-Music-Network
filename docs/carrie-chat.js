@@ -325,8 +325,8 @@
 
   function getItems() { return window.CARRIE_CLOSET_ITEMS || []; }
 
-  // AVATAR DISPLAY
-  function updateBaseImage() {
+  // AVATAR DISPLAY - USING WORKING CLOSET LOGIC
+  function setBaseImage() {
     if (closetBaseImg) {
       closetBaseImg.src = `assets/images/base/${closetState.gender}/base_${closetState.gender}_${closetState.skin}.png?v=15`;
     }
@@ -405,8 +405,10 @@
   function renderOverlays() {
     clearOverlays();
     if (!closetState.equipped) return;
+    
     Object.keys(closetState.equipped).forEach(slot => {
-      if (closetState.equipped[slot]) addOverlay(closetState.equipped[slot]);
+      const itemObj = closetState.equipped[slot];
+      if (itemObj) addOverlay(itemObj);
     });
   }
 
@@ -414,7 +416,7 @@
     const body = document.body;
     body.dataset.gender = closetState.gender;
     body.dataset.skin = closetState.skin;
-    updateBaseImage();
+    setBaseImage();
     renderOverlays();
   }
 
@@ -572,50 +574,67 @@
     });
   }
 
-  // GENDER/SKIN CONTROLS
+  // GENDER/SKIN CONTROLS - USING WORKING CLOSET LOGIC
   function setupGenderSkinControls() {
     console.log("🎮 Setting up gender/skin controls...");
     
-    if (genderFemale) {
-      genderFemale.addEventListener("click", () => {
-        console.log("👩 Female clicked!");
-        closetState.gender = "female";
+    // Gender buttons
+    const genderButtons = [genderFemale, genderMale].filter(Boolean);
+    genderButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        // Remove active from all gender buttons
+        genderButtons.forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        
+        // Set new gender
+        const newGender = btn.dataset.gender || (btn.id === "genderMale" ? "male" : "female");
+        console.log(`🔄 Switching to ${newGender}`);
+        
+        closetState.gender = newGender;
+        localStorage.setItem('closet_gender', newGender);
+        document.body.dataset.gender = newGender;
+        
+        // Load equipped items for this gender
         loadCloset();
-        saveCloset();
-        updateAvatarDisplay();
-        updateGenderSkinButtons();
+        
+        // Update display
+        setBaseImage();
+        renderOverlays();
         renderOwnedItems();
         renderShopItems();
+        
+        console.log(`✅ Switched to ${newGender}`);
       });
-    }
-    if (genderMale) {
-      genderMale.addEventListener("click", () => {
-        console.log("👨 Male clicked!");
-        closetState.gender = "male";
-        loadCloset();
-        saveCloset();
-        updateAvatarDisplay();
-        updateGenderSkinButtons();
-        renderOwnedItems();
-        renderShopItems();
-      });
-    }
+    });
     
+    // Skin buttons
     if (skinLight) {
       skinLight.addEventListener("click", () => {
+        [skinLight, skinDark].forEach(b => b && b.classList.remove("active"));
+        skinLight.classList.add("active");
         closetState.skin = "light";
-        saveCloset();
-        updateAvatarDisplay();
-        updateGenderSkinButtons();
+        localStorage.setItem('closet_skin', "light");
+        document.body.dataset.skin = "light";
+        setBaseImage();
+        renderOverlays();
       });
     }
     if (skinDark) {
       skinDark.addEventListener("click", () => {
+        [skinLight, skinDark].forEach(b => b && b.classList.remove("active"));
+        skinDark.classList.add("active");
         closetState.skin = "dark";
-        saveCloset();
-        updateAvatarDisplay();
-        updateGenderSkinButtons();
+        localStorage.setItem('closet_skin', "dark");
+        document.body.dataset.skin = "dark";
+        setBaseImage();
+        renderOverlays();
       });
+    }
+  }
+
+  function setBaseImage() {
+    if (closetBaseImg) {
+      closetBaseImg.src = `assets/images/base/${closetState.gender}/base_${closetState.gender}_${closetState.skin}.png?v=15`;
     }
   }
 
@@ -896,6 +915,24 @@
     const archiveSelectedBtn = document.getElementById("archiveSelectedBtn");
     const cancelSelectBtn = document.getElementById("cancelSelectBtn");
     const trainerBtn = document.getElementById("trainerBtn");
+    const anonymousModeLabel = document.getElementById("anonymousModeLabel");
+    const anonymousModeToggle = document.getElementById("anonymousModeToggle");
+    
+    // Setup Anonymous Mode checkbox (owner only)
+    if (isOwner() && anonymousModeLabel && anonymousModeToggle) {
+      anonymousModeLabel.style.display = "flex";
+      
+      // Load saved state
+      const savedAnonymous = localStorage.getItem("anonymousMode") === "true";
+      anonymousModeToggle.checked = savedAnonymous;
+      
+      // Listen for changes
+      anonymousModeToggle.addEventListener("change", (e) => {
+        const isAnonymous = e.target.checked;
+        localStorage.setItem("anonymousMode", isAnonymous.toString());
+        console.log(isAnonymous ? "👻 Anonymous mode ON" : "👤 Anonymous mode OFF");
+      });
+    }
     
     // Show appropriate buttons based on owner status
     if (isOwner()) {
