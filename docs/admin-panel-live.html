@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Live Chat Monitoring | 8BFR Music Network</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
+  
+  <!-- Supabase JS -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  
+  <style>
+    body {
+      background: linear-gradient(#0b0014, #000);
+      color: #eae6ff;
+      font-family: 'Poppins', system-ui;
+      margin: 0;
+      padding: 0;
+    }
+    
+    .admin-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    
+    .admin-header {
+      background: rgba(15,0,30,.9);
+      border-bottom: 1px solid rgba(124,58,237,.5);
+      padding: 1.5rem 2rem;
+      margin-bottom: 2rem;
+    }
+    
+    .admin-title {
+      font-size: 2rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #a855f7, #7c3aed);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin: 0 0 0.5rem 0;
+    }
+    
+    .admin-subtitle {
+      font-size: 0.9rem;
+      color: #a855f7;
+      opacity: 0.8;
+    }
+    
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+      background: rgba(12,6,24,.95);
+      border: 1px solid rgba(124,58,237,.35);
+      border-radius: 12px;
+      padding: 1.25rem;
+      box-shadow: 0 0 20px rgba(124,58,237,.18);
+    }
+    
+    .stat-label {
+      font-size: 0.75rem;
+      color: #a855f7;
+      opacity: 0.8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.5rem;
+    }
+    
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #eae6ff;
+    }
+    
+    .conversations-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 1.5rem;
+    }
+    
+    .conversation-card {
+      background: rgba(12,6,24,.95);
+      border: 1px solid rgba(124,58,237,.35);
+      border-radius: 14px;
+      padding: 1.5rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 0 20px rgba(124,58,237,.18);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .conversation-card:hover {
+      border-color: rgba(124,58,237,.6);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 30px rgba(124,58,237,.3);
+    }
+    
+    .conversation-card.active {
+      border-color: rgba(34,197,94,.5);
+      box-shadow: 0 0 30px rgba(34,197,94,.2);
+    }
+    
+    .conversation-card.active::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background: linear-gradient(90deg, #22c55e, #10b981);
+    }
+    
+    .conversation-card.recent {
+      border-color: rgba(234,179,8,.4);
+    }
+    
+    .conversation-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    
+    .status-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    
+    .status-indicator.active {
+      background: #22c55e;
+      box-shadow: 0 0 10px rgba(34,197,94,.6);
+    }
+    
+    .status-indicator.recent {
+      background: #eab308;
+      box-shadow: 0 0 10px rgba(234,179,8,.4);
+    }
+    
+    .status-indicator.inactive {
+      background: #6b7280;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .conversation-email {
+      font-weight: 600;
+      font-size: 1.1rem;
+      color: #eae6ff;
+      flex: 1;
+    }
+    
+    .conversation-mode {
+      background: rgba(124,58,237,.2);
+      border: 1px solid rgba(124,58,237,.4);
+      padding: 0.25rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .conversation-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    
+    .stat-item {
+      font-size: 0.8rem;
+      color: #a855f7;
+    }
+    
+    .stat-item strong {
+      color: #eae6ff;
+      display: block;
+      font-size: 0.9rem;
+      margin-top: 0.25rem;
+    }
+    
+    .last-message {
+      background: rgba(15,23,42,.6);
+      border-left: 3px solid rgba(124,58,237,.5);
+      padding: 0.75rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      line-height: 1.4;
+      color: #e5e7eb;
+      margin-top: 1rem;
+      max-height: 60px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .last-message-label {
+      font-size: 0.7rem;
+      color: #a855f7;
+      opacity: 0.8;
+      margin-bottom: 0.25rem;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: #a855f7;
+      opacity: 0.6;
+      grid-column: 1 / -1;
+    }
+    
+    .empty-state h3 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    /* Chat Viewer Modal */
+    .chat-viewer {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.95);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    
+    .chat-viewer.active {
+      display: flex;
+    }
+    
+    .chat-viewer-content {
+      background: linear-gradient(135deg, rgba(12,6,24,.98), rgba(15,23,42,.98));
+      border: 1px solid rgba(124,58,237,.5);
+      border-radius: 20px;
+      max-width: 900px;
+      width: 100%;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 60px rgba(124,58,237,.4);
+    }
+    
+    .chat-viewer-header {
+      padding: 2rem;
+      border-bottom: 1px solid rgba(124,58,237,.3);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .chat-viewer-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #eae6ff;
+    }
+    
+    .chat-viewer-subtitle {
+      font-size: 0.85rem;
+      color: #a855f7;
+      margin-top: 0.5rem;
+    }
+    
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(34,197,94,.2);
+      border: 1px solid rgba(34,197,94,.4);
+      color: #22c55e;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    
+    .live-badge::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: #22c55e;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    
+    .close-viewer {
+      background: rgba(239,68,68,.2);
+      border: 1px solid rgba(239,68,68,.4);
+      color: #ef4444;
+      padding: 0.75rem 1.5rem;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+      font-size: 1rem;
+    }
+    
+    .close-viewer:hover {
+      background: rgba(239,68,68,.3);
+      transform: scale(1.05);
+    }
+    
+    .chat-viewer-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    
+    .viewer-msg {
+      padding: 1rem 1.25rem;
+      border-radius: 12px;
+      max-width: 75%;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      animation: fadeIn 0.3s;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .viewer-msg.user {
+      background: linear-gradient(135deg, #7c3aed, #a855f7);
+      color: white;
+      align-self: flex-end;
+      margin-left: auto;
+    }
+    
+    .viewer-msg.assistant {
+      background: rgba(15,23,42,.9);
+      border: 1px solid rgba(124,58,237,.3);
+      color: #e5e7eb;
+      align-self: flex-start;
+    }
+    
+    .msg-timestamp {
+      font-size: 0.75rem;
+      opacity: 0.6;
+      margin-top: 0.5rem;
+    }
+    
+    .connection-status {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      background: rgba(12,6,24,.95);
+      border: 1px solid rgba(124,58,237,.35);
+      padding: 1rem 1.5rem;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      box-shadow: 0 8px 30px rgba(0,0,0,.5);
+    }
+    
+    .connection-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #22c55e;
+      animation: pulse 2s infinite;
+    }
+    
+    .connection-dot.disconnected {
+      background: #ef4444;
+      animation: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="admin-header">
+    <h1 class="admin-title">🔴 Live Chat Monitoring</h1>
+    <p class="admin-subtitle">Real-time conversation tracking • Updates automatically</p>
+  </div>
+
+  <main class="admin-container">
+    <!-- Stats Bar -->
+    <div class="stats-bar">
+      <div class="stat-card">
+        <div class="stat-label">🟢 Active Now</div>
+        <div class="stat-value" id="activeCount">0</div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-label">🟡 Recently Active</div>
+        <div class="stat-value" id="recentCount">0</div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-label">💬 Total Conversations</div>
+        <div class="stat-value" id="totalConversations">0</div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-label">📝 Total Messages</div>
+        <div class="stat-value" id="totalMessages">0</div>
+      </div>
+    </div>
+
+    <!-- Conversations Grid -->
+    <div id="conversationsGrid" class="conversations-grid">
+      <div class="empty-state">
+        <h3>👻 No active conversations</h3>
+        <p>Conversations will appear here when users start chatting with Carrie</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- Chat Viewer Modal -->
+  <div id="chatViewer" class="chat-viewer">
+    <div class="chat-viewer-content">
+      <div class="chat-viewer-header">
+        <div>
+          <div class="chat-viewer-title" id="viewerUserEmail">Loading...</div>
+          <div class="chat-viewer-subtitle" id="viewerUserStats"></div>
+        </div>
+        <div style="display: flex; gap: 1rem; align-items: center;">
+          <div class="live-badge" id="liveBadge" style="display: none;">🔴 LIVE</div>
+          <button class="close-viewer" id="closeViewer">✕ Close</button>
+        </div>
+      </div>
+      <div class="chat-viewer-messages" id="viewerMessages">
+        <!-- Messages load here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Connection Status -->
+  <div class="connection-status">
+    <div class="connection-dot" id="connectionDot"></div>
+    <span id="connectionText">Connecting...</span>
+  </div>
+
+  <script>
+    // ===== SUPABASE CONFIGURATION =====
+    const SUPABASE_URL =https://novbuvwpjnxwwvdekjhr.supabase.co 'YOUR_SUPABASE_URL_HERE';  // ← PASTE YOUR URL HERE
+    const SUPABASE_ANON_KEY ==eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0 'YOUR_ANON_KEY_HERE';  // ← PASTE YOUR ANON KEY HERE
+    
+    let supabase = null;
+    let activeConversationId = null;
+    let realtimeChannel = null;
+    
+    // Initialize Supabase
+    function initSupabase() {
+      if (SUPABASE_URL === 'YOUR_SUPABASE_URL_HERE' || SUPABASE_ANON_KEY === 'YOUR_ANON_KEY_HERE') {
+        console.error('⚠️ Supabase not configured! Please add your URL and anon key.');
+        document.getElementById('connectionText').textContent = 'Not Configured';
+        document.getElementById('connectionDot').classList.add('disconnected');
+        return false;
+      }
+      
+      try {
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        console.log('✅ Supabase connected!');
+        document.getElementById('connectionText').textContent = 'Connected';
+        document.getElementById('connectionDot').classList.remove('disconnected');
+        return true;
+      } catch(e) {
+        console.error('❌ Supabase connection failed:', e);
+        document.getElementById('connectionText').textContent = 'Connection Failed';
+        document.getElementById('connectionDot').classList.add('disconnected');
+        return false;
+      }
+    }
+    
+    // Elements
+    const conversationsGrid = document.getElementById('conversationsGrid');
+    const chatViewer = document.getElementById('chatViewer');
+    const closeViewer = document.getElementById('closeViewer');
+    const viewerUserEmail = document.getElementById('viewerUserEmail');
+    const viewerUserStats = document.getElementById('viewerUserStats');
+    const viewerMessages = document.getElementById('viewerMessages');
+    const liveBadge = document.getElementById('liveBadge');
+    
+    const activeCount = document.getElementById('activeCount');
+    const recentCount = document.getElementById('recentCount');
+    const totalConversations = document.getElementById('totalConversations');
+    const totalMessages = document.getElementById('totalMessages');
+    
+    // Load all conversations
+    async function loadConversations() {
+      if (!supabase) return;
+      
+      try {
+        // Get all conversations with their latest messages
+        const { data: conversations, error } = await supabase
+          .from('archived_chats')
+          .select(`
+            conversation_id,
+            user_id,
+            created_at,
+            content,
+            text,
+            role,
+            users (email)
+          `)
+          .order('created_at', { ascending: false });
+        
+        if (error) {
+          console.error('Error loading conversations:', error);
+          return;
+        }
+        
+        // Group by conversation_id
+        const grouped = {};
+        let totalMsgs = 0;
+        
+        conversations.forEach(msg => {
+          const convId = msg.conversation_id;
+          if (!grouped[convId]) {
+            grouped[convId] = {
+              conversation_id: convId,
+              user_id: msg.user_id,
+              email: msg.users?.email || 'Unknown User',
+              messages: [],
+              lastActive: msg.created_at,
+              mode: msg.content?.mode || 'casual'
+            };
+          }
+          
+          grouped[convId].messages.push(msg);
+          totalMsgs++;
+          
+          // Update last active time
+          const msgTime = new Date(msg.created_at).getTime();
+          const currentLast = new Date(grouped[convId].lastActive).getTime();
+          if (msgTime > currentLast) {
+            grouped[convId].lastActive = msg.created_at;
+            grouped[convId].mode = msg.content?.mode || 'casual';
+          }
+        });
+        
+        const conversationList = Object.values(grouped);
+        
+        // Sort by most recent
+        conversationList.sort((a, b) => 
+          new Date(b.lastActive).getTime() - new Date(a.lastActive).getTime()
+        );
+        
+        // Calculate stats
+        const now = Date.now();
+        const twoMinAgo = now - (2 * 60 * 1000);
+        const tenMinAgo = now - (10 * 60 * 1000);
+        
+        const active = conversationList.filter(c => 
+          new Date(c.lastActive).getTime() > twoMinAgo
+        );
+        
+        const recent = conversationList.filter(c => {
+          const time = new Date(c.lastActive).getTime();
+          return time > tenMinAgo && time <= twoMinAgo;
+        });
+        
+        // Update stats
+        activeCount.textContent = active.length;
+        recentCount.textContent = recent.length;
+        totalConversations.textContent = conversationList.length;
+        totalMessages.textContent = totalMsgs;
+        
+        // Render conversations
+        renderConversations(conversationList);
+        
+      } catch(e) {
+        console.error('Error loading conversations:', e);
+      }
+    }
+    
+    // Render conversations grid
+    function renderConversations(conversations) {
+      if (conversations.length === 0) {
+        conversationsGrid.innerHTML = `
+          <div class="empty-state">
+            <h3>👻 No active conversations</h3>
+            <p>Conversations will appear here when users start chatting with Carrie</p>
+          </div>
+        `;
+        return;
+      }
+      
+      const now = Date.now();
+      const twoMinAgo = now - (2 * 60 * 1000);
+      const tenMinAgo = now - (10 * 60 * 1000);
+      
+      conversationsGrid.innerHTML = conversations.map(conv => {
+        const lastActiveTime = new Date(conv.lastActive).getTime();
+        const isActive = lastActiveTime > twoMinAgo;
+        const isRecent = lastActiveTime > tenMinAgo && lastActiveTime <= twoMinAgo;
+        
+        const statusClass = isActive ? 'active' : isRecent ? 'recent' : 'inactive';
+        const cardClass = isActive ? 'active' : isRecent ? 'recent' : '';
+        
+        const lastMsg = conv.messages[conv.messages.length - 1];
+        const lastMsgText = lastMsg?.text || 'No messages yet';
+        const lastMsgRole = lastMsg?.role === 'user' ? '👤 User' : '🤖 Carrie';
+        
+        const timeAgo = getTimeAgo(conv.lastActive);
+        
+        return `
+          <div class="conversation-card ${cardClass}" data-conversation-id="${conv.conversation_id}">
+            <div class="conversation-header">
+              <div class="status-indicator ${statusClass}"></div>
+              <div class="conversation-email">${conv.email}</div>
+              <div class="conversation-mode">${conv.mode}</div>
+            </div>
+            
+            <div class="conversation-stats">
+              <div class="stat-item">
+                Messages
+                <strong>${conv.messages.length}</strong>
+              </div>
+              <div class="stat-item">
+                Last Active
+                <strong>${timeAgo}</strong>
+              </div>
+            </div>
+            
+            <div class="last-message">
+              <div class="last-message-label">${lastMsgRole}</div>
+              ${lastMsgText}
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      // Add click handlers
+      document.querySelectorAll('.conversation-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const convId = card.dataset.conversationId;
+          const conv = conversations.find(c => c.conversation_id === convId);
+          if (conv) viewConversation(conv);
+        });
+      });
+    }
+    
+    // View individual conversation
+    function viewConversation(conv) {
+      activeConversationId = conv.conversation_id;
+      
+      viewerUserEmail.textContent = conv.email;
+      viewerUserStats.textContent = `${conv.messages.length} messages • Mode: ${conv.mode}`;
+      
+      const now = Date.now();
+      const twoMinAgo = now - (2 * 60 * 1000);
+      const isActive = new Date(conv.lastActive).getTime() > twoMinAgo;
+      
+      if (isActive) {
+        liveBadge.style.display = 'inline-flex';
+      } else {
+        liveBadge.style.display = 'none';
+      }
+      
+      renderMessages(conv.messages);
+      chatViewer.classList.add('active');
+      
+      // Subscribe to real-time updates for this conversation
+      subscribeToConversation(conv.conversation_id);
+    }
+    
+    // Render messages in viewer
+    function renderMessages(messages) {
+      viewerMessages.innerHTML = messages
+        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+        .map(msg => {
+          const time = new Date(msg.created_at).toLocaleString();
+          return `
+            <div class="viewer-msg ${msg.role}">
+              <div>${msg.text}</div>
+              <div class="msg-timestamp">${time}</div>
+            </div>
+          `;
+        }).join('');
+      
+      // Scroll to bottom
+      setTimeout(() => {
+        viewerMessages.scrollTop = viewerMessages.scrollHeight;
+      }, 100);
+    }
+    
+    // Subscribe to real-time updates for a conversation
+    function subscribeToConversation(conversationId) {
+      // Unsubscribe from previous
+      if (realtimeChannel) {
+        supabase.removeChannel(realtimeChannel);
+      }
+      
+      // Subscribe to new messages
+      realtimeChannel = supabase
+        .channel(`conversation:${conversationId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'archived_chats',
+            filter: `conversation_id=eq.${conversationId}`
+          },
+          (payload) => {
+            console.log('📬 New message:', payload);
+            addMessageToViewer(payload.new);
+          }
+        )
+        .subscribe();
+      
+      console.log('👂 Listening to conversation:', conversationId);
+    }
+    
+    // Add new message to viewer (real-time)
+    function addMessageToViewer(message) {
+      const time = new Date(message.created_at).toLocaleString();
+      const msgHtml = `
+        <div class="viewer-msg ${message.role}">
+          <div>${message.text}</div>
+          <div class="msg-timestamp">${time}</div>
+        </div>
+      `;
+      
+      viewerMessages.insertAdjacentHTML('beforeend', msgHtml);
+      viewerMessages.scrollTop = viewerMessages.scrollHeight;
+    }
+    
+    // Close viewer
+    closeViewer.addEventListener('click', () => {
+      chatViewer.classList.remove('active');
+      activeConversationId = null;
+      
+      // Unsubscribe from real-time
+      if (realtimeChannel) {
+        supabase.removeChannel(realtimeChannel);
+        realtimeChannel = null;
+      }
+    });
+    
+    // Close on backdrop click
+    chatViewer.addEventListener('click', (e) => {
+      if (e.target === chatViewer) {
+        closeViewer.click();
+      }
+    });
+    
+    // Helper: Get time ago
+    function getTimeAgo(timestamp) {
+      const now = Date.now();
+      const time = new Date(timestamp).getTime();
+      const diff = now - time;
+      
+      const seconds = Math.floor(diff / 1000);
+      const minutes = Math.floor(seconds / 60);
+      const hours = Math.floor(minutes / 60);
+      const days = Math.floor(hours / 24);
+      
+      if (seconds < 60) return `${seconds}s ago`;
+      if (minutes < 60) return `${minutes}m ago`;
+      if (hours < 24) return `${hours}h ago`;
+      return `${days}d ago`;
+    }
+    
+    // Auto-refresh every 10 seconds
+    setInterval(loadConversations, 10000);
+    
+    // Initialize
+    if (initSupabase()) {
+      loadConversations();
+    }
+  </script>
+</body>
+</html>
