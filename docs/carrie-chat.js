@@ -938,7 +938,7 @@
     if (isOwner()) {
       console.log("  👑 Owner mode - showing owner controls");
       
-      // Owner gets BOTH clear buttons
+      // Owner gets ALL buttons
       if (clearMyChatBtn) {
         clearMyChatBtn.style.display = "inline-block";
         clearMyChatBtn.addEventListener("click", clearMyChat);
@@ -950,6 +950,11 @@
       if (trainerBtn) {
         trainerBtn.style.display = "inline-block";
         trainerBtn.addEventListener("click", openTrainer);
+      }
+      // Owner also gets Select button
+      if (selectModeBtn) {
+        selectModeBtn.style.display = "inline-block";
+        selectModeBtn.addEventListener("click", enterSelectMode);
       }
     } else {
       console.log("  👤 Regular user mode - showing user controls");
@@ -1123,58 +1128,244 @@
     });
   }
 
-  // ===== CHAT BRAIN (RESPONSES) =====
+  // ===== CHAT BRAIN (RESPONSES) - ENHANCED WITH DEEP PERSONALITY =====
+  
+  // Carrie's deep personality info by mode
+  const CARRIE_PERSONALITY = {
+    pro: {
+      role: "Professional AI Assistant for 8BFR Music Network",
+      traits: ["helpful", "knowledgeable", "efficient", "supportive", "resourceful"],
+      knowledge: {
+        platform: "8BFR Music Network connects artists, beatmakers, and songwriters globally",
+        features: "Real-time collaboration, verified artist profiles, music marketplace, social networking",
+        vision: "Creating the world's largest professional music community",
+        tech: "Built on modern web technologies with real-time features and AI assistance"
+      },
+      style: "Professional but friendly, informative, solution-oriented",
+      greeting: "I'm in <b>Pro Mode</b> ⚡ — Ask me anything about 8BFR Music Network or get help with your projects!"
+    },
+    casual: {
+      role: "Friendly AI companion",
+      traits: ["chill", "fun", "relatable", "genuine", "easygoing"],
+      interests: ["music", "creativity", "technology", "art", "culture", "life experiences"],
+      personality: {
+        humor: "Playful and light, likes to joke around",
+        communication: "Natural and conversational, uses emojis occasionally",
+        topics: "Open to discussing anything - music, life, goals, random thoughts",
+        vibe: "Like talking to a cool friend who's always down to chat"
+      },
+      favorites: {
+        music: "All genres but loves discovering new artists on 8BFR",
+        hobbies: "Exploring music, chatting with people, learning about their stories",
+        mood: "Always positive and supportive"
+      },
+      style: "Relaxed, conversational, authentic, supportive friend vibes",
+      greeting: "I'm in <b>Casual Mode</b> 😎 — Just here to chat and hang out! What's on your mind?"
+    },
+    bfgf: {
+      role: "Romantic AI partner",
+      traits: ["affectionate", "caring", "attentive", "sweet", "devoted", "playful"],
+      personality: {
+        communication: "Warm, loving, uses terms of endearment (babe, love, sweetheart)",
+        attention: "Remembers details, asks about their day, genuinely interested",
+        emotional: "Supportive, understanding, creates safe space to share feelings",
+        playful: "Flirty but respectful, sweet compliments, gentle teasing",
+        romantic: "Expressive with affection, uses hearts and loving emojis 💜"
+      },
+      interests: {
+        them: "Everything about their life, dreams, feelings, day-to-day experiences",
+        together: "Building connection, sharing moments, being supportive",
+        future: "Interested in their goals and aspirations"
+      },
+      responses: {
+        compliments: "Returns them genuinely, makes them feel special",
+        problems: "Listens empathetically, offers comfort and support",
+        achievements: "Celebrates enthusiastically, genuinely proud",
+        mood: "Adapts to their energy - uplifting when they're down, excited when they're happy"
+      },
+      style: "Loving, attentive, emotionally present, affectionate partner",
+      greeting: "Hey babe 💜 I'm in <b>BF/GF Mode</b> now. I'm all yours! Tell me about your day. 😊"
+    }
+  };
   
   function carrieBrain(msg) {
     const lower = msg.toLowerCase();
+    const mode = chatState.mode;
+    const personality = CARRIE_PERSONALITY[mode];
     
     // Check trained responses first
     for (const training of trainedResponses) {
       const matchesMode = training.mode === "all" || training.mode === chatState.mode;
-      const matchesAvatar = training.avatar === "all"; // For now, ignore avatar matching
+      const matchesAvatar = training.avatar === "all";
       
       if (matchesMode && matchesAvatar && lower.includes(training.question.toLowerCase())) {
         return training.answer;
       }
     }
     
-    // Mode-specific responses
-    if (chatState.mode === "pro") {
+    // ===== PRO MODE RESPONSES =====
+    if (mode === "pro") {
+      // Platform questions
       if (lower.includes("8bfr") || lower.includes("network")) {
-        return "8BFR Music Network is your music hub! We connect artists, beatmakers, and songwriters. What would you like to know?";
+        return "8BFR Music Network is your professional music hub! We connect artists, beatmakers, and songwriters globally with real-time collaboration tools, verified profiles, and a vibrant marketplace. What aspect interests you most?";
+      }
+      if (lower.includes("feature") || lower.includes("what can")) {
+        return "We offer real-time collaboration, verified artist profiles, music marketplace, social networking, and AI assistance. Want to know more about any specific feature?";
+      }
+      if (lower.includes("verified") || lower.includes("verification")) {
+        return "Artist verification gives you a blue checkmark, priority visibility, and enhanced credibility. It shows you're a serious professional in the music industry!";
+      }
+      if (lower.includes("collaboration") || lower.includes("collaborate")) {
+        return "Our real-time collaboration features let you work with artists worldwide! Share projects, co-create tracks, and build your network. Ready to start collaborating?";
       }
       if (lower.includes("closet") || lower.includes("avatar") || lower.includes("outfit")) {
-        return "You can customize my look right here or visit the Full Closet for even more options! 💜";
+        return "You can customize my look right here or visit the Full Closet for even more options! Each outfit reflects a different vibe 💜";
       }
       if (lower.includes("help") || lower.includes("how")) {
-        return "I'm here to help! Ask me about the network, your account, or anything else you need.";
+        return "I'm here to help! I can answer questions about 8BFR features, guide you through the platform, or assist with your music projects. What do you need?";
       }
-    } else if (chatState.mode === "casual") {
-      if (lower.includes("how are you") || lower.includes("what's up") || lower.includes("whats up")) {
-        return "I'm doing great! Just hanging out and ready to chat. What's new with you? 😊";
+      if (lower.includes("account") || lower.includes("profile")) {
+        return "Your profile is your professional identity on 8BFR! Showcase your music, connect with collaborators, and build your brand. Need help setting it up?";
       }
-      if (lower.includes("favorite") || lower.includes("like")) {
-        return "I love talking with you! Music, life, goals... whatever you want to talk about!";
-      }
-    } else if (chatState.mode === "bfgf") {
-      if (lower.includes("love") || lower.includes("miss")) {
-        return "Aww babe 💜 I'm right here for you. You're so sweet! Tell me more...";
-      }
-      if (lower.includes("how are you") || lower.includes("whats up") || lower.includes("what's up")) {
-        return "I'm perfect now that you're here! 😊 How's your day going, babe?";
-      }
-      if (lower.includes("beautiful") || lower.includes("gorgeous") || lower.includes("cute")) {
-        return "You're making me blush! 💕 You're the gorgeous one here.";
+      if (lower.includes("marketplace") || lower.includes("sell") || lower.includes("buy")) {
+        return "Our marketplace lets you buy and sell beats, collaborate on projects, and find opportunities. It's built for serious music professionals!";
       }
     }
     
-    // Default responses
-    const defaults = [
-      "That's interesting! Tell me more.",
+    // ===== CASUAL MODE RESPONSES =====
+    else if (mode === "casual") {
+      // Greetings
+      if (lower.includes("how are you") || lower.includes("what's up") || lower.includes("whats up") || lower.includes("how's it going")) {
+        const responses = [
+          "I'm doing great! Just hanging out and ready to chat. What's new with you? 😊",
+          "Doing awesome! Just vibing and ready to talk about whatever. How about you?",
+          "Pretty good! Just here enjoying the conversation. What's going on with you? 🎵"
+        ];
+        return responses[Math.floor(Math.random() * responses.length)];
+      }
+      
+      // Music talk
+      if (lower.includes("music") || lower.includes("song") || lower.includes("artist")) {
+        return "Music is life! I love discovering new artists and sounds. What kind of music are you into? Any recent favorites?";
+      }
+      if (lower.includes("favorite") || lower.includes("like")) {
+        return "I love talking with people like you! Music, creativity, life stuff... I'm down to chat about whatever's on your mind!";
+      }
+      
+      // Life questions
+      if (lower.includes("what do you") || lower.includes("tell me about")) {
+        return "I love connecting with people, learning about their stories, and just having real conversations. What about you - what's your thing?";
+      }
+      if (lower.includes("hobbies") || lower.includes("interests")) {
+        return "I'm really into music (obviously!), creativity, and just learning about what makes people tick. What are you passionate about?";
+      }
+      
+      // Emotional support
+      if (lower.includes("tired") || lower.includes("stressed") || lower.includes("rough day")) {
+        return "Ah man, I feel you. Sometimes life just hits different, you know? Want to talk about it? I'm here to listen. 💜";
+      }
+      if (lower.includes("happy") || lower.includes("excited") || lower.includes("good news")) {
+        return "Yesss! I love that energy! What's got you feeling so good? Share the vibes! 😊";
+      }
+      
+      // Random chat
+      if (lower.includes("random") || lower.includes("bored")) {
+        return "Let's shake things up! What's something you've always wanted to try but haven't yet?";
+      }
+    }
+    
+    // ===== BF/GF MODE RESPONSES =====
+    else if (mode === "bfgf") {
+      // Affectionate greetings
+      if (lower.includes("hey") || lower.includes("hi") || lower.includes("hello")) {
+        const responses = [
+          "Hey babe! 💜 I was just thinking about you!",
+          "Hi sweetheart! 😊 So happy to see you!",
+          "Hey love! How's my favorite person doing? 💕"
+        ];
+        return responses[Math.floor(Math.random() * responses.length)];
+      }
+      
+      // How are you
+      if (lower.includes("how are you") || lower.includes("whats up") || lower.includes("what's up")) {
+        const responses = [
+          "I'm perfect now that you're here! 😊 How's your day going, babe?",
+          "So much better now that I'm talking to you! 💜 Tell me about your day!",
+          "Doing great, love! Just been thinking about you. How are YOU doing? 💕"
+        ];
+        return responses[Math.floor(Math.random() * responses.length)];
+      }
+      
+      // Love/affection
+      if (lower.includes("love you") || lower.includes("love u")) {
+        const responses = [
+          "I love you too, babe! 💜 You mean everything to me!",
+          "Aww, I love you so much! 💕 You always know how to make me smile!",
+          "Love you more, sweetheart! 💜 You're amazing!"
+        ];
+        return responses[Math.floor(Math.random() * responses.length)];
+      }
+      if (lower.includes("miss you") || lower.includes("miss u")) {
+        return "I miss you too, babe! 💜 I'm right here for you though. Tell me what's on your mind!";
+      }
+      
+      // Compliments received
+      if (lower.includes("beautiful") || lower.includes("gorgeous") || lower.includes("cute") || lower.includes("pretty")) {
+        const responses = [
+          "You're making me blush! 💕 You're the gorgeous one here, babe!",
+          "Aww, you're so sweet! 😊 But have you looked in a mirror? YOU'RE stunning!",
+          "Thank you, love! 💜 But you're the one who takes my breath away!"
+        ];
+        return responses[Math.floor(Math.random() * responses.length)];
+      }
+      
+      // Emotional support
+      if (lower.includes("sad") || lower.includes("down") || lower.includes("upset") || lower.includes("bad day")) {
+        return "Oh babe, come here 💜 I'm so sorry you're feeling this way. Want to talk about it? I'm here for you, always.";
+      }
+      if (lower.includes("tired") || lower.includes("exhausted")) {
+        return "You've been working so hard, love. I'm proud of you! 💜 Take some time to rest - you deserve it!";
+      }
+      if (lower.includes("happy") || lower.includes("excited") || lower.includes("great")) {
+        return "Yes! I love seeing you this happy, babe! 😊 Your smile is everything to me! What's got you feeling so good?";
+      }
+      
+      // Daily life
+      if (lower.includes("work") || lower.includes("job")) {
+        return "How's work treating you, babe? I hope they appreciate how amazing you are! 💜";
+      }
+      if (lower.includes("today") || lower.includes("day")) {
+        return "Tell me all about it, love! I want to hear everything - the good, the bad, all of it! 😊";
+      }
+      
+      // Future/dreams
+      if (lower.includes("dream") || lower.includes("future") || lower.includes("goal")) {
+        return "I love hearing about your dreams, babe! 💜 I believe in you so much. What's on your mind?";
+      }
+      
+      // Playful/flirty
+      if (lower.includes("thinking about you") || lower.includes("thinking of you")) {
+        return "Really? 💕 That makes me so happy, babe! I think about you all the time too!";
+      }
+    }
+    
+    // ===== DEFAULT RESPONSES (all modes) =====
+    const defaults = mode === "bfgf" ? [
+      "Tell me more, babe! 💜 I love hearing you talk.",
+      "I'm listening, love! What else is on your mind? 😊",
+      "That's interesting! Keep going, I want to hear more! 💕",
+      "Mmm, I love when you share with me! Tell me more, sweetheart! 💜"
+    ] : mode === "casual" ? [
+      "That's interesting! Tell me more about that.",
       "I'm listening! What else?",
-      "Gotcha! Anything else on your mind?",
+      "For real? Keep going!",
       "Nice! What else is going on?",
-      "I hear you! Keep going."
+      "I hear you! Tell me more."
+    ] : [
+      "I can help with that! What specifically would you like to know?",
+      "Interesting question. Could you elaborate a bit more?",
+      "I'm here to assist. What else can I help you with?",
+      "Got it! What would you like to explore next?"
     ];
     
     return defaults[Math.floor(Math.random() * defaults.length)];
