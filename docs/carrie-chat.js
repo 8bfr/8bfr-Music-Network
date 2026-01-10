@@ -1165,15 +1165,51 @@
       if (!text) return;
       
       console.log("💬 User message:", text);
+      console.log("🎭 Current mode:", chatState.mode);
       
       // Send user message
       addMessage("user", text);
       carrieInput.value = "";
       
+      // Generate response based on mode
+      let response = "";
+      
+      if (chatState.mode === "bfgf") {
+        // BF/GF mode - romantic/flirty
+        const bfgfResponses = [
+          "Hey babe! 💕 I missed talking to you! How's your day going?",
+          "Aww, that's so sweet! 😊 You always know how to make me smile.",
+          "I love when you message me! What's on your mind, babe?",
+          "You're the best! 💜 Tell me more about what you're up to.",
+          "Hey gorgeous! So glad you're here. What do you want to talk about?"
+        ];
+        response = bfgfResponses[Math.floor(Math.random() * bfgfResponses.length)];
+      } else if (chatState.mode === "pro") {
+        // Pro mode - professional/helpful
+        const proResponses = [
+          "I'm here to help! What can I assist you with today?",
+          "Let me help you with that. What specific information do you need?",
+          "I understand. I'll do my best to provide you with accurate information.",
+          "Great question! Let me think about the best way to help you with that.",
+          "I'm ready to assist. What would you like to discuss?"
+        ];
+        response = proResponses[Math.floor(Math.random() * proResponses.length)];
+      } else {
+        // Casual mode - friendly/relaxed
+        const casualResponses = [
+          "Hey! What's up? 😊",
+          "Nice! Tell me more about that.",
+          "That's cool! What else is going on?",
+          "Awesome! How's everything else going?",
+          "Hey there! What's on your mind today?"
+        ];
+        response = casualResponses[Math.floor(Math.random() * casualResponses.length)];
+      }
+      
       // Send assistant response
       setTimeout(() => {
-        addMessage("assistant", "Hi! This is a demo response.");
-        console.log("🤖 Bot responded");
+        addMessage("assistant", response);
+        console.log("🤖 Bot responded in", chatState.mode, "mode");
       }, 800);
     });
     
