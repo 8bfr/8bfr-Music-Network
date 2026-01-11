@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Search & Network — 8BFR</title>
+<link rel="icon" href="assets/images/favicon.png">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+body{background:linear-gradient(#0b0014,#000);color:#eae6ff;font-family:system-ui;margin:0;min-height:100vh}
+.section-card{border:1px solid rgba(124,58,237,.35);background:#0c0618;border-radius:14px;box-shadow:0 0 20px rgba(124,58,237,.18);padding:1.25rem;margin-bottom:1.5rem}
+.btn{display:inline-block;background:#120327;border:1px solid rgba(124,58,237,.6);color:#eae6ff;padding:.4rem .7rem;border-radius:.6rem;text-decoration:none;transition:all .2s}
+.btn:hover{background:#190536}
+.btn-primary{background:linear-gradient(135deg,#7c3aed,#a855f7);border-color:#a855f7;color:#fff}
+.btn-primary:hover{background:linear-gradient(135deg,#6d28d9,#9333ea)}
+.search-input{width:100%;background:rgba(15,0,30,0.8);border:2px solid rgba(124,58,237,0.4);border-radius:12px;padding:1rem 1.25rem;color:#eae6ff;font-size:1.1rem;transition:all 0.2s}
+.search-input:focus{outline:none;border-color:rgba(124,58,237,0.8);box-shadow:0 0 20px rgba(124,58,237,0.3)}
+.search-input::placeholder{color:rgba(168,85,247,0.5)}
+.filter-btn{background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);color:#c084fc;padding:0.5rem 1rem;border-radius:0.75rem;font-size:0.9rem;cursor:pointer;transition:all 0.2s}
+.filter-btn:hover{background:rgba(124,58,237,0.25);border-color:rgba(124,58,237,0.5)}
+.filter-btn.active{background:rgba(124,58,237,0.4);border-color:rgba(124,58,237,0.7);color:#e9d5ff}
+.result-card{background:rgba(15,0,30,0.6);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:1rem;margin-bottom:0.75rem;transition:all 0.2s;cursor:pointer}
+.result-card:hover{background:rgba(124,58,237,0.15);border-color:rgba(124,58,237,0.5);transform:translateX(4px)}
+.result-type{display:inline-block;background:rgba(124,58,237,0.3);border:1px solid rgba(124,58,237,0.5);color:#c084fc;padding:0.25rem 0.5rem;border-radius:0.4rem;font-size:0.75rem;font-weight:600;text-transform:uppercase}
+.admin-edit-btn{display:inline-flex;align-items:center;gap:0.3rem;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.4);color:#fbbf24;padding:0.35rem 0.65rem;border-radius:0.5rem;font-size:0.8rem;cursor:pointer;transition:all 0.2s}
+.admin-edit-btn:hover{background:rgba(245,158,11,0.25);border-color:rgba(245,158,11,0.6);color:#fcd34d}
+</style>
+</head>
+<body>
+
+<header class="px-4 py-4 bg-[rgba(15,0,30,.9)] border-b border-purple-500/40 sticky top-0 z-50">
+  <div class="max-w-6xl mx-auto flex items-center justify-between">
+    <a href="index.html" class="btn">← Home</a>
+    <div class="flex items-center gap-3">
+      <h1 class="text-lg font-bold">🔍 Search & Network</h1>
+      <button class="admin-edit-btn" onclick="manageSearchSettings()">
+        ⚙️ Manage
+      </button>
+    </div>
+    <span></span>
+  </div>
+</header>
+
+<main class="max-w-6xl mx-auto px-4 py-6">
+  
+  <!-- Search Bar -->
+  <section class="section-card">
+    <div class="mb-4">
+      <input 
+        type="text" 
+        id="searchInput" 
+        class="search-input" 
+        placeholder="🔍 Search for artists, songs, posts, hashtags, users..." 
+        autocomplete="off"
+      />
+    </div>
+    
+    <!-- Search Filters -->
+    <div class="flex flex-wrap gap-2 mb-2">
+      <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">
+        All Results
+      </button>
+      <button class="filter-btn" data-filter="artists" onclick="setFilter('artists')">
+        🎤 Artists
+      </button>
+      <button class="filter-btn" data-filter="songs" onclick="setFilter('songs')">
+        🎵 Songs
+      </button>
+      <button class="filter-btn" data-filter="posts" onclick="setFilter('posts')">
+        💬 Posts
+      </button>
+      <button class="filter-btn" data-filter="users" onclick="setFilter('users')">
+        👤 Users
+      </button>
+      <button class="filter-btn" data-filter="hashtags" onclick="setFilter('hashtags')">
+        # Hashtags
+      </button>
+    </div>
+    
+    <div id="searchStats" class="text-sm text-purple-300/70 mt-3">
+      Type to search...
+    </div>
+  </section>
+
+  <!-- Search Results -->
+  <div id="searchResults">
+    <!-- Results populated by JavaScript -->
+  </div>
+
+  <!-- Default/Empty State -->
+  <div id="emptyState" class="section-card" style="display:block">
+    <div style="text-align:center;padding:3rem 1rem">
+      <div style="font-size:4rem;margin-bottom:1rem">🔍</div>
+      <h2 style="font-size:1.5rem;margin-bottom:0.5rem;color:#c084fc">Search the Network</h2>
+      <p style="color:#a855f7;opacity:0.8;margin-bottom:1.5rem">
+        Find artists, songs, posts, users, and more
+      </p>
+      <div style="max-width:500px;margin:0 auto;text-align:left">
+        <div style="margin-bottom:0.75rem">
+          <span style="color:#7c3aed;font-weight:600">💡 Try searching for:</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:0.5rem;font-size:0.9rem;color:#c084fc">
+          <div>• Artist names: <span style="color:#a855f7">"8BFR", "Nova Rae"</span></div>
+          <div>• Song titles: <span style="color:#a855f7">"Killa Bees", "Dream State"</span></div>
+          <div>• Hashtags: <span style="color:#a855f7">"#hiphop", "#beats"</span></div>
+          <div>• Topics: <span style="color:#a855f7">"producer", "artist"</span></div>
+          <div>• Badges: <span style="color:#a855f7">"beatmaker", "singer"</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script src="scripts.js?v=6" defer></script>
+
+<script>
+(function() {
+  let currentFilter = 'all';
+  let searchTimeout = null;
+  
+  const searchInput = document.getElementById('searchInput');
+  const searchResults = document.getElementById('searchResults');
+  const searchStats = document.getElementById('searchStats');
+  const emptyState = document.getElementById('emptyState');
+  
+  // Search input handler
+  searchInput.addEventListener('input', (e) => {
+    clearTimeout(searchTimeout);
+    const query = e.target.value.trim();
+    
+    if (query.length === 0) {
+      showEmptyState();
+      return;
+    }
+    
+    if (query.length < 2) {
+      searchStats.textContent = 'Type at least 2 characters...';
+      return;
+    }
+    
+    // Debounce search
+    searchTimeout = setTimeout(() => {
+      performSearch(query);
+    }, 300);
+  });
+  
+  // Filter buttons
+  window.setFilter = function(filter) {
+    currentFilter = filter;
+    
+    // Update active button
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.filter === filter);
+    });
+    
+    // Re-run search if there's a query
+    const query = searchInput.value.trim();
+    if (query.length >= 2) {
+      performSearch(query);
+    }
+  };
+  
+  // Perform search
+  function performSearch(query) {
+    const results = {
+      artists: [],
+      songs: [],
+      posts: [],
+      users: [],
+      hashtags: []
+    };
+    
+    const lowerQuery = query.toLowerCase();
+    
+    // Search profiles
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      
+      if (key.startsWith('profile_')) {
+        try {
+          const profile = JSON.parse(localStorage.getItem(key) || '{}');
+          const name = (profile.name || '').toLowerCase();
+          const bio = (profile.bio || '').toLowerCase();
+          const badges = profile.badges || [];
+          
+          // Check if profile matches query
+          const matchesName = name.includes(lowerQuery);
+          const matchesBio = bio.includes(lowerQuery);
+          const matchesBadge = badges.some(b => b.toLowerCase().includes(lowerQuery));
+          
+          if (matchesName || matchesBio || matchesBadge) {
+            const isArtist = badges.includes('artist') || badges.includes('beatmaker');
+            
+            const result = {
+              type: isArtist ? 'artist' : 'user',
+              id: key.replace('profile_', ''),
+              name: profile.name || 'Unknown',
+              emoji: getBadgeEmoji(badges),
+              badge: badges[0] || 'user',
+              verified: profile.verified === true,
+              bio: profile.bio || '',
+              matchReason: matchesName ? 'name' : matchesBadge ? 'badge' : 'bio'
+            };
+            
+            if (isArtist) {
+              results.artists.push(result);
+            } else {
+              results.users.push(result);
+            }
+          }
+          
+          // Search tracks
+          if (profile.tracks && profile.tracks.length > 0) {
+            profile.tracks.forEach(track => {
+              const title = (track.title || '').toLowerCase();
+              if (title.includes(lowerQuery)) {
+                results.songs.push({
+                  type: 'song',
+                  title: track.title || 'Untitled',
+                  url: track.url,
+                  artist: profile.name || 'Unknown',
+                  artistId: key.replace('profile_', ''),
+                  emoji: getBadgeEmoji(badges),
+                  verified: profile.verified === true
+                });
+              }
+            });
+          }
+        } catch(e) {}
+      }
+      
+      // Search posts (if you have posts in localStorage)
+      if (key.startsWith('post_')) {
+        try {
+          const post = JSON.parse(localStorage.getItem(key) || '{}');
+          const content = (post.content || '').toLowerCase();
+          const hashtags = post.hashtags || [];
+          
+          if (content.includes(lowerQuery)) {
+            results.posts.push({
+              type: 'post',
+              id: key.replace('post_', ''),
+              content: post.content,
+              author: post.author || 'Anonymous',
+              timestamp: post.timestamp || Date.now(),
+              hashtags: hashtags
+            });
+          }
+          
+          // Extract hashtags
+          hashtags.forEach(tag => {
+            if (tag.toLowerCase().includes(lowerQuery)) {
+              if (!results.hashtags.find(h => h.tag === tag)) {
+                results.hashtags.push({
+                  type: 'hashtag',
+                  tag: tag,
+                  count: 1 // TODO: Count actual usage
+                });
+              }
+            }
+          });
+        } catch(e) {}
+      }
+    }
+    
+    // Filter results based on current filter
+    displayResults(results, query);
+  }
+  
+  // Display search results
+  function displayResults(results, query) {
+    emptyState.style.display = 'none';
+    searchResults.innerHTML = '';
+    
+    let totalResults = 0;
+    
+    // Count total results
+    if (currentFilter === 'all') {
+      totalResults = results.artists.length + results.songs.length + 
+                     results.posts.length + results.users.length + 
+                     results.hashtags.length;
+    } else {
+      totalResults = results[currentFilter].length;
+    }
+    
+    // Update stats
+    searchStats.textContent = `Found ${totalResults} result${totalResults !== 1 ? 's' : ''} for "${query}"`;
+    
+    if (totalResults === 0) {
+      searchResults.innerHTML = `
+        <div class="section-card" style="text-align:center;padding:3rem 1rem">
+          <div style="font-size:3rem;margin-bottom:1rem;opacity:0.5">🔍</div>
+          <div style="font-size:1.1rem;color:#a855f7;margin-bottom:0.5rem">No results found</div>
+          <div style="font-size:0.9rem;color:#a855f7;opacity:0.7">Try different keywords or filters</div>
+        </div>
+      `;
+      return;
+    }
+    
+    // Display results by category
+    if (currentFilter === 'all' || currentFilter === 'artists') {
+      if (results.artists.length > 0) {
+        searchResults.innerHTML += createResultSection('Artists', results.artists, renderArtistResult);
+      }
+    }
+    
+    if (currentFilter === 'all' || currentFilter === 'songs') {
+      if (results.songs.length > 0) {
+        searchResults.innerHTML += createResultSection('Songs', results.songs, renderSongResult);
+      }
+    }
+    
+    if (currentFilter === 'all' || currentFilter === 'posts') {
+      if (results.posts.length > 0) {
+        searchResults.innerHTML += createResultSection('Posts', results.posts, renderPostResult);
+      }
+    }
+    
+    if (currentFilter === 'all' || currentFilter === 'users') {
+      if (results.users.length > 0) {
+        searchResults.innerHTML += createResultSection('Users', results.users, renderUserResult);
+      }
+    }
+    
+    if (currentFilter === 'all' || currentFilter === 'hashtags') {
+      if (results.hashtags.length > 0) {
+        searchResults.innerHTML += createResultSection('Hashtags', results.hashtags, renderHashtagResult);
+      }
+    }
+  }
+  
+  // Create result section
+  function createResultSection(title, items, renderFunc) {
+    const emoji = {
+      'Artists': '🎤',
+      'Songs': '🎵',
+      'Posts': '💬',
+      'Users': '👤',
+      'Hashtags': '#'
+    }[title] || '';
+    
+    return `
+      <div class="section-card">
+        <h3 class="text-xl font-bold mb-3">${emoji} ${title} (${items.length})</h3>
+        <div class="space-y-2">
+          ${items.map(renderFunc).join('')}
+        </div>
+      </div>
+    `;
+  }
+  
+  // Render artist result
+  function renderArtistResult(artist) {
+    return `
+      <div class="result-card" onclick="window.location.href='profile.html?id=${artist.id}'">
+        <div style="display:flex;align-items:center;gap:1rem">
+          <div style="width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0">
+            ${artist.emoji}
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.25rem">
+              <span class="result-type">Artist</span>
+              <span style="font-weight:700;font-size:1rem">${artist.name}</span>
+              ${artist.verified ? '<span style="color:#00d9ff;font-size:0.9rem">🛡️</span>' : ''}
+            </div>
+            <div style="font-size:0.85rem;color:#a855f7">
+              ${getBadgeLabel(artist.badge)}
+            </div>
+          </div>
+          <div style="color:#a855f7;opacity:0.6">→</div>
+        </div>
+      </div>
+    `;
+  }
+  
+  // Render song result
+  function renderSongResult(song) {
+    return `
+      <div class="result-card" onclick="window.open('${song.url}', '_blank')">
+        <div style="display:flex;align-items:center;gap:1rem">
+          <div style="width:50px;height:50px;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0">
+            ${song.emoji}
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.25rem">
+              <span class="result-type">Song</span>
+              <span style="font-weight:700;font-size:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${song.title}</span>
+            </div>
+            <div style="font-size:0.85rem;color:#a855f7;display:flex;align-items:center;gap:0.4rem">
+              <span>${song.artist}</span>
+              ${song.verified ? '<span style="color:#00d9ff">🛡️</span>' : ''}
+            </div>
+          </div>
+          <div style="color:#7c3aed">▶️</div>
+        </div>
+      </div>
+    `;
+  }
+  
+  // Render post result
+  function renderPostResult(post) {
+    const preview = post.content.substring(0, 100) + (post.content.length > 100 ? '...' : '');
+    return `
+      <div class="result-card" onclick="window.location.href='feed.html#post_${post.id}'">
+        <div style="display:flex;align-items:start;gap:1rem">
+          <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">
+            💬
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem">
+              <span class="result-type">Post</span>
+              <span style="font-weight:600;font-size:0.9rem">${post.author}</span>
+            </div>
+            <div style="font-size:0.9rem;line-height:1.4;margin-bottom:0.5rem">${preview}</div>
+            ${post.hashtags.length > 0 ? `
+              <div style="font-size:0.8rem;color:#a855f7">
+                ${post.hashtags.map(tag => `<span style="margin-right:0.5rem">#${tag}</span>`).join('')}
+              </div>
+            ` : ''}
+          </div>
+          <div style="color:#a855f7;opacity:0.6">→</div>
+        </div>
+      </div>
+    `;
+  }
+  
+  // Render user result
+  function renderUserResult(user) {
+    return `
+      <div class="result-card" onclick="window.location.href='profile.html?id=${user.id}'">
+        <div style="display:flex;align-items:center;gap:1rem">
+          <div style="width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0">
+            ${user.emoji}
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.25rem">
+              <span class="result-type">User</span>
+              <span style="font-weight:700;font-size:1rem">${user.name}</span>
+              ${user.verified ? '<span style="color:#00d9ff;font-size:0.9rem">🛡️</span>' : ''}
+            </div>
+            <div style="font-size:0.85rem;color:#a855f7">
+              ${getBadgeLabel(user.badge)}
+            </div>
+          </div>
+          <div style="color:#a855f7;opacity:0.6">→</div>
+        </div>
+      </div>
+    `;
+  }
+  
+  // Render hashtag result
+  function renderHashtagResult(hashtag) {
+    return `
+      <div class="result-card" onclick="searchByHashtag('${hashtag.tag}')">
+        <div style="display:flex;align-items:center;gap:1rem">
+          <div style="width:50px;height:50px;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0">
+            #
+          </div>
+          <div style="flex:1">
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.25rem">
+              <span class="result-type">Hashtag</span>
+              <span style="font-weight:700;font-size:1rem">#${hashtag.tag}</span>
+            </div>
+            <div style="font-size:0.85rem;color:#a855f7">
+              ${hashtag.count} post${hashtag.count !== 1 ? 's' : ''}
+            </div>
+          </div>
+          <div style="color:#a855f7;opacity:0.6">→</div>
+        </div>
+      </div>
+    `;
+  }
+  
+  // Helper functions
+  function getBadgeEmoji(badges) {
+    if (!badges || !badges.length) return '👤';
+    const emojiMap = {
+      'artist': '🎤', 'beatmaker': '🎚️', 'producer': '🎧', 
+      'singer': '🎙️', 'dj': '📀', 'musician': '🎸',
+      'author': '📖', 'blogger': '📰', 'developer': '🧠',
+      'streamer': '📡', 'gamer': '🎮', 'influencer': '💫',
+      'fan': '💎'
+    };
+    return emojiMap[badges[0]] || '👤';
+  }
+  
+  function getBadgeLabel(badge) {
+    const labelMap = {
+      'artist': 'Artist', 'beatmaker': 'Beatmaker', 'producer': 'Producer',
+      'singer': 'Singer', 'dj': 'DJ', 'musician': 'Musician',
+      'author': 'Author', 'blogger': 'Blogger', 'developer': 'Developer',
+      'streamer': 'Streamer', 'gamer': 'Gamer', 'influencer': 'Influencer',
+      'fan': 'Fan', 'user': 'User'
+    };
+    return labelMap[badge] || 'User';
+  }
+  
+  function showEmptyState() {
+    searchResults.innerHTML = '';
+    emptyState.style.display = 'block';
+    searchStats.textContent = 'Type to search...';
+  }
+  
+  window.searchByHashtag = function(tag) {
+    searchInput.value = '#' + tag;
+    setFilter('posts');
+    performSearch('#' + tag);
+  };
+  
+})();
+</script>
+
+<!-- Admin Management Function -->
+<script>
+  function manageSearchSettings() {
+    alert('Search Settings Management\n\nWire up functionality here:\n- Configure search indexing\n- Manage searchable fields\n- Set search permissions\n- Customize result ordering');
+    // TODO: Implement management UI
+  }
+</script>
+
+</body>
+</html>
