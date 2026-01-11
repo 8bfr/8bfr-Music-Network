@@ -467,7 +467,7 @@
       // Initialize mock radio data if empty (for demo)
       function initMockRadioData() {
         const hasArtistProfiles = Array.from({length: localStorage.length}, (_, i) => localStorage.key(i))
-          .some(key => key.startsWith('profile_artist_'));
+          .some(key => key.startsWith('profile_') && !key.includes('settings'));
         
         if (hasArtistProfiles) return; // Real data exists
         
@@ -476,8 +476,14 @@
           {
             id: 'demo_artist_1',
             name: '8BFR',
-            emoji: '🎧',
-            badges: ['artist'],
+            emoji: '🎤',
+            badges: ['artist', 'verified', 'founder'],
+            verified: true,
+            verification: {
+              type: 'artist',
+              link: 'https://open.spotify.com/artist/127tw52iDXr7BvgB0IGG2x',
+              status: 'approved'
+            },
             tracks: [
               { title: 'Killa Bees', url: 'https://open.spotify.com/track/2x1sJyFdgcRDh9zlGSqNsa?si=ruJ0reA1SaWOBMmD1B8b4w' },
               { title: 'Purple Dreams', url: 'https://open.spotify.com/track/demo2' }
@@ -487,17 +493,29 @@
             id: 'demo_artist_2',
             name: 'Nova Rae',
             emoji: '🎤',
-            badges: ['artist'],
+            badges: ['artist', 'verified'],
+            verified: true,
+            verification: {
+              type: 'artist',
+              link: 'https://music.apple.com/artist/novarae',
+              status: 'approved'
+            },
             tracks: [
               { title: 'Dream State', url: 'https://open.spotify.com/track/demo3' },
               { title: 'Midnight Vibes', url: 'https://open.spotify.com/track/demo4' }
             ]
           },
           {
-            id: 'demo_artist_3',
+            id: 'demo_beatmaker_1',
             name: 'K. Drip',
-            emoji: '🎹',
-            badges: ['artist'],
+            emoji: '🎚️',
+            badges: ['beatmaker', 'verified'],
+            verified: true,
+            verification: {
+              type: 'beatmaker',
+              link: 'https://soundcloud.com/kdrip',
+              status: 'approved'
+            },
             tracks: [
               { title: 'Vapor Loop', url: 'https://open.spotify.com/track/demo5' },
               { title: 'Neon Nights', url: 'https://open.spotify.com/track/demo6' }
@@ -507,7 +525,7 @@
         
         mockArtists.forEach(artist => {
           try {
-            localStorage.setItem(`profile_artist_${artist.id}`, JSON.stringify(artist));
+            localStorage.setItem(`profile_${artist.id}`, JSON.stringify(artist));
           } catch(e) {}
         });
         
@@ -523,11 +541,28 @@
         
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i);
-          if (!key.startsWith('profile_artist_')) continue;
+          if (!key.startsWith('profile_')) continue;
           
           try {
             const profile = JSON.parse(localStorage.getItem(key) || '{}');
-            if (!profile.badges || !profile.badges.includes('artist')) continue;
+            
+            // Check for artist OR beatmaker badge
+            const hasCreatorBadge = 
+              profile.badges && (
+                profile.badges.includes('artist') || 
+                profile.badges.includes('beatmaker')
+              );
+            
+            // Check verified status
+            const isVerified = profile.verified === true;
+            
+            // Must have both to show in radio
+            if (!hasCreatorBadge || !isVerified) continue;
+            
+            // Determine badge emoji
+            let badgeEmoji = '🎵';
+            if (profile.badges.includes('artist')) badgeEmoji = '🎤';
+            else if (profile.badges.includes('beatmaker')) badgeEmoji = '🎚️';
             
             const profileTracks = profile.tracks || [];
             profileTracks.forEach(track => {
@@ -535,8 +570,8 @@
               tracks.push({
                 title: track.title || 'Untitled Track',
                 artist: profile.name || 'Unknown Artist',
-                emoji: profile.emoji || '🎵',
-                verified: true
+                emoji: badgeEmoji,
+                verified: isVerified
               });
               artists.add(profile.name || 'Unknown Artist');
             });
