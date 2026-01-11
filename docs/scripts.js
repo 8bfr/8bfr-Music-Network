@@ -583,7 +583,7 @@ body.menu-open #carrieWrap{
     <div class="menu-group-title">Home & Core</div>
     <div class="menu-links">
       <a href="index.html" class="menu-chip">Home</a>
-      <a href="network.html" class="menu-chip menu-chip-network">
+      <a href="search.html" class="menu-chip menu-chip-network">
         <span class="menu-label-main">Network</span>
         <span class="menu-label-alt">Search</span>
       </a>
