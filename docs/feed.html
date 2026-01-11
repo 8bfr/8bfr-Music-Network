@@ -403,6 +403,101 @@
 </main>
 
 <script>
+// ===== 8BFR ALGORITHM - SCORE CALCULATION =====
+
+/**
+ * Calculate post score based on 8BFR For You Page Algorithm
+ * Higher score = higher placement
+ */
+function calculatePostScore(post) {
+  let score = 0;
+  
+  // Get post data
+  const interactions = getInteractions()[post.id] || {
+    views: Math.floor(Math.random() * 1000),
+    likes: Math.floor(Math.random() * 500),
+    comments: [],
+    shares: Math.floor(Math.random() * 50),
+    saves: Math.floor(Math.random() * 100),
+    reposts: Math.floor(Math.random() * 50),
+    follows: Math.floor(Math.random() * 20)
+  };
+  
+  // 1. BASE ENGAGEMENT POINTS
+  score += interactions.views * 1;           // +1 per view
+  score += interactions.likes * 5;           // +5 per like
+  score += interactions.comments.length * 8; // +8 per comment
+  score += interactions.saves * 10;          // +10 per save
+  score += interactions.shares * 12;         // +12 per share
+  score += interactions.reposts * 15;        // +15 per repost
+  score += interactions.follows * 20;        // +20 per follow from post
+  
+  // 2. CREATOR REPUTATION BOOST (0-100)
+  const creatorRep = post.verified ? 85 : 60; // Verified = higher rep
+  const repBoost = creatorRep * 0.2;
+  score += repBoost;
+  
+  // 3. CONTENT TYPE WEIGHTING
+  let contentWeight = 1.0;
+  if (post.mediaType === 'video') {
+    contentWeight = 1.25; // Video performance
+  } else if (post.mediaType === 'image') {
+    contentWeight = 1.15; // Image post
+  } else if (!post.media && post.text) {
+    contentWeight = 0.90; // Text-only
+  }
+  score *= contentWeight;
+  
+  // 4. FRESHNESS & TIME DECAY
+  const now = Date.now();
+  const ageMs = now - post.timestamp;
+  const ageHours = ageMs / (1000 * 60 * 60);
+  const ageDays = ageHours / 24;
+  
+  let decayFactor = 1.0;
+  if (ageHours <= 6) {
+    decayFactor = 1.0; // No decay (0-6 hours)
+  } else if (ageHours <= 24) {
+    const hoursOver6 = ageHours - 6;
+    decayFactor = 1.0 - (hoursOver6 * 0.05); // -5% per hour
+  } else if (ageDays <= 3) {
+    decayFactor = 1.0 - ((ageDays - 1) * 0.10); // -10% per day
+  } else if (ageDays <= 7) {
+    decayFactor = 1.0 - ((ageDays - 3) * 0.20); // -20% per day
+  } else {
+    decayFactor = 0.1; // Soft-archived (7+ days)
+  }
+  decayFactor = Math.max(0.1, decayFactor); // Minimum 10%
+  score *= decayFactor;
+  
+  // 5. VELOCITY BOOST (TRENDING DETECTION)
+  // High engagement in short time = trending
+  const engagementRate = (interactions.likes + interactions.comments.length + interactions.shares) / Math.max(ageHours, 1);
+  if (engagementRate > 10) { // Threshold for trending
+    const velocityBonus = engagementRate * 5;
+    score += velocityBonus;
+  }
+  
+  // 6. ENGAGEMENT QUALITY MULTIPLIER
+  let userMultiplier = 1.0;
+  if (post.verified) userMultiplier = 1.25; // Verified user
+  score *= userMultiplier;
+  
+  return Math.round(score);
+}
+
+/**
+ * Sort posts by algorithm score (higher = better)
+ */
+function sortPostsByAlgorithm(posts) {
+  return posts.map(post => {
+    return {
+      ...post,
+      algorithmScore: calculatePostScore(post)
+    };
+  }).sort((a, b) => b.algorithmScore - a.algorithmScore);
+}
+
 // ===== DATA STORAGE =====
 const POSTS_KEY = 'feed_posts_v2';
 const INTERACTIONS_KEY = 'feed_interactions_v2';
@@ -451,8 +546,7 @@ function initializeMockData() {
       text: 'Just dropped a new beat! 🔥 What y\'all think?',
       media: null,
       mediaType: null,
-      timestamp: Date.now() - 3600000,
-      algorithmScore: 95,
+      timestamp: Date.now() - 3600000, // 1 hour ago (fresh = high score)
       isFriend: true
     },
     {
@@ -464,8 +558,7 @@ function initializeMockData() {
       text: 'Recording session vibes ✨',
       media: 'https://via.placeholder.com/600x400/7c3aed/ffffff?text=Studio+Session',
       mediaType: 'image',
-      timestamp: Date.now() - 7200000,
-      algorithmScore: 88,
+      timestamp: Date.now() - 7200000, // 2 hours ago
       isFriend: false
     },
     {
@@ -477,8 +570,7 @@ function initializeMockData() {
       text: 'New track coming soon! Who wants to collab?',
       media: null,
       mediaType: null,
-      timestamp: Date.now() - 10800000,
-      algorithmScore: 92,
+      timestamp: Date.now() - 10800000, // 3 hours ago
       isFriend: true
     },
     {
@@ -490,8 +582,7 @@ function initializeMockData() {
       text: 'Freestyle Friday! Drop your bars in the comments 🔥',
       media: 'https://via.placeholder.com/600x800/a855f7/ffffff?text=Freestyle+Video',
       mediaType: 'video',
-      timestamp: Date.now() - 14400000,
-      algorithmScore: 97,
+      timestamp: Date.now() - 14400000, // 4 hours ago
       isFriend: false
     },
     {
@@ -503,13 +594,51 @@ function initializeMockData() {
       text: 'Live set tonight at 9PM! See you there 🎉',
       media: 'https://via.placeholder.com/600x400/00d9ff/ffffff?text=Live+DJ+Set',
       mediaType: 'image',
-      timestamp: Date.now() - 18000000,
-      algorithmScore: 85,
+      timestamp: Date.now() - 18000000, // 5 hours ago
       isFriend: true
     }
   ];
   
   savePosts(mockPosts);
+  
+  // Initialize engagement data for algorithm scoring
+  const mockInteractions = {};
+  mockPosts.forEach((post, index) => {
+    mockInteractions[post.id] = {
+      views: 500 + (index * 100),
+      liked: false,
+      likes: 245 - (index * 30),
+      comments: generateMockComments(3 - Math.floor(index / 2)),
+      shares: 15 - (index * 2),
+      saves: 50 - (index * 5),
+      reposts: 10 - index,
+      reposted: false,
+      favorited: false,
+      favorites: 89 - (index * 10),
+      following: false,
+      follows: 5 - index
+    };
+  });
+  
+  saveInteractions(mockInteractions);
+}
+
+function generateMockComments(count) {
+  const comments = [];
+  const usernames = ['ProducerLife', 'VocalQueen', 'MCFlow', 'DJSpinMaster'];
+  const avatars = ['🎹', '🎤', '🎙️', '💿'];
+  const texts = ['Fire! 🔥', 'This is dope!', 'Let\'s collab!', 'Sick beat!', 'Love this!'];
+  
+  for (let i = 0; i < count; i++) {
+    comments.push({
+      username: usernames[i % usernames.length],
+      avatar: avatars[i % avatars.length],
+      text: texts[i % texts.length],
+      timestamp: Date.now() - (i * 600000) // Staggered times
+    });
+  }
+  
+  return comments;
 }
 
 // ===== TAB SWITCHING =====
@@ -537,8 +666,8 @@ function renderFeed() {
     filteredPosts = posts.filter(p => p.isFriend);
   }
   
-  // Sort by algorithm score (higher first)
-  filteredPosts.sort((a, b) => b.algorithmScore - a.algorithmScore);
+  // Sort by 8BFR ALGORITHM (real scoring)
+  filteredPosts = sortPostsByAlgorithm(filteredPosts);
   
   const feedEl = $('#feed');
   
