@@ -398,12 +398,223 @@
 
   <!-- Radio preview -->
   <section class="max-w-6xl mx-auto px-4 mt-6 section-card p-5">
-    <h3 class="text-xl font-bold mb-2">📻 8BFR Radio</h3>
-    <p class="text-sm opacity-85 mb-3">
-      Auto-plays songs uploaded across all artist and beatmaker profiles.
-    </p>
-    <a href="radio.html" class="btn btn-primary">Open Radio</a>
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-xl font-bold">📻 8BFR Radio</h3>
+      <div class="flex items-center gap-2">
+        <span class="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+        <span class="text-xs text-red-400 font-semibold">LIVE</span>
+      </div>
+    </div>
+    
+    <!-- Stats Bar -->
+    <div class="flex gap-4 mb-4 text-sm">
+      <div class="flex items-center gap-2">
+        <span class="text-purple-400">🎵</span>
+        <span class="text-purple-200/80"><span id="homeRadioTracks" class="font-bold text-purple-300">0</span> Tracks</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-purple-400">🎤</span>
+        <span class="text-purple-200/80"><span id="homeRadioArtists" class="font-bold text-purple-300">0</span> Artists</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-purple-400">▶️</span>
+        <span class="text-purple-200/80"><span id="homeRadioPlays" class="font-bold text-purple-300">0</span> Plays</span>
+      </div>
+    </div>
+    
+    <!-- Now Playing -->
+    <div id="homeNowPlaying" style="background: rgba(124, 58, 237, 0.15); border: 1px solid rgba(124, 58, 237, 0.3); border-radius: 12px; padding: 1rem; margin-bottom: 1rem; display: none;">
+      <div style="display: flex; align-items: center; gap: 1rem;">
+        <div style="width: 50px; height: 50px; border-radius: 8px; background: linear-gradient(135deg, #7c3aed, #a855f7); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0;">
+          <span id="homeNowPlayingEmoji">🎵</span>
+        </div>
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-size: 0.7rem; color: #a855f7; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">
+            ▶️ Now Playing
+          </div>
+          <div style="font-weight: 700; font-size: 1rem; margin-bottom: 0.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" id="homeNowPlayingTitle">
+            Loading...
+          </div>
+          <div style="font-size: 0.85rem; color: #a855f7; display: flex; align-items: center; gap: 0.5rem;">
+            <span id="homeNowPlayingArtist">Artist Name</span>
+            <span style="color: #00d9ff;">✓</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Track List Preview -->
+    <div id="homeRadioTracks" style="margin-bottom: 1rem;">
+      <div style="font-size: 0.85rem; color: #a855f7; margin-bottom: 0.75rem; font-weight: 600;">
+        🎶 Featured Tracks:
+      </div>
+      <div id="homeTrackList" style="display: flex; flex-direction: column; gap: 0.5rem;">
+        <!-- Tracks populated by JS -->
+      </div>
+    </div>
+    
+    <div class="flex gap-2 flex-wrap">
+      <a href="radio.html" class="btn btn-primary">🎧 Listen Now</a>
+      <div style="font-size: 0.8rem; color: #a855f7; opacity: 0.8; padding: 0.55rem 0;">
+        Non-stop music from verified artists
+      </div>
+    </div>
   </section>
+
+  <script>
+    // Radio preview for homepage
+    (function(){
+      // Initialize mock radio data if empty (for demo)
+      function initMockRadioData() {
+        const hasArtistProfiles = Array.from({length: localStorage.length}, (_, i) => localStorage.key(i))
+          .some(key => key.startsWith('profile_artist_'));
+        
+        if (hasArtistProfiles) return; // Real data exists
+        
+        // Create mock artist profiles for demo
+        const mockArtists = [
+          {
+            id: 'demo_artist_1',
+            name: '8BFR',
+            emoji: '🎧',
+            badges: ['artist'],
+            tracks: [
+              { title: 'Killa Bees', url: 'https://open.spotify.com/track/demo1' },
+              { title: 'Purple Dreams', url: 'https://open.spotify.com/track/demo2' }
+            ]
+          },
+          {
+            id: 'demo_artist_2',
+            name: 'Nova Rae',
+            emoji: '🎤',
+            badges: ['artist'],
+            tracks: [
+              { title: 'Dream State', url: 'https://open.spotify.com/track/demo3' },
+              { title: 'Midnight Vibes', url: 'https://open.spotify.com/track/demo4' }
+            ]
+          },
+          {
+            id: 'demo_artist_3',
+            name: 'K. Drip',
+            emoji: '🎹',
+            badges: ['artist'],
+            tracks: [
+              { title: 'Vapor Loop', url: 'https://open.spotify.com/track/demo5' },
+              { title: 'Neon Nights', url: 'https://open.spotify.com/track/demo6' }
+            ]
+          }
+        ];
+        
+        mockArtists.forEach(artist => {
+          try {
+            localStorage.setItem(`profile_artist_${artist.id}`, JSON.stringify(artist));
+          } catch(e) {}
+        });
+        
+        // Set initial play count for demo
+        if (!localStorage.getItem('radio_plays')) {
+          localStorage.setItem('radio_plays', '1247');
+        }
+      }
+      
+      function collectRadioTracks() {
+        const tracks = [];
+        const artists = new Set();
+        
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (!key.startsWith('profile_artist_')) continue;
+          
+          try {
+            const profile = JSON.parse(localStorage.getItem(key) || '{}');
+            if (!profile.badges || !profile.badges.includes('artist')) continue;
+            
+            const profileTracks = profile.tracks || [];
+            profileTracks.forEach(track => {
+              if (!track.url) return;
+              tracks.push({
+                title: track.title || 'Untitled Track',
+                artist: profile.name || 'Unknown Artist',
+                emoji: profile.emoji || '🎵',
+                verified: true
+              });
+              artists.add(profile.name || 'Unknown Artist');
+            });
+          } catch(e) {}
+        }
+        
+        return { tracks, artistCount: artists.size };
+      }
+      
+      // Initialize mock data for demo
+      initMockRadioData();
+      
+      // Get data
+      const { tracks, artistCount } = collectRadioTracks();
+      const totalPlays = parseInt(localStorage.getItem('radio_plays') || '0');
+      
+      // Update stats
+      const trackCountEl = document.getElementById('homeRadioTracks');
+      const artistCountEl = document.getElementById('homeRadioArtists');
+      const playsEl = document.getElementById('homeRadioPlays');
+      
+      if (trackCountEl) trackCountEl.textContent = tracks.length;
+      if (artistCountEl) artistCountEl.textContent = artistCount;
+      if (playsEl) playsEl.textContent = totalPlays.toLocaleString();
+      
+      // Show now playing (simulate)
+      if (tracks.length > 0) {
+        const nowPlayingSection = document.getElementById('homeNowPlaying');
+        const currentTrack = tracks[Math.floor(Math.random() * tracks.length)];
+        
+        if (nowPlayingSection) {
+          document.getElementById('homeNowPlayingEmoji').textContent = currentTrack.emoji;
+          document.getElementById('homeNowPlayingTitle').textContent = currentTrack.title;
+          document.getElementById('homeNowPlayingArtist').textContent = currentTrack.artist;
+          nowPlayingSection.style.display = 'block';
+        }
+      }
+      
+      // Show track list (5 random tracks)
+      const trackListEl = document.getElementById('homeTrackList');
+      if (trackListEl) {
+        if (tracks.length === 0) {
+          trackListEl.innerHTML = `
+            <div style="text-align: center; padding: 2rem 1rem; color: #a855f7; opacity: 0.7;">
+              <div style="font-size: 3rem; margin-bottom: 0.5rem;">📻</div>
+              <div style="font-size: 0.9rem; margin-bottom: 0.25rem;">No tracks available yet</div>
+              <div style="font-size: 0.8rem;">Artists with verified badges can upload tracks!</div>
+            </div>
+          `;
+        } else {
+          // Show up to 5 random tracks
+          const displayTracks = tracks
+            .sort(() => Math.random() - 0.5)
+            .slice(0, 5);
+          
+          trackListEl.innerHTML = displayTracks.map(track => `
+            <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; background: rgba(124, 58, 237, 0.05); border-radius: 8px; border: 1px solid rgba(124, 58, 237, 0.2); transition: all 0.2s; cursor: pointer;" onmouseover="this.style.background='rgba(124, 58, 237, 0.15)'; this.style.borderColor='rgba(124, 58, 237, 0.4)';" onmouseout="this.style.background='rgba(124, 58, 237, 0.05)'; this.style.borderColor='rgba(124, 58, 237, 0.2)';">
+              <div style="width: 35px; height: 35px; border-radius: 6px; background: linear-gradient(135deg, #7c3aed, #a855f7); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0;">
+                ${track.emoji}
+              </div>
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                  ${track.title}
+                </div>
+                <div style="font-size: 0.75rem; color: #a855f7; display: flex; align-items: center; gap: 0.3rem;">
+                  <span>${track.artist}</span>
+                  ${track.verified ? '<span style="color: #00d9ff;">✓</span>' : ''}
+                </div>
+              </div>
+              <div style="color: #a855f7; font-size: 0.9rem; opacity: 0.6;">
+                🎵
+              </div>
+            </div>
+          `).join('');
+        }
+      }
+    })();
+  </script>
 
   <!-- Donate -->
   <section id="donate" class="max-w-6xl mx-auto px-4 mt-6 section-card p-5">
