@@ -588,6 +588,7 @@ body.menu-open #carrieWrap{
         <span class="menu-label-alt">Search</span>
       </a>
       <a href="featured.html" class="menu-chip">Featured</a>
+      <a href="featured_songs.html" class="menu-chip">Featured Songs</a>
       <a href="feed.html" class="menu-chip">Community Feed</a>
       <a href="radio.html" class="menu-chip">Radio</a>
       <a href="podcast.html" class="menu-chip">Podcast</a>
