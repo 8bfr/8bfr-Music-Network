@@ -1,0 +1,633 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Story — 8BFR</title>
+<link rel="icon" href="assets/images/favicon.png">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #000;
+  color: #fff;
+  font-family: system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+}
+
+#storyContainer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#storyContent {
+  position: relative;
+  width: 100%;
+  max-width: 500px;
+  height: 100%;
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  display: flex;
+  flex-direction: column;
+}
+
+.story-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 1rem;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
+  z-index: 10;
+}
+
+.progress-bars {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 1rem;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #fff;
+  width: 0%;
+  transition: width 0.1s linear;
+}
+
+.story-user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.story-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  object-fit: cover;
+}
+
+.story-username {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.story-time {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.close-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  color: #fff;
+  font-size: 1.25rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.close-btn:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.story-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  position: relative;
+}
+
+.story-text {
+  font-size: 1.5rem;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.4;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  max-width: 90%;
+}
+
+.story-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.story-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 1.5rem;
+  background: linear-gradient(to top, rgba(0,0,0,0.5), transparent);
+  z-index: 10;
+}
+
+.story-views {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+}
+
+.reply-input {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.reply-input input {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border-radius: 50px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  color: #fff;
+  font-size: 0.9rem;
+}
+
+.reply-input input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.reply-input input:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.reply-btn {
+  padding: 0.75rem 1.25rem;
+  border-radius: 50px;
+  border: none;
+  background: #7c3aed;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.reply-btn:hover {
+  background: #6d28d9;
+}
+
+.nav-area {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 35%;
+  z-index: 5;
+  cursor: pointer;
+  user-select: none;
+}
+
+.nav-area.left {
+  left: 0;
+}
+
+.nav-area.right {
+  right: 0;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 2rem;
+}
+</style>
+</head>
+<body>
+
+<div id="storyContainer">
+  <div id="storyContent">
+    <button class="close-btn" onclick="closeViewer()">✕</button>
+    
+    <div class="story-header">
+      <div class="progress-bars" id="progressBars"></div>
+      <div class="story-user-info">
+        <img id="userAvatar" class="story-avatar" src="" alt="">
+        <div style="flex: 1;">
+          <div class="story-username" id="username"></div>
+          <div class="story-time" id="storyTime"></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="story-body" id="storyBody">
+      <div class="loading">⏳</div>
+    </div>
+    
+    <div class="story-footer">
+      <div class="story-views" id="storyViews"></div>
+      <div class="reply-input">
+        <input type="text" id="replyInput" placeholder="Reply to story...">
+        <button class="reply-btn" onclick="sendReply()">Send</button>
+      </div>
+    </div>
+    
+    <!-- Navigation areas -->
+    <div class="nav-area left" onclick="previousStory()"></div>
+    <div class="nav-area right" onclick="nextStory()"></div>
+  </div>
+</div>
+
+<script>
+const StoryViewer = {
+  userId: null,
+  currentIndex: 0,
+  userStories: null,
+  allStories: [],
+  progressInterval: null,
+  storyDuration: 5000, // 5 seconds per story
+  
+  init() {
+    // Get user ID and index from URL
+    const params = new URLSearchParams(window.location.search);
+    this.userId = params.get('user');
+    this.currentIndex = parseInt(params.get('index') || '0');
+    
+    if (!this.userId) {
+      this.closeViewer();
+      return;
+    }
+    
+    this.loadStories();
+    this.displayCurrentStory();
+    
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') this.previousStory();
+      if (e.key === 'ArrowRight') this.nextStory();
+      if (e.key === 'Escape') this.closeViewer();
+    });
+  },
+  
+  loadStories() {
+    const stored = localStorage.getItem('user_stories');
+    this.allStories = stored ? JSON.parse(stored) : [];
+    
+    // Get stories for this user
+    const userStories = this.allStories.filter(s => s.userId === this.userId);
+    
+    if (userStories.length === 0) {
+      this.closeViewer();
+      return;
+    }
+    
+    // Sort by timestamp
+    userStories.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    this.userStories = userStories;
+  },
+  
+  displayCurrentStory() {
+    if (!this.userStories || this.currentIndex >= this.userStories.length) {
+      this.goToNextUser();
+      return;
+    }
+    
+    const story = this.userStories[this.currentIndex];
+    
+    // Update UI
+    document.getElementById('username').textContent = story.username;
+    document.getElementById('userAvatar').src = story.avatar || 'assets/images/default_user_32_40.png';
+    document.getElementById('storyTime').textContent = this.getTimeAgo(story.timestamp);
+    
+    // Update progress bars
+    this.renderProgressBars();
+    
+    // Update story content
+    const storyBody = document.getElementById('storyBody');
+    
+    if (story.type === 'text') {
+      storyBody.style.background = story.background || 'linear-gradient(135deg, #7c3aed, #a855f7)';
+      storyBody.innerHTML = `<div class="story-text">${story.content}</div>`;
+    } else if (story.type === 'image') {
+      storyBody.style.background = '#000';
+      storyBody.innerHTML = `<img src="${story.imageUrl}" class="story-image" alt="Story">`;
+    }
+    
+    // Update views
+    const views = story.views || 0;
+    document.getElementById('storyViews').innerHTML = `<span>👁️</span><span>${views} ${views === 1 ? 'view' : 'views'}</span>`;
+    
+    // Increment view count (only once per session)
+    this.incrementViewCount(story.id);
+    
+    // Start progress
+    this.startProgress();
+  },
+  
+  renderProgressBars() {
+    const container = document.getElementById('progressBars');
+    container.innerHTML = '';
+    
+    this.userStories.forEach((story, index) => {
+      const bar = document.createElement('div');
+      bar.className = 'progress-bar';
+      
+      const fill = document.createElement('div');
+      fill.className = 'progress-fill';
+      
+      if (index < this.currentIndex) {
+        fill.style.width = '100%';
+      } else if (index === this.currentIndex) {
+        fill.id = 'currentProgress';
+      }
+      
+      bar.appendChild(fill);
+      container.appendChild(bar);
+    });
+  },
+  
+  startProgress() {
+    this.stopProgress();
+    
+    const progressBar = document.getElementById('currentProgress');
+    if (!progressBar) return;
+    
+    let progress = 0;
+    const increment = 100 / (this.storyDuration / 100);
+    
+    this.progressInterval = setInterval(() => {
+      progress += increment;
+      progressBar.style.width = `${Math.min(progress, 100)}%`;
+      
+      if (progress >= 100) {
+        this.stopProgress();
+        this.nextStory();
+      }
+    }, 100);
+  },
+  
+  stopProgress() {
+    if (this.progressInterval) {
+      clearInterval(this.progressInterval);
+      this.progressInterval = null;
+    }
+  },
+  
+  previousStory() {
+    this.stopProgress();
+    
+    if (this.currentIndex > 0) {
+      this.currentIndex--;
+      this.displayCurrentStory();
+    } else {
+      // Go to previous user
+      this.goToPreviousUser();
+    }
+  },
+  
+  nextStory() {
+    this.stopProgress();
+    
+    if (this.currentIndex < this.userStories.length - 1) {
+      this.currentIndex++;
+      this.displayCurrentStory();
+    } else {
+      // Go to next user
+      this.goToNextUser();
+    }
+  },
+  
+  goToNextUser() {
+    // Group stories by user
+    const grouped = this.groupStoriesByUser();
+    const currentUserIndex = grouped.findIndex(u => u.userId === this.userId);
+    
+    if (currentUserIndex >= 0 && currentUserIndex < grouped.length - 1) {
+      const nextUser = grouped[currentUserIndex + 1];
+      window.location.href = `story-viewer.html?user=${nextUser.userId}&index=0`;
+    } else {
+      // No more stories, go back to stories page
+      this.closeViewer();
+    }
+  },
+  
+  goToPreviousUser() {
+    const grouped = this.groupStoriesByUser();
+    const currentUserIndex = grouped.findIndex(u => u.userId === this.userId);
+    
+    if (currentUserIndex > 0) {
+      const prevUser = grouped[currentUserIndex - 1];
+      window.location.href = `story-viewer.html?user=${prevUser.userId}&index=0`;
+    }
+  },
+  
+  groupStoriesByUser() {
+    const grouped = {};
+    this.allStories.forEach(story => {
+      if (!grouped[story.userId]) {
+        grouped[story.userId] = {
+          userId: story.userId,
+          username: story.username,
+          avatar: story.avatar,
+          stories: []
+        };
+      }
+      grouped[story.userId].stories.push(story);
+    });
+    return Object.values(grouped);
+  },
+  
+  incrementViewCount(storyId) {
+    const viewedKey = `story_viewed_${storyId}`;
+    if (sessionStorage.getItem(viewedKey)) return;
+    
+    const storyIndex = this.allStories.findIndex(s => s.id === storyId);
+    if (storyIndex >= 0) {
+      this.allStories[storyIndex].views = (this.allStories[storyIndex].views || 0) + 1;
+      localStorage.setItem('user_stories', JSON.stringify(this.allStories));
+      sessionStorage.setItem(viewedKey, 'true');
+    }
+  },
+  
+  closeViewer() {
+    this.stopProgress();
+    window.location.href = 'stories.html';
+  },
+  
+  getTimeAgo(timestamp) {
+    const now = Date.now();
+    const diff = now - new Date(timestamp).getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor(diff / (1000 * 60));
+    
+    if (hours > 0) {
+      return `${hours}h ago`;
+    } else if (minutes > 0) {
+      return `${minutes}m ago`;
+    } else {
+      return 'Just now';
+    }
+  }
+};
+
+function previousStory() {
+  StoryViewer.previousStory();
+}
+
+function nextStory() {
+  StoryViewer.nextStory();
+}
+
+function closeViewer() {
+  StoryViewer.closeViewer();
+}
+
+function sendReply() {
+  const input = document.getElementById('replyInput');
+  const message = input.value.trim();
+  
+  if (message) {
+    alert(`Reply sent: "${message}"\n\n(In production, this would send a DM to the story creator)`);
+    input.value = '';
+  }
+}
+
+// Initialize viewer
+document.addEventListener('DOMContentLoaded', () => {
+  StoryViewer.init();
+});
+
+// Swipe and Touch Gesture Detection
+let touchStartX = 0;
+let touchStartY = 0;
+let touchEndX = 0;
+let touchEndY = 0;
+let tapTimer = null;
+let isPaused = false;
+
+const minSwipeDistance = 50; // Minimum distance for swipe
+
+document.addEventListener('touchstart', (e) => {
+  // Don't interfere with input/button touches
+  if (e.target.closest('.reply-input, .close-btn')) return;
+  
+  touchStartX = e.changedTouches[0].screenX;
+  touchStartY = e.changedTouches[0].screenY;
+  
+  // Start pause timer on hold
+  tapTimer = setTimeout(() => {
+    StoryViewer.stopProgress();
+    isPaused = true;
+  }, 200);
+}, { passive: true });
+
+document.addEventListener('touchmove', (e) => {
+  // Cancel pause if user is swiping
+  if (tapTimer) {
+    clearTimeout(tapTimer);
+    tapTimer = null;
+  }
+}, { passive: true });
+
+document.addEventListener('touchend', (e) => {
+  // Don't interfere with input/button touches
+  if (e.target.closest('.reply-input, .close-btn')) return;
+  
+  touchEndX = e.changedTouches[0].screenX;
+  touchEndY = e.changedTouches[0].screenY;
+  
+  // Clear pause timer
+  if (tapTimer) {
+    clearTimeout(tapTimer);
+    tapTimer = null;
+  }
+  
+  // Resume if was paused
+  if (isPaused) {
+    StoryViewer.startProgress();
+    isPaused = false;
+    return;
+  }
+  
+  // Check for swipe gesture
+  handleSwipe();
+}, { passive: true });
+
+function handleSwipe() {
+  const deltaX = touchEndX - touchStartX;
+  const deltaY = touchEndY - touchStartY;
+  
+  // Check if horizontal swipe (not vertical scroll)
+  if (Math.abs(deltaX) > Math.abs(deltaY)) {
+    // Right swipe (previous)
+    if (deltaX > minSwipeDistance) {
+      StoryViewer.previousStory();
+    }
+    // Left swipe (next)
+    else if (deltaX < -minSwipeDistance) {
+      StoryViewer.nextStory();
+    }
+  }
+}
+
+// Mouse drag support for desktop
+let mouseDown = false;
+let mouseStartX = 0;
+
+document.addEventListener('mousedown', (e) => {
+  if (e.target.closest('.reply-input, .close-btn')) return;
+  mouseDown = true;
+  mouseStartX = e.clientX;
+});
+
+document.addEventListener('mouseup', (e) => {
+  if (!mouseDown) return;
+  if (e.target.closest('.reply-input, .close-btn')) return;
+  
+  mouseDown = false;
+  const mouseEndX = e.clientX;
+  const deltaX = mouseEndX - mouseStartX;
+  
+  // Right drag (previous)
+  if (deltaX > minSwipeDistance) {
+    StoryViewer.previousStory();
+  }
+  // Left drag (next)
+  else if (deltaX < -minSwipeDistance) {
+    StoryViewer.nextStory();
+  }
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (!mouseDown) return;
+  // Add some visual feedback on drag if desired
+});
+</script>
+
+</body>
+</html>
