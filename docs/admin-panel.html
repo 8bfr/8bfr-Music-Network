@@ -1,31 +1,111 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Panel • 8BFR Network</title>
-  <link rel="stylesheet" href="../css/style.css">
-  <script src="../js/scripts.js"></script>
+  <meta charset="UTF-8" />
+  <title>Admin Panel — 8BFR Music Network</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-<header>
-  <h1>Admin Panel</h1>
-  <nav>
-    <ul>
-      <li><a href="../index.html">Home</a></li>
-      <li><a href="feed.html">Feed</a></li>
-      <li><a href="radio.html">Radio</a></li>
-      <li><a href="chat.html">Chat</a></li>
-      <li><a href="store.html">Store</a></li>
-      <li><a href="games.html">Games</a></li>
-      <li><a href="profile.html">Profile</a></li>
-      <li><a href="contact.html">Contact</a></li>
-    </ul>
-  </nav>
+
+<header class="header">
+  <h1>🛠️ 8BFR Admin Panel</h1>
+  <p>Ads • Coupons • Moderation</p>
 </header>
-<main>
-<p>Admin tools: edit HTML, approve posts, manage ads.</p>
+
+<main class="container grid">
+
+  <!-- ================= ADS ================= -->
+  <section class="card">
+    <h2>📢 Pending Ads</h2>
+    <div id="ads"></div>
+  </section>
+
+  <!-- ================= COUPONS ================= -->
+  <section class="card">
+    <h2>🏷️ Create Discount Coupon</h2>
+
+    <form id="couponForm" class="grid">
+      <input placeholder="CODE (ex: SAVE20)" id="code" required />
+      <input placeholder="% Off" id="percent" type="number" required />
+      <input type="date" id="expires" />
+      <button class="btn">Create Coupon</button>
+    </form>
+
+    <h3 style="margin-top:1rem">Existing Coupons</h3>
+    <div id="coupons"></div>
+  </section>
+
 </main>
-<footer>© 2025 8BFR Music Network</footer>
+
+<script>
+const SUPABASE_URL = "https://qjzcoybmcrmonzjctama.supabase.co";
+const SUPABASE_KEY = "84af9f28b30df5230d52cd0d4de26c8394de3ef318761ed1fe99ab6ef5f6cf3b";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* ================= ADS ================= */
+
+async function loadAds(){
+  const { data } = await sb
+    .from("ads")
+    .select("*")
+    .eq("status", "pending")
+    .order("created_at", { ascending:false });
+
+  document.getElementById("ads").innerHTML = data.map(ad => `
+    <div class="card">
+      <b>${ad.title}</b>
+      <p>$${ad.price}</p>
+      <button class="btn" onclick="approveAd(${ad.id})">Approve</button>
+      <button class="btn" onclick="rejectAd(${ad.id})">Reject</button>
+    </div>
+  `).join("");
+}
+
+async function approveAd(id){
+  await sb.from("ads").update({ status:"approved" }).eq("id",id);
+  loadAds();
+}
+async function rejectAd(id){
+  await sb.from("ads").update({ status:"rejected" }).eq("id",id);
+  loadAds();
+}
+
+/* ================= COUPONS ================= */
+
+async function loadCoupons(){
+  const { data } = await sb.from("coupons").select("*").order("created_at",{ascending:false});
+  document.getElementById("coupons").innerHTML = data.map(c => `
+    <div class="card">
+      <b>${c.code}</b> — ${c.percent_off}% off
+      <br>
+      Active: ${c.active ? "✅" : "❌"}
+      <button class="btn" onclick="toggleCoupon(${c.id}, ${!c.active})">Toggle</button>
+    </div>
+  `).join("");
+}
+
+document.getElementById("couponForm").onsubmit = async e => {
+  e.preventDefault();
+  await sb.from("coupons").insert({
+    code: code.value.toUpperCase(),
+    percent_off: percent.value,
+    active: true,
+    expires_at: expires.value || null
+  });
+  e.target.reset();
+  loadCoupons();
+};
+
+async function toggleCoupon(id, state){
+  await sb.from("coupons").update({ active:state }).eq("id",id);
+  loadCoupons();
+}
+
+loadAds();
+loadCoupons();
+</script>
+
 </body>
 </html>
