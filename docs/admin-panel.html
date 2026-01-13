@@ -1,199 +1,217 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>8BFR Admin Panel</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-  <!-- Tailwind CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- Supabase -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <!-- Quill Visual Editor -->
-  <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-  <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>8BFR Admin Panel — Ads & Discounts</title>
+<link rel="icon" href="assets/images/favicon.png">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+:root {
+  --ring: rgba(124,58,237,.55);
+  --glass: rgba(12,6,24,.70);
+}
+body {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+  background: linear-gradient(#0b0014,#000);
+  color: #eae6ff;
+  min-height: 100vh;
+  padding-bottom: 50px;
+}
+header {
+  background: rgba(15,0,30,.9);
+  border-bottom:1px solid rgba(124,58,237,.5);
+  padding: 1rem 2rem;
+}
+h1,h2,h3 { font-weight: 700; }
+.btn {
+  display:inline-block;
+  background:#120327;
+  border:1px solid rgba(124,58,237,.6);
+  color:#eae6ff;
+  padding:.5rem .8rem;
+  border-radius:.75rem;
+  text-decoration:none;
+  font-size:.9rem;
+  transition:all 0.2s;
+}
+.btn:hover{ background:#190536; }
+.btn-primary{ background:#7c3aed; border-color:#7c3aed; color:#fff; }
+.btn-primary:hover{ filter:brightness(1.05); }
+.admin-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+.admin-table th, .admin-table td { border: 1px solid rgba(124,58,237,.4); padding: 0.6rem; text-align: left; }
+.admin-table th { background: rgba(124,58,237,.15); }
+textarea { width:100%; padding:.5rem; border-radius:.5rem; background:#0c0618; color:#fff; border:1px solid rgba(124,58,237,.4); }
+.modal-bg {
+  position: fixed; inset:0; background: rgba(0,0,0,.7);
+  display:none; justify-content:center; align-items:center; z-index:50;
+}
+.modal { background:#0c0618; padding:1.5rem; border-radius:12px; border:1px solid rgba(124,58,237,.5); width:90%; max-width:400px; }
+.modal textarea { margin-top:.5rem; }
+.modal-buttons { margin-top:1rem; display:flex; justify-content:flex-end; gap:.5rem; }
+.ad-preview { width:100px; height:60px; object-fit:cover; border-radius:8px; border:1px solid rgba(124,58,237,.5); }
+section { max-width: 6xl; margin:2rem auto; padding:0 1rem; }
+</style>
 </head>
+<body>
 
-<body class="bg-black text-white min-h-screen">
-
-<!-- HEADER -->
-<header class="bg-zinc-900 p-4 flex justify-between items-center">
-  <h1 class="text-xl font-bold text-purple-400">8BFR Admin Panel</h1>
-  <span class="text-sm text-zinc-400">Owner Access</span>
+<header class="flex justify-between items-center">
+  <h1 class="text-2xl">8BFR Admin Panel</h1>
+  <a href="index.html" class="btn btn-primary">Back to Home</a>
 </header>
 
-<!-- NAV -->
-<nav class="flex gap-4 p-4 bg-zinc-800 text-sm">
-  <button onclick="showTab('dashboard')">Dashboard</button>
-  <button onclick="showTab('ads')">Ads</button>
-  <button onclick="showTab('editor')">Ad Editor</button>
-  <button onclick="showTab('coupons')">Coupons</button>
-  <button onclick="showTab('pricing')">Pricing</button>
-  <button onclick="showTab('users')">Users</button>
-</nav>
+<section>
+  <h2 class="text-xl mb-2">🖼️ Manage Ads</h2>
+  <table class="admin-table">
+    <thead>
+      <tr>
+        <th>Preview</th>
+        <th>Ad Title</th>
+        <th>User</th>
+        <th>Status</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="adsTableBody">
+      <!-- Filled dynamically by JS -->
+    </tbody>
+  </table>
+</section>
 
-<!-- CONTENT -->
-<main class="p-6 space-y-8">
-
-<!-- DASHBOARD -->
-<section id="dashboard" class="tab">
-  <h2 class="text-lg font-semibold mb-4">Overview</h2>
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-    <div class="bg-zinc-900 p-4 rounded">Active Ads: <span id="statActive"></span></div>
-    <div class="bg-zinc-900 p-4 rounded">Pending Approval: <span id="statPending"></span></div>
-    <div class="bg-zinc-900 p-4 rounded">Coupons Active: <span id="statCoupons"></span></div>
-    <div class="bg-zinc-900 p-4 rounded">Revenue (est): $<span id="statRevenue"></span></div>
+<section>
+  <h2 class="text-xl mb-2">💰 Discount Codes</h2>
+  <div class="flex gap-2 mb-2">
+    <input type="text" id="discountCodeInput" placeholder="Code" class="bg-black/30 px-2 py-1 rounded text-white">
+    <input type="number" id="discountPercentInput" placeholder="Discount %" class="bg-black/30 px-2 py-1 rounded text-white w-24">
+    <button class="btn btn-primary" onclick="addDiscountCode()">Add Code</button>
   </div>
+  <table class="admin-table">
+    <thead>
+      <tr><th>Code</th><th>Discount %</th><th>Active</th><th>Action</th></tr>
+    </thead>
+    <tbody id="discountTableBody"></tbody>
+  </table>
 </section>
 
-<!-- ADS -->
-<section id="ads" class="tab hidden">
-  <h2 class="text-lg font-semibold mb-4">Ads Management</h2>
-  <div id="adsTable" class="space-y-3"></div>
+<section>
+  <h2 class="text-xl mb-2">🛒 Buy Ad (Test PayPal)</h2>
+  <div id="paypal-button-container"></div>
 </section>
 
-<!-- VISUAL AD EDITOR -->
-<section id="editor" class="tab hidden">
-  <h2 class="text-lg font-semibold mb-4">Visual Ad Editor</h2>
+<!-- Decline Modal -->
+<div id="declineModal" class="modal-bg">
+  <div class="modal">
+    <h3 class="font-bold">Decline Ad</h3>
+    <p>Leave a message for the user:</p>
+    <textarea id="declineMessage" rows="4"></textarea>
+    <div class="modal-buttons">
+      <button class="btn" onclick="closeDeclineModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmDecline()">Send</button>
+    </div>
+  </div>
+</div>
 
-  <input id="adTitle" placeholder="Ad Title"
-    class="w-full mb-2 p-2 bg-zinc-800 rounded" />
-
-  <input id="adImage" placeholder="Image URL"
-    class="w-full mb-2 p-2 bg-zinc-800 rounded" />
-
-  <input id="adLink" placeholder="Click URL"
-    class="w-full mb-2 p-2 bg-zinc-800 rounded" />
-
-  <div id="quillEditor" class="bg-white text-black h-40 mb-4"></div>
-
-  <button onclick="saveAdContent()"
-    class="bg-purple-600 px-4 py-2 rounded">
-    Save Ad Content
-  </button>
-</section>
-
-<!-- COUPONS -->
-<section id="coupons" class="tab hidden">
-  <h2 class="text-lg font-semibold mb-4">Coupons</h2>
-
-  <input id="couponCode" placeholder="CODE" class="p-2 bg-zinc-800 rounded mb-2" />
-  <input id="couponPercent" placeholder="% Off" type="number"
-    class="p-2 bg-zinc-800 rounded mb-2" />
-  <input id="couponMax" placeholder="Max Uses" type="number"
-    class="p-2 bg-zinc-800 rounded mb-2" />
-
-  <button onclick="createCoupon()"
-    class="bg-purple-600 px-4 py-2 rounded">
-    Create Coupon
-  </button>
-
-  <div id="couponList" class="mt-4"></div>
-</section>
-
-<!-- PRICING -->
-<section id="pricing" class="tab hidden">
-  <h2 class="text-lg font-semibold mb-4">Ad Pricing</h2>
-  <div id="pricingList"></div>
-</section>
-
-<!-- USERS -->
-<section id="users" class="tab hidden">
-  <h2 class="text-lg font-semibold mb-4">Users</h2>
-  <div id="userList"></div>
-</section>
-
-</main>
-
+<script src="https://www.paypal.com/sdk/js?client-id=AWx0LwdZ_sCyCE5gEj9mL1ha7ZbG_eZLE_R636KjLXFMV1pOfmGwNg9prM5kVKQspvnpNLJDZxPp100G&currency=USD"></script>
 <script>
-/* ----------------- SUPABASE ----------------- */
-const supabase = supabase.createClient(
-  'YOUR_SUPABASE_URL',
-  'YOUR_SUPABASE_ANON_KEY'
-);
+let ads = [
+  {id:1,title:"Neon Beats Promo",user:"BeatMaster808",img:"assets/images/ad_banner_1.jpg",status:"pending",message:""},
+  {id:2,title:"AI Lyrics Tool",user:"Nova Rae",img:"assets/images/ad_banner_2.jpg",status:"pending",message:""},
+];
+let discounts = [];
 
-/* ----------------- UI ----------------- */
-function showTab(id) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.add('hidden'));
-  document.getElementById(id).classList.remove('hidden');
-}
+let currentDeclineAd = null;
 
-/* ----------------- QUILL ----------------- */
-const quill = new Quill('#quillEditor', { theme: 'snow' });
-
-/* ----------------- ADS ----------------- */
-async function loadAds() {
-  const { data } = await supabase
-    .from('ads')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  const el = document.getElementById('adsTable');
-  el.innerHTML = '';
-
-  data.forEach(ad => {
-    el.innerHTML += `
-      <div class="bg-zinc-900 p-3 rounded">
-        <b>${ad.title}</b> — ${ad.status}
-        <div class="text-xs text-zinc-400">
-          Slot: ${ad.slot || '—'} | Ends: ${ad.end_time || '—'}
-        </div>
-        <div class="mt-2 flex gap-2">
-          <button onclick="approveAd('${ad.id}')">Approve</button>
-          <button onclick="pauseAd('${ad.id}')">Pause</button>
-          <button onclick="expireAd('${ad.id}')">Expire</button>
-        </div>
-      </div>
+function renderAds(){
+  const tbody = document.getElementById('adsTableBody');
+  tbody.innerHTML = '';
+  ads.forEach(ad=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><img src="${ad.img}" class="ad-preview"></td>
+      <td>${ad.title}</td>
+      <td>${ad.user}</td>
+      <td>${ad.status}${ad.status==='declined'?`<br><small>${ad.message}</small>`:''}</td>
+      <td>
+        <button class="btn btn-primary" onclick="approveAd(${ad.id})">Approve</button>
+        <button class="btn" onclick="declineAd(${ad.id})">Decline</button>
+      </td>
     `;
+    tbody.appendChild(tr);
   });
 }
 
-/* Approval = slot assignment + timer start */
-async function approveAd(id) {
-  const start = new Date();
-  const end = new Date(start);
-  end.setDate(end.getDate() + 7); // duration example
-
-  await supabase.from('ads').update({
-    status: 'approved_active',
-    start_time: start,
-    end_time: end
-  }).eq('id', id);
-
-  loadAds();
+function approveAd(id){
+  const ad = ads.find(a=>a.id===id);
+  if(ad){ ad.status='approved'; ad.message=''; renderAds(); }
 }
 
-async function pauseAd(id) {
-  await supabase.from('ads').update({ status: 'paused' }).eq('id', id);
-  loadAds();
+function declineAd(id){
+  currentDeclineAd = ads.find(a=>a.id===id);
+  if(currentDeclineAd){
+    document.getElementById('declineMessage').value = '';
+    document.getElementById('declineModal').style.display='flex';
+  }
 }
 
-async function expireAd(id) {
-  await supabase.from('ads').update({ status: 'expired' }).eq('id', id);
-  loadAds();
+function closeDeclineModal(){ document.getElementById('declineModal').style.display='none'; }
+
+function confirmDecline(){
+  if(currentDeclineAd){
+    currentDeclineAd.status='declined';
+    currentDeclineAd.message = document.getElementById('declineMessage').value;
+    currentDeclineAd = null;
+    closeDeclineModal();
+    renderAds();
+  }
 }
 
-/* ----------------- VISUAL EDITOR SAVE ----------------- */
-async function saveAdContent() {
-  const content = quill.root.innerHTML;
-  alert('Ad HTML saved (connect to ads table field)');
+// Discount code functions
+function addDiscountCode(){
+  const code = document.getElementById('discountCodeInput').value.trim();
+  const percent = parseInt(document.getElementById('discountPercentInput').value);
+  if(code && percent>0){
+    discounts.push({code,percent,active:true});
+    renderDiscounts();
+    document.getElementById('discountCodeInput').value='';
+    document.getElementById('discountPercentInput').value='';
+  }
 }
 
-/* ----------------- COUPONS ----------------- */
-async function createCoupon() {
-  await supabase.from('coupons').insert({
-    code: couponCode.value,
-    percent_off: couponPercent.value,
-    max_uses: couponMax.value,
-    active: true
+function renderDiscounts(){
+  const tbody = document.getElementById('discountTableBody');
+  tbody.innerHTML = '';
+  discounts.forEach((d,i)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${d.code}</td><td>${d.percent}%</td><td>${d.active?'Yes':'No'}</td>
+      <td><button class="btn" onclick="toggleDiscount(${i})">${d.active?'Disable':'Enable'}</button> <button class="btn btn-primary" onclick="deleteDiscount(${i})">Delete</button></td>`;
+    tbody.appendChild(tr);
   });
-  alert('Coupon created');
 }
 
-/* ----------------- INIT ----------------- */
-loadAds();
+function toggleDiscount(i){ discounts[i].active=!discounts[i].active; renderDiscounts(); }
+function deleteDiscount(i){ discounts.splice(i,1); renderDiscounts(); }
+
+renderAds();
+renderDiscounts();
+
+// PayPal button
+paypal.Buttons({
+  style: { color: 'purple', shape: 'rect', label: 'pay' },
+  createOrder: function(data, actions) {
+    return actions.order.create({
+      purchase_units: [{
+        amount: { value: '10.00' },
+        description: '8BFR Ad Purchase'
+      }]
+    });
+  },
+  onApprove: function(data, actions) {
+    return actions.order.capture().then(function(details) {
+      alert('Transaction completed by '+details.payer.name.given_name);
+      // You can move the purchased ad to pending here
+    });
+  }
+}).render('#paypal-button-container');
 </script>
 
 </body>
