@@ -2,109 +2,198 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Admin Panel — 8BFR Music Network</title>
+  <title>8BFR Admin Panel</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body>
 
-<header class="header">
-  <h1>🛠️ 8BFR Admin Panel</h1>
-  <p>Ads • Coupons • Moderation</p>
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Quill Visual Editor -->
+  <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+  <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+</head>
+
+<body class="bg-black text-white min-h-screen">
+
+<!-- HEADER -->
+<header class="bg-zinc-900 p-4 flex justify-between items-center">
+  <h1 class="text-xl font-bold text-purple-400">8BFR Admin Panel</h1>
+  <span class="text-sm text-zinc-400">Owner Access</span>
 </header>
 
-<main class="container grid">
+<!-- NAV -->
+<nav class="flex gap-4 p-4 bg-zinc-800 text-sm">
+  <button onclick="showTab('dashboard')">Dashboard</button>
+  <button onclick="showTab('ads')">Ads</button>
+  <button onclick="showTab('editor')">Ad Editor</button>
+  <button onclick="showTab('coupons')">Coupons</button>
+  <button onclick="showTab('pricing')">Pricing</button>
+  <button onclick="showTab('users')">Users</button>
+</nav>
 
-  <!-- ================= ADS ================= -->
-  <section class="card">
-    <h2>📢 Pending Ads</h2>
-    <div id="ads"></div>
-  </section>
+<!-- CONTENT -->
+<main class="p-6 space-y-8">
 
-  <!-- ================= COUPONS ================= -->
-  <section class="card">
-    <h2>🏷️ Create Discount Coupon</h2>
+<!-- DASHBOARD -->
+<section id="dashboard" class="tab">
+  <h2 class="text-lg font-semibold mb-4">Overview</h2>
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="bg-zinc-900 p-4 rounded">Active Ads: <span id="statActive"></span></div>
+    <div class="bg-zinc-900 p-4 rounded">Pending Approval: <span id="statPending"></span></div>
+    <div class="bg-zinc-900 p-4 rounded">Coupons Active: <span id="statCoupons"></span></div>
+    <div class="bg-zinc-900 p-4 rounded">Revenue (est): $<span id="statRevenue"></span></div>
+  </div>
+</section>
 
-    <form id="couponForm" class="grid">
-      <input placeholder="CODE (ex: SAVE20)" id="code" required />
-      <input placeholder="% Off" id="percent" type="number" required />
-      <input type="date" id="expires" />
-      <button class="btn">Create Coupon</button>
-    </form>
+<!-- ADS -->
+<section id="ads" class="tab hidden">
+  <h2 class="text-lg font-semibold mb-4">Ads Management</h2>
+  <div id="adsTable" class="space-y-3"></div>
+</section>
 
-    <h3 style="margin-top:1rem">Existing Coupons</h3>
-    <div id="coupons"></div>
-  </section>
+<!-- VISUAL AD EDITOR -->
+<section id="editor" class="tab hidden">
+  <h2 class="text-lg font-semibold mb-4">Visual Ad Editor</h2>
+
+  <input id="adTitle" placeholder="Ad Title"
+    class="w-full mb-2 p-2 bg-zinc-800 rounded" />
+
+  <input id="adImage" placeholder="Image URL"
+    class="w-full mb-2 p-2 bg-zinc-800 rounded" />
+
+  <input id="adLink" placeholder="Click URL"
+    class="w-full mb-2 p-2 bg-zinc-800 rounded" />
+
+  <div id="quillEditor" class="bg-white text-black h-40 mb-4"></div>
+
+  <button onclick="saveAdContent()"
+    class="bg-purple-600 px-4 py-2 rounded">
+    Save Ad Content
+  </button>
+</section>
+
+<!-- COUPONS -->
+<section id="coupons" class="tab hidden">
+  <h2 class="text-lg font-semibold mb-4">Coupons</h2>
+
+  <input id="couponCode" placeholder="CODE" class="p-2 bg-zinc-800 rounded mb-2" />
+  <input id="couponPercent" placeholder="% Off" type="number"
+    class="p-2 bg-zinc-800 rounded mb-2" />
+  <input id="couponMax" placeholder="Max Uses" type="number"
+    class="p-2 bg-zinc-800 rounded mb-2" />
+
+  <button onclick="createCoupon()"
+    class="bg-purple-600 px-4 py-2 rounded">
+    Create Coupon
+  </button>
+
+  <div id="couponList" class="mt-4"></div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing" class="tab hidden">
+  <h2 class="text-lg font-semibold mb-4">Ad Pricing</h2>
+  <div id="pricingList"></div>
+</section>
+
+<!-- USERS -->
+<section id="users" class="tab hidden">
+  <h2 class="text-lg font-semibold mb-4">Users</h2>
+  <div id="userList"></div>
+</section>
 
 </main>
 
 <script>
-const SUPABASE_URL = "https://qjzcoybmcrmonzjctama.supabase.co";
-const SUPABASE_KEY = "84af9f28b30df5230d52cd0d4de26c8394de3ef318761ed1fe99ab6ef5f6cf3b";
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+/* ----------------- SUPABASE ----------------- */
+const supabase = supabase.createClient(
+  'YOUR_SUPABASE_URL',
+  'YOUR_SUPABASE_ANON_KEY'
+);
 
-/* ================= ADS ================= */
-
-async function loadAds(){
-  const { data } = await sb
-    .from("ads")
-    .select("*")
-    .eq("status", "pending")
-    .order("created_at", { ascending:false });
-
-  document.getElementById("ads").innerHTML = data.map(ad => `
-    <div class="card">
-      <b>${ad.title}</b>
-      <p>$${ad.price}</p>
-      <button class="btn" onclick="approveAd(${ad.id})">Approve</button>
-      <button class="btn" onclick="rejectAd(${ad.id})">Reject</button>
-    </div>
-  `).join("");
+/* ----------------- UI ----------------- */
+function showTab(id) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
 }
 
-async function approveAd(id){
-  await sb.from("ads").update({ status:"approved" }).eq("id",id);
-  loadAds();
-}
-async function rejectAd(id){
-  await sb.from("ads").update({ status:"rejected" }).eq("id",id);
-  loadAds();
-}
+/* ----------------- QUILL ----------------- */
+const quill = new Quill('#quillEditor', { theme: 'snow' });
 
-/* ================= COUPONS ================= */
+/* ----------------- ADS ----------------- */
+async function loadAds() {
+  const { data } = await supabase
+    .from('ads')
+    .select('*')
+    .order('created_at', { ascending: false });
 
-async function loadCoupons(){
-  const { data } = await sb.from("coupons").select("*").order("created_at",{ascending:false});
-  document.getElementById("coupons").innerHTML = data.map(c => `
-    <div class="card">
-      <b>${c.code}</b> — ${c.percent_off}% off
-      <br>
-      Active: ${c.active ? "✅" : "❌"}
-      <button class="btn" onclick="toggleCoupon(${c.id}, ${!c.active})">Toggle</button>
-    </div>
-  `).join("");
-}
+  const el = document.getElementById('adsTable');
+  el.innerHTML = '';
 
-document.getElementById("couponForm").onsubmit = async e => {
-  e.preventDefault();
-  await sb.from("coupons").insert({
-    code: code.value.toUpperCase(),
-    percent_off: percent.value,
-    active: true,
-    expires_at: expires.value || null
+  data.forEach(ad => {
+    el.innerHTML += `
+      <div class="bg-zinc-900 p-3 rounded">
+        <b>${ad.title}</b> — ${ad.status}
+        <div class="text-xs text-zinc-400">
+          Slot: ${ad.slot || '—'} | Ends: ${ad.end_time || '—'}
+        </div>
+        <div class="mt-2 flex gap-2">
+          <button onclick="approveAd('${ad.id}')">Approve</button>
+          <button onclick="pauseAd('${ad.id}')">Pause</button>
+          <button onclick="expireAd('${ad.id}')">Expire</button>
+        </div>
+      </div>
+    `;
   });
-  e.target.reset();
-  loadCoupons();
-};
-
-async function toggleCoupon(id, state){
-  await sb.from("coupons").update({ active:state }).eq("id",id);
-  loadCoupons();
 }
 
+/* Approval = slot assignment + timer start */
+async function approveAd(id) {
+  const start = new Date();
+  const end = new Date(start);
+  end.setDate(end.getDate() + 7); // duration example
+
+  await supabase.from('ads').update({
+    status: 'approved_active',
+    start_time: start,
+    end_time: end
+  }).eq('id', id);
+
+  loadAds();
+}
+
+async function pauseAd(id) {
+  await supabase.from('ads').update({ status: 'paused' }).eq('id', id);
+  loadAds();
+}
+
+async function expireAd(id) {
+  await supabase.from('ads').update({ status: 'expired' }).eq('id', id);
+  loadAds();
+}
+
+/* ----------------- VISUAL EDITOR SAVE ----------------- */
+async function saveAdContent() {
+  const content = quill.root.innerHTML;
+  alert('Ad HTML saved (connect to ads table field)');
+}
+
+/* ----------------- COUPONS ----------------- */
+async function createCoupon() {
+  await supabase.from('coupons').insert({
+    code: couponCode.value,
+    percent_off: couponPercent.value,
+    max_uses: couponMax.value,
+    active: true
+  });
+  alert('Coupon created');
+}
+
+/* ----------------- INIT ----------------- */
 loadAds();
-loadCoupons();
 </script>
 
 </body>
