@@ -1,169 +1,107 @@
 <!DOCTYPE html><html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>8BFR Admin Panel</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<style>
-  body { font-family: Arial, sans-serif; background:#0a0a0a; color:#eee; margin:0; }
-  header { background:#1b1b2f; padding:1rem; display:flex; justify-content:space-between; align-items:center; }
-  nav button { margin-right:1rem; background:#4b0082; border:none; padding:0.5rem 1rem; color:#fff; cursor:pointer; border-radius:5px; }
-  nav button.active { background:#9400d3; }
-  .container { padding:1rem; }
-  table { width:100%; border-collapse:collapse; margin-top:1rem; }
-  th, td { padding:0.5rem; border:1px solid #333; text-align:left; }
-  button.action { background:#4b0082; color:#fff; border:none; padding:0.25rem 0.5rem; border-radius:3px; cursor:pointer; margin-right:0.25rem; }
-  .modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); justify-content:center; align-items:center; }
-  .modal-content { background:#1b1b2f; padding:1rem; border-radius:10px; max-width:90%; max-height:90%; overflow:auto; }
-  .close { cursor:pointer; float:right; font-size:1.5rem; }
-  input, textarea { padding:0.5rem; border-radius:5px; border:none; width:100%; margin-top:0.25rem; }
-  .message { color:#ff6347; margin-top:0.25rem; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>8BFR Admin Panel — Ads Management</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0b0014; color: #eae6ff; }
+    .card { background: rgba(12,6,24,.7); border: 1px solid rgba(124,58,237,.5); border-radius: 12px; padding: 1rem; margin-bottom: 1rem; }
+    .btn { @apply px-3 py-1 rounded-md font-semibold cursor-pointer; }
+    .btn-approve { background: #22c55e; color: #fff; }
+    .btn-deny { background: #ef4444; color: #fff; }
+    .btn:hover { opacity: 0.9; }
+    textarea { width: 100%; border-radius: 6px; padding: 0.5rem; margin-top: 0.25rem; }
+    input[type='text'] { width: 100%; border-radius: 6px; padding: 0.5rem; margin-top: 0.25rem; }
+  </style>
 </head>
-<body>
-<header>
-  <h1>8BFR Admin Panel</h1>
-  <nav>
-    <button class="active" onclick="showTab('ads')">Ads</button>
-    <button onclick="showTab('discounts')">Discounts</button>
-    <button onclick="showTab('users')">Users</button>
-    <button onclick="showTab('settings')">Settings</button>
-  </nav>
-</header>
-<div class="container">
-  <div id="ads" class="tab">
-    <h2>Ads Management</h2>
-    <table id="adsTable">
-      <thead><tr><th>Preview</th><th>Title</th><th>Status</th><th>Actions</th></tr></thead>
-      <tbody></tbody>
-    </table>
-  </div>
-  <div id="discounts" class="tab" style="display:none">
-    <h2>Discount Codes</h2>
-    <table id="discountTable">
-      <thead><tr><th>Code</th><th>Discount %</th><th>Expires</th><th>Actions</th></tr></thead>
-      <tbody></tbody>
-    </table>
-    <button onclick="addDiscount()">Add New Discount</button>
-  </div>
-  <div id="users" class="tab" style="display:none">
-    <h2>Users</h2>
-    <table id="usersTable">
-      <thead><tr><th>Username</th><th>Badges</th><th>Points</th><th>Actions</th></tr></thead>
-      <tbody></tbody>
-    </table>
-  </div>
-  <div id="settings" class="tab" style="display:none">
-    <h2>Settings</h2>
-    <p>PayPal ID:</p>
-    <input type="text" id="paypalID" value="8bfr.music@gmail.com" readonly />
-    <p>Supabase URL / Key:</p>
-    <input type="text" id="supabaseURL" placeholder="YOUR_SUPABASE_URL" />
-    <input type="text" id="supabaseKey" placeholder="YOUR_SUPABASE_ANON_KEY" />
-    <button onclick="connectSupabase()">Connect Supabase</button>
-    <p class="message" id="supabaseMessage"></p>
-  </div>
-</div><div id="previewModal" class="modal">
-  <div class="modal-content">
-    <span class="close" onclick="closeModal()">&times;</span>
-    <div id="adPreview"></div>
-    <textarea id="denyReason" placeholder="Reason for denial (optional)" style="margin-top:1rem;"></textarea>
-    <div style="margin-top:0.5rem;">
-      <button class="action" onclick="approveAd()">Approve</button>
-      <button class="action" onclick="denyAd()">Deny</button>
+<body class="p-4">
+  <h1 class="text-2xl font-bold mb-4">🛠️ Admin Panel — Ads Management</h1>  <!-- New Ad Submission Form -->  <div class="card">
+    <h2 class="text-xl font-semibold mb-2">Create New Ad</h2>
+    <input type="text" id="adTitle" placeholder="Ad Title">
+    <input type="text" id="adImage" placeholder="Image URL">
+    <input type="text" id="adLink" placeholder="Redirect URL">
+    <button class="btn btn-approve mt-2" id="createAdBtn">Create Ad</button>
+  </div>  <!-- Ads List -->  <div id="adsContainer"></div>  <!-- PayPal Config -->  <script>
+    const PAYPAL_ID = '8bfr.music@gmail.com';
+  </script>  <!-- Admin Logic -->  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>  <script>
+    // Supabase client setup
+    const supabaseUrl = 'https://YOUR_SUPABASE_URL';
+    const supabaseKey = 'YOUR_SUPABASE_ANON_KEY';
+    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+    const adsContainer = document.getElementById('adsContainer');
+
+    // Load ads from Supabase (or localStorage fallback)
+    async function loadAds() {
+      let { data: ads, error } = await supabase.from('ads').select('*').order('created_at', { ascending: false });
+      if(error){ console.log(error); ads = JSON.parse(localStorage.getItem('ads') || '[]'); }
+      adsContainer.innerHTML = '';
+      ads.forEach(ad => renderAdCard(ad));
+    }
+
+    function renderAdCard(ad){
+      const div = document.createElement('div');
+      div.className = 'card';
+      div.innerHTML = `
+        <div><strong>${ad.title}</strong></div>
+        <img src='${ad.image}' alt='Ad Image' class='mt-2 rounded-md' style='max-height:200px; object-fit:cover;'>
+        <div class='mt-1'><a href='${ad.link}' target='_blank' class='text-blue-400 underline'>Visit Link</a></div>
+        <div class='mt-2 flex gap-2'>
+          <button class='btn btn-approve' onclick='approveAd("${ad.id}")'>Approve</button>
+          <button class='btn btn-deny' onclick='denyAd("${ad.id}")'>Deny</button>
+        </div>
+        <div class='mt-2 hidden' id='reason-${ad.id}'>
+          <textarea placeholder='Reason for denial'></textarea><button class='btn btn-deny mt-1' onclick='submitReason("${ad.id}")'>Submit</button>
     </div>
-    <p class="message" id="adMessage"></p>
-  </div>
-</div><script>
-let currentTab = 'ads';
-let selectedAdId = null;
-let supabase = null;
-
-function showTab(tab) {
-  document.querySelectorAll('.tab').forEach(t => t.style.display = 'none');
-  document.getElementById(tab).style.display = 'block';
-  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
-  document.querySelector('nav button[onclick="showTab(\''+tab+'\')"]').classList.add('active');
-  currentTab = tab;
+    <div class='mt-1 text-sm text-purple-300' id='status-${ad.id}'>Status: ${ad.status || 'Pending'}</div>
+  `;
+  adsContainer.appendChild(div);
 }
 
-function connectSupabase() {
-  const url = document.getElementById('supabaseURL').value;
-  const key = document.getElementById('supabaseKey').value;
-  if(!url || !key){ document.getElementById('supabaseMessage').innerText='Enter URL and Key'; return; }
-  supabase = Supabase.createClient(url, key);
-  document.getElementById('supabaseMessage').innerText='Connected!';
-  loadAds();
+async function approveAd(id){
+  const reasonEl = document.getElementById(`reason-${id}`);
+  reasonEl.style.display='none';
+  await supabase.from('ads').update({ status: 'approved' }).eq('id', id);
+  document.getElementById(`status-${id}`).textContent = 'Status: Approved';
 }
 
-async function loadAds() {
-  if(!supabase) return;
-  const { data, error } = await supabase.from('ads').select('*');
-  const tbody = document.querySelector('#adsTable tbody');
-  tbody.innerHTML='';
-  data.forEach(ad => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td><button onclick="previewAd('${ad.id}')">Preview</button></td><td>${ad.title}</td><td>${ad.status}</td><td></td>`;
-    tbody.appendChild(tr);
-  });
+function denyAd(id){
+  const reasonEl = document.getElementById(`reason-${id}`);
+  reasonEl.style.display = 'block';
 }
 
-function previewAd(id){
-  selectedAdId=id;
-  document.getElementById('previewModal').style.display='flex';
-  document.getElementById('adPreview').innerText='Loading preview for ad '+id;
-  document.getElementById('adMessage').innerText='';
-  document.getElementById('denyReason').value='';
-  // Load ad content from Supabase
-  if(supabase){
-    supabase.from('ads').select('*').eq('id', id).then(res=>{
-      if(res.data && res.data[0]){
-        document.getElementById('adPreview').innerHTML=`<h3>${res.data[0].title}</h3><p>${res.data[0].description || ''}</p>`;
-      }
-    });
+async function submitReason(id){
+  const reasonEl = document.querySelector(`#reason-${id} textarea`);
+  const reason = reasonEl.value;
+  await supabase.from('ads').update({ status: 'denied', deny_reason: reason }).eq('id', id);
+  document.getElementById(`status-${id}`).textContent = 'Status: Denied';
+  reasonEl.value='';
+  document.getElementById(`reason-${id}`).style.display='none';
+}
+
+// Create new ad
+document.getElementById('createAdBtn').addEventListener('click', async () => {
+  const title = document.getElementById('adTitle').value;
+  const image = document.getElementById('adImage').value;
+  const link = document.getElementById('adLink').value;
+  if(!title || !image || !link) return alert('Please fill all fields');
+  const ad = { id: Date.now().toString(), title, image, link, status: 'pending', created_at: new Date() };
+  const { error } = await supabase.from('ads').insert([ad]);
+  if(error){
+    console.log(error);
+    let ads = JSON.parse(localStorage.getItem('ads') || '[]');
+    ads.unshift(ad);
+    localStorage.setItem('ads', JSON.stringify(ads));
   }
-}
+  renderAdCard(ad);
+  document.getElementById('adTitle').value='';
+  document.getElementById('adImage').value='';
+  document.getElementById('adLink').value='';
+});
 
-function closeModal(){ document.getElementById('previewModal').style.display='none'; }
+loadAds();
 
-async function approveAd(){
-  if(!supabase || !selectedAdId) return;
-  await supabase.from('ads').update({status:'Approved'}).eq('id', selectedAdId);
-  document.getElementById('adMessage').innerText='Ad Approved!';
-  loadAds();
-}
-
-async function denyAd(){
-  if(!supabase || !selectedAdId) return;
-  const reason = document.getElementById('denyReason').value;
-  await supabase.from('ads').update({status:'Denied', deny_reason:reason}).eq('id', selectedAdId);
-  document.getElementById('adMessage').innerText='Ad Denied';
-  loadAds();
-}
-
-function addDiscount(){
-  const code = prompt('Enter code:');
-  const discount = prompt('Enter discount %:');
-  const expires = prompt('Enter expiration date:');
-  if(!code || !discount || !expires) return;
-  if(!supabase) return;
-  supabase.from('discount_codes').insert([{code, discount, expires}]).then(()=> loadDiscounts());
-}
-
-async function loadDiscounts(){
-  if(!supabase) return;
-  const { data } = await supabase.from('discount_codes').select('*');
-  const tbody = document.querySelector('#discountTable tbody');
-  tbody.innerHTML='';
-  data.forEach(d=>{
-    const tr = document.createElement('tr');
-    tr.innerHTML=`<td>${d.code}</td><td>${d.discount}</td><td>${d.expires}</td><td><button class='action' onclick='editDiscount("${d.id}")'>Edit</button> <button class='action' onclick='deleteDiscount("${d.id}")'>Delete</button></td>`;
-    tbody.appendChild(tr);
-  });
-}
-
-function editDiscount(id){ alert('Edit discount '+id+' - implement as needed'); }
-function deleteDiscount(id){ alert('Delete discount '+id+' - implement as needed'); }
-
-</script></body>
+  </script>
+</body>
 </html>
