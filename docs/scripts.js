@@ -684,19 +684,9 @@ body.menu-open #carrieWrap{
   <div class="menu-group collapsed">
     <div class="menu-group-title">Admin / Mod / Owner</div>
     <div class="menu-links">
-      <a href="admin.html" class="menu-chip">Admin</a>
-      <a href="admin-panel.html" class="menu-chip">Admin Panel</a>
-      <a href="admin_panel.html" class="menu-chip">Admin Panel (alt)</a>
-      <a href="admin-hub.html" class="menu-chip">Admin Hub</a>
-      <a href="admin-guide.html" class="menu-chip">Admin Guide</a>
-      <a href="admin_guide.html" class="menu-chip">Admin Guide (alt)</a>
-      <a href="mod-hub.html" class="menu-chip">Mod Hub</a>
-      <a href="mod-panel.html" class="menu-chip">Mod Panel</a>
-      <a href="mod_panel.html" class="menu-chip">Mod Panel (alt)</a>
-      <a href="owner.html" class="menu-chip">Owner</a>
-      <a href="owner-studio.html" class="menu-chip">Owner Studio</a>
-      <a href="owner-panel.html" class="menu-chip">Owner Panel</a>
-      <a href="owner_picks.html" class="menu-chip">Owner Picks</a>
+      <a href="owner-panel.html" class="menu-chip">👑 Owner Panel</a>
+      <a href="admin-panel.html" class="menu-chip">⚙️ Admin Panel</a>
+      <a href="mod-panel.html" class="menu-chip">🛡️ Mod Panel</a>
     </div>
   </div>
 
