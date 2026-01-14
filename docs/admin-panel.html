@@ -1,107 +1,854 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>8BFR Admin Panel — Ads Management</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body { font-family: system-ui, sans-serif; background: #0b0014; color: #eae6ff; }
-    .card { background: rgba(12,6,24,.7); border: 1px solid rgba(124,58,237,.5); border-radius: 12px; padding: 1rem; margin-bottom: 1rem; }
-    .btn { @apply px-3 py-1 rounded-md font-semibold cursor-pointer; }
-    .btn-approve { background: #22c55e; color: #fff; }
-    .btn-deny { background: #ef4444; color: #fff; }
-    .btn:hover { opacity: 0.9; }
-    textarea { width: 100%; border-radius: 6px; padding: 0.5rem; margin-top: 0.25rem; }
-    input[type='text'] { width: 100%; border-radius: 6px; padding: 0.5rem; margin-top: 0.25rem; }
-  </style>
-</head>
-<body class="p-4">
-  <h1 class="text-2xl font-bold mb-4">🛠️ Admin Panel — Ads Management</h1>  <!-- New Ad Submission Form -->  <div class="card">
-    <h2 class="text-xl font-semibold mb-2">Create New Ad</h2>
-    <input type="text" id="adTitle" placeholder="Ad Title">
-    <input type="text" id="adImage" placeholder="Image URL">
-    <input type="text" id="adLink" placeholder="Redirect URL">
-    <button class="btn btn-approve mt-2" id="createAdBtn">Create Ad</button>
-  </div>  <!-- Ads List -->  <div id="adsContainer"></div>  <!-- PayPal Config -->  <script>
-    const PAYPAL_ID = '8bfr.music@gmail.com';
-  </script>  <!-- Admin Logic -->  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>  <script>
-    // Supabase client setup
-    const supabaseUrl = 'https://YOUR_SUPABASE_URL';
-    const supabaseKey = 'YOUR_SUPABASE_ANON_KEY';
-    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
-
-    const adsContainer = document.getElementById('adsContainer');
-
-    // Load ads from Supabase (or localStorage fallback)
-    async function loadAds() {
-      let { data: ads, error } = await supabase.from('ads').select('*').order('created_at', { ascending: false });
-      if(error){ console.log(error); ads = JSON.parse(localStorage.getItem('ads') || '[]'); }
-      adsContainer.innerHTML = '';
-      ads.forEach(ad => renderAdCard(ad));
-    }
-
-    function renderAdCard(ad){
-      const div = document.createElement('div');
-      div.className = 'card';
-      div.innerHTML = `
-        <div><strong>${ad.title}</strong></div>
-        <img src='${ad.image}' alt='Ad Image' class='mt-2 rounded-md' style='max-height:200px; object-fit:cover;'>
-        <div class='mt-1'><a href='${ad.link}' target='_blank' class='text-blue-400 underline'>Visit Link</a></div>
-        <div class='mt-2 flex gap-2'>
-          <button class='btn btn-approve' onclick='approveAd("${ad.id}")'>Approve</button>
-          <button class='btn btn-deny' onclick='denyAd("${ad.id}")'>Deny</button>
-        </div>
-        <div class='mt-2 hidden' id='reason-${ad.id}'>
-          <textarea placeholder='Reason for denial'></textarea><button class='btn btn-deny mt-1' onclick='submitReason("${ad.id}")'>Submit</button>
-    </div>
-    <div class='mt-1 text-sm text-purple-300' id='status-${ad.id}'>Status: ${ad.status || 'Pending'}</div>
-  `;
-  adsContainer.appendChild(div);
-}
-
-async function approveAd(id){
-  const reasonEl = document.getElementById(`reason-${id}`);
-  reasonEl.style.display='none';
-  await supabase.from('ads').update({ status: 'approved' }).eq('id', id);
-  document.getElementById(`status-${id}`).textContent = 'Status: Approved';
-}
-
-function denyAd(id){
-  const reasonEl = document.getElementById(`reason-${id}`);
-  reasonEl.style.display = 'block';
-}
-
-async function submitReason(id){
-  const reasonEl = document.querySelector(`#reason-${id} textarea`);
-  const reason = reasonEl.value;
-  await supabase.from('ads').update({ status: 'denied', deny_reason: reason }).eq('id', id);
-  document.getElementById(`status-${id}`).textContent = 'Status: Denied';
-  reasonEl.value='';
-  document.getElementById(`reason-${id}`).style.display='none';
-}
-
-// Create new ad
-document.getElementById('createAdBtn').addEventListener('click', async () => {
-  const title = document.getElementById('adTitle').value;
-  const image = document.getElementById('adImage').value;
-  const link = document.getElementById('adLink').value;
-  if(!title || !image || !link) return alert('Please fill all fields');
-  const ad = { id: Date.now().toString(), title, image, link, status: 'pending', created_at: new Date() };
-  const { error } = await supabase.from('ads').insert([ad]);
-  if(error){
-    console.log(error);
-    let ads = JSON.parse(localStorage.getItem('ads') || '[]');
-    ads.unshift(ad);
-    localStorage.setItem('ads', JSON.stringify(ads));
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin Panel — 8BFR Music Network</title>
+<link rel="icon" href="assets/images/favicon.png" />
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    background: linear-gradient(#0b0014, #000);
+    color: #eae6ff;
+    font-family: system-ui, -apple-system, sans-serif;
+    margin: 0;
+    padding: 0;
   }
-  renderAdCard(ad);
-  document.getElementById('adTitle').value='';
-  document.getElementById('adImage').value='';
-  document.getElementById('adLink').value='';
+  
+  .header {
+    background: rgba(15, 0, 30, 0.95);
+    border-bottom: 1px solid rgba(124, 58, 237, 0.5);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(12px);
+  }
+  
+  .admin-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+  }
+  
+  .section {
+    background: rgba(12, 6, 24, 0.8);
+    border: 1px solid rgba(124, 58, 237, 0.35);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .section-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #a855f7;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    font-size: 0.9rem;
+  }
+  
+  .btn-primary {
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    color: white;
+  }
+  
+  .btn-success {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    color: white;
+  }
+  
+  .btn-danger {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+  }
+  
+  .btn-secondary {
+    background: rgba(124, 58, 237, 0.2);
+    border: 1px solid rgba(124, 58, 237, 0.5);
+    color: #a855f7;
+  }
+  
+  .input-field {
+    width: 100%;
+    padding: 0.75rem;
+    background: rgba(18, 3, 39, 0.8);
+    border: 1px solid rgba(124, 58, 237, 0.3);
+    border-radius: 8px;
+    color: #fff;
+    font-size: 0.95rem;
+    margin-bottom: 0.75rem;
+  }
+  
+  .input-field:focus {
+    outline: none;
+    border-color: #a855f7;
+  }
+  
+  .ad-preview {
+    background: rgba(18, 3, 39, 0.9);
+    border: 2px solid rgba(245, 158, 11, 0.5);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .ad-card {
+    background: rgba(12, 6, 24, 0.9);
+    border: 1px solid rgba(124, 58, 237, 0.3);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .countdown {
+    font-family: monospace;
+    font-size: 1.2rem;
+    color: #f59e0b;
+    font-weight: 700;
+  }
+  
+  .status-badge {
+    display: inline-block;
+    padding: 0.3rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  
+  .status-pending {
+    background: rgba(245, 158, 11, 0.2);
+    border: 1px solid rgba(245, 158, 11, 0.5);
+    color: #f59e0b;
+  }
+  
+  .status-active {
+    background: rgba(34, 197, 94, 0.2);
+    border: 1px solid rgba(34, 197, 94, 0.5);
+    color: #22c55e;
+  }
+  
+  .status-expired {
+    background: rgba(239, 68, 68, 0.2);
+    border: 1px solid rgba(239, 68, 68, 0.5);
+    color: #ef4444;
+  }
+  
+  .grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+  }
+  
+  .tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+  
+  .tab {
+    padding: 0.6rem 1.2rem;
+    background: rgba(124, 58, 237, 0.1);
+    border: 1px solid rgba(124, 58, 237, 0.3);
+    border-radius: 8px;
+    color: #a855f7;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  
+  .tab.active {
+    background: rgba(124, 58, 237, 0.3);
+    border-color: #a855f7;
+  }
+  
+  .editor-toolbar {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+  }
+  
+  .editor-btn {
+    padding: 0.5rem 0.75rem;
+    background: rgba(124, 58, 237, 0.2);
+    border: 1px solid rgba(124, 58, 237, 0.4);
+    border-radius: 6px;
+    color: #a855f7;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+    <a href="index.html" style="color: #a855f7; text-decoration: none; font-weight: 600;">← Home</a>
+    <h1 style="font-size: 1.25rem; font-weight: 800; background: linear-gradient(135deg, #ef4444, #dc2626); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+      👑 Admin Panel
+    </h1>
+    <div id="adminName" style="font-size: 0.9rem; color: #a855f7;"></div>
+  </div>
+</header>
+
+<main class="admin-container">
+  
+  <!-- 📢 AD MANAGER -->
+  <section class="section">
+    <div class="section-title">📢 Ad Manager</div>
+    
+    <div class="tabs">
+      <button class="tab active" onclick="switchAdTab('pending')">Pending Approvals</button>
+      <button class="tab" onclick="switchAdTab('active')">Active Ads</button>
+      <button class="tab" onclick="switchAdTab('expired')">Expired</button>
+      <button class="tab" onclick="switchAdTab('slots')">Sponsor Slots</button>
+    </div>
+    
+    <!-- PENDING APPROVALS -->
+    <div id="pendingAds">
+      <div id="pendingAdsList"></div>
+    </div>
+    
+    <!-- ACTIVE ADS -->
+    <div id="activeAds" style="display: none;">
+      <div id="activeAdsList"></div>
+    </div>
+    
+    <!-- EXPIRED ADS -->
+    <div id="expiredAds" style="display: none;">
+      <div id="expiredAdsList"></div>
+    </div>
+    
+    <!-- SPONSOR SLOTS -->
+    <div id="sponsorSlots" style="display: none;">
+      <p style="color: #a855f7; margin-bottom: 1rem;">Manage ad slots on homepage</p>
+      <div id="slotsList"></div>
+    </div>
+  </section>
+  
+  <!-- 💸 DISCOUNT & PROMO CODES -->
+  <section class="section">
+    <div class="section-title">💸 Discount & Promo Codes</div>
+    
+    <div class="grid-2">
+      <div>
+        <h3 style="color: #a855f7; font-weight: 600; margin-bottom: 0.75rem;">Create New Code</h3>
+        
+        <input type="text" class="input-field" id="codeText" placeholder="Code (e.g., SAVE10)" maxlength="20">
+        
+        <select class="input-field" id="codeAmount">
+          <option value="">Select Discount Amount</option>
+          <option value="free">FREE</option>
+          <option value="1">$1.00 OFF</option>
+          <option value="2">$2.00 OFF</option>
+          <option value="3">$3.00 OFF</option>
+          <option value="4">$4.00 OFF</option>
+        </select>
+        
+        <input type="date" class="input-field" id="codeExpiry">
+        
+        <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; cursor: pointer;">
+          <input type="checkbox" id="codeOneTime" checked>
+          <span style="color: #a855f7;">One-time use only</span>
+        </label>
+        
+        <button class="btn btn-primary" onclick="createDiscountCode()">Create Code</button>
+      </div>
+      
+      <div>
+        <h3 style="color: #a855f7; font-weight: 600; margin-bottom: 0.75rem;">Active Codes</h3>
+        <div id="codesList"></div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- ✏️ CONTENT / PAGE EDITOR -->
+  <section class="section">
+    <div class="section-title">✏️ Content / Page Editor</div>
+    
+    <div class="tabs">
+      <button class="tab active" onclick="switchEditorTab('html')">HTML Editor</button>
+      <button class="tab" onclick="switchEditorTab('visual')">Visual Editor</button>
+      <button class="tab" onclick="switchEditorTab('pages')">Pages</button>
+      <button class="tab" onclick="switchEditorTab('featured')">Featured Content</button>
+    </div>
+    
+    <!-- HTML EDITOR -->
+    <div id="htmlEditor">
+      <select class="input-field" id="pageSelect" onchange="loadPageForEdit()">
+        <option value="">Select a page to edit</option>
+        <option value="index">Homepage</option>
+        <option value="about">About</option>
+        <option value="contact">Contact</option>
+        <option value="blog">Blog</option>
+      </select>
+      
+      <div class="editor-toolbar">
+        <button class="editor-btn" onclick="insertTag('h1')">H1</button>
+        <button class="editor-btn" onclick="insertTag('h2')">H2</button>
+        <button class="editor-btn" onclick="insertTag('p')">P</button>
+        <button class="editor-btn" onclick="insertTag('strong')">Bold</button>
+        <button class="editor-btn" onclick="insertTag('em')">Italic</button>
+        <button class="editor-btn" onclick="insertTag('a')">Link</button>
+      </div>
+      
+      <textarea id="htmlCode" class="input-field" style="min-height: 300px; font-family: monospace;" placeholder="HTML code will appear here..."></textarea>
+      
+      <button class="btn btn-success" onclick="savePageEdit()">💾 Save Changes</button>
+    </div>
+    
+    <!-- VISUAL EDITOR -->
+    <div id="visualEditor" style="display: none;">
+      <p style="color: #a855f7; margin-bottom: 1rem;">Drag and drop blocks to build pages</p>
+      <div id="visualBlocks" style="min-height: 300px; background: rgba(18, 3, 39, 0.6); border: 2px dashed rgba(124, 58, 237, 0.3); border-radius: 8px; padding: 2rem; text-align: center;">
+        <div style="color: #a855f7; opacity: 0.6;">Visual editor coming soon</div>
+      </div>
+    </div>
+    
+    <!-- PAGES -->
+    <div id="pagesManager" style="display: none;">
+      <button class="btn btn-primary" onclick="createNewPage()">➕ Create New Page</button>
+      <div id="pagesList" style="margin-top: 1rem;"></div>
+    </div>
+    
+    <!-- FEATURED CONTENT -->
+    <div id="featuredContent" style="display: none;">
+      <div id="featuredManager"></div>
+    </div>
+  </section>
+  
+  <!-- 🛍 SHOP MODERATION -->
+  <section class="section">
+    <div class="section-title">🛍 Shop Moderation</div>
+    
+    <div class="tabs">
+      <button class="tab active" onclick="switchShopTab('pending')">Pending Uploads</button>
+      <button class="tab" onclick="switchShopTab('flagged')">Flagged Items</button>
+      <button class="tab" onclick="switchShopTab('all')">All Items</button>
+    </div>
+    
+    <div id="shopPending">
+      <div id="shopPendingList"></div>
+    </div>
+    
+    <div id="shopFlagged" style="display: none;">
+      <div id="shopFlaggedList"></div>
+    </div>
+    
+    <div id="shopAll" style="display: none;">
+      <div id="shopAllList"></div>
+    </div>
+  </section>
+  
+  <!-- 👥 USER & ROLE MANAGER -->
+  <section class="section">
+    <div class="section-title">👥 User & Role Manager</div>
+    
+    <div class="grid-2">
+      <div>
+        <h3 style="color: #a855f7; font-weight: 600; margin-bottom: 0.75rem;">Search User</h3>
+        <input type="text" class="input-field" id="userSearch" placeholder="Search by username..." onkeyup="searchUsers()">
+        <div id="userSearchResults"></div>
+      </div>
+      
+      <div>
+        <h3 style="color: #a855f7; font-weight: 600; margin-bottom: 0.75rem;">Assign Roles</h3>
+        <select class="input-field" id="roleSelect">
+          <option value="user">User</option>
+          <option value="g7">G7 Member</option>
+          <option value="mod">Moderator</option>
+          <option value="admin">Admin</option>
+          <option value="owner">Owner</option>
+        </select>
+        
+        <h3 style="color: #a855f7; font-weight: 600; margin: 1rem 0 0.75rem 0;">Badge Overrides</h3>
+        <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+          <input type="checkbox" class="badge-check" value="verified"> Verified
+        </label>
+        <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+          <input type="checkbox" class="badge-check" value="artist"> Artist
+        </label>
+        <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+          <input type="checkbox" class="badge-check" value="beatmaker"> Beatmaker
+        </label>
+        <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+          <input type="checkbox" class="badge-check" value="founder"> Founder
+        </label>
+      </div>
+    </div>
+  </section>
+  
+  <!-- 🧪 SYSTEM TOOLS -->
+  <section class="section">
+    <div class="section-title">🧪 System Tools</div>
+    
+    <div class="tabs">
+      <button class="tab active" onclick="switchSystemTab('logs')">Activity Logs</button>
+      <button class="tab" onclick="switchSystemTab('debug')">Debug Flags</button>
+      <button class="tab" onclick="switchSystemTab('features')">Feature Toggles</button>
+    </div>
+    
+    <!-- LOGS -->
+    <div id="systemLogs">
+      <div id="logsList"></div>
+    </div>
+    
+    <!-- DEBUG -->
+    <div id="debugFlags" style="display: none;">
+      <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+        <input type="checkbox" id="debugMode"> Enable Debug Mode
+      </label>
+      <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+        <input type="checkbox" id="verboseLogs"> Verbose Logging
+      </label>
+      <button class="btn btn-secondary" onclick="clearAllLogs()">Clear All Logs</button>
+    </div>
+    
+    <!-- FEATURES -->
+    <div id="featureToggles" style="display: none;">
+      <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+        <input type="checkbox" id="featureStories" checked> Stories Feature
+      </label>
+      <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+        <input type="checkbox" id="featureRadio" checked> Radio Feature
+      </label>
+      <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+        <input type="checkbox" id="featureShop" checked> Shop Feature
+      </label>
+      <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+        <input type="checkbox" id="featureAds" checked> Ad System
+      </label>
+    </div>
+  </section>
+  
+</main>
+
+<script src="scripts.js?v=6" defer></script>
+
+<script>
+// Check admin access
+const currentUser = {
+  username: localStorage.getItem('username') || 'Admin',
+  role: localStorage.getItem('userRole') || 'guest'
+};
+
+if (currentUser.role !== 'owner' && currentUser.role !== 'admin') {
+  alert('⚠️ Access Denied - Admin Only');
+  window.location.href = 'index.html';
+}
+
+document.getElementById('adminName').textContent = `👤 ${currentUser.username}`;
+
+// ===== AD MANAGER =====
+function loadPendingAds() {
+  const pendingAds = JSON.parse(localStorage.getItem('home_ads_pending') || '[]');
+  const container = document.getElementById('pendingAdsList');
+  
+  if (pendingAds.length === 0) {
+    container.innerHTML = '<div style="text-align: center; padding: 2rem; color: #a855f7; opacity: 0.7;">No pending ads</div>';
+    return;
+  }
+  
+  container.innerHTML = pendingAds.map((ad, index) => `
+    <div class="ad-card">
+      <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+        <div>
+          <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 0.25rem;">${ad.title || 'Untitled Ad'}</div>
+          <div style="color: #a855f7; font-size: 0.85rem;">By: ${ad.username || 'Unknown'}</div>
+        </div>
+        <span class="status-badge status-pending">PENDING</span>
+      </div>
+      
+      <!-- AD PREVIEW -->
+      <div class="ad-preview">
+        <div style="font-weight: 600; color: #f59e0b; margin-bottom: 0.5rem; font-size: 0.85rem;">📱 Preview (as it will appear on homepage):</div>
+        <div style="background: rgba(124, 58, 237, 0.1); padding: 1rem; border-radius: 8px;">
+          ${ad.imageUrl ? `<img src="${ad.imageUrl}" style="width: 100%; border-radius: 8px; margin-bottom: 0.5rem;">` : ''}
+          <div style="font-weight: 700; margin-bottom: 0.25rem;">${ad.title || ''}</div>
+          <div style="font-size: 0.9rem; color: #a855f7;">${ad.description || ''}</div>
+          ${ad.linkUrl ? `<a href="${ad.linkUrl}" style="color: #00d9ff; font-size: 0.85rem;">Visit Site →</a>` : ''}
+        </div>
+      </div>
+      
+      <div style="margin: 1rem 0;">
+        <strong style="color: #a855f7;">Duration:</strong> ${ad.weeks || 1} week(s) ($${(ad.weeks || 1) * 5})
+      </div>
+      
+      <!-- MESSAGE BOX -->
+      <textarea id="rejectMsg_${index}" class="input-field" placeholder="Message to sender (if rejecting)..." style="min-height: 80px;"></textarea>
+      
+      <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
+        <button class="btn btn-success" onclick="approveAd(${index})">✅ Approve & Activate</button>
+        <button class="btn btn-danger" onclick="rejectAd(${index})">❌ Reject with Message</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function loadActiveAds() {
+  const activeAds = JSON.parse(localStorage.getItem('home_ads_active') || '[]');
+  const container = document.getElementById('activeAdsList');
+  
+  if (activeAds.length === 0) {
+    container.innerHTML = '<div style="text-align: center; padding: 2rem; color: #a855f7; opacity: 0.7;">No active ads</div>';
+    return;
+  }
+  
+  container.innerHTML = activeAds.map((ad, index) => {
+    const endTime = ad.startTime + (ad.weeks * 7 * 24 * 60 * 60 * 1000);
+    const remaining = endTime - Date.now();
+    const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((remaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    
+    return `
+      <div class="ad-card">
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+          <div>
+            <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 0.25rem;">${ad.title || 'Untitled Ad'}</div>
+            <div style="color: #a855f7; font-size: 0.85rem;">By: ${ad.username || 'Unknown'}</div>
+          </div>
+          <span class="status-badge status-active">ACTIVE</span>
+        </div>
+        
+        <div style="background: rgba(34, 197, 94, 0.1); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+          <div style="color: #22c55e; font-weight: 600; margin-bottom: 0.5rem;">⏱️ Time Remaining:</div>
+          <div class="countdown">${days}d ${hours}h</div>
+          ${days <= 2 ? '<div style="color: #f59e0b; font-size: 0.85rem; margin-top: 0.5rem;">⚠️ Reminder sent to user</div>' : ''}
+        </div>
+        
+        <div style="display: flex; gap: 0.75rem;">
+          <button class="btn btn-secondary" onclick="extendAd(${index})">⏱️ Extend Time</button>
+          <button class="btn btn-danger" onclick="removeAdEarly(${index})">🗑️ Remove Early</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function approveAd(index) {
+  const pending = JSON.parse(localStorage.getItem('home_ads_pending') || '[]');
+  const ad = pending[index];
+  
+  if (!confirm(`Approve ad: "${ad.title}"?`)) return;
+  
+  // Move to active
+  const active = JSON.parse(localStorage.getItem('home_ads_active') || '[]');
+  active.push({
+    ...ad,
+    startTime: Date.now(),
+    approved: true
+  });
+  
+  // Remove from pending
+  pending.splice(index, 1);
+  
+  localStorage.setItem('home_ads_active', JSON.stringify(active));
+  localStorage.setItem('home_ads_pending', JSON.stringify(pending));
+  
+  // Add to homepage slots
+  addAdToHomeSlot(ad);
+  
+  alert('✅ Ad approved and activated!');
+  loadPendingAds();
+}
+
+function rejectAd(index) {
+  const message = document.getElementById(`rejectMsg_${index}`).value.trim();
+  
+  if (!message) {
+    alert('⚠️ Please enter a message explaining why the ad was rejected');
+    return;
+  }
+  
+  const pending = JSON.parse(localStorage.getItem('home_ads_pending') || '[]');
+  const ad = pending[index];
+  
+  // Send message to user
+  const messages = JSON.parse(localStorage.getItem('admin_messages') || '[]');
+  messages.push({
+    to: ad.userId,
+    from: 'admin',
+    subject: `Ad Rejected: ${ad.title}`,
+    message: message,
+    timestamp: Date.now()
+  });
+  localStorage.setItem('admin_messages', JSON.stringify(messages));
+  
+  // Remove from pending
+  pending.splice(index, 1);
+  localStorage.setItem('home_ads_pending', JSON.stringify(pending));
+  
+  alert('❌ Ad rejected and message sent to user');
+  loadPendingAds();
+}
+
+function addAdToHomeSlot(ad) {
+  // Add ad to homepage slider
+  const homeAds = JSON.parse(localStorage.getItem('homepage_ad_slots') || '[]');
+  homeAds.push({
+    id: 'ad_' + Date.now(),
+    title: ad.title,
+    imageUrl: ad.imageUrl,
+    linkUrl: ad.linkUrl,
+    sponsor: true,
+    expires: Date.now() + (ad.weeks * 7 * 24 * 60 * 60 * 1000)
+  });
+  localStorage.setItem('homepage_ad_slots', JSON.stringify(homeAds));
+}
+
+// Auto-check expired ads and send reminders
+function checkExpiredAds() {
+  const active = JSON.parse(localStorage.getItem('home_ads_active') || '[]');
+  const now = Date.now();
+  const twoDays = 2 * 24 * 60 * 60 * 1000;
+  
+  active.forEach(ad => {
+    const endTime = ad.startTime + (ad.weeks * 7 * 24 * 60 * 60 * 1000);
+    const remaining = endTime - now;
+    
+    // Send reminder if 2 days or less remaining and not already sent
+    if (remaining <= twoDays && remaining > 0 && !ad.reminderSent) {
+      sendExpiryReminder(ad);
+      ad.reminderSent = true;
+    }
+    
+    // Auto-remove if expired
+    if (remaining <= 0) {
+      removeExpiredAd(ad);
+    }
+  });
+  
+  localStorage.setItem('home_ads_active', JSON.stringify(active));
+}
+
+function sendExpiryReminder(ad) {
+  const messages = JSON.parse(localStorage.getItem('admin_messages') || '[]');
+  messages.push({
+    to: ad.userId,
+    from: 'admin',
+    subject: `Your ad expires in 2 days`,
+    message: `Your ad "${ad.title}" will expire in approximately 2 days. Purchase more time to keep it running!`,
+    timestamp: Date.now()
+  });
+  localStorage.setItem('admin_messages', JSON.stringify(messages));
+}
+
+function removeExpiredAd(ad) {
+  // Remove from homepage slots
+  const homeAds = JSON.parse(localStorage.getItem('homepage_ad_slots') || '[]');
+  const filtered = homeAds.filter(slot => slot.title !== ad.title);
+  localStorage.setItem('homepage_ad_slots', JSON.stringify(filtered));
+  
+  // Move to expired
+  const expired = JSON.parse(localStorage.getItem('home_ads_expired') || '[]');
+  expired.push({
+    ...ad,
+    expiredAt: Date.now()
+  });
+  localStorage.setItem('home_ads_expired', JSON.stringify(expired));
+}
+
+// ===== DISCOUNT CODES =====
+function createDiscountCode() {
+  const code = document.getElementById('codeText').value.trim().toUpperCase();
+  const amount = document.getElementById('codeAmount').value;
+  const expiry = document.getElementById('codeExpiry').value;
+  const oneTime = document.getElementById('codeOneTime').checked;
+  
+  if (!code || !amount || !expiry) {
+    alert('⚠️ Please fill in all fields');
+    return;
+  }
+  
+  const codes = JSON.parse(localStorage.getItem('discount_codes') || '[]');
+  
+  // Check if code already exists
+  if (codes.some(c => c.code === code)) {
+    alert('⚠️ Code already exists');
+    return;
+  }
+  
+  codes.push({
+    code: code,
+    amount: amount,
+    expiry: expiry,
+    oneTime: oneTime,
+    used: false,
+    createdAt: Date.now()
+  });
+  
+  localStorage.setItem('discount_codes', JSON.stringify(codes));
+  
+  alert(`✅ Code "${code}" created!`);
+  
+  // Clear form
+  document.getElementById('codeText').value = '';
+  document.getElementById('codeAmount').value = '';
+  document.getElementById('codeExpiry').value = '';
+  
+  loadDiscountCodes();
+}
+
+function loadDiscountCodes() {
+  const codes = JSON.parse(localStorage.getItem('discount_codes') || '[]');
+  const container = document.getElementById('codesList');
+  
+  if (codes.length === 0) {
+    container.innerHTML = '<div style="color: #a855f7; opacity: 0.7; font-size: 0.9rem;">No codes created yet</div>';
+    return;
+  }
+  
+  container.innerHTML = codes.map((code, index) => {
+    const isExpired = new Date(code.expiry) < new Date();
+    const amountText = code.amount === 'free' ? 'FREE' : `$${code.amount} OFF`;
+    
+    return `
+      <div style="background: rgba(124, 58, 237, 0.1); padding: 0.75rem; border-radius: 8px; margin-bottom: 0.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="font-weight: 700; font-size: 1rem;">${code.code}</div>
+            <div style="font-size: 0.85rem; color: #a855f7;">
+              ${amountText} • Expires: ${code.expiry}
+              ${code.oneTime ? ' • One-time use' : ''}
+              ${code.used ? ' • USED' : ''}
+              ${isExpired ? ' • EXPIRED' : ''}
+            </div>
+          </div>
+          <button class="btn btn-danger" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" onclick="deleteCode(${index})">Delete</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function deleteCode(index) {
+  if (!confirm('Delete this discount code?')) return;
+  
+  const codes = JSON.parse(localStorage.getItem('discount_codes') || '[]');
+  codes.splice(index, 1);
+  localStorage.setItem('discount_codes', JSON.stringify(codes));
+  
+  loadDiscountCodes();
+}
+
+// ===== TAB SWITCHING =====
+function switchAdTab(tab) {
+  document.querySelectorAll('#pendingAds, #activeAds, #expiredAds, #sponsorSlots').forEach(el => el.style.display = 'none');
+  
+  if (tab === 'pending') {
+    document.getElementById('pendingAds').style.display = 'block';
+    loadPendingAds();
+  } else if (tab === 'active') {
+    document.getElementById('activeAds').style.display = 'block';
+    loadActiveAds();
+  } else if (tab === 'expired') {
+    document.getElementById('expiredAds').style.display = 'block';
+  } else if (tab === 'slots') {
+    document.getElementById('sponsorSlots').style.display = 'block';
+  }
+}
+
+function switchEditorTab(tab) {
+  document.querySelectorAll('#htmlEditor, #visualEditor, #pagesManager, #featuredContent').forEach(el => el.style.display = 'none');
+  
+  if (tab === 'html') {
+    document.getElementById('htmlEditor').style.display = 'block';
+  } else if (tab === 'visual') {
+    document.getElementById('visualEditor').style.display = 'block';
+  } else if (tab === 'pages') {
+    document.getElementById('pagesManager').style.display = 'block';
+  } else if (tab === 'featured') {
+    document.getElementById('featuredContent').style.display = 'block';
+  }
+}
+
+function switchShopTab(tab) {
+  document.querySelectorAll('#shopPending, #shopFlagged, #shopAll').forEach(el => el.style.display = 'none');
+  
+  if (tab === 'pending') {
+    document.getElementById('shopPending').style.display = 'block';
+  } else if (tab === 'flagged') {
+    document.getElementById('shopFlagged').style.display = 'block';
+  } else if (tab === 'all') {
+    document.getElementById('shopAll').style.display = 'block';
+  }
+}
+
+function switchSystemTab(tab) {
+  document.querySelectorAll('#systemLogs, #debugFlags, #featureToggles').forEach(el => el.style.display = 'none');
+  
+  if (tab === 'logs') {
+    document.getElementById('systemLogs').style.display = 'block';
+    loadActivityLogs();
+  } else if (tab === 'debug') {
+    document.getElementById('debugFlags').style.display = 'block';
+  } else if (tab === 'features') {
+    document.getElementById('featureToggles').style.display = 'block';
+  }
+}
+
+// ===== ACTIVITY LOGS =====
+function loadActivityLogs() {
+  const logs = JSON.parse(localStorage.getItem('admin_activity_log') || '[]');
+  const container = document.getElementById('logsList');
+  
+  if (logs.length === 0) {
+    container.innerHTML = '<div style="text-align: center; padding: 2rem; color: #a855f7; opacity: 0.7;">No activity logged</div>';
+    return;
+  }
+  
+  container.innerHTML = logs.slice(-50).reverse().map(log => {
+    const date = new Date(log.timestamp).toLocaleString();
+    return `
+      <div style="background: rgba(124, 58, 237, 0.05); padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; font-size: 0.9rem;">
+        <strong>${log.performedBy}</strong> (${log.role}) - ${log.action} - ${log.targetType}: ${log.targetId}
+        <div style="color: #a855f7; font-size: 0.8rem; opacity: 0.7; margin-top: 0.25rem;">${date}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ===== INIT =====
+loadPendingAds();
+loadDiscountCodes();
+
+// Check for expired ads every minute
+setInterval(checkExpiredAds, 60000);
+checkExpiredAds();
+
+// Hide bubbles
+window.addEventListener("load", function(){
+  setTimeout(function(){
+    const idsToHide = ['bubbleStack', 'bubble-top-single', 'carrieWrap', 'carrieBubble', 'carrieToggleBar'];
+    idsToHide.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+    
+    const classesToHide = ['.bubble-stack', '.floating-bubbles', '.carrie-bubble', '.bubble-container'];
+    classesToHide.forEach(cls => {
+      document.querySelectorAll(cls).forEach(el => el.style.display = 'none');
+    });
+    
+    document.querySelectorAll('[data-bubble]').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('[data-role="carrie"], [data-carrie]').forEach(el => el.style.display = 'none');
+  }, 300);
 });
+</script>
 
-loadAds();
-
-  </script>
 </body>
 </html>
