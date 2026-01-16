@@ -1,29 +1,995 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>8BFR Mod Tools</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moderator Panel - 8BFR Music Network</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary: #00ff88;
+            --secondary: #00cc6e;
+            --dark: #0a0a0a;
+            --dark-card: #1a1a1a;
+            --success: #00ff88;
+            --warning: #ffaa00;
+            --danger: #ff0044;
+            --text: #ffffff;
+            --text-dim: #999999;
+            --border: #333333;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Work Sans', sans-serif;
+            background: var(--dark);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--dark-card) 0%, #000 100%);
+            border-bottom: 2px solid var(--primary);
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0, 255, 136, 0.2);
+        }
+
+        .header h1 {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 2rem;
+            letter-spacing: 2px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logout-btn {
+            background: var(--danger);
+            color: white;
+            border: none;
+            padding: 0.5rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: #cc0033;
+            transform: translateY(-2px);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid var(--border);
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            background: transparent;
+            color: var(--text-dim);
+            border: none;
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.95rem;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+            font-family: 'Work Sans', sans-serif;
+        }
+
+        .tab:hover {
+            color: var(--text);
+            border-bottom-color: var(--secondary);
+        }
+
+        .tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            background: var(--dark-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .card h2 {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 1.5rem;
+            letter-spacing: 1px;
+            color: var(--primary);
+            margin-bottom: 1rem;
+            border-left: 4px solid var(--secondary);
+            padding-left: 1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--dark);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text);
+            font-family: 'Work Sans', sans-serif;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .form-group textarea {
+            min-height: 150px;
+            resize: vertical;
+        }
+
+        .btn {
+            background: var(--primary);
+            color: var(--dark);
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            font-family: 'Work Sans', sans-serif;
+        }
+
+        .btn:hover {
+            background: var(--secondary);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 255, 136, 0.4);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #cc0033;
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: var(--dark);
+        }
+
+        .btn-warning:hover {
+            background: #cc8800;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+
+        .item-list {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .item {
+            background: var(--dark);
+            border: 1px solid var(--border);
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .item:hover {
+            border-color: var(--primary);
+            transform: translateX(4px);
+        }
+
+        .item-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .item-actions button {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.85rem;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--dark);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text);
+            margin-bottom: 1rem;
+            font-family: 'Work Sans', sans-serif;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, var(--dark-card), var(--dark));
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--primary);
+        }
+
+        .stat-card h3 {
+            font-size: 2rem;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card p {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            border-left: 4px solid;
+        }
+
+        .alert-success {
+            background: rgba(0, 255, 136, 0.1);
+            border-color: var(--success);
+            color: var(--success);
+        }
+
+        .alert-info {
+            background: rgba(0, 204, 255, 0.1);
+            border-color: #00ccff;
+            color: #00ccff;
+        }
+
+        .info-box {
+            background: rgba(0, 255, 136, 0.05);
+            border: 1px solid var(--primary);
+            border-radius: 4px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .info-box h3 {
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .info-box ul {
+            margin-left: 1.5rem;
+            color: var(--text-dim);
+        }
+    </style>
 </head>
-<body class="bg-black text-white p-6">
+<body>
+    <div class="header">
+        <h1>🛡️ MODERATOR PANEL</h1>
+        <div class="user-info">
+            <span id="modName">Loading...</span>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </div>
 
-<h1 class="text-3xl font-bold text-blue-400 mb-6">Moderator Tools</h1>
+    <div class="container">
+        <div class="info-box">
+            <h3>Moderator Responsibilities</h3>
+            <ul>
+                <li>Monitor chat activity and mute disruptive users</li>
+                <li>Report inappropriate content to admins and owner</li>
+                <li>Help maintain a positive community environment</li>
+            </ul>
+        </div>
 
-<section class="mb-8">
-  <h2 class="text-xl mb-2">Reported Content</h2>
-  <div class="bg-gray-900 p-3 rounded mb-2">
-    <p>User: @example</p>
-    <p>Reason: Spam</p>
-    <button class="bg-yellow-500 px-3 py-1 rounded mr-2">Warn</button>
-    <button class="bg-red-600 px-3 py-1 rounded">Remove</button>
-  </div>
-</section>
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('dashboard')">Dashboard</button>
+            <button class="tab" onclick="switchTab('chat')">Chat Moderation</button>
+            <button class="tab" onclick="switchTab('reports')">Report Content</button>
+            <button class="tab" onclick="switchTab('my-actions')">My Actions</button>
+        </div>
 
-<section>
-  <h2 class="text-xl mb-2">User Actions</h2>
-  <input class="p-2 text-black mr-2" placeholder="Username">
-  <button class="bg-red-700 px-4 py-2 rounded">Ban User</button>
-</section>
+        <!-- Dashboard Tab -->
+        <div id="dashboard" class="tab-content active">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3 id="actionsToday">0</h3>
+                    <p>Actions Today</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="mutesToday">0</h3>
+                    <p>Mutes Today</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="reportsSubmitted">0</h3>
+                    <p>Reports Submitted</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="activeChatUsers">0</h3>
+                    <p>Active Chat Users</p>
+                </div>
+            </div>
 
+            <div class="card">
+                <h2>Quick Actions</h2>
+                <div class="grid-3">
+                    <button class="btn" onclick="switchTab('chat')">Chat Moderation</button>
+                    <button class="btn btn-danger" onclick="switchTab('reports')">Report Content</button>
+                    <button class="btn btn-warning" onclick="switchTab('my-actions')">View My Actions</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Recent Chat Activity</h2>
+                <div class="item-list" id="recentChatActivity">
+                    <!-- Recent chat activity will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Moderation Tab -->
+        <div id="chat" class="tab-content">
+            <div class="card">
+                <h2>Active Chat Users</h2>
+                <input type="text" class="search-box" id="chatUserSearch" placeholder="Search chat users..." onkeyup="searchChatUsers()">
+                <div class="item-list" id="chatUsersList">
+                    <!-- Active chat users will be loaded here -->
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Mute User in Chat</h2>
+                <div class="form-group">
+                    <label>User ID or Username:</label>
+                    <input type="text" id="muteUserId" placeholder="Enter user identifier">
+                </div>
+                <div class="form-group">
+                    <label>Mute Duration:</label>
+                    <select id="muteDuration">
+                        <option value="5">5 minutes</option>
+                        <option value="15">15 minutes</option>
+                        <option value="30">30 minutes</option>
+                        <option value="60">1 hour</option>
+                        <option value="120">2 hours</option>
+                        <option value="1440">24 hours</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Reason for Mute:</label>
+                    <textarea id="muteReason" placeholder="Explain why this user is being muted..."></textarea>
+                </div>
+                <button class="btn" onclick="muteUser()">Mute User</button>
+            </div>
+
+            <div class="card">
+                <h2>Recent Chat Messages</h2>
+                <input type="text" class="search-box" id="messageSearch" placeholder="Search messages..." onkeyup="searchMessages()">
+                <div class="item-list" id="messagesList">
+                    <!-- Messages will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Report Content Tab -->
+        <div id="reports" class="tab-content">
+            <div class="card">
+                <h2>Report to Admin/Owner</h2>
+                <div class="form-group">
+                    <label>Report To:</label>
+                    <select id="reportTo">
+                        <option value="admin">Admin</option>
+                        <option value="owner">Owner</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Content Type:</label>
+                    <select id="reportContentType">
+                        <option value="post">Post</option>
+                        <option value="comment">Comment</option>
+                        <option value="user">User Behavior</option>
+                        <option value="profile_photo">Profile Photo</option>
+                        <option value="message">Chat Message</option>
+                        <option value="profile">User Profile</option>
+                        <option value="song">Song</option>
+                        <option value="other">Other Content</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Content ID or Link:</label>
+                    <input type="text" id="reportContentId" placeholder="Enter content ID or paste link">
+                </div>
+                <div class="form-group">
+                    <label>User Involved (if applicable):</label>
+                    <input type="text" id="reportUserId" placeholder="User ID or username">
+                </div>
+                <div class="form-group">
+                    <label>Severity Level:</label>
+                    <select id="reportSeverity">
+                        <option value="low">Low - Minor rule violation</option>
+                        <option value="medium">Medium - Clear rule violation</option>
+                        <option value="high">High - Serious violation</option>
+                        <option value="urgent">Urgent - Requires immediate attention</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Violation Type:</label>
+                    <select id="violationType">
+                        <option value="spam">Spam</option>
+                        <option value="harassment">Harassment</option>
+                        <option value="hate_speech">Hate Speech</option>
+                        <option value="inappropriate">Inappropriate Content</option>
+                        <option value="scam">Scam/Fraud</option>
+                        <option value="copyright">Copyright Violation</option>
+                        <option value="impersonation">Impersonation</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Report Details:</label>
+                    <textarea id="reportDetails" placeholder="Describe the issue in detail. Include context, what rule was violated, and any relevant information..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Additional Evidence (optional):</label>
+                    <textarea id="reportEvidence" placeholder="Paste screenshots URLs, timestamps, or additional proof..."></textarea>
+                </div>
+                <button class="btn btn-danger" onclick="submitReport()">Submit Report</button>
+            </div>
+
+            <div class="card">
+                <h2>Quick Report Buttons</h2>
+                <p style="color: var(--text-dim); margin-bottom: 1rem;">Use these for common violations:</p>
+                <div class="grid-3">
+                    <button class="btn btn-warning" onclick="quickReport('spam')">Report Spam</button>
+                    <button class="btn btn-warning" onclick="quickReport('harassment')">Report Harassment</button>
+                    <button class="btn btn-warning" onclick="quickReport('inappropriate')">Inappropriate Content</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- My Actions Tab -->
+        <div id="my-actions" class="tab-content">
+            <div class="card">
+                <h2>My Moderation History</h2>
+                <div class="form-group">
+                    <label>Filter by Date:</label>
+                    <select id="actionDateFilter" onchange="loadMyActions()">
+                        <option value="today">Today</option>
+                        <option value="week">This Week</option>
+                        <option value="month">This Month</option>
+                        <option value="all">All Time</option>
+                    </select>
+                </div>
+                <div class="item-list" id="myActionsList">
+                    <!-- Actions will be loaded here -->
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>My Submitted Reports</h2>
+                <div class="form-group">
+                    <label>Filter by Status:</label>
+                    <select id="reportStatusFilter" onchange="loadMyReports()">
+                        <option value="all">All Reports</option>
+                        <option value="pending">Pending Review</option>
+                        <option value="reviewed">Reviewed</option>
+                        <option value="resolved">Resolved</option>
+                    </select>
+                </div>
+                <div class="item-list" id="myReportsList">
+                    <!-- Reports will be loaded here -->
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Active Mutes</h2>
+                <p style="color: var(--text-dim); margin-bottom: 1rem;">Users currently muted by you:</p>
+                <div class="item-list" id="activeMutesList">
+                    <!-- Active mutes will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Supabase Configuration
+        const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let currentUser = null;
+
+        // Initialize
+        async function init() {
+            const { data: { user } } = await supabase.auth.getUser();
+            
+            if (!user) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            // Check if user is moderator
+            const { data: profile } = await supabase
+                .from('users')
+                .select('role, username, id')
+                .eq('id', user.id)
+                .single();
+
+            if (!profile || (profile.role !== 'mod' && profile.role !== 'admin' && profile.role !== 'owner')) {
+                alert('Access Denied: Moderator privileges required');
+                window.location.href = 'index.html';
+                return;
+            }
+
+            currentUser = profile;
+            document.getElementById('modName').textContent = profile.username;
+            
+            loadDashboardStats();
+            loadAllData();
+        }
+
+        // Tab Switching
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        // Dashboard Stats
+        async function loadDashboardStats() {
+            const today = new Date().toISOString().split('T')[0];
+            
+            const { count: actionCount } = await supabase
+                .from('mod_actions')
+                .select('*', { count: 'exact', head: true })
+                .eq('mod_id', currentUser.id)
+                .gte('created_at', today);
+            
+            const { count: muteCount } = await supabase
+                .from('chat_mutes')
+                .select('*', { count: 'exact', head: true })
+                .eq('muted_by', currentUser.username)
+                .gte('created_at', today);
+            
+            const { count: reportCount } = await supabase
+                .from('mod_reports')
+                .select('*', { count: 'exact', head: true })
+                .eq('reported_by', currentUser.username);
+
+            document.getElementById('actionsToday').textContent = actionCount || 0;
+            document.getElementById('mutesToday').textContent = muteCount || 0;
+            document.getElementById('reportsSubmitted').textContent = reportCount || 0;
+        }
+
+        // Chat Moderation
+        async function searchChatUsers() {
+            const query = document.getElementById('chatUserSearch').value;
+            loadChatUsers(query);
+        }
+
+        async function loadChatUsers(query = '') {
+            let queryBuilder = supabase
+                .from('users')
+                .select('id, username, is_online')
+                .eq('is_online', true);
+            
+            if (query) {
+                queryBuilder = queryBuilder.ilike('username', `%${query}%`);
+            }
+            
+            const { data: users } = await queryBuilder.limit(50);
+            const list = document.getElementById('chatUsersList');
+            
+            if (!users || users.length === 0) {
+                list.innerHTML = '<p style="color: var(--text-dim); padding: 1rem;">No active users found</p>';
+                return;
+            }
+            
+            list.innerHTML = users.map(user => `
+                <div class="item">
+                    <div>
+                        <strong>${user.username}</strong><br>
+                        <small>ID: ${user.id}</small>
+                    </div>
+                    <div class="item-actions">
+                        <button class="btn" onclick="quickMute('${user.id}', '${user.username}')">Mute</button>
+                        <button class="btn btn-danger" onclick="quickReport('user', '${user.id}')">Report</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function muteUser() {
+            const userId = document.getElementById('muteUserId').value;
+            const duration = document.getElementById('muteDuration').value;
+            const reason = document.getElementById('muteReason').value;
+            
+            if (!userId || !reason) {
+                alert('Please fill in all required fields');
+                return;
+            }
+
+            const muteUntil = new Date();
+            muteUntil.setMinutes(muteUntil.getMinutes() + parseInt(duration));
+
+            const { error } = await supabase
+                .from('chat_mutes')
+                .insert({ 
+                    user_id: userId, 
+                    muted_by: currentUser.username,
+                    muted_until: muteUntil.toISOString(),
+                    reason: reason
+                });
+            
+            if (!error) {
+                // Log the action
+                await supabase.from('mod_actions').insert({
+                    mod_id: currentUser.id,
+                    action_type: 'mute',
+                    target_id: userId,
+                    details: `Muted for ${duration} minutes: ${reason}`
+                });
+                
+                alert(`User muted for ${duration} minutes`);
+                document.getElementById('muteUserId').value = '';
+                document.getElementById('muteReason').value = '';
+                loadActiveMutes();
+            } else {
+                alert('Error muting user: ' + error.message);
+            }
+        }
+
+        function quickMute(userId, username) {
+            document.getElementById('muteUserId').value = userId;
+            switchTab('chat');
+            document.getElementById('muteReason').focus();
+        }
+
+        async function loadActiveMutes() {
+            const { data: mutes } = await supabase
+                .from('chat_mutes')
+                .select('*, users(username)')
+                .eq('muted_by', currentUser.username)
+                .gt('muted_until', new Date().toISOString())
+                .order('created_at', { ascending: false });
+            
+            const list = document.getElementById('activeMutesList');
+            
+            if (!mutes || mutes.length === 0) {
+                list.innerHTML = '<p style="color: var(--text-dim); padding: 1rem;">No active mutes</p>';
+                return;
+            }
+            
+            list.innerHTML = mutes.map(mute => `
+                <div class="item">
+                    <div>
+                        <strong>${mute.users?.username || mute.user_id}</strong><br>
+                        <small>Until: ${new Date(mute.muted_until).toLocaleString()}</small><br>
+                        <small>Reason: ${mute.reason}</small>
+                    </div>
+                    <div class="item-actions">
+                        <button class="btn" onclick="unmute('${mute.id}')">Unmute</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function unmute(muteId) {
+            if (!confirm('Remove this mute?')) return;
+            
+            const { error } = await supabase
+                .from('chat_mutes')
+                .delete()
+                .eq('id', muteId);
+            
+            if (!error) {
+                alert('User unmuted');
+                loadActiveMutes();
+            }
+        }
+
+        // Report Functions
+        async function submitReport() {
+            const reportTo = document.getElementById('reportTo').value;
+            const contentType = document.getElementById('reportContentType').value;
+            const contentId = document.getElementById('reportContentId').value;
+            const userId = document.getElementById('reportUserId').value;
+            const severity = document.getElementById('reportSeverity').value;
+            const violationType = document.getElementById('violationType').value;
+            const details = document.getElementById('reportDetails').value;
+            const evidence = document.getElementById('reportEvidence').value;
+            
+            if (!contentId || !details) {
+                alert('Please fill in required fields (Content ID and Details)');
+                return;
+            }
+
+            const reportData = {
+                report_to: reportTo,
+                content_type: contentType,
+                content_id: contentId,
+                user_id: userId || null,
+                severity: severity,
+                violation_type: violationType,
+                details: details,
+                evidence: evidence || null,
+                reported_by: currentUser.username,
+                reporter_id: currentUser.id,
+                reporter_role: 'mod',
+                status: 'pending'
+            };
+
+            const { error } = await supabase
+                .from('mod_reports')
+                .insert(reportData);
+            
+            if (!error) {
+                // Log the action
+                await supabase.from('mod_actions').insert({
+                    mod_id: currentUser.id,
+                    action_type: 'report',
+                    target_id: contentId,
+                    details: `Reported ${contentType} to ${reportTo}: ${violationType}`
+                });
+                
+                alert('Report submitted successfully');
+                
+                // Clear form
+                document.getElementById('reportContentId').value = '';
+                document.getElementById('reportUserId').value = '';
+                document.getElementById('reportDetails').value = '';
+                document.getElementById('reportEvidence').value = '';
+                
+                loadMyReports();
+            } else {
+                alert('Error submitting report: ' + error.message);
+            }
+        }
+
+        function quickReport(type, id = '') {
+            switchTab('reports');
+            document.getElementById('reportContentType').value = type === 'user' ? 'user' : 'post';
+            if (id) {
+                if (type === 'user') {
+                    document.getElementById('reportUserId').value = id;
+                } else {
+                    document.getElementById('reportContentId').value = id;
+                }
+            }
+            
+            if (type === 'spam') {
+                document.getElementById('violationType').value = 'spam';
+            } else if (type === 'harassment') {
+                document.getElementById('violationType').value = 'harassment';
+            } else if (type === 'inappropriate') {
+                document.getElementById('violationType').value = 'inappropriate';
+            }
+        }
+
+        async function loadMyReports() {
+            const statusFilter = document.getElementById('reportStatusFilter')?.value || 'all';
+            
+            let query = supabase
+                .from('mod_reports')
+                .select('*')
+                .eq('reporter_id', currentUser.id)
+                .order('created_at', { ascending: false });
+            
+            if (statusFilter !== 'all') {
+                query = query.eq('status', statusFilter);
+            }
+            
+            const { data: reports } = await query;
+            const list = document.getElementById('myReportsList');
+            
+            if (!reports || reports.length === 0) {
+                list.innerHTML = '<p style="color: var(--text-dim); padding: 1rem;">No reports found</p>';
+                return;
+            }
+            
+            list.innerHTML = reports.map(report => {
+                const statusColor = report.status === 'pending' ? 'var(--warning)' : 
+                                   report.status === 'reviewed' ? 'var(--primary)' : 
+                                   'var(--success)';
+                return `
+                    <div class="item">
+                        <div>
+                            <strong>${report.violation_type} - ${report.content_type}</strong><br>
+                            <small>${report.details.substring(0, 100)}${report.details.length > 100 ? '...' : ''}</small><br>
+                            <small style="color: ${statusColor};">Status: ${report.status}</small><br>
+                            <small>Severity: ${report.severity} | Reported to: ${report.report_to}</small>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function loadMyActions() {
+            const dateFilter = document.getElementById('actionDateFilter')?.value || 'all';
+            
+            let query = supabase
+                .from('mod_actions')
+                .select('*')
+                .eq('mod_id', currentUser.id)
+                .order('created_at', { ascending: false });
+            
+            if (dateFilter !== 'all') {
+                const now = new Date();
+                let startDate;
+                
+                if (dateFilter === 'today') {
+                    startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                } else if (dateFilter === 'week') {
+                    startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                } else if (dateFilter === 'month') {
+                    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                }
+                
+                query = query.gte('created_at', startDate.toISOString());
+            }
+            
+            const { data: actions } = await query.limit(100);
+            const list = document.getElementById('myActionsList');
+            
+            if (!actions || actions.length === 0) {
+                list.innerHTML = '<p style="color: var(--text-dim); padding: 1rem;">No actions found</p>';
+                return;
+            }
+            
+            list.innerHTML = actions.map(action => `
+                <div class="item">
+                    <div>
+                        <strong>${action.action_type.toUpperCase()}</strong><br>
+                        <small>${action.details}</small><br>
+                        <small>${new Date(action.created_at).toLocaleString()}</small>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function searchMessages() {
+            const query = document.getElementById('messageSearch').value;
+            loadMessages(query);
+        }
+
+        async function loadMessages(query = '') {
+            let queryBuilder = supabase
+                .from('messages')
+                .select('*, users(username)')
+                .order('created_at', { ascending: false });
+            
+            if (query) {
+                queryBuilder = queryBuilder.ilike('content', `%${query}%`);
+            }
+            
+            const { data: messages } = await queryBuilder.limit(50);
+            const list = document.getElementById('messagesList');
+            
+            if (!messages || messages.length === 0) {
+                list.innerHTML = '<p style="color: var(--text-dim); padding: 1rem;">No messages found</p>';
+                return;
+            }
+            
+            list.innerHTML = messages.map(msg => `
+                <div class="item">
+                    <div>
+                        <strong>${msg.users?.username || 'Unknown'}</strong><br>
+                        <small>${msg.content?.substring(0, 100)}...</small>
+                    </div>
+                    <div class="item-actions">
+                        <button class="btn btn-danger" onclick="reportMessage('${msg.id}')">Report</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function reportMessage(messageId) {
+            switchTab('reports');
+            document.getElementById('reportContentType').value = 'message';
+            document.getElementById('reportContentId').value = messageId;
+        }
+
+        // Logout
+        async function logout() {
+            await supabase.auth.signOut();
+            window.location.href = 'login.html';
+        }
+
+        // Load all data
+        function loadAllData() {
+            loadChatUsers();
+            loadMessages();
+            loadMyReports();
+            loadMyActions();
+            loadActiveMutes();
+        }
+
+        // Initialize on load
+        init();
+    </script>
 </body>
 </html>
