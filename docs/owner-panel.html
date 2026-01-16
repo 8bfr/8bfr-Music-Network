@@ -959,47 +959,106 @@
                 <button class="btn" onclick="publishAnnouncement()">Publish Announcement</button>
             </div>
         </div>
+        // Featured Content
+        async function addFeaturedArtist() {
+            const artistId = document.getElementById('featuredArtistInput').value;
+            const duration = document.getElementById('artistFeatureDuration').value;
+            
+            const expires = new Date();
+            expires.setDate(expires.getDate() + parseInt(duration));
 
-        <!-- Featured Content Tab -->
-        <div id="features" class="tab-content">
-            <div class="card">
-                <h2>Featured Artists</h2>
-                <div class="form-group">
-                    <label>Add Artist (User ID or Username):</label>
-                    <input type="text" id="featuredArtistInput" placeholder="Enter user ID or username">
-                </div>
-                <div class="form-group">
-                    <label>Feature Duration (days):</label>
-                    <input type="number" id="artistFeatureDuration" value="7" min="1">
-                </div>
-                <button class="btn" onclick="addFeaturedArtist()">Add Featured Artist</button>
-                
-                <h3 style="color: var(--secondary); margin: 1.5rem 0 1rem;">Current Featured Artists</h3>
-                <div class="item-list" id="featuredArtistsList">
-                    <!-- Featured artists will be loaded here -->
-                </div>
-            </div>
+            const { error } = await supabase.from('featured_artists').insert({
+                user_id: artistId,
+                expires_at: expires.toISOString()
+            });
 
-            <div class="card">
-                <h2>Featured Songs</h2>
-                <div class="form-group">
-                    <label>Add Song (Song ID):</label>
-                    <input type="text" id="featuredSongInput" placeholder="Enter song ID">
-                </div>
-                <div class="form-group">
-                    <label>Feature Duration (days):</label>
-                    <input type="number" id="songFeatureDuration" value="7" min="1">
-                </div>
-                <button class="btn" onclick="addFeaturedSong()">Add Featured Song</button>
-                
-                <h3 style="color: var(--secondary); margin: 1.5rem 0 1rem;">Current Featured Songs</h3>
-                <div class="item-list" id="featuredSongsList">
-                    <!-- Featured songs will be loaded here -->
-                </div>
-            </div>
+            if (!error) {
+                alert('Artist featured');
+                loadFeaturedArtists();
+            }
+        }
 
-            <div class="card">
-                <h2>Featured Users</h2>
-                <div class="form-group">
-                    <label>Add User (User ID or Username):</label>
-      
+        async function loadFeaturedArtists() {
+            const { data } = await supabase
+                .from('featured_artists')
+                .select('*, users(username)')
+                .gt('expires_at', new Date().toISOString());
+
+            const list = document.getElementById('featuredArtistsList');
+            list.innerHTML = data.map(item => `
+                <div class="item">
+                    <div>
+                        <strong>${item.users?.username}</strong><br>
+                        <small>Until ${new Date(item.expires_at).toLocaleDateString()}</small>
+                    </div>
+                    <div class="item-actions">
+                        <button class="btn btn-danger" onclick="removeFeatured('featured_artists', '${item.id}')">Remove</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function removeFeatured(table, id) {
+            const { error } = await supabase.from(table).delete().eq('id', id);
+            if (!error) {
+                alert('Removed from featured');
+                if (table === 'featured_artists') loadFeaturedArtists();
+            }
+        }
+
+        // System Settings
+        async function addBannedWord() {
+            const word = document.getElementById('bannedWordInput').value;
+            const { error } = await supabase.from('banned_words').insert({ word });
+            if (!error) {
+                alert('Word added to banned list');
+                loadBannedWords();
+                document.getElementById('bannedWordInput').value = '';
+            }
+        }
+
+        async function loadBannedWords() {
+            const { data } = await supabase.from('banned_words').select('*');
+            const list = document.getElementById('bannedWordsList');
+            list.innerHTML = data.map(item => `
+                <div class="item">
+                    <div><strong>${item.word}</strong></div>
+                    <div class="item-actions">
+                        <button class="btn btn-danger" onclick="removeBannedWord('${item.id}')">Remove</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function removeBannedWord(id) {
+            const { error } = await supabase.from('banned_words').delete().eq('id', id);
+            if (!error) {
+                loadBannedWords();
+            }
+        }
+
+        // Logout
+        async function logout() {
+            await supabase.auth.signOut();
+            window.location.href = 'login.html';
+        }
+
+        // Load all data
+        function loadAllData() {
+            loadPosts();
+            loadComments();
+            searchUsers();
+            loadActiveBans();
+            loadFeaturedArtists();
+            loadBannedWords();
+        }
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>
+
+
+        
+        
