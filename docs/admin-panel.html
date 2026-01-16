@@ -1,37 +1,1120 @@
+
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>8BFR Admin Panel</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - 8BFR Music Network</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary: #00ccff;
+            --secondary: #0099cc;
+            --dark: #0a0a0a;
+            --dark-card: #1a1a1a;
+            --success: #00ff88;
+            --warning: #ffaa00;
+            --danger: #ff0044;
+            --text: #ffffff;
+            --text-dim: #999999;
+            --border: #333333;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Work Sans', sans-serif;
+            background: var(--dark);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--dark-card) 0%, #000 100%);
+            border-bottom: 2px solid var(--primary);
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0, 204, 255, 0.2);
+        }
+
+        .header h1 {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 2rem;
+            letter-spacing: 2px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logout-btn {
+            background: var(--danger);
+            color: white;
+            border: none;
+            padding: 0.5rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: #cc0033;
+            transform: translateY(-2px);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid var(--border);
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            background: transparent;
+            color: var(--text-dim);
+            border: none;
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.95rem;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+            font-family: 'Work Sans', sans-serif;
+        }
+
+        .tab:hover {
+            color: var(--text);
+            border-bottom-color: var(--secondary);
+        }
+
+        .tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            background: var(--dark-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .card h2 {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 1.5rem;
+            letter-spacing: 1px;
+            color: var(--primary);
+            margin-bottom: 1rem;
+            border-left: 4px solid var(--secondary);
+            padding-left: 1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--dark);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text);
+            font-family: 'Work Sans', sans-serif;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .form-group textarea {
+            min-height: 150px;
+            resize: vertical;
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            font-family: 'Work Sans', sans-serif;
+        }
+
+        .btn:hover {
+            background: var(--secondary);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 204, 255, 0.4);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+        }
+
+        .btn-danger:hover {
+            background: #cc0033;
+        }
+
+        .btn-success {
+            background: var(--success);
+        }
+
+        .btn-success:hover {
+            background: #00cc6e;
+        }
+
+        .btn-warning {
+            background: var(--warning);
+        }
+
+        .btn-warning:hover {
+            background: #cc8800;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+
+        .item-list {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .item {
+            background: var(--dark);
+            border: 1px solid var(--border);
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .item:hover {
+            border-color: var(--primary);
+            transform: translateX(4px);
+        }
+
+        .item-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .item-actions button {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.85rem;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--dark);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text);
+            margin-bottom: 1rem;
+            font-family: 'Work Sans', sans-serif;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, var(--dark-card), var(--dark));
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--primary);
+        }
+
+        .stat-card h3 {
+            font-size: 2rem;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card p {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            border-left: 4px solid;
+        }
+
+        .alert-success {
+            background: rgba(0, 255, 136, 0.1);
+            border-color: var(--success);
+            color: var(--success);
+        }
+
+        .alert-danger {
+            background: rgba(255, 0, 68, 0.1);
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        .alert-warning {
+            background: rgba(255, 170, 0, 0.1);
+            border-color: var(--warning);
+            color: var(--warning);
+        }
+
+        .message-box {
+            background: var(--dark);
+            border: 1px solid var(--border);
+            padding: 1rem;
+            border-radius: 4px;
+            margin-top: 1rem;
+        }
+    </style>
 </head>
-<body class="bg-black text-white p-6">
+<body>
+    <div class="header">
+        <h1>⚡ ADMIN PANEL</h1>
+        <div class="user-info">
+            <span id="adminName">Loading...</span>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </div>
 
-<h1 class="text-3xl font-bold text-purple-400 mb-6">Admin Panel</h1>
+    <div class="container">
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('dashboard')">Dashboard</button>
+            <button class="tab" onclick="switchTab('content')">Content Moderation</button>
+            <button class="tab" onclick="switchTab('chat')">Chat Management</button>
+            <button class="tab" onclick="switchTab('mods')">Moderator Management</button>
+            <button class="tab" onclick="switchTab('ads')">Ad Approval</button>
+            <button class="tab" onclick="switchTab('reports')">Reports to Owner</button>
+        </div>
 
-<section class="mb-8">
-  <h2 class="text-xl font-semibold mb-2">Create Ad</h2>
-  <input class="w-full mb-2 p-2 text-black" placeholder="Ad Title">
-  <input class="w-full mb-2 p-2 text-black" placeholder="Image URL">
-  <input class="w-full mb-2 p-2 text-black" placeholder="Redirect URL">
-  <button class="bg-purple-600 px-4 py-2 rounded">Save Ad</button>
-</section>
+        <!-- Dashboard Tab -->
+        <div id="dashboard" class="tab-content active">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3 id="totalPosts">0</h3>
+                    <p>Posts Today</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="totalComments">0</h3>
+                    <p>Comments Today</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="pendingAds">0</h3>
+                    <p>Pending Ads</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="activeMods">0</h3>
+                    <p>Active Moderators</p>
+                </div>
+            </div>
 
-<section class="mb-8">
-  <h2 class="text-xl font-semibold mb-2">Pending Ads</h2>
-  <div class="bg-gray-900 p-3 rounded mb-2">
-    <p>Ad: Summer Promo</p>
-    <button class="bg-green-600 px-3 py-1 rounded mr-2">Approve</button>
-    <button class="bg-red-600 px-3 py-1 rounded">Reject</button>
-  </div>
-</section>
+            <div class="card">
+                <h2>Quick Actions</h2>
+                <div class="grid-3">
+                    <button class="btn" onclick="switchTab('content')">Moderate Content</button>
+                    <button class="btn btn-warning" onclick="switchTab('chat')">Chat Control</button>
+                    <button class="btn btn-success" onclick="switchTab('ads')">Review Ads</button>
+                    <button class="btn btn-danger" onclick="switchTab('reports')">Report to Owner</button>
+                    <button class="btn" onclick="switchTab('mods')">Manage Mods</button>
+                </div>
+            </div>
 
-<section>
-  <h2 class="text-xl font-semibold mb-2">Discount Codes</h2>
-  <input class="p-2 text-black mr-2" placeholder="CODE">
-  <input class="p-2 text-black mr-2" placeholder="% OFF">
-  <button class="bg-purple-600 px-4 py-2 rounded">Create Code</button>
-</section>
+            <div class="card">
+                <h2>Recent Activity</h2>
+                <div class="item-list" id="recentActivity">
+                    <!-- Recent activity will be loaded here -->
+                </div>
+            </div>
+        </div>
 
+        <!-- Content Moderation Tab -->
+        <div id="content" class="tab-content">
+            <div class="card">
+                <h2>Content Review</h2>
+                <input type="text" class="search-box" id="contentSearch" placeholder="Search posts and comments..." onkeyup="searchContent()">
+                
+                <div class="grid-2">
+                    <div>
+                        <h3 style="color: var(--primary); margin-bottom: 1rem;">Posts</h3>
+                        <div class="item-list" id="postsList">
+                            <!-- Posts will be loaded here -->
+                        </div>
+                    </div>
+                    <div>
+                        <h3 style="color: var(--primary); margin-bottom: 1rem;">Comments</h3>
+                        <div class="item-list" id="commentsList">
+                            <!-- Comments will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Flagged Content</h2>
+                <div class="item-list" id="flaggedContent">
+                    <!-- Flagged content will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Management Tab -->
+        <div id="chat" class="tab-content">
+            <div class="card">
+                <h2>Chat Control</h2>
+                <div class="grid-2">
+                    <div>
+                        <h3 style="color: var(--primary); margin-bottom: 1rem;">Active Users</h3>
+                        <div class="item-list" id="activeChatUsers">
+                            <!-- Active chat users will be loaded here -->
+                        </div>
+                    </div>
+                    <div>
+                        <h3 style="color: var(--primary); margin-bottom: 1rem;">Chat Actions</h3>
+                        <div class="form-group">
+                            <label>Select User:</label>
+                            <input type="text" id="chatUserId" placeholder="User ID or username">
+                        </div>
+                        <button class="btn" onclick="kickUser()">Kick from Chat</button>
+                        <button class="btn btn-warning" onclick="muteUser()">Mute User</button>
+                        <div class="form-group" style="margin-top: 1rem;">
+                            <label>Mute Duration (minutes):</label>
+                            <select id="muteDuration">
+                                <option value="5">5 minutes</option>
+                                <option value="15">15 minutes</option>
+                                <option value="30">30 minutes</option>
+                                <option value="60">1 hour</option>
+                                <option value="1440">24 hours</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Recent Messages</h2>
+                <input type="text" class="search-box" placeholder="Search messages..." id="messageSearch" onkeyup="searchMessages()">
+                <div class="item-list" id="messagesList">
+                    <!-- Messages will be loaded here -->
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Hide/Delete Messages</h2>
+                <div class="form-group">
+                    <label>Message ID:</label>
+                    <input type="text" id="messageId" placeholder="Enter message ID">
+                </div>
+                <div class="form-group">
+                    <label>Reason:</label>
+                    <textarea id="messageHideReason" placeholder="Reason for hiding/deleting..."></textarea>
+                </div>
+                <button class="btn btn-warning" onclick="hideMessage()">Hide Message</button>
+                <button class="btn btn-danger" onclick="deleteMessage()">Delete Message</button>
+            </div>
+        </div>
+
+        <!-- Moderator Management Tab -->
+        <div id="mods" class="tab-content">
+            <div class="card">
+                <h2>Current Moderators</h2>
+                <div class="item-list" id="modsList">
+                    <!-- Moderators will be loaded here -->
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Promote to Moderator</h2>
+                <div class="form-group">
+                    <label>User ID or Username:</label>
+                    <input type="text" id="promoteUserId" placeholder="Enter user identifier">
+                </div>
+                <div class="form-group">
+                    <label>Reason for Promotion:</label>
+                    <textarea id="promoteReason" placeholder="Why is this user being promoted?"></textarea>
+                </div>
+                <button class="btn btn-success" onclick="promoteMod()">Promote to Moderator</button>
+            </div>
+
+            <div class="card">
+                <h2>Demote Moderator</h2>
+                <div class="form-group">
+                    <label>Select Moderator:</label>
+                    <select id="demoteModId">
+                        <option value="">Choose moderator...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Reason for Demotion:</label>
+                    <textarea id="demoteReason" placeholder="Why is this moderator being demoted?"></textarea>
+                </div>
+                <button class="btn btn-danger" onclick="demoteMod()">Demote to User</button>
+            </div>
+        </div>
+
+        <!-- Ad Approval Tab -->
+        <div id="ads" class="tab-content">
+            <div class="card">
+                <h2>Pending Ad Approvals</h2>
+                <div class="item-list" id="pendingAdsList">
+                    <!-- Pending ads will be loaded here -->
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Ad Review</h2>
+                <div id="adReviewSection" style="display: none;">
+                    <div class="form-group">
+                        <label>Ad ID:</label>
+                        <input type="text" id="reviewAdId" readonly>
+                    </div>
+                    <div id="adPreview" class="message-box">
+                        <!-- Ad preview will be shown here -->
+                    </div>
+                    <div class="form-group">
+                        <label>Notes/Reason:</label>
+                        <textarea id="adReviewNotes" placeholder="Add notes or reason for approval/denial..."></textarea>
+                    </div>
+                    <div class="message-box" id="adMessageBox">
+                        <label>Message to Advertiser (optional):</label>
+                        <textarea id="adMessage" placeholder="Send a message to the advertiser..." style="width: 100%; background: var(--dark-card); border: 1px solid var(--border); color: var(--text); padding: 0.5rem; margin-top: 0.5rem;"></textarea>
+                    </div>
+                    <button class="btn btn-success" onclick="approveAd()">Approve Ad</button>
+                    <button class="btn btn-danger" onclick="denyAd()">Deny Ad</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reports to Owner Tab -->
+        <div id="reports" class="tab-content">
+            <div class="card">
+                <h2>Report Content to Owner</h2>
+                <div class="form-group">
+                    <label>Content Type:</label>
+                    <select id="reportContentType">
+                        <option value="post">Post</option>
+                        <option value="comment">Comment</option>
+                        <option value="user">User</option>
+                        <option value="profile_photo">Profile Photo</option>
+                        <option value="message">Message</option>
+                        <option value="ad">Advertisement</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Content ID:</label>
+                    <input type="text" id="reportContentId" placeholder="Enter content ID">
+                </div>
+                <div class="form-group">
+                    <label>Severity:</label>
+                    <select id="reportSeverity">
+                        <option value="low">Low Priority</option>
+                        <option value="medium">Medium Priority</option>
+                        <option value="high">High Priority</option>
+                        <option value="urgent">Urgent</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Report Details:</label>
+                    <textarea id="reportDetails" placeholder="Describe the issue in detail..."></textarea>
+                </div>
+                <button class="btn btn-danger" onclick="reportToOwner()">Send Report to Owner</button>
+            </div>
+
+            <div class="card">
+                <h2>My Submitted Reports</h2>
+                <div class="item-list" id="myReportsList">
+                    <!-- Reports will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Supabase Configuration
+[  ]         const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let currentUser = null;
+
+        // Initialize
+        async function init() {
+            const { data: { user } } = await supabase.auth.getUser();
+            
+            if (!user) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            // Check if user is admin
+            const { data: profile } = await supabase
+                .from('users')
+                .select('role, username')
+                .eq('id', user.id)
+                .single();
+
+            if (!profile || (profile.role !== 'admin' && profile.role !== 'owner')) {
+                alert('Access Denied: Admin privileges required');
+                window.location.href = 'index.html';
+                return;
+            }
+
+            currentUser = profile;
+            document.getElementById('adminName').textContent = profile.username;
+            
+            loadDashboardStats();
+            loadAllData();
+        }
+
+        // Tab Switching
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        // Dashboard Stats
+        async function loadDashboardStats() {
+            const today = new Date().toISOString().split('T')[0];
+            
+            const { count: postCount } = await supabase
+                .from('posts')
+                .select('*', { count: 'exact', head: true })
+                .gte('created_at', today);
+            
+            const { count: commentCount } = await supabase
+                .from('comments')
+                .select('*', { count: 'exact', head: true })
+                .gte('created_at', today);
+            
+            const { count: adCount } = await supabase
+                .from('ads')
+                .select('*', { count: 'exact', head: true })
+                .eq('status', 'pending');
+            
+            const { count: modCount } = await supabase
+                .from('users')
+                .select('*', { count: 'exact', head: true })
+                .eq('role', 'mod');
+
+            document.getElementById('totalPosts').textContent = postCount || 0;
+            document.getElementById('totalComments').textContent = commentCount || 0;
+            document.getElementById('pendingAds').textContent = adCount || 0;
+            document.getElementById('activeMods').textContent = modCount || 0;
+        }
+
+        // Content Moderation
+        async function searchContent() {
+            const query = document.getElementById('contentSearch').value;
+            loadPosts(query);
+            loadComments(query);
+        }
+
+        async function loadPosts(query = '') {
+            let queryBuilder = supabase.from('posts').select('*');
+            if (query) {
+                queryBuilder = queryBuilder.ilike('content', `%${query}%`);
+            }
+            
+            const { data: posts } = await queryBuilder.limit(50).order('created_at', { ascending: false });
+            const list = document.getElementById('postsList');
+            list.innerHTML = posts.map(post => `
+                <div class="item">
+                    <div>
+                        <strong>User: ${post.user_id}</strong><br>
+                        <small>${post.content?.substring(0, 100)}...</small>
+                    </div>
+                    <div class="item-actions">
+                        <button class="btn btn-warning" onclick="hidePost('${post.id}')">Hide</button>
+                        <button class="btn btn-danger" onclick="reportContent('post', '${post.id}')">Report</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function loadComments(query = '') {
+            let queryBuilder = supabase.from('comments').select('*');
+            if (query) {
+                queryBuilder = queryBuilder.ilike('content', `%${query}%`);
+            }
+            
+            const { data: comments } = await queryBuilder.limit(50).order('created_at', { ascending: false });
+            const list = document.getElementById('commentsList');
+            list.innerHTML = comments.map(comment => `
+                <div class="item">
+                    <div>
+                        <strong>User: ${comment.user_id}</strong><br>
+                        <small>${comment.content?.substring(0, 100)}...</small>
+                    </div>
+                    <div class="item-actions">
+                        <button class="btn btn-warning" onclick="hideComment('${comment.id}')">Hide</button>
+                        <button class="btn btn-danger" onclick="reportContent('comment', '${comment.id}')">Report</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function hidePost(postId) {
+            if (!confirm('Hide this post?')) return;
+            
+            const { error } = await supabase
+                .from('posts')
+                .update({ hidden: true, hidden_by: currentUser.username })
+                .eq('id', postId);
+            
+            if (!error) {
+                alert('Post hidden');
+                loadPosts();
+            }
+        }
+
+        async function hideComment(commentId) {
+            if (!confirm('Hide this comment?')) return;
+            
+            const { error } = await supabase
+                .from('comments')
+                .update({ hidden: true, hidden_by: currentUser.username })
+                .eq('id', commentId);
+            
+            if (!error) {
+                alert('Comment hidden');
+                loadComments();
+            }
+        }
+
+        // Chat Management
+        async function kickUser() {
+            const userId = document.getElementById('chatUserId').value;
+            if (!userId) {
+                alert('Please enter a user ID');
+                return;
+            }
+
+            const { error } = await supabase
+                .from('chat_kicks')
+                .insert({ user_id: userId, kicked_by: currentUser.username });
+            
+            if (!error) {
+                alert('User kicked from chat');
+            }
+        }
+
+        async function muteUser() {
+            const userId = document.getElementById('chatUserId').value;
+            const duration = document.getElementById('muteDuration').value;
+            
+            if (!userId) {
+                alert('Please enter a user ID');
+                return;
+            }
+
+            const muteUntil = new Date();
+            muteUntil.setMinutes(muteUntil.getMinutes() + parseInt(duration));
+
+            const { error } = await supabase
+                .from('chat_mutes')
+                .insert({ 
+                    user_id: userId, 
+                    muted_by: currentUser.username,
+                    muted_until: muteUntil.toISOString()
+                });
+            
+            if (!error) {
+                alert(`User muted for ${duration} minutes`);
+            }
+        }
+
+        async function hideMessage() {
+            const messageId = document.getElementById('messageId').value;
+            const reason = document.getElementById('messageHideReason').value;
+            
+            const { error } = await supabase
+                .from('messages')
+                .update({ 
+                    hidden: true, 
+                    hidden_by: currentUser.username,
+                    hide_reason: reason 
+                })
+                .eq('id', messageId);
+            
+            if (!error) {
+                alert('Message hidden');
+            }
+        }
+
+        async function deleteMessage() {
+            if (!confirm('Permanently delete this message?')) return;
+            
+            const messageId = document.getElementById('messageId').value;
+            const reason = document.getElementById('messageHideReason').value;
+            
+            const { error } = await supabase
+                .from('messages')
+                .delete()
+                .eq('id', messageId);
+            
+            if (!error) {
+                // Log deletion
+                await supabase.from('admin_actions').insert({
+                    action: 'message_delete',
+                    target_id: messageId,
+                    admin_id: currentUser.username,
+                    reason: reason
+                });
+                alert('Message deleted');
+            }
+        }
+
+        // Moderator Management
+        async function loadMods() {
+            const { data: mods } = await supabase
+                .from('users')
+                .select('*')
+                .eq('role', 'mod');
+            
+            const list = document.getElementById('modsList');
+            const select = document.getElementById('demoteModId');
+            
+            list.innerHTML = mods.map(mod => `
+                <div class="item">
+                    <div>
+                        <strong>${mod.username}</strong><br>
+                        <small>ID: ${mod.id}</small>
+                    </div>
+                    <div class="item-actions">
+                        <button class="btn btn-danger" onclick="quickDemote('${mod.id}')">Demote</button>
+                    </div>
+                </div>
+            `).join('');
+            
+            select.innerHTML = '<option value="">Choose moderator...</option>' + 
+                mods.map(mod => `<option value="${mod.id}">${mod.username}</option>`).join('');
+        }
+
+        async function promoteMod() {
+            const userId = document.getElementById('promoteUserId').value;
+            const reason = document.getElementById('promoteReason').value;
+            
+            if (!userId || !reason) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            const { error } = await supabase
+                .from('users')
+                .update({ role: 'mod' })
+                .eq('id', userId);
+            
+            if (!error) {
+                // Log promotion
+                await supabase.from('admin_actions').insert({
+                    action: 'promote_mod',
+                    target_id: userId,
+                    admin_id: currentUser.username,
+                    reason: reason
+                });
+                alert('User promoted to Moderator');
+                loadMods();
+            }
+        }
+
+        async function demoteMod() {
+            const modId = document.getElementById('demoteModId').value;
+            const reason = document.getElementById('demoteReason').value;
+            
+            if (!modId || !reason) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            if (!confirm('Demote this moderator to user?')) return;
+
+            const { error } = await supabase
+                .from('users')
+                .update({ role: 'user' })
+                .eq('id', modId);
+            
+            if (!error) {
+                // Log demotion
+                await supabase.from('admin_actions').insert({
+                    action: 'demote_mod',
+                    target_id: modId,
+                    admin_id: currentUser.username,
+                    reason: reason
+                });
+                alert('Moderator demoted to User');
+                loadMods();
+            }
+        }
+
+        async function quickDemote(modId) {
+            const reason = prompt('Reason for demotion:');
+            if (!reason) return;
+            
+            document.getElementById('demoteModId').value = modId;
+            document.getElementById('demoteReason').value = reason;
+            demoteMod();
+        }
+
+        // Ad Approval
+        async function loadPendingAds() {
+            const { data: ads } = await supabase
+                .from('ads')
+                .select('*')
+                .eq('status', 'pending')
+                .order('created_at', { ascending: false });
+            
+            const list = document.getElementById('pendingAdsList');
+            list.innerHTML = ads.map(ad => `
+                <div class="item">
+                    <div>
+                        <strong>${ad.title || 'Untitled Ad'}</strong><br>
+                        <small>By: ${ad.user_id}</small>
+                    </div>
+                    <div class="item-actions">
+                        <button class="btn" onclick="reviewAd('${ad.id}')">Review</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function reviewAd(adId) {
+            const { data: ad } = await supabase
+                .from('ads')
+                .select('*')
+                .eq('id', adId)
+                .single();
+            
+            document.getElementById('reviewAdId').value = ad.id;
+            document.getElementById('adPreview').innerHTML = `
+                <h3>${ad.title}</h3>
+                <p>${ad.content}</p>
+                ${ad.image_url ? `<img src="${ad.image_url}" style="max-width: 100%; margin-top: 1rem;">` : ''}
+            `;
+            document.getElementById('adReviewSection').style.display = 'block';
+        }
+
+        async function approveAd() {
+            const adId = document.getElementById('reviewAdId').value;
+            const notes = document.getElementById('adReviewNotes').value;
+            const message = document.getElementById('adMessage').value;
+            
+            const { error } = await supabase
+                .from('ads')
+                .update({ 
+                    status: 'approved', 
+                    approved_by: currentUser.username,
+                    approval_notes: notes 
+                })
+                .eq('id', adId);
+            
+            if (!error) {
+                if (message) {
+                    // Send message to advertiser
+                    await supabase.from('messages').insert({
+                        to_user: (await supabase.from('ads').select('user_id').eq('id', adId).single()).data.user_id,
+                        from_user: 'system',
+                        content: message
+                    });
+                }
+                alert('Ad approved');
+                document.getElementById('adReviewSection').style.display = 'none';
+                loadPendingAds();
+            }
+        }
+
+        async function denyAd() {
+            const adId = document.getElementById('reviewAdId').value;
+            const notes = document.getElementById('adReviewNotes').value;
+            const message = document.getElementById('adMessage').value;
+            
+            if (!notes) {
+                alert('Please provide a reason for denial');
+                return;
+            }
+
+            const { error } = await supabase
+                .from('ads')
+                .update({ 
+                    status: 'denied', 
+                    denied_by: currentUser.username,
+                    denial_reason: notes 
+                })
+                .eq('id', adId);
+            
+            if (!error) {
+                if (message) {
+                    // Send message to advertiser
+                    await supabase.from('messages').insert({
+                        to_user: (await supabase.from('ads').select('user_id').eq('id', adId).single()).data.user_id,
+                        from_user: 'system',
+                        content: message
+                    });
+                }
+                alert('Ad denied');
+                document.getElementById('adReviewSection').style.display = 'none';
+                loadPendingAds();
+            }
+        }
+
+        // Report to Owner
+        async function reportToOwner() {
+            const contentType = document.getElementById('reportContentType').value;
+            const contentId = document.getElementById('reportContentId').value;
+            const severity = document.getElementById('reportSeverity').value;
+            const details = document.getElementById('reportDetails').value;
+            
+            if (!contentId || !details) {
+                alert('Please fill in all required fields');
+                return;
+            }
+
+            const { error } = await supabase
+                .from('owner_reports')
+                .insert({
+                    content_type: contentType,
+                    content_id: contentId,
+                    severity: severity,
+                    details: details,
+                    reported_by: currentUser.username,
+                    reporter_role: 'admin'
+                });
+            
+            if (!error) {
+                alert('Report sent to owner');
+                document.getElementById('reportContentId').value = '';
+                document.getElementById('reportDetails').value = '';
+                loadMyReports();
+            }
+        }
+
+        async function loadMyReports() {
+            const { data: reports } = await supabase
+                .from('owner_reports')
+                .select('*')
+                .eq('reported_by', currentUser.username)
+                .order('created_at', { ascending: false });
+            
+            const list = document.getElementById('myReportsList');
+            list.innerHTML = reports.map(report => `
+                <div class="item">
+                    <div>
+                        <strong>${report.content_type} - ${report.severity}</strong><br>
+                        <small>${report.details.substring(0, 100)}...</small><br>
+                        <small>Status: ${report.status || 'pending'}</small>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function reportContent(type, id) {
+            switchTab('reports');
+            document.getElementById('reportContentType').value = type;
+            document.getElementById('reportContentId').value = id;
+        }
+
+        // Logout
+        async function logout() {
+            await supabase.auth.signOut();
+            window.location.href = 'login.html';
+        }
+
+        // Load all data
+        function loadAllData() {
+            loadPosts();
+            loadComments();
+            loadMods();
+            loadPendingAds();
+            loadMyReports();
+        }
+
+        // Initialize on load
+        init();
+    </script>
 </body>
 </html>
