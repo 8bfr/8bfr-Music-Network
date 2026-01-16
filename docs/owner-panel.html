@@ -1,38 +1,1005 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>8BFR Owner Hub</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Owner Panel - 8BFR Music Network</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary: #ff0066;
+            --secondary: #00ccff;
+            --dark: #0a0a0a;
+            --dark-card: #1a1a1a;
+            --success: #00ff88;
+            --warning: #ffaa00;
+            --danger: #ff0044;
+            --text: #ffffff;
+            --text-dim: #999999;
+            --border: #333333;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Work Sans', sans-serif;
+            background: var(--dark);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--dark-card) 0%, #000 100%);
+            border-bottom: 2px solid var(--primary);
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(255, 0, 102, 0.2);
+        }
+
+        .header h1 {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 2rem;
+            letter-spacing: 2px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logout-btn {
+            background: var(--danger);
+            color: white;
+            border: none;
+            padding: 0.5rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: #cc0033;
+            transform: translateY(-2px);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid var(--border);
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            background: transparent;
+            color: var(--text-dim);
+            border: none;
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.95rem;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+            font-family: 'Work Sans', sans-serif;
+        }
+
+        .tab:hover {
+            color: var(--text);
+            border-bottom-color: var(--secondary);
+        }
+
+        .tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            background: var(--dark-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .card h2 {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 1.5rem;
+            letter-spacing: 1px;
+            color: var(--secondary);
+            margin-bottom: 1rem;
+            border-left: 4px solid var(--primary);
+            padding-left: 1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--dark);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text);
+            font-family: 'Work Sans', sans-serif;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .form-group textarea {
+            min-height: 150px;
+            resize: vertical;
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            font-family: 'Work Sans', sans-serif;
+        }
+
+        .btn:hover {
+            background: #cc0052;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(255, 0, 102, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--secondary);
+        }
+
+        .btn-secondary:hover {
+            background: #00a8cc;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+        }
+
+        .btn-danger:hover {
+            background: #cc0033;
+        }
+
+        .btn-success {
+            background: var(--success);
+        }
+
+        .btn-success:hover {
+            background: #00cc6e;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+
+        .item-list {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .item {
+            background: var(--dark);
+            border: 1px solid var(--border);
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .item:hover {
+            border-color: var(--primary);
+            transform: translateX(4px);
+        }
+
+        .item-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .item-actions button {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.85rem;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--dark);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text);
+            margin-bottom: 1rem;
+            font-family: 'Work Sans', sans-serif;
+        }
+
+        .editor-toolbar {
+            background: var(--dark);
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 4px 4px 0 0;
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .editor-toolbar button {
+            padding: 0.4rem 0.8rem;
+            background: var(--dark-card);
+            border: 1px solid var(--border);
+            color: var(--text);
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .editor-toolbar button:hover {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        #htmlEditor, #visualEditor {
+            width: 100%;
+            min-height: 400px;
+            font-family: 'Courier New', monospace;
+            padding: 1rem;
+            background: var(--dark);
+            border: 1px solid var(--border);
+            border-radius: 0 0 4px 4px;
+            color: var(--text);
+        }
+
+        .discount-codes {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .discount-codes button {
+            flex: 1;
+            min-width: 100px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, var(--dark-card), var(--dark));
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--primary);
+        }
+
+        .stat-card h3 {
+            font-size: 2rem;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card p {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+        }
+
+        .message-box {
+            background: var(--dark);
+            border: 1px solid var(--border);
+            padding: 1rem;
+            border-radius: 4px;
+            margin-top: 1rem;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+
+        .badge-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .badge-item {
+            background: var(--dark);
+            border: 1px solid var(--border);
+            padding: 0.75rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .badge-item:hover {
+            border-color: var(--primary);
+        }
+
+        .badge-item.selected {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            border-left: 4px solid;
+        }
+
+        .alert-success {
+            background: rgba(0, 255, 136, 0.1);
+            border-color: var(--success);
+            color: var(--success);
+        }
+
+        .alert-danger {
+            background: rgba(255, 0, 68, 0.1);
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        .alert-warning {
+            background: rgba(255, 170, 0, 0.1);
+            border-color: var(--warning);
+            color: var(--warning);
+        }
+    </style>
 </head>
-<body class="bg-black text-white p-6">
+<body>
+    <div class="header">
+        <h1>👑 OWNER PANEL</h1>
+        <div class="user-info">
+            <span id="ownerName">Loading...</span>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </div>
 
-<h1 class="text-3xl font-bold text-pink-400 mb-6">Owner Control Hub</h1>
+    <div class="container">
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('dashboard')">Dashboard</button>
+            <button class="tab" onclick="switchTab('editors')">HTML/Visual Editors</button>
+            <button class="tab" onclick="switchTab('content')">Content Management</button>
+            <button class="tab" onclick="switchTab('users')">User Management</button>
+            <button class="tab" onclick="switchTab('ads')">Advertising</button>
+            <button class="tab" onclick="switchTab('moderation')">Moderation</button>
+            <button class="tab" onclick="switchTab('chat')">Chat Control</button>
+            <button class="tab" onclick="switchTab('community')">Community</button>
+            <button class="tab" onclick="switchTab('features')">Featured Content</button>
+            <button class="tab" onclick="switchTab('system')">System Settings</button>
+        </div>
 
-<section class="mb-8">
-  <h2 class="text-xl mb-2">Global Controls</h2>
-  <button class="bg-purple-700 px-4 py-2 rounded mr-2">Maintenance Mode</button>
-  <button class="bg-blue-700 px-4 py-2 rounded">Clear Cache</button>
-</section>
+        <!-- Dashboard Tab -->
+        <div id="dashboard" class="tab-content active">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3 id="totalUsers">0</h3>
+                    <p>Total Users</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="totalPosts">0</h3>
+                    <p>Total Posts</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="activeAds">0</h3>
+                    <p>Active Ads</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="reportedItems">0</h3>
+                    <p>Reported Items</p>
+                </div>
+            </div>
 
-<section class="mb-8">
-  <h2 class="text-xl mb-2">Staff Management</h2>
-  <input class="p-2 text-black mr-2" placeholder="Username">
-  <select class="p-2 text-black mr-2">
-    <option>Admin</option>
-    <option>Mod</option>
-    <option>User</option>
-  </select>
-  <button class="bg-green-600 px-4 py-2 rounded">Assign Role</button>
-</section>
+            <div class="card">
+                <h2>Quick Actions</h2>
+                <div class="grid-3">
+                    <button class="btn" onclick="switchTab('users')">Manage Users</button>
+                    <button class="btn btn-secondary" onclick="switchTab('content')">Content Review</button>
+                    <button class="btn btn-danger" onclick="switchTab('moderation')">View Reports</button>
+                    <button class="btn btn-success" onclick="createAnnouncement()">Create Announcement</button>
+                    <button class="btn" onclick="switchTab('ads')">Review Ads</button>
+                    <button class="btn btn-secondary" onclick="switchTab('features')">Featured Content</button>
+                </div>
+            </div>
+        </div>
 
-<section>
-  <h2 class="text-xl mb-2">System Logs</h2>
-  <div class="bg-gray-900 p-3 rounded text-sm">
-    <p>[OK] Ads approved</p>
-    <p>[WARN] User flagged</p>
-  </div>
-</section>
+        <!-- Editors Tab -->
+        <div id="editors" class="tab-content">
+            <div class="card">
+                <h2>HTML Editor</h2>
+                <div class="editor-toolbar">
+                    <button onclick="insertHTML('<b></b>')"><b>B</b></button>
+                    <button onclick="insertHTML('<i></i>')"><i>I</i></button>
+                    <button onclick="insertHTML('<u></u>')"><u>U</u></button>
+                    <button onclick="insertHTML('<h1></h1>')">H1</button>
+                    <button onclick="insertHTML('<h2></h2>')">H2</button>
+                    <button onclick="insertHTML('<p></p>')">P</button>
+                    <button onclick="insertHTML('<a href=\"\"></a>')">Link</button>
+                    <button onclick="insertHTML('<img src=\"\" alt=\"\">')">Image</button>
+                    <button onclick="insertHTML('<div></div>')">Div</button>
+                    <button onclick="insertHTML('<span></span>')">Span</button>
+                </div>
+                <textarea id="htmlEditor" placeholder="Enter HTML code here..."></textarea>
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label>Target (Page/Post ID):</label>
+                    <input type="text" id="htmlTarget" placeholder="Enter ID to apply HTML">
+                </div>
+                <button class="btn" onclick="saveHTML()">Apply HTML</button>
+                <button class="btn btn-secondary" onclick="previewHTML()">Preview</button>
+            </div>
 
-</body>
-</html>
+            <div class="card">
+                <h2>Visual Editor</h2>
+                <div id="visualEditorContainer">
+                    <div class="form-group">
+                        <label>Page/Post to Edit:</label>
+                        <select id="visualEditorTarget">
+                            <option value="">Select target...</option>
+                        </select>
+                    </div>
+                    <div class="editor-toolbar">
+                        <button onclick="execCmd('bold')"><b>B</b></button>
+                        <button onclick="execCmd('italic')"><i>I</i></button>
+                        <button onclick="execCmd('underline')"><u>U</u></button>
+                        <button onclick="execCmd('justifyLeft')">Left</button>
+                        <button onclick="execCmd('justifyCenter')">Center</button>
+                        <button onclick="execCmd('justifyRight')">Right</button>
+                        <button onclick="execCmd('insertUnorderedList')">• List</button>
+                        <button onclick="execCmd('insertOrderedList')">1. List</button>
+                        <select onchange="execCmd('fontSize', this.value)">
+                            <option value="">Size</option>
+                            <option value="1">Small</option>
+                            <option value="3">Normal</option>
+                            <option value="5">Large</option>
+                            <option value="7">Huge</option>
+                        </select>
+                        <input type="color" onchange="execCmd('foreColor', this.value)">
+                    </div>
+                    <div id="visualEditor" contenteditable="true" style="min-height: 300px; padding: 1rem; background: var(--dark); border: 1px solid var(--border); border-radius: 4px; color: var(--text);">
+                        Start editing here...
+                    </div>
+                </div>
+                <button class="btn" onclick="saveVisualEditor()">Save Changes</button>
+            </div>
+        </div>
+
+        <!-- Content Management Tab -->
+        <div id="content" class="tab-content">
+            <div class="card">
+                <h2>Content Management</h2>
+                <input type="text" class="search-box" id="contentSearch" placeholder="Search posts, comments, profiles..." onkeyup="searchContent()">
+                
+                <div class="grid-2">
+                    <div>
+                        <h3 style="color: var(--secondary); margin-bottom: 1rem;">Posts</h3>
+                        <div class="item-list" id="postsList">
+                            <!-- Posts will be loaded here -->
+                        </div>
+                    </div>
+                    <div>
+                        <h3 style="color: var(--secondary); margin-bottom: 1rem;">Comments</h3>
+                        <div class="item-list" id="commentsList">
+                            <!-- Comments will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Profile Management</h2>
+                <input type="text" class="search-box" placeholder="Search users..." id="profileSearch" onkeyup="searchProfiles()">
+                <div class="item-list" id="profilesList">
+                    <!-- Profiles will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- User Management Tab -->
+        <div id="users" class="tab-content">
+            <div class="card">
+                <h2>User Search & Management</h2>
+                <input type="text" class="search-box" id="userSearch" placeholder="Search users by name, email, username..." onkeyup="searchUsers()">
+                <div class="item-list" id="usersList">
+                    <!-- Users will be loaded here -->
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>User Actions</h2>
+                <div class="form-group">
+                    <label>Select User:</label>
+                    <select id="selectedUser">
+                        <option value="">Choose user...</option>
+                    </select>
+                </div>
+
+                <div class="grid-2">
+                    <div>
+                        <h3 style="color: var(--secondary); margin-bottom: 1rem;">Profile Management</h3>
+                        <div class="form-group">
+                            <label>Username:</label>
+                            <input type="text" id="editUsername" placeholder="New username">
+                        </div>
+                        <div class="form-group">
+                            <label>Reset Password:</label>
+                            <input type="password" id="newPassword" placeholder="New password">
+                        </div>
+                        <div class="form-group">
+                            <label>Profile Photo URL:</label>
+                            <input type="text" id="profilePhotoUrl" placeholder="Photo URL">
+                        </div>
+                        <button class="btn" onclick="updateUserProfile()">Update Profile</button>
+                        <button class="btn btn-danger" onclick="deleteProfilePhoto()">Delete Photo</button>
+                    </div>
+
+                    <div>
+                        <h3 style="color: var(--secondary); margin-bottom: 1rem;">Permissions & Roles</h3>
+                        <div class="form-group">
+                            <label>Role:</label>
+                            <select id="userRole">
+                                <option value="user">User</option>
+                                <option value="mod">Moderator</option>
+                                <option value="admin">Admin</option>
+                                <option value="owner">Owner</option>
+                            </select>
+                        </div>
+                        <button class="btn" onclick="updateUserRole()">Update Role</button>
+                        <button class="btn btn-success" onclick="upgradeProFree()">Upgrade to Pro (Free)</button>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top: 1rem; background: var(--dark);">
+                    <h3 style="color: var(--secondary); margin-bottom: 1rem;">Badges</h3>
+                    <div class="badge-selector" id="badgeSelector">
+                        <div class="badge-item" data-badge="verified">✓ Verified</div>
+                        <div class="badge-item" data-badge="artist">🎵 Artist</div>
+                        <div class="badge-item" data-badge="producer">🎛️ Producer</div>
+                        <div class="badge-item" data-badge="vip">⭐ VIP</div>
+                        <div class="badge-item" data-badge="supporter">💎 Supporter</div>
+                        <div class="badge-item" data-badge="og">🏆 OG</div>
+                    </div>
+                    <button class="btn" onclick="updateBadges()">Save Badges</button>
+                </div>
+
+                <div class="card" style="margin-top: 1rem; background: var(--dark);">
+                    <h3 style="color: var(--secondary); margin-bottom: 1rem;">Gifts & Rewards</h3>
+                    <div class="form-group">
+                        <label>Gift Coins:</label>
+                        <input type="number" id="giftCoins" placeholder="Amount">
+                    </div>
+                    <div class="form-group">
+                        <label>Gift Item ID:</label>
+                        <input type="text" id="giftItem" placeholder="Item ID">
+                    </div>
+                    <div class="form-group">
+                        <label>Gift Ad Space (Days):</label>
+                        <input type="number" id="giftAdDays" placeholder="Number of days">
+                    </div>
+                    <button class="btn" onclick="giftCoins()">Send Coins</button>
+                    <button class="btn btn-secondary" onclick="giftItem()">Send Item</button>
+                    <button class="btn btn-success" onclick="giftAdSpace()">Gift Ad Space</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Create New Account</h2>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Email:</label>
+                        <input type="email" id="newEmail" placeholder="user@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Username:</label>
+                        <input type="text" id="newUsername" placeholder="username">
+                    </div>
+                    <div class="form-group">
+                        <label>Password:</label>
+                        <input type="password" id="newAccountPassword" placeholder="Password">
+                    </div>
+                    <div class="form-group">
+                        <label>Role:</label>
+                        <select id="newAccountRole">
+                            <option value="user">User</option>
+                            <option value="mod">Moderator</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn" onclick="createAccount()">Create Account</button>
+            </div>
+        </div>
+
+        <!-- Advertising Tab -->
+        <div id="ads" class="tab-content">
+            <div class="card">
+                <h2>Pending Ad Approvals</h2>
+                <div class="item-list" id="pendingAdsList">
+                    <!-- Pending ads will be loaded here -->
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>All Ads</h2>
+                <input type="text" class="search-box" placeholder="Search ads..." id="adsSearch" onkeyup="searchAds()">
+                <div class="item-list" id="allAdsList">
+                    <!-- All ads will be loaded here -->
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Discount Codes Generator</h2>
+                <div class="form-group">
+                    <label>Code Prefix (optional):</label>
+                    <input type="text" id="discountPrefix" placeholder="e.g., PROMO">
+                </div>
+                <div class="form-group">
+                    <label>Valid Until:</label>
+                    <input type="date" id="discountExpiry">
+                </div>
+                <div class="form-group">
+                    <label>Usage Limit:</label>
+                    <input type="number" id="discountLimit" placeholder="Leave empty for unlimited">
+                </div>
+                <h3 style="color: var(--secondary); margin: 1rem 0;">Generate Code:</h3>
+                <div class="discount-codes">
+                    <button class="btn" onclick="generateDiscount('1.00')">$1.00</button>
+                    <button class="btn" onclick="generateDiscount('2.00')">$2.00</button>
+                    <button class="btn" onclick="generateDiscount('3.00')">$3.00</button>
+                    <button class="btn" onclick="generateDiscount('4.00')">$4.00</button>
+                    <button class="btn btn-success" onclick="generateDiscount('free')">FREE</button>
+                </div>
+                <div id="generatedCode" class="alert alert-success" style="display: none; margin-top: 1rem;"></div>
+            </div>
+        </div>
+
+        <!-- Moderation Tab -->
+        <div id="moderation" class="tab-content">
+            <div class="card">
+                <h2>Reported Content</h2>
+                <div class="form-group">
+                    <label>Filter by Type:</label>
+                    <select id="reportFilter" onchange="filterReports()">
+                        <option value="all">All Reports</option>
+                        <option value="post">Posts</option>
+                        <option value="comment">Comments</option>
+                        <option value="profile">Profiles</option>
+                        <option value="photo">Profile Photos</option>
+                        <option value="message">Messages</option>
+                        <option value="song">Songs</option>
+                    </select>
+                </div>
+                <div class="item-list" id="reportsList">
+                    <!-- Reports will be loaded here -->
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Ban Management</h2>
+                <div class="grid-2">
+                    <div>
+                        <h3 style="color: var(--secondary); margin-bottom: 1rem;">Ban User</h3>
+                        <div class="form-group">
+                            <label>User ID/Username:</label>
+                            <input type="text" id="banUserId" placeholder="User identifier">
+                        </div>
+                        <div class="form-group">
+                            <label>Ban Type:</label>
+                            <select id="banType">
+                                <option value="chat">Chat Only</option>
+                                <option value="site">Full Site</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Duration:</label>
+                            <select id="banDuration">
+                                <option value="1">1 Day</option>
+                                <option value="3">3 Days</option>
+                                <option value="7">7 Days</option>
+                                <option value="14">14 Days</option>
+                                <option value="30">30 Days</option>
+                                <option value="permanent">Permanent</option>
+                            </select>
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="banByIP">
+                            <label>Ban by IP Address</label>
+                        </div>
+                        <div class="form-group">
+                            <label>Reason:</label>
+                            <textarea id="banReason" placeholder="Reason for ban..."></textarea>
+                        </div>
+                        <button class="btn btn-danger" onclick="banUser()">Ban User</button>
+                    </div>
+
+                    <div>
+                        <h3 style="color: var(--secondary); margin-bottom: 1rem;">Active Bans</h3>
+                        <div class="item-list" id="activeBansList">
+                            <!-- Active bans will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Override Admin/Mod Actions</h2>
+                <div class="form-group">
+                    <label>Action ID:</label>
+                    <input type="text" id="overrideActionId" placeholder="Enter action ID">
+                </div>
+                <div class="form-group">
+                    <label>Override Reason:</label>
+                    <textarea id="overrideReason" placeholder="Explain why you're overriding..."></textarea>
+                </div>
+                <button class="btn btn-danger" onclick="overrideAction()">Override Action</button>
+            </div>
+        </div>
+
+        <!-- Chat Control Tab -->
+        <div id="chat" class="tab-content">
+            <div class="card">
+                <h2>Main Chat Control</h2>
+                <div class="grid-2">
+                    <div>
+                        <h3 style="color: var(--secondary); margin-bottom: 1rem;">Active Users</h3>
+                        <div class="item-list" id="activeChatUsers">
+                            <!-- Active chat users will be loaded here -->
+                        </div>
+                    </div>
+                    <div>
+                        <h3 style="color: var(--secondary); margin-bottom: 1rem;">Quick Actions</h3>
+                        <div class="form-group">
+                            <label>User ID:</label>
+                            <input type="text" id="chatUserId" placeholder="User to moderate">
+                        </div>
+                        <button class="btn" onclick="kickFromChat()">Kick</button>
+                        <button class="btn btn-secondary" onclick="muteInChat()">Mute</button>
+                        <button class="btn btn-danger" onclick="banFromChat()">Ban from Chat</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Message Management</h2>
+                <input type="text" class="search-box" placeholder="Search messages..." id="messageSearch" onkeyup="searchMessages()">
+                <div class="item-list" id="messagesList">
+                    <!-- Messages will be loaded here -->
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Anonymous Monitoring</h2>
+                <div class="form-group">
+                    <label>Monitor Type:</label>
+                    <select id="monitorType" onchange="loadMonitorView()">
+                        <option value="">Select...</option>
+                        <option value="main">Main Chat</option>
+                        <option value="dm">Direct Messages</option>
+                        <option value="avatar">Avatar Chats</option>
+                    </select>
+                </div>
+                <div class="form-group" id="monitorUserSelect" style="display: none;">
+                    <label>Specific User (optional):</label>
+                    <input type="text" id="monitorUserId" placeholder="User ID to monitor">
+                </div>
+                <button class="btn" onclick="startMonitoring()">Start Monitoring</button>
+                <div id="monitorView" class="item-list" style="margin-top: 1rem; display: none;">
+                    <!-- Monitor view will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Community Tab -->
+        <div id="community" class="tab-content">
+            <div class="card">
+                <h2>Create Page</h2>
+                <div class="form-group">
+                    <label>Page Name:</label>
+                    <input type="text" id="pageName" placeholder="Page name">
+                </div>
+                <div class="form-group">
+                    <label>Page Description:</label>
+                    <textarea id="pageDescription" placeholder="Page description..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Page Category:</label>
+                    <select id="pageCategory">
+                        <option value="artist">Artist</option>
+                        <option value="label">Label</option>
+                        <option value="venue">Venue</option>
+                        <option value="community">Community</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <button class="btn" onclick="createPage()">Create Page</button>
+            </div>
+
+            <div class="card">
+                <h2>Create Group</h2>
+                <div class="form-group">
+                    <label>Group Name:</label>
+                    <input type="text" id="groupName" placeholder="Group name">
+                </div>
+                <div class="form-group">
+                    <label>Group Description:</label>
+                    <textarea id="groupDescription" placeholder="Group description..."></textarea>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="groupPrivate">
+                    <label>Private Group</label>
+                </div>
+                <button class="btn" onclick="createGroup()">Create Group</button>
+            </div>
+
+            <div class="card">
+                <h2>Create Message Forum</h2>
+                <div class="form-group">
+                    <label>Forum Name:</label>
+                    <input type="text" id="forumName" placeholder="Forum name">
+                </div>
+                <div class="form-group">
+                    <label>Forum Category:</label>
+                    <input type="text" id="forumCategory" placeholder="Category">
+                </div>
+                <div class="form-group">
+                    <label>Forum Description:</label>
+                    <textarea id="forumDescription" placeholder="Forum description..."></textarea>
+                </div>
+                <button class="btn" onclick="createForum()">Create Forum</button>
+            </div>
+
+            <div class="card">
+                <h2>Create Announcement</h2>
+                <div class="form-group">
+                    <label>Announcement Title:</label>
+                    <input type="text" id="announcementTitle" placeholder="Announcement title">
+                </div>
+                <div class="form-group">
+                    <label>Announcement Content:</label>
+                    <textarea id="announcementContent" placeholder="Announcement content..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Target Audience:</label>
+                    <select id="announcementAudience">
+                        <option value="all">All Users</option>
+                        <option value="pro">Pro Users Only</option>
+                        <option value="artists">Artists Only</option>
+                        <option value="verified">Verified Only</option>
+                    </select>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="announcementPush">
+                    <label>Send Push Notification</label>
+                </div>
+                <button class="btn" onclick="publishAnnouncement()">Publish Announcement</button>
+            </div>
+        </div>
+
+        <!-- Featured Content Tab -->
+        <div id="features" class="tab-content">
+            <div class="card">
+                <h2>Featured Artists</h2>
+                <div class="form-group">
+                    <label>Add Artist (User ID or Username):</label>
+                    <input type="text" id="featuredArtistInput" placeholder="Enter user ID or username">
+                </div>
+                <div class="form-group">
+                    <label>Feature Duration (days):</label>
+                    <input type="number" id="artistFeatureDuration" value="7" min="1">
+                </div>
+                <button class="btn" onclick="addFeaturedArtist()">Add Featured Artist</button>
+                
+                <h3 style="color: var(--secondary); margin: 1.5rem 0 1rem;">Current Featured Artists</h3>
+                <div class="item-list" id="featuredArtistsList">
+                    <!-- Featured artists will be loaded here -->
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Featured Songs</h2>
+                <div class="form-group">
+                    <label>Add Song (Song ID):</label>
+                    <input type="text" id="featuredSongInput" placeholder="Enter song ID">
+                </div>
+                <div class="form-group">
+                    <label>Feature Duration (days):</label>
+                    <input type="number" id="songFeatureDuration" value="7" min="1">
+                </div>
+                <button class="btn" onclick="addFeaturedSong()">Add Featured Song</button>
+                
+                <h3 style="color: var(--secondary); margin: 1.5rem 0 1rem;">Current Featured Songs</h3>
+                <div class="item-list" id="featuredSongsList">
+                    <!-- Featured songs will be loaded here -->
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Featured Users</h2>
+                <div class="form-group">
+                    <label>Add User (User ID or Username):</label>
+      
