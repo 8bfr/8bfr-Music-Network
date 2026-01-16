@@ -838,8 +838,10 @@
             <div class="card">
                 <h2>Featured Users</h2>
                 <div class="form-group">
-                    <label>Add User (Username):</label>
-                    <input type="text" id="featuredUserInput" placeholder="Enter username">
+                    <label>Select User to Feature:</label>
+                    <select id="featuredUserSelect">
+                        <option value="">Choose user...</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label>Feature Reason:</label>
@@ -883,7 +885,13 @@
             <div class="card">
                 <h2>Site Statistics</h2>
                 <button class="btn" onclick="refreshStats()">Refresh Statistics</button>
+                
+                <h3 style="color: var(--secondary); margin: 1.5rem 0 1rem;">User Stats by Role</h3>
                 <div class="stats-grid" style="margin-top: 1rem;">
+                    <div class="stat-card">
+                        <h3 id="statOwners">0</h3>
+                        <p>Owners</p>
+                    </div>
                     <div class="stat-card">
                         <h3 id="statAdmins">0</h3>
                         <p>Admins</p>
@@ -899,6 +907,94 @@
                     <div class="stat-card">
                         <h3 id="statBeatmakers">0</h3>
                         <p>Beatmakers</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="statDancers">0</h3>
+                        <p>Dancers</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="statInfluencers">0</h3>
+                        <p>Influencers</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="statFans">0</h3>
+                        <p>Fans</p>
+                    </div>
+                </div>
+
+                <h3 style="color: var(--secondary); margin: 1.5rem 0 1rem;">Content Stats</h3>
+                <div class="stats-grid" style="margin-top: 1rem;">
+                    <div class="stat-card">
+                        <h3 id="statTotalPosts">0</h3>
+                        <p>Total Posts</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="statTotalComments">0</h3>
+                        <p>Total Comments</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="statTotalSongs">0</h3>
+                        <p>Total Songs</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="statTotalAds">0</h3>
+                        <p>Total Ads</p>
+                    </div>
+                </div>
+
+                <h3 style="color: var(--secondary); margin: 1.5rem 0 1rem;">Community Stats</h3>
+                <div class="stats-grid" style="margin-top: 1rem;">
+                    <div class="stat-card">
+                        <h3 id="statTotalPages">0</h3>
+                        <p>Pages</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="statTotalGroups">0</h3>
+                        <p>Groups</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="statTotalForums">0</h3>
+                        <p>Forums</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="statTotalAnnouncements">0</h3>
+                        <p>Announcements</p>
+                    </div>
+                </div>
+
+                <h3 style="color: var(--secondary); margin: 1.5rem 0 1rem;">Moderation Stats</h3>
+                <div class="stats-grid" style="margin-top: 1rem;">
+                    <div class="stat-card">
+                        <h3 id="statActiveBans">0</h3>
+                        <p>Active Bans</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="statPendingReports">0</h3>
+                        <p>Pending Reports</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="statBannedWords">0</h3>
+                        <p>Banned Words</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="statDiscountCodes">0</h3>
+                        <p>Discount Codes</p>
+                    </div>
+                </div>
+
+                <h3 style="color: var(--secondary); margin: 1.5rem 0 1rem;">Featured Content Stats</h3>
+                <div class="stats-grid" style="margin-top: 1rem;">
+                    <div class="stat-card">
+                        <h3 id="statFeaturedArtists">0</h3>
+                        <p>Featured Artists</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="statFeaturedSongs">0</h3>
+                        <p>Featured Songs</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="statFeaturedUsers">0</h3>
+                        <p>Featured Users</p>
                     </div>
                 </div>
             </div>
@@ -1048,9 +1144,55 @@
             if (tabName === 'content') { loadPosts(); loadComments(); }
             if (tabName === 'ads') loadAds();
             if (tabName === 'moderation') { loadReports(); loadActiveBans(); }
-            if (tabName === 'features') { loadFeaturedArtists(); loadFeaturedSongs(); loadFeaturedUsers(); }
+            if (tabName === 'features') { 
+                loadFeaturedArtists(); 
+                loadFeaturedSongs(); 
+                loadFeaturedUsers(); 
+                populateFeaturedDropdowns();
+            }
             if (tabName === 'system') { loadBannedWords(); refreshStats(); }
             if (tabName === 'community') { loadPages(); loadGroups(); loadForums(); loadAnnouncements(); }
+        }
+
+        // Populate dropdowns for featured content
+        async function populateFeaturedDropdowns() {
+            try {
+                // Load all users for artist and user dropdowns
+                const { data: users } = await ownerPanelSupabase
+                    .from('profiles')
+                    .select('id, user_id, username, display_name, role')
+                    .order('username');
+
+                if (users) {
+                    const artistSelect = document.getElementById('featuredArtistSelect');
+                    const userSelect = document.getElementById('featuredUserSelect');
+                    
+                    const userOptions = users.map(user => 
+                        `<option value="${user.user_id}">${user.username || user.display_name} (${user.role})</option>`
+                    ).join('');
+                    
+                    artistSelect.innerHTML = '<option value="">Choose artist...</option>' + userOptions;
+                    userSelect.innerHTML = '<option value="">Choose user...</option>' + userOptions;
+                }
+
+                // Load all songs for song dropdown
+                const { data: songs } = await ownerPanelSupabase
+                    .from('songs')
+                    .select('id, title, artist')
+                    .order('created_at', { ascending: false })
+                    .limit(100);
+
+                if (songs) {
+                    const songSelect = document.getElementById('featuredSongSelect');
+                    const songOptions = songs.map(song => 
+                        `<option value="${song.id}">${song.title || 'Untitled'} ${song.artist ? '- ' + song.artist : ''}</option>`
+                    ).join('');
+                    
+                    songSelect.innerHTML = '<option value="">Choose song...</option>' + songOptions;
+                }
+            } catch (error) {
+                console.error('Error loading featured dropdowns:', error);
+            }
         }
 
         // Dashboard Stats
@@ -1992,38 +2134,26 @@
 
         // Featured Content
         async function addFeaturedArtist() {
-            const username = document.getElementById('featuredArtistInput').value.trim();
+            const userId = document.getElementById('featuredArtistSelect').value;
             const duration = parseInt(document.getElementById('artistFeatureDuration').value);
             
-            if (!username) {
-                alert('Please enter a username');
+            if (!userId) {
+                alert('Please select an artist');
                 return;
             }
 
             try {
-                // First, find the user by username
-                const { data: profile, error: profileError } = await ownerPanelSupabase
-                    .from('profiles')
-                    .select('user_id, username')
-                    .eq('username', username)
-                    .single();
-
-                if (profileError || !profile) {
-                    alert('User not found with username: ' + username);
-                    return;
-                }
-
                 const expires = new Date();
                 expires.setDate(expires.getDate() + duration);
 
                 const { error } = await ownerPanelSupabase.from('featured_artists').insert({
-                    user_id: profile.user_id,
+                    user_id: userId,
                     expires_at: expires.toISOString()
                 });
 
                 if (error) throw error;
-                alert(`${username} featured successfully for ${duration} days!`);
-                document.getElementById('featuredArtistInput').value = '';
+                alert(`Artist featured successfully for ${duration} days!`);
+                document.getElementById('featuredArtistSelect').value = '';
                 loadFeaturedArtists();
             } catch (error) {
                 alert('Error featuring artist: ' + error.message);
@@ -2063,26 +2193,26 @@
         }
 
         async function addFeaturedSong() {
-            const songId = document.getElementById('featuredSongInput').value;
+            const songId = document.getElementById('featuredSongSelect').value;
             const duration = parseInt(document.getElementById('songFeatureDuration').value);
             
             if (!songId) {
-                alert('Please enter a song ID');
+                alert('Please select a song');
                 return;
             }
 
-            const expires = new Date();
-            expires.setDate(expires.getDate() + duration);
-
             try {
+                const expires = new Date();
+                expires.setDate(expires.getDate() + duration);
+
                 const { error } = await ownerPanelSupabase.from('featured_songs').insert({
                     song_id: songId,
                     expires_at: expires.toISOString()
                 });
 
                 if (error) throw error;
-                alert('Song featured successfully');
-                document.getElementById('featuredSongInput').value = '';
+                alert(`Song featured successfully for ${duration} days!`);
+                document.getElementById('featuredSongSelect').value = '';
                 loadFeaturedSongs();
             } catch (error) {
                 alert('Error featuring song: ' + error.message);
@@ -2122,40 +2252,28 @@
         }
 
         async function addFeaturedUser() {
-            const username = document.getElementById('featuredUserInput').value.trim();
+            const userId = document.getElementById('featuredUserSelect').value;
             const reason = document.getElementById('featureReason').value;
             const duration = parseInt(document.getElementById('userFeatureDuration').value);
             
-            if (!username) {
-                alert('Please enter a username');
+            if (!userId) {
+                alert('Please select a user');
                 return;
             }
 
             try {
-                // First, find the user by username
-                const { data: profile, error: profileError } = await ownerPanelSupabase
-                    .from('profiles')
-                    .select('user_id, username')
-                    .eq('username', username)
-                    .single();
-
-                if (profileError || !profile) {
-                    alert('User not found with username: ' + username);
-                    return;
-                }
-
                 const expires = new Date();
                 expires.setDate(expires.getDate() + duration);
 
                 const { error } = await ownerPanelSupabase.from('featured_users').insert({
-                    user_id: profile.user_id,
+                    user_id: userId,
                     reason,
                     expires_at: expires.toISOString()
                 });
 
                 if (error) throw error;
-                alert(`${username} featured successfully for ${duration} days!`);
-                document.getElementById('featuredUserInput').value = '';
+                alert(`User featured successfully for ${duration} days!`);
+                document.getElementById('featuredUserSelect').value = '';
                 loadFeaturedUsers();
             } catch (error) {
                 alert('Error featuring user: ' + error.message);
@@ -2271,32 +2389,71 @@
 
         async function refreshStats() {
             try {
-                const { count: adminCount } = await ownerPanelSupabase
-                    .from('profiles')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('role', 'admin');
+                // User Stats by Role
+                const { count: ownerCount } = await ownerPanelSupabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'owner');
+                const { count: adminCount } = await ownerPanelSupabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'admin');
+                const { count: modCount } = await ownerPanelSupabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'mod');
+                const { count: artistCount } = await ownerPanelSupabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'artist');
+                const { count: beatmakerCount } = await ownerPanelSupabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'beatmaker');
+                const { count: dancerCount } = await ownerPanelSupabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'dancer');
+                const { count: influencerCount } = await ownerPanelSupabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'influencer');
+                const { count: fanCount } = await ownerPanelSupabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'fan');
 
-                const { count: modCount } = await ownerPanelSupabase
-                    .from('profiles')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('role', 'mod');
-
-                const { count: artistCount } = await ownerPanelSupabase
-                    .from('profiles')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('role', 'artist');
-
-                const { count: beatmakerCount } = await ownerPanelSupabase
-                    .from('profiles')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('role', 'beatmaker');
-
+                document.getElementById('statOwners').textContent = ownerCount || 0;
                 document.getElementById('statAdmins').textContent = adminCount || 0;
                 document.getElementById('statMods').textContent = modCount || 0;
                 document.getElementById('statArtists').textContent = artistCount || 0;
                 document.getElementById('statBeatmakers').textContent = beatmakerCount || 0;
+                document.getElementById('statDancers').textContent = dancerCount || 0;
+                document.getElementById('statInfluencers').textContent = influencerCount || 0;
+                document.getElementById('statFans').textContent = fanCount || 0;
+
+                // Content Stats
+                const { count: postCount } = await ownerPanelSupabase.from('posts').select('*', { count: 'exact', head: true });
+                const { count: commentCount } = await ownerPanelSupabase.from('comments').select('*', { count: 'exact', head: true });
+                const { count: songCount } = await ownerPanelSupabase.from('songs').select('*', { count: 'exact', head: true });
+                const { count: adCount } = await ownerPanelSupabase.from('ads').select('*', { count: 'exact', head: true });
+
+                document.getElementById('statTotalPosts').textContent = postCount || 0;
+                document.getElementById('statTotalComments').textContent = commentCount || 0;
+                document.getElementById('statTotalSongs').textContent = songCount || 0;
+                document.getElementById('statTotalAds').textContent = adCount || 0;
+
+                // Community Stats
+                const { count: pageCount } = await ownerPanelSupabase.from('pages').select('*', { count: 'exact', head: true });
+                const { count: groupCount } = await ownerPanelSupabase.from('groups').select('*', { count: 'exact', head: true });
+                const { count: forumCount } = await ownerPanelSupabase.from('forums').select('*', { count: 'exact', head: true });
+                const { count: announcementCount } = await ownerPanelSupabase.from('announcements').select('*', { count: 'exact', head: true });
+
+                document.getElementById('statTotalPages').textContent = pageCount || 0;
+                document.getElementById('statTotalGroups').textContent = groupCount || 0;
+                document.getElementById('statTotalForums').textContent = forumCount || 0;
+                document.getElementById('statTotalAnnouncements').textContent = announcementCount || 0;
+
+                // Moderation Stats
+                const { count: banCount } = await ownerPanelSupabase.from('bans').select('*', { count: 'exact', head: true }).or('expires_at.is.null,expires_at.gt.' + new Date().toISOString());
+                const { count: reportCount } = await ownerPanelSupabase.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'pending');
+                const { count: bannedWordCount } = await ownerPanelSupabase.from('banned_words').select('*', { count: 'exact', head: true });
+                const { count: discountCodeCount } = await ownerPanelSupabase.from('discount_codes').select('*', { count: 'exact', head: true });
+
+                document.getElementById('statActiveBans').textContent = banCount || 0;
+                document.getElementById('statPendingReports').textContent = reportCount || 0;
+                document.getElementById('statBannedWords').textContent = bannedWordCount || 0;
+                document.getElementById('statDiscountCodes').textContent = discountCodeCount || 0;
+
+                // Featured Content Stats
+                const { count: featuredArtistCount } = await ownerPanelSupabase.from('featured_artists').select('*', { count: 'exact', head: true }).gt('expires_at', new Date().toISOString());
+                const { count: featuredSongCount } = await ownerPanelSupabase.from('featured_songs').select('*', { count: 'exact', head: true }).gt('expires_at', new Date().toISOString());
+                const { count: featuredUserCount } = await ownerPanelSupabase.from('featured_users').select('*', { count: 'exact', head: true }).gt('expires_at', new Date().toISOString());
+
+                document.getElementById('statFeaturedArtists').textContent = featuredArtistCount || 0;
+                document.getElementById('statFeaturedSongs').textContent = featuredSongCount || 0;
+                document.getElementById('statFeaturedUsers').textContent = featuredUserCount || 0;
+
+                console.log('Stats refreshed successfully');
             } catch (error) {
                 console.error('Error refreshing stats:', error);
+                alert('Error loading some statistics. Check console for details.');
             }
         }
 
