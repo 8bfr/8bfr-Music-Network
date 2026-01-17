@@ -1,3 +1,12 @@
+# 📄 Complete Updated Pages
+
+I'll provide each full page with all changes. Copy and paste to overwrite your existing files.
+
+---
+
+## 1️⃣ **owner-panel.html** (COMPLETE FILE)
+
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -406,6 +415,7 @@
     <div class="container">
         <div class="tabs">
             <button class="tab active" onclick="switchTab('dashboard')">Dashboard</button>
+            <button class="tab" onclick="switchTab('verification')">Verification Queue</button>
             <button class="tab" onclick="switchTab('content')">Content Management</button>
             <button class="tab" onclick="switchTab('users')">User Management</button>
             <button class="tab" onclick="switchTab('ads')">Advertising</button>
@@ -439,12 +449,97 @@
             <div class="card">
                 <h2>Quick Actions</h2>
                 <div class="grid-3">
+                    <button class="btn" onclick="switchTab('verification')">Review Verifications</button>
                     <button class="btn" onclick="switchTab('users')">Manage Users</button>
                     <button class="btn btn-secondary" onclick="switchTab('content')">Content Review</button>
                     <button class="btn btn-danger" onclick="switchTab('moderation')">View Reports</button>
                     <button class="btn btn-success" onclick="createAnnouncement()">Create Announcement</button>
                     <button class="btn" onclick="switchTab('ads')">Review Ads</button>
                     <button class="btn btn-secondary" onclick="switchTab('features')">Featured Content</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Verification Tab -->
+        <div id="verification" class="tab-content">
+            <div class="card">
+                <h2>Artist/Beatmaker Verification Requests</h2>
+                <div class="form-group">
+                    <label>Filter by Status:</label>
+                    <select id="verificationFilter" onchange="loadVerificationRequests()">
+                        <option value="pending">Pending</option>
+                        <option value="approved">Approved</option>
+                        <option value="denied">Denied</option>
+                        <option value="all">All</option>
+                    </select>
+                </div>
+                <div class="item-list" id="verificationRequestsList">
+                    <!-- Verification requests will be loaded here -->
+                </div>
+            </div>
+
+            <div class="card" id="verificationReviewSection" style="display: none;">
+                <h2>Review Verification Request</h2>
+                <div class="grid-2">
+                    <div>
+                        <div class="form-group">
+                            <label>Username:</label>
+                            <input type="text" id="reviewUsername" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>Role Requested:</label>
+                            <input type="text" id="reviewRole" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>Verification Link:</label>
+                            <input type="text" id="reviewLink" readonly>
+                            <button class="btn btn-secondary" onclick="window.open(document.getElementById('reviewLink').value, '_blank')" style="margin-top: 0.5rem;">Open Link</button>
+                        </div>
+                        <div class="form-group">
+                            <label>Submitted:</label>
+                            <input type="text" id="reviewDate" readonly>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 style="color: var(--secondary); margin-bottom: 1rem;">User Profile Info</h3>
+                        <div id="userProfileInfo">
+                            <!-- User info will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Notes/Reason (for denial):</label>
+                    <textarea id="verificationNotes" placeholder="Add notes or reason for denial..."></textarea>
+                </div>
+                
+                <input type="hidden" id="currentVerificationId">
+                <input type="hidden" id="currentVerificationUserId">
+                
+                <button class="btn btn-success" onclick="approveVerification()">✓ Approve & Grant Badges</button>
+                <button class="btn btn-danger" onclick="denyVerification()">✗ Deny Request</button>
+                <button class="btn" onclick="closeVerificationReview()">Cancel</button>
+            </div>
+
+            <div class="card">
+                <h2>Verification Statistics</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3 id="statPendingVerifications">0</h3>
+                        <p>Pending Requests</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="statApprovedVerifications">0</h3>
+                        <p>Approved</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="statDeniedVerifications">0</h3>
+                        <p>Denied</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="statVerifiedArtists">0</h3>
+                        <p>Verified Artists/Beatmakers</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1015,7 +1110,6 @@
             try {
                 console.log('Initializing owner panel...');
                 
-                // First check if we have a session
                 const { data: sessionData, error: sessionError } = await ownerPanelSupabase.auth.getSession();
                 console.log('Session check:', sessionData);
                 
@@ -1050,7 +1144,6 @@
                 console.log('User authenticated:', user.email);
                 currentUser = user;
 
-                // Get user profile from public.profiles
                 console.log('Fetching profile for user_id:', user.id);
                 const { data: profile, error: profileError } = await ownerPanelSupabase
                     .from('profiles')
@@ -1061,7 +1154,6 @@
                 if (profileError) {
                     console.error('Profile error:', profileError);
                     
-                    // If profile doesn't exist, try to create it
                     if (profileError.code === 'PGRST116') {
                         console.log('No profile found, creating one...');
                         alert('Creating your profile...');
@@ -1102,7 +1194,6 @@
 
                 console.log('Profile loaded:', profile);
 
-                // Check if user is owner
                 if (profile.role !== 'owner') {
                     console.error('Access denied. Role:', profile.role);
                     alert('Access Denied: Owner privileges required. Your role: ' + profile.role);
@@ -1138,7 +1229,6 @@
             event.target.classList.add('active');
             document.getElementById(tabName).classList.add('active');
 
-            // Load data when switching to certain tabs
             console.log('Loading data for tab:', tabName);
             if (tabName === 'users') loadUsers();
             if (tabName === 'content') { loadPosts(); loadComments(); }
@@ -1152,12 +1242,266 @@
             }
             if (tabName === 'system') { loadBannedWords(); refreshStats(); }
             if (tabName === 'community') { loadPages(); loadGroups(); loadForums(); loadAnnouncements(); }
+            if (tabName === 'verification') { loadVerificationRequests(); }
+        }
+
+        // Verification Queue Functions
+        async function loadVerificationRequests() {
+            const filter = document.getElementById('verificationFilter')?.value || 'pending';
+            
+            try {
+                let queryBuilder = ownerPanelSupabase
+                    .from('verification_requests')
+                    .select(`
+                        *,
+                        profiles:user_id(id, user_id, username, display_name, role, avatar_url)
+                    `)
+                    .order('created_at', { ascending: false });
+
+                if (filter !== 'all') {
+                    queryBuilder = queryBuilder.eq('status', filter);
+                }
+
+                const { data: requests, error } = await queryBuilder;
+                
+                if (error) {
+                    console.error('Error loading verification requests:', error);
+                    throw error;
+                }
+
+                const list = document.getElementById('verificationRequestsList');
+                
+                if (!requests || requests.length === 0) {
+                    list.innerHTML = '<p style="text-align: center; color: var(--text-dim); padding: 2rem;">No verification requests found</p>';
+                    return;
+                }
+
+                list.innerHTML = requests.map(req => {
+                    const statusColor = req.status === 'pending' ? 'var(--warning)' : 
+                                      req.status === 'approved' ? 'var(--success)' : 
+                                      'var(--danger)';
+                    const statusIcon = req.status === 'pending' ? '⏳' : 
+                                     req.status === 'approved' ? '✅' : 
+                                     '❌';
+                    
+                    return `
+                        <div class="item">
+                            <div>
+                                <strong>${req.profiles?.username || req.profiles?.display_name || 'Unknown User'}</strong>
+                                <span style="color: ${statusColor}; margin-left: 0.5rem;">${statusIcon} ${req.status.toUpperCase()}</span><br>
+                                <small>Role: <strong>${req.role_requested}</strong></small><br>
+                                <small style="color: var(--text-dim);">Submitted: ${new Date(req.created_at).toLocaleString()}</small>
+                                ${req.reviewed_at ? `<br><small style="color: var(--text-dim);">Reviewed: ${new Date(req.reviewed_at).toLocaleString()}</small>` : ''}
+                                ${req.denial_reason ? `<br><small style="color: var(--danger);">Reason: ${req.denial_reason}</small>` : ''}
+                            </div>
+                            <div class="item-actions">
+                                ${req.status === 'pending' ? 
+                                    `<button class="btn" onclick="reviewVerification('${req.id}')">Review</button>` : 
+                                    `<button class="btn btn-secondary" onclick="viewVerification('${req.id}')">View Details</button>`
+                                }
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                await updateVerificationStats();
+            } catch (error) {
+                console.error('Error loading verification requests:', error);
+                alert('Error loading verification requests: ' + error.message);
+            }
+        }
+
+        async function reviewVerification(requestId) {
+            try {
+                const { data: request, error } = await ownerPanelSupabase
+                    .from('verification_requests')
+                    .select(`
+                        *,
+                        profiles:user_id(id, user_id, username, display_name, role, avatar_url, tags)
+                    `)
+                    .eq('id', requestId)
+                    .single();
+
+                if (error) throw error;
+
+                document.getElementById('currentVerificationId').value = request.id;
+                document.getElementById('currentVerificationUserId').value = request.user_id;
+                document.getElementById('reviewUsername').value = request.profiles?.username || 'Unknown';
+                document.getElementById('reviewRole').value = request.role_requested;
+                document.getElementById('reviewLink').value = request.verification_link;
+                document.getElementById('reviewDate').value = new Date(request.created_at).toLocaleString();
+
+                const profileInfo = document.getElementById('userProfileInfo');
+                profileInfo.innerHTML = `
+                    <p><strong>Display Name:</strong> ${request.profiles?.display_name || 'N/A'}</p>
+                    <p><strong>Current Role:</strong> ${request.profiles?.role || 'N/A'}</p>
+                    <p><strong>Current Badges:</strong> ${request.profiles?.tags ? request.profiles.tags.join(', ') : 'None'}</p>
+                    ${request.profiles?.avatar_url ? `<img src="${request.profiles.avatar_url}" alt="Avatar" style="width: 100px; height: 100px; border-radius: 50%; margin-top: 1rem;">` : ''}
+                `;
+
+                document.getElementById('verificationReviewSection').style.display = 'block';
+                document.getElementById('verificationReviewSection').scrollIntoView({ behavior: 'smooth' });
+            } catch (error) {
+                console.error('Error loading verification details:', error);
+                alert('Error loading verification details: ' + error.message);
+            }
+        }
+
+        async function viewVerification(requestId) {
+            reviewVerification(requestId);
+        }
+
+        async function approveVerification() {
+            const requestId = document.getElementById('currentVerificationId').value;
+            const userId = document.getElementById('currentVerificationUserId').value;
+            const roleRequested = document.getElementById('reviewRole').value;
+            const notes = document.getElementById('verificationNotes').value;
+
+            if (!requestId || !userId) {
+                alert('Error: Missing request information');
+                return;
+            }
+
+            if (!confirm(`Approve this ${roleRequested} verification? This will grant the verified badge.`)) {
+                return;
+            }
+
+            try {
+                const { data: profile, error: profileError } = await ownerPanelSupabase
+                    .from('profiles')
+                    .select('tags, role')
+                    .eq('user_id', userId)
+                    .single();
+
+                if (profileError) throw profileError;
+
+                let currentTags = profile.tags || [];
+                
+                if (!currentTags.includes(roleRequested)) {
+                    currentTags.push(roleRequested);
+                }
+                
+                if (!currentTags.includes('verified')) {
+                    currentTags.push('verified');
+                }
+
+                const { error: updateError } = await ownerPanelSupabase
+                    .from('verification_requests')
+                    .update({
+                        status: 'approved',
+                        reviewed_by: currentUser.id,
+                        reviewed_at: new Date().toISOString(),
+                        approval_notes: notes || null
+                    })
+                    .eq('id', requestId);
+
+                if (updateError) throw updateError;
+
+                const { error: profileUpdateError } = await ownerPanelSupabase
+                    .from('profiles')
+                    .update({
+                        tags: currentTags,
+                        role: roleRequested,
+                        verified_artist: true
+                    })
+                    .eq('user_id', userId);
+
+                if (profileUpdateError) throw profileUpdateError;
+
+                alert(`✅ Verification approved! User granted ${roleRequested} and verified badges.`);
+                
+                closeVerificationReview();
+                loadVerificationRequests();
+                
+            } catch (error) {
+                console.error('Error approving verification:', error);
+                alert('Error approving verification: ' + error.message);
+            }
+        }
+
+        async function denyVerification() {
+            const requestId = document.getElementById('currentVerificationId').value;
+            const reason = document.getElementById('verificationNotes').value;
+
+            if (!requestId) {
+                alert('Error: Missing request information');
+                return;
+            }
+
+            if (!reason) {
+                alert('Please provide a reason for denial');
+                return;
+            }
+
+            if (!confirm('Deny this verification request?')) {
+                return;
+            }
+
+            try {
+                const { error } = await ownerPanelSupabase
+                    .from('verification_requests')
+                    .update({
+                        status: 'denied',
+                        reviewed_by: currentUser.id,
+                        reviewed_at: new Date().toISOString(),
+                        denial_reason: reason
+                    })
+                    .eq('id', requestId);
+
+                if (error) throw error;
+
+                alert('❌ Verification request denied. User has been notified.');
+                
+                closeVerificationReview();
+                loadVerificationRequests();
+                
+            } catch (error) {
+                console.error('Error denying verification:', error);
+                alert('Error denying verification: ' + error.message);
+            }
+        }
+
+        function closeVerificationReview() {
+            document.getElementById('verificationReviewSection').style.display = 'none';
+            document.getElementById('verificationNotes').value = '';
+            document.getElementById('currentVerificationId').value = '';
+            document.getElementById('currentVerificationUserId').value = '';
+        }
+
+        async function updateVerificationStats() {
+            try {
+                const { count: pendingCount } = await ownerPanelSupabase
+                    .from('verification_requests')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('status', 'pending');
+
+                const { count: approvedCount } = await ownerPanelSupabase
+                    .from('verification_requests')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('status', 'approved');
+
+                const { count: deniedCount } = await ownerPanelSupabase
+                    .from('verification_requests')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('status', 'denied');
+
+                const { count: verifiedCount } = await ownerPanelSupabase
+                    .from('profiles')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('verified_artist', true);
+
+                document.getElementById('statPendingVerifications').textContent = pendingCount || 0;
+                document.getElementById('statApprovedVerifications').textContent = approvedCount || 0;
+                document.getElementById('statDeniedVerifications').textContent = deniedCount || 0;
+                document.getElementById('statVerifiedArtists').textContent = verifiedCount || 0;
+            } catch (error) {
+                console.error('Error loading verification stats:', error);
+            }
         }
 
         // Populate dropdowns for featured content
         async function populateFeaturedDropdowns() {
             try {
-                // Load all users for artist and user dropdowns
                 const { data: users } = await ownerPanelSupabase
                     .from('profiles')
                     .select('id, user_id, username, display_name, role')
@@ -1175,7 +1519,6 @@
                     userSelect.innerHTML = '<option value="">Choose user...</option>' + userOptions;
                 }
 
-                // Load all songs for song dropdown
                 const { data: songs } = await ownerPanelSupabase
                     .from('songs')
                     .select('id, title, artist')
@@ -1378,7 +1721,6 @@
                     </div>
                 `).join('');
 
-                // Populate select dropdowns
                 const userOptions = users.map(user => `<option value="${user.id}">${user.username || user.display_name}</option>`).join('');
                 select.innerHTML = '<option value="">Choose user...</option>' + userOptions;
                 giftSelect.innerHTML = '<option value="">Choose user...</option>' + userOptions;
@@ -1468,7 +1810,6 @@
             }
         }
 
-        // Gift Coins
         async function giftCoins() {
             const profileId = document.getElementById('giftUserSelect').value;
             const amount = parseInt(document.getElementById('giftCoins').value);
@@ -1479,7 +1820,6 @@
             }
 
             try {
-                // Get the user_id from the profile
                 const { data: profile } = await ownerPanelSupabase
                     .from('profiles')
                     .select('user_id, username')
@@ -1514,7 +1854,6 @@
             }
 
             try {
-                // Get the user_id from the profile
                 const { data: profile } = await ownerPanelSupabase
                     .from('profiles')
                     .select('user_id, username')
@@ -1542,7 +1881,6 @@
             }
         }
 
-        // Account Creation
         async function createAccount() {
             const email = document.getElementById('newEmail').value;
             const username = document.getElementById('newUsername').value;
@@ -1563,7 +1901,6 @@
                 if (error) throw error;
 
                 if (data.user) {
-                    // Create profile
                     await ownerPanelSupabase.from('profiles').insert({
                         user_id: data.user.id,
                         username,
@@ -1955,17 +2292,33 @@
                 list.innerHTML = groups.map(group => `
                     <div class="item">
                         <div>
-                            <strong>${group.name}</strong> ${group.is_private ? '🔒 Private' : '🌐 Public'}<br>
+                            <strong>${group.name}</strong> ${group.is_hidden ? '👁️ Hidden' : group.is_private ? '🔒 Private' : '🌐 Public'}<br>
                             <small>${group.description || 'No description'}</small><br>
                             <small style="color: var(--text-dim);">${new Date(group.created_at).toLocaleDateString()}</small>
                         </div>
                         <div class="item-actions">
+                            <button class="btn btn-secondary" onclick="toggleGroupVisibility('${group.id}', ${group.is_hidden})">${group.is_hidden ? 'Show' : 'Hide'}</button>
                             <button class="btn btn-danger" onclick="deleteGroup('${group.id}')">Delete</button>
                         </div>
                     </div>
                 `).join('');
             } catch (error) {
                 console.error('Error loading groups:', error);
+            }
+        }
+
+        async function toggleGroupVisibility(groupId, currentlyHidden) {
+            try {
+                const { error } = await ownerPanelSupabase
+                    .from('groups')
+                    .update({ is_hidden: !currentlyHidden })
+                    .eq('id', groupId);
+                
+                if (error) throw error;
+                alert(`Group ${currentlyHidden ? 'shown' : 'hidden'} successfully`);
+                loadGroups();
+            } catch (error) {
+                alert('Error updating group visibility: ' + error.message);
             }
         }
 
@@ -1993,9 +2346,10 @@
 
             try {
                 const { error } = await ownerPanelSupabase.from('forums').insert({ 
-                    name, 
+                    title: name, 
                     category, 
-                    description 
+                    description,
+                    owner_id: currentUser.id
                 });
                 
                 if (error) throw error;
@@ -2017,466 +2371,475 @@
                     .order('created_at', { ascending: false });
 
                 if (error) throw error;
-
-                const list = document.getElementById('forumsList');
-                if (!forums || forums.length === 0) {
-                    list.innerHTML = '<p style="text-align: center; color: var(--text-dim);">No forums created yet</p>';
-                    return;
-                }
-
-                list.innerHTML = forums.map(forum => `
-                    <div class="item">
-                        <div>
-                            <strong>${forum.name}</strong> (${forum.category || 'General'})<br>
-                            <small>${forum.description || 'No description'}</small><br>
-                            <small style="color: var(--text-dim);">${new Date(forum.created_at).toLocaleDateString()}</small>
-                        </div>
-                        <div class="item-actions">
-                            <button class="btn btn-danger" onclick="deleteForum('${forum.id}')">Delete</button>
-                        </div>
+document.getElementById('forumsList');
+if (!forums || forums.length === 0) {
+list.innerHTML = 'No forums created yet';
+return;
+}
+list.innerHTML = forums.map(forum => `
+                <div class="item">
+                    <div>
+                        <strong>${forum.title}</strong> ${forum.is_hidden ? '👁️ Hidden' : '🌐 Visible'} (${forum.category || 'General'})<br>
+                        <small>${forum.description || 'No description'}</small><br>
+                        <small style="color: var(--text-dim);">${new Date(forum.created_at).toLocaleDateString()}</small>
                     </div>
-                `).join('');
-            } catch (error) {
-                console.error('Error loading forums:', error);
-            }
+                    <div class="item-actions">
+                        <button class="btn btn-secondary" onclick="toggleForumVisibility('${forum.id}', ${forum.is_hidden})">${forum.is_hidden ? 'Show' : 'Hide'}</button>
+                        <button class="btn btn-danger" onclick="deleteForum('${forum.id}')">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        } catch (error) {
+            console.error('Error loading forums:', error);
+        }
+    }
+
+    async function toggleForumVisibility(forumId, currentlyHidden) {
+        try {
+            const { error } = await ownerPanelSupabase
+                .from('forums')
+                .update({ is_hidden: !currentlyHidden })
+                .eq('id', forumId);
+            
+            if (error) throw error;
+            alert(`Forum ${currentlyHidden ? 'shown' : 'hidden'} successfully`);
+            loadForums();
+        } catch (error) {
+            alert('Error updating forum visibility: ' + error.message);
+        }
+    }
+
+    async function deleteForum(forumId) {
+        if (!confirm('Delete this forum?')) return;
+        try {
+            const { error } = await ownerPanelSupabase.from('forums').delete().eq('id', forumId);
+            if (error) throw error;
+            alert('Forum deleted');
+            loadForums();
+        } catch (error) {
+            alert('Error deleting forum: ' + error.message);
+        }
+    }
+
+    async function publishAnnouncement() {
+        const title = document.getElementById('announcementTitle').value;
+        const content = document.getElementById('announcementContent').value;
+        const audience = document.getElementById('announcementAudience').value;
+        const push = document.getElementById('announcementPush').checked;
+
+        if (!title || !content) {
+            alert('Please enter title and content');
+            return;
         }
 
-        async function deleteForum(forumId) {
-            if (!confirm('Delete this forum?')) return;
-            try {
-                const { error } = await ownerPanelSupabase.from('forums').delete().eq('id', forumId);
-                if (error) throw error;
-                alert('Forum deleted');
-                loadForums();
-            } catch (error) {
-                alert('Error deleting forum: ' + error.message);
-            }
+        try {
+            const { error } = await ownerPanelSupabase.from('announcements').insert({
+                title,
+                content,
+                target_audience: audience,
+                push_notification: push,
+                created_by: currentUser.id
+            });
+
+            if (error) throw error;
+            alert('Announcement published successfully');
+            document.getElementById('announcementTitle').value = '';
+            document.getElementById('announcementContent').value = '';
+            loadAnnouncements();
+        } catch (error) {
+            alert('Error publishing announcement: ' + error.message);
         }
+    }
 
-        async function publishAnnouncement() {
-            const title = document.getElementById('announcementTitle').value;
-            const content = document.getElementById('announcementContent').value;
-            const audience = document.getElementById('announcementAudience').value;
-            const push = document.getElementById('announcementPush').checked;
+    async function loadAnnouncements() {
+        try {
+            const { data: announcements, error } = await ownerPanelSupabase
+                .from('announcements')
+                .select('*')
+                .order('created_at', { ascending: false });
 
-            if (!title || !content) {
-                alert('Please enter title and content');
+            if (error) throw error;
+
+            const list = document.getElementById('announcementsList');
+            if (!announcements || announcements.length === 0) {
+                list.innerHTML = '<p style="text-align: center; color: var(--text-dim);">No announcements yet</p>';
                 return;
             }
 
-            try {
-                const { error } = await ownerPanelSupabase.from('announcements').insert({
-                    title,
-                    content,
-                    target_audience: audience,
-                    push_notification: push,
-                    created_by: currentUser.id
-                });
-
-                if (error) throw error;
-                alert('Announcement published successfully');
-                document.getElementById('announcementTitle').value = '';
-                document.getElementById('announcementContent').value = '';
-                loadAnnouncements();
-            } catch (error) {
-                alert('Error publishing announcement: ' + error.message);
-            }
-        }
-
-        async function loadAnnouncements() {
-            try {
-                const { data: announcements, error } = await ownerPanelSupabase
-                    .from('announcements')
-                    .select('*')
-                    .order('created_at', { ascending: false });
-
-                if (error) throw error;
-
-                const list = document.getElementById('announcementsList');
-                if (!announcements || announcements.length === 0) {
-                    list.innerHTML = '<p style="text-align: center; color: var(--text-dim);">No announcements yet</p>';
-                    return;
-                }
-
-                list.innerHTML = announcements.map(announcement => `
-                    <div class="item">
-                        <div>
-                            <strong>${announcement.title}</strong><br>
-                            <small>${announcement.content.substring(0, 100)}${announcement.content.length > 100 ? '...' : ''}</small><br>
-                            <small style="color: var(--text-dim);">Audience: ${announcement.target_audience} | ${new Date(announcement.created_at).toLocaleDateString()}</small>
-                        </div>
-                        <div class="item-actions">
-                            <button class="btn btn-danger" onclick="deleteAnnouncement('${announcement.id}')">Delete</button>
-                        </div>
+            list.innerHTML = announcements.map(announcement => `
+                <div class="item">
+                    <div>
+                        <strong>${announcement.title}</strong><br>
+                        <small>${announcement.content.substring(0, 100)}${announcement.content.length > 100 ? '...' : ''}</small><br>
+                        <small style="color: var(--text-dim);">Audience: ${announcement.target_audience} | ${new Date(announcement.created_at).toLocaleDateString()}</small>
                     </div>
-                `).join('');
-            } catch (error) {
-                console.error('Error loading announcements:', error);
-            }
+                    <div class="item-actions">
+                        <button class="btn btn-danger" onclick="deleteAnnouncement('${announcement.id}')">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        } catch (error) {
+            console.error('Error loading announcements:', error);
+        }
+    }
+
+    async function deleteAnnouncement(announcementId) {
+        if (!confirm('Delete this announcement?')) return;
+        try {
+            const { error } = await ownerPanelSupabase.from('announcements').delete().eq('id', announcementId);
+            if (error) throw error;
+            alert('Announcement deleted');
+            loadAnnouncements();
+        } catch (error) {
+            alert('Error deleting announcement: ' + error.message);
+        }
+    }
+
+    function createAnnouncement() {
+        switchTab('community');
+        document.getElementById('announcementTitle').focus();
+    }
+
+    // Featured Content
+    async function addFeaturedArtist() {
+        const userId = document.getElementById('featuredArtistSelect').value;
+        const duration = parseInt(document.getElementById('artistFeatureDuration').value);
+        
+        if (!userId) {
+            alert('Please select an artist');
+            return;
         }
 
-        async function deleteAnnouncement(announcementId) {
-            if (!confirm('Delete this announcement?')) return;
-            try {
-                const { error } = await ownerPanelSupabase.from('announcements').delete().eq('id', announcementId);
-                if (error) throw error;
-                alert('Announcement deleted');
-                loadAnnouncements();
-            } catch (error) {
-                alert('Error deleting announcement: ' + error.message);
-            }
-        }
+        try {
+            const expires = new Date();
+            expires.setDate(expires.getDate() + duration);
 
-        function createAnnouncement() {
-            switchTab('community');
-            document.getElementById('announcementTitle').focus();
-        }
+            const { error } = await ownerPanelSupabase.from('featured_artists').insert({
+                user_id: userId,
+                expires_at: expires.toISOString()
+            });
 
-        // Featured Content
-        async function addFeaturedArtist() {
-            const userId = document.getElementById('featuredArtistSelect').value;
-            const duration = parseInt(document.getElementById('artistFeatureDuration').value);
-            
-            if (!userId) {
-                alert('Please select an artist');
+            if (error) throw error;
+            alert(`Artist featured successfully for ${duration} days!`);
+            document.getElementById('featuredArtistSelect').value = '';
+            loadFeaturedArtists();
+        } catch (error) {
+            alert('Error featuring artist: ' + error.message);
+        }
+    }
+
+    async function loadFeaturedArtists() {
+        try {
+            const { data, error } = await ownerPanelSupabase
+                .from('featured_artists')
+                .select('*, profiles:user_id(username, display_name)')
+                .gt('expires_at', new Date().toISOString())
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            const list = document.getElementById('featuredArtistsList');
+            if (!data || data.length === 0) {
+                list.innerHTML = '<p style="text-align: center; color: var(--text-dim);">No featured artists</p>';
                 return;
             }
 
-            try {
-                const expires = new Date();
-                expires.setDate(expires.getDate() + duration);
-
-                const { error } = await ownerPanelSupabase.from('featured_artists').insert({
-                    user_id: userId,
-                    expires_at: expires.toISOString()
-                });
-
-                if (error) throw error;
-                alert(`Artist featured successfully for ${duration} days!`);
-                document.getElementById('featuredArtistSelect').value = '';
-                loadFeaturedArtists();
-            } catch (error) {
-                alert('Error featuring artist: ' + error.message);
-            }
-        }
-
-        async function loadFeaturedArtists() {
-            try {
-                const { data, error } = await ownerPanelSupabase
-                    .from('featured_artists')
-                    .select('*, profiles:user_id(username, display_name)')
-                    .gt('expires_at', new Date().toISOString())
-                    .order('created_at', { ascending: false });
-
-                if (error) throw error;
-
-                const list = document.getElementById('featuredArtistsList');
-                if (!data || data.length === 0) {
-                    list.innerHTML = '<p style="text-align: center; color: var(--text-dim);">No featured artists</p>';
-                    return;
-                }
-
-                list.innerHTML = data.map(item => `
-                    <div class="item">
-                        <div>
-                            <strong>${item.profiles?.username || item.profiles?.display_name || 'Unknown'}</strong><br>
-                            <small>Until ${new Date(item.expires_at).toLocaleDateString()}</small>
-                        </div>
-                        <div class="item-actions">
-                            <button class="btn btn-danger" onclick="removeFeatured('featured_artists', '${item.id}')">Remove</button>
-                        </div>
+            list.innerHTML = data.map(item => `
+                <div class="item">
+                    <div>
+                        <strong>${item.profiles?.username || item.profiles?.display_name || 'Unknown'}</strong><br>
+                        <small>Until ${new Date(item.expires_at).toLocaleDateString()}</small>
                     </div>
-                `).join('');
-            } catch (error) {
-                console.error('Error loading featured artists:', error);
-            }
+                    <div class="item-actions">
+                        <button class="btn btn-danger" onclick="removeFeatured('featured_artists', '${item.id}')">Remove</button>
+                    </div>
+                </div>
+            `).join('');
+        } catch (error) {
+            console.error('Error loading featured artists:', error);
+        }
+    }
+
+    async function addFeaturedSong() {
+        const songId = document.getElementById('featuredSongSelect').value;
+        const duration = parseInt(document.getElementById('songFeatureDuration').value);
+        
+        if (!songId) {
+            alert('Please select a song');
+            return;
         }
 
-        async function addFeaturedSong() {
-            const songId = document.getElementById('featuredSongSelect').value;
-            const duration = parseInt(document.getElementById('songFeatureDuration').value);
-            
-            if (!songId) {
-                alert('Please select a song');
+        try {
+            const expires = new Date();
+            expires.setDate(expires.getDate() + duration);
+
+            const { error } = await ownerPanelSupabase.from('featured_songs').insert({
+                song_id: songId,
+                expires_at: expires.toISOString()
+            });
+
+            if (error) throw error;
+            alert(`Song featured successfully for ${duration} days!`);
+            document.getElementById('featuredSongSelect').value = '';
+            loadFeaturedSongs();
+        } catch (error) {
+            alert('Error featuring song: ' + error.message);
+        }
+    }
+
+    async function loadFeaturedSongs() {
+        try {
+            const { data, error } = await ownerPanelSupabase
+                .from('featured_songs')
+                .select('*, songs:song_id(id, title, artist)')
+                .gt('expires_at', new Date().toISOString())
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            const list = document.getElementById('featuredSongsList');
+            if (!data || data.length === 0) {
+                list.innerHTML = '<p style="text-align: center; color: var(--text-dim);">No featured songs</p>';
                 return;
             }
 
-            try {
-                const expires = new Date();
-                expires.setDate(expires.getDate() + duration);
-
-                const { error } = await ownerPanelSupabase.from('featured_songs').insert({
-                    song_id: songId,
-                    expires_at: expires.toISOString()
-                });
-
-                if (error) throw error;
-                alert(`Song featured successfully for ${duration} days!`);
-                document.getElementById('featuredSongSelect').value = '';
-                loadFeaturedSongs();
-            } catch (error) {
-                alert('Error featuring song: ' + error.message);
-            }
-        }
-
-        async function loadFeaturedSongs() {
-            try {
-                const { data, error } = await ownerPanelSupabase
-                    .from('featured_songs')
-                    .select('*, songs:song_id(id)')
-                    .gt('expires_at', new Date().toISOString())
-                    .order('created_at', { ascending: false });
-
-                if (error) throw error;
-
-                const list = document.getElementById('featuredSongsList');
-                if (!data || data.length === 0) {
-                    list.innerHTML = '<p style="text-align: center; color: var(--text-dim);">No featured songs</p>';
-                    return;
-                }
-
-                list.innerHTML = data.map(item => `
-                    <div class="item">
-                        <div>
-                            <strong>Song ID: ${item.song_id}</strong><br>
-                            <small>Until ${new Date(item.expires_at).toLocaleDateString()}</small>
-                        </div>
-                        <div class="item-actions">
-                            <button class="btn btn-danger" onclick="removeFeatured('featured_songs', '${item.id}')">Remove</button>
-                        </div>
+            list.innerHTML = data.map(item => `
+                <div class="item">
+                    <div>
+                        <strong>${item.songs?.title || 'Unknown Song'}</strong><br>
+                        <small>${item.songs?.artist || 'Unknown Artist'}</small><br>
+                        <small>Until ${new Date(item.expires_at).toLocaleDateString()}</small>
                     </div>
-                `).join('');
-            } catch (error) {
-                console.error('Error loading featured songs:', error);
-            }
+                    <div class="item-actions">
+                        <button class="btn btn-danger" onclick="removeFeatured('featured_songs', '${item.id}')">Remove</button>
+                    </div>
+                </div>
+            `).join('');
+        } catch (error) {
+            console.error('Error loading featured songs:', error);
+        }
+    }
+
+    async function addFeaturedUser() {
+        const userId = document.getElementById('featuredUserSelect').value;
+        const reason = document.getElementById('featureReason').value;
+        const duration = parseInt(document.getElementById('userFeatureDuration').value);
+        
+        if (!userId) {
+            alert('Please select a user');
+            return;
         }
 
-        async function addFeaturedUser() {
-            const userId = document.getElementById('featuredUserSelect').value;
-            const reason = document.getElementById('featureReason').value;
-            const duration = parseInt(document.getElementById('userFeatureDuration').value);
-            
-            if (!userId) {
-                alert('Please select a user');
+        try {
+            const expires = new Date();
+            expires.setDate(expires.getDate() + duration);
+
+            const { error } = await ownerPanelSupabase.from('featured_users').insert({
+                user_id: userId,
+                reason,
+                expires_at: expires.toISOString()
+            });
+
+            if (error) throw error;
+            alert(`User featured successfully for ${duration} days!`);
+            document.getElementById('featuredUserSelect').value = '';
+            loadFeaturedUsers();
+        } catch (error) {
+            alert('Error featuring user: ' + error.message);
+        }
+    }
+
+    async function loadFeaturedUsers() {
+        try {
+            const { data, error } = await ownerPanelSupabase
+                .from('featured_users')
+                .select('*, profiles:user_id(username, display_name)')
+                .gt('expires_at', new Date().toISOString())
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            const list = document.getElementById('featuredUsersList');
+            if (!data || data.length === 0) {
+                list.innerHTML = '<p style="text-align: center; color: var(--text-dim);">No featured users</p>';
                 return;
             }
 
-            try {
-                const expires = new Date();
-                expires.setDate(expires.getDate() + duration);
-
-                const { error } = await ownerPanelSupabase.from('featured_users').insert({
-                    user_id: userId,
-                    reason,
-                    expires_at: expires.toISOString()
-                });
-
-                if (error) throw error;
-                alert(`User featured successfully for ${duration} days!`);
-                document.getElementById('featuredUserSelect').value = '';
-                loadFeaturedUsers();
-            } catch (error) {
-                alert('Error featuring user: ' + error.message);
-            }
-        }
-
-        async function loadFeaturedUsers() {
-            try {
-                const { data, error } = await ownerPanelSupabase
-                    .from('featured_users')
-                    .select('*, profiles:user_id(username, display_name)')
-                    .gt('expires_at', new Date().toISOString())
-                    .order('created_at', { ascending: false });
-
-                if (error) throw error;
-
-                const list = document.getElementById('featuredUsersList');
-                if (!data || data.length === 0) {
-                    list.innerHTML = '<p style="text-align: center; color: var(--text-dim);">No featured users</p>';
-                    return;
-                }
-
-                list.innerHTML = data.map(item => `
-                    <div class="item">
-                        <div>
-                            <strong>${item.profiles?.username || item.profiles?.display_name || 'Unknown'}</strong><br>
-                            <small>${item.reason} - Until ${new Date(item.expires_at).toLocaleDateString()}</small>
-                        </div>
-                        <div class="item-actions">
-                            <button class="btn btn-danger" onclick="removeFeatured('featured_users', '${item.id}')">Remove</button>
-                        </div>
+            list.innerHTML = data.map(item => `
+                <div class="item">
+                    <div>
+                        <strong>${item.profiles?.username || item.profiles?.display_name || 'Unknown'}</strong><br>
+                        <small>${item.reason} - Until ${new Date(item.expires_at).toLocaleDateString()}</small>
                     </div>
-                `).join('');
-            } catch (error) {
-                console.error('Error loading featured users:', error);
-            }
+                    <div class="item-actions">
+                        <button class="btn btn-danger" onclick="removeFeatured('featured_users', '${item.id}')">Remove</button>
+                    </div>
+                </div>
+            `).join('');
+        } catch (error) {
+            console.error('Error loading featured users:', error);
+        }
+    }
+
+    async function removeFeatured(table, id) {
+        if (!confirm('Remove from featured?')) return;
+        
+        try {
+            const { error } = await ownerPanelSupabase.from(table).delete().eq('id', id);
+            if (error) throw error;
+            alert('Removed from featured successfully');
+            if (table === 'featured_artists') loadFeaturedArtists();
+            if (table === 'featured_songs') loadFeaturedSongs();
+            if (table === 'featured_users') loadFeaturedUsers();
+        } catch (error) {
+            alert('Error removing featured: ' + error.message);
+        }
+    }
+
+    // System Settings
+    async function addBannedWord() {
+        const word = document.getElementById('bannedWordInput').value.trim();
+        
+        if (!word) {
+            alert('Please enter a word');
+            return;
         }
 
-        async function removeFeatured(table, id) {
-            if (!confirm('Remove from featured?')) return;
-            
-            try {
-                const { error } = await ownerPanelSupabase.from(table).delete().eq('id', id);
-                if (error) throw error;
-                alert('Removed from featured successfully');
-                if (table === 'featured_artists') loadFeaturedArtists();
-                if (table === 'featured_songs') loadFeaturedSongs();
-                if (table === 'featured_users') loadFeaturedUsers();
-            } catch (error) {
-                alert('Error removing featured: ' + error.message);
-            }
+        try {
+            const { error } = await ownerPanelSupabase.from('banned_words').insert({ word });
+            if (error) throw error;
+            alert('Word added to banned list');
+            document.getElementById('bannedWordInput').value = '';
+            loadBannedWords();
+        } catch (error) {
+            alert('Error adding banned word: ' + error.message);
         }
+    }
 
-        // System Settings
-        async function addBannedWord() {
-            const word = document.getElementById('bannedWordInput').value.trim();
+    async function loadBannedWords() {
+        try {
+            const { data, error } = await ownerPanelSupabase
+                .from('banned_words')
+                .select('*')
+                .order('created_at', { ascending: false });
             
-            if (!word) {
-                alert('Please enter a word');
+            if (error) throw error;
+
+            const list = document.getElementById('bannedWordsList');
+            if (!data || data.length === 0) {
+                list.innerHTML = '<p style="text-align: center; color: var(--text-dim);">No banned words</p>';
                 return;
             }
 
-            try {
-                const { error } = await ownerPanelSupabase.from('banned_words').insert({ word });
-                if (error) throw error;
-                alert('Word added to banned list');
-                document.getElementById('bannedWordInput').value = '';
-                loadBannedWords();
-            } catch (error) {
-                alert('Error adding banned word: ' + error.message);
-            }
-        }
-
-        async function loadBannedWords() {
-            try {
-                const { data, error } = await ownerPanelSupabase
-                    .from('banned_words')
-                    .select('*')
-                    .order('created_at', { ascending: false });
-                
-                if (error) throw error;
-
-                const list = document.getElementById('bannedWordsList');
-                if (!data || data.length === 0) {
-                    list.innerHTML = '<p style="text-align: center; color: var(--text-dim);">No banned words</p>';
-                    return;
-                }
-
-                list.innerHTML = data.map(item => `
-                    <div class="item">
-                        <div><strong>${item.word}</strong></div>
-                        <div class="item-actions">
-                            <button class="btn btn-danger" onclick="removeBannedWord('${item.id}')">Remove</button>
-                        </div>
+            list.innerHTML = data.map(item => `
+                <div class="item">
+                    <div><strong>${item.word}</strong></div>
+                    <div class="item-actions">
+                        <button class="btn btn-danger" onclick="removeBannedWord('${item.id}')">Remove</button>
                     </div>
-                `).join('');
-            } catch (error) {
-                console.error('Error loading banned words:', error);
-            }
+                </div>
+            `).join('');
+        } catch (error) {
+            console.error('Error loading banned words:', error);
         }
+    }
 
-        async function removeBannedWord(id) {
-            if (!confirm('Remove this word from the banned list?')) return;
-            
-            try {
-                const { error } = await ownerPanelSupabase.from('banned_words').delete().eq('id', id);
-                if (error) throw error;
-                loadBannedWords();
-            } catch (error) {
-                alert('Error removing banned word: ' + error.message);
-            }
+    async function removeBannedWord(id) {
+        if (!confirm('Remove this word from the banned list?')) return;
+        
+        try {
+            const { error } = await ownerPanelSupabase.from('banned_words').delete().eq('id', id);
+            if (error) throw error;
+            loadBannedWords();
+        } catch (error) {
+            alert('Error removing banned word: ' + error.message);
         }
+    }
 
-        async function refreshStats() {
-            try {
-                // User Stats by Role
-                const { count: ownerCount } = await ownerPanelSupabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'owner');
-                const { count: adminCount } = await ownerPanelSupabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'admin');
-                const { count: modCount } = await ownerPanelSupabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'mod');
-                const { count: artistCount } = await ownerPanelSupabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'artist');
-                const { count: beatmakerCount } = await ownerPanelSupabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'beatmaker');
-                const { count: dancerCount } = await ownerPanelSupabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'dancer');
-                const { count: influencerCount } = await ownerPanelSupabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'influencer');
-                const { count: fanCount } = await ownerPanelSupabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'fan');
+    async function refreshStats() {
+        try {
+            const { count: ownerCount } = await ownerPanelSupabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'owner');
+            const { count: adminCount } = await ownerPanelSupabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'admin');
+            const { count: modCount } = await ownerPanelSupabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'mod');
+            const { count: artistCount } = await ownerPanelSupabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'artist');
+            const { count: beatmakerCount } = await ownerPanelSupabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'beatmaker');
+            const { count: dancerCount } = await ownerPanelSupabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'dancer');
+            const { count: influencerCount } = await ownerPanelSupabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'influencer');
+            const { count: fanCount } = await ownerPanelSupabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'fan');
 
-                document.getElementById('statOwners').textContent = ownerCount || 0;
-                document.getElementById('statAdmins').textContent = adminCount || 0;
-                document.getElementById('statMods').textContent = modCount || 0;
-                document.getElementById('statArtists').textContent = artistCount || 0;
-                document.getElementById('statBeatmakers').textContent = beatmakerCount || 0;
-                document.getElementById('statDancers').textContent = dancerCount || 0;
-                document.getElementById('statInfluencers').textContent = influencerCount || 0;
-                document.getElementById('statFans').textContent = fanCount || 0;
+            document.getElementById('statOwners').textContent = ownerCount || 0;
+            document.getElementById('statAdmins').textContent = adminCount || 0;
+            document.getElementById('statMods').textContent = modCount || 0;
+            document.getElementById('statArtists').textContent = artistCount || 0;
+            document.getElementById('statBeatmakers').textContent = beatmakerCount || 0;
+            document.getElementById('statDancers').textContent = dancerCount || 0;
+            document.getElementById('statInfluencers').textContent = influencerCount || 0;
+            document.getElementById('statFans').textContent = fanCount || 0;
 
-                // Content Stats
-                const { count: postCount } = await ownerPanelSupabase.from('posts').select('*', { count: 'exact', head: true });
-                const { count: commentCount } = await ownerPanelSupabase.from('comments').select('*', { count: 'exact', head: true });
-                const { count: songCount } = await ownerPanelSupabase.from('songs').select('*', { count: 'exact', head: true });
-                const { count: adCount } = await ownerPanelSupabase.from('ads').select('*', { count: 'exact', head: true });
+            const { count: postCount } = await ownerPanelSupabase.from('posts').select('*', { count: 'exact', head: true });
+            const { count: commentCount } = await ownerPanelSupabase.from('comments').select('*', { count: 'exact', head: true });
+            const { count: songCount } = await ownerPanelSupabase.from('songs').select('*', { count: 'exact', head: true });
+            const { count: adCount } = await ownerPanelSupabase.from('ads').select('*', { count: 'exact', head: true });
 
-                document.getElementById('statTotalPosts').textContent = postCount || 0;
-                document.getElementById('statTotalComments').textContent = commentCount || 0;
-                document.getElementById('statTotalSongs').textContent = songCount || 0;
-                document.getElementById('statTotalAds').textContent = adCount || 0;
+            document.getElementById('statTotalPosts').textContent = postCount || 0;
+            document.getElementById('statTotalComments').textContent = commentCount || 0;
+            document.getElementById('statTotalSongs').textContent = songCount || 0;
+            document.getElementById('statTotalAds').textContent = adCount || 0;
 
-                // Community Stats
-                const { count: pageCount } = await ownerPanelSupabase.from('pages').select('*', { count: 'exact', head: true });
-                const { count: groupCount } = await ownerPanelSupabase.from('groups').select('*', { count: 'exact', head: true });
-                const { count: forumCount } = await ownerPanelSupabase.from('forums').select('*', { count: 'exact', head: true });
-                const { count: announcementCount } = await ownerPanelSupabase.from('announcements').select('*', { count: 'exact', head: true });
+            const { count: pageCount } = await ownerPanelSupabase.from('pages').select('*', { count: 'exact', head: true });
+            const { count: groupCount } = await ownerPanelSupabase.from('groups').select('*', { count: 'exact', head: true });
+            const { count: forumCount } = await ownerPanelSupabase.from('forums').select('*', { count: 'exact', head: true });
+            const { count: announcementCount } = await ownerPanelSupabase.from('announcements').select('*', { count: 'exact', head: true });
 
-                document.getElementById('statTotalPages').textContent = pageCount || 0;
-                document.getElementById('statTotalGroups').textContent = groupCount || 0;
-                document.getElementById('statTotalForums').textContent = forumCount || 0;
-                document.getElementById('statTotalAnnouncements').textContent = announcementCount || 0;
+            document.getElementById('statTotalPages').textContent = pageCount || 0;
+            document.getElementById('statTotalGroups').textContent = groupCount || 0;
+            document.getElementById('statTotalForums').textContent = forumCount || 0;
+            document.getElementById('statTotalAnnouncements').textContent = announcementCount || 0;
 
-                // Moderation Stats
-                const { count: banCount } = await ownerPanelSupabase.from('bans').select('*', { count: 'exact', head: true }).or('expires_at.is.null,expires_at.gt.' + new Date().toISOString());
-                const { count: reportCount } = await ownerPanelSupabase.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'pending');
-                const { count: bannedWordCount } = await ownerPanelSupabase.from('banned_words').select('*', { count: 'exact', head: true });
-                const { count: discountCodeCount } = await ownerPanelSupabase.from('discount_codes').select('*', { count: 'exact', head: true });
+            const { count: banCount } = await ownerPanelSupabase.from('bans').select('*', { count: 'exact', head: true }).or('expires_at.is.null,expires_at.gt.' + new Date().toISOString());
+            const { count: reportCount } = await ownerPanelSupabase.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'pending');
+            const { count: bannedWordCount } = await ownerPanelSupabase.from('banned_words').select('*', { count: 'exact', head: true });
+            const { count: discountCodeCount } = await ownerPanelSupabase.from('discount_codes').select('*', { count: 'exact', head: true });
 
-                document.getElementById('statActiveBans').textContent = banCount || 0;
-                document.getElementById('statPendingReports').textContent = reportCount || 0;
-                document.getElementById('statBannedWords').textContent = bannedWordCount || 0;
-                document.getElementById('statDiscountCodes').textContent = discountCodeCount || 0;
+            document.getElementById('statActiveBans').textContent = banCount || 0;
+            document.getElementById('statPendingReports').textContent = reportCount || 0;
+            document.getElementById('statBannedWords').textContent = bannedWordCount || 0;
+            document.getElementById('statDiscountCodes').textContent = discountCodeCount || 0;
 
-                // Featured Content Stats
-                const { count: featuredArtistCount } = await ownerPanelSupabase.from('featured_artists').select('*', { count: 'exact', head: true }).gt('expires_at', new Date().toISOString());
-                const { count: featuredSongCount } = await ownerPanelSupabase.from('featured_songs').select('*', { count: 'exact', head: true }).gt('expires_at', new Date().toISOString());
-                const { count: featuredUserCount } = await ownerPanelSupabase.from('featured_users').select('*', { count: 'exact', head: true }).gt('expires_at', new Date().toISOString());
+            const { count: featuredArtistCount } = await ownerPanelSupabase.from('featured_artists').select('*', { count: 'exact', head: true }).gt('expires_at', new Date().toISOString());
+            const { count: featuredSongCount } = await ownerPanelSupabase.from('featured_songs').select('*', { count: 'exact', head: true }).gt('expires_at', new Date().toISOString());
+            const { count: featuredUserCount } = await ownerPanelSupabase.from('featured_users').select('*', { count: 'exact', head: true }).gt('expires_at', new Date().toISOString());
 
-                document.getElementById('statFeaturedArtists').textContent = featuredArtistCount || 0;
-                document.getElementById('statFeaturedSongs').textContent = featuredSongCount || 0;
-                document.getElementById('statFeaturedUsers').textContent = featuredUserCount || 0;
+            document.getElementById('statFeaturedArtists').textContent = featuredArtistCount || 0;
+            document.getElementById('statFeaturedSongs').textContent = featuredSongCount || 0;
+            document.getElementById('statFeaturedUsers').textContent = featuredUserCount || 0;
 
-                console.log('Stats refreshed successfully');
-            } catch (error) {
-                console.error('Error refreshing stats:', error);
-                alert('Error loading some statistics. Check console for details.');
-            }
+            console.log('Stats refreshed successfully');
+        } catch (error) {
+            console.error('Error refreshing stats:', error);
+            alert('Error loading some statistics. Check console for details.');
         }
+    }
 
-        // Logout
-        async function logout() {
-            await ownerPanelSupabase.auth.signOut();
-            window.location.href = 'login.html';
-        }
+    // Logout
+    async function logout() {
+        await ownerPanelSupabase.auth.signOut();
+        window.location.href = 'login.html';
+    }
 
-        // Load all data
-        function loadAllData() {
-            loadPosts();
-            loadComments();
-            loadUsers();
-            loadAds();
-        }
+    // Load all data
+    function loadAllData() {
+        loadPosts();
+        loadComments();
+        loadUsers();
+        loadAds();
+    }
 
-        // Initialize when page loads
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', init);
-        } else {
-            init();
-        }
-    </script>
-</body>
-</html>
+    // Initialize when page loads
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+</script>
+                const list =
