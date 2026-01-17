@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -346,6 +347,15 @@
             border-radius: 4px;
             margin-top: 1rem;
         }
+
+        .info-note {
+            background: rgba(0, 204, 255, 0.1);
+            border: 1px solid var(--primary);
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            color: var(--text-dim);
+        }
     </style>
 </head>
 <body>
@@ -360,6 +370,7 @@
     <div class="container">
         <div class="tabs">
             <button class="tab active" onclick="switchTab('dashboard')">Dashboard</button>
+            <button class="tab" onclick="switchTab('verifications')">Verifications</button>
             <button class="tab" onclick="switchTab('content')">Content Moderation</button>
             <button class="tab" onclick="switchTab('chat')">Chat Management</button>
             <button class="tab" onclick="switchTab('mods')">Moderator Management</button>
@@ -391,6 +402,7 @@
             <div class="card">
                 <h2>Quick Actions</h2>
                 <div class="grid-3">
+                    <button class="btn" onclick="switchTab('verifications')">View Verifications</button>
                     <button class="btn" onclick="switchTab('content')">Moderate Content</button>
                     <button class="btn btn-warning" onclick="switchTab('chat')">Chat Control</button>
                     <button class="btn btn-success" onclick="switchTab('ads')">Review Ads</button>
@@ -403,6 +415,28 @@
                 <h2>Recent Activity</h2>
                 <div class="item-list" id="recentActivity">
                     <!-- Recent activity will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Verifications Tab (READ-ONLY) -->
+        <div id="verifications" class="tab-content">
+            <div class="card">
+                <h2>Artist/Beatmaker Verification Requests (View Only)</h2>
+                <div class="info-note">
+                    ℹ️ You can view verification requests but only the owner can approve/deny them.
+                </div>
+                <div class="form-group">
+                    <label>Filter by Status:</label>
+                    <select id="adminVerificationFilter" onchange="loadAdminVerifications()">
+                        <option value="pending">Pending</option>
+                        <option value="approved">Approved</option>
+                        <option value="denied">Denied</option>
+                        <option value="all">All</option>
+                    </select>
+                </div>
+                <div class="item-list" id="adminVerificationsList">
+                    <!-- Verification requests will be loaded here -->
                 </div>
             </div>
         </div>
@@ -610,14 +644,12 @@
     </div>
 
     <script>
-        // Supabase Configuration
         const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let currentUser = null;
 
-        // Initialize
         async function init() {
             const { data: { user } } = await supabase.auth.getUser();
             
@@ -626,11 +658,10 @@
                 return;
             }
 
-            // Check if user is admin
             const { data: profile } = await supabase
-                .from('users')
+                .from('profiles')
                 .select('role, username')
-                .eq('id', user.id)
+                .eq('user_id', user.id)
                 .single();
 
             if (!profile || (profile.role !== 'admin' && profile.role !== 'owner')) {
@@ -646,16 +677,68 @@
             loadAllData();
         }
 
-        // Tab Switching
         function switchTab(tabName) {
             document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
             
             event.target.classList.add('active');
             document.getElementById(tabName).classList.add('active');
+
+            if (tabName === 'verifications') loadAdminVerifications();
         }
 
-        // Dashboard Stats
+        // VERIFICATION VIEWING (READ-ONLY)
+        async function loadAdminVerifications() {
+            const filter = document.getElementById('adminVerificationFilter')?.value || 'pending';
+            
+            try {
+                let queryBuilder = supabase
+                    .from('verification_requests')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (filter !== 'all') {
+                    queryBuilder = queryBuilder.eq('status', filter);
+                }
+
+                const { data: requests, error } = await queryBuilder;
+                
+                if (error) throw error;
+
+                const list = document.getElementById('adminVerificationsList');
+                
+                if (!requests || requests.length === 0) {
+                    list.innerHTML = '<p style="text-align: center; color: var(--text-dim); padding: 2rem;">No verification requests found</p>';
+                    return;
+                }
+
+                list.innerHTML = requests.map(req => {
+                    const statusColor = req.status === 'pending' ? 'var(--warning)' : 
+                                      req.status === 'approved' ? 'var(--success)' : 
+                                      'var(--danger)';
+                    const statusIcon = req.status === 'pending' ? '⏳' : 
+                                     req.status === 'approved' ? '✅' : 
+                                     '❌';
+                    
+                    return `
+                        <div class="item">
+                            <div>
+                                <strong>User ID: ${req.user_id.substring(0, 8)}...</strong>
+                                <span style="color: ${statusColor}; margin-left: 0.5rem;">${statusIcon} ${req.status.toUpperCase()}</span><br>
+                                <small>Role: <strong>${req.role_requested}</strong></small><br>
+                                <small>Link: <a href="${req.verification_link}" target="_blank" style="color: var(--primary);">View Link</a></small><br>
+                                <small style="color: var(--text-dim);">Submitted: ${new Date(req.created_at).toLocaleString()}</small>
+                                ${req.reviewed_at ? `<br><small style="color: var(--text-dim);">Reviewed: ${new Date(req.reviewed_at).toLocaleString()}</small>` : ''}
+                                ${req.denial_reason ? `<br><small style="color: var(--danger);">Reason: ${req.denial_reason}</small>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Error loading verification requests:', error);
+            }
+        }
+
         async function loadDashboardStats() {
             const today = new Date().toISOString().split('T')[0];
             
@@ -675,7 +758,7 @@
                 .eq('status', 'pending');
             
             const { count: modCount } = await supabase
-                .from('users')
+                .from('profiles')
                 .select('*', { count: 'exact', head: true })
                 .eq('role', 'mod');
 
@@ -685,7 +768,6 @@
             document.getElementById('activeMods').textContent = modCount || 0;
         }
 
-        // Content Moderation
         async function searchContent() {
             const query = document.getElementById('contentSearch').value;
             loadPosts(query);
@@ -764,7 +846,6 @@
             }
         }
 
-        // Chat Management
         async function kickUser() {
             const userId = document.getElementById('chatUserId').value;
             if (!userId) {
@@ -836,7 +917,6 @@
                 .eq('id', messageId);
             
             if (!error) {
-                // Log deletion
                 await supabase.from('admin_actions').insert({
                     action: 'message_delete',
                     target_id: messageId,
@@ -847,10 +927,9 @@
             }
         }
 
-        // Moderator Management
         async function loadMods() {
             const { data: mods } = await supabase
-                .from('users')
+                .from('profiles')
                 .select('*')
                 .eq('role', 'mod');
             
@@ -883,12 +962,11 @@
             }
 
             const { error } = await supabase
-                .from('users')
+                .from('profiles')
                 .update({ role: 'mod' })
                 .eq('id', userId);
             
             if (!error) {
-                // Log promotion
                 await supabase.from('admin_actions').insert({
                     action: 'promote_mod',
                     target_id: userId,
@@ -912,12 +990,11 @@
             if (!confirm('Demote this moderator to user?')) return;
 
             const { error } = await supabase
-                .from('users')
+                .from('profiles')
                 .update({ role: 'user' })
                 .eq('id', modId);
             
             if (!error) {
-                // Log demotion
                 await supabase.from('admin_actions').insert({
                     action: 'demote_mod',
                     target_id: modId,
@@ -938,7 +1015,6 @@
             demoteMod();
         }
 
-        // Ad Approval
         async function loadPendingAds() {
             const { data: ads } = await supabase
                 .from('ads')
@@ -950,7 +1026,7 @@
             list.innerHTML = ads.map(ad => `
                 <div class="item">
                     <div>
-                        <strong>${ad.title || 'Untitled Ad'}</strong><br>
+                        <strong>Ad ID: ${ad.id}</strong><br>
                         <small>By: ${ad.user_id}</small>
                     </div>
                     <div class="item-actions">
@@ -992,7 +1068,6 @@
             
             if (!error) {
                 if (message) {
-                    // Send message to advertiser
                     await supabase.from('messages').insert({
                         to_user: (await supabase.from('ads').select('user_id').eq('id', adId).single()).data.user_id,
                         from_user: 'system',
@@ -1026,7 +1101,6 @@
             
             if (!error) {
                 if (message) {
-                    // Send message to advertiser
                     await supabase.from('messages').insert({
                         to_user: (await supabase.from('ads').select('user_id').eq('id', adId).single()).data.user_id,
                         from_user: 'system',
@@ -1039,7 +1113,6 @@
             }
         }
 
-        // Report to Owner
         async function reportToOwner() {
             const contentType = document.getElementById('reportContentType').value;
             const contentId = document.getElementById('reportContentId').value;
@@ -1095,13 +1168,11 @@
             document.getElementById('reportContentId').value = id;
         }
 
-        // Logout
         async function logout() {
             await supabase.auth.signOut();
             window.location.href = 'login.html';
         }
 
-        // Load all data
         function loadAllData() {
             loadPosts();
             loadComments();
@@ -1110,7 +1181,6 @@
             loadMyReports();
         }
 
-        // Initialize on load
         init();
     </script>
 </body>
