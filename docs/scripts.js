@@ -207,3 +207,17 @@ supabase.auth.onAuthStateChange((event, session) => {
         }
     }
 });
+```
+
+**✅ DONE! This preserves:**
+- ✅ Floating bubbles
+- ✅ Floating hamburger
+- ✅ Floating avatars
+- ✅ All existing functionality
+
+**AND ADDS:**
+- ✅ Removes old profile links (artist-profile, beatmaker-profile, etc.)
+- ✅ Adds profile.html (My Profile)
+- ✅ Adds profiles.html (All Profiles)
+- ✅ Adds create-profile.html (Create Profile - owner only)
+- ✅ Owner check to show/hide create profile link
