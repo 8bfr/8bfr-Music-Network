@@ -740,12 +740,7 @@
                 return;
             }
             
-            const primaryRole = selectedRoles[0] || 'fan';
             
-            await ownerPanelSupabase.from('profiles').update({
-                tags: allTags,
-                role: primaryRole
-            }).eq('user_id', uid);
             
             alert(`✅ Saved!\nPrimary Role: ${primaryRole}\nTotal Tags: ${allTags.length}`);
             displayCurrentBadges(allTags);
@@ -764,7 +759,25 @@
                 alert('Select a user first');
                 return;
             }
-            
+
+            const { data: currentProfile } = await ownerPanelSupabase.from('profiles').select('role').eq('user_id', uid).single();
+let primaryRole;
+if (currentProfile?.role === 'owner' && uid === currentUser.id) {
+    primaryRole = 'owner';
+} else if (allTags.includes('owner')) {
+    primaryRole = 'owner';
+} else if (allTags.includes('admin')) {
+    primaryRole = 'admin';
+} else if (allTags.includes('mod')) {
+    primaryRole = 'mod';
+} else {
+    primaryRole = selectedRoles[0] || 'fan';
+}
+
+await ownerPanelSupabase.from('profiles').update({
+    tags: allTags,
+    role: primaryRole
+}).eq('user_id', uid);
             if (!confirm('Remove ALL roles and badges from this user?')) return;
             
             await ownerPanelSupabase.from('profiles').update({
