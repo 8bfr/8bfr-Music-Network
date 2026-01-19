@@ -1,8 +1,42 @@
-```javascript
+javascript
 // ===== SUPABASE CONFIGURATION =====
 const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ===== FLOATING BUBBLES ANIMATION =====
+function createFloatingBubbles() {
+    const bubblesContainer = document.querySelector('.floating-bubbles');
+    if (!bubblesContainer) return;
+
+    const bubbleCount = 15;
+    
+    for (let i = 0; i < bubbleCount; i++) {
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble';
+        
+        // Random size between 10px and 80px
+        const size = Math.random() * 70 + 10;
+        bubble.style.width = `${size}px`;
+        bubble.style.height = `${size}px`;
+        
+        // Random horizontal position
+        bubble.style.left = `${Math.random() * 100}%`;
+        
+        // Random animation duration between 10s and 25s
+        const duration = Math.random() * 15 + 10;
+        bubble.style.animationDuration = `${duration}s`;
+        
+        // Random delay
+        const delay = Math.random() * 5;
+        bubble.style.animationDelay = `${delay}s`;
+        
+        // Random opacity
+        bubble.style.opacity = Math.random() * 0.3 + 0.1;
+        
+        bubblesContainer.appendChild(bubble);
+    }
+}
 
 // ===== HAMBURGER MENU TOGGLE =====
 function toggleMenu() {
@@ -13,50 +47,6 @@ function toggleMenu() {
     menu.classList.toggle('active');
     hamburger.classList.toggle('active');
     overlay.classList.toggle('active');
-}
-
-// ===== CLOSE MENU WHEN CLICKING OVERLAY =====
-document.addEventListener('DOMContentLoaded', function() {
-    const overlay = document.querySelector('.menu-overlay');
-    if (overlay) {
-        overlay.addEventListener('click', toggleMenu);
-    }
-
-    // Initialize profile links
-    updateProfileLinks();
-    
-    // Close menu when clicking a link
-    const menuLinks = document.querySelectorAll('.nav-menu a');
-    menuLinks.forEach(link => {
-        link.addEventListener('click', () => {
-            const menu = document.querySelector('.nav-menu');
-            const hamburger = document.querySelector('.hamburger');
-            const menuOverlay = document.querySelector('.menu-overlay');
-            
-            menu.classList.remove('active');
-            hamburger.classList.remove('active');
-            menuOverlay.classList.remove('active');
-        });
-    });
-});
-
-// ===== BACK TO TOP BUTTON =====
-window.addEventListener('scroll', function() {
-    const backToTop = document.querySelector('.back-to-top');
-    if (backToTop) {
-        if (window.pageYOffset > 300) {
-            backToTop.classList.add('visible');
-        } else {
-            backToTop.classList.remove('visible');
-        }
-    }
-});
-
-function scrollToTop() {
-    window.scrollTo({
-        top: 0,
-        behavior: 'smooth'
-    });
 }
 
 // ===== PROFILE NAVIGATION UPDATES =====
@@ -122,6 +112,54 @@ async function checkIfOwner() {
     }
 }
 
+// ===== DOCUMENT READY =====
+document.addEventListener('DOMContentLoaded', function() {
+    // Create floating bubbles
+    createFloatingBubbles();
+    
+    // Initialize profile links
+    updateProfileLinks();
+    
+    // Menu overlay click handler
+    const overlay = document.querySelector('.menu-overlay');
+    if (overlay) {
+        overlay.addEventListener('click', toggleMenu);
+    }
+    
+    // Close menu when clicking a link
+    const menuLinks = document.querySelectorAll('.nav-menu a');
+    menuLinks.forEach(link => {
+        link.addEventListener('click', () => {
+            const menu = document.querySelector('.nav-menu');
+            const hamburger = document.querySelector('.hamburger');
+            const menuOverlay = document.querySelector('.menu-overlay');
+            
+            menu.classList.remove('active');
+            hamburger.classList.remove('active');
+            menuOverlay.classList.remove('active');
+        });
+    });
+});
+
+// ===== BACK TO TOP BUTTON =====
+window.addEventListener('scroll', function() {
+    const backToTop = document.querySelector('.back-to-top');
+    if (backToTop) {
+        if (window.pageYOffset > 300) {
+            backToTop.classList.add('visible');
+        } else {
+            backToTop.classList.remove('visible');
+        }
+    }
+});
+
+function scrollToTop() {
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    });
+}
+
 // ===== AUTH STATE LISTENER =====
 supabase.auth.onAuthStateChange((event, session) => {
     if (event === 'SIGNED_IN') {
@@ -133,4 +171,4 @@ supabase.auth.onAuthStateChange((event, session) => {
         }
     }
 });
-```
+
