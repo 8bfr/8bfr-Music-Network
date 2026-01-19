@@ -1,11 +1,12 @@
+The Supabase library isn't loading. Let me fix that:
 
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>All Profiles - 8BFR Music Network</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
@@ -20,7 +21,7 @@
   </style>
 </head>
 <body>
-  <div id="debugBox"></div>
+  <div id="debugBox">Starting...</div>
 
   <header id="top" class="px-4 py-4">
     <div class="max-w-6xl mx-auto flex items-end justify-between gap-3">
@@ -54,11 +55,21 @@
     </div>
   </div>
 
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script>
     const DEBUG = document.getElementById('debugBox');
     function log(msg) {
-      DEBUG.innerHTML += msg + '<br>';
+      DEBUG.innerHTML += '<br>' + msg;
       DEBUG.scrollTop = DEBUG.scrollHeight;
+    }
+
+    log('Script started');
+
+    if (!window.supabase) {
+      log('ERROR: Supabase not loaded!');
+      document.getElementById('profilesGrid').innerHTML = '<p class="col-span-full text-red-400">Supabase library failed to load</p>';
+    } else {
+      log('Supabase loaded OK');
     }
 
     const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
@@ -67,66 +78,82 @@
     let allProfiles = [];
 
     async function init() {
-      log('Loading profiles...');
-      const { data, error } = await supabase.from('profiles').select('*');
-      
-      if (error) {
-        log('ERROR: ' + error.message);
-        document.getElementById('profilesGrid').innerHTML = '<p class="col-span-full text-red-400">Error: ' + error.message + '</p>';
-        return;
+      log('Fetching profiles...');
+      try {
+        const { data, error } = await supabase.from('profiles').select('*');
+        
+        if (error) {
+          log('DB ERROR: ' + error.message);
+          document.getElementById('profilesGrid').innerHTML = '<p class="col-span-full text-red-400">Database error: ' + error.message + '</p>';
+          return;
+        }
+        
+        log('Got ' + (data?.length || 0) + ' profiles');
+        
+        allProfiles = data || [];
+        displayProfiles(allProfiles);
+      } catch(e) {
+        log('EXCEPTION: ' + e.message);
       }
-      
-      log('Got ' + (data?.length || 0) + ' profiles');
-      if (data && data.length > 0) {
-        log('Sample: ' + data[0].username);
-      }
-      
-      allProfiles = data || [];
-      displayProfiles(allProfiles);
     }
 
     function displayProfiles(profiles) {
+      log('Displaying ' + profiles.length + ' profiles');
       const grid = document.getElementById('profilesGrid');
       document.getElementById('profileCount').textContent = profiles.length;
 
       if (profiles.length === 0) {
-        grid.innerHTML = '<p class="col-span-full text-center text-purple-300/60 py-8">No profiles</p>';
+        grid.innerHTML = '<p class="col-span-full text-center text-purple-300/60 py-8">No profiles found</p>';
         return;
       }
 
       grid.innerHTML = profiles.map(p => `
         <div class="profile-card">
           <div class="profile-avatar">👤</div>
-          <h3 class="text-lg font-bold">${p.username || 'Unknown'}</h3>
-          <div class="text-purple-400 text-sm">${p.role || 'user'}</div>
+          <h3 class="text-lg font-bold">${p.username || p.display_name || 'Unknown'}</h3>
+          <div class="text-purple-400 text-sm">${(p.role || 'user').toUpperCase()}</div>
+          ${p.bio ? `<p class="text-purple-200/70 text-sm mt-2">${p.bio.substring(0,80)}...</p>` : ''}
         </div>
       `).join('');
     }
 
     function filterByRole(role) {
-      log('Filter: ' + role);
+      log('Filter clicked: ' + role);
       document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
       event.target.classList.add('active');
       
       const filtered = role === 'all' ? allProfiles : allProfiles.filter(p => p.role === role || p.tags?.includes(role));
-      log('Showing ' + filtered.length);
+      log('Filtered to ' + filtered.length);
       displayProfiles(filtered);
     }
 
     function searchProfiles() {
       const q = document.getElementById('searchBox').value.toLowerCase();
-      log('Search: ' + q);
-      if (!q) { displayProfiles(allProfiles); return; }
+      log('Searching: "' + q + '"');
+      
+      if (!q) { 
+        displayProfiles(allProfiles); 
+        return; 
+      }
       
       const filtered = allProfiles.filter(p => 
         (p.username || '').toLowerCase().includes(q) ||
-        (p.role || '').toLowerCase().includes(q)
+        (p.display_name || '').toLowerCase().includes(q) ||
+        (p.role || '').toLowerCase().includes(q) ||
+        (p.tags || []).join(' ').toLowerCase().includes(q)
       );
-      log('Found ' + filtered.length);
+      
+      log('Found ' + filtered.length + ' matches');
       displayProfiles(filtered);
     }
 
-    init();
+    setTimeout(() => {
+      log('Calling init()...');
+      init();
+    }, 500);
   </script>
 </body>
 </html>
+```
+
+**Look at the yellow debug box - it will now show step-by-step what's happening. Tell me exactly what text appears in that yellow box.**
