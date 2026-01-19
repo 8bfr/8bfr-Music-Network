@@ -15,26 +15,59 @@ function createFloatingBubbles() {
         const bubble = document.createElement('div');
         bubble.className = 'bubble';
         
-        // Random size between 10px and 80px
         const size = Math.random() * 70 + 10;
         bubble.style.width = `${size}px`;
         bubble.style.height = `${size}px`;
-        
-        // Random horizontal position
         bubble.style.left = `${Math.random() * 100}%`;
         
-        // Random animation duration between 10s and 25s
         const duration = Math.random() * 15 + 10;
         bubble.style.animationDuration = `${duration}s`;
         
-        // Random delay
         const delay = Math.random() * 5;
         bubble.style.animationDelay = `${delay}s`;
-        
-        // Random opacity
         bubble.style.opacity = Math.random() * 0.3 + 0.1;
         
         bubblesContainer.appendChild(bubble);
+    }
+}
+
+// ===== FLOATING HAMBURGER =====
+function createFloatingHamburger() {
+    const hamburgerContainer = document.querySelector('.floating-hamburger');
+    if (!hamburgerContainer) return;
+
+    for (let i = 0; i < 5; i++) {
+        const hamburger = document.createElement('div');
+        hamburger.className = 'mini-hamburger';
+        hamburger.innerHTML = '☰';
+        
+        hamburger.style.left = `${Math.random() * 100}%`;
+        hamburger.style.animationDuration = `${Math.random() * 10 + 8}s`;
+        hamburger.style.animationDelay = `${Math.random() * 3}s`;
+        hamburger.style.fontSize = `${Math.random() * 20 + 15}px`;
+        
+        hamburgerContainer.appendChild(hamburger);
+    }
+}
+
+// ===== FLOATING AVATARS =====
+function createFloatingAvatars() {
+    const avatarContainer = document.querySelector('.floating-avatars');
+    if (!avatarContainer) return;
+
+    const avatarEmojis = ['👤', '🎤', '🎧', '🎸', '🎹', '🎵', '🎶', '💿', '🎚️', '🎛️'];
+    
+    for (let i = 0; i < 8; i++) {
+        const avatar = document.createElement('div');
+        avatar.className = 'floating-avatar';
+        avatar.textContent = avatarEmojis[Math.floor(Math.random() * avatarEmojis.length)];
+        
+        avatar.style.left = `${Math.random() * 100}%`;
+        avatar.style.animationDuration = `${Math.random() * 12 + 10}s`;
+        avatar.style.animationDelay = `${Math.random() * 4}s`;
+        avatar.style.fontSize = `${Math.random() * 30 + 20}px`;
+        
+        avatarContainer.appendChild(avatar);
     }
 }
 
@@ -51,16 +84,14 @@ function toggleMenu() {
 
 // ===== PROFILE NAVIGATION UPDATES =====
 function updateProfileLinks() {
-    // Find the nav menu
     const navMenu = document.querySelector('.nav-menu');
-    
     if (!navMenu) return;
 
-    // Remove old profile links (artist-profile, beatmaker-profile, etc.)
-    const oldProfileLinks = navMenu.querySelectorAll('a[href*="-profile.html"]');
-    oldProfileLinks.forEach(link => {
-        // Don't remove profile.html or profiles.html
-        if (!link.href.includes('profile.html') && !link.href.includes('profiles.html')) {
+    // Remove old individual profile links (artist-profile.html, beatmaker-profile.html, etc.)
+    const allLinks = navMenu.querySelectorAll('a');
+    allLinks.forEach(link => {
+        const href = link.getAttribute('href');
+        if (href && href.includes('-profile.html') && href !== 'profile.html' && href !== 'profiles.html' && href !== 'create-profile.html') {
             link.parentElement?.remove();
         }
     });
@@ -70,18 +101,21 @@ function updateProfileLinks() {
     const hasAllProfiles = navMenu.querySelector('a[href="profiles.html"]');
     const hasCreateProfile = document.getElementById('createProfileLink');
 
+    // Add My Profile link if it doesn't exist
     if (!hasMyProfile) {
         const myProfileLi = document.createElement('li');
         myProfileLi.innerHTML = '<a href="profile.html">👤 My Profile</a>';
         navMenu.appendChild(myProfileLi);
     }
 
+    // Add All Profiles link if it doesn't exist
     if (!hasAllProfiles) {
         const allProfilesLi = document.createElement('li');
         allProfilesLi.innerHTML = '<a href="profiles.html">👥 All Profiles</a>';
         navMenu.appendChild(allProfilesLi);
     }
 
+    // Add Create Profile link if it doesn't exist (hidden by default)
     if (!hasCreateProfile) {
         const createProfileLi = document.createElement('li');
         createProfileLi.id = 'createProfileLink';
@@ -90,7 +124,7 @@ function updateProfileLinks() {
         navMenu.appendChild(createProfileLi);
     }
 
-    // Check if user is owner
+    // Check if user is owner to show create profile link
     checkIfOwner();
 }
 
@@ -114,8 +148,10 @@ async function checkIfOwner() {
 
 // ===== DOCUMENT READY =====
 document.addEventListener('DOMContentLoaded', function() {
-    // Create floating bubbles
+    // Create all floating elements
     createFloatingBubbles();
+    createFloatingHamburger();
+    createFloatingAvatars();
     
     // Initialize profile links
     updateProfileLinks();
@@ -171,5 +207,3 @@ supabase.auth.onAuthStateChange((event, session) => {
         }
     }
 });
-```
-
