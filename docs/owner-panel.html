@@ -91,9 +91,7 @@
     </style>
 </head>
 <body data-no-global-carrie="true">
-**owner-panel.html - Part 2 (HTML Body Structure)**
 
-```html
     <div class="header">
         <div class="panel-hamburger" onclick="togglePanelMenu()">
             <span></span>
@@ -432,47 +430,52 @@
             </div>
         </div>
     </div>
-    **owner-panel.html - Part 3 (JavaScript - Supabase Config & Init)**
-
-```javascript
+    
   <script>
         const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
         const ownerPanelSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         let currentUser = null;
 
-        async function init() {
-            try {
-                const { data: { user } } = await ownerPanelSupabase.auth.getUser();
-                if (!user) {
-                    window.location.href = 'login.html';
-                    return;
-                }
-                currentUser = user;
-
-                const { data: profile } = await ownerPanelSupabase.from('profiles').select('*').eq('user_id', user.id).single();
-                
-                if (!profile) {
-                    alert('No profile found');
-                    window.location.href = 'index.html';
-                    return;
-                }
-                
-                // Simple check: is 'owner' anywhere in roles_ordered?
-                const isOwner = profile.roles_ordered && profile.roles_ordered.includes('owner');
-                
-                if (!isOwner) {
-                    alert('Access Denied: Owner only');
-                    window.location.href = 'index.html';
-                    return;
-                }
-
-                document.getElementById('ownerName').textContent = profile.username || user.email.split('@')[0];
-                loadDashboardStats();
-                loadAllData();
-            } catch (error) {
-                alert('Error: ' + error.message);
-            }
+        async function saveAllRolesAndBadges() {
+    const uid = document.getElementById('selectedUser').value;
+    if (!uid) {
+        alert('Select a user first');
+        return;
+    }
+    
+    const selectedRoles = [];
+    document.querySelectorAll('.role-check:checked').forEach(checkbox => {
+        selectedRoles.push(checkbox.value);
+    });
+    
+    const selectedBadges = [];
+    document.querySelectorAll('.badge-check:checked').forEach(checkbox => {
+        selectedBadges.push(checkbox.value);
+    });
+    
+    const allTags = [...selectedRoles, ...selectedBadges];
+    
+    if (allTags.length === 0) {
+        alert('Select at least one role or badge');
+        return;
+    }
+    
+    // Build roles_ordered with priority
+    const priorityOrder = ['owner', 'g7', 'admin', 'mod'];
+    const priority = allTags.filter(r => priorityOrder.includes(r)).sort((a, b) => priorityOrder.indexOf(a) - priorityOrder.indexOf(b));
+    const nonPriority = allTags.filter(r => !priorityOrder.includes(r));
+    const finalRolesOrdered = [...priority, ...nonPriority];
+    
+    // Update ONLY roles_ordered, don't touch role column
+    await ownerPanelSupabase.from('profiles').update({
+        roles_ordered: finalRolesOrdered,
+        tags: allTags
+    }).eq('user_id', uid);
+    
+    alert(`✅ Saved!\nTotal Tags: ${allTags.length}`);
+    displayCurrentBadges(allTags);
+    loadUsers();
         }
 
         function switchTab(tabName) {
