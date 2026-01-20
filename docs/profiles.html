@@ -5,7 +5,6 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>All Profiles - 8BFR Music Network</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
@@ -57,7 +56,6 @@
     .filter-btn.active { background: #7c3aed; border-color: #7c3aed; }
     .filter-btn:hover { border-color: #7c3aed; }
     
-    /* Hamburger menu styles from index.html */
     .hamburger { display: none; cursor: pointer; flex-direction: column; gap: 5px; padding: 0.5rem; z-index: 1001; position: relative; }
     .hamburger span { width: 28px; height: 3px; background: #b47cff; border-radius: 2px; transition: all 0.3s ease; }
     .hamburger.active span:nth-child(1) { transform: rotate(45deg) translate(6px, 6px); }
@@ -119,13 +117,12 @@
            style="font-family: 'Work Sans', sans-serif;"
            oninput="searchProfiles()">
     
-    <div class="flex gap-2 mb-4 flex-wrap" id="filters">
+    <div class="flex gap-2 mb-4 flex-wrap">
       <button class="filter-btn active" onclick="filterByRole('all')">All</button>
       <button class="filter-btn" onclick="filterByRole('artist')">🎤 Artists</button>
       <button class="filter-btn" onclick="filterByRole('beatmaker')">🎚️ Beatmakers</button>
       <button class="filter-btn" onclick="filterByRole('producer')">🎧 Producers</button>
       <button class="filter-btn" onclick="filterByRole('verified')">🛡️ Verified</button>
-      <button class="filter-btn" onclick="filterByRole('vip_member')">🎖️ VIP</button>
       <button class="filter-btn" onclick="filterByRole('founder')">⚡ Founders</button>
     </div>
 
@@ -139,10 +136,8 @@
   </div>
 
   <script>
-    const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     let allProfiles = [];
+    let currentFilter = 'all';
 
     function toggleMenu() {
       const menu = document.querySelector('.nav-menu');
@@ -154,30 +149,32 @@
       overlay.classList.toggle('active');
     }
 
-    async function init() {
-      await loadAllProfiles();
+    function getAllProfiles() {
+      const profiles = [];
+      
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key.startsWith('profile_')) continue;
+        
+        try {
+          const profile = JSON.parse(localStorage.getItem(key) || '{}');
+          if (profile.name) {
+            profiles.push({
+              key: key,
+              id: key.replace('profile_', ''),
+              ...profile
+            });
+          }
+        } catch(e) {}
+      }
+      
+      return profiles;
     }
 
-    loadAllProfiles() function:
-async function loadAllProfiles() {
-  try {
-    const { data: profiles, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error('Supabase error:', error);
-      document.getElementById('profilesGrid').innerHTML = '<p class="col-span-full text-center text-red-400 py-8">Error: ' + error.message + '</p>';
-      return;
+    function init() {
+      allProfiles = getAllProfiles();
+      displayProfiles(allProfiles);
     }
-    
-    console.log('Loaded profiles:', profiles?.length || 0);
-    
-    allProfiles = profiles || [];
-    displayProfiles(allProfiles);
-  } catch (err) {
-    console.error('Exception:', err);
-    document.getElementById('profilesGrid').innerHTML = '<p class="col-span-full text-center text-red-400 py-8">Error loading profiles</p>';
-  }
-}
 
     function displayProfiles(profiles) {
       const badgeIcons = {
@@ -195,23 +192,19 @@ async function loadAllProfiles() {
       }
 
       grid.innerHTML = profiles.map(p => {
-        const tags = p.tags || [];
-        const rolesOrdered = p.roles_ordered || [];
-        const primaryRole = rolesOrdered[0] || p.role || 'user';
-        const allRoles = [...new Set([...rolesOrdered, ...tags])];
-        
-        const badgesHtml = allRoles.slice(0, 5).map(tag => 
-          `<span class="badge">${badgeIcons[tag] || '🏷️'} ${tag}</span>`
+        const badges = p.badges || [];
+        const badgesHtml = badges.slice(0, 5).map(badge => 
+          `<span class="badge">${badgeIcons[badge] || '🏷️'} ${badge}</span>`
         ).join('');
         
         return `
-          <div class="profile-card">
-            <div class="profile-avatar">${badgeIcons[primaryRole] || '👤'}</div>
-            <h3 class="text-lg font-bold mb-1" style="color: #eae6ff;">${p.username || p.display_name || 'Unknown'}</h3>
-            <div class="text-purple-400 text-sm mb-2">${primaryRole.toUpperCase()}${p.verified_artist ? ' 🛡️' : ''}</div>
+          <div class="profile-card" onclick="window.location.href='profile.html?id=${p.id}'">
+            <div class="profile-avatar">${p.emoji || '👤'}</div>
+            <h3 class="text-lg font-bold mb-1" style="color: #eae6ff;">${p.name || 'Unknown'}</h3>
+            <div class="text-purple-400 text-sm mb-2">${badges[0]?.toUpperCase() || 'USER'}${p.verified ? ' 🛡️' : ''}</div>
             ${p.bio ? `<p class="text-purple-200/70 text-sm mb-3" style="line-height: 1.4;">${p.bio.substring(0, 100)}${p.bio.length > 100 ? '...' : ''}</p>` : ''}
             <div class="flex flex-wrap gap-2 mb-3">${badgesHtml || '<span class="text-purple-300/50 text-sm">No badges</span>'}</div>
-            <div class="text-xs text-purple-400/60">Joined ${new Date(p.created_at).toLocaleDateString()}</div>
+            ${p.followers ? `<div class="text-xs text-purple-400/60">${p.followers} followers • ${p.plays || 0} plays</div>` : ''}
           </div>
         `;
       }).join('');
@@ -220,36 +213,43 @@ async function loadAllProfiles() {
     function filterByRole(role) {
       document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
       event.target.classList.add('active');
+      currentFilter = role;
 
-      if (role === 'all') {
-        displayProfiles(allProfiles);
-      } else if (role === 'verified') {
-        displayProfiles(allProfiles.filter(p => p.verified_artist));
-      } else {
-        displayProfiles(allProfiles.filter(p => 
-          p.tags?.includes(role) || p.roles_ordered?.includes(role) || p.role === role
-        ));
+      let filtered = allProfiles;
+      
+      if (role === 'verified') {
+        filtered = allProfiles.filter(p => p.verified === true);
+      } else if (role !== 'all') {
+        filtered = allProfiles.filter(p => p.badges?.includes(role));
       }
+
+      displayProfiles(filtered);
     }
 
     function searchProfiles() {
       const query = document.getElementById('searchBox').value.toLowerCase();
+      
       if (!query) {
-        displayProfiles(allProfiles);
+        filterByRole(currentFilter);
         return;
       }
 
-      const filtered = allProfiles.filter(p => {
-        const username = (p.username || '').toLowerCase();
-        const displayName = (p.display_name || '').toLowerCase();
-        const role = (p.role || '').toLowerCase();
-        const tags = (p.tags || []).join(' ').toLowerCase();
-        const rolesOrdered = (p.roles_ordered || []).join(' ').toLowerCase();
-        const bio = (p.bio || '').toLowerCase();
+      let filtered = allProfiles;
+      
+      // Apply current filter first
+      if (currentFilter === 'verified') {
+        filtered = filtered.filter(p => p.verified === true);
+      } else if (currentFilter !== 'all') {
+        filtered = filtered.filter(p => p.badges?.includes(currentFilter));
+      }
+
+      // Then apply search
+      filtered = filtered.filter(p => {
+        const nameMatch = (p.name || '').toLowerCase().includes(query);
+        const bioMatch = (p.bio || '').toLowerCase().includes(query);
+        const badgesMatch = (p.badges || []).some(b => b.toLowerCase().includes(query));
         
-        return username.includes(query) || displayName.includes(query) || 
-               role.includes(query) || tags.includes(query) || 
-               rolesOrdered.includes(query) || bio.includes(query);
+        return nameMatch || bioMatch || badgesMatch;
       });
 
       displayProfiles(filtered);
