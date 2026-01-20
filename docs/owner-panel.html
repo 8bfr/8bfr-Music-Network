@@ -435,59 +435,45 @@
     **owner-panel.html - Part 3 (JavaScript - Supabase Config & Init)**
 
 ```javascript
-    <script>
+  <script>
         const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
         const ownerPanelSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         let currentUser = null;
 
-        // HELPER: Get primary role from roles_ordered array
-        function getPrimaryRole(profile) {
-            if (profile.roles_ordered && profile.roles_ordered.length > 0) {
-                return profile.roles_ordered[0];
-            }
-            return 'fan'; // default fallback
-        }
-
-        // HELPER: Check if user has specific role in roles_ordered
-        function hasRole(profile, roleName) {
-            if (!profile.roles_ordered) return false;
-            return profile.roles_ordered.includes(roleName);
-        }
-
         async function init() {
-    try {
-        const { data: sessionData } = await ownerPanelSupabase.auth.getSession();
-        if (!sessionData.session) {
-            alert('Please log in');
-            window.location.href = 'login.html';
-            return;
-        }
-        
-        const { data: { user } } = await ownerPanelSupabase.auth.getUser();
-        if (!user) {
-            window.location.href = 'login.html';
-            return;
-        }
-        currentUser = user;
+            try {
+                const { data: { user } } = await ownerPanelSupabase.auth.getUser();
+                if (!user) {
+                    window.location.href = 'login.html';
+                    return;
+                }
+                currentUser = user;
 
-        const { data: profile } = await ownerPanelSupabase.from('profiles').select('*').eq('user_id', user.id).single();
-        
-        // Check primary role from roles_ordered (first item in array)
-        const primaryRole = (profile?.roles_ordered && profile.roles_ordered.length > 0) ? profile.roles_ordered[0] : 'fan';
-        
-        if (!profile || (primaryRole !== 'owner' && !profile.roles_ordered?.includes('owner') && !profile.roles_ordered?.includes('g7'))) {
-            alert('Access Denied: Owner only. Your role: ' + primaryRole);
-            window.location.href = 'index.html';
-            return;
-        }
+                const { data: profile } = await ownerPanelSupabase.from('profiles').select('*').eq('user_id', user.id).single();
+                
+                if (!profile) {
+                    alert('No profile found');
+                    window.location.href = 'index.html';
+                    return;
+                }
+                
+                // Simple check: is 'owner' anywhere in roles_ordered?
+                const isOwner = profile.roles_ordered && profile.roles_ordered.includes('owner');
+                
+                if (!isOwner) {
+                    alert('Access Denied: Owner only');
+                    window.location.href = 'index.html';
+                    return;
+                }
 
-        document.getElementById('ownerName').textContent = profile.username || user.email.split('@')[0];
-        loadDashboardStats();
-        loadAllData();
-    } catch (error) {
-        alert('Error: ' + error.message);
-    }
+                document.getElementById('ownerName').textContent = profile.username || user.email.split('@')[0];
+                loadDashboardStats();
+                loadAllData();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
 
         function switchTab(tabName) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
