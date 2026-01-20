@@ -70,6 +70,8 @@
         .checkbox-group:hover { background: rgba(255, 255, 255, 0.02); }
         .checkbox-group input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
         .checkbox-group label { cursor: pointer; margin: 0; font-weight: normal; }
+
+        /* Hamburger Menu */
         .panel-hamburger { display: flex; flex-direction: column; gap: 5px; cursor: pointer; padding: 0.5rem; z-index: 1001; }
         .panel-hamburger span { width: 28px; height: 3px; background: var(--primary); border-radius: 2px; transition: all 0.3s ease; }
         .panel-hamburger.active span:nth-child(1) { transform: rotate(45deg) translate(6px, 6px); }
@@ -91,7 +93,6 @@
     </style>
 </head>
 <body data-no-global-carrie="true">
-
     <div class="header">
         <div class="panel-hamburger" onclick="togglePanelMenu()">
             <span></span>
@@ -430,52 +431,42 @@
             </div>
         </div>
     </div>
-    
-  <script>
+
+    <script>
         const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
         const ownerPanelSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         let currentUser = null;
 
-        async function saveAllRolesAndBadges() {
-    const uid = document.getElementById('selectedUser').value;
-    if (!uid) {
-        alert('Select a user first');
-        return;
-    }
-    
-    const selectedRoles = [];
-    document.querySelectorAll('.role-check:checked').forEach(checkbox => {
-        selectedRoles.push(checkbox.value);
-    });
-    
-    const selectedBadges = [];
-    document.querySelectorAll('.badge-check:checked').forEach(checkbox => {
-        selectedBadges.push(checkbox.value);
-    });
-    
-    const allTags = [...selectedRoles, ...selectedBadges];
-    
-    if (allTags.length === 0) {
-        alert('Select at least one role or badge');
-        return;
-    }
-    
-    // Build roles_ordered with priority
-    const priorityOrder = ['owner', 'g7', 'admin', 'mod'];
-    const priority = allTags.filter(r => priorityOrder.includes(r)).sort((a, b) => priorityOrder.indexOf(a) - priorityOrder.indexOf(b));
-    const nonPriority = allTags.filter(r => !priorityOrder.includes(r));
-    const finalRolesOrdered = [...priority, ...nonPriority];
-    
-    // Update ONLY roles_ordered, don't touch role column
-    await ownerPanelSupabase.from('profiles').update({
-        roles_ordered: finalRolesOrdered,
-        tags: allTags
-    }).eq('user_id', uid);
-    
-    alert(`✅ Saved!\nTotal Tags: ${allTags.length}`);
-    displayCurrentBadges(allTags);
-    loadUsers();
+        async function init() {
+            try {
+                const { data: sessionData } = await ownerPanelSupabase.auth.getSession();
+                if (!sessionData.session) {
+                    alert('Please log in');
+                    window.location.href = 'login.html';
+                    return;
+                }
+                
+                const { data: { user } } = await ownerPanelSupabase.auth.getUser();
+                if (!user) {
+                    window.location.href = 'login.html';
+                    return;
+                }
+                currentUser = user;
+
+                const { data: profile } = await ownerPanelSupabase.from('profiles').select('*').eq('user_id', user.id).single();
+                if (!profile || profile.role !== 'owner') {
+                    alert('Access Denied: Owner only. Your role: ' + (profile?.role || 'none'));
+                    window.location.href = 'index.html';
+                    return;
+                }
+
+                document.getElementById('ownerName').textContent = profile.username || user.email.split('@')[0];
+                loadDashboardStats();
+                loadAllData();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
         }
 
         function switchTab(tabName) {
@@ -547,14 +538,11 @@
             document.getElementById('reviewRole').value = request.role_requested;
             document.getElementById('reviewLink').value = request.verification_link;
             
-            const primaryRole = getPrimaryRole(profile);
-            
             document.getElementById('userProfileInfo').innerHTML = `
                 <div><strong>Profile Info:</strong></div>
                 <div>Display: ${profile?.display_name || 'N/A'}</div>
                 <div>Email: ${profile?.email || 'N/A'}</div>
-                <div>Primary Role: ${primaryRole}</div>
-                <div>All Roles: ${profile?.roles_ordered?.join(', ') || 'N/A'}</div>
+                <div>Current Role: ${profile?.role || 'N/A'}</div>
                 <div>Joined: ${profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : 'N/A'}</div>
             `;
             
@@ -567,19 +555,13 @@
             const role = document.getElementById('reviewRole').value;
             if (!confirm(`Approve ${role} verification?`)) return;
 
-            const { data: profile } = await ownerPanelSupabase.from('profiles').select('roles_ordered').eq('user_id', uid).single();
-            let rolesOrdered = profile?.roles_ordered || [];
-            
-            // Add role if not already present
-            if (!rolesOrdered.includes(role)) {
-                rolesOrdered.push(role);
-            }
-            if (!rolesOrdered.includes('verified')) {
-                rolesOrdered.push('verified');
-            }
+            const { data: profile } = await ownerPanelSupabase.from('profiles').select('tags').eq('user_id', uid).single();
+            let tags = profile?.tags || [];
+            if (!tags.includes(role)) tags.push(role);
+            if (!tags.includes('verified')) tags.push('verified');
 
             await ownerPanelSupabase.from('verification_requests').update({ status: 'approved', reviewed_by: currentUser.id, reviewed_at: new Date().toISOString() }).eq('id', rid);
-            await ownerPanelSupabase.from('profiles').update({ roles_ordered: rolesOrdered, verified_artist: true }).eq('user_id', uid);
+            await ownerPanelSupabase.from('profiles').update({ tags, role, verified_artist: true }).eq('user_id', uid);
             alert('Approved!');
             closeVerificationReview();
             loadVerificationRequests();
@@ -598,9 +580,7 @@
         function closeVerificationReview() {
             document.getElementById('verificationReviewSection').style.display = 'none';
         }
- **owner-panel.html - Part 4 (Content & User Management)**
 
-```javascript
         async function loadPosts() {
             const { data: posts } = await ownerPanelSupabase.from('posts').select('*').order('created_at', { ascending: false }).limit(50);
             const list = document.getElementById('postsList');
@@ -670,15 +650,9 @@
                 return;
             }
             
-            list.innerHTML = users.map(u => {
-                const primaryRole = getPrimaryRole(u);
-                return `<div class="item"><div><strong>${u.username || u.display_name}</strong><br><small>Primary Role: ${primaryRole} | ID: ${u.user_id?.substring(0,8)}...</small>${u.verified_artist ? '<br><small style="color:var(--success);">🛡️ VERIFIED</small>' : ''}</div><div class="item-actions"><button class="btn" onclick="document.getElementById('selectedUser').value='${u.user_id}';loadUserDetails()">Edit</button><button class="btn btn-danger" onclick="deleteUser('${u.user_id}')">Delete</button></div></div>`;
-            }).join('');
+            list.innerHTML = users.map(u => `<div class="item"><div><strong>${u.username || u.display_name}</strong><br><small>Role: ${u.role} | ID: ${u.user_id?.substring(0,8)}...</small>${u.verified_artist ? '<br><small style="color:var(--success);">🛡️ VERIFIED</small>' : ''}</div><div class="item-actions"><button class="btn" onclick="document.getElementById('selectedUser').value='${u.user_id}';loadUserDetails()">Edit</button><button class="btn btn-danger" onclick="deleteUser('${u.user_id}')">Delete</button></div></div>`).join('');
             
-            select.innerHTML = '<option value="">Choose...</option>' + users.map(u => {
-                const primaryRole = getPrimaryRole(u);
-                return `<option value="${u.user_id}">${u.username || u.display_name} (${primaryRole})</option>`;
-            }).join('');
+            select.innerHTML = '<option value="">Choose...</option>' + users.map(u => `<option value="${u.user_id}">${u.username || u.display_name} (${u.role})</option>`).join('');
         }
 
         async function loadUserDetails() {
@@ -698,20 +672,20 @@
                 
                 clearAllSelections();
                 
-                const rolesOrdered = user.roles_ordered || [];
+                const tags = user.tags || [];
                 document.querySelectorAll('.role-check').forEach(checkbox => {
-                    if (rolesOrdered.includes(checkbox.value)) checkbox.checked = true;
+                    if (tags.includes(checkbox.value)) checkbox.checked = true;
                 });
                 
                 document.querySelectorAll('.badge-check').forEach(checkbox => {
-                    if (rolesOrdered.includes(checkbox.value)) checkbox.checked = true;
+                    if (tags.includes(checkbox.value)) checkbox.checked = true;
                 });
                 
-                displayCurrentBadges(rolesOrdered);
+                displayCurrentBadges(tags);
             }
         }
 
-        function displayCurrentBadges(rolesOrdered) {
+        function displayCurrentBadges(tags) {
             const badgeIcons = {
                 'artist': '🎤', 'beatmaker': '🎚️', 'producer': '🎧', 'singer': '🎙️', 'musician': '🎸',
                 'engineer': '🎛️', 'songwriter': '🎼', 'dj': '📀', 'label': '🏷️', 'promoter': '🚀',
@@ -731,14 +705,14 @@
             
             const display = document.getElementById('currentBadgesDisplay');
             
-            if (!rolesOrdered || rolesOrdered.length === 0) {
+            if (!tags || tags.length === 0) {
                 display.innerHTML = '<small style="color: var(--text-dim);">No badges assigned</small>';
                 return;
             }
             
-            display.innerHTML = rolesOrdered.map(role => {
-                const icon = badgeIcons[role] || '🏷️';
-                return `<span style="display: inline-block; background: var(--dark-card); border: 1px solid var(--primary); padding: 0.4rem 0.8rem; margin: 0.25rem; border-radius: 15px; font-size: 0.85rem;">${icon} ${role}</span>`;
+            display.innerHTML = tags.map(tag => {
+                const icon = badgeIcons[tag] || '🏷️';
+                return `<span style="display: inline-block; background: var(--dark-card); border: 1px solid var(--primary); padding: 0.4rem 0.8rem; margin: 0.25rem; border-radius: 15px; font-size: 0.85rem;">${icon} ${tag}</span>`;
             }).join('');
         }
 
@@ -759,39 +733,17 @@
                 selectedBadges.push(checkbox.value);
             });
             
-            const allRoles = [...selectedRoles, ...selectedBadges];
+            const allTags = [...selectedRoles, ...selectedBadges];
             
-            if (allRoles.length === 0) {
+            if (allTags.length === 0) {
                 alert('Select at least one role or badge');
                 return;
             }
             
-            // Get current profile
-            const { data: currentProfile } = await ownerPanelSupabase.from('profiles').select('roles_ordered').eq('user_id', uid).single();
-            const existingRoles = currentProfile?.roles_ordered || [];
             
-            // PRIORITY ORDER - ensure owner/admin/mod stay first if editing self
-            let finalRolesOrdered;
             
-            if (uid === currentUser.id && (existingRoles.includes('owner') || existingRoles.includes('g7'))) {
-                // Editing yourself as owner - PRESERVE owner at position 0
-                const withoutOwnerG7 = allRoles.filter(r => r !== 'owner' && r !== 'g7');
-                finalRolesOrdered = ['owner', 'g7', ...withoutOwnerG7];
-            } else {
-                // Editing someone else - use priority order
-                const priorityOrder = ['owner', 'g7', 'admin', 'mod'];
-                const priority = allRoles.filter(r => priorityOrder.includes(r)).sort((a, b) => priorityOrder.indexOf(a) - priorityOrder.indexOf(b));
-                const nonPriority = allRoles.filter(r => !priorityOrder.includes(r));
-                finalRolesOrdered = [...priority, ...nonPriority];
-            }
-            
-            await ownerPanelSupabase.from('profiles').update({
-                roles_ordered: finalRolesOrdered
-            }).eq('user_id', uid);
-            
-            const primaryRole = finalRolesOrdered[0] || 'fan';
-            alert(`✅ Saved!\nPrimary Role: ${primaryRole}\nTotal Roles: ${finalRolesOrdered.length}`);
-            displayCurrentBadges(finalRolesOrdered);
+            alert(`✅ Saved!\nPrimary Role: ${primaryRole}\nTotal Tags: ${allTags.length}`);
+            displayCurrentBadges(allTags);
             loadUsers();
         }
 
@@ -807,16 +759,35 @@
                 alert('Select a user first');
                 return;
             }
-            
+
+            const { data: currentProfile } = await ownerPanelSupabase.from('profiles').select('role').eq('user_id', uid).single();
+let primaryRole;
+if (currentProfile?.role === 'owner' && uid === currentUser.id) {
+    primaryRole = 'owner';
+} else if (allTags.includes('owner')) {
+    primaryRole = 'owner';
+} else if (allTags.includes('admin')) {
+    primaryRole = 'admin';
+} else if (allTags.includes('mod')) {
+    primaryRole = 'mod';
+} else {
+    primaryRole = selectedRoles[0] || 'fan';
+}
+
+await ownerPanelSupabase.from('profiles').update({
+    tags: allTags,
+    role: primaryRole
+}).eq('user_id', uid);
             if (!confirm('Remove ALL roles and badges from this user?')) return;
             
             await ownerPanelSupabase.from('profiles').update({
-                roles_ordered: ['fan']
+                tags: [],
+                role: 'fan'
             }).eq('user_id', uid);
             
-            alert('All roles and badges removed, set to fan');
+            alert('All roles and badges removed');
             clearAllSelections();
-            displayCurrentBadges(['fan']);
+            displayCurrentBadges([]);
             loadUsers();
         }
 
@@ -850,14 +821,9 @@
             if (!q) { loadUsers(); return; }
             const { data: users } = await ownerPanelSupabase.from('profiles').select('*').or(`username.ilike.%${q}%,display_name.ilike.%${q}%`).limit(50);
             const list = document.getElementById('usersList');
-            list.innerHTML = users?.map(u => {
-                const primaryRole = getPrimaryRole(u);
-                return `<div class="item"><div><strong>${u.username || u.display_name}</strong><br><small>Primary Role: ${primaryRole}</small></div><div class="item-actions"><button class="btn" onclick="document.getElementById('selectedUser').value='${u.user_id}';loadUserDetails()">Edit</button></div></div>`;
-            }).join('') || '<p style="text-align:center;color:var(--text-dim);">No results</p>';
+            list.innerHTML = users?.map(u => `<div class="item"><div><strong>${u.username || u.display_name}</strong><br><small>Role: ${u.role}</small></div><div class="item-actions"><button class="btn" onclick="document.getElementById('selectedUser').value='${u.user_id}';loadUserDetails()">Edit</button></div></div>`).join('') || '<p style="text-align:center;color:var(--text-dim);">No results</p>';
         }
-**owner-panel.html - Part 5 (Ads, Moderation, Community, System & UI Functions)**
 
-```javascript
         async function loadAds() {
             const { data: ads } = await ownerPanelSupabase.from('ads').select('*').order('created_at', { ascending: false });
             const list = document.getElementById('allAdsList');
@@ -1016,16 +982,12 @@
         }
 
         async function refreshStats() {
-            // Count users with 'artist' in roles_ordered
-            const { data: allProfiles } = await ownerPanelSupabase.from('profiles').select('roles_ordered');
-            const artists = allProfiles?.filter(p => p.roles_ordered?.includes('artist')).length || 0;
-            const beatmakers = allProfiles?.filter(p => p.roles_ordered?.includes('beatmaker')).length || 0;
-            
+            const { count: artists } = await ownerPanelSupabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'artist');
+            const { count: beatmakers } = await ownerPanelSupabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'beatmaker');
             const { count: posts } = await ownerPanelSupabase.from('posts').select('*', { count: 'exact', head: true });
             const { count: groups } = await ownerPanelSupabase.from('groups').select('*', { count: 'exact', head: true });
-            
-            document.getElementById('statArtists').textContent = artists;
-            document.getElementById('statBeatmakers').textContent = beatmakers;
+            document.getElementById('statArtists').textContent = artists || 0;
+            document.getElementById('statBeatmakers').textContent = beatmakers || 0;
             document.getElementById('statTotalPosts').textContent = posts || 0;
             document.getElementById('statTotalGroups').textContent = groups || 0;
         }
@@ -1075,5 +1037,4 @@
         }
     </script>
 </body>
-</html>
-  
+    </html>
