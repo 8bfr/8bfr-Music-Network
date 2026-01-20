@@ -791,24 +791,41 @@ await ownerPanelSupabase.from('profiles').update({
             loadUsers();
         }
 
-        async function updateUserProfile() {
-            const uid = document.getElementById('selectedUser').value;
-            if (!uid) { alert('Select user'); return; }
-            
-            const username = document.getElementById('editUsername').value;
-            const displayName = document.getElementById('editDisplayName').value;
-            const verified = document.getElementById('verifiedArtist').checked;
-            
-            await ownerPanelSupabase.from('profiles').update({
-                username,
-                display_name: displayName,
-                verified_artist: verified
-            }).eq('user_id', uid);
-            
-            alert('Profile updated');
-            loadUsers();
-        }
-
+        
+async function updateUserProfile() {
+    const uid = document.getElementById('selectedUser').value;
+    if (!uid) { alert('Select user'); return; }
+    
+    const username = document.getElementById('editUsername').value;
+    const displayName = document.getElementById('editDisplayName').value;
+    const verified = document.getElementById('verifiedArtist').checked;
+    
+    if (!username) {
+        alert('Username cannot be empty');
+        return;
+    }
+    
+    const { error } = await ownerPanelSupabase.from('profiles').update({
+        username,
+        display_name: displayName,
+        verified_artist: verified
+    }).eq('user_id', uid);
+    
+    if (error) {
+        alert('Error saving: ' + error.message);
+        return;
+    }
+    
+    alert('✅ Profile updated!');
+    
+    // Refresh the header if editing yourself
+    if (uid === currentUser.id) {
+        document.getElementById('ownerName').textContent = username;
+    }
+    
+    await loadUsers();
+    await loadUserDetails();
+}
         async function deleteUser(uid) {
             if (!confirm('Delete user permanently? This cannot be undone!')) return;
             await ownerPanelSupabase.from('profiles').delete().eq('user_id', uid);
