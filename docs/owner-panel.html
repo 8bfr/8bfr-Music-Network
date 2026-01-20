@@ -456,40 +456,38 @@
         }
 
         async function init() {
-            try {
-                const { data: sessionData } = await ownerPanelSupabase.auth.getSession();
-                if (!sessionData.session) {
-                    alert('Please log in');
-                    window.location.href = 'login.html';
-                    return;
-                }
-                
-                const { data: { user } } = await ownerPanelSupabase.auth.getUser();
-                if (!user) {
-                    window.location.href = 'login.html';
-                    return;
-                }
-                currentUser = user;
-
-                const { data: profile } = await ownerPanelSupabase.from('profiles').select('*').eq('user_id', user.id).single();
-                
-                // Check if owner using roles_ordered array
-                const primaryRole = getPrimaryRole(profile);
-                const isOwner = hasRole(profile, 'owner') || hasRole(profile, 'g7');
-                
-                if (!profile || !isOwner) {
-                    alert('Access Denied: Owner only.\nYour primary role: ' + primaryRole + '\nRoles: ' + (profile?.roles_ordered?.join(', ') || 'none'));
-                    window.location.href = 'index.html';
-                    return;
-                }
-
-                document.getElementById('ownerName').textContent = profile.username || user.email.split('@')[0];
-                loadDashboardStats();
-                loadAllData();
-            } catch (error) {
-                alert('Error: ' + error.message);
-            }
+    try {
+        const { data: sessionData } = await ownerPanelSupabase.auth.getSession();
+        if (!sessionData.session) {
+            alert('Please log in');
+            window.location.href = 'login.html';
+            return;
         }
+        
+        const { data: { user } } = await ownerPanelSupabase.auth.getUser();
+        if (!user) {
+            window.location.href = 'login.html';
+            return;
+        }
+        currentUser = user;
+
+        const { data: profile } = await ownerPanelSupabase.from('profiles').select('*').eq('user_id', user.id).single();
+        
+        // Check primary role from roles_ordered (first item in array)
+        const primaryRole = (profile?.roles_ordered && profile.roles_ordered.length > 0) ? profile.roles_ordered[0] : 'fan';
+        
+        if (!profile || (primaryRole !== 'owner' && !profile.roles_ordered?.includes('owner') && !profile.roles_ordered?.includes('g7'))) {
+            alert('Access Denied: Owner only. Your role: ' + primaryRole);
+            window.location.href = 'index.html';
+            return;
+        }
+
+        document.getElementById('ownerName').textContent = profile.username || user.email.split('@')[0];
+        loadDashboardStats();
+        loadAllData();
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
 
         function switchTab(tabName) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
