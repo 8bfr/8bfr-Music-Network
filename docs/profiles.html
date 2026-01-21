@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Profiles — Directory</title>
+  <title>Profiles — Directory (Debug)</title>
   <style>
     :root{
       --bg:#0b0215; --card:#12051c; --muted:#9b89b8; --accent:#a855f7; --text:#eae6ff;
@@ -25,9 +25,11 @@
     .empty-state{text-align:center;padding:48px 12px;color:var(--muted);border:1px dashed rgba(168,85,247,0.06); border-radius:12px}
     .search-inline{display:flex;gap:8px;align-items:center}
     input[type="search"]{padding:8px 12px;border-radius:999px;border:1px solid rgba(255,255,255,0.04);background:rgba(255,255,255,0.02);color:var(--text);outline:none}
+    .error-banner{background:#43162f;color:#ffd7e6;padding:8px 12px;border-radius:8px;margin-bottom:12px;border:1px solid rgba(255,255,255,0.03)}
     small{color:var(--muted)}
   </style>
-  <!-- Supabase JS (CDN) -->
+
+  <!-- Official supabase-js bundle -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/bundle.js"></script>
 </head>
 <body>
@@ -42,6 +44,8 @@
       </div>
     </header>
 
+    <div id="debugArea" aria-live="polite" style="min-height:0;"></div>
+
     <div class="filters" id="filtersContainer" aria-hidden="false">
       <!-- category buttons injected here -->
     </div>
@@ -54,68 +58,190 @@
   </div>
 
   <script>
-    // Replace these with your project's info if necessary
-    const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
-    const SUPABASE_KEY = 'REPLACE_WITH_ANON_KEY_IF_DIFFERENT';
-    const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_KEY);
+    (function(){
+      // CONFIG - update if necessary
+      const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+      const SUPABASE_KEY = 'REPLACE_WITH_ANON_KEY_IF_DIFFERENT'; // replace if not provided by your app
 
-    let allProfiles = [];
-    let categories = ['all'];
-    let currentCategory = 'all';
+      // Safe client init: support bundle exposing global names
+      let supabaseClient = null;
+      try {
+        // Common globals exposed by the bundle:
+        // - createClient (named function)
+        // - supabase (sometimes present as a pre-initialized client)
+        if (typeof createClient === 'function') {
+          supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+        } else if (typeof supabase === 'object' && supabase !== null && typeof supabase instanceof Object) {
+          // If the page already includes a supabase client under `supabase`, reuse it.
+          supabaseClient = (typeof supabase.createClient === 'function')
+            ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+            : supabase;
+        } else {
+          // try the namespaced global used in some bundles
+          if (window.supabase) supabaseClient = window.supabase;
+        }
+      } catch (e) {
+        console.error('Client init error:', e);
+      }
 
-    async function loadProfilesForUI() {
-      const grid = document.getElementById('profilesGrid');
-      grid.innerHTML = '<div class="empty-state">Loading profiles…</div>';
-      const { data, error } = await supabase.from('profiles_search_view').select('*').order('created_at', { ascending: false });
-      if (error) {
-        console.error('Failed to load profiles:', error);
-        grid.innerHTML = '<div class="empty-state">Error loading profiles</div>';
-        document.getElementById('profileCount').innerHTML = '<small>Error</small>';
+      // Defensive fallback
+      if (!supabaseClient) {
+        console.error('Supabase client not available. Check the CDN script or init code.');
+        showErrorBanner('Supabase client initialization failed. Open the browser console for details.');
+        setProfilesGridError('Client initialization failed.');
         return;
       }
-      allProfiles = data || [];
-      buildCategories();
-      renderCategoryButtons();
-      displayProfiles(allProfiles);
-    }
 
-    function buildCategories() {
-      const set = new Set(['all']);
-      allProfiles.forEach(p => {
-        let roles = [];
-        if (Array.isArray(p.roles_array)) roles = roles.concat(p.roles_array);
-        else if (p.roles_array && typeof p.roles_array === 'string') {
-          try { roles = roles.concat(JSON.parse(p.roles_array)); } catch(e){}
+      // expose client locally
+      const supabase = supabaseClient;
+
+      // UI state
+      let allProfiles = [];
+      let categories = ['all'];
+      let currentCategory = 'all';
+
+      // DOM refs
+      const profilesGrid = document.getElementById('profilesGrid');
+      const filtersContainer = document.getElementById('filtersContainer');
+      const profileCount = document.getElementById('profileCount');
+      const debugArea = document.getElementById('debugArea');
+      const searchInput = document.getElementById('profilesSearchInput');
+
+      // Utility: show debug/error banner
+      function showErrorBanner(msg) {
+        debugArea.innerHTML = '<div class="error-banner" id="errorBanner">'+escapeHtml(msg)+'</div>';
+      }
+      function clearErrorBanner() { debugArea.innerHTML = ''; }
+
+      function setProfilesGridError(msg){
+        profilesGrid.innerHTML = `<div class="empty-state">Error: ${escapeHtml(msg)}</div>`;
+        profileCount.innerHTML = `<small>Error</small>`;
+      }
+
+      // Escape HTML to avoid XSS
+      function escapeHtml(s) {
+        if (!s) return '';
+        return String(s)
+          .replaceAll('&', '&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
+          .replaceAll('"','&quot;').replaceAll("'",'&#039;');
+      }
+
+      // Load profiles from view
+      async function loadProfilesForUI(){
+        clearErrorBanner();
+        profilesGrid.innerHTML = '<div class="empty-state">Loading profiles…</div>';
+        profileCount.innerHTML = '<small>Loading…</small>';
+        try {
+          // Query the view; limit to a reasonable number to avoid huge payloads
+          const { data, error } = await supabase
+            .from('profiles_search_view')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(1000);
+
+          if (error) {
+            console.error('Supabase query error:', error);
+            showErrorBanner('Failed to load profiles from the database. See console for details.');
+            setProfilesGridError(error.message || 'Query error');
+            return;
+          }
+
+          // Ensure data is an array
+          if (!Array.isArray(data)) {
+            console.warn('profiles_search_view returned non-array:', data);
+            allProfiles = [];
+          } else {
+            allProfiles = data;
+          }
+
+          buildCategories();
+          renderCategoryButtons();
+          applyCategoryFilter(); // will call displayProfiles
+        } catch (err) {
+          console.error('Unhandled error loading profiles:', err);
+          showErrorBanner('Unexpected error while loading profiles. See console for details.');
+          setProfilesGridError(err.message || String(err));
         }
-        if (Array.isArray(p.tags)) roles = roles.concat(p.tags);
-        if (p.role) roles.push(p.role);
-        roles.forEach(r => { if (r && String(r).trim()) set.add(String(r)); });
-      });
-      categories = Array.from(set);
-    }
+      }
 
-    function renderCategoryButtons() {
-      const wrapper = document.getElementById('filtersContainer');
-      wrapper.innerHTML = '';
-      categories.forEach(cat => {
-        const btn = document.createElement('button');
-        btn.className = 'filter-btn' + (cat === 'all' ? ' active' : '');
-        btn.dataset.filter = cat;
-        btn.innerText = cat === 'all' ? 'All' : cat.charAt(0).toUpperCase() + cat.slice(1);
-        btn.onclick = () => {
-          wrapper.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          currentCategory = cat;
-          applyCategoryFilter();
+      function buildCategories(){
+        const set = new Set(['all']);
+        (allProfiles || []).forEach(p => {
+          // candidate fields that may contain roles/tags
+          const candidates = [];
+          if (Array.isArray(p.roles_array)) candidates.push(...p.roles_array);
+          if (p.roles_array && typeof p.roles_array === 'string') {
+            try { candidates.push(...JSON.parse(p.roles_array)); } catch(e){}
+          }
+          if (Array.isArray(p.tags)) candidates.push(...p.tags);
+          if (p.role) candidates.push(p.role);
+          if (p.roles_ordered && Array.isArray(p.roles_ordered)) candidates.push(...p.roles_ordered);
+
+          candidates.forEach(r => { if (r && String(r).trim()) set.add(String(r).trim()); });
+        });
+        categories = Array.from(set);
+      }
+
+      function renderCategoryButtons(){
+        filtersContainer.innerHTML = '';
+        categories.forEach(cat => {
+          const btn = document.createElement('button');
+          btn.className = 'filter-btn' + (cat === currentCategory ? ' active' : '');
+          btn.dataset.filter = cat;
+          btn.type = 'button';
+          btn.innerText = cat === 'all' ? 'All' : (cat.charAt(0).toUpperCase()+cat.slice(1));
+          btn.onclick = () => {
+            filtersContainer.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+            btn.classList.add('active');
+            currentCategory = cat;
+            applyCategoryFilter();
+          };
+          filtersContainer.appendChild(btn);
+        });
+      }
+
+      function applyCategoryFilter(){
+        let filtered = allProfiles || [];
+        if (currentCategory && currentCategory !== 'all') {
+          filtered = filtered.filter(p => {
+            const candidates = [];
+            if (Array.isArray(p.roles_array)) candidates.push(...p.roles_array);
+            else if (p.roles_array && typeof p.roles_array === 'string') {
+              try { candidates.push(...JSON.parse(p.roles_array)); } catch(e){}
+            }
+            if (Array.isArray(p.tags)) candidates.push(...p.tags);
+            if (p.role) candidates.push(p.role);
+            if (p.roles_ordered && Array.isArray(p.roles_ordered)) candidates.push(...p.roles_ordered);
+            return candidates.map(String).includes(currentCategory);
+          });
+        }
+        // apply client-side search filter as well if present
+        const q = (searchInput && searchInput.value || '').trim().toLowerCase();
+        if (q) {
+          filtered = filtered.filter(p => {
+            const uname = (p.username||'').toLowerCase();
+            const dname = (p.display_name||'').toLowerCase();
+            const bio = (p.bio||'').toLowerCase();
+            return uname.includes(q) || dname.includes(q) || bio.includes(q);
+          });
+        }
+        displayProfiles(filtered);
+      }
+
+      function displayProfiles(profiles){
+        profileCount.textContent = `${(profiles||[]).length} profiles found`;
+        if (!profiles || profiles.length === 0) {
+          profilesGrid.innerHTML = '<div class="empty-state">No profiles found</div>';
+          return;
+        }
+
+        const badgeIcons = {
+          'artist': '🎤', 'beatmaker': '🎚️', 'producer': '🎧', 'verified': '🛡️',
+          'founder': '⚡', 'owner': '👑', 'admin': '⚙️', 'mod': '💬'
         };
-        wrapper.appendChild(btn);
-      });
-    }
 
-    function applyCategoryFilter() {
-      let filtered = allProfiles;
-      if (currentCategory && currentCategory !== 'all') {
-        filtered = allProfiles.filter(p => {
+        // create HTML safely
+        profilesGrid.innerHTML = profiles.map(p => {
           let roles = [];
           if (Array.isArray(p.roles_array)) roles = roles.concat(p.roles_array);
           else if (p.roles_array && typeof p.roles_array === 'string') {
@@ -123,79 +249,53 @@
           }
           if (Array.isArray(p.tags)) roles = roles.concat(p.tags);
           if (p.role) roles.push(p.role);
-          return roles.map(String).includes(currentCategory);
-        });
-      }
-      displayProfiles(filtered);
-    }
+          if (p.roles_ordered && Array.isArray(p.roles_ordered)) roles = roles.concat(p.roles_ordered);
 
-    function displayProfiles(profiles) {
-      const grid = document.getElementById('profilesGrid');
-      document.getElementById('profileCount').textContent = `${profiles.length} profiles found`;
-      if (!profiles || profiles.length === 0) {
-        grid.innerHTML = '<div class="empty-state">No profiles found</div>';
-        return;
-      }
+          const primaryRole = (roles[0] || 'user').toString();
+          const badgesHtml = roles.slice(0,5).map(role => {
+            const css = (role === 'founder') ? 'founder' : '';
+            const icon = badgeIcons[role] || '🏷️';
+            return `<span class="badge ${css}">${escapeHtml(icon + ' ' + role)}</span>`;
+          }).join('');
 
-      const badgeIcons = {
-        'artist': '🎤', 'beatmaker': '🎚️', 'producer': '🎧', 'verified': '🛡️',
-        'founder': '⚡', 'owner': '👑', 'admin': '⚙️', 'mod': '💬'
-      };
+          const displayName = escapeHtml(p.username || p.display_name || 'Unknown');
+          const bioSnippet = p.bio ? escapeHtml((p.bio||'').substring(0,120)) + ((p.bio||'').length > 120 ? '...' : '') : '';
+          const joined = p.created_at ? escapeHtml(new Date(p.created_at).toLocaleDateString()) : '—';
+          const id = encodeURIComponent(p.user_id || p.id);
 
-      grid.innerHTML = profiles.map(p => {
-        let roles = [];
-        if (Array.isArray(p.roles_array)) roles = roles.concat(p.roles_array);
-        else if (p.roles_array && typeof p.roles_array === 'string') {
-          try { roles = roles.concat(JSON.parse(p.roles_array)); } catch(e){}
-        }
-        if (Array.isArray(p.tags)) roles = roles.concat(p.tags);
-        if (p.role) roles.push(p.role);
-
-        const primaryRole = (roles[0] || 'user').toString();
-        const badgesHtml = roles.slice(0,5).map(role => {
-          const css = (role === 'founder') ? 'founder' : '';
-          const icon = badgeIcons[role] || '🏷️';
-          return `<span class="badge ${css}">${escapeHtml(icon + ' ' + role)}</span>`;
+          return `
+            <div class="profile-card" role="button" onclick="location.href='profile.html?id=${id}'">
+              <div class="profile-avatar">${escapeHtml(badgeIcons[primaryRole] || '👤')}</div>
+              <h3 style="margin:6px 0 4px 0">${displayName}</h3>
+              <div style="color:var(--muted); font-size:0.9rem; margin-bottom:8px">${escapeHtml(primaryRole.toUpperCase())}${p.verified_artist ? ' 🛡️' : ''}</div>
+              ${bioSnippet ? `<div style="color:var(--muted); font-size:0.9rem; margin-bottom:10px">${bioSnippet}</div>` : ''}
+              <div>${badgesHtml}</div>
+              <div style="font-size:0.8rem;color:var(--muted);margin-top:10px">Joined ${joined}</div>
+            </div>
+          `;
         }).join('');
+      }
 
-        return `
-          <div class="profile-card" role="button" onclick="location.href='profile.html?id=${encodeURIComponent(p.user_id || p.id)}'">
-            <div class="profile-avatar">${escapeHtml(badgeIcons[primaryRole] || '👤')}</div>
-            <h3 style="margin:6px 0 4px 0">${escapeHtml(p.username || p.display_name || 'Unknown')}</h3>
-            <div style="color:var(--muted); font-size:0.9rem; margin-bottom:8px">${escapeHtml(primaryRole.toUpperCase())}${p.verified_artist ? ' 🛡️' : ''}</div>
-            ${p.bio ? `<div style="color:var(--muted); font-size:0.9rem; margin-bottom:10px">${escapeHtml((p.bio||'').substring(0,120))}${(p.bio||'').length>120 ? '...' : ''}</div>` : ''}
-            <div>${badgesHtml}</div>
-            <div style="font-size:0.8rem;color:var(--muted);margin-top:10px">Joined ${p.created_at ? new Date(p.created_at).toLocaleDateString() : '—'}</div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    // search within loaded profiles (client-side)
-    const profilesSearchInput = document.getElementById('profilesSearchInput');
-    if (profilesSearchInput) {
-      profilesSearchInput.addEventListener('input', (e) => {
-        const q = e.target.value.trim().toLowerCase();
-        if (!q) { applyCategoryFilter(); return; }
-        const filtered = (allProfiles || []).filter(p => {
-          const username = (p.username||'').toLowerCase();
-          const display = (p.display_name||'').toLowerCase();
-          const bio = (p.bio||'').toLowerCase();
-          return username.includes(q) || display.includes(q) || bio.includes(q);
+      // wire search input
+      if (searchInput) {
+        let debounce;
+        searchInput.addEventListener('input', (e) => {
+          clearTimeout(debounce);
+          debounce = setTimeout(() => applyCategoryFilter(), 200);
         });
-        displayProfiles(filtered);
-      });
-    }
+      }
 
-    function escapeHtml(s) {
-      if (!s) return '';
-      return String(s)
-        .replaceAll('&', '&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
-        .replaceAll('"','&quot;').replaceAll("'",'&#039;');
-    }
+      // initial load
+      loadProfilesForUI();
 
-    // Load on start
-    loadProfilesForUI();
+      // Expose for debugging from console
+      window._profiles_debug = {
+        supabase,
+        reload: loadProfilesForUI,
+        data: () => allProfiles
+      };
+      console.info('Profiles debug: window._profiles_debug available (reload, data, supabase).');
+    })();
   </script>
 </body>
 </html>
