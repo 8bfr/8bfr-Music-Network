@@ -1,33 +1,124 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PAGE TITLE — 8BFR</title>
-<link rel="icon" href="assets/images/favicon.png">
-<script src="https://cdn.tailwindcss.com"></script>
-<style>
-body{background:linear-gradient(#0b0014,#000);color:#eae6ff;font-family:system-ui;margin:0}
-.card{border:1px solid rgba(124,58,237,.35);background:#0c0618;border-radius:14px;box-shadow:0 0 20px rgba(124,58,237,.18);padding:16px}
-.btn{display:inline-block;background:#120327;border:1px solid rgba(124,58,237,.6);color:#eae6ff;padding:.4rem .7rem;border-radius:.6rem;text-decoration:none}
-.btn:hover{background:#190536}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Profiles — Debug (separate JS)</title>
+  <style>
+    body{font-family:system-ui,Arial;background:#0b0215;color:#eae6ff;margin:0;padding:16px}
+    .container{max-width:980px;margin:0 auto}
+    .card{background:#12051c;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);margin-top:12px}
+    pre.debug{white-space:pre-wrap;background:#060014;color:#d8c8ff;padding:10px;border-radius:8px;overflow:auto;max-height:360px}
+    .empty{padding:28px;text-align:center;color:#bca9e6;border:1px dashed rgba(168,85,247,0.06);border-radius:10px}
+    button.small{padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#eae6ff}
+  </style>
 </head>
 <body>
-<header class="px-4 py-4 bg-[rgba(15,0,30,.9)] border-b border-purple-500/40">
-  <div class="max-w-4xl mx-auto flex items-center justify-between">
-    <a href="index.html" class="btn">← Home</a>
-    <h1 class="text-lg font-bold">PAGE TITLE</h1>
-    <span></span>
+  <div class="container">
+    <h1>Profiles — Debug (separate JS)</h1>
+    <div id="status" class="card">Initializing…</div>
+    <div id="debug" class="card"><strong>Runtime debug</strong><pre id="debugPre" class="debug">starting…</pre>
+      <div style="margin-top:8px"><button id="run" class="small">Run checks</button> <button id="reload" class="small">Reload</button></div>
+    </div>
+    <div id="profilesGrid" class="card"><div class="empty">Waiting to run checks…</div></div>
   </div>
-</header>
 
-<main class="max-w-4xl mx-auto px-4 py-6">
-  <div class="card">
-    <p>This is a placeholder for <b>PAGE TITLE</b>. You can design this later.</p>
-  </div>
-</main>
+  <!-- Link the separate JS files (place these in same directory) -->
+  <script src="./loader.js"></script>
+  <script src="./shim_client.js"></script>
 
-<script src="scripts.js?v=6" defer></script>
+  <script>
+    (function(){
+      const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+      const SUPABASE_KEY = 'REPLACE_WITH_ANON_KEY_IF_AVAILABLE';
+      const debugPre = document.getElementById('debugPre');
+      const status = document.getElementById('status');
+      const profilesGrid = document.getElementById('profilesGrid');
+      const runBtn = document.getElementById('run');
+      const reloadBtn = document.getElementById('reload');
+
+      function log(...parts){
+        const t = new Date().toLocaleTimeString();
+        debugPre.textContent += '\\n['+t+'] ' + parts.map(p => {
+          try { return typeof p === 'string' ? p : JSON.stringify(p); } catch(e){ return String(p); }
+        }).join(' ');
+        debugPre.scrollTop = debugPre.scrollHeight;
+      }
+
+      function setStatus(s){ status.textContent = s; }
+
+      // React to loader events
+      window.addEventListener('supabase-loader:loaded', e => {
+        log('loader: loaded CDN', e.detail);
+      });
+      window.addEventListener('supabase-loader:error', e => {
+        log('loader: error loading CDN', e.detail);
+      });
+      window.addEventListener('supabase-loader:timeout', e => {
+        log('loader: timeout', e.detail);
+      });
+      window.addEventListener('supabase-loader:ready', e => {
+        log('loader: ready', e.detail);
+      });
+
+      async function runChecks(){
+        debugPre.textContent = '';
+        setStatus('Running checks...');
+        log('Check: createClient exists?', typeof window.createClient);
+        log('Check: window.supabase exists?', typeof window.supabase);
+        // try to create client
+        let client = null;
+        try {
+          if (typeof createClient === 'function') {
+            client = createClient(SUPABASE_URL, SUPABASE_KEY);
+            log('createClient invoked, client keys:', Object.keys(client || {}));
+          } else if (window.supabase && typeof window.supabase.createClient === 'function') {
+            client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            log('window.supabase.createClient invoked');
+          } else {
+            log('No createClient or supabase.createClient available, aborting');
+            profilesGrid.innerHTML = '<div class="empty">No client available. Check loader/shim files present.</div>';
+            setStatus('Client init failed');
+            return;
+          }
+        } catch (err) {
+          log('Client init threw', String(err));
+          profilesGrid.innerHTML = '<div class="empty">Client init threw error. See debug panel.</div>';
+          setStatus('Client init error');
+          return;
+        }
+
+        setStatus('Client initialized, running query via client.from().select()...');
+        try {
+          const res = await client.from('profiles_search_view').select('*');
+          log('Client query status:', res.status, 'error:', res.error ? res.error.message : 'none');
+          if (res.error) {
+            profilesGrid.innerHTML = '<div class="empty">Client query error: ' + (res.error.message || JSON.stringify(res.error)) + '</div>';
+            setStatus('Query error');
+          } else if (!Array.isArray(res.data) || res.data.length === 0) {
+            profilesGrid.innerHTML = '<div class="empty">No rows returned (0). If you expect rows, check RLS/anon key.</div>';
+            setStatus('Query complete — 0 rows');
+            log('Data preview:', JSON.stringify(res.data && res.data.slice(0,5) || []));
+          } else {
+            profilesGrid.innerHTML = '<div class="empty">Success: ' + res.data.length + ' rows (showing up to 10)</div>';
+            const list = res.data.slice(0,10).map(p => '<div style="margin-top:8px;padding:8px;border-radius:8px;background:#0b0215"><strong>' + (p.username||p.id) + '</strong><div style="color:#bca9e6">' + (p.bio||'') + '</div></div>').join('');
+            profilesGrid.innerHTML += list;
+            setStatus('Query complete — rows loaded');
+            log('Data sample:', JSON.stringify(res.data.slice(0,5)));
+          }
+        } catch (e) {
+          log('Client query threw', String(e));
+          profilesGrid.innerHTML = '<div class="empty">Client query threw exception. See debug panel.</div>';
+          setStatus('Query exception');
+        }
+      }
+
+      runBtn.addEventListener('click', runChecks);
+      reloadBtn.addEventListener('click', () => location.reload());
+
+      // auto-run after short delay so loader.js has a chance
+      setTimeout(() => runChecks().catch(e => log('runChecks top-level threw', String(e))), 700);
+    })();
+  </script>
 </body>
 </html>
