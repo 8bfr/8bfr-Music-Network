@@ -3,190 +3,171 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Profiles — Debug</title>
+  <title>Site Search</title>
   <style>
-    body{font-family:system-ui,Arial;background:#0b0215;color:#eae6ff;margin:0;padding:16px}
+    :root{--bg:#040014; --card:#12051c; --accent:#a855f7; --muted:#b7a7dc; --text:#f4eeff}
+    body{background:linear-gradient(180deg,#03000a,#070016); color:var(--text); font-family:Inter,system-ui,Arial; margin:0;padding:20px}
     .container{max-width:980px;margin:0 auto}
-    header{display:flex;justify-content:space-between;align-items:center}
-    h1{margin:0;font-size:1.2rem}
-    #profilesGrid{margin-top:12px;display:grid;grid-template-columns:1fr;gap:8px}
-    .card{background:#12051c;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
-    .empty{padding:28px;text-align:center;color:#bca9e6;border:1px dashed rgba(168,85,247,0.06);border-radius:10px}
-    pre.debug{white-space:pre-wrap;background:#060014;color:#d8c8ff;padding:10px;border-radius:8px;overflow:auto;max-height:360px}
-    button.small{padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#eae6ff}
-    .error{background:#4a1328;color:#ffd7e6;padding:8px;border-radius:8px;margin-top:8px}
+    header{display:flex;flex-direction:column; gap:8px; margin-bottom:18px}
+    h1{margin:0;font-size:1.3rem}
+    .search-row{display:flex; gap:8px; align-items:center}
+    input[type="search"]{flex:1;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02); color:var(--text)}
+    button{padding:10px 12px;border-radius:10px;background:linear-gradient(90deg,var(--accent),#7c3aed);border:none;color:#fff;cursor:pointer}
+    .filters{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+    .chip{padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.03);border:1px solid rgba(168,85,247,0.06);cursor:pointer;color:var(--muted)}
+    #searchResults{margin-top:18px}
+    .result-card{background:rgba(255,255,255,0.02);border:1px solid rgba(168,85,247,0.04);padding:12px;border-radius:10px;margin-bottom:10px;display:flex;justify-content:space-between}
+    .result-info{flex:1;margin-left:10px}
+    .result-name{font-weight:700;color:#fff}
+    .result-snippet{color:var(--muted);margin-top:6px}
+    .empty-state{text-align:center;padding:36px;border:1px dashed rgba(168,85,247,0.06); border-radius:12px;color:var(--muted)}
   </style>
-
-  <!-- supabase bundle -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/bundle.js"></script>
 </head>
 <body>
   <div class="container">
     <header>
-      <div>
-        <h1>Profiles — Debug Build</h1>
-        <div><small id="statusLine">Initializing…</small></div>
+      <h1>Search the site</h1>
+      <div class="search-row">
+        <input id="searchInput" type="search" placeholder="Search profiles, songs, posts, pages, content..." />
+        <button id="searchBtn">Search</button>
       </div>
-      <div>
-        <button id="reloadBtn" class="small">Reload</button>
+      <div class="filters" id="sourceFilters" aria-hidden="true">
+        <div class="chip" data-src="all">All</div>
+        <div class="chip" data-src="profiles">Profiles</div>
+        <div class="chip" data-src="songs">Songs</div>
+        <div class="chip" data-src="posts">Posts</div>
+        <div class="chip" data-src="pages">Pages</div>
+        <div class="chip" data-src="content">Content</div>
       </div>
     </header>
 
-    <div id="debugWrap" class="card" style="margin-top:12px">
-      <strong>Runtime debug</strong>
-      <pre id="debugPre" class="debug">Starting checks…</pre>
-      <div style="margin-top:8px">
-        <button id="runChecks" class="small">Run checks</button>
+    <main>
+      <div id="searchResults">
+        <div class="empty-state">
+          <div style="font-size:3rem">🔎</div>
+          <div style="font-weight:700;margin-top:8px">Start typing to search the site</div>
+          <div style="margin-top:6px;color:var(--muted)">Searching profiles, songs, posts, pages and content</div>
+        </div>
       </div>
-    </div>
-
-    <div id="profilesGrid" aria-live="polite">
-      <div class="empty">Loading profiles…</div>
-    </div>
+    </main>
   </div>
 
   <script>
-    (function(){
-      const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
-      const SUPABASE_KEY = 'REPLACE_WITH_ANON_KEY_IF_DIFFERENT'; // set if available
+    const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+    const SUPABASE_KEY = 'REPLACE_WITH_ANON_KEY_IF_DIFFERENT';
+    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-      const debugPre = document.getElementById('debugPre');
-      const statusLine = document.getElementById('statusLine');
-      const profilesGrid = document.getElementById('profilesGrid');
-      const runChecksBtn = document.getElementById('runChecks');
-      const reloadBtn = document.getElementById('reloadBtn');
+    const input = document.getElementById('searchInput');
+    const btn = document.getElementById('searchBtn');
+    const resultsEl = document.getElementById('searchResults');
+    const chips = Array.from(document.querySelectorAll('.chip'));
+    let activeSource = 'all';
 
-      function logDebug(...parts){
-        const time = new Date().toLocaleTimeString();
-        debugPre.textContent += `\n[${time}] ` + parts.map(p => {
-          try { return typeof p === 'string' ? p : JSON.stringify(p); } catch(e){ return String(p); }
-        }).join(' ');
-        debugPre.scrollTop = debugPre.scrollHeight;
-      }
-
-      function setStatus(msg){ statusLine.textContent = msg; }
-
-      // global error capture
-      window.addEventListener('error', (ev) => {
-        logDebug('Uncaught error:', ev.message || ev.error || ev);
-        showUIError('Uncaught JS error: ' + (ev.message || JSON.stringify(ev.error || ev)));
+    chips.forEach(c => {
+      c.addEventListener('click', () => {
+        chips.forEach(x => x.classList.remove('active'));
+        c.classList.add('active');
+        activeSource = c.dataset.src || 'all';
+        // optionally re-run search with filter
+        if (input.value && input.value.trim()) doSiteSearch(input.value.trim());
       });
-      window.addEventListener('unhandledrejection', (ev) => {
-        logDebug('Unhandled rejection:', ev.reason);
-        showUIError('Unhandled promise rejection: ' + JSON.stringify(ev.reason));
-      });
+    });
 
-      function showUIError(msg){
-        let el = document.getElementById('uiError');
-        if (!el) {
-          el = document.createElement('div');
-          el.id = 'uiError';
-          el.className = 'error';
-          document.querySelector('.container').insertBefore(el, document.getElementById('profilesGrid'));
-        }
-        el.textContent = msg;
+    btn.addEventListener('click', () => {
+      const q = input.value.trim();
+      doSiteSearch(q);
+    });
+
+    // support Enter
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        doSiteSearch(input.value.trim());
+      }
+    });
+
+    async function doSiteSearch(q) {
+      if (!q) {
+        renderEmpty();
+        return;
+      }
+      resultsEl.innerHTML = '<div class="empty-state">Searching…</div>';
+      try {
+        const { data, error } = await supabase.rpc('site_search', { q: q, limit_rows: 200 });
+        if (error) throw error;
+        const items = data || [];
+        renderCombinedResults(items);
+      } catch (err) {
+        console.error('Search error', err);
+        resultsEl.innerHTML = `<div class="empty-state">Error: ${escapeHtml(err.message || String(err))}</div>`;
+      }
+    }
+
+    function renderEmpty() {
+      resultsEl.innerHTML = `
+        <div class="empty-state">
+          <div style="font-size:3rem">🔎</div>
+          <div style="font-weight:700;margin-top:8px">Start typing to search the site</div>
+          <div style="margin-top:6px;color:var(--muted)">Searching profiles, songs, posts, pages and content</div>
+        </div>
+      `;
+    }
+
+    function renderCombinedResults(items) {
+      if (!items || items.length === 0) {
+        resultsEl.innerHTML = '<div class="empty-state">No results</div>';
+        return;
       }
 
-      // Try multiple client init strategies and report diagnostics
-      async function runChecks(){
-        debugPre.textContent = '';
-        setStatus('Running checks...');
-        logDebug('Check: CDN presence');
-        logDebug('window.createClient:', typeof window.createClient);
-        logDebug('window.supabase:', typeof window.supabase);
-        logDebug('window._profiles_debug exists?:', !!window._profiles_debug);
-
-        // attempt client init
-        let client = null;
-        try {
-          if (typeof createClient === 'function') {
-            logDebug('Found createClient global — calling createClient(url, key)');
-            client = createClient(SUPABASE_URL, SUPABASE_KEY);
-            logDebug('createClient returned object with keys:', Object.keys(client || {}));
-          } else if (window.supabase && typeof window.supabase.createClient === 'function') {
-            logDebug('Found window.supabase.createClient — using it');
-            client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            logDebug('client keys:', Object.keys(client || {}));
-          } else if (window.supabase && typeof window.supabase === 'object') {
-            logDebug('Found window.supabase object — using as client');
-            client = window.supabase;
-          } else {
-            logDebug('No known supabase global found.');
-          }
-        } catch(err){
-          logDebug('Client init threw:', String(err));
-        }
-
-        if (!client) {
-          setStatus('Client init failed');
-          showUIError('Supabase client could not be initialized. CDN may not have loaded or global names differ.');
-          profilesGrid.innerHTML = '<div class="empty">Error: client init failed — see debug panel above.</div>';
-          return;
-        }
-
-        // expose short debug object
-        window._profiles_debug = { client };
-
-        // Test a simple RPC/refetch via client REST (using from().select)
-        try {
-          setStatus('Querying view via supabase-js client...');
-          logDebug('Querying profiles_search_view via supabase client .from().select(*)');
-          const { data, error, status } = await client.from('profiles_search_view').select('*').limit(50);
-          logDebug('client query returned status:', status, 'error:', error ? (error.message || error) : 'none');
-          if (error) {
-            showUIError('Client query error: ' + (error.message || JSON.stringify(error)));
-            profilesGrid.innerHTML = `<div class="empty">Query error: ${escapeHtml(error.message || JSON.stringify(error))}</div>`;
-          } else if (!Array.isArray(data) || data.length === 0) {
-            profilesGrid.innerHTML = '<div class="empty">No profiles returned (0 rows). If you expect rows, verify RLS/anon key and view contents.</div>';
-            setStatus('Query completed — 0 rows');
-            logDebug('Query data preview:', JSON.stringify(data && data.slice(0,5) || []));
-          } else {
-            profilesGrid.innerHTML = '<div class="card"><strong>Profiles loaded:</strong> ' + data.length + ' rows (showing up to 10)</div>';
-            const list = data.slice(0,10).map(p => `<div class="card"><strong>${escapeHtml(p.username||p.display_name||p.id)}</strong><div style="color:#bca9e6">${escapeHtml((p.bio||'').slice(0,120))}</div></div>`).join('');
-            profilesGrid.innerHTML += list;
-            setStatus('Loaded ' + data.length + ' rows');
-            logDebug('Data sample:', JSON.stringify(data.slice(0,5)));
-          }
-        } catch (e) {
-          logDebug('Client query threw:', String(e));
-          showUIError('Client query threw an exception. See debug panel.');
-          profilesGrid.innerHTML = `<div class="empty">Client query exception: ${escapeHtml(String(e))}</div>`;
-        }
-
-        // Also try a direct fetch to the REST endpoint (useful if supabase client can't authenticate)
-        try {
-          setStatus('Fetching REST endpoint directly...');
-          const headers = { Accept: 'application/json' };
-          if (SUPABASE_KEY && SUPABASE_KEY !== 'REPLACE_WITH_ANON_KEY_IF_DIFFERENT') headers['apikey'] = SUPABASE_KEY;
-          const url = SUPABASE_URL + '/rest/v1/profiles_search_view?select=*';
-          logDebug('Direct fetch to', url, 'headers:', Object.keys(headers));
-          const r = await fetch(url, { method:'GET', headers });
-          const text = await r.text();
-          logDebug('REST fetch status:', r.status, 'bodyPreview:', text.slice(0,1000));
-          if (r.status === 200) {
-            setStatus('REST fetch succeeded');
-            logDebug('REST body length', text.length);
-          } else {
-            setStatus('REST fetch returned ' + r.status);
-            showUIError('REST fetch status ' + r.status + '. Check anon key and CORS / RLS settings.');
-          }
-        } catch (e) {
-          logDebug('REST fetch threw:', String(e));
-          showUIError('REST fetch failed: ' + String(e));
-        }
-
-        setStatus('Checks complete');
+      // Apply source filter if required
+      let filtered = items;
+      if (activeSource && activeSource !== 'all') {
+        filtered = items.filter(it => it.source === activeSource);
       }
 
-      // utilities
-      function escapeHtml(s){ if (!s) return ''; return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;'); }
+      if (filtered.length === 0) {
+        resultsEl.innerHTML = '<div class="empty-state">No results for selected source</div>';
+        return;
+      }
 
-      runChecksBtn.addEventListener('click', runChecks);
-      reloadBtn.addEventListener('click', () => location.reload());
+      const labelMap = { profiles: 'Profiles', songs: 'Songs', posts: 'Posts', pages: 'Pages', content: 'Content' };
+      const iconMap = { profiles: '👤', songs: '🎵', posts: '📝', pages: '📄', content: '📚' };
 
-      // run checks automatically once on load after a short delay so the CDN has time to load
-      setTimeout(() => runChecks().catch(e => logDebug('runChecks top-level thrown:', String(e))), 400);
-    })();
+      // Build HTML
+      const html = filtered.map(it => {
+        const title = escapeHtml(it.title || (it.source === 'profiles' ? 'Profile' : it.source));
+        const snippet = escapeHtml((it.snippet || '').toString()).replace(/\n/g, ' ');
+        const created = it.created_at ? new Date(it.created_at).toLocaleString() : '';
+        let href = '#';
+        if (it.source === 'profiles') href = `profile.html?id=${encodeURIComponent(it.id)}`;
+        else if (it.source === 'songs') href = `song.html?id=${encodeURIComponent(it.id)}`;
+        else if (it.source === 'posts') href = `post.html?id=${encodeURIComponent(it.id)}`;
+        else if (it.source === 'pages') href = `page.html?id=${encodeURIComponent(it.id)}`;
+        else if (it.source === 'content') href = `content.html?id=${encodeURIComponent(it.id)}`;
+
+        return `
+          <div class="result-card">
+            <div style="display:flex;align-items:center">
+              <div style="font-size:22px">${iconMap[it.source] || '📌'}</div>
+              <div class="result-info">
+                <div class="result-name"><a href="${href}" style="color:inherit;text-decoration:none">${title}</a> <small style="color:var(--muted);font-weight:600;margin-left:8px">${labelMap[it.source] || it.source}</small></div>
+                <div class="result-snippet">${snippet}</div>
+              </div>
+            </div>
+            <div style="text-align:right;min-width:120px;color:var(--muted);font-size:12px">${created}</div>
+          </div>
+        `;
+      }).join('');
+      resultsEl.innerHTML = html;
+    }
+
+    function escapeHtml(s) {
+      if (!s) return '';
+      return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
+    }
+
+    // initial state
+    renderEmpty();
   </script>
 </body>
 </html>
