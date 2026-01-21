@@ -206,19 +206,6 @@
     color: #a855f7;
     opacity: 0.7;
   }
-  
-  .debug-info {
-    position: fixed;
-    bottom: 10px;
-    right: 10px;
-    background: rgba(0,0,0,0.9);
-    color: #0f0;
-    padding: 10px;
-    border-radius: 8px;
-    font-size: 12px;
-    z-index: 9999;
-    max-width: 300px;
-  }
 </style>
 </head>
 <body>
@@ -250,20 +237,19 @@
     <button class="filter-tab" data-filter="beatmaker">🎚️ Beatmakers</button>
     <button class="filter-tab" data-filter="producer">🎧 Producers</button>
     <button class="filter-tab" data-filter="verified">🛡️ Verified</button>
+    <button class="filter-tab" data-filter="founder">⚡ Founders</button>
   </div>
   
   <div id="searchResults">
     <div class="empty-state">
       <div style="font-size: 4rem; margin-bottom: 1rem;">🔍</div>
       <div style="font-size: 1.2rem; font-weight: 600; margin-bottom: 0.5rem;">
-        Loading profiles...
+        Loading...
       </div>
     </div>
   </div>
   
 </main>
-
-<div id="debugInfo" class="debug-info" style="display:none;"></div>
 
 <script src="scripts.js" defer></script>
 
@@ -275,55 +261,16 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let allProfiles = [];
 let currentFilter = 'all';
 
-function debug(msg) {
-  const d = document.getElementById('debugInfo');
-  d.style.display = 'block';
-  d.innerHTML += msg + '<br>';
-}
-
-async function getAllProfiles() {
-  debug('Loading profiles from Supabase...');
-  
-  // EXACT SAME QUERY AS OWNER PANEL
-  const { data: users, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+async function loadProfiles() {
+  const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
   
   if (error) {
-    debug('ERROR: ' + error.message);
-    alert('Database error: ' + error.message);
-    return [];
+    alert('Error: ' + error.message);
+    return;
   }
   
-  debug('Loaded ' + (users?.length || 0) + ' profiles');
-  
-  if (!users || users.length === 0) {
-    debug('NO PROFILES IN DATABASE!');
-    alert('No profiles found in database. Check owner panel - do users exist there?');
-    return [];
-  }
-  
-  // Show first profile for debugging
-  debug('First profile: ' + JSON.stringify(users[0]));
-  
-  // Convert to search format
-  const profiles = users.map(p => {
-    const rolesOrdered = p.roles_ordered || [];
-    const tags = p.tags || [];
-    const badges = [...new Set([...rolesOrdered, ...tags])];
-    
-    return {
-      key: 'profile_' + p.user_id,
-      id: p.user_id,
-      name: p.username || p.display_name || 'Unknown',
-      emoji: rolesOrdered[0] === 'artist' ? '🎤' : rolesOrdered[0] === 'beatmaker' ? '🎚️' : '👤',
-      bio: p.bio || '',
-      badges: badges,
-      verified: p.verified_artist || false,
-      user_id: p.user_id
-    };
-  });
-  
-  debug('Converted ' + profiles.length + ' profiles');
-  return profiles;
+  allProfiles = data || [];
+  performSearch();
 }
 
 function performSearch() {
@@ -331,30 +278,23 @@ function performSearch() {
   
   let filtered = allProfiles;
   
-  debug('Filter: ' + currentFilter + ', Query: "' + query + '"');
-  
-  // Apply filter (SAME as localStorage version)
-  if (currentFilter === 'artist') {
-    filtered = allProfiles.filter(p => p.badges && p.badges.includes('artist'));
-  } else if (currentFilter === 'beatmaker') {
-    filtered = allProfiles.filter(p => p.badges && p.badges.includes('beatmaker'));
-  } else if (currentFilter === 'producer') {
-    filtered = allProfiles.filter(p => p.badges && p.badges.includes('producer'));
-  } else if (currentFilter === 'verified') {
-    filtered = allProfiles.filter(p => p.verified === true);
+  // Apply filter
+  if (currentFilter === 'verified') {
+    filtered = allProfiles.filter(p => p.verified_artist);
+  } else if (currentFilter !== 'all') {
+    filtered = allProfiles.filter(p => {
+      const roles = p.roles_ordered || p.tags || [];
+      return roles.includes(currentFilter);
+    });
   }
   
-  debug('After filter: ' + filtered.length + ' profiles');
-  
-  // Apply search query (SAME as localStorage version)
+  // Apply search
   if (query) {
     filtered = filtered.filter(p => {
-      const nameMatch = p.name.toLowerCase().includes(query);
-      const bioMatch = p.bio && p.bio.toLowerCase().includes(query);
-      
-      return nameMatch || bioMatch;
+      const username = (p.username || '').toLowerCase();
+      const bio = (p.bio || '').toLowerCase();
+      return username.includes(query) || bio.includes(query);
     });
-    debug('After search: ' + filtered.length + ' profiles');
   }
   
   renderResults(filtered);
@@ -371,7 +311,6 @@ function renderResults(results) {
           No results found
         </div>
         <div style="font-size: 0.9rem;">
-          Total profiles loaded: ${allProfiles.length}<br>
           Try a different search term or filter
         </div>
       </div>
@@ -379,42 +318,37 @@ function renderResults(results) {
     return;
   }
   
-  // SAME rendering as localStorage version
-  const resultsHTML = results.map(profile => {
-    let badgesHTML = '';
-    if (profile.badges && profile.badges.length > 0) {
-      badgesHTML = profile.badges.map(badge => {
-        const badgeClass = badge === 'founder' ? 'founder' : '';
-        const badgeEmoji = {
-          'artist': '🎤',
-          'beatmaker': '🎚️',
-          'verified': '✓',
-          'founder': '👑',
-          'songwriter': '✍️',
-          'producer': '🎧'
-        }[badge] || '';
-        
-        return `<span class="badge ${badgeClass}">${badgeEmoji} ${badge.toUpperCase()}</span>`;
-      }).join('');
-    }
+  const badgeIcons = {
+    'artist': '🎤', 'beatmaker': '🎚️', 'producer': '🎧', 'verified': '✓',
+    'founder': '👑', 'owner': '👑', 'admin': '⚙️', 'mod': '💬'
+  };
+  
+  resultsEl.innerHTML = results.map(p => {
+    const roles = p.roles_ordered || p.tags || [];
+    const primaryRole = roles[0] || 'user';
+    
+    const badgesHTML = roles.slice(0, 5).map(role => {
+      const css = role === 'founder' ? 'founder' : '';
+      return `<span class="badge ${css}">${badgeIcons[role] || ''} ${role.toUpperCase()}</span>`;
+    }).join('');
     
     return `
       <div class="result-card">
         <div class="result-header">
-          <div class="result-avatar">${profile.emoji || '🎵'}</div>
+          <div class="result-avatar">${badgeIcons[primaryRole] || '🎵'}</div>
           <div class="result-info">
             <div class="result-name">
-              ${profile.name}
-              ${profile.verified ? '<span class="verified-badge">✓</span>' : ''}
+              ${p.username || 'Unknown'}
+              ${p.verified_artist ? '<span class="verified-badge">✓</span>' : ''}
             </div>
             ${badgesHTML ? `<div class="result-badges">${badgesHTML}</div>` : ''}
           </div>
         </div>
         
-        ${profile.bio ? `<div class="result-bio">${profile.bio}</div>` : ''}
+        ${p.bio ? `<div class="result-bio">${p.bio}</div>` : ''}
         
         <div class="result-actions">
-          <a href="profile.html?id=${profile.user_id}" class="action-btn view-btn">
+          <a href="profile.html?id=${p.user_id}" class="action-btn view-btn">
             👤 View Profile
           </a>
           <button class="action-btn follow-btn" onclick="alert('✅ Following!')">
@@ -424,14 +358,10 @@ function renderResults(results) {
       </div>
     `;
   }).join('');
-  
-  resultsEl.innerHTML = resultsHTML;
 }
 
-// Search input listener
 document.getElementById('searchInput').addEventListener('input', performSearch);
 
-// Filter tabs
 document.querySelectorAll('.filter-tab').forEach(tab => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
@@ -441,13 +371,7 @@ document.querySelectorAll('.filter-tab').forEach(tab => {
   });
 });
 
-// Initialize
-async function init() {
-  allProfiles = await getAllProfiles();
-  performSearch();
-}
-
-init();
+loadProfiles();
 
 window.addEventListener("load", function(){
   setTimeout(function(){
@@ -470,4 +394,4 @@ window.addEventListener("load", function(){
 
 </body>
 </html>
- 
+   
