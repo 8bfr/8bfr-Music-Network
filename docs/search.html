@@ -1,397 +1,173 @@
-
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Search — 8BFR Music Network</title>
-<link rel="icon" href="assets/images/favicon.png" />
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.tailwindcss.com"></script>
-<style>
-  * { box-sizing: border-box; }
-  body {
-    background: linear-gradient(#0b0014, #000);
-    color: #eae6ff;
-    font-family: system-ui, -apple-system, sans-serif;
-    margin: 0;
-    padding: 0;
-  }
-  
-  .header {
-    background: rgba(15, 0, 30, 0.95);
-    border-bottom: 1px solid rgba(124, 58, 237, 0.5);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    backdrop-filter: blur(12px);
-  }
-  
-  .search-container {
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 2rem 1rem;
-  }
-  
-  .search-box {
-    position: relative;
-    margin-bottom: 2rem;
-  }
-  
-  .search-input {
-    width: 100%;
-    padding: 1rem 1rem 1rem 3rem;
-    background: rgba(18, 3, 39, 0.8);
-    border: 1px solid rgba(124, 58, 237, 0.4);
-    border-radius: 12px;
-    color: #fff;
-    font-size: 1rem;
-    transition: all 0.2s;
-  }
-  
-  .search-input:focus {
-    outline: none;
-    border-color: #a855f7;
-    box-shadow: 0 0 20px rgba(124, 58, 237, 0.3);
-  }
-  
-  .search-icon {
-    position: absolute;
-    left: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 1.2rem;
-    color: #a855f7;
-  }
-  
-  .filter-tabs {
-    display: flex;
-    gap: 0.5rem;
-    margin-bottom: 2rem;
-    flex-wrap: wrap;
-  }
-  
-  .filter-tab {
-    padding: 0.6rem 1.2rem;
-    background: rgba(124, 58, 237, 0.1);
-    border: 1px solid rgba(124, 58, 237, 0.3);
-    border-radius: 20px;
-    color: #a855f7;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 0.9rem;
-  }
-  
-  .filter-tab:hover,
-  .filter-tab.active {
-    background: rgba(124, 58, 237, 0.3);
-    border-color: #a855f7;
-  }
-  
-  .result-card {
-    background: rgba(12, 6, 24, 0.8);
-    border: 1px solid rgba(124, 58, 237, 0.35);
-    border-radius: 14px;
-    padding: 1.25rem;
-    margin-bottom: 1rem;
-    transition: all 0.3s;
-  }
-  
-  .result-card:hover {
-    border-color: rgba(168, 85, 247, 0.6);
-    box-shadow: 0 8px 32px rgba(124, 58, 237, 0.3);
-  }
-  
-  .result-header {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 1rem;
-  }
-  
-  .result-avatar {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #7c3aed, #a855f7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 2rem;
-    flex-shrink: 0;
-  }
-  
-  .result-info {
-    flex: 1;
-    min-width: 0;
-  }
-  
-  .result-name {
-    font-size: 1.1rem;
-    font-weight: 700;
-    margin-bottom: 0.3rem;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-  
-  .verified-badge {
-    color: #00d9ff;
-    font-size: 1rem;
-  }
-  
-  .result-badges {
-    display: flex;
-    gap: 0.4rem;
-    flex-wrap: wrap;
-  }
-  
-  .badge {
-    padding: 0.25rem 0.6rem;
-    border-radius: 20px;
-    font-size: 0.7rem;
-    font-weight: 600;
-    background: rgba(124, 58, 237, 0.2);
-    border: 1px solid rgba(124, 58, 237, 0.4);
-    color: #a855f7;
-  }
-  
-  .badge.founder {
-    background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.2));
-    border-color: rgba(245, 158, 11, 0.5);
-    color: #f59e0b;
-  }
-  
-  .result-bio {
-    font-size: 0.9rem;
-    color: #a855f7;
-    opacity: 0.8;
-    margin-bottom: 1rem;
-    line-height: 1.5;
-  }
-  
-  .result-actions {
-    display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-  }
-  
-  .action-btn {
-    padding: 0.6rem 1.25rem;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 0.85rem;
-    text-decoration: none;
-    display: inline-block;
-  }
-  
-  .view-btn {
-    background: linear-gradient(135deg, #7c3aed, #a855f7);
-    border: none;
-    color: white;
-  }
-  
-  .follow-btn {
-    background: rgba(124, 58, 237, 0.2);
-    border: 1px solid rgba(124, 58, 237, 0.5);
-    color: #a855f7;
-  }
-  
-  .empty-state {
-    text-align: center;
-    padding: 4rem 2rem;
-    color: #a855f7;
-    opacity: 0.7;
-  }
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Site Search</title>
+  <style>
+    :root{--bg:#040014; --card:#12051c; --accent:#a855f7; --muted:#b7a7dc; --text:#f4eeff}
+    body{background:linear-gradient(180deg,#03000a,#070016); color:var(--text); font-family:Inter,system-ui,Arial; margin:0;padding:20px}
+    .container{max-width:980px;margin:0 auto}
+    header{display:flex;flex-direction:column; gap:8px; margin-bottom:18px}
+    h1{margin:0;font-size:1.3rem}
+    .search-row{display:flex; gap:8px; align-items:center}
+    input[type="search"]{flex:1;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02); color:var(--text)}
+    button{padding:10px 12px;border-radius:10px;background:linear-gradient(90deg,var(--accent),#7c3aed);border:none;color:#fff;cursor:pointer}
+    .filters{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+    .chip{padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.03);border:1px solid rgba(168,85,247,0.06);cursor:pointer;color:var(--muted)}
+    #searchResults{margin-top:18px}
+    .result-card{background:rgba(255,255,255,0.02);border:1px solid rgba(168,85,247,0.04);padding:12px;border-radius:10px;margin-bottom:10px;display:flex;justify-content:space-between}
+    .result-info{flex:1;margin-left:10px}
+    .result-name{font-weight:700;color:#fff}
+    .result-snippet{color:var(--muted);margin-top:6px}
+    .empty-state{text-align:center;padding:36px;border:1px dashed rgba(168,85,247,0.06); border-radius:12px;color:var(--muted)}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/bundle.js"></script>
 </head>
 <body>
-
-<header class="header">
-  <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-    <a href="index.html" style="color: #a855f7; text-decoration: none; font-weight: 600;">← Home</a>
-    <h1 style="font-size: 1.25rem; font-weight: 800;">🔍 Search</h1>
-    <div style="width: 80px;"></div>
-  </div>
-</header>
-
-<main class="search-container">
-  
-  <div class="search-box">
-    <span class="search-icon">🔍</span>
-    <input 
-      type="text" 
-      class="search-input" 
-      id="searchInput" 
-      placeholder="Search artists, beatmakers, producers..."
-      autocomplete="off"
-    >
-  </div>
-  
-  <div class="filter-tabs">
-    <button class="filter-tab active" data-filter="all">All</button>
-    <button class="filter-tab" data-filter="artist">🎤 Artists</button>
-    <button class="filter-tab" data-filter="beatmaker">🎚️ Beatmakers</button>
-    <button class="filter-tab" data-filter="producer">🎧 Producers</button>
-    <button class="filter-tab" data-filter="verified">🛡️ Verified</button>
-    <button class="filter-tab" data-filter="founder">⚡ Founders</button>
-  </div>
-  
-  <div id="searchResults">
-    <div class="empty-state">
-      <div style="font-size: 4rem; margin-bottom: 1rem;">🔍</div>
-      <div style="font-size: 1.2rem; font-weight: 600; margin-bottom: 0.5rem;">
-        Loading...
+  <div class="container">
+    <header>
+      <h1>Search the site</h1>
+      <div class="search-row">
+        <input id="searchInput" type="search" placeholder="Search profiles, songs, posts, pages, content..." />
+        <button id="searchBtn">Search</button>
       </div>
-    </div>
-  </div>
-  
-</main>
+      <div class="filters" id="sourceFilters" aria-hidden="true">
+        <div class="chip" data-src="all">All</div>
+        <div class="chip" data-src="profiles">Profiles</div>
+        <div class="chip" data-src="songs">Songs</div>
+        <div class="chip" data-src="posts">Posts</div>
+        <div class="chip" data-src="pages">Pages</div>
+        <div class="chip" data-src="content">Content</div>
+      </div>
+    </header>
 
-<script src="scripts.js" defer></script>
-
-<script>
-const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-let allProfiles = [];
-let currentFilter = 'all';
-
-async function loadProfiles() {
-  const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
-  
-  if (error) {
-    alert('Error: ' + error.message);
-    return;
-  }
-  
-  allProfiles = data || [];
-  performSearch();
-}
-
-function performSearch() {
-  const query = document.getElementById('searchInput').value.toLowerCase().trim();
-  
-  let filtered = allProfiles;
-  
-  // Apply filter
-  if (currentFilter === 'verified') {
-    filtered = allProfiles.filter(p => p.verified_artist);
-  } else if (currentFilter !== 'all') {
-    filtered = allProfiles.filter(p => {
-      const roles = p.roles_ordered || p.tags || [];
-      return roles.includes(currentFilter);
-    });
-  }
-  
-  // Apply search
-  if (query) {
-    filtered = filtered.filter(p => {
-      const username = (p.username || '').toLowerCase();
-      const bio = (p.bio || '').toLowerCase();
-      return username.includes(query) || bio.includes(query);
-    });
-  }
-  
-  renderResults(filtered);
-}
-
-function renderResults(results) {
-  const resultsEl = document.getElementById('searchResults');
-  
-  if (results.length === 0) {
-    resultsEl.innerHTML = `
-      <div class="empty-state">
-        <div style="font-size: 4rem; margin-bottom: 1rem;">😔</div>
-        <div style="font-size: 1.2rem; font-weight: 600; margin-bottom: 0.5rem;">
-          No results found
-        </div>
-        <div style="font-size: 0.9rem;">
-          Try a different search term or filter
+    <main>
+      <div id="searchResults">
+        <div class="empty-state">
+          <div style="font-size:3rem">🔎</div>
+          <div style="font-weight:700;margin-top:8px">Start typing to search the site</div>
+          <div style="margin-top:6px;color:var(--muted)">Searching profiles, songs, posts, pages and content</div>
         </div>
       </div>
-    `;
-    return;
-  }
-  
-  const badgeIcons = {
-    'artist': '🎤', 'beatmaker': '🎚️', 'producer': '🎧', 'verified': '✓',
-    'founder': '👑', 'owner': '👑', 'admin': '⚙️', 'mod': '💬'
-  };
-  
-  resultsEl.innerHTML = results.map(p => {
-    const roles = p.roles_ordered || p.tags || [];
-    const primaryRole = roles[0] || 'user';
-    
-    const badgesHTML = roles.slice(0, 5).map(role => {
-      const css = role === 'founder' ? 'founder' : '';
-      return `<span class="badge ${css}">${badgeIcons[role] || ''} ${role.toUpperCase()}</span>`;
-    }).join('');
-    
-    return `
-      <div class="result-card">
-        <div class="result-header">
-          <div class="result-avatar">${badgeIcons[primaryRole] || '🎵'}</div>
-          <div class="result-info">
-            <div class="result-name">
-              ${p.username || 'Unknown'}
-              ${p.verified_artist ? '<span class="verified-badge">✓</span>' : ''}
+    </main>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+    const SUPABASE_KEY = 'REPLACE_WITH_ANON_KEY_IF_DIFFERENT';
+    const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const input = document.getElementById('searchInput');
+    const btn = document.getElementById('searchBtn');
+    const resultsEl = document.getElementById('searchResults');
+    const chips = Array.from(document.querySelectorAll('.chip'));
+    let activeSource = 'all';
+
+    chips.forEach(c => {
+      c.addEventListener('click', () => {
+        chips.forEach(x => x.classList.remove('active'));
+        c.classList.add('active');
+        activeSource = c.dataset.src || 'all';
+        // optionally re-run search with filter
+        if (input.value && input.value.trim()) doSiteSearch(input.value.trim());
+      });
+    });
+
+    btn.addEventListener('click', () => {
+      const q = input.value.trim();
+      doSiteSearch(q);
+    });
+
+    // support Enter
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        doSiteSearch(input.value.trim());
+      }
+    });
+
+    async function doSiteSearch(q) {
+      if (!q) {
+        renderEmpty();
+        return;
+      }
+      resultsEl.innerHTML = '<div class="empty-state">Searching…</div>';
+      try {
+        const { data, error } = await supabase.rpc('site_search', { q: q, limit_rows: 200 });
+        if (error) throw error;
+        const items = data || [];
+        renderCombinedResults(items);
+      } catch (err) {
+        console.error('Search error', err);
+        resultsEl.innerHTML = `<div class="empty-state">Error: ${escapeHtml(err.message || String(err))}</div>`;
+      }
+    }
+
+    function renderEmpty() {
+      resultsEl.innerHTML = `
+        <div class="empty-state">
+          <div style="font-size:3rem">🔎</div>
+          <div style="font-weight:700;margin-top:8px">Start typing to search the site</div>
+          <div style="margin-top:6px;color:var(--muted)">Searching profiles, songs, posts, pages and content</div>
+        </div>
+      `;
+    }
+
+    function renderCombinedResults(items) {
+      if (!items || items.length === 0) {
+        resultsEl.innerHTML = '<div class="empty-state">No results</div>';
+        return;
+      }
+
+      // Apply source filter if required
+      let filtered = items;
+      if (activeSource && activeSource !== 'all') {
+        filtered = items.filter(it => it.source === activeSource);
+      }
+
+      if (filtered.length === 0) {
+        resultsEl.innerHTML = '<div class="empty-state">No results for selected source</div>';
+        return;
+      }
+
+      const labelMap = { profiles: 'Profiles', songs: 'Songs', posts: 'Posts', pages: 'Pages', content: 'Content' };
+      const iconMap = { profiles: '👤', songs: '🎵', posts: '📝', pages: '📄', content: '📚' };
+
+      // Build HTML
+      const html = filtered.map(it => {
+        const title = escapeHtml(it.title || (it.source === 'profiles' ? 'Profile' : it.source));
+        const snippet = escapeHtml((it.snippet || '').toString()).replace(/\n/g, ' ');
+        const created = it.created_at ? new Date(it.created_at).toLocaleString() : '';
+        let href = '#';
+        if (it.source === 'profiles') href = `profile.html?id=${encodeURIComponent(it.id)}`;
+        else if (it.source === 'songs') href = `song.html?id=${encodeURIComponent(it.id)}`;
+        else if (it.source === 'posts') href = `post.html?id=${encodeURIComponent(it.id)}`;
+        else if (it.source === 'pages') href = `page.html?id=${encodeURIComponent(it.id)}`;
+        else if (it.source === 'content') href = `content.html?id=${encodeURIComponent(it.id)}`;
+
+        return `
+          <div class="result-card">
+            <div style="display:flex;align-items:center">
+              <div style="font-size:22px">${iconMap[it.source] || '📌'}</div>
+              <div class="result-info">
+                <div class="result-name"><a href="${href}" style="color:inherit;text-decoration:none">${title}</a> <small style="color:var(--muted);font-weight:600;margin-left:8px">${labelMap[it.source] || it.source}</small></div>
+                <div class="result-snippet">${snippet}</div>
+              </div>
             </div>
-            ${badgesHTML ? `<div class="result-badges">${badgesHTML}</div>` : ''}
+            <div style="text-align:right;min-width:120px;color:var(--muted);font-size:12px">${created}</div>
           </div>
-        </div>
-        
-        ${p.bio ? `<div class="result-bio">${p.bio}</div>` : ''}
-        
-        <div class="result-actions">
-          <a href="profile.html?id=${p.user_id}" class="action-btn view-btn">
-            👤 View Profile
-          </a>
-          <button class="action-btn follow-btn" onclick="alert('✅ Following!')">
-            Follow
-          </button>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
+        `;
+      }).join('');
+      resultsEl.innerHTML = html;
+    }
 
-document.getElementById('searchInput').addEventListener('input', performSearch);
+    function escapeHtml(s) {
+      if (!s) return '';
+      return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
+    }
 
-document.querySelectorAll('.filter-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-    currentFilter = tab.dataset.filter;
-    performSearch();
-  });
-});
-
-loadProfiles();
-
-window.addEventListener("load", function(){
-  setTimeout(function(){
-    const idsToHide = ['bubbleStack', 'bubble-top-single', 'carrieWrap', 'carrieBubble', 'carrieToggleBar'];
-    idsToHide.forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.style.display = 'none';
-    });
-    
-    const classesToHide = ['.bubble-stack', '.floating-bubbles', '.carrie-bubble', '.bubble-container'];
-    classesToHide.forEach(cls => {
-      document.querySelectorAll(cls).forEach(el => el.style.display = 'none');
-    });
-    
-    document.querySelectorAll('[data-bubble]').forEach(el => el.style.display = 'none');
-    document.querySelectorAll('[data-role="carrie"], [data-carrie]').forEach(el => el.style.display = 'none');
-  }, 300);
-});
-</script>
-
+    // initial state
+    renderEmpty();
+  </script>
 </body>
 </html>
-   
