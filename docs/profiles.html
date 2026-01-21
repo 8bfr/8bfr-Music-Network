@@ -3,298 +3,189 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Profiles — Directory (Debug)</title>
+  <title>Profiles — Debug</title>
   <style>
-    :root{
-      --bg:#0b0215; --card:#12051c; --muted:#9b89b8; --accent:#a855f7; --text:#eae6ff;
-    }
-    body{background:linear-gradient(180deg,#05010a, #0b0215); color:var(--text); font-family:Inter,system-ui,Arial; margin:0; padding:24px;}
-    .container{max-width:1100px;margin:0 auto;}
-    header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
-    h1{font-size:1.4rem;margin:0}
-    .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
-    .filter-btn{background:transparent;border:1px solid rgba(168,85,247,0.14);color:var(--muted);padding:8px 12px;border-radius:999px;cursor:pointer;font-weight:600}
-    .filter-btn.active{background:linear-gradient(90deg,#a855f7, #7c3aed); color:#fff; border-color:transparent}
-    #profileCount{color:var(--muted); font-size:0.95rem}
-    #profilesGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-top:12px}
-    .profile-card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(168,85,247,0.07); padding:12px;border-radius:12px; cursor:pointer; transition:transform .12s}
-    .profile-card:hover{transform:translateY(-4px)}
-    .profile-avatar{width:48px;height:48px;border-radius:10px;background:#2b0636;display:inline-flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:6px}
-    .badge{display:inline-block;padding:4px 8px;border-radius:8px;background:rgba(168,85,247,0.08);color:var(--accent);font-size:12px;margin-right:6px;margin-top:6px}
-    .founder{background:linear-gradient(90deg,#f59e0b33,#ef444433);color:#ffedd5}
-    .empty-state{text-align:center;padding:48px 12px;color:var(--muted);border:1px dashed rgba(168,85,247,0.06); border-radius:12px}
-    .search-inline{display:flex;gap:8px;align-items:center}
-    input[type="search"]{padding:8px 12px;border-radius:999px;border:1px solid rgba(255,255,255,0.04);background:rgba(255,255,255,0.02);color:var(--text);outline:none}
-    .error-banner{background:#43162f;color:#ffd7e6;padding:8px 12px;border-radius:8px;margin-bottom:12px;border:1px solid rgba(255,255,255,0.03)}
-    small{color:var(--muted)}
+    body{font-family:system-ui,Arial;background:#0b0215;color:#eae6ff;margin:0;padding:16px}
+    .container{max-width:980px;margin:0 auto}
+    header{display:flex;justify-content:space-between;align-items:center}
+    h1{margin:0;font-size:1.2rem}
+    #profilesGrid{margin-top:12px;display:grid;grid-template-columns:1fr;gap:8px}
+    .card{background:#12051c;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
+    .empty{padding:28px;text-align:center;color:#bca9e6;border:1px dashed rgba(168,85,247,0.06);border-radius:10px}
+    pre.debug{white-space:pre-wrap;background:#060014;color:#d8c8ff;padding:10px;border-radius:8px;overflow:auto;max-height:360px}
+    button.small{padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#eae6ff}
+    .error{background:#4a1328;color:#ffd7e6;padding:8px;border-radius:8px;margin-top:8px}
   </style>
 
-  <!-- Official supabase-js bundle -->
+  <!-- supabase bundle -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/bundle.js"></script>
 </head>
 <body>
   <div class="container">
     <header>
       <div>
-        <h1>Profiles</h1>
-        <div id="profileCount"><small>Loading...</small></div>
+        <h1>Profiles — Debug Build</h1>
+        <div><small id="statusLine">Initializing…</small></div>
       </div>
-      <div class="search-inline">
-        <input id="profilesSearchInput" type="search" placeholder="Search usernames or bio..." />
+      <div>
+        <button id="reloadBtn" class="small">Reload</button>
       </div>
     </header>
 
-    <div id="debugArea" aria-live="polite" style="min-height:0;"></div>
-
-    <div class="filters" id="filtersContainer" aria-hidden="false">
-      <!-- category buttons injected here -->
+    <div id="debugWrap" class="card" style="margin-top:12px">
+      <strong>Runtime debug</strong>
+      <pre id="debugPre" class="debug">Starting checks…</pre>
+      <div style="margin-top:8px">
+        <button id="runChecks" class="small">Run checks</button>
+      </div>
     </div>
 
-    <main>
-      <div id="profilesGrid" aria-live="polite">
-        <div class="empty-state">Loading profiles…</div>
-      </div>
-    </main>
+    <div id="profilesGrid" aria-live="polite">
+      <div class="empty">Loading profiles…</div>
+    </div>
   </div>
 
   <script>
     (function(){
-      // CONFIG - update if necessary
       const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
-      const SUPABASE_KEY = 'REPLACE_WITH_ANON_KEY_IF_DIFFERENT'; // replace if not provided by your app
+      const SUPABASE_KEY = 'REPLACE_WITH_ANON_KEY_IF_DIFFERENT'; // set if available
 
-      // Safe client init: support bundle exposing global names
-      let supabaseClient = null;
-      try {
-        // Common globals exposed by the bundle:
-        // - createClient (named function)
-        // - supabase (sometimes present as a pre-initialized client)
-        if (typeof createClient === 'function') {
-          supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
-        } else if (typeof supabase === 'object' && supabase !== null && typeof supabase instanceof Object) {
-          // If the page already includes a supabase client under `supabase`, reuse it.
-          supabaseClient = (typeof supabase.createClient === 'function')
-            ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
-            : supabase;
-        } else {
-          // try the namespaced global used in some bundles
-          if (window.supabase) supabaseClient = window.supabase;
-        }
-      } catch (e) {
-        console.error('Client init error:', e);
-      }
-
-      // Defensive fallback
-      if (!supabaseClient) {
-        console.error('Supabase client not available. Check the CDN script or init code.');
-        showErrorBanner('Supabase client initialization failed. Open the browser console for details.');
-        setProfilesGridError('Client initialization failed.');
-        return;
-      }
-
-      // expose client locally
-      const supabase = supabaseClient;
-
-      // UI state
-      let allProfiles = [];
-      let categories = ['all'];
-      let currentCategory = 'all';
-
-      // DOM refs
+      const debugPre = document.getElementById('debugPre');
+      const statusLine = document.getElementById('statusLine');
       const profilesGrid = document.getElementById('profilesGrid');
-      const filtersContainer = document.getElementById('filtersContainer');
-      const profileCount = document.getElementById('profileCount');
-      const debugArea = document.getElementById('debugArea');
-      const searchInput = document.getElementById('profilesSearchInput');
+      const runChecksBtn = document.getElementById('runChecks');
+      const reloadBtn = document.getElementById('reloadBtn');
 
-      // Utility: show debug/error banner
-      function showErrorBanner(msg) {
-        debugArea.innerHTML = '<div class="error-banner" id="errorBanner">'+escapeHtml(msg)+'</div>';
-      }
-      function clearErrorBanner() { debugArea.innerHTML = ''; }
-
-      function setProfilesGridError(msg){
-        profilesGrid.innerHTML = `<div class="empty-state">Error: ${escapeHtml(msg)}</div>`;
-        profileCount.innerHTML = `<small>Error</small>`;
+      function logDebug(...parts){
+        const time = new Date().toLocaleTimeString();
+        debugPre.textContent += `\n[${time}] ` + parts.map(p => {
+          try { return typeof p === 'string' ? p : JSON.stringify(p); } catch(e){ return String(p); }
+        }).join(' ');
+        debugPre.scrollTop = debugPre.scrollHeight;
       }
 
-      // Escape HTML to avoid XSS
-      function escapeHtml(s) {
-        if (!s) return '';
-        return String(s)
-          .replaceAll('&', '&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
-          .replaceAll('"','&quot;').replaceAll("'",'&#039;');
+      function setStatus(msg){ statusLine.textContent = msg; }
+
+      // global error capture
+      window.addEventListener('error', (ev) => {
+        logDebug('Uncaught error:', ev.message || ev.error || ev);
+        showUIError('Uncaught JS error: ' + (ev.message || JSON.stringify(ev.error || ev)));
+      });
+      window.addEventListener('unhandledrejection', (ev) => {
+        logDebug('Unhandled rejection:', ev.reason);
+        showUIError('Unhandled promise rejection: ' + JSON.stringify(ev.reason));
+      });
+
+      function showUIError(msg){
+        let el = document.getElementById('uiError');
+        if (!el) {
+          el = document.createElement('div');
+          el.id = 'uiError';
+          el.className = 'error';
+          document.querySelector('.container').insertBefore(el, document.getElementById('profilesGrid'));
+        }
+        el.textContent = msg;
       }
 
-      // Load profiles from view
-      async function loadProfilesForUI(){
-        clearErrorBanner();
-        profilesGrid.innerHTML = '<div class="empty-state">Loading profiles…</div>';
-        profileCount.innerHTML = '<small>Loading…</small>';
+      // Try multiple client init strategies and report diagnostics
+      async function runChecks(){
+        debugPre.textContent = '';
+        setStatus('Running checks...');
+        logDebug('Check: CDN presence');
+        logDebug('window.createClient:', typeof window.createClient);
+        logDebug('window.supabase:', typeof window.supabase);
+        logDebug('window._profiles_debug exists?:', !!window._profiles_debug);
+
+        // attempt client init
+        let client = null;
         try {
-          // Query the view; limit to a reasonable number to avoid huge payloads
-          const { data, error } = await supabase
-            .from('profiles_search_view')
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(1000);
-
-          if (error) {
-            console.error('Supabase query error:', error);
-            showErrorBanner('Failed to load profiles from the database. See console for details.');
-            setProfilesGridError(error.message || 'Query error');
-            return;
-          }
-
-          // Ensure data is an array
-          if (!Array.isArray(data)) {
-            console.warn('profiles_search_view returned non-array:', data);
-            allProfiles = [];
+          if (typeof createClient === 'function') {
+            logDebug('Found createClient global — calling createClient(url, key)');
+            client = createClient(SUPABASE_URL, SUPABASE_KEY);
+            logDebug('createClient returned object with keys:', Object.keys(client || {}));
+          } else if (window.supabase && typeof window.supabase.createClient === 'function') {
+            logDebug('Found window.supabase.createClient — using it');
+            client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            logDebug('client keys:', Object.keys(client || {}));
+          } else if (window.supabase && typeof window.supabase === 'object') {
+            logDebug('Found window.supabase object — using as client');
+            client = window.supabase;
           } else {
-            allProfiles = data;
+            logDebug('No known supabase global found.');
           }
-
-          buildCategories();
-          renderCategoryButtons();
-          applyCategoryFilter(); // will call displayProfiles
-        } catch (err) {
-          console.error('Unhandled error loading profiles:', err);
-          showErrorBanner('Unexpected error while loading profiles. See console for details.');
-          setProfilesGridError(err.message || String(err));
+        } catch(err){
+          logDebug('Client init threw:', String(err));
         }
-      }
 
-      function buildCategories(){
-        const set = new Set(['all']);
-        (allProfiles || []).forEach(p => {
-          // candidate fields that may contain roles/tags
-          const candidates = [];
-          if (Array.isArray(p.roles_array)) candidates.push(...p.roles_array);
-          if (p.roles_array && typeof p.roles_array === 'string') {
-            try { candidates.push(...JSON.parse(p.roles_array)); } catch(e){}
-          }
-          if (Array.isArray(p.tags)) candidates.push(...p.tags);
-          if (p.role) candidates.push(p.role);
-          if (p.roles_ordered && Array.isArray(p.roles_ordered)) candidates.push(...p.roles_ordered);
-
-          candidates.forEach(r => { if (r && String(r).trim()) set.add(String(r).trim()); });
-        });
-        categories = Array.from(set);
-      }
-
-      function renderCategoryButtons(){
-        filtersContainer.innerHTML = '';
-        categories.forEach(cat => {
-          const btn = document.createElement('button');
-          btn.className = 'filter-btn' + (cat === currentCategory ? ' active' : '');
-          btn.dataset.filter = cat;
-          btn.type = 'button';
-          btn.innerText = cat === 'all' ? 'All' : (cat.charAt(0).toUpperCase()+cat.slice(1));
-          btn.onclick = () => {
-            filtersContainer.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
-            btn.classList.add('active');
-            currentCategory = cat;
-            applyCategoryFilter();
-          };
-          filtersContainer.appendChild(btn);
-        });
-      }
-
-      function applyCategoryFilter(){
-        let filtered = allProfiles || [];
-        if (currentCategory && currentCategory !== 'all') {
-          filtered = filtered.filter(p => {
-            const candidates = [];
-            if (Array.isArray(p.roles_array)) candidates.push(...p.roles_array);
-            else if (p.roles_array && typeof p.roles_array === 'string') {
-              try { candidates.push(...JSON.parse(p.roles_array)); } catch(e){}
-            }
-            if (Array.isArray(p.tags)) candidates.push(...p.tags);
-            if (p.role) candidates.push(p.role);
-            if (p.roles_ordered && Array.isArray(p.roles_ordered)) candidates.push(...p.roles_ordered);
-            return candidates.map(String).includes(currentCategory);
-          });
-        }
-        // apply client-side search filter as well if present
-        const q = (searchInput && searchInput.value || '').trim().toLowerCase();
-        if (q) {
-          filtered = filtered.filter(p => {
-            const uname = (p.username||'').toLowerCase();
-            const dname = (p.display_name||'').toLowerCase();
-            const bio = (p.bio||'').toLowerCase();
-            return uname.includes(q) || dname.includes(q) || bio.includes(q);
-          });
-        }
-        displayProfiles(filtered);
-      }
-
-      function displayProfiles(profiles){
-        profileCount.textContent = `${(profiles||[]).length} profiles found`;
-        if (!profiles || profiles.length === 0) {
-          profilesGrid.innerHTML = '<div class="empty-state">No profiles found</div>';
+        if (!client) {
+          setStatus('Client init failed');
+          showUIError('Supabase client could not be initialized. CDN may not have loaded or global names differ.');
+          profilesGrid.innerHTML = '<div class="empty">Error: client init failed — see debug panel above.</div>';
           return;
         }
 
-        const badgeIcons = {
-          'artist': '🎤', 'beatmaker': '🎚️', 'producer': '🎧', 'verified': '🛡️',
-          'founder': '⚡', 'owner': '👑', 'admin': '⚙️', 'mod': '💬'
-        };
+        // expose short debug object
+        window._profiles_debug = { client };
 
-        // create HTML safely
-        profilesGrid.innerHTML = profiles.map(p => {
-          let roles = [];
-          if (Array.isArray(p.roles_array)) roles = roles.concat(p.roles_array);
-          else if (p.roles_array && typeof p.roles_array === 'string') {
-            try { roles = roles.concat(JSON.parse(p.roles_array)); } catch(e){}
+        // Test a simple RPC/refetch via client REST (using from().select)
+        try {
+          setStatus('Querying view via supabase-js client...');
+          logDebug('Querying profiles_search_view via supabase client .from().select(*)');
+          const { data, error, status } = await client.from('profiles_search_view').select('*').limit(50);
+          logDebug('client query returned status:', status, 'error:', error ? (error.message || error) : 'none');
+          if (error) {
+            showUIError('Client query error: ' + (error.message || JSON.stringify(error)));
+            profilesGrid.innerHTML = `<div class="empty">Query error: ${escapeHtml(error.message || JSON.stringify(error))}</div>`;
+          } else if (!Array.isArray(data) || data.length === 0) {
+            profilesGrid.innerHTML = '<div class="empty">No profiles returned (0 rows). If you expect rows, verify RLS/anon key and view contents.</div>';
+            setStatus('Query completed — 0 rows');
+            logDebug('Query data preview:', JSON.stringify(data && data.slice(0,5) || []));
+          } else {
+            profilesGrid.innerHTML = '<div class="card"><strong>Profiles loaded:</strong> ' + data.length + ' rows (showing up to 10)</div>';
+            const list = data.slice(0,10).map(p => `<div class="card"><strong>${escapeHtml(p.username||p.display_name||p.id)}</strong><div style="color:#bca9e6">${escapeHtml((p.bio||'').slice(0,120))}</div></div>`).join('');
+            profilesGrid.innerHTML += list;
+            setStatus('Loaded ' + data.length + ' rows');
+            logDebug('Data sample:', JSON.stringify(data.slice(0,5)));
           }
-          if (Array.isArray(p.tags)) roles = roles.concat(p.tags);
-          if (p.role) roles.push(p.role);
-          if (p.roles_ordered && Array.isArray(p.roles_ordered)) roles = roles.concat(p.roles_ordered);
+        } catch (e) {
+          logDebug('Client query threw:', String(e));
+          showUIError('Client query threw an exception. See debug panel.');
+          profilesGrid.innerHTML = `<div class="empty">Client query exception: ${escapeHtml(String(e))}</div>`;
+        }
 
-          const primaryRole = (roles[0] || 'user').toString();
-          const badgesHtml = roles.slice(0,5).map(role => {
-            const css = (role === 'founder') ? 'founder' : '';
-            const icon = badgeIcons[role] || '🏷️';
-            return `<span class="badge ${css}">${escapeHtml(icon + ' ' + role)}</span>`;
-          }).join('');
+        // Also try a direct fetch to the REST endpoint (useful if supabase client can't authenticate)
+        try {
+          setStatus('Fetching REST endpoint directly...');
+          const headers = { Accept: 'application/json' };
+          if (SUPABASE_KEY && SUPABASE_KEY !== 'REPLACE_WITH_ANON_KEY_IF_DIFFERENT') headers['apikey'] = SUPABASE_KEY;
+          const url = SUPABASE_URL + '/rest/v1/profiles_search_view?select=*';
+          logDebug('Direct fetch to', url, 'headers:', Object.keys(headers));
+          const r = await fetch(url, { method:'GET', headers });
+          const text = await r.text();
+          logDebug('REST fetch status:', r.status, 'bodyPreview:', text.slice(0,1000));
+          if (r.status === 200) {
+            setStatus('REST fetch succeeded');
+            logDebug('REST body length', text.length);
+          } else {
+            setStatus('REST fetch returned ' + r.status);
+            showUIError('REST fetch status ' + r.status + '. Check anon key and CORS / RLS settings.');
+          }
+        } catch (e) {
+          logDebug('REST fetch threw:', String(e));
+          showUIError('REST fetch failed: ' + String(e));
+        }
 
-          const displayName = escapeHtml(p.username || p.display_name || 'Unknown');
-          const bioSnippet = p.bio ? escapeHtml((p.bio||'').substring(0,120)) + ((p.bio||'').length > 120 ? '...' : '') : '';
-          const joined = p.created_at ? escapeHtml(new Date(p.created_at).toLocaleDateString()) : '—';
-          const id = encodeURIComponent(p.user_id || p.id);
-
-          return `
-            <div class="profile-card" role="button" onclick="location.href='profile.html?id=${id}'">
-              <div class="profile-avatar">${escapeHtml(badgeIcons[primaryRole] || '👤')}</div>
-              <h3 style="margin:6px 0 4px 0">${displayName}</h3>
-              <div style="color:var(--muted); font-size:0.9rem; margin-bottom:8px">${escapeHtml(primaryRole.toUpperCase())}${p.verified_artist ? ' 🛡️' : ''}</div>
-              ${bioSnippet ? `<div style="color:var(--muted); font-size:0.9rem; margin-bottom:10px">${bioSnippet}</div>` : ''}
-              <div>${badgesHtml}</div>
-              <div style="font-size:0.8rem;color:var(--muted);margin-top:10px">Joined ${joined}</div>
-            </div>
-          `;
-        }).join('');
+        setStatus('Checks complete');
       }
 
-      // wire search input
-      if (searchInput) {
-        let debounce;
-        searchInput.addEventListener('input', (e) => {
-          clearTimeout(debounce);
-          debounce = setTimeout(() => applyCategoryFilter(), 200);
-        });
-      }
+      // utilities
+      function escapeHtml(s){ if (!s) return ''; return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;'); }
 
-      // initial load
-      loadProfilesForUI();
+      runChecksBtn.addEventListener('click', runChecks);
+      reloadBtn.addEventListener('click', () => location.reload());
 
-      // Expose for debugging from console
-      window._profiles_debug = {
-        supabase,
-        reload: loadProfilesForUI,
-        data: () => allProfiles
-      };
-      console.info('Profiles debug: window._profiles_debug available (reload, data, supabase).');
+      // run checks automatically once on load after a short delay so the CDN has time to load
+      setTimeout(() => runChecks().catch(e => logDebug('runChecks top-level thrown:', String(e))), 400);
     })();
   </script>
 </body>
