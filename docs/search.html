@@ -206,6 +206,19 @@
     color: #a855f7;
     opacity: 0.7;
   }
+  
+  .debug-info {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(0,0,0,0.9);
+    color: #0f0;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    z-index: 9999;
+    max-width: 300px;
+  }
 </style>
 </head>
 <body>
@@ -237,92 +250,110 @@
     <button class="filter-tab" data-filter="beatmaker">🎚️ Beatmakers</button>
     <button class="filter-tab" data-filter="producer">🎧 Producers</button>
     <button class="filter-tab" data-filter="verified">🛡️ Verified</button>
-    <button class="filter-tab" data-filter="founder">⚡ Founders</button>
   </div>
   
   <div id="searchResults">
     <div class="empty-state">
       <div style="font-size: 4rem; margin-bottom: 1rem;">🔍</div>
       <div style="font-size: 1.2rem; font-weight: 600; margin-bottom: 0.5rem;">
-        Start searching
-      </div>
-      <div style="font-size: 0.9rem;">
-        Find artists, beatmakers, and producers
+        Loading profiles...
       </div>
     </div>
   </div>
   
 </main>
 
-<script src="scripts.js?v=8" defer></script>
+<div id="debugInfo" class="debug-info" style="display:none;"></div>
+
+<script src="scripts.js" defer></script>
 
 <script>
 const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const $ = (s) => document.querySelector(s);
-const $$ = (s) => Array.from(document.querySelectorAll(s));
-
 let allProfiles = [];
 let currentFilter = 'all';
 
-async function loadAllProfiles() {
-  const { data: profiles, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+function debug(msg) {
+  const d = document.getElementById('debugInfo');
+  d.style.display = 'block';
+  d.innerHTML += msg + '<br>';
+}
+
+async function getAllProfiles() {
+  debug('Loading profiles from Supabase...');
+  const { data, error } = await supabase.from('profiles').select('*');
   
   if (error) {
-    console.error('Error loading profiles:', error);
+    debug('ERROR: ' + error.message);
     return [];
   }
   
-  console.log('Loaded profiles from Supabase:', profiles?.length || 0);
-  return profiles || [];
+  debug('Loaded ' + (data?.length || 0) + ' profiles');
+  
+  // Convert Supabase format to match localStorage format
+  const profiles = (data || []).map(p => {
+    const rolesOrdered = p.roles_ordered || [];
+    const tags = p.tags || [];
+    const badges = [...new Set([...rolesOrdered, ...tags])];
+    
+    return {
+      key: 'profile_' + p.user_id,
+      id: p.user_id,
+      name: p.username || p.display_name || 'Unknown',
+      emoji: rolesOrdered[0] === 'artist' ? '🎤' : rolesOrdered[0] === 'beatmaker' ? '🎚️' : '👤',
+      bio: p.bio || '',
+      badges: badges,
+      verified: p.verified_artist || false,
+      user_id: p.user_id
+    };
+  });
+  
+  debug('Converted profiles: ' + profiles.length);
+  if (profiles.length > 0) {
+    debug('Example: ' + profiles[0].name + ' has badges: ' + profiles[0].badges.join(', '));
+  }
+  
+  return profiles;
 }
 
-async function performSearch() {
-  const query = $('#searchInput').value.toLowerCase().trim();
+function performSearch() {
+  const query = document.getElementById('searchInput').value.toLowerCase().trim();
   
   let filtered = allProfiles;
   
-  console.log('Current filter:', currentFilter, 'All profiles:', allProfiles.length);
+  debug('Filter: ' + currentFilter + ', Query: "' + query + '"');
   
-  // Apply filter
-  if (currentFilter !== 'all') {
-    if (currentFilter === 'verified') {
-      filtered = allProfiles.filter(p => p.verified_artist === true);
-    } else {
-      filtered = allProfiles.filter(p => {
-        const rolesOrdered = p.roles_ordered || [];
-        const tags = p.tags || [];
-        const hasRole = rolesOrdered.includes(currentFilter) || tags.includes(currentFilter);
-        console.log('Profile:', p.username, 'has', currentFilter, '?', hasRole);
-        return hasRole;
-      });
-    }
+  // Apply filter (SAME as localStorage version)
+  if (currentFilter === 'artist') {
+    filtered = allProfiles.filter(p => p.badges && p.badges.includes('artist'));
+  } else if (currentFilter === 'beatmaker') {
+    filtered = allProfiles.filter(p => p.badges && p.badges.includes('beatmaker'));
+  } else if (currentFilter === 'producer') {
+    filtered = allProfiles.filter(p => p.badges && p.badges.includes('producer'));
+  } else if (currentFilter === 'verified') {
+    filtered = allProfiles.filter(p => p.verified === true);
   }
   
-  console.log('After filter:', filtered.length);
+  debug('After filter: ' + filtered.length + ' profiles');
   
-  // Apply search query
+  // Apply search query (SAME as localStorage version)
   if (query) {
     filtered = filtered.filter(p => {
-      const username = (p.username || '').toLowerCase();
-      const displayName = (p.display_name || '').toLowerCase();
-      const bio = (p.bio || '').toLowerCase();
-      const rolesOrdered = (p.roles_ordered || []).join(' ').toLowerCase();
-      const tags = (p.tags || []).join(' ').toLowerCase();
+      const nameMatch = p.name.toLowerCase().includes(query);
+      const bioMatch = p.bio && p.bio.toLowerCase().includes(query);
       
-      return username.includes(query) || displayName.includes(query) || 
-             bio.includes(query) || rolesOrdered.includes(query) || tags.includes(query);
+      return nameMatch || bioMatch;
     });
+    debug('After search: ' + filtered.length + ' profiles');
   }
   
-  console.log('After search:', filtered.length);
   renderResults(filtered);
 }
 
 function renderResults(results) {
-  const resultsEl = $('#searchResults');
+  const resultsEl = document.getElementById('searchResults');
   
   if (results.length === 0) {
     resultsEl.innerHTML = `
@@ -332,6 +363,7 @@ function renderResults(results) {
           No results found
         </div>
         <div style="font-size: 0.9rem;">
+          Total profiles loaded: ${allProfiles.length}<br>
           Try a different search term or filter
         </div>
       </div>
@@ -339,38 +371,33 @@ function renderResults(results) {
     return;
   }
   
-  const badgeIcons = {
-    'artist': '🎤', 'beatmaker': '🎚️', 'producer': '🎧', 'verified': '✓',
-    'founder': '👑', 'songwriter': '✍️', 'owner': '👑', 'admin': '⚙️',
-    'mod': '💬', 'g7': '👑', 'vip_member': '🎖️', 'rapper': '🎤',
-    'engineer': '🎛️', '8bfrfan': '🟣'
-  };
-  
+  // SAME rendering as localStorage version
   const resultsHTML = results.map(profile => {
-    const rolesOrdered = profile.roles_ordered || [];
-    const tags = profile.tags || [];
-    const allRoles = [...new Set([...rolesOrdered, ...tags])];
-    
     let badgesHTML = '';
-    if (allRoles.length > 0) {
-      badgesHTML = allRoles.slice(0, 5).map(role => {
-        const badgeClass = role === 'founder' ? 'founder' : '';
-        const badgeEmoji = badgeIcons[role] || '';
+    if (profile.badges && profile.badges.length > 0) {
+      badgesHTML = profile.badges.map(badge => {
+        const badgeClass = badge === 'founder' ? 'founder' : '';
+        const badgeEmoji = {
+          'artist': '🎤',
+          'beatmaker': '🎚️',
+          'verified': '✓',
+          'founder': '👑',
+          'songwriter': '✍️',
+          'producer': '🎧'
+        }[badge] || '';
         
-        return `<span class="badge ${badgeClass}">${badgeEmoji} ${role.toUpperCase()}</span>`;
+        return `<span class="badge ${badgeClass}">${badgeEmoji} ${badge.toUpperCase()}</span>`;
       }).join('');
     }
-    
-    const primaryRole = rolesOrdered[0] || tags[0] || 'user';
     
     return `
       <div class="result-card">
         <div class="result-header">
-          <div class="result-avatar">${badgeIcons[primaryRole] || '🎵'}</div>
+          <div class="result-avatar">${profile.emoji || '🎵'}</div>
           <div class="result-info">
             <div class="result-name">
-              ${profile.username || profile.display_name || 'Unknown'}
-              ${profile.verified_artist ? '<span class="verified-badge">✓</span>' : ''}
+              ${profile.name}
+              ${profile.verified ? '<span class="verified-badge">✓</span>' : ''}
             </div>
             ${badgesHTML ? `<div class="result-badges">${badgesHTML}</div>` : ''}
           </div>
@@ -393,19 +420,22 @@ function renderResults(results) {
   resultsEl.innerHTML = resultsHTML;
 }
 
-$('#searchInput').addEventListener('input', performSearch);
+// Search input listener
+document.getElementById('searchInput').addEventListener('input', performSearch);
 
-$$('.filter-tab').forEach(tab => {
+// Filter tabs
+document.querySelectorAll('.filter-tab').forEach(tab => {
   tab.addEventListener('click', () => {
-    $$('.filter-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
     currentFilter = tab.dataset.filter;
     performSearch();
   });
 });
 
+// Initialize
 async function init() {
-  allProfiles = await loadAllProfiles();
+  allProfiles = await getAllProfiles();
   performSearch();
 }
 
@@ -432,3 +462,4 @@ window.addEventListener("load", function(){
 
 </body>
 </html>
+ 
