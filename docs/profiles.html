@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>All Profiles - 8BFR Music Network</title>
   <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body { padding-bottom: 70px; }
@@ -42,6 +43,7 @@
       display: inline-block;
       margin: 0.2rem;
     }
+    .badge.founder { background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.2)); border-color: rgba(245, 158, 11, 0.5); color: #f59e0b; }
     .filter-btn { 
       background: rgba(12,0,25,0.9); 
       color: #eae6ff; 
@@ -136,6 +138,10 @@
   </div>
 
   <script>
+    const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    
     let allProfiles = [];
     let currentFilter = 'all';
 
@@ -149,30 +155,20 @@
       overlay.classList.toggle('active');
     }
 
-    function getAllProfiles() {
-      const profiles = [];
-      
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (!key.startsWith('profile_')) continue;
-        
-        try {
-          const profile = JSON.parse(localStorage.getItem(key) || '{}');
-          if (profile.name) {
-            profiles.push({
-              key: key,
-              id: key.replace('profile_', ''),
-              ...profile
-            });
-          }
-        } catch(e) {}
-      }
-      
-      return profiles;
+    async function init() {
+      await loadAllProfiles();
     }
 
-    function init() {
-      allProfiles = getAllProfiles();
+    async function loadAllProfiles() {
+      const { data: profiles, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error loading profiles:', error);
+        document.getElementById('profilesGrid').innerHTML = '<p class="col-span-full text-center text-red-400 py-8">Error loading profiles</p>';
+        return;
+      }
+      
+      allProfiles = profiles || [];
       displayProfiles(allProfiles);
     }
 
@@ -180,7 +176,8 @@
       const badgeIcons = {
         'artist': '🎤', 'beatmaker': '🎚️', 'producer': '🎧', 'verified': '🛡️',
         'donor': '💰', 'vip_member': '🎖️', 'founder': '⚡', 'mod': '💬', 
-        'admin': '⚙️', 'owner': '👑', 'g7': '👑', 'singer': '🎙️'
+        'admin': '⚙️', 'owner': '👑', 'g7': '👑', 'singer': '🎙️', 'songwriter': '🎼',
+        'rapper': '🎤', 'engineer': '🎛️', '8bfrfan': '🟣'
       };
 
       const grid = document.getElementById('profilesGrid');
@@ -192,19 +189,24 @@
       }
 
       grid.innerHTML = profiles.map(p => {
-        const badges = p.badges || [];
-        const badgesHtml = badges.slice(0, 5).map(badge => 
-          `<span class="badge">${badgeIcons[badge] || '🏷️'} ${badge}</span>`
-        ).join('');
+        const rolesOrdered = p.roles_ordered || [];
+        const tags = p.tags || [];
+        const allRoles = [...new Set([...rolesOrdered, ...tags])];
+        const primaryRole = rolesOrdered[0] || tags[0] || 'user';
+        
+        const badgesHtml = allRoles.slice(0, 5).map(role => {
+          const badgeClass = role === 'founder' ? 'founder' : '';
+          return `<span class="badge ${badgeClass}">${badgeIcons[role] || '🏷️'} ${role}</span>`;
+        }).join('');
         
         return `
-          <div class="profile-card" onclick="window.location.href='profile.html?id=${p.id}'">
-            <div class="profile-avatar">${p.emoji || '👤'}</div>
-            <h3 class="text-lg font-bold mb-1" style="color: #eae6ff;">${p.name || 'Unknown'}</h3>
-            <div class="text-purple-400 text-sm mb-2">${badges[0]?.toUpperCase() || 'USER'}${p.verified ? ' 🛡️' : ''}</div>
+          <div class="profile-card" onclick="window.location.href='profile.html?id=${p.user_id}'">
+            <div class="profile-avatar">${badgeIcons[primaryRole] || '👤'}</div>
+            <h3 class="text-lg font-bold mb-1" style="color: #eae6ff;">${p.username || p.display_name || 'Unknown'}</h3>
+            <div class="text-purple-400 text-sm mb-2">${primaryRole.toUpperCase()}${p.verified_artist ? ' 🛡️' : ''}</div>
             ${p.bio ? `<p class="text-purple-200/70 text-sm mb-3" style="line-height: 1.4;">${p.bio.substring(0, 100)}${p.bio.length > 100 ? '...' : ''}</p>` : ''}
             <div class="flex flex-wrap gap-2 mb-3">${badgesHtml || '<span class="text-purple-300/50 text-sm">No badges</span>'}</div>
-            ${p.followers ? `<div class="text-xs text-purple-400/60">${p.followers} followers • ${p.plays || 0} plays</div>` : ''}
+            <div class="text-xs text-purple-400/60">Joined ${new Date(p.created_at).toLocaleDateString()}</div>
           </div>
         `;
       }).join('');
@@ -218,9 +220,13 @@
       let filtered = allProfiles;
       
       if (role === 'verified') {
-        filtered = allProfiles.filter(p => p.verified === true);
+        filtered = allProfiles.filter(p => p.verified_artist === true);
       } else if (role !== 'all') {
-        filtered = allProfiles.filter(p => p.badges?.includes(role));
+        filtered = allProfiles.filter(p => {
+          const rolesOrdered = p.roles_ordered || [];
+          const tags = p.tags || [];
+          return rolesOrdered.includes(role) || tags.includes(role);
+        });
       }
 
       displayProfiles(filtered);
@@ -238,18 +244,25 @@
       
       // Apply current filter first
       if (currentFilter === 'verified') {
-        filtered = filtered.filter(p => p.verified === true);
+        filtered = filtered.filter(p => p.verified_artist === true);
       } else if (currentFilter !== 'all') {
-        filtered = filtered.filter(p => p.badges?.includes(currentFilter));
+        filtered = filtered.filter(p => {
+          const rolesOrdered = p.roles_ordered || [];
+          const tags = p.tags || [];
+          return rolesOrdered.includes(currentFilter) || tags.includes(currentFilter);
+        });
       }
 
       // Then apply search
       filtered = filtered.filter(p => {
-        const nameMatch = (p.name || '').toLowerCase().includes(query);
-        const bioMatch = (p.bio || '').toLowerCase().includes(query);
-        const badgesMatch = (p.badges || []).some(b => b.toLowerCase().includes(query));
+        const username = (p.username || '').toLowerCase();
+        const displayName = (p.display_name || '').toLowerCase();
+        const bio = (p.bio || '').toLowerCase();
+        const rolesOrdered = (p.roles_ordered || []).join(' ').toLowerCase();
+        const tags = (p.tags || []).join(' ').toLowerCase();
         
-        return nameMatch || bioMatch || badgesMatch;
+        return username.includes(query) || displayName.includes(query) || 
+               bio.includes(query) || rolesOrdered.includes(query) || tags.includes(query);
       });
 
       displayProfiles(filtered);
