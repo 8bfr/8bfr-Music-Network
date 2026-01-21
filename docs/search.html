@@ -1,3 +1,7 @@
+You're right - that code is the `renderResults()` function for search.html, not `displayProfiles()`.
+
+Let me give you the COMPLETE updated search.html file with the fix:
+
 
 <!DOCTYPE html>
 <html lang="en">
@@ -233,9 +237,11 @@
   
   <div class="filter-tabs">
     <button class="filter-tab active" data-filter="all">All</button>
-    <button class="filter-tab" data-filter="artist">Artists</button>
-    <button class="filter-tab" data-filter="beatmaker">Beatmakers</button>
-    <button class="filter-tab" data-filter="verified">Verified</button>
+    <button class="filter-tab" data-filter="artist">🎤 Artists</button>
+    <button class="filter-tab" data-filter="beatmaker">🎚️ Beatmakers</button>
+    <button class="filter-tab" data-filter="producer">🎧 Producers</button>
+    <button class="filter-tab" data-filter="verified">🛡️ Verified</button>
+    <button class="filter-tab" data-filter="founder">⚡ Founders</button>
   </div>
   
   <div id="searchResults">
@@ -252,7 +258,7 @@
   
 </main>
 
-<script src="scripts.js?v=7" defer></script>
+<script src="scripts.js?v=8" defer></script>
 
 <script>
 const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
@@ -273,6 +279,7 @@ async function loadAllProfiles() {
     return [];
   }
   
+  console.log('Loaded profiles from Supabase:', profiles?.length || 0);
   return profiles || [];
 }
 
@@ -281,22 +288,24 @@ async function performSearch() {
   
   let filtered = allProfiles;
   
+  console.log('Current filter:', currentFilter, 'All profiles:', allProfiles.length);
+  
   // Apply filter
-  if (currentFilter === 'artist') {
-    filtered = allProfiles.filter(p => {
-      const rolesOrdered = p.roles_ordered || [];
-      const tags = p.tags || [];
-      return rolesOrdered.includes('artist') || tags.includes('artist');
-    });
-  } else if (currentFilter === 'beatmaker') {
-    filtered = allProfiles.filter(p => {
-      const rolesOrdered = p.roles_ordered || [];
-      const tags = p.tags || [];
-      return rolesOrdered.includes('beatmaker') || tags.includes('beatmaker');
-    });
-  } else if (currentFilter === 'verified') {
-    filtered = allProfiles.filter(p => p.verified_artist === true);
+  if (currentFilter !== 'all') {
+    if (currentFilter === 'verified') {
+      filtered = allProfiles.filter(p => p.verified_artist === true);
+    } else {
+      filtered = allProfiles.filter(p => {
+        const rolesOrdered = p.roles_ordered || [];
+        const tags = p.tags || [];
+        const hasRole = rolesOrdered.includes(currentFilter) || tags.includes(currentFilter);
+        console.log('Profile:', p.username, 'has', currentFilter, '?', hasRole);
+        return hasRole;
+      });
+    }
   }
+  
+  console.log('After filter:', filtered.length);
   
   // Apply search query
   if (query) {
@@ -312,6 +321,7 @@ async function performSearch() {
     });
   }
   
+  console.log('After search:', filtered.length);
   renderResults(filtered);
 }
 
@@ -334,17 +344,10 @@ function renderResults(results) {
   }
   
   const badgeIcons = {
-    'artist': '🎤',
-    'beatmaker': '🎚️',
-    'verified': '✓',
-    'founder': '👑',
-    'songwriter': '✍️',
-    'producer': '🎧',
-    'owner': '👑',
-    'admin': '⚙️',
-    'mod': '💬',
-    'g7': '👑',
-    'vip_member': '🎖️'
+    'artist': '🎤', 'beatmaker': '🎚️', 'producer': '🎧', 'verified': '✓',
+    'founder': '👑', 'songwriter': '✍️', 'owner': '👑', 'admin': '⚙️',
+    'mod': '💬', 'g7': '👑', 'vip_member': '🎖️', 'rapper': '🎤',
+    'engineer': '🎛️', '8bfrfan': '🟣'
   };
   
   const resultsHTML = results.map(profile => {
@@ -352,7 +355,6 @@ function renderResults(results) {
     const tags = profile.tags || [];
     const allRoles = [...new Set([...rolesOrdered, ...tags])];
     
-    // Get badges HTML
     let badgesHTML = '';
     if (allRoles.length > 0) {
       badgesHTML = allRoles.slice(0, 5).map(role => {
@@ -395,10 +397,8 @@ function renderResults(results) {
   resultsEl.innerHTML = resultsHTML;
 }
 
-// Search input listener
 $('#searchInput').addEventListener('input', performSearch);
 
-// Filter tabs
 $$('.filter-tab').forEach(tab => {
   tab.addEventListener('click', () => {
     $$('.filter-tab').forEach(t => t.classList.remove('active'));
@@ -408,7 +408,6 @@ $$('.filter-tab').forEach(tab => {
   });
 });
 
-// Initialize
 async function init() {
   allProfiles = await loadAllProfiles();
   performSearch();
@@ -437,5 +436,3 @@ window.addEventListener("load", function(){
 
 </body>
 </html>
-
-**Both search.html and profiles.html now use Supabase! Save and test.** 🎉
