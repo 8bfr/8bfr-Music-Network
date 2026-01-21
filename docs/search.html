@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,6 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Search — 8BFR Music Network</title>
 <link rel="icon" href="assets/images/favicon.png" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
   * { box-sizing: border-box; }
@@ -198,30 +200,6 @@
     color: #a855f7;
   }
   
-  /* ADMIN BUTTONS */
-  .admin-result-btn {
-    display: none;
-    padding: 0.6rem 1rem;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 0.8rem;
-    border: 1px solid;
-  }
-  
-  .feature-result-btn {
-    background: rgba(245, 158, 11, 0.2);
-    border-color: rgba(245, 158, 11, 0.5);
-    color: #f59e0b;
-  }
-  
-  .unfeature-result-btn {
-    background: rgba(239, 68, 68, 0.2);
-    border-color: rgba(239, 68, 68, 0.5);
-    color: #ef4444;
-  }
-  
   .empty-state {
     text-align: center;
     padding: 4rem 2rem;
@@ -248,15 +226,15 @@
       type="text" 
       class="search-input" 
       id="searchInput" 
-      placeholder="Search artists, songs, beatmakers..."
+      placeholder="Search artists, beatmakers, producers..."
       autocomplete="off"
     >
   </div>
   
   <div class="filter-tabs">
     <button class="filter-tab active" data-filter="all">All</button>
-    <button class="filter-tab" data-filter="artists">Artists</button>
-    <button class="filter-tab" data-filter="beatmakers">Beatmakers</button>
+    <button class="filter-tab" data-filter="artist">Artists</button>
+    <button class="filter-tab" data-filter="beatmaker">Beatmakers</button>
     <button class="filter-tab" data-filter="verified">Verified</button>
   </div>
   
@@ -267,217 +245,70 @@
         Start searching
       </div>
       <div style="font-size: 0.9rem;">
-        Find artists, beatmakers, and tracks
+        Find artists, beatmakers, and producers
       </div>
     </div>
   </div>
   
 </main>
 
-<script src="scripts.js?v=6" defer></script>
+<script src="scripts.js?v=7" defer></script>
 
 <script>
+const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
 
+let allProfiles = [];
 let currentFilter = 'all';
 
-// ===== ADMIN SYSTEM =====
-function isAdmin() {
-  const role = localStorage.getItem('userRole');
-  return role === 'owner' || role === 'admin' || role === 'mod';
-}
-
-function logAdminAction(action, targetId, targetType) {
-  const logs = JSON.parse(localStorage.getItem('admin_activity_log') || '[]');
+async function loadAllProfiles() {
+  const { data: profiles, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
   
-  logs.push({
-    action: action,
-    targetId: targetId,
-    targetType: targetType,
-    performedBy: localStorage.getItem('username') || 'Admin',
-    role: localStorage.getItem('userRole'),
-    timestamp: Date.now()
-  });
-  
-  if (logs.length > 1000) logs.shift();
-  localStorage.setItem('admin_activity_log', JSON.stringify(logs));
-  
-  const notifications = JSON.parse(localStorage.getItem('owner_notifications') || '[]');
-  notifications.push({
-    type: 'admin_action',
-    action: action,
-    targetId: targetId,
-    targetType: targetType,
-    performedBy: localStorage.getItem('username'),
-    timestamp: Date.now(),
-    read: false
-  });
-  localStorage.setItem('owner_notifications', JSON.stringify(notifications));
-}
-
-function isArtistFeatured(profileKey) {
-  const featured = JSON.parse(localStorage.getItem('featured_items') || '{}');
-  return featured.artists && featured.artists.includes(profileKey);
-}
-
-function featureArtistFromSearch(profileKey) {
-  const featured = JSON.parse(localStorage.getItem('featured_items') || '{}');
-  if (!featured.artists) featured.artists = [];
-  
-  if (featured.artists.includes(profileKey)) {
-    alert('⚠️ This artist is already featured!');
-    return;
+  if (error) {
+    console.error('Error loading profiles:', error);
+    return [];
   }
   
-  featured.artists.push(profileKey);
-  localStorage.setItem('featured_items', JSON.stringify(featured));
-  
-  logAdminAction('featured_add', profileKey, 'artist');
-  
-  alert('⭐ Artist added to featured!');
-  performSearch();
+  return profiles || [];
 }
 
-function unfeatureArtistFromSearch(profileKey) {
-  if (!confirm('Remove this artist from featured?')) return;
-  
-  const featured = JSON.parse(localStorage.getItem('featured_items') || '{}');
-  if (!featured.artists) featured.artists = [];
-  
-  featured.artists = featured.artists.filter(key => key !== profileKey);
-  localStorage.setItem('featured_items', JSON.stringify(featured));
-  
-  logAdminAction('featured_remove', profileKey, 'artist');
-  
-  alert('❌ Artist removed from featured');
-  performSearch();
-}
-
-// ===== INITIALIZE DEMO PROFILES IF NONE EXIST =====
-function initializeDemoProfiles() {
-  const existingProfiles = Array.from({length: localStorage.length}, (_, i) => localStorage.key(i))
-    .filter(key => key.startsWith('profile_'));
-  
-  if (existingProfiles.length > 0) return; // Already have profiles
-  
-  const profiles = [
-    {
-      key: 'profile_demo_artist_1',
-      id: 'demo_artist_1',
-      name: '8BFR',
-      emoji: '🎤',
-      bio: 'Music artist, songwriter, and beatmaker. Building the future of music networking.',
-      badges: ['artist', 'verified', 'founder'],
-      verified: true,
-      verification: {
-        type: 'artist',
-        link: 'https://open.spotify.com/artist/127tw52iDXr7BvgB0IGG2x',
-        status: 'approved'
-      },
-      tracks: [
-        { title: 'Killa Bees', url: 'https://open.spotify.com/track/2x1sJyFdgcRDh9zlGSqNsa' },
-        { title: 'Purple Dreams', url: 'https://open.spotify.com/track/demo2' }
-      ],
-      followers: 1247,
-      plays: 8934
-    },
-    {
-      key: 'profile_demo_artist_2',
-      id: 'demo_artist_2',
-      name: 'Nova Rae',
-      emoji: '🎤',
-      bio: 'Indie artist creating dreamy soundscapes.',
-      badges: ['artist', 'verified'],
-      verified: true,
-      verification: {
-        type: 'artist',
-        link: 'https://music.apple.com/artist/novarae',
-        status: 'approved'
-      },
-      tracks: [
-        { title: 'Dream State', url: 'https://open.spotify.com/track/demo3' },
-        { title: 'Midnight Vibes', url: 'https://open.spotify.com/track/demo4' }
-      ],
-      followers: 892,
-      plays: 5621
-    },
-    {
-      key: 'profile_demo_beatmaker_1',
-      id: 'demo_beatmaker_1',
-      name: 'K. Drip',
-      emoji: '🎚️',
-      bio: 'Producer crafting next-level beats.',
-      badges: ['beatmaker', 'verified'],
-      verified: true,
-      verification: {
-        type: 'beatmaker',
-        link: 'https://soundcloud.com/kdrip',
-        status: 'approved'
-      },
-      tracks: [
-        { title: 'Vapor Loop', url: 'https://open.spotify.com/track/demo5' },
-        { title: 'Neon Nights', url: 'https://open.spotify.com/track/demo6' }
-      ],
-      followers: 634,
-      plays: 4329
-    }
-  ];
-  
-  profiles.forEach(profile => {
-    const { key, ...profileData } = profile;
-    localStorage.setItem(key, JSON.stringify(profileData));
-  });
-}
-
-// ===== SEARCH SYSTEM =====
-function getAllProfiles() {
-  const profiles = [];
-  
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (!key.startsWith('profile_')) continue;
-    
-    try {
-      const profile = JSON.parse(localStorage.getItem(key) || '{}');
-      if (profile.name) {
-        profiles.push({
-          key: key,
-          id: key.replace('profile_', ''),
-          ...profile
-        });
-      }
-    } catch(e) {}
-  }
-  
-  return profiles;
-}
-
-function performSearch() {
+async function performSearch() {
   const query = $('#searchInput').value.toLowerCase().trim();
-  const profiles = getAllProfiles();
   
-  let filtered = profiles;
+  let filtered = allProfiles;
   
   // Apply filter
-  if (currentFilter === 'artists') {
-    filtered = profiles.filter(p => p.badges && p.badges.includes('artist'));
-  } else if (currentFilter === 'beatmakers') {
-    filtered = profiles.filter(p => p.badges && p.badges.includes('beatmaker'));
+  if (currentFilter === 'artist') {
+    filtered = allProfiles.filter(p => {
+      const rolesOrdered = p.roles_ordered || [];
+      const tags = p.tags || [];
+      return rolesOrdered.includes('artist') || tags.includes('artist');
+    });
+  } else if (currentFilter === 'beatmaker') {
+    filtered = allProfiles.filter(p => {
+      const rolesOrdered = p.roles_ordered || [];
+      const tags = p.tags || [];
+      return rolesOrdered.includes('beatmaker') || tags.includes('beatmaker');
+    });
   } else if (currentFilter === 'verified') {
-    filtered = profiles.filter(p => p.verified === true);
+    filtered = allProfiles.filter(p => p.verified_artist === true);
   }
   
   // Apply search query
   if (query) {
     filtered = filtered.filter(p => {
-      const nameMatch = p.name.toLowerCase().includes(query);
-      const bioMatch = p.bio && p.bio.toLowerCase().includes(query);
-      const tracksMatch = p.tracks && p.tracks.some(t => 
-        t.title && t.title.toLowerCase().includes(query)
-      );
+      const username = (p.username || '').toLowerCase();
+      const displayName = (p.display_name || '').toLowerCase();
+      const bio = (p.bio || '').toLowerCase();
+      const rolesOrdered = (p.roles_ordered || []).join(' ').toLowerCase();
+      const tags = (p.tags || []).join(' ').toLowerCase();
       
-      return nameMatch || bioMatch || tracksMatch;
+      return username.includes(query) || displayName.includes(query) || 
+             bio.includes(query) || rolesOrdered.includes(query) || tags.includes(query);
     });
   }
   
@@ -502,36 +333,46 @@ function renderResults(results) {
     return;
   }
   
-  const adminMode = isAdmin();
+  const badgeIcons = {
+    'artist': '🎤',
+    'beatmaker': '🎚️',
+    'verified': '✓',
+    'founder': '👑',
+    'songwriter': '✍️',
+    'producer': '🎧',
+    'owner': '👑',
+    'admin': '⚙️',
+    'mod': '💬',
+    'g7': '👑',
+    'vip_member': '🎖️'
+  };
   
   const resultsHTML = results.map(profile => {
-    const isFeatured = isArtistFeatured(profile.key);
+    const rolesOrdered = profile.roles_ordered || [];
+    const tags = profile.tags || [];
+    const allRoles = [...new Set([...rolesOrdered, ...tags])];
     
     // Get badges HTML
     let badgesHTML = '';
-    if (profile.badges && profile.badges.length > 0) {
-      badgesHTML = profile.badges.map(badge => {
-        const badgeClass = badge === 'founder' ? 'founder' : '';
-        const badgeEmoji = {
-          'artist': '🎤',
-          'beatmaker': '🎚️',
-          'verified': '✓',
-          'founder': '👑',
-          'songwriter': '✍️'
-        }[badge] || '';
+    if (allRoles.length > 0) {
+      badgesHTML = allRoles.slice(0, 5).map(role => {
+        const badgeClass = role === 'founder' ? 'founder' : '';
+        const badgeEmoji = badgeIcons[role] || '';
         
-        return `<span class="badge ${badgeClass}">${badgeEmoji} ${badge.toUpperCase()}</span>`;
+        return `<span class="badge ${badgeClass}">${badgeEmoji} ${role.toUpperCase()}</span>`;
       }).join('');
     }
+    
+    const primaryRole = rolesOrdered[0] || tags[0] || 'user';
     
     return `
       <div class="result-card">
         <div class="result-header">
-          <div class="result-avatar">${profile.emoji || '🎵'}</div>
+          <div class="result-avatar">${badgeIcons[primaryRole] || '🎵'}</div>
           <div class="result-info">
             <div class="result-name">
-              ${profile.name}
-              ${profile.verified ? '<span class="verified-badge">✓</span>' : ''}
+              ${profile.username || profile.display_name || 'Unknown'}
+              ${profile.verified_artist ? '<span class="verified-badge">✓</span>' : ''}
             </div>
             ${badgesHTML ? `<div class="result-badges">${badgesHTML}</div>` : ''}
           </div>
@@ -540,30 +381,12 @@ function renderResults(results) {
         ${profile.bio ? `<div class="result-bio">${profile.bio}</div>` : ''}
         
         <div class="result-actions">
-          <a href="profile.html?id=${profile.id}" class="action-btn view-btn">
+          <a href="profile.html?id=${profile.user_id}" class="action-btn view-btn">
             👤 View Profile
           </a>
           <button class="action-btn follow-btn" onclick="alert('✅ Following!')">
             Follow
           </button>
-          
-          <!-- ADMIN BUTTONS -->
-          ${adminMode ? `
-            <button 
-              class="admin-result-btn feature-result-btn" 
-              onclick="featureArtistFromSearch('${profile.key}')"
-              style="display: ${isFeatured ? 'none' : 'inline-block'};"
-            >
-              ⭐ Feature
-            </button>
-            <button 
-              class="admin-result-btn unfeature-result-btn" 
-              onclick="unfeatureArtistFromSearch('${profile.key}')"
-              style="display: ${isFeatured ? 'inline-block' : 'none'};"
-            >
-              ❌ Unfeature
-            </button>
-          ` : ''}
         </div>
       </div>
     `;
@@ -585,11 +408,13 @@ $$('.filter-tab').forEach(tab => {
   });
 });
 
-// Initialize demo profiles if none exist
-initializeDemoProfiles();
+// Initialize
+async function init() {
+  allProfiles = await loadAllProfiles();
+  performSearch();
+}
 
-// Initial load - show all profiles
-performSearch();
+init();
 
 window.addEventListener("load", function(){
   setTimeout(function(){
@@ -612,3 +437,5 @@ window.addEventListener("load", function(){
 
 </body>
 </html>
+
+**Both search.html and profiles.html now use Supabase! Save and test.** 🎉
