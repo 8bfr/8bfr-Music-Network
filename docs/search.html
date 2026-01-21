@@ -283,17 +283,29 @@ function debug(msg) {
 
 async function getAllProfiles() {
   debug('Loading profiles from Supabase...');
-  const { data, error } = await supabase.from('profiles').select('*');
+  
+  // EXACT SAME QUERY AS OWNER PANEL
+  const { data: users, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
   
   if (error) {
     debug('ERROR: ' + error.message);
+    alert('Database error: ' + error.message);
     return [];
   }
   
-  debug('Loaded ' + (data?.length || 0) + ' profiles');
+  debug('Loaded ' + (users?.length || 0) + ' profiles');
   
-  // Convert Supabase format to match localStorage format
-  const profiles = (data || []).map(p => {
+  if (!users || users.length === 0) {
+    debug('NO PROFILES IN DATABASE!');
+    alert('No profiles found in database. Check owner panel - do users exist there?');
+    return [];
+  }
+  
+  // Show first profile for debugging
+  debug('First profile: ' + JSON.stringify(users[0]));
+  
+  // Convert to search format
+  const profiles = users.map(p => {
     const rolesOrdered = p.roles_ordered || [];
     const tags = p.tags || [];
     const badges = [...new Set([...rolesOrdered, ...tags])];
@@ -310,11 +322,7 @@ async function getAllProfiles() {
     };
   });
   
-  debug('Converted profiles: ' + profiles.length);
-  if (profiles.length > 0) {
-    debug('Example: ' + profiles[0].name + ' has badges: ' + profiles[0].badges.join(', '));
-  }
-  
+  debug('Converted ' + profiles.length + ' profiles');
   return profiles;
 }
 
