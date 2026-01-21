@@ -3,122 +3,149 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Profiles — Debug (separate JS)</title>
+  <title>Supabase Debug — Profiles</title>
   <style>
-    body{font-family:system-ui,Arial;background:#0b0215;color:#eae6ff;margin:0;padding:16px}
-    .container{max-width:980px;margin:0 auto}
-    .card{background:#12051c;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);margin-top:12px}
-    pre.debug{white-space:pre-wrap;background:#060014;color:#d8c8ff;padding:10px;border-radius:8px;overflow:auto;max-height:360px}
-    .empty{padding:28px;text-align:center;color:#bca9e6;border:1px dashed rgba(168,85,247,0.06);border-radius:10px}
-    button.small{padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#eae6ff}
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; margin: 0; padding: 20px; color:#111 }
+    header { margin-bottom: 12px }
+    pre { background:#f5f7fa; padding:12px; border-radius:6px; overflow:auto; max-height:40vh }
+    .status { margin:8px 0; padding:10px; border-radius:6px; background:#eef6ff; color:#034; }
+    button { padding:8px 12px; border-radius:6px; border:1px solid #ccc; background:#fff; cursor:pointer }
+    .error { background:#ffecec; color:#700; }
+    .ok { background:#ecffef; color:#063; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Profiles — Debug (separate JS)</h1>
-    <div id="status" class="card">Initializing…</div>
-    <div id="debug" class="card"><strong>Runtime debug</strong><pre id="debugPre" class="debug">starting…</pre>
-      <div style="margin-top:8px"><button id="run" class="small">Run checks</button> <button id="reload" class="small">Reload</button></div>
-    </div>
-    <div id="profilesGrid" class="card"><div class="empty">Waiting to run checks…</div></div>
-  </div>
+  <header>
+    <h1>Supabase Debug — Profiles</h1>
+    <p>This page attempts to load loader.js and shim_client.js from <code>/docs</code> and runs basic checks.</p>
+  </header>
 
-  <!-- Link the separate JS files (place these in same directory) -->
-  <script src="./loader.js"></script>
-  <script src="./shim_client.js"></script>
+  <section>
+    <div id="info" class="status">Starting checks...</div>
+    <button id="runChecks">Run checks</button>
+  </section>
+
+  <h3>Runtime log</h3>
+  <pre id="log">— ready —</pre>
 
   <script>
-    (function(){
-      const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
-      const SUPABASE_KEY = 'REPLACE_WITH_ANON_KEY_IF_AVAILABLE';
-      const debugPre = document.getElementById('debugPre');
-      const status = document.getElementById('status');
-      const profilesGrid = document.getElementById('profilesGrid');
-      const runBtn = document.getElementById('run');
-      const reloadBtn = document.getElementById('reload');
+    // Simple logger to page + console
+    const logEl = document.getElementById('log');
+    function log(...args) {
+      console.log(...args);
+      const line = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
+      logEl.textContent += '\\n' + line;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+    function setInfo(text, kind) {
+      const info = document.getElementById('info');
+      info.textContent = text;
+      info.className = 'status' + (kind ? (kind === 'error' ? ' error' : ' ok') : '');
+    }
 
-      function log(...parts){
-        const t = new Date().toLocaleTimeString();
-        debugPre.textContent += '\\n['+t+'] ' + parts.map(p => {
-          try { return typeof p === 'string' ? p : JSON.stringify(p); } catch(e){ return String(p); }
-        }).join(' ');
-        debugPre.scrollTop = debugPre.scrollHeight;
-      }
+    // Ensure we reference /docs paths (all files live in /docs)
+    (function injectScripts() {
+      log('Injecting scripts from /docs...');
+      // loader first
+      const loader = document.createElement('script');
+      loader.src = '/docs/loader.js';
+      loader.async = false;
+      loader.onload = () => log('loader.js loaded (onload)');
+      loader.onerror = (e) => {
+        log('loader.js failed to load', e);
+        setInfo('loader.js failed to load (check /docs path or permissions)', 'error');
+      };
+      document.head.appendChild(loader);
 
-      function setStatus(s){ status.textContent = s; }
-
-      // React to loader events
-      window.addEventListener('supabase-loader:loaded', e => {
-        log('loader: loaded CDN', e.detail);
-      });
-      window.addEventListener('supabase-loader:error', e => {
-        log('loader: error loading CDN', e.detail);
-      });
-      window.addEventListener('supabase-loader:timeout', e => {
-        log('loader: timeout', e.detail);
-      });
-      window.addEventListener('supabase-loader:ready', e => {
-        log('loader: ready', e.detail);
-      });
-
-      async function runChecks(){
-        debugPre.textContent = '';
-        setStatus('Running checks...');
-        log('Check: createClient exists?', typeof window.createClient);
-        log('Check: window.supabase exists?', typeof window.supabase);
-        // try to create client
-        let client = null;
-        try {
-          if (typeof createClient === 'function') {
-            client = createClient(SUPABASE_URL, SUPABASE_KEY);
-            log('createClient invoked, client keys:', Object.keys(client || {}));
-          } else if (window.supabase && typeof window.supabase.createClient === 'function') {
-            client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            log('window.supabase.createClient invoked');
-          } else {
-            log('No createClient or supabase.createClient available, aborting');
-            profilesGrid.innerHTML = '<div class="empty">No client available. Check loader/shim files present.</div>';
-            setStatus('Client init failed');
-            return;
-          }
-        } catch (err) {
-          log('Client init threw', String(err));
-          profilesGrid.innerHTML = '<div class="empty">Client init threw error. See debug panel.</div>';
-          setStatus('Client init error');
-          return;
-        }
-
-        setStatus('Client initialized, running query via client.from().select()...');
-        try {
-          const res = await client.from('profiles_search_view').select('*');
-          log('Client query status:', res.status, 'error:', res.error ? res.error.message : 'none');
-          if (res.error) {
-            profilesGrid.innerHTML = '<div class="empty">Client query error: ' + (res.error.message || JSON.stringify(res.error)) + '</div>';
-            setStatus('Query error');
-          } else if (!Array.isArray(res.data) || res.data.length === 0) {
-            profilesGrid.innerHTML = '<div class="empty">No rows returned (0). If you expect rows, check RLS/anon key.</div>';
-            setStatus('Query complete — 0 rows');
-            log('Data preview:', JSON.stringify(res.data && res.data.slice(0,5) || []));
-          } else {
-            profilesGrid.innerHTML = '<div class="empty">Success: ' + res.data.length + ' rows (showing up to 10)</div>';
-            const list = res.data.slice(0,10).map(p => '<div style="margin-top:8px;padding:8px;border-radius:8px;background:#0b0215"><strong>' + (p.username||p.id) + '</strong><div style="color:#bca9e6">' + (p.bio||'') + '</div></div>').join('');
-            profilesGrid.innerHTML += list;
-            setStatus('Query complete — rows loaded');
-            log('Data sample:', JSON.stringify(res.data.slice(0,5)));
-          }
-        } catch (e) {
-          log('Client query threw', String(e));
-          profilesGrid.innerHTML = '<div class="empty">Client query threw exception. See debug panel.</div>';
-          setStatus('Query exception');
-        }
-      }
-
-      runBtn.addEventListener('click', runChecks);
-      reloadBtn.addEventListener('click', () => location.reload());
-
-      // auto-run after short delay so loader.js has a chance
-      setTimeout(() => runChecks().catch(e => log('runChecks top-level threw', String(e))), 700);
+      // shim next
+      const shim = document.createElement('script');
+      shim.src = '/docs/shim_client.js';
+      shim.async = false;
+      shim.onload = () => log('shim_client.js loaded (onload)');
+      shim.onerror = (e) => {
+        log('shim_client.js failed to load', e);
+        setInfo('shim_client.js failed to load (check /docs path or permissions)', 'error');
+      };
+      document.head.appendChild(shim);
     })();
+
+    // Basic runtime checks (mimics the original debug flow)
+    function runtimeChecks() {
+      log('\\n--- Running runtime checks ---');
+      setInfo('Running runtime checks...');
+      try {
+        // Check window.supabase (shim) and createClient
+        const hasWindowSupabase = !!window.supabase;
+        const hasCreateClient = typeof window.createClient !== 'undefined' || (window.supabase && typeof window.supabase.createClient !== 'undefined');
+        log('Check: window.supabase exists?', hasWindowSupabase ? 'yes' : 'no');
+        log('Check: createClient exists?', hasCreateClient ? 'yes' : 'no');
+
+        if (!hasWindowSupabase && !hasCreateClient) {
+          log('No createClient or supabase.createClient available, aborting.');
+          setInfo('Client init failed: no createClient or window.supabase.createClient found', 'error');
+        } else {
+          log('Client appears available. Proceeding with a minimal connection test (no secrets printed).');
+          setInfo('Client available, running connection test...', 'ok');
+
+          // If supabase client is present, try creating a client (only if settings available)
+          // We don't include keys here; this is a lightweight presence/test only.
+          try {
+            const cc = window.createClient || (window.supabase && window.supabase.createClient);
+            log('createClient reference:', !!cc);
+            // Optionally attempt a harmless call if user has provided anon key in shim/loader;
+            // Wrap in try/catch to avoid throwing if missing.
+            if (typeof cc === 'function') {
+              try {
+                // If loader/shim defined defaults, they might set SUPABASE_URL/SUPABASE_ANON_KEY on window.
+                const url = window.SUPABASE_URL || (window.supabase && window.supabase.url) || null;
+                const key = window.SUPABASE_ANON_KEY || (window.supabase && window.supabase.anonKey) || null;
+                log('Detected SUPABASE_URL:', url ? 'present' : 'missing');
+                log('Detected SUPABASE_ANON_KEY:', key ? 'present' : 'missing');
+
+                if (url && key) {
+                  const client = cc(url, key);
+                  log('Client created. Attempting a simple health check: fetching from {url}/rest/v1?select=1 (OPTIONS allowed)');
+                  fetch(url + '/rest/v1', { method: 'OPTIONS' })
+                    .then(r => {
+                      log('Health check response status:', r.status);
+                      if (r.ok || r.status === 204) {
+                        setInfo('Supabase REST endpoint reachable (OPTIONS ok)', 'ok');
+                      } else {
+                        setInfo('Supabase REST endpoint returned status ' + r.status, 'error');
+                      }
+                    })
+                    .catch(err => {
+                      log('Health check fetch failed:', err);
+                      setInfo('Supabase REST endpoint fetch failed (network/CORS)', 'error');
+                    });
+                } else {
+                  log('No url/key detected; skipping REST health check.');
+                }
+              } catch (e) {
+                log('Error while attempting lightweight client test', e);
+              }
+            } else {
+              log('createClient is not a function. Aborting deep checks.');
+            }
+          } catch (e) {
+            log('Error during client presence checks', e);
+            setInfo('Error during client checks', 'error');
+          }
+        }
+      } catch (err) {
+        log('Unexpected error during runtimeChecks:', err);
+        setInfo('Unexpected error during checks', 'error');
+      }
+    }
+
+    // Wire button
+    document.getElementById('runChecks').addEventListener('click', () => runtimeChecks());
+
+    // Auto-run after a short delay to give loader/shim time to initialize
+    setTimeout(() => {
+      log('\\nAuto-running checks in 500ms...');
+      runtimeChecks();
+    }, 500);
   </script>
 </body>
 </html>
