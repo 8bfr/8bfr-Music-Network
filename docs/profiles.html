@@ -9,7 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { padding-bottom: 70px; }
+    body { padding-bottom: 70px; background: linear-gradient(#0b0014, #000); }
     .profile-card { 
       background: rgba(12,6,24,0.7); 
       border: 1px solid rgba(124,58,237,0.35); 
@@ -114,22 +114,22 @@
   <div class="menu-overlay" onclick="toggleMenu()"></div>
 
   <div class="max-w-6xl mx-auto px-4 mt-5">
-    <input type="text" id="searchBox" placeholder="🔍 Search by username, role, or badge..." 
+    <input type="text" id="searchBox" placeholder="🔍 Search by username..." 
            class="w-full p-4 bg-[rgba(12,6,24,0.7)] border border-purple-500/40 rounded-lg text-white mb-4"
            style="font-family: 'Work Sans', sans-serif;"
            oninput="searchProfiles()">
     
     <div class="flex gap-2 mb-4 flex-wrap">
-      <button class="filter-btn active" onclick="filterByRole('all')">All</button>
-      <button class="filter-btn" onclick="filterByRole('artist')">🎤 Artists</button>
-      <button class="filter-btn" onclick="filterByRole('beatmaker')">🎚️ Beatmakers</button>
-      <button class="filter-btn" onclick="filterByRole('producer')">🎧 Producers</button>
-      <button class="filter-btn" onclick="filterByRole('verified')">🛡️ Verified</button>
-      <button class="filter-btn" onclick="filterByRole('founder')">⚡ Founders</button>
+      <button class="filter-btn active" onclick="filterProfiles('all')">All</button>
+      <button class="filter-btn" onclick="filterProfiles('artist')">🎤 Artists</button>
+      <button class="filter-btn" onclick="filterProfiles('beatmaker')">🎚️ Beatmakers</button>
+      <button class="filter-btn" onclick="filterProfiles('producer')">🎧 Producers</button>
+      <button class="filter-btn" onclick="filterProfiles('verified')">🛡️ Verified</button>
+      <button class="filter-btn" onclick="filterProfiles('founder')">⚡ Founders</button>
     </div>
 
     <div class="text-center mb-4" style="color: #b47cff; font-size: 1.1rem; font-weight: 600;">
-      <span id="profileCount">0</span> profiles found
+      <span id="profileCount">Loading...</span>
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="profilesGrid">
@@ -146,168 +146,107 @@
     let currentFilter = 'all';
 
     function toggleMenu() {
-      const menu = document.querySelector('.nav-menu');
-      const hamburger = document.querySelector('.hamburger');
-      const overlay = document.querySelector('.menu-overlay');
-      
-      menu.classList.toggle('active');
-      hamburger.classList.toggle('active');
-      overlay.classList.toggle('active');
+      document.querySelector('.nav-menu').classList.toggle('active');
+      document.querySelector('.hamburger').classList.toggle('active');
+      document.querySelector('.menu-overlay').classList.toggle('active');
     }
 
-    async function init() {
-      await loadAllProfiles();
-    }
-
-    async function loadAllProfiles() {
-      const { data: profiles, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+    async function loadProfiles() {
+      const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
       
       if (error) {
-        console.error('Error loading profiles:', error);
-        document.getElementById('profilesGrid').innerHTML = '<p class="col-span-full text-center text-red-400 py-8">Error loading profiles</p>';
+        alert('Error loading profiles: ' + error.message);
         return;
       }
       
-      allProfiles = profiles || [];
+      allProfiles = data || [];
       displayProfiles(allProfiles);
     }
 
     function displayProfiles(profiles) {
-  const badgeIcons = {
-    'artist': '🎤', 'beatmaker': '🎚️', 'producer': '🎧', 'verified': '🛡️',
-    'donor': '💰', 'vip_member': '🎖️', 'founder': '⚡', 'mod': '💬', 
-    'admin': '⚙️', 'owner': '👑', 'g7': '👑', 'singer': '🎙️', 'songwriter': '🎼',
-    'rapper': '🎤', 'engineer': '🎛️', '8bfrfan': '🟣', 'dj': '📀',
-    'label': '🏷️', 'promoter': '🚀', 'videographer': '🎬', 'photographer': '📷'
-  };
-
-  const grid = document.getElementById('profilesGrid') || document.getElementById('searchResults');
-  const countEl = document.getElementById('profileCount');
-  
-  if (countEl) countEl.textContent = profiles.length;
-
-  console.log('Displaying profiles:', profiles.length); // DEBUG
-
-  if (!profiles || profiles.length === 0) {
-    grid.innerHTML = '<p class="col-span-full text-center text-purple-300/60 py-8">No profiles found</p>';
-    return;
-  }
-
-  grid.innerHTML = profiles.map(p => {
-    console.log('Profile:', p.username, 'roles_ordered:', p.roles_ordered, 'tags:', p.tags); // DEBUG
-    
-    const rolesOrdered = p.roles_ordered || [];
-    const tags = p.tags || [];
-    const allRoles = [...new Set([...rolesOrdered, ...tags])];
-    const primaryRole = rolesOrdered[0] || tags[0] || 'user';
-    
-    const badgesHtml = allRoles.slice(0, 5).map(role => {
-      const badgeClass = role === 'founder' ? 'founder' : '';
-      return `<span class="badge ${badgeClass}">${badgeIcons[role] || '🏷️'} ${role}</span>`;
-    }).join('');
-    
-    return `
-      <div class="profile-card" onclick="window.location.href='profile.html?id=${p.user_id}'">
-        <div class="profile-avatar">${badgeIcons[primaryRole] || '👤'}</div>
-        <h3 class="text-lg font-bold mb-1" style="color: #eae6ff;">${p.username || p.display_name || 'Unknown'}</h3>
-        <div class="text-purple-400 text-sm mb-2">${primaryRole.toUpperCase()}${p.verified_artist ? ' 🛡️' : ''}</div>
-        ${p.bio ? `<p class="text-purple-200/70 text-sm mb-3" style="line-height: 1.4;">${p.bio.substring(0, 100)}${p.bio.length > 100 ? '...' : ''}</p>` : ''}
-        <div class="flex flex-wrap gap-2 mb-3">${badgesHtml || '<span class="text-purple-300/50 text-sm">No badges</span>'}</div>
-        <div class="text-xs text-purple-400/60">Joined ${new Date(p.created_at).toLocaleDateString()}</div>
-      </div>
-    `;
-  }).join('');
-    }
-
       const grid = document.getElementById('profilesGrid');
-      document.getElementById('profileCount').textContent = profiles.length;
+      document.getElementById('profileCount').textContent = profiles.length + ' profiles found';
 
-      if (!profiles || profiles.length === 0) {
+      if (profiles.length === 0) {
         grid.innerHTML = '<p class="col-span-full text-center text-purple-300/60 py-8">No profiles found</p>';
         return;
       }
 
+      const badgeIcons = {
+        'artist': '🎤', 'beatmaker': '🎚️', 'producer': '🎧', 'verified': '🛡️',
+        'founder': '⚡', 'owner': '👑', 'admin': '⚙️', 'mod': '💬', 'g7': '👑'
+      };
+
       grid.innerHTML = profiles.map(p => {
-        const rolesOrdered = p.roles_ordered || [];
-        const tags = p.tags || [];
-        const allRoles = [...new Set([...rolesOrdered, ...tags])];
-        const primaryRole = rolesOrdered[0] || tags[0] || 'user';
+        const roles = p.roles_ordered || p.tags || [];
+        const primaryRole = roles[0] || 'user';
         
-        const badgesHtml = allRoles.slice(0, 5).map(role => {
-          const badgeClass = role === 'founder' ? 'founder' : '';
-          return `<span class="badge ${badgeClass}">${badgeIcons[role] || '🏷️'} ${role}</span>`;
+        const badgesHtml = roles.slice(0, 5).map(role => {
+          const css = role === 'founder' ? 'founder' : '';
+          return `<span class="badge ${css}">${badgeIcons[role] || '🏷️'} ${role}</span>`;
         }).join('');
         
         return `
           <div class="profile-card" onclick="window.location.href='profile.html?id=${p.user_id}'">
             <div class="profile-avatar">${badgeIcons[primaryRole] || '👤'}</div>
-            <h3 class="text-lg font-bold mb-1" style="color: #eae6ff;">${p.username || p.display_name || 'Unknown'}</h3>
+            <h3 class="text-lg font-bold mb-1" style="color: #eae6ff;">${p.username || 'Unknown'}</h3>
             <div class="text-purple-400 text-sm mb-2">${primaryRole.toUpperCase()}${p.verified_artist ? ' 🛡️' : ''}</div>
-            ${p.bio ? `<p class="text-purple-200/70 text-sm mb-3" style="line-height: 1.4;">${p.bio.substring(0, 100)}${p.bio.length > 100 ? '...' : ''}</p>` : ''}
-            <div class="flex flex-wrap gap-2 mb-3">${badgesHtml || '<span class="text-purple-300/50 text-sm">No badges</span>'}</div>
+            ${p.bio ? `<p class="text-purple-200/70 text-sm mb-3">${p.bio.substring(0, 100)}...</p>` : ''}
+            <div class="mb-3">${badgesHtml}</div>
             <div class="text-xs text-purple-400/60">Joined ${new Date(p.created_at).toLocaleDateString()}</div>
           </div>
         `;
       }).join('');
     }
 
-    function filterByRole(role) {
-      document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+    function filterProfiles(filter) {
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
       event.target.classList.add('active');
-      currentFilter = role;
-
+      currentFilter = filter;
+      
       let filtered = allProfiles;
       
-      if (role === 'verified') {
-        filtered = allProfiles.filter(p => p.verified_artist === true);
-      } else if (role !== 'all') {
+      if (filter === 'verified') {
+        filtered = allProfiles.filter(p => p.verified_artist);
+      } else if (filter !== 'all') {
         filtered = allProfiles.filter(p => {
-          const rolesOrdered = p.roles_ordered || [];
-          const tags = p.tags || [];
-          return rolesOrdered.includes(role) || tags.includes(role);
+          const roles = p.roles_ordered || p.tags || [];
+          return roles.includes(filter);
         });
       }
-
+      
       displayProfiles(filtered);
     }
 
     function searchProfiles() {
-      const query = document.getElementById('searchBox').value.toLowerCase();
+      const q = document.getElementById('searchBox').value.toLowerCase();
       
-      if (!query) {
-        filterByRole(currentFilter);
+      if (!q) {
+        filterProfiles(currentFilter);
         return;
       }
-
+      
       let filtered = allProfiles;
       
-      // Apply current filter first
       if (currentFilter === 'verified') {
-        filtered = filtered.filter(p => p.verified_artist === true);
+        filtered = filtered.filter(p => p.verified_artist);
       } else if (currentFilter !== 'all') {
         filtered = filtered.filter(p => {
-          const rolesOrdered = p.roles_ordered || [];
-          const tags = p.tags || [];
-          return rolesOrdered.includes(currentFilter) || tags.includes(currentFilter);
+          const roles = p.roles_ordered || p.tags || [];
+          return roles.includes(currentFilter);
         });
       }
-
-      // Then apply search
+      
       filtered = filtered.filter(p => {
         const username = (p.username || '').toLowerCase();
-        const displayName = (p.display_name || '').toLowerCase();
         const bio = (p.bio || '').toLowerCase();
-        const rolesOrdered = (p.roles_ordered || []).join(' ').toLowerCase();
-        const tags = (p.tags || []).join(' ').toLowerCase();
-        
-        return username.includes(query) || displayName.includes(query) || 
-               bio.includes(query) || rolesOrdered.includes(query) || tags.includes(query);
+        return username.includes(q) || bio.includes(q);
       });
-
+      
       displayProfiles(filtered);
     }
 
-    init();
+    loadProfiles();
   </script>
   <script src="scripts.js" defer></script>
 </body>
