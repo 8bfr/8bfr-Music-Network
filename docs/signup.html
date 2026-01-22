@@ -1,15 +1,190 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Sign up — 8BFR</title>
-  <style>body{font-family:system-ui, -apple-system; background:#070014;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh;margin:0} .card{padding:20px;border-radius:12px;background:rgba(255,255,255,.03);max-width:520px;width:92%}</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sign up - 8BFR Music Network</title>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
+  <style>
+    body { background:#0a0a0a;color:#fff;font-family:Inter,system-ui; padding:2rem; }
+    .card{max-width:760px;margin:0 auto;background:#111;padding:1.5rem;border-radius:8px;border:1px solid #222;}
+    label{display:block;margin:.5rem 0;color:#ccc}
+    input, textarea, select{width:100%;padding:.6rem;border-radius:6px;border:1px solid #333;background:#070707;color:#fff}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+    .btn{background:#ff0066;color:#fff;padding:.8rem 1rem;border:none;border-radius:6px;cursor:pointer;margin-top:1rem}
+    .muted{color:#999;font-size:.9rem}
+  </style>
 </head>
 <body>
   <div class="card">
-    <h2>Create an account</h2>
-    <p>Sign up to access features. This is a placeholder page — connect this to your auth flow or Supabase client as needed.</p>
-    <p><a href="index.html" style="color:#9fb0ff">Back to Home</a></p>
+    <h2>Create account</h2>
+    <p class="muted">Sign up to access features. Password required.</p>
+
+    <div class="form">
+      <label>Username (unique)</label>
+      <input id="username" type="text" required />
+
+      <div class="row">
+        <div>
+          <label>Email</label>
+          <input id="email" type="email" required />
+        </div>
+        <div>
+          <label>Password</label>
+          <input id="password" type="password" required />
+        </div>
+      </div>
+
+      <label>Display name</label>
+      <input id="display_name" type="text" />
+
+      <label>Bio</label>
+      <textarea id="bio"></textarea>
+
+      <label>Social links (comma separated, e.g. spotify:https://..., instagram:https://...)</label>
+      <input id="social_links" type="text" placeholder="spotify:https://...,instagram:https://..." />
+
+      <label>Badges (comma separated)</label>
+      <input id="badges" type="text" placeholder="verified,founder,top_creator" />
+
+      <label>Primary role</label>
+      <select id="role">
+        <option value="fan">Fan</option>
+        <option value="artist">Artist</option>
+        <option value="beatmaker">Beatmaker</option>
+        <option value="producer">Producer</option>
+      </select>
+
+      <div id="verificationSection" style="display:none">
+        <label>Verification link (required for Artist/Beatmaker)</label>
+        <input id="verification_link" type="text" placeholder="https://your-profile.example.com/verified" />
+      </div>
+
+      <div id="message" class="muted" style="margin-top:.75rem"></div>
+
+      <button id="signupBtn" class="btn">Sign up</button>
+    </div>
   </div>
+
+  <script>
+    // Config - uses your project URL
+    const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+    const SUPABASE_ANON_KEY = ''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';'; // replace with your anon key
+
+    const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const roleSelect = document.getElementById('role');
+    const verificationSection = document.getElementById('verificationSection');
+    roleSelect.addEventListener('change', () => {
+      if (roleSelect.value === 'artist' || roleSelect.value === 'beatmaker') {
+        verificationSection.style.display = 'block';
+      } else {
+        verificationSection.style.display = 'none';
+      }
+    });
+
+    document.getElementById('signupBtn').addEventListener('click', async () => {
+      const username = document.getElementById('username').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const display_name = document.getElementById('display_name').value.trim();
+      const bio = document.getElementById('bio').value.trim();
+      const social_raw = document.getElementById('social_links').value.trim();
+      const badges_raw = document.getElementById('badges').value.trim();
+      const role = document.getElementById('role').value;
+      const verification_link = document.getElementById('verification_link').value.trim();
+
+      const messageEl = document.getElementById('message');
+      messageEl.textContent = '';
+
+      if (!username || !email || !password) {
+        messageEl.textContent = 'Username, email and password are required.';
+        return;
+      }
+
+      if ((role === 'artist' || role === 'beatmaker') && !verification_link) {
+        messageEl.textContent = 'Verification link is required for artists/beatmakers.';
+        return;
+      }
+
+      // Build social_links JSON from comma separated pairs
+      const social_links = {};
+      if (social_raw) {
+        social_raw.split(',').map(s => s.trim()).forEach(pair => {
+          const idx = pair.indexOf(':');
+          if (idx > 0) {
+            const key = pair.slice(0, idx).trim();
+            const val = pair.slice(idx + 1).trim();
+            if (key && val) social_links[key] = val;
+          }
+        });
+      }
+
+      const badges = badges_raw ? badges_raw.split(',').map(b => b.trim()).filter(Boolean) : [];
+
+      // 1) Sign up user with email+password (required)
+      messageEl.textContent = 'Creating account...';
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+      }, { data: { username } }); // optional metadata
+
+      if (signUpError) {
+        messageEl.textContent = 'Sign up error: ' + signUpError.message;
+        return;
+      }
+
+      // signUpData may include user (immediate) or require email confirmation
+      const user = signUpData.user ?? signUpData.data?.user;
+      if (!user) {
+        messageEl.textContent = 'Sign up succeeded — check your email to confirm. Creating profile...';
+      } else {
+        messageEl.textContent = 'Sign up succeeded. Creating profile...';
+      }
+
+      // 2) Insert profile into public.profiles table (upsert by user_id)
+      // profiles table uses user_id FK to auth.users.id
+      const profile = {
+        user_id: user?.id ?? null,
+        username,
+        display_name,
+        role,
+        bio,
+        avatar_url: null,
+        tags: badges,
+        verify_url: verification_link || null,
+        verified_artist: false,
+        created_at: new Date().toISOString()
+      };
+
+      // Use upsert by user_id or username (username unique)
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert(profile, { onConflict: ['user_id', 'username'] });
+
+      if (profileError) {
+        messageEl.textContent = 'Profile save error: ' + profileError.message;
+        return;
+      }
+
+      // 3) If applicant requested artist/beatmaker, create verification_requests record
+      if ((role === 'artist' || role === 'beatmaker') && verification_link) {
+        const { error: vrErr } = await supabase.from('verification_requests').insert([{
+          user_id: user?.id ?? null,
+          role_requested: role,
+          verification_link: verification_link,
+          status: 'pending',
+          created_at: new Date().toISOString()
+        }]);
+        if (vrErr) {
+          console.warn('verification request error', vrErr);
+        }
+      }
+
+      messageEl.textContent = 'Account created. Please check your email if confirmation required.';
+      // Optionally redirect to welcome or login page
+      setTimeout(() => window.location.href = '/', 1400);
+    });
+  </script>
 </body>
 </html>
