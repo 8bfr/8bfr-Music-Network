@@ -1,1057 +1,626 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Owner Panel - 8BFR Music Network</title>
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        :root {
-            --primary: #ff0066;
-            --secondary: #00ccff;
-            --dark: #0a0a0a;
-            --dark-card: #1a1a1a;
-            --success: #00ff88;
-            --warning: #ffaa00;
-            --danger: #ff0044;
-            --text: #ffffff;
-            --text-dim: #999999;
-            --border: #333333;
-        }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Work Sans', sans-serif; background: var(--dark); color: var(--text); line-height: 1.6; }
-        .header { background: linear-gradient(135deg, var(--dark-card) 0%, #000 100%); border-bottom: 2px solid var(--primary); padding: 1.5rem 2rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 20px rgba(255, 0, 102, 0.2); }
-        .header h1 { font-family: 'Bebas Neue', cursive; font-size: 2rem; letter-spacing: 2px; background: linear-gradient(90deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-        .user-info { display: flex; align-items: center; gap: 1rem; }
-        .logout-btn { background: var(--danger); color: white; border: none; padding: 0.5rem 1.5rem; border-radius: 4px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; }
-        .logout-btn:hover { background: #cc0033; transform: translateY(-2px); }
-        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
-        .tabs { display: flex; gap: 0.5rem; margin-bottom: 2rem; border-bottom: 2px solid var(--border); flex-wrap: wrap; overflow-x: auto; }
-        .tab { background: transparent; color: var(--text-dim); border: none; padding: 1rem 1.5rem; cursor: pointer; font-weight: 600; font-size: 0.95rem; border-bottom: 3px solid transparent; transition: all 0.3s ease; font-family: 'Work Sans', sans-serif; white-space: nowrap; }
-        .tab:hover { color: var(--text); border-bottom-color: var(--secondary); }
-        .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
-        .tab-content { display: none; animation: fadeIn 0.3s ease; }
-        .tab-content.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .card { background: var(--dark-card); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); }
-        .card h2 { font-family: 'Bebas Neue', cursive; font-size: 1.5rem; letter-spacing: 1px; color: var(--secondary); margin-bottom: 1rem; border-left: 4px solid var(--primary); padding-left: 1rem; }
-        .card h3 { color: var(--secondary); margin: 1rem 0; }
-        .form-group { margin-bottom: 1.5rem; }
-        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text); }
-        .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 0.75rem; background: var(--dark); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-family: 'Work Sans', sans-serif; transition: border-color 0.3s ease; }
-        .form-group input:focus, .form-group textarea:focus, .form-group select:focus { outline: none; border-color: var(--primary); }
-        .form-group textarea { min-height: 150px; resize: vertical; }
-        .btn { background: var(--primary); color: white; border: none; padding: 0.75rem 2rem; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 1rem; transition: all 0.3s ease; font-family: 'Work Sans', sans-serif; margin: 0.25rem; }
-        .btn:hover { background: #cc0052; transform: translateY(-2px); box-shadow: 0 4px 15px rgba(255, 0, 102, 0.4); }
-        .btn-secondary { background: var(--secondary); }
-        .btn-secondary:hover { background: #00a8cc; }
-        .btn-danger { background: var(--danger); }
-        .btn-danger:hover { background: #cc0033; }
-        .btn-success { background: var(--success); }
-        .btn-success:hover { background: #00cc6e; }
-        .btn-warning { background: var(--warning); }
-        .btn-warning:hover { background: #cc8800; }
-        .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
-        .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
-        .item-list { max-height: 500px; overflow-y: auto; }
-        .item { background: var(--dark); border: 1px solid var(--border); padding: 1rem; margin-bottom: 0.5rem; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; transition: all 0.3s ease; }
-        .item:hover { border-color: var(--primary); transform: translateX(4px); }
-        .item-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-        .item-actions button { padding: 0.4rem 0.8rem; font-size: 0.85rem; }
-        .search-box { width: 100%; padding: 0.75rem; background: var(--dark); border: 1px solid var(--border); border-radius: 4px; color: var(--text); margin-bottom: 1rem; font-family: 'Work Sans', sans-serif; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
-        .stat-card { background: linear-gradient(135deg, var(--dark-card), var(--dark)); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; text-align: center; transition: all 0.3s ease; }
-        .stat-card:hover { transform: translateY(-4px); border-color: var(--primary); }
-        .stat-card h3 { font-size: 2rem; color: var(--primary); margin-bottom: 0.5rem; }
-        .stat-card p { color: var(--text-dim); font-size: 0.9rem; }
-        .checkbox-group { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; padding: 0.5rem; border-radius: 4px; transition: background 0.2s ease; }
-        .checkbox-group:hover { background: rgba(255, 255, 255, 0.02); }
-        .checkbox-group input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
-        .checkbox-group label { cursor: pointer; margin: 0; font-weight: normal; }
-
-        /* Hamburger Menu */
-        .panel-hamburger { display: flex; flex-direction: column; gap: 5px; cursor: pointer; padding: 0.5rem; z-index: 1001; }
-        .panel-hamburger span { width: 28px; height: 3px; background: var(--primary); border-radius: 2px; transition: all 0.3s ease; }
-        .panel-hamburger.active span:nth-child(1) { transform: rotate(45deg) translate(6px, 6px); }
-        .panel-hamburger.active span:nth-child(2) { opacity: 0; }
-        .panel-hamburger.active span:nth-child(3) { transform: rotate(-45deg) translate(6px, -6px); }
-        .panel-sidemenu { position: fixed; top: 0; left: -320px; width: 320px; height: 100vh; background: var(--dark-card); border-right: 2px solid var(--primary); transition: left 0.3s ease; z-index: 1000; padding: 6rem 1.5rem 1.5rem; overflow-y: auto; box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5); }
-        .panel-sidemenu.active { left: 0; }
-        .panel-menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background: rgba(0, 0, 0, 0.8); opacity: 0; pointer-events: none; transition: opacity 0.3s ease; z-index: 999; }
-        .panel-menu-overlay.active { opacity: 1; pointer-events: all; }
-        .panel-menu-item { padding: 1rem 1.2rem; margin-bottom: 0.5rem; border-radius: 6px; cursor: pointer; transition: all 0.3s ease; border-left: 3px solid transparent; display: flex; align-items: center; gap: 0.75rem; color: var(--text); text-decoration: none; font-size: 0.95rem; }
-        .panel-menu-item:hover { background: var(--dark); border-left-color: var(--primary); transform: translateX(5px); }
-        .panel-menu-section { margin-bottom: 2rem; }
-        .panel-menu-section h3 { color: var(--primary); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 1rem; padding-left: 1.2rem; font-weight: 700; }
-        .panel-back-top { position: fixed; bottom: 2rem; right: 2rem; width: 56px; height: 56px; background: var(--primary); border: none; border-radius: 50%; color: white; font-size: 1.8rem; cursor: pointer; opacity: 0; pointer-events: none; transition: all 0.3s ease; z-index: 100; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4); display: flex; align-items: center; justify-content: center; }
-        .panel-back-top.visible { opacity: 1; pointer-events: all; }
-        .panel-back-top:hover { background: var(--secondary); transform: translateY(-5px); box-shadow: 0 6px 25px rgba(0, 0, 0, 0.6); }
-        .panel-home-btn { background: var(--secondary); color: white; border: none; padding: 0.5rem 1.2rem; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
-        .panel-home-btn:hover { background: var(--primary); transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Owner Panel - 8BFR Music Network</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root{
+      --primary:#ff0066; --secondary:#00ccff; --dark:#0a0a0a; --dark-card:#1a1a1a;
+      --success:#00ff88; --warning:#ffaa00; --danger:#ff0044; --text:#ffffff; --text-dim:#999999;
+      --border:#333333;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:"Work Sans",sans-serif;background:var(--dark);color:var(--text);line-height:1.6}
+    .header{background:linear-gradient(135deg,var(--dark-card) 0%,#000 100%);border-bottom:2px solid var(--primary);padding:1.25rem 1.5rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100}
+    .header h1{font-family:"Bebas Neue",sans-serif;font-size:1.6rem;letter-spacing:1px;color:var(--primary)}
+    .user-info{display:flex;align-items:center;gap:.75rem}
+    .logout-btn{background:var(--danger);color:#fff;border:0;padding:.45rem .9rem;border-radius:6px;cursor:pointer}
+    .container{max-width:1200px;margin:1.25rem auto;padding:0 1rem}
+    .tabs{display:flex;gap:.5rem;margin-bottom:1rem;border-bottom:1px solid rgba(255,255,255,0.04);overflow:auto}
+    .tab{background:transparent;color:var(--text-dim);border:0;padding:.6rem 1rem;cursor:pointer}
+    .tab.active{color:var(--primary);border-bottom:3px solid var(--primary)}
+    .tab-content{display:none;padding-top:1rem}
+    .tab-content.active{display:block}
+    .card{background:var(--dark-card);border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:1rem}
+    .grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem}
+    .grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem}
+    .search-box{width:100%;padding:.6rem;border-radius:6px;border:1px solid var(--border);background:transparent;color:inherit}
+    .btn{background:var(--primary);color:#fff;border:0;padding:.6rem .9rem;border-radius:6px;cursor:pointer}
+    .btn.secondary{background:var(--secondary)}
+    .btn.danger{background:var(--danger)}
+    .form-group{margin-bottom:.75rem}
+    label{display:block;margin-bottom:.25rem;color:var(--text-dim);font-size:.9rem}
+    input[type="text"],input[type="email"],input[type="password"],select,textarea{width:100%;padding:.6rem;border-radius:6px;border:1px solid var(--border);background:transparent;color:inherit}
+    .item-list{max-height:420px;overflow:auto}
+    .item{display:flex;justify-content:space-between;align-items:center;padding:.6rem;border-radius:6px;border:1px solid rgba(255,255,255,0.02);margin-bottom:.5rem}
+    .checkbox-group{display:flex;gap:.5rem;align-items:center}
+    .pill{padding:.25rem .5rem;border-radius:999px;background:rgba(255,255,255,0.03);font-size:.85rem}
+    .muted{color:var(--text-dim);font-size:.9rem}
+    pre.codeblock{white-space:pre-wrap;word-break:break-word;background:#0b0b0b;border:1px solid rgba(255,255,255,0.03);padding:.75rem;border-radius:6px;color:#ddd}
+  </style>
 </head>
-<body data-no-global-carrie="true">
+<body>
     <div class="header">
-        <div class="panel-hamburger" onclick="togglePanelMenu()">
-            <span></span>
-            <span></span>
-            <span></span>
-        </div>
-        <h1>👑 OWNER PANEL</h1>
-        <div class="user-info">
-            <a href="index.html" class="panel-home-btn">🏠 Home</a>
-            <span id="ownerName">Loading...</span>
-            <button class="logout-btn" onclick="logout()">Logout</button>
-        </div>
+    <h1>👑 OWNER PANEL</h1>
+    <div class="user-info">
+      <span id="ownerName" class="pill">Loading...</span>
+      <button class="logout-btn" id="logoutBtn">Logout</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="tabs" role="tablist" aria-label="Owner tabs">
+      <button class="tab active" data-tab="dashboard">Dashboard</button>
+      <button class="tab" data-tab="verification">Verification</button>
+      <button class="tab" data-tab="content">Content</button>
+      <button class="tab" data-tab="users">Users</button>
+      <button class="tab" data-tab="ads">Ads</button>
+      <button class="tab" data-tab="moderation">Moderation</button>
+      <button class="tab" data-tab="community">Community</button>
+      <button class="tab" data-tab="system">System</button>
     </div>
 
-    <div class="panel-menu-overlay" onclick="togglePanelMenu()"></div>
-    <div class="panel-sidemenu">
-        <div class="panel-menu-section">
-            <h3>📊 Navigation</h3>
-            <div class="panel-menu-item" onclick="switchTab('dashboard'); togglePanelMenu();">📈 Dashboard</div>
-            <div class="panel-menu-item" onclick="switchTab('verification'); togglePanelMenu();">✅ Verification</div>
-            <div class="panel-menu-item" onclick="switchTab('content'); togglePanelMenu();">📝 Content</div>
-            <div class="panel-menu-item" onclick="switchTab('users'); togglePanelMenu();">👥 Users</div>
-            <div class="panel-menu-item" onclick="switchTab('ads'); togglePanelMenu();">📢 Ads</div>
-            <div class="panel-menu-item" onclick="switchTab('moderation'); togglePanelMenu();">🛡️ Moderation</div>
-            <div class="panel-menu-item" onclick="switchTab('community'); togglePanelMenu();">👪 Community</div>
-            <div class="panel-menu-item" onclick="switchTab('system'); togglePanelMenu();">⚙️ System</div>
+    <section id="dashboard" class="tab-content active">
+      <div class="grid-3">
+        <div class="card"><h3 class="muted">Total Users</h3><div id="totalUsers" class="pill">0</div></div>
+        <div class="card"><h3 class="muted">Total Posts</h3><div id="totalPosts" class="pill">0</div></div>
+        <div class="card"><h3 class="muted">Active Ads</h3><div id="activeAds" class="pill">0</div></div>
+      </div>
+
+      <div class="card" style="margin-top:1rem">
+        <h3>Quick Actions</h3>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.5rem">
+          <button class="btn" data-goto="verification">Verifications</button>
+          <button class="btn" data-goto="users">Manage Users</button>
+          <button class="btn secondary" data-goto="content">Content</button>
+          <button class="btn danger" data-goto="moderation">Moderation</button>
         </div>
-        <div class="panel-menu-section">
-            <h3>🔗 Quick Links</h3>
-            <a href="index.html" class="panel-menu-item">🏠 Home</a>
-            <a href="admin-panel.html" class="panel-menu-item">⚡ Admin Panel</a>
-            <a href="mod-panel.html" class="panel-menu-item">🛡️ Mod Panel</a>
+      </div>
+    </section>
+    <section id="verification" class="tab-content">
+      <div class="card">
+        <h3>Verification Requests</h3>
+        <div class="form-group">
+          <label for="verificationFilter">Filter</label>
+          <select id="verificationFilter" class="search-box">
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="denied">Denied</option>
+            <option value="all">All</option>
+          </select>
         </div>
-        <div class="panel-menu-section">
-            <div class="panel-menu-item" onclick="logout()">🚪 Logout</div>
+        <div class="item-list" id="verificationRequestsList"><div class="muted">Loading...</div></div>
+      </div>
+
+      <div class="card" id="verificationReviewSection" style="display:none">
+        <h3>Review Request</h3>
+        <div class="grid-2">
+          <div>
+            <div class="form-group"><label>Username</label><input id="reviewUsername" readonly></div>
+            <div class="form-group"><label>Requested Role</label><input id="reviewRole" readonly></div>
+            <div class="form-group"><label>Proof Link</label><input id="reviewLink" readonly></div>
+          </div>
+          <div id="userProfileInfo" class="muted"></div>
         </div>
-    </div>
-
-    <button class="panel-back-top" onclick="scrollPanelToTop()">↑</button>
-
-    <div class="container">
-        <div class="tabs">
-            <button class="tab active" onclick="switchTab('dashboard')">Dashboard</button>
-            <button class="tab" onclick="switchTab('verification')">Verification</button>
-            <button class="tab" onclick="switchTab('content')">Content</button>
-            <button class="tab" onclick="switchTab('users')">Users</button>
-            <button class="tab" onclick="switchTab('ads')">Ads</button>
-            <button class="tab" onclick="switchTab('moderation')">Moderation</button>
-            <button class="tab" onclick="switchTab('community')">Community</button>
-            <button class="tab" onclick="switchTab('system')">System</button>
+        <div class="form-group"><label>Notes</label><textarea id="verificationNotes"></textarea></div>
+        <div style="display:flex;gap:.5rem">
+          <button class="btn" id="approvalBtn">Approve</button>
+          <button class="btn danger" id="denyBtn">Deny</button>
+          <button class="btn secondary" id="cancelReviewBtn">Cancel</button>
         </div>
+      </div>
+    </section>
 
-        <div id="dashboard" class="tab-content active">
-            <div class="stats-grid">
-                <div class="stat-card"><h3 id="totalUsers">0</h3><p>Total Users</p></div>
-                <div class="stat-card"><h3 id="totalPosts">0</h3><p>Total Posts</p></div>
-                <div class="stat-card"><h3 id="activeAds">0</h3><p>Active Ads</p></div>
-                <div class="stat-card"><h3 id="reportedItems">0</h3><p>Pending Reports</p></div>
-            </div>
-            <div class="card">
-                <h2>Quick Actions</h2>
-                <div class="grid-3">
-                    <button class="btn" onclick="switchTab('verification')">Verifications</button>
-                    <button class="btn" onclick="switchTab('users')">Manage Users</button>
-                    <button class="btn btn-secondary" onclick="switchTab('content')">Content</button>
-                    <button class="btn btn-danger" onclick="switchTab('moderation')">Reports</button>
-                    <button class="btn" onclick="switchTab('ads')">Ads</button>
-                    <button class="btn btn-secondary" onclick="switchTab('community')">Community</button>
-                </div>
-            </div>
+    <section id="content" class="tab-content">
+      <div class="card">
+        <h3>Content Management</h3>
+        <input id="contentSearch" class="search-box" placeholder="Search posts or comments">
+        <div class="grid-2" style="margin-top:.75rem">
+          <div>
+            <h4>Posts</h4>
+            <div class="item-list" id="postsList"></div>
+          </div>
+          <div>
+            <h4>Comments</h4>
+            <div class="item-list" id="commentsList"></div>
+          </div>
         </div>
+      </div>
+    </section>
+    <section id="users" class="tab-content">
+      <div class="card">
+        <h3>User Management</h3>
+        <input id="userSearch" class="search-box" placeholder="Search users by username or email">
+        <div class="item-list" id="usersList" style="margin-top:.5rem"></div>
+      </div>
 
-        <div id="verification" class="tab-content">
-            <div class="card">
-                <h2>Verification Requests</h2>
-                <div class="form-group">
-                    <label>Filter:</label>
-                    <select id="verificationFilter" onchange="loadVerificationRequests()">
-                        <option value="pending">Pending</option>
-                        <option value="approved">Approved</option>
-                        <option value="denied">Denied</option>
-                        <option value="all">All</option>
-                    </select>
-                </div>
-                <div class="item-list" id="verificationRequestsList"></div>
+      <div class="card">
+        <h3>Edit / Create User</h3>
+        <div class="grid-2">
+          <div>
+            <div class="form-group"><label>Select user</label>
+              <select id="selectedUser"><option value="">-- new user --</option></select>
             </div>
-            <div class="card" id="verificationReviewSection" style="display: none;">
-                <h2>Review</h2>
-                <div class="grid-2">
-                    <div>
-                        <div class="form-group"><label>Username:</label><input type="text" id="reviewUsername" readonly></div>
-                        <div class="form-group"><label>Role:</label><input type="text" id="reviewRole" readonly></div>
-                        <div class="form-group"><label>Link:</label><input type="text" id="reviewLink" readonly></div>
-                    </div>
-                    <div id="userProfileInfo"></div>
-                </div>
-                <div class="form-group"><label>Notes:</label><textarea id="verificationNotes"></textarea></div>
-                <input type="hidden" id="currentVerificationId">
-                <input type="hidden" id="currentVerificationUserId">
-                <button class="btn btn-success" onclick="approveVerification()">Approve</button>
-                <button class="btn btn-danger" onclick="denyVerification()">Deny</button>
-                <button class="btn" onclick="closeVerificationReview()">Cancel</button>
+
+            <div class="form-group"><label>Email</label><input id="editEmail" type="email" /></div>
+            <div class="form-group"><label>Username</label><input id="editUsername" type="text" /></div>
+            <div class="form-group"><label>Display name</label><input id="editDisplayName" type="text" /></div>
+            <div class="form-group"><label>Role</label>
+              <select id="editRole"><option value="fan">fan</option><option value="member">member</option><option value="admin">admin</option><option value="owner">owner</option></select>
             </div>
-            <div class="card">
-                <h2>Stats</h2>
-                <div class="stats-grid">
-                    <div class="stat-card"><h3 id="statPendingVerifications">0</h3><p>Pending</p></div>
-                    <div class="stat-card"><h3 id="statApprovedVerifications">0</h3><p>Approved</p></div>
-                    <div class="stat-card"><h3 id="statDeniedVerifications">0</h3><p>Denied</p></div>
-                    <div class="stat-card"><h3 id="statVerifiedArtists">0</h3><p>Verified</p></div>
-                </div>
+
+            <div style="margin-top:.5rem;display:flex;gap:.5rem;flex-wrap:wrap">
+              <button class="btn" id="saveProfileBtn">Save Profile</button>
+              <button class="btn secondary" id="createUserBtn">Create User (admin)</button>
             </div>
+          </div>
+
+          <div>
+            <h4>Security / Password</h4>
+            <div class="form-group"><label>Set temporary password (admin)</label><input id="tempPassword" type="password" placeholder="New temporary password"></div>
+            <div style="display:flex;gap:.5rem">
+              <button class="btn" id="changePasswordBtn">Change Password (admin)</button>
+              <button class="btn danger" id="revokeSessionsBtn">Revoke Sessions</button>
+            </div>
+
+            <hr style="margin:.75rem 0;border:none;border-top:1px solid rgba(255,255,255,0.03)">
+
+            <h4>Badges / Roles</h4>
+            <div id="badgeContainer" style="max-height:220px;overflow:auto;padding:.5rem;border:1px solid rgba(255,255,255,0.02);border-radius:6px">
+              <!-- checkboxes rendered by JS -->
+            </div>
+
+            <div style="margin-top:.5rem;display:flex;gap:.5rem">
+              <button class="btn" id="saveTagsBtn">Save Roles/Badges</button>
+              <button class="btn warning" id="clearSelectionBtn">Clear</button>
+            </div>
+          </div>
         </div>
+      </div>
+    </section>
+   <section id="ads" class="tab-content">
+      <div class="card"><h3>Ads</h3><div class="item-list" id="allAdsList"></div></div>
+    </section>
 
-        <div id="content" class="tab-content">
-            <div class="card">
-                <h2>Content Management</h2>
-                <input type="text" class="search-box" id="contentSearch" placeholder="Search..." onkeyup="searchContent()">
-                <div class="grid-2">
-                    <div><h3>Posts</h3><div class="item-list" id="postsList"></div></div>
-                    <div><h3>Comments</h3><div class="item-list" id="commentsList"></div></div>
-                </div>
-            </div>
+    <section id="moderation" class="tab-content">
+      <div class="card"><h3>Reports</h3><div class="item-list" id="reportsList"></div></div>
+      <div class="card"><h3>Ban Management</h3>
+        <div class="form-group"><label>User ID</label><input id="banUserId"></div>
+        <div class="form-group"><label>Reason</label><textarea id="banReason"></textarea></div>
+        <div style="display:flex;gap:.5rem">
+          <button class="btn danger" id="banBtn">Ban</button>
+          <button class="btn" id="unbanBtn">Unban</button>
         </div>
+      </div>
+    </section>
 
-        <div id="users" class="tab-content">
-            <div class="card">
-                <h2>User Management</h2>
-                <input type="text" class="search-box" id="userSearch" placeholder="Search users..." onkeyup="searchUsers()">
-                <div class="item-list" id="usersList"></div>
-            </div>
-            
-            <div class="card">
-                <h2>Edit User</h2>
-                <div class="form-group">
-                    <label>Select User:</label>
-                    <select id="selectedUser" onchange="loadUserDetails()">
-                        <option value="">Choose user...</option>
-                    </select>
-                </div>
-                
-                <div class="grid-2">
-                    <div>
-                        <h3>Profile Information</h3>
-                        <div class="form-group"><label>Username:</label><input type="text" id="editUsername"></div>
-                        <div class="form-group"><label>Display Name:</label><input type="text" id="editDisplayName"></div>
-                        <div class="form-group">
-                            <div class="checkbox-group">
-                                <input type="checkbox" id="verifiedArtist">
-                                <label for="verifiedArtist">🛡️ Verified Artist/Beatmaker</label>
-                            </div>
-                        </div>
-                        <button class="btn" onclick="updateUserProfile()">Update Profile</button>
-                    </div>
-                    <div>
-                        <h3>Current Badges</h3>
-                        <div id="currentBadgesDisplay" style="padding: 1rem; background: var(--dark); border: 1px solid var(--border); border-radius: 4px; min-height: 60px; max-height: 200px; overflow-y: auto;">
-                            <small style="color: var(--text-dim);">Select a user to view badges</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    <section id="community" class="tab-content">
+      <div class="card"><h3>Groups</h3><div class="item-list" id="groupsList"></div></div>
+    </section>
 
-            <div class="card">
-                <h2>🎵 Music Creator Roles</h2>
-                <p style="color: var(--text-dim); margin-bottom: 1rem;"><small>Select all roles that apply to this user (* requires verification)</small></p>
-                <div class="grid-3">
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="artist"><label>🎤 Artist*</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="beatmaker"><label>🎚️ Beatmaker*</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="producer"><label>🎧 Producer</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="singer"><label>🎙️ Singer</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="musician"><label>🎸 Musician</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="engineer"><label>🎛️ Engineer</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="songwriter"><label>🎼 Songwriter</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="dj"><label>📀 DJ</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="label"><label>🏷️ Label</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="promoter"><label>🚀 Promoter</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="videographer"><label>🎬 Videographer</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="photographer"><label>📷 Photographer</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="filmmaker"><label>🎥 Filmmaker</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="podcaster"><label>🎙️ Podcaster</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="distributor"><label>📡 Distributor</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="rapper"><label>🎤 Rapper</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="designer"><label>🎨 Designer</label></div>
-                </div>
-            </div>
-
-            <div class="card">
-                <h2>✍️ Creators & Authors</h2>
-                <div class="grid-3">
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="author"><label>📖 Author</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="blogger"><label>📰 Blogger</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="game_creator"><label>🎮 Game Creator</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="developer"><label>🧠 Developer</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="streamer"><label>📡 Streamer</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="gamer"><label>🎮 Gamer</label></div>
-                </div>
-            </div>
-
-            <div class="card">
-                <h2>🌐 Community Roles</h2>
-                <div class="grid-3">
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="influencer"><label>💫 Influencer</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="brand_ambassador"><label>🎯 Brand Ambassador</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="community_leader"><label>👥 Community Leader</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="fan"><label>💎 Fan</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="parent"><label>🧩 Parent</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="student"><label>🎓 Student</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="educator"><label>🏫 Educator</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="supporter"><label>🤝 Supporter</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="collector"><label>🪙 Collector</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="mentor"><label>🧭 Mentor</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="kids"><label>👶 Kids</label></div>
-                </div>
-            </div>
-
-            <div class="card">
-                <h2>🟣 8BFR Special & 🛡️ Staff Roles</h2>
-                <div class="grid-3">
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="8bfrfan"><label>🟣 8BFR Fan</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="fyp"><label>🟦 FYP</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="g7"><label>👑 G7</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="mod"><label>💬 Moderator</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="admin"><label>⚙️ Admin</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="role-check" value="owner"><label>👑 Owner</label></div>
-                </div>
-            </div>
-
-            <div class="card">
-                <h2>💰 Economy & Rewards Badges</h2>
-                <div class="grid-3">
-                    <div class="checkbox-group"><input type="checkbox" class="badge-check" value="donor"><label>💰 Donor</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="badge-check" value="sponsor"><label>💵 Sponsor</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="badge-check" value="contest_winner"><label>🏆 Contest Winner</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="badge-check" value="tournament_champion"><label>🎮 Tournament Champion</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="badge-check" value="event_participant"><label>🎁 Event Participant</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="badge-check" value="early_supporter"><label>🎫 Early Supporter</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="badge-check" value="top_creator"><label>🏅 Top Creator</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="badge-check" value="trending"><label>🔥 Trending</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="badge-check" value="vip_member"><label>🎖️ VIP Member</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="badge-check" value="beta_tester"><label>🧪 Beta Tester</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="badge-check" value="founder"><label>⚡ Founder</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="badge-check" value="verified"><label>🛡️ Verified</label></div>
-                </div>
-            </div>
-
-            <div class="card">
-                <h2>🤖 Carrie AI Badges</h2>
-                <div class="grid-3">
-                    <div class="checkbox-group"><input type="checkbox" class="badge-check" value="carrie_ai_assistant"><label>🤖 Carrie AI Assistant</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="badge-check" value="carrie_performer"><label>🎭 Carrie Performer</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="badge-check" value="carrie_concert_vip"><label>💃 Carrie Concert VIP</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="badge-check" value="carrie_fashionista"><label>🪞 Carrie Fashionista</label></div>
-                    <div class="checkbox-group"><input type="checkbox" class="badge-check" value="carrie_voice_clone"><label>🎙️ Carrie Voice Clone</label></div>
-                </div>
-            </div>
-
-            <div class="card">
-                <h2>💾 Save Changes</h2>
-                <button class="btn btn-success" onclick="saveAllRolesAndBadges()">💾 Save All Roles & Badges</button>
-                <button class="btn btn-warning" onclick="clearAllSelections()">Clear Selections</button>
-                <button class="btn btn-danger" onclick="removeAllUserBadges()">Remove All from User</button>
-            </div>
+    <section id="system" class="tab-content">
+      <div class="card"><h3>Banned Words</h3>
+        <div style="display:flex;gap:.5rem">
+          <input id="bannedWordInput" class="search-box" placeholder="Add banned word">
+          <button class="btn" id="addBannedWordBtn">Add</button>
         </div>
+        <div class="item-list" id="bannedWordsList" style="margin-top:.5rem"></div>
+      </div>
+    </section>
+  </div>
 
-        <div id="ads" class="tab-content">
-            <div class="card">
-                <h2>All Ads</h2>
-                <div class="item-list" id="allAdsList"></div>
-            </div>
-        </div>
+  <!-- Admin endpoints base (edit to your admin API base) -->
+  <script>
+    const ADMIN_ENDPOINT_BASE = ''; // e.g. https://api.example.com/admin
+    function adminUrl(path){ return (ADMIN_ENDPOINT_BASE || '') + path; }
+  </script>
+   <script>
+    // Do NOT put a service_role key here. This client should use anon key only.
+    const SUPABASE_URL = window.SUPABASE_URL || 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+    const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || ''; // set as global before loading or inject via server-rendered page
+    if (!SUPABASE_ANON_KEY) console.warn('No anon key provided. Set window.SUPABASE_ANON_KEY before loading this file.');
 
-        <div id="moderation" class="tab-content">
-            <div class="card">
-                <h2>Reported Content</h2>
-                <div class="item-list" id="reportsList"></div>
-            </div>
-            <div class="card">
-                <h2>Ban Management</h2>
-                <div class="grid-2">
-                    <div>
-                        <h3>Ban User</h3>
-                        <div class="form-group"><label>User ID:</label><input type="text" id="banUserId"></div>
-                        <div class="form-group"><label>Duration:</label>
-                            <select id="banDuration">
-                                <option value="1">1 Day</option>
-                                <option value="7">7 Days</option>
-                                <option value="30">30 Days</option>
-                                <option value="permanent">Permanent</option>
-                            </select>
-                        </div>
-                        <div class="form-group"><label>Reason:</label><textarea id="banReason"></textarea></div>
-                        <button class="btn btn-danger" onclick="banUser()">Ban</button>
-                    </div>
-                    <div><h3>Active Bans</h3><div class="item-list" id="activeBansList"></div></div>
-                </div>
-            </div>
-        </div>
+    const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { global: { fetch } });
 
-        <div id="community" class="tab-content">
-            <div class="card">
-                <h2>Groups</h2>
-                <div class="form-group"><label>Name:</label><input type="text" id="groupName"></div>
-                <div class="form-group"><label>Description:</label><textarea id="groupDescription"></textarea></div>
-                <button class="btn" onclick="createGroup()">Create</button>
-                <h3>All Groups</h3>
-                <div class="item-list" id="groupsList"></div>
-            </div>
-            <div class="card">
-                <h2>Forums</h2>
-                <div class="form-group"><label>Name:</label><input type="text" id="forumName"></div>
-                <div class="form-group"><label>Category:</label><input type="text" id="forumCategory"></div>
-                <button class="btn" onclick="createForum()">Create</button>
-                <h3>All Forums</h3>
-                <div class="item-list" id="forumsList"></div>
-            </div>
-        </div>
+    let currentUser = null;
+    const badgeList = [
+      'artist','beatmaker','producer','singer','musician','engineer','songwriter','dj','label','promoter',
+      'videographer','photographer','filmmaker','podcaster','distributor','rapper','designer',
+      'author','blogger','game_creator','developer','streamer','gamer',
+      'influencer','brand_ambassador','community_leader','fan','parent','student','educator','supporter','collector','mentor','kids',
+      '8bfrfan','fyp','g7','mod','admin','owner',
+      'donor','sponsor','contest_winner','tournament_champion','event_participant','early_supporter','top_creator','trending','vip_member','beta_tester','founder','verified',
+      'carrie_ai_assistant','carrie_performer','carrie_concert_vip','carrie_fashionista','carrie_voice_clone'
+    ];
 
-        <div id="system" class="tab-content">
-            <div class="card">
-                <h2>Banned Words</h2>
-                <div class="form-group"><label>Word:</label><input type="text" id="bannedWordInput"></div>
-                <button class="btn" onclick="addBannedWord()">Add</button>
-                <h3>Current List</h3>
-                <div class="item-list" id="bannedWordsList"></div>
-            </div>
-            <div class="card">
-                <h2>Statistics</h2>
-                <button class="btn" onclick="refreshStats()">Refresh</button>
-                <div class="stats-grid" style="margin-top:1rem;">
-                    <div class="stat-card"><h3 id="statArtists">0</h3><p>Artists</p></div>
-                    <div class="stat-card"><h3 id="statBeatmakers">0</h3><p>Beatmakers</p></div>
-                    <div class="stat-card"><h3 id="statTotalPosts">0</h3><p>Posts</p></div>
-                    <div class="stat-card"><h3 id="statTotalGroups">0</h3><p>Groups</p></div>
-                </div>
-            </div>
-        </div>
-    </div>
+    // Tab handling
+    document.querySelectorAll('.tab').forEach(btn=>{
+      btn.addEventListener('click', (e)=>{
+        document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+        btn.classList.add('active');
+        const name = btn.getAttribute('data-tab') || btn.dataset.tab;
+        const target = document.getElementById(name);
+        if (target) target.classList.add('active');
 
-    <script>
-        const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
-        const ownerPanelSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        let currentUser = null;
+        // lazy-load actions
+        if (name === 'verification') loadVerificationRequests();
+        if (name === 'content') { loadPosts(); loadComments(); }
+        if (name === 'users') loadUsers();
+        if (name === 'ads') loadAds();
+        if (name === 'moderation') { loadReports(); loadBans(); }
+        if (name === 'community') loadGroups();
+        if (name === 'system') { loadBannedWords(); refreshStats(); }
+      });
+    });
 
-        async function init() {
-            try {
-                const { data: sessionData } = await ownerPanelSupabase.auth.getSession();
-                if (!sessionData.session) {
-                    alert('Please log in');
-                    window.location.href = 'login.html';
-                    return;
-                }
-                
-                const { data: { user } } = await ownerPanelSupabase.auth.getUser();
-                if (!user) {
-                    window.location.href = 'login.html';
-                    return;
-                }
-                currentUser = user;
+    // quick action goto
+    document.querySelectorAll('[data-goto]').forEach(b=>{
+      b.addEventListener('click', ()=> {
+        const name = b.dataset.goto;
+        document.querySelector(`.tab[data-tab="${name}"]`)?.click();
+      });
+    });
 
-                const { data: profile } = await ownerPanelSupabase.from('profiles').select('*').eq('user_id', user.id).single();
-                if (!profile || profile.role !== 'owner') {
-                    alert('Access Denied: Owner only. Your role: ' + (profile?.role || 'none'));
-                    window.location.href = 'index.html';
-                    return;
-                }
-
-                document.getElementById('ownerName').textContent = profile.username || user.email.split('@')[0];
-                loadDashboardStats();
-                loadAllData();
-            } catch (error) {
-                alert('Error: ' + error.message);
-            }
+    // Init on DOM ready
+    async function init(){
+      try {
+        // Check session first (client-only session). For server-side admin tasks, your server must verify role separately.
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session){
+          // redirect to login — adjust to your app routing
+          window.location.href = '/login.html';
+          return;
         }
-
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById(tabName).classList.add('active');
-            if (tabName === 'verification') loadVerificationRequests();
-            if (tabName === 'content') { loadPosts(); loadComments(); }
-            if (tabName === 'users') loadUsers();
-            if (tabName === 'ads') loadAds();
-            if (tabName === 'moderation') { loadReports(); loadBans(); }
-            if (tabName === 'community') { loadGroups(); loadForums(); }
-            if (tabName === 'system') { loadBannedWords(); refreshStats(); }
+        const { data: { user } } = await supabase.auth.getUser();
+        currentUser = user;
+        // load profile to confirm owner role
+        const { data: profile, error: profileErr } = await supabase.from('profiles').select('user_id,username,role').eq('user_id', user.id).single();
+        if (profileErr || !profile || profile.role !== 'owner'){
+          alert('Access denied: owner only');
+          window.location.href = '/';
+          return;
         }
+        document.getElementById('ownerName').textContent = profile.username || user.email.split('@')[0];
+        // render badge checkboxes
+        renderBadgeCheckboxes();
+        // initial dashboard load
+        await loadDashboardStats();
+        loadAllData();
+      } catch (err){
+        console.error(err);
+        alert('Init error: ' + (err.message || err));
+      }
+    }
 
-        async function loadDashboardStats() {
-            const { count: u } = await ownerPanelSupabase.from('profiles').select('*', { count: 'exact', head: true });
-            const { count: p } = await ownerPanelSupabase.from('posts').select('*', { count: 'exact', head: true });
-            const { count: a } = await ownerPanelSupabase.from('ads').select('*', { count: 'exact', head: true });
-            const { count: r } = await ownerPanelSupabase.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'pending');
-            document.getElementById('totalUsers').textContent = u || 0;
-            document.getElementById('totalPosts').textContent = p || 0;
-            document.getElementById('activeAds').textContent = a || 0;
-            document.getElementById('reportedItems').textContent = r || 0;
-        }
+    document.getElementById('logoutBtn').addEventListener('click', async ()=>{
+      await supabase.auth.signOut();
+      window.location.href = '/login.html';
+    });
+       // Verification
+    async function loadVerificationRequests(){
+      const filter = document.getElementById('verificationFilter').value;
+      let q = supabase.from('verification_requests').select('*').order('created_at',{ascending:false});
+      if (filter !== 'all') q = q.eq('status', filter);
+      const { data: requests } = await q;
+      const container = document.getElementById('verificationRequestsList');
+      if (!requests || !requests.length){ container.innerHTML = '<div class="muted">No requests</div>'; return; }
+      // batch load profiles for display
+      const userIds = [...new Set(requests.map(r=>r.user_id))];
+      const { data: profiles } = await supabase.from('profiles').select('user_id,username').in('user_id', userIds);
+      const map = {}; profiles?.forEach(p=>map[p.user_id]=p);
+      container.innerHTML = requests.map(req=>{
+        const p = map[req.user_id]||{};
+        return `<div class="item"><div><strong>${escapeHtml(p.username||'Unknown')}</strong><div class="muted">${escapeHtml(req.role_requested)} • ${new Date(req.created_at).toLocaleString()}</div></div><div style="display:flex;gap:.5rem">${req.status==='pending'?`<button class="btn" onclick="reviewVerification('${req.id}')">Review</button>`:''}</div></div>`;
+      }).join('');
+    }
 
-        async function loadVerificationRequests() {
-            const filter = document.getElementById('verificationFilter')?.value || 'pending';
-            let q = ownerPanelSupabase.from('verification_requests').select('*').order('created_at', { ascending: false });
-            if (filter !== 'all') q = q.eq('status', filter);
-            const { data: requests } = await q;
-            
-            const list = document.getElementById('verificationRequestsList');
-            if (!requests || requests.length === 0) {
-                list.innerHTML = '<p style="text-align:center;color:var(--text-dim);padding:2rem;">No requests</p>';
-                return;
-            }
+    function reviewVerification(id){
+      return (async ()=>{
+        const { data: request } = await supabase.from('verification_requests').select('*').eq('id', id).single();
+        const { data: profile } = await supabase.from('profiles').select('*').eq('user_id', request.user_id).single();
+        document.getElementById('reviewUsername').value = profile?.username || '';
+        document.getElementById('reviewRole').value = request.role_requested;
+        document.getElementById('reviewLink').value = request.verification_link || '';
+        document.getElementById('userProfileInfo').innerHTML = `<div class="muted">Email: ${escapeHtml(profile?.email||'')}</div><div class="muted">Joined: ${profile?.created_at?new Date(profile.created_at).toLocaleDateString():''}</div>`;
+        document.getElementById('verificationReviewSection').style.display = 'block';
+        // attach actions
+        document.getElementById('approvalBtn').onclick = ()=>approveVerification(request.id, request.user_id);
+        document.getElementById('denyBtn').onclick = ()=>denyVerification(request.id);
+        document.getElementById('cancelReviewBtn').onclick = ()=>{ document.getElementById('verificationReviewSection').style.display='none' };
+      })();
+    }
 
-            const userIds = [...new Set(requests.map(r => r.user_id))];
-            const { data: profiles } = await ownerPanelSupabase.from('profiles').select('user_id, username, display_name').in('user_id', userIds);
-            const pMap = {};
-            profiles?.forEach(p => { pMap[p.user_id] = p; });
+    async function approveVerification(rid, uid){
+      if (!confirm('Approve this verification?')) return;
+      const { data: profile } = await supabase.from('profiles').select('tags').eq('user_id', uid).single();
+      const tags = profile?.tags || [];
+      const role = document.getElementById('reviewRole').value;
+      if (!tags.includes(role)) tags.push(role);
+      if (!tags.includes('verified')) tags.push('verified');
+      await supabase.from('verification_requests').update({ status:'approved', reviewed_by: currentUser.id, reviewed_at: new Date().toISOString() }).eq('id', rid);
+      await supabase.from('profiles').update({ tags, role, verified_artist: true }).eq('user_id', uid);
+      alert('Approved');
+      document.getElementById('verificationReviewSection').style.display = 'none';
+      loadVerificationRequests();
+    }
 
-            list.innerHTML = requests.map(req => {
-                const p = pMap[req.user_id];
-                const sc = req.status === 'pending' ? 'var(--warning)' : req.status === 'approved' ? 'var(--success)' : 'var(--danger)';
-                const si = req.status === 'pending' ? '⏳' : req.status === 'approved' ? '✅' : '❌';
-                return `<div class="item"><div><strong>${p?.username || 'Unknown'}</strong> <span style="color:${sc}">${si} ${req.status.toUpperCase()}</span><br><small>Role: ${req.role_requested}</small><br><small>${new Date(req.created_at).toLocaleString()}</small></div><div class="item-actions">${req.status === 'pending' ? `<button class="btn" onclick="reviewVerification('${req.id}')">Review</button>` : ''}</div></div>`;
-            }).join('');
+    async function denyVerification(rid){
+      const notes = document.getElementById('verificationNotes').value.trim();
+      if (!notes) { alert('Provide denial reason'); return; }
+      await supabase.from('verification_requests').update({ status:'denied', reviewed_by: currentUser.id, reviewed_at: new Date().toISOString(), denial_reason: notes }).eq('id', rid);
+      alert('Denied');
+      document.getElementById('verificationReviewSection').style.display = 'none';
+      loadVerificationRequests();
+    }
 
-            const { count: pending } = await ownerPanelSupabase.from('verification_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending');
-            const { count: approved } = await ownerPanelSupabase.from('verification_requests').select('*', { count: 'exact', head: true }).eq('status', 'approved');
-            const { count: denied } = await ownerPanelSupabase.from('verification_requests').select('*', { count: 'exact', head: true }).eq('status', 'denied');
-            const { count: verified } = await ownerPanelSupabase.from('profiles').select('*', { count: 'exact', head: true }).eq('verified_artist', true);
-            document.getElementById('statPendingVerifications').textContent = pending || 0;
-            document.getElementById('statApprovedVerifications').textContent = approved || 0;
-            document.getElementById('statDeniedVerifications').textContent = denied || 0;
-            document.getElementById('statVerifiedArtists').textContent = verified || 0;
-        }
+    // Posts & comments
+    async function loadPosts(){
+      const { data } = await supabase.from('posts').select('*').order('created_at',{ascending:false}).limit(50);
+      const el = document.getElementById('postsList');
+      el.innerHTML = (data && data.length) ? data.map(p=>`<div class="item"><div>${escapeHtml(p.content?.slice(0,120) || '')}</div><div style="display:flex;gap:.4rem"><button class="btn" onclick="hidePost('${p.id}')">Hide</button><button class="btn danger" onclick="deletePost('${p.id}')">Delete</button></div></div>`).join('') : '<div class="muted">No posts</div>';
+    }
+    async function loadComments(){
+      const { data } = await supabase.from('comments').select('*').order('created_at',{ascending:false}).limit(50);
+      const el = document.getElementById('commentsList');
+      el.innerHTML = (data && data.length) ? data.map(c=>`<div class="item"><div>${escapeHtml(c.content?.slice(0,120)||'')}</div><div style="display:flex;gap:.4rem"><button class="btn" onclick="hideComment('${c.id}')">Hide</button><button class="btn danger" onclick="deleteComment('${c.id}')">Delete</button></div></div>`).join('') : '<div class="muted">No comments</div>';
+    }
 
-        async function reviewVerification(requestId) {
-            const { data: request } = await ownerPanelSupabase.from('verification_requests').select('*').eq('id', requestId).single();
-            const { data: profile } = await ownerPanelSupabase.from('profiles').select('*').eq('user_id', request.user_id).single();
-            
-            document.getElementById('currentVerificationId').value = request.id;
-            document.getElementById('currentVerificationUserId').value = request.user_id;
-            document.getElementById('reviewUsername').value = profile?.username || 'Unknown';
-            document.getElementById('reviewRole').value = request.role_requested;
-            document.getElementById('reviewLink').value = request.verification_link;
-            
-            document.getElementById('userProfileInfo').innerHTML = `
-                <div><strong>Profile Info:</strong></div>
-                <div>Display: ${profile?.display_name || 'N/A'}</div>
-                <div>Email: ${profile?.email || 'N/A'}</div>
-                <div>Current Role: ${profile?.role || 'N/A'}</div>
-                <div>Joined: ${profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : 'N/A'}</div>
-            `;
-            
-            document.getElementById('verificationReviewSection').style.display = 'block';
-        }
+    async function hidePost(id){ if(!confirm('Hide post?')) return; await supabase.from('posts').update({ is_hidden:true }).eq('id', id); loadPosts(); }
+    async function deletePost(id){ if(!confirm('Delete post permanently?')) return; await supabase.from('posts').delete().eq('id', id); loadPosts(); }
+    async function hideComment(id){ if(!confirm('Hide comment?')) return; await supabase.from('comments').update({ is_hidden:true }).eq('id', id); loadComments(); }
+    async function deleteComment(id){ if(!confirm('Delete comment permanently?')) return; await supabase.from('comments').delete().eq('id', id); loadComments(); }
+       // Users list & edit
+    async function loadUsers(){
+      const q = document.getElementById('userSearch').value || '';
+      let res;
+      if (q) res = await supabase.from('profiles').select('*').or(`username.ilike.%${q}%,display_name.ilike.%${q}%,email.ilike.%${q}%`).limit(100);
+      else res = await supabase.from('profiles').select('*').order('created_at',{ascending:false}).limit(200);
+      const users = res.data || [];
+      const list = document.getElementById('usersList');
+      list.innerHTML = users.length ? users.map(u=>`<div class="item"><div><strong>${escapeHtml(u.username||u.display_name||u.email||'user')}</strong><div class="muted">${escapeHtml(u.role||'')}</div></div><div style="display:flex;gap:.4rem"><button class="btn" onclick="selectUser('${u.user_id}')">Edit</button><button class="btn danger" onclick="deleteUser('${u.user_id}')">Delete</button></div></div>`).join('') : '<div class="muted">No users</div>';
+      // populate dropdown
+      const sel = document.getElementById('selectedUser');
+      sel.innerHTML = `<option value="">-- new user --</option>` + users.map(u=>`<option value="${u.user_id}">${escapeHtml(u.username||u.display_name||u.email)}</option>`).join('');
+    }
 
-        async function approveVerification() {
-            const rid = document.getElementById('currentVerificationId').value;
-            const uid = document.getElementById('currentVerificationUserId').value;
-            const role = document.getElementById('reviewRole').value;
-            if (!confirm(`Approve ${role} verification?`)) return;
-
-            const { data: profile } = await ownerPanelSupabase.from('profiles').select('tags').eq('user_id', uid).single();
-            let tags = profile?.tags || [];
-            if (!tags.includes(role)) tags.push(role);
-            if (!tags.includes('verified')) tags.push('verified');
-
-            await ownerPanelSupabase.from('verification_requests').update({ status: 'approved', reviewed_by: currentUser.id, reviewed_at: new Date().toISOString() }).eq('id', rid);
-            await ownerPanelSupabase.from('profiles').update({ tags, role, verified_artist: true }).eq('user_id', uid);
-            alert('Approved!');
-            closeVerificationReview();
-            loadVerificationRequests();
-        }
-
-        async function denyVerification() {
-            const rid = document.getElementById('currentVerificationId').value;
-            const reason = document.getElementById('verificationNotes').value;
-            if (!reason) { alert('Provide reason'); return; }
-            await ownerPanelSupabase.from('verification_requests').update({ status: 'denied', reviewed_by: currentUser.id, reviewed_at: new Date().toISOString(), denial_reason: reason }).eq('id', rid);
-            alert('Denied');
-            closeVerificationReview();
-            loadVerificationRequests();
-        }
-
-        function closeVerificationReview() {
-            document.getElementById('verificationReviewSection').style.display = 'none';
-        }
-
-        async function loadPosts() {
-            const { data: posts } = await ownerPanelSupabase.from('posts').select('*').order('created_at', { ascending: false }).limit(50);
-            const list = document.getElementById('postsList');
-            if (!posts || posts.length === 0) {
-                list.innerHTML = '<p style="text-align:center;color:var(--text-dim);">No posts</p>';
-                return;
-            }
-            list.innerHTML = posts.map(p => `<div class="item"><div><small>${p.content?.substring(0,80)}...</small></div><div class="item-actions"><button class="btn btn-warning" onclick="hidePost('${p.id}')">Hide</button><button class="btn btn-danger" onclick="deletePost('${p.id}')">Delete</button></div></div>`).join('');
-        }
-
-        async function loadComments() {
-            const { data: comments } = await ownerPanelSupabase.from('comments').select('*').order('created_at', { ascending: false }).limit(50);
-            const list = document.getElementById('commentsList');
-            if (!comments || comments.length === 0) {
-                list.innerHTML = '<p style="text-align:center;color:var(--text-dim);">No comments</p>';
-                return;
-            }
-            list.innerHTML = comments.map(c => `<div class="item"><div><small>${c.content?.substring(0,80)}...</small></div><div class="item-actions"><button class="btn btn-warning" onclick="hideComment('${c.id}')">Hide</button><button class="btn btn-danger" onclick="deleteComment('${c.id}')">Delete</button></div></div>`).join('');
-        }
-
-        async function hidePost(id) {
-            if (!confirm('Hide post?')) return;
-            await ownerPanelSupabase.from('posts').update({ is_hidden: true }).eq('id', id);
-            alert('Hidden');
-            loadPosts();
-        }
-
-        async function deletePost(id) {
-            if (!confirm('Delete post permanently?')) return;
-            await ownerPanelSupabase.from('posts').delete().eq('id', id);
-            alert('Deleted');
-            loadPosts();
-        }
-
-        async function hideComment(id) {
-            if (!confirm('Hide comment?')) return;
-            await ownerPanelSupabase.from('comments').update({ is_hidden: true }).eq('id', id);
-            alert('Hidden');
-            loadComments();
-        }
-
-        async function deleteComment(id) {
-            if (!confirm('Delete comment permanently?')) return;
-            await ownerPanelSupabase.from('comments').delete().eq('id', id);
-            alert('Deleted');
-            loadComments();
-        }
-
-        async function searchContent() {
-            const q = document.getElementById('contentSearch').value;
-            if (!q) { loadPosts(); loadComments(); return; }
-            
-            const { data: posts } = await ownerPanelSupabase.from('posts').select('*').ilike('content', `%${q}%`).limit(50);
-            document.getElementById('postsList').innerHTML = posts?.map(p => `<div class="item"><div><small>${p.content?.substring(0,80)}...</small></div><div class="item-actions"><button class="btn btn-warning" onclick="hidePost('${p.id}')">Hide</button><button class="btn btn-danger" onclick="deletePost('${p.id}')">Delete</button></div></div>`).join('') || '<p style="text-align:center;color:var(--text-dim);">No results</p>';
-            
-            const { data: comments } = await ownerPanelSupabase.from('comments').select('*').ilike('content', `%${q}%`).limit(50);
-            document.getElementById('commentsList').innerHTML = comments?.map(c => `<div class="item"><div><small>${c.content?.substring(0,80)}...</small></div><div class="item-actions"><button class="btn btn-warning" onclick="hideComment('${c.id}')">Hide</button><button class="btn btn-danger" onclick="deleteComment('${c.id}')">Delete</button></div></div>`).join('') || '<p style="text-align:center;color:var(--text-dim);">No results</p>';
-        }
-
-        async function loadUsers() {
-            const { data: users } = await ownerPanelSupabase.from('profiles').select('*').order('created_at', { ascending: false }).limit(100);
-            const list = document.getElementById('usersList');
-            const select = document.getElementById('selectedUser');
-            
-            if (!users || users.length === 0) {
-                list.innerHTML = '<p style="text-align:center;color:var(--text-dim);">No users</p>';
-                return;
-            }
-            
-            list.innerHTML = users.map(u => `<div class="item"><div><strong>${u.username || u.display_name}</strong><br><small>Role: ${u.role} | ID: ${u.user_id?.substring(0,8)}...</small>${u.verified_artist ? '<br><small style="color:var(--success);">🛡️ VERIFIED</small>' : ''}</div><div class="item-actions"><button class="btn" onclick="document.getElementById('selectedUser').value='${u.user_id}';loadUserDetails()">Edit</button><button class="btn btn-danger" onclick="deleteUser('${u.user_id}')">Delete</button></div></div>`).join('');
-            
-            select.innerHTML = '<option value="">Choose...</option>' + users.map(u => `<option value="${u.user_id}">${u.username || u.display_name} (${u.role})</option>`).join('');
-        }
-
-        async function loadUserDetails() {
-            const uid = document.getElementById('selectedUser').value;
-            if (!uid) {
-                clearAllSelections();
-                document.getElementById('currentBadgesDisplay').innerHTML = '<small style="color: var(--text-dim);">Select a user to view badges</small>';
-                return;
-            }
-            
-            const { data: user } = await ownerPanelSupabase.from('profiles').select('*').eq('user_id', uid).single();
-            
-            if (user) {
-                document.getElementById('editUsername').value = user.username || '';
-                document.getElementById('editDisplayName').value = user.display_name || '';
-                document.getElementById('verifiedArtist').checked = user.verified_artist || false;
-                
-                clearAllSelections();
-                
-                const tags = user.tags || [];
-                document.querySelectorAll('.role-check').forEach(checkbox => {
-                    if (tags.includes(checkbox.value)) checkbox.checked = true;
-                });
-                
-                document.querySelectorAll('.badge-check').forEach(checkbox => {
-                    if (tags.includes(checkbox.value)) checkbox.checked = true;
-                });
-                
-                displayCurrentBadges(tags);
-            }
-        }
-
-        function displayCurrentBadges(tags) {
-            const badgeIcons = {
-                'artist': '🎤', 'beatmaker': '🎚️', 'producer': '🎧', 'singer': '🎙️', 'musician': '🎸',
-                'engineer': '🎛️', 'songwriter': '🎼', 'dj': '📀', 'label': '🏷️', 'promoter': '🚀',
-                'videographer': '🎬', 'photographer': '📷', 'filmmaker': '🎥', 'podcaster': '🎙️',
-                'distributor': '📡', 'rapper': '🎤', 'designer': '🎨', 'author': '📖', 'blogger': '📰',
-                'game_creator': '🎮', 'developer': '🧠', 'streamer': '📡', 'gamer': '🎮',
-                'influencer': '💫', 'brand_ambassador': '🎯', 'community_leader': '👥', 'fan': '💎',
-                'parent': '🧩', 'student': '🎓', 'educator': '🏫', 'supporter': '🤝', 'collector': '🪙',
-                'mentor': '🧭', 'kids': '👶', '8bfrfan': '🟣', 'fyp': '🟦', 'g7': '👑',
-                'mod': '💬', 'admin': '⚙️', 'owner': '👑', 'donor': '💰', 'sponsor': '💵',
-                'contest_winner': '🏆', 'tournament_champion': '🎮', 'event_participant': '🎁',
-                'early_supporter': '🎫', 'top_creator': '🏅', 'trending': '🔥', 'vip_member': '🎖️',
-                'beta_tester': '🧪', 'founder': '⚡', 'verified': '🛡️', 'carrie_ai_assistant': '🤖',
-                'carrie_performer': '🎭', 'carrie_concert_vip': '💃', 'carrie_fashionista': '🪞',
-                'carrie_voice_clone': '🎙️'
-            };
-            
-            const display = document.getElementById('currentBadgesDisplay');
-            
-            if (!tags || tags.length === 0) {
-                display.innerHTML = '<small style="color: var(--text-dim);">No badges assigned</small>';
-                return;
-            }
-            
-            display.innerHTML = tags.map(tag => {
-                const icon = badgeIcons[tag] || '🏷️';
-                return `<span style="display: inline-block; background: var(--dark-card); border: 1px solid var(--primary); padding: 0.4rem 0.8rem; margin: 0.25rem; border-radius: 15px; font-size: 0.85rem;">${icon} ${tag}</span>`;
-            }).join('');
-        }
-
-        async function saveAllRolesAndBadges() {
-            const uid = document.getElementById('selectedUser').value;
-            if (!uid) {
-                alert('Select a user first');
-                return;
-            }
-            
-            const selectedRoles = [];
-            document.querySelectorAll('.role-check:checked').forEach(checkbox => {
-                selectedRoles.push(checkbox.value);
-            });
-            
-            const selectedBadges = [];
-            document.querySelectorAll('.badge-check:checked').forEach(checkbox => {
-                selectedBadges.push(checkbox.value);
-            });
-            
-            const allTags = [...selectedRoles, ...selectedBadges];
-            
-            if (allTags.length === 0) {
-                alert('Select at least one role or badge');
-                return;
-            }
-            
-            
-            
-            alert(`✅ Saved!\nPrimary Role: ${primaryRole}\nTotal Tags: ${allTags.length}`);
-            displayCurrentBadges(allTags);
-            loadUsers();
-        }
-
-        function clearAllSelections() {
-            document.querySelectorAll('.role-check, .badge-check').forEach(checkbox => {
-                checkbox.checked = false;
-            });
-        }
-
-        async function removeAllUserBadges() {
-            const uid = document.getElementById('selectedUser').value;
-            if (!uid) {
-                alert('Select a user first');
-                return;
-            }
-
-            const { data: currentProfile } = await ownerPanelSupabase.from('profiles').select('role').eq('user_id', uid).single();
-let primaryRole;
-if (currentProfile?.role === 'owner' && uid === currentUser.id) {
-    primaryRole = 'owner';
-} else if (allTags.includes('owner')) {
-    primaryRole = 'owner';
-} else if (allTags.includes('admin')) {
-    primaryRole = 'admin';
-} else if (allTags.includes('mod')) {
-    primaryRole = 'mod';
-} else {
-    primaryRole = selectedRoles[0] || 'fan';
-}
-
-await ownerPanelSupabase.from('profiles').update({
-    tags: allTags,
-    role: primaryRole
-}).eq('user_id', uid);
-            if (!confirm('Remove ALL roles and badges from this user?')) return;
-            
-            await ownerPanelSupabase.from('profiles').update({
-                tags: [],
-                role: 'fan'
-            }).eq('user_id', uid);
-            
-            alert('All roles and badges removed');
-            clearAllSelections();
-            displayCurrentBadges([]);
-            loadUsers();
-        }
-
-        
-async function updateUserProfile() {
-    const uid = document.getElementById('selectedUser').value;
-    if (!uid) { alert('Select user'); return; }
-    
-    const username = document.getElementById('editUsername').value;
-    const displayName = document.getElementById('editDisplayName').value;
-    const verified = document.getElementById('verifiedArtist').checked;
-    
-    if (!username) {
-        alert('Username cannot be empty');
+    async function selectUser(uid){
+      if (!uid){ // new user
+        document.getElementById('selectedUser').value='';
+        document.getElementById('editEmail').value='';
+        document.getElementById('editUsername').value='';
+        document.getElementById('editDisplayName').value='';
+        document.getElementById('editRole').value='fan';
+        clearAllSelections();
+        displayCurrentBadges([]);
         return;
+      }
+      document.getElementById('selectedUser').value = uid;
+      const { data: profile } = await supabase.from('profiles').select('*').eq('user_id', uid).single();
+      if (!profile) return alert('Profile not found');
+      document.getElementById('editEmail').value = profile.email||'';
+      document.getElementById('editUsername').value = profile.username||'';
+      document.getElementById('editDisplayName').value = profile.display_name||'';
+      document.getElementById('editRole').value = profile.role||'fan';
+      clearAllSelections();
+      const tags = profile.tags || [];
+      tags.forEach(t=>{
+        const cb = document.querySelector(`input[value="${t}"]`);
+        if (cb) cb.checked = true;
+      });
+      displayCurrentBadges(tags);
     }
-    
-    const { error } = await ownerPanelSupabase.from('profiles').update({
-        username,
-        display_name: displayName,
-        verified_artist: verified
-    }).eq('user_id', uid);
-    
-    if (error) {
-        alert('Error saving: ' + error.message);
-        return;
+
+    document.getElementById('selectedUser').addEventListener('change', loadUserDetails);
+    async function loadUserDetails(){ const uid = document.getElementById('selectedUser').value; await selectUser(uid); }
+
+    document.getElementById('saveProfileBtn').addEventListener('click', async ()=>{
+      const uid = document.getElementById('selectedUser').value;
+      const email = document.getElementById('editEmail').value.trim();
+      const username = document.getElementById('editUsername').value.trim();
+      const display_name = document.getElementById('editDisplayName').value.trim();
+      const role = document.getElementById('editRole').value;
+      if (!username) return alert('Username required');
+      if (!uid){
+        return alert('To create a new auth user use Create User (admin). Use this to edit profiles only.');
+      }
+      const { error } = await supabase.from('profiles').update({ email, username, display_name, role }).eq('user_id', uid);
+      if (error) return alert('Save failed: '+error.message);
+      alert('Profile updated');
+      loadUsers();
+    });
+
+    // Create user (calls admin endpoint on your server which uses service_role)
+    document.getElementById('createUserBtn').addEventListener('click', async ()=>{
+      const email = document.getElementById('editEmail').value.trim();
+      const username = document.getElementById('editUsername').value.trim();
+      const tempPassword = document.getElementById('tempPassword').value.trim();
+      if (!email || !tempPassword) return alert('Email and temp password required');
+      // call server admin endpoint
+      const resp = await fetch(adminUrl('/create-user'), {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ email, password: tempPassword, username })
+      });
+      if (!resp.ok) {
+        const txt = await resp.text();
+        return alert('Create failed: ' + resp.status + ' ' + txt);
+      }
+      alert('Created (server-side). Refreshing list.');
+      loadUsers();
+    });
+
+    // Change password (admin endpoint)
+    document.getElementById('changePasswordBtn').addEventListener('click', async ()=>{
+      const uid = document.getElementById('selectedUser').value;
+      const newPassword = document.getElementById('tempPassword').value.trim();
+      if (!uid || !newPassword) return alert('Select user and provide new password');
+      const resp = await fetch(adminUrl('/change-password'), {
+        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ user_id: uid, new_password: newPassword })
+      });
+      if (!resp.ok) { const txt = await resp.text(); return alert('Password change failed: '+txt); }
+      alert('Password changed (server-side).');
+    });
+
+    document.getElementById('revokeSessionsBtn').addEventListener('click', async ()=>{
+      const uid = document.getElementById('selectedUser').value;
+      if (!uid) return alert('Select user first');
+      if (!confirm('Revoke all sessions for this user?')) return;
+      const resp = await fetch(adminUrl('/revoke-sessions'), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ user_id: uid })});
+      if (!resp.ok) { const txt = await resp.text(); return alert('Failed: '+txt); }
+      alert('Sessions revoked');
+    });
+
+    async function deleteUser(uid){
+      if (!confirm('Delete profile? This does not delete auth user.')) return;
+      await supabase.from('profiles').delete().eq('user_id', uid);
+      alert('Profile deleted');
+      loadUsers();
     }
-    
-    alert('✅ Profile updated!');
-    
-    // Refresh the header if editing yourself
-    if (uid === currentUser.id) {
-        document.getElementById('ownerName').textContent = username;
+       // badges UI
+    function renderBadgeCheckboxes(){
+      const cont = document.getElementById('badgeContainer');
+      cont.innerHTML = badgeList.map(b=>`<label class="checkbox-group"><input type="checkbox" value="${b}"> <span style="margin-left:.4rem">${b}</span></label>`).join('');
     }
-    
-    await loadUsers();
-    await loadUserDetails();
-}
-        async function deleteUser(uid) {
-            if (!confirm('Delete user permanently? This cannot be undone!')) return;
-            await ownerPanelSupabase.from('profiles').delete().eq('user_id', uid);
-            alert('User deleted');
-            loadUsers();
-        }
+    function displayCurrentBadges(tags){
+      // show as pills under currentBadgesDisplay (reuse same area)
+      const container = document.getElementById('currentBadgesDisplay') || null;
+      if (!container) return;
+      if (!tags || !tags.length) container.innerHTML = '<div class="muted">No badges</div>';
+      else container.innerHTML = tags.map(t=>`<span class="pill">${t}</span>`).join(' ');
+    }
+    function clearAllSelections(){ document.querySelectorAll('#badgeContainer input[type="checkbox"]').forEach(cb=>cb.checked=false); }
 
-        async function searchUsers() {
-            const q = document.getElementById('userSearch').value;
-            if (!q) { loadUsers(); return; }
-            const { data: users } = await ownerPanelSupabase.from('profiles').select('*').or(`username.ilike.%${q}%,display_name.ilike.%${q}%`).limit(50);
-            const list = document.getElementById('usersList');
-            list.innerHTML = users?.map(u => `<div class="item"><div><strong>${u.username || u.display_name}</strong><br><small>Role: ${u.role}</small></div><div class="item-actions"><button class="btn" onclick="document.getElementById('selectedUser').value='${u.user_id}';loadUserDetails()">Edit</button></div></div>`).join('') || '<p style="text-align:center;color:var(--text-dim);">No results</p>';
-        }
+    document.getElementById('clearSelectionBtn').addEventListener('click', clearAllSelections);
 
-        async function loadAds() {
-            const { data: ads } = await ownerPanelSupabase.from('ads').select('*').order('created_at', { ascending: false });
-            const list = document.getElementById('allAdsList');
-            if (!ads || ads.length === 0) {
-                list.innerHTML = '<p style="text-align:center;color:var(--text-dim);">No ads</p>';
-                return;
-            }
-            list.innerHTML = ads.map(a => `<div class="item"><div><strong>${a.title || 'Untitled'}</strong><br><small>Status: ${a.status}</small></div><div class="item-actions"><button class="btn btn-danger" onclick="deleteAd('${a.id}')">Delete</button></div></div>`).join('');
-        }
+    document.getElementById('saveTagsBtn').addEventListener('click', async ()=>{
+      const uid = document.getElementById('selectedUser').value;
+      if (!uid) return alert('Select user');
+      const tags = Array.from(document.querySelectorAll('#badgeContainer input:checked')).map(i=>i.value);
+      // Decide primary role — first role checkbox that is one of the role set, fallback to existing role
+      const roleCandidates = ['owner','admin','mod','artist','beatmaker','producer','fan','member'];
+      const primary = roleCandidates.find(r=>tags.includes(r)) || 'fan';
+      const { error } = await supabase.from('profiles').update({ tags, role: primary }).eq('user_id', uid);
+      if (error) return alert('Save failed: '+error.message);
+      alert('Tags saved');
+      displayCurrentBadges(tags);
+      loadUsers();
+    });
 
-        async function deleteAd(id) {
-            if (!confirm('Delete ad?')) return;
-            await ownerPanelSupabase.from('ads').delete().eq('id', id);
-            alert('Deleted');
-            loadAds();
-        }
+    async function confirmRemoveAllUserBadges(){
+      if (!confirm('Remove all roles/badges from selected user?')) return;
+      await removeAllUserBadges();
+    }
 
-        async function loadReports() {
-            const { data: reports } = await ownerPanelSupabase.from('reports').select('*').order('created_at', { ascending: false });
-            const list = document.getElementById('reportsList');
-            if (!reports || reports.length === 0) {
-                list.innerHTML = '<p style="text-align:center;color:var(--text-dim);">No reports</p>';
-                return;
-            }
-            list.innerHTML = reports.map(r => `<div class="item"><div><strong>${r.reason || 'No reason'}</strong><br><small>Type: ${r.content_type} | Status: ${r.status}</small></div><div class="item-actions"><button class="btn btn-success" onclick="resolveReport('${r.id}')">Resolve</button><button class="btn btn-danger" onclick="deleteReport('${r.id}')">Delete</button></div></div>`).join('');
-        }
+    async function removeAllUserBadges(){
+      const uid = document.getElementById('selectedUser').value;
+      if (!uid) return alert('Select user');
+      const { error } = await supabase.from('profiles').update({ tags: [], role: 'fan' }).eq('user_id', uid);
+      if (error) return alert('Failed: '+error.message);
+      clearAllSelections();
+      displayCurrentBadges([]);
+      alert('All badges removed');
+      loadUsers();
+    }
 
-        async function resolveReport(id) {
-            await ownerPanelSupabase.from('reports').update({ status: 'resolved' }).eq('id', id);
-            alert('Resolved');
-            loadReports();
-        }
+    // Ads, reports, groups simple loaders
+    async function loadAds(){ const { data } = await supabase.from('ads').select('*').order('created_at',{ascending:false}); document.getElementById('allAdsList').innerHTML = (data||[]).map(a=>`<div class="item"><div><strong>${escapeHtml(a.title||'Untitled')}</strong><div class="muted">${escapeHtml(a.status||'')}</div></div><div><button class="btn danger" onclick="deleteAd('${a.id}')">Delete</button></div></div>`).join('') || '<div class="muted">No ads</div>'; }
+    async function deleteAd(id){ if(!confirm('Delete ad?')) return; await supabase.from('ads').delete().eq('id', id); loadAds(); }
+    async function loadReports(){ const { data } = await supabase.from('reports').select('*').order('created_at',{ascending:false}); document.getElementById('reportsList').innerHTML = (data||[]).map(r=>`<div class="item"><div><strong>${escapeHtml(r.reason||'Report')}</strong><div class="muted">${escapeHtml(r.status||'')}</div></div><div><button class="btn" onclick="resolveReport('${r.id}')">Resolve</button></div></div>`).join('') || '<div class="muted">No reports</div>'; }
+    async function resolveReport(id){ await supabase.from('reports').update({ status:'resolved' }).eq('id', id); loadReports(); }
+    async function loadGroups(){ const { data } = await supabase.from('groups').select('*').order('created_at',{ascending:false}); document.getElementById('groupsList').innerHTML = (data||[]).map(g=>`<div class="item"><div><strong>${escapeHtml(g.name)}</strong></div><div><button class="btn danger" onclick="deleteGroup('${g.id}')">Delete</button></div></div>`).join('') || '<div class="muted">No groups</div>'; }
+    async function deleteGroup(id){ if(!confirm('Delete group?')) return; await supabase.from('groups').delete().eq('id', id); loadGroups(); }
 
-        async function deleteReport(id) {
-            if (!confirm('Delete report?')) return;
-            await ownerPanelSupabase.from('reports').delete().eq('id', id);
-            alert('Deleted');
-            loadReports();
-        }
+    // bans
+    document.getElementById('banBtn').addEventListener('click', async ()=>{
+      const uid = document.getElementById('banUserId').value.trim();
+      const reason = document.getElementById('banReason').value.trim();
+      if (!uid || !reason) return alert('Fill fields');
+      await supabase.from('bans').insert({ user_id: uid, reason, banned_by: currentUser.id });
+      alert('User banned');
+      loadBans();
+    });
+    async function loadBans(){ const { data } = await supabase.from('bans').select('*').order('created_at',{ascending:false}); document.getElementById('activeBansList')?.innerHTML = (data||[]).map(b=>`<div class="item"><div><strong>${escapeHtml(b.user_id)}</strong><div class="muted">${escapeHtml(b.reason||'')}</div></div><div><button class="btn" onclick="unbanUser('${b.id}')">Unban</button></div></div>`).join('') || '<div class="muted">No bans</div>'; }
+    async function unbanUser(id){ if(!confirm('Unban?')) return; await supabase.from('bans').delete().eq('id', id); loadBans(); }
 
-        async function banUser() {
-            const uid = document.getElementById('banUserId').value;
-            const duration = document.getElementById('banDuration').value;
-            const reason = document.getElementById('banReason').value;
-            if (!uid || !reason) { alert('Fill all fields'); return; }
-            
-            let expiresAt = null;
-            if (duration !== 'permanent') {
-                expiresAt = new Date();
-                expiresAt.setDate(expiresAt.getDate() + parseInt(duration));
-            }
-            
-            await ownerPanelSupabase.from('bans').insert({ user_id: uid, reason, expires_at: expiresAt, banned_by: currentUser.id });
-            alert('User banned');
-            document.getElementById('banUserId').value = '';
-            document.getElementById('banReason').value = '';
-            loadBans();
-        }
+    // banned words
+    document.getElementById('addBannedWordBtn').addEventListener('click', async ()=>{
+      const w = document.getElementById('bannedWordInput').value.trim(); if(!w) return;
+      await supabase.from('banned_words').insert({ word: w }); document.getElementById('bannedWordInput').value=''; loadBannedWords();
+    });
+    async function loadBannedWords(){ const { data } = await supabase.from('banned_words').select('*').order('created_at',{ascending:false}); document.getElementById('bannedWordsList').innerHTML = (data||[]).map(d=>`<div class="item"><div>${escapeHtml(d.word)}</div><div><button class="btn danger" onclick="removeBannedWord('${d.id}')">Remove</button></div></div>`).join('') || '<div class="muted">No banned words</div>'; }
+    async function removeBannedWord(id){ if(!confirm('Remove word?')) return; await supabase.from('banned_words').delete().eq('id', id); loadBannedWords(); }
 
-        async function loadBans() {
-            const { data: bans } = await ownerPanelSupabase.from('bans').select('*').order('created_at', { ascending: false });
-            const list = document.getElementById('activeBansList');
-            if (!bans || bans.length === 0) {
-                list.innerHTML = '<p style="text-align:center;color:var(--text-dim);">No bans</p>';
-                return;
-            }
-            list.innerHTML = bans.map(b => `<div class="item"><div><strong>User: ${b.user_id?.substring(0,8)}...</strong><br><small>${b.reason}</small><br><small>${b.expires_at ? 'Expires: ' + new Date(b.expires_at).toLocaleDateString() : 'Permanent'}</small></div><div class="item-actions"><button class="btn" onclick="unbanUser('${b.id}')">Unban</button></div></div>`).join('');
-        }
+    // stats
+    async function loadDashboardStats(){
+      const [{ count: users },{ count: posts },{ count: ads }] = await Promise.all([
+        supabase.from('profiles').select('*',{ count:'exact', head:true }),
+        supabase.from('posts').select('*',{ count:'exact', head:true }),
+        supabase.from('ads').select('*',{ count:'exact', head:true })
+      ]);
+      document.getElementById('totalUsers').textContent = users||0;
+      document.getElementById('totalPosts').textContent = posts||0;
+      document.getElementById('activeAds').textContent = ads||0;
+    }
 
-        async function unbanUser(banId) {
-            if (!confirm('Remove ban?')) return;
-            await ownerPanelSupabase.from('bans').delete().eq('id', banId);
-            alert('Ban removed');
-            loadBans();
-        }
+    function loadAllData(){ loadVerificationRequests(); loadUsers(); loadPosts(); loadComments(); loadAds(); loadReports(); loadGroups(); loadBannedWords(); }
 
-        async function createGroup() {
-            const name = document.getElementById('groupName').value;
-            const desc = document.getElementById('groupDescription').value;
-            if (!name) { alert('Enter name'); return; }
-            await ownerPanelSupabase.from('groups').insert({ name, description: desc, created_by: currentUser.id });
-            alert('Group created');
-            document.getElementById('groupName').value = '';
-            document.getElementById('groupDescription').value = '';
-            loadGroups();
-        }
+    // utilities
+    function escapeHtml(s){ if (!s && s !== 0) return ''; return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+       // search handlers
+    document.getElementById('userSearch').addEventListener('input', () => { loadUsers(); });
+    document.getElementById('contentSearch').addEventListener('input', () => { searchContent(); });
 
-        async function loadGroups() {
-            const { data: groups } = await ownerPanelSupabase.from('groups').select('*').order('created_at', { ascending: false });
-            const list = document.getElementById('groupsList');
-            if (!groups || groups.length === 0) {
-                list.innerHTML = '<p style="text-align:center;color:var(--text-dim);">No groups</p>';
-                return;
-            }
-            list.innerHTML = groups.map(g => `<div class="item"><div><strong>${g.name}</strong><br><small>${g.description || 'No description'}</small></div><div class="item-actions"><button class="btn btn-danger" onclick="deleteGroup('${g.id}')">Delete</button></div></div>`).join('');
-        }
+    async function searchContent() {
+      const q = document.getElementById('contentSearch').value.trim();
+      if (!q) { loadPosts(); loadComments(); return; }
+      const [{ data: posts }, { data: comments }] = await Promise.all([
+        supabase.from('posts').select('*').ilike('content', `%${q}%`).limit(50),
+        supabase.from('comments').select('*').ilike('content', `%${q}%`).limit(50),
+      ]);
+      document.getElementById('postsList').innerHTML = (posts || []).map(p => `<div class="item"><div>${escapeHtml(p.content?.slice(0,120) || '')}</div><div style="display:flex;gap:.4rem"><button class="btn" onclick="hidePost('${p.id}')">Hide</button><button class="btn danger" onclick="deletePost('${p.id}')">Delete</button></div></div>`).join('') || '<div class="muted">No posts</div>';
+      document.getElementById('commentsList').innerHTML = (comments || []).map(c => `<div class="item"><div>${escapeHtml(c.content?.slice(0,120) || '')}</div><div style="display:flex;gap:.4rem"><button class="btn" onclick="hideComment('${c.id}')">Hide</button><button class="btn danger" onclick="deleteComment('${c.id}')">Delete</button></div></div>`).join('') || '<div class="muted">No comments</div>';
+    }
 
-        async function deleteGroup(id) {
-            if (!confirm('Delete group?')) return;
-            await ownerPanelSupabase.from('groups').delete().eq('id', id);
-            alert('Deleted');
-            loadGroups();
-        }
+    // wire buttons that were created earlier
+    document.getElementById('saveProfileBtn').addEventListener('click', async (e) => { /* already attached above - safe double attach */ });
+    document.getElementById('saveTagsBtn').addEventListener('click', async (e) => { /* already attached above - safe double attach */ });
 
-        async function createForum() {
-            const name = document.getElementById('forumName').value;
-            const cat = document.getElementById('forumCategory').value;
-            if (!name) { alert('Enter name'); return; }
-            await ownerPanelSupabase.from('forums').insert({ name, category: cat, created_by: currentUser.id });
-            alert('Forum created');
-            document.getElementById('forumName').value = '';
-            document.getElementById('forumCategory').value = '';
-            loadForums();
-        }
+    // small helper to call admin endpoints with JSON and handle errors
+    async function callAdmin(path, body){
+      const url = adminUrl(path);
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body || {})
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(()=>String(res.status));
+        throw new Error(txt || `Admin request failed: ${res.status}`);
+      }
+      return res.json().catch(()=>null);
+    }
 
-        async function loadForums() {
-            const { data: forums } = await ownerPanelSupabase.from('forums').select('*').order('created_at', { ascending: false });
-            const list = document.getElementById('forumsList');
-            if (!forums || forums.length === 0) {
-                list.innerHTML = '<p style="text-align:center;color:var(--text-dim);">No forums</p>';
-                return;
-            }
-            list.innerHTML = forums.map(f => `<div class="item"><div><strong>${f.name}</strong><br><small>Category: ${f.category || 'None'}</small></div><div class="item-actions"><button class="btn btn-danger" onclick="deleteForum('${f.id}')">Delete</button></div></div>`).join('');
-        }
+    // examples for admin calls (not used directly if you prefer fetch inline)
+    async function adminCreateUser(payload){ return callAdmin('/create-user', payload); }
+    async function adminChangePassword(payload){ return callAdmin('/change-password', payload); }
+    async function adminRevokeSessions(payload){ return callAdmin('/revoke-sessions', payload); }
 
-        async function deleteForum(id) {
-            if (!confirm('Delete forum?')) return;
-            await ownerPanelSupabase.from('forums').delete().eq('id', id);
-            alert('Deleted');
-            loadForums();
-        }
+    // final initialization
+    (function(){
+      // Attach init after small delay to ensure global SUPABASE_ANON_KEY set if used
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    })();
 
-        async function addBannedWord() {
-            const word = document.getElementById('bannedWordInput').value.trim();
-            if (!word) { alert('Enter word'); return; }
-            await ownerPanelSupabase.from('banned_words').insert({ word });
-            alert('Word added');
-            document.getElementById('bannedWordInput').value = '';
-            loadBannedWords();
-        }
+  </script>
 
-        async function loadBannedWords() {
-            const { data: words } = await ownerPanelSupabase.from('banned_words').select('*').order('created_at', { ascending: false });
-            const list = document.getElementById('bannedWordsList');
-            if (!words || words.length === 0) {
-                list.innerHTML = '<p style="text-align:center;color:var(--text-dim);">No banned words</p>';
-                return;
-            }
-            list.innerHTML = words.map(w => `<div class="item"><div><strong>${w.word}</strong></div><div class="item-actions"><button class="btn btn-danger" onclick="removeBannedWord('${w.id}')">Remove</button></div></div>`).join('');
-        }
-
-        async function removeBannedWord(id) {
-            if (!confirm('Remove word?')) return;
-            await ownerPanelSupabase.from('banned_words').delete().eq('id', id);
-            loadBannedWords();
-        }
-
-        async function refreshStats() {
-            const { count: artists } = await ownerPanelSupabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'artist');
-            const { count: beatmakers } = await ownerPanelSupabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'beatmaker');
-            const { count: posts } = await ownerPanelSupabase.from('posts').select('*', { count: 'exact', head: true });
-            const { count: groups } = await ownerPanelSupabase.from('groups').select('*', { count: 'exact', head: true });
-            document.getElementById('statArtists').textContent = artists || 0;
-            document.getElementById('statBeatmakers').textContent = beatmakers || 0;
-            document.getElementById('statTotalPosts').textContent = posts || 0;
-            document.getElementById('statTotalGroups').textContent = groups || 0;
-        }
-
-        function togglePanelMenu() {
-            const menu = document.querySelector('.panel-sidemenu');
-            const overlay = document.querySelector('.panel-menu-overlay');
-            const hamburger = document.querySelector('.panel-hamburger');
-            
-            menu.classList.toggle('active');
-            overlay.classList.toggle('active');
-            hamburger.classList.toggle('active');
-        }
-
-        window.addEventListener('scroll', function() {
-            const backBtn = document.querySelector('.panel-back-top');
-            if (window.pageYOffset > 400) {
-                backBtn.classList.add('visible');
-            } else {
-                backBtn.classList.remove('visible');
-            }
-        });
-
-        function scrollPanelToTop() {
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
-        }
-
-        async function logout() {
-            await ownerPanelSupabase.auth.signOut();
-            window.location.href = 'login.html';
-        }
-
-        function loadAllData() {
-            loadVerificationRequests();
-            loadUsers();
-            loadPosts();
-            loadComments();
-        }
-
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', init);
-        } else {
-            init();
-        }
-    </script>
+  <!-- End body and html -->
 </body>
 </html>
