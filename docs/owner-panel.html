@@ -1,4 +1,4 @@
-**Complete minimal owner-panel.html that WILL work:**
+The JavaScript isn't running at all. Let me create a version that shows alerts so you can see what's happening:
 
 ```html
 <!DOCTYPE html>
@@ -8,149 +8,76 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Owner Panel - 8BFR Music Network</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    body{background:#0a0a0a;color:#fff;font-family:sans-serif;padding:2rem}
-    .header{background:#1a1a1a;padding:1rem;margin-bottom:1rem;border-radius:8px}
-    .card{background:#1a1a1a;padding:1rem;margin:1rem 0;border-radius:8px}
-    .btn{background:#ff0066;color:#fff;border:0;padding:.5rem 1rem;border-radius:6px;cursor:pointer}
-    .item{padding:.5rem;border-bottom:1px solid #333}
-  </style>
 </head>
-<body>
-  <div class="header">
-    <h1>👑 OWNER PANEL</h1>
-    <p id="status">Initializing...</p>
-    <button class="btn" onclick="location.href='/login.html'">Logout</button>
-  </div>
-
-  <div class="card">
-    <h3>Dashboard</h3>
-    <p>Total Users: <span id="totalUsers">-</span></p>
-    <p>Total Posts: <span id="totalPosts">-</span></p>
-  </div>
-
-  <div class="card">
-    <h3>Users</h3>
-    <div id="usersList">Loading...</div>
-  </div>
+<body style="background:#0a0a0a;color:#fff;font-family:sans-serif;padding:2rem">
+  <h1>👑 OWNER PANEL</h1>
+  <p id="status" style="font-size:1.5rem;color:#ff0066">Initializing...</p>
+  <div id="users"></div>
 
   <script>
-    // Status updates
-    function status(msg) {
-      document.getElementById('status').textContent = msg;
-    }
-
-    status('Step 1: Creating Supabase client...');
+    alert('Script started');
     
-    const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+    document.getElementById('status').textContent = 'Step 1: Script loaded';
     
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    
-    status('Step 2: Checking session...');
-
-    async function init() {
-      try {
-        status('Step 3: Getting session...');
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    setTimeout(() => {
+      alert('Timeout started');
+      
+      if (!window.supabase) {
+        alert('ERROR: Supabase not loaded!');
+        document.getElementById('status').textContent = 'ERROR: Supabase library not loaded';
+        return;
+      }
+      
+      alert('Supabase detected');
+      document.getElementById('status').textContent = 'Step 2: Creating client...';
+      
+      const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+      const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+      
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      
+      alert('Client created');
+      document.getElementById('status').textContent = 'Step 3: Checking session...';
+      
+      supabase.auth.getSession().then(({ data: { session }, error }) => {
+        alert('Session check complete');
         
-        if (sessionError) {
-          status('Session error: ' + sessionError.message);
+        if (error) {
+          alert('Session error: ' + error.message);
+          document.getElementById('status').textContent = 'Session error: ' + error.message;
           return;
         }
         
         if (!session) {
-          status('No session - redirecting to login in 3 seconds...');
+          alert('No session found');
+          document.getElementById('status').textContent = 'No session - redirecting...';
           setTimeout(() => window.location.href = '/login.html', 3000);
           return;
         }
         
-        status('Step 4: Getting user...');
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        alert('Session OK');
+        document.getElementById('status').textContent = 'Step 4: Loading users...';
         
-        if (userError) {
-          status('User error: ' + userError.message);
-          return;
-        }
-        
-        status('Step 5: Loading profile...');
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
-        
-        if (profileError) {
-          status('Profile error: ' + profileError.message);
-          return;
-        }
-        
-        if (!profile) {
-          status('No profile found for user');
-          return;
-        }
-        
-        status('✅ Loaded: ' + (profile.username || user.email));
-        
-        // Load data
-        loadStats();
-        loadUsers();
-        
-      } catch (err) {
-        status('FATAL ERROR: ' + err.message);
-        console.error(err);
-      }
-    }
-
-    async function loadStats() {
-      try {
-        const [users, posts] = await Promise.all([
-          supabase.from('profiles').select('*', { count: 'exact', head: true }),
-          supabase.from('posts').select('*', { count: 'exact', head: true })
-        ]);
-        
-        document.getElementById('totalUsers').textContent = users.count || 0;
-        document.getElementById('totalPosts').textContent = posts.count || 0;
-      } catch (err) {
-        console.error('Stats error:', err);
-      }
-    }
-
-    async function loadUsers() {
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('user_id, username, email')
-          .order('created_at', { ascending: false })
-          .limit(50);
-        
-        if (error) {
-          document.getElementById('usersList').innerHTML = 'Error: ' + error.message;
-          return;
-        }
-        
-        if (!data || data.length === 0) {
-          document.getElementById('usersList').innerHTML = 'No users found';
-          return;
-        }
-        
-        document.getElementById('usersList').innerHTML = data.map(u => 
-          `<div class="item">${u.username || u.email || 'Unknown'}</div>`
-        ).join('');
-        
-      } catch (err) {
-        document.getElementById('usersList').innerHTML = 'Error: ' + err.message;
-      }
-    }
-
-    // Start
-    status('Starting initialization...');
-    init();
+        supabase.from('profiles').select('*').limit(10).then(({ data, error }) => {
+          if (error) {
+            alert('Users error: ' + error.message);
+            document.getElementById('status').textContent = 'Error loading users: ' + error.message;
+            return;
+          }
+          
+          alert('Loaded ' + (data?.length || 0) + ' users');
+          document.getElementById('status').textContent = '✅ Loaded ' + (data?.length || 0) + ' users';
+          
+          document.getElementById('users').innerHTML = (data || []).map(u => 
+            '<div style="padding:10px;border-bottom:1px solid #333">' + (u.username || u.email) + '</div>'
+          ).join('');
+        });
+      });
+      
+    }, 1000);
   </script>
 </body>
 </html>
 ```
 
-**Save this complete file and reload. It will show you EXACTLY which step is failing on the screen.**
-
-Tell me what it says in the status message!
+**Save this and reload. You will see popup alerts showing exactly where it's stuck. Tell me what alerts you see!**
