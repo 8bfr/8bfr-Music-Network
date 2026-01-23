@@ -1,83 +1,172 @@
-The JavaScript isn't running at all. Let me create a version that shows alerts so you can see what's happening:
 
-```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Owner Panel - 8BFR Music Network</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root{
+      --primary:#ff0066; --secondary:#00ccff; --dark:#0a0a0a; --dark-card:#1a1a1a;
+      --success:#00ff88; --warning:#ffaa00; --danger:#ff0044; --text:#ffffff; --text-dim:#999999;
+      --border:#333333;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:"Work Sans",sans-serif;background:var(--dark);color:var(--text);line-height:1.6}
+    .header{background:linear-gradient(135deg,var(--dark-card) 0%,#000 100%);border-bottom:2px solid var(--primary);padding:1.25rem 1.5rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100}
+    .header h1{font-family:"Bebas Neue",sans-serif;font-size:1.6rem;letter-spacing:1px;color:var(--primary)}
+    .user-info{display:flex;align-items:center;gap:.75rem}
+    .logout-btn{background:var(--danger);color:#fff;border:0;padding:.45rem .9rem;border-radius:6px;cursor:pointer}
+    .container{max-width:1200px;margin:1.25rem auto;padding:0 1rem}
+    .tabs{display:flex;gap:.5rem;margin-bottom:1rem;border-bottom:1px solid rgba(255,255,255,0.04);overflow:auto}
+    .tab{background:transparent;color:var(--text-dim);border:0;padding:.6rem 1rem;cursor:pointer}
+    .tab.active{color:var(--primary);border-bottom:3px solid var(--primary)}
+    .tab-content{display:none;padding-top:1rem}
+    .tab-content.active{display:block}
+    .card{background:var(--dark-card);border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:1rem}
+    .grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem}
+    .search-box{width:100%;padding:.6rem;border-radius:6px;border:1px solid var(--border);background:transparent;color:inherit}
+    .btn{background:var(--primary);color:#fff;border:0;padding:.6rem .9rem;border-radius:6px;cursor:pointer}
+    .btn.secondary{background:var(--secondary)}
+    .btn.danger{background:var(--danger)}
+    .item-list{max-height:420px;overflow:auto}
+    .item{display:flex;justify-content:space-between;align-items:center;padding:.6rem;border-radius:6px;border:1px solid rgba(255,255,255,0.02);margin-bottom:.5rem}
+    .pill{padding:.25rem .5rem;border-radius:999px;background:rgba(255,255,255,0.03);font-size:.85rem}
+    .muted{color:var(--text-dim);font-size:.9rem}
+  </style>
 </head>
-<body style="background:#0a0a0a;color:#fff;font-family:sans-serif;padding:2rem">
-  <h1>👑 OWNER PANEL</h1>
-  <p id="status" style="font-size:1.5rem;color:#ff0066">Initializing...</p>
-  <div id="users"></div>
+<body>
+  <div class="header">
+    <h1>👑 OWNER PANEL</h1>
+    <div class="user-info">
+      <span id="ownerName" class="pill">Loading...</span>
+      <button class="logout-btn" id="logoutBtn">Logout</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="tabs">
+      <button class="tab active" data-tab="dashboard">Dashboard</button>
+      <button class="tab" data-tab="users">Users</button>
+      <button class="tab" data-tab="content">Content</button>
+      <button class="tab" data-tab="verification">Verification</button>
+    </div>
+
+    <section id="dashboard" class="tab-content active">
+      <div class="grid-3">
+        <div class="card"><h3 class="muted">Total Users</h3><div id="totalUsers" class="pill">0</div></div>
+        <div class="card"><h3 class="muted">Total Posts</h3><div id="totalPosts" class="pill">0</div></div>
+        <div class="card"><h3 class="muted">Active Ads</h3><div id="activeAds" class="pill">0</div></div>
+      </div>
+    </section>
+
+    <section id="users" class="tab-content">
+      <div class="card">
+        <h3>User Management</h3>
+        <input id="userSearch" class="search-box" placeholder="Search users">
+        <div class="item-list" id="usersList" style="margin-top:.5rem"></div>
+      </div>
+    </section>
+
+    <section id="content" class="tab-content">
+      <div class="card">
+        <h3>Posts</h3>
+        <div class="item-list" id="postsList"></div>
+      </div>
+    </section>
+
+    <section id="verification" class="tab-content">
+      <div class="card">
+        <h3>Verification Requests</h3>
+        <div class="item-list" id="verificationList"></div>
+      </div>
+    </section>
+  </div>
 
   <script>
-    alert('Script started');
+    const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
     
-    document.getElementById('status').textContent = 'Step 1: Script loaded';
-    
+    let supabase;
+    let currentUser = null;
+
     setTimeout(() => {
-      alert('Timeout started');
-      
-      if (!window.supabase) {
-        alert('ERROR: Supabase not loaded!');
-        document.getElementById('status').textContent = 'ERROR: Supabase library not loaded';
-        return;
-      }
-      
-      alert('Supabase detected');
-      document.getElementById('status').textContent = 'Step 2: Creating client...';
-      
-      const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
-      const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
-      
-      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-      
-      alert('Client created');
-      document.getElementById('status').textContent = 'Step 3: Checking session...';
-      
-      supabase.auth.getSession().then(({ data: { session }, error }) => {
-        alert('Session check complete');
-        
-        if (error) {
-          alert('Session error: ' + error.message);
-          document.getElementById('status').textContent = 'Session error: ' + error.message;
-          return;
-        }
-        
-        if (!session) {
-          alert('No session found');
-          document.getElementById('status').textContent = 'No session - redirecting...';
-          setTimeout(() => window.location.href = '/login.html', 3000);
-          return;
-        }
-        
-        alert('Session OK');
-        document.getElementById('status').textContent = 'Step 4: Loading users...';
-        
-        supabase.from('profiles').select('*').limit(10).then(({ data, error }) => {
-          if (error) {
-            alert('Users error: ' + error.message);
-            document.getElementById('status').textContent = 'Error loading users: ' + error.message;
-            return;
-          }
-          
-          alert('Loaded ' + (data?.length || 0) + ' users');
-          document.getElementById('status').textContent = '✅ Loaded ' + (data?.length || 0) + ' users';
-          
-          document.getElementById('users').innerHTML = (data || []).map(u => 
-            '<div style="padding:10px;border-bottom:1px solid #333">' + (u.username || u.email) + '</div>'
-          ).join('');
-        });
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      init();
+    }, 500);
+
+    document.querySelectorAll('.tab').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+        btn.classList.add('active');
+        const name = btn.dataset.tab;
+        document.getElementById(name)?.classList.add('active');
+        if(name==='users') loadUsers();
+        if(name==='content') loadPosts();
+        if(name==='verification') loadVerifications();
       });
-      
-    }, 1000);
+    });
+
+    async function init(){
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session){
+          window.location.href = '/login.html';
+          return;
+        }
+        
+        const { data: { user } } = await supabase.auth.getUser();
+        currentUser = user;
+        
+        const { data: profile } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+        
+        document.getElementById('ownerName').textContent = profile?.username || user.email.split('@')[0];
+        
+        await loadDashboardStats();
+        loadUsers();
+      } catch (err){
+        console.error(err);
+      }
+    }
+
+    document.getElementById('logoutBtn').addEventListener('click', async ()=>{
+      await supabase.auth.signOut();
+      window.location.href = '/login.html';
+    });
+
+    async function loadDashboardStats(){
+      const [{ count: users },{ count: posts },{ count: ads }] = await Promise.all([
+        supabase.from('profiles').select('*',{ count:'exact', head:true }),
+        supabase.from('posts').select('*',{ count:'exact', head:true }),
+        supabase.from('ads').select('*',{ count:'exact', head:true })
+      ]);
+      document.getElementById('totalUsers').textContent = users||0;
+      document.getElementById('totalPosts').textContent = posts||0;
+      document.getElementById('activeAds').textContent = ads||0;
+    }
+
+    async function loadUsers(){
+      const { data } = await supabase.from('profiles').select('*').order('created_at',{ascending:false}).limit(100);
+      const el = document.getElementById('usersList');
+      el.innerHTML = (data||[]).map(u=>`<div class="item"><div><strong>${u.username||u.email}</strong><div class="muted">${u.role||'user'}</div></div></div>`).join('') || '<div class="muted">No users</div>';
+    }
+
+    async function loadPosts(){
+      const { data } = await supabase.from('posts').select('*').order('created_at',{ascending:false}).limit(50);
+      const el = document.getElementById('postsList');
+      el.innerHTML = (data||[]).map(p=>`<div class="item"><div>${(p.content||'').slice(0,100)}</div></div>`).join('') || '<div class="muted">No posts</div>';
+    }
+
+    async function loadVerifications(){
+      const { data } = await supabase.from('verification_requests').select('*').order('created_at',{ascending:false});
+      const el = document.getElementById('verificationList');
+      el.innerHTML = (data||[]).map(v=>`<div class="item"><div>${v.role_requested}</div></div>`).join('') || '<div class="muted">No requests</div>';
+    }
+
+    document.getElementById('userSearch').addEventListener('input', loadUsers);
   </script>
 </body>
 </html>
-```
-
-**Save this and reload. You will see popup alerts showing exactly where it's stuck. Tell me what alerts you see!**
