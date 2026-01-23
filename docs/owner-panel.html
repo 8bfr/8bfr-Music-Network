@@ -1,4 +1,6 @@
+The timeout wasn't long enough. Let's use the **exact code that worked with the alerts**, just remove the alerts:
 
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -29,8 +31,6 @@
     .grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem}
     .search-box{width:100%;padding:.6rem;border-radius:6px;border:1px solid var(--border);background:transparent;color:inherit}
     .btn{background:var(--primary);color:#fff;border:0;padding:.6rem .9rem;border-radius:6px;cursor:pointer}
-    .btn.secondary{background:var(--secondary)}
-    .btn.danger{background:var(--danger)}
     .item-list{max-height:420px;overflow:auto}
     .item{display:flex;justify-content:space-between;align-items:center;padding:.6rem;border-radius:6px;border:1px solid rgba(255,255,255,0.02);margin-bottom:.5rem}
     .pill{padding:.25rem .5rem;border-radius:999px;background:rgba(255,255,255,0.03);font-size:.85rem}
@@ -42,7 +42,7 @@
     <h1>👑 OWNER PANEL</h1>
     <div class="user-info">
       <span id="ownerName" class="pill">Loading...</span>
-      <button class="logout-btn" id="logoutBtn">Logout</button>
+      <button class="logout-btn" onclick="location.href='/login.html'">Logout</button>
     </div>
   </div>
 
@@ -51,7 +51,6 @@
       <button class="tab active" data-tab="dashboard">Dashboard</button>
       <button class="tab" data-tab="users">Users</button>
       <button class="tab" data-tab="content">Content</button>
-      <button class="tab" data-tab="verification">Verification</button>
     </div>
 
     <section id="dashboard" class="tab-content active">
@@ -66,107 +65,100 @@
       <div class="card">
         <h3>User Management</h3>
         <input id="userSearch" class="search-box" placeholder="Search users">
-        <div class="item-list" id="usersList" style="margin-top:.5rem"></div>
+        <div class="item-list" id="usersList" style="margin-top:.5rem">Loading...</div>
       </div>
     </section>
 
     <section id="content" class="tab-content">
       <div class="card">
         <h3>Posts</h3>
-        <div class="item-list" id="postsList"></div>
-      </div>
-    </section>
-
-    <section id="verification" class="tab-content">
-      <div class="card">
-        <h3>Verification Requests</h3>
-        <div class="item-list" id="verificationList"></div>
+        <div class="item-list" id="postsList">Loading...</div>
       </div>
     </section>
   </div>
 
   <script>
-    const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+    document.getElementById('ownerName').textContent = 'Initializing...';
     
-    let supabase;
-    let currentUser = null;
-
     setTimeout(() => {
-      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-      init();
-    }, 500);
-
-    document.querySelectorAll('.tab').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
-        btn.classList.add('active');
-        const name = btn.dataset.tab;
-        document.getElementById(name)?.classList.add('active');
-        if(name==='users') loadUsers();
-        if(name==='content') loadPosts();
-        if(name==='verification') loadVerifications();
-      });
-    });
-
-    async function init(){
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session){
-          window.location.href = '/login.html';
+      document.getElementById('ownerName').textContent = 'Loading Supabase...';
+      
+      const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+      const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+      
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      
+      document.getElementById('ownerName').textContent = 'Checking session...';
+      
+      supabase.auth.getSession().then(({ data: { session }, error }) => {
+        if (error) {
+          document.getElementById('ownerName').textContent = 'Error: ' + error.message;
           return;
         }
         
-        const { data: { user } } = await supabase.auth.getUser();
-        currentUser = user;
+        if (!session) {
+          document.getElementById('ownerName').textContent = 'No session - redirecting...';
+          setTimeout(() => window.location.href = '/login.html', 2000);
+          return;
+        }
         
-        const { data: profile } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+        document.getElementById('ownerName').textContent = 'Loading profile...';
         
-        document.getElementById('ownerName').textContent = profile?.username || user.email.split('@')[0];
-        
-        await loadDashboardStats();
-        loadUsers();
-      } catch (err){
-        console.error(err);
-      }
-    }
-
-    document.getElementById('logoutBtn').addEventListener('click', async ()=>{
-      await supabase.auth.signOut();
-      window.location.href = '/login.html';
-    });
-
-    async function loadDashboardStats(){
-      const [{ count: users },{ count: posts },{ count: ads }] = await Promise.all([
-        supabase.from('profiles').select('*',{ count:'exact', head:true }),
-        supabase.from('posts').select('*',{ count:'exact', head:true }),
-        supabase.from('ads').select('*',{ count:'exact', head:true })
-      ]);
-      document.getElementById('totalUsers').textContent = users||0;
-      document.getElementById('totalPosts').textContent = posts||0;
-      document.getElementById('activeAds').textContent = ads||0;
-    }
-
-    async function loadUsers(){
-      const { data } = await supabase.from('profiles').select('*').order('created_at',{ascending:false}).limit(100);
-      const el = document.getElementById('usersList');
-      el.innerHTML = (data||[]).map(u=>`<div class="item"><div><strong>${u.username||u.email}</strong><div class="muted">${u.role||'user'}</div></div></div>`).join('') || '<div class="muted">No users</div>';
-    }
-
-    async function loadPosts(){
-      const { data } = await supabase.from('posts').select('*').order('created_at',{ascending:false}).limit(50);
-      const el = document.getElementById('postsList');
-      el.innerHTML = (data||[]).map(p=>`<div class="item"><div>${(p.content||'').slice(0,100)}</div></div>`).join('') || '<div class="muted">No posts</div>';
-    }
-
-    async function loadVerifications(){
-      const { data } = await supabase.from('verification_requests').select('*').order('created_at',{ascending:false});
-      const el = document.getElementById('verificationList');
-      el.innerHTML = (data||[]).map(v=>`<div class="item"><div>${v.role_requested}</div></div>`).join('') || '<div class="muted">No requests</div>';
-    }
-
-    document.getElementById('userSearch').addEventListener('input', loadUsers);
+        supabase.auth.getUser().then(({ data: { user } }) => {
+          supabase.from('profiles').select('*').eq('user_id', user.id).single().then(({ data: profile }) => {
+            document.getElementById('ownerName').textContent = profile?.username || user.email.split('@')[0];
+            
+            // Load stats
+            Promise.all([
+              supabase.from('profiles').select('*', { count: 'exact', head: true }),
+              supabase.from('posts').select('*', { count: 'exact', head: true }),
+              supabase.from('ads').select('*', { count: 'exact', head: true })
+            ]).then(([users, posts, ads]) => {
+              document.getElementById('totalUsers').textContent = users.count || 0;
+              document.getElementById('totalPosts').textContent = posts.count || 0;
+              document.getElementById('activeAds').textContent = ads.count || 0;
+            });
+            
+            // Load users
+            supabase.from('profiles').select('*').order('created_at', { ascending: false }).limit(100).then(({ data }) => {
+              document.getElementById('usersList').innerHTML = (data || []).map(u =>
+                `<div class="item"><div><strong>${u.username || u.email}</strong><div class="muted">${u.role || 'user'}</div></div></div>`
+              ).join('') || '<div class="muted">No users</div>';
+            });
+          });
+        });
+      });
+      
+      // Tabs
+      document.querySelectorAll('.tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+          document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+          btn.classList.add('active');
+          document.getElementById(btn.dataset.tab)?.classList.add('active');
+          
+          if (btn.dataset.tab === 'users') {
+            supabase.from('profiles').select('*').limit(100).then(({ data }) => {
+              document.getElementById('usersList').innerHTML = (data || []).map(u =>
+                `<div class="item"><div><strong>${u.username || u.email}</strong></div></div>`
+              ).join('');
+            });
+          }
+          
+          if (btn.dataset.tab === 'content') {
+            supabase.from('posts').select('*').limit(50).then(({ data }) => {
+              document.getElementById('postsList').innerHTML = (data || []).map(p =>
+                `<div class="item"><div>${(p.content || '').slice(0, 100)}</div></div>`
+              ).join('') || '<div class="muted">No posts</div>';
+            });
+          }
+        });
+      });
+      
+    }, 1000);
   </script>
 </body>
 </html>
+```
+
+**This is the EXACT pattern that worked before (with alerts). Save and test!**
