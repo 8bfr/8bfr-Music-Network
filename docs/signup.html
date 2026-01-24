@@ -42,56 +42,20 @@
       <label>Bio</label>
       <textarea id="bio" rows="3" placeholder="Tell us about yourself..."></textarea>
 
-      <label>Primary Role *</label>
-      <select id="role">
-        <option value="fan">Fan</option>
-        <option value="artist">Artist</option>
-        <option value="beatmaker">Beatmaker</option>
-        <option value="producer">Producer</option>
-        <option value="singer">Singer</option>
-        <option value="musician">Musician</option>
-        <option value="engineer">Engineer</option>
-        <option value="songwriter">Songwriter</option>
-        <option value="dj">DJ</option>
-        <option value="label">Label</option>
-        <option value="promoter">Promoter</option>
-        <option value="videographer">Videographer</option>
-        <option value="photographer">Photographer</option>
-        <option value="filmmaker">Filmmaker</option>
-        <option value="podcaster">Podcaster</option>
-        <option value="distributor">Distributor</option>
-        <option value="rapper">Rapper</option>
-        <option value="designer">Designer</option>
-        <option value="author">Author</option>
-        <option value="blogger">Blogger</option>
-        <option value="game_creator">Game Creator</option>
-        <option value="developer">Developer</option>
-        <option value="streamer">Streamer</option>
-        <option value="gamer">Gamer</option>
-        <option value="influencer">Influencer</option>
-        <option value="brand_ambassador">Brand Ambassador</option>
-        <option value="community_leader">Community Leader</option>
-        <option value="parent">Parent</option>
-        <option value="student">Student</option>
-        <option value="educator">Educator</option>
-        <option value="supporter">Supporter</option>
-        <option value="collector">Collector</option>
-        <option value="mentor">Mentor</option>
-        <option value="kids">Kids</option>
-        <option value="mod">Moderator</option>
-        <option value="admin">Admin</option>
-        <option value="owner">Owner</option>
-      </select>
-
-      <div id="verificationSection" style="display:none;margin-top:1rem;">
-        <label>Verification Link (Required for Artist/Beatmaker/Producer)</label>
-        <input id="verification_link" type="url" placeholder="https://spotify.com/artist/... or similar proof" />
-        <p class="muted">Provide a link to verify your professional status (Spotify, SoundCloud, etc)</p>
+      <label>Roles (check all that apply) *</label>
+      <div class="badge-grid" id="roleContainer" style="margin-bottom:1rem;">
+        <!-- Roles will be added here by JavaScript -->
       </div>
 
       <label>Badges (optional - check all that apply)</label>
       <div class="badge-grid" id="badgeContainer">
         <!-- Badges will be added here by JavaScript -->
+      </div>
+
+      <div id="verificationSection" style="display:none;margin-top:1rem;">
+        <label>Verification Link (Recommended for Artist/Beatmaker/Producer)</label>
+        <input id="verification_link" type="url" placeholder="https://spotify.com/artist/... or similar proof" />
+        <p class="muted">Provide a link to verify your professional status (Spotify, SoundCloud, etc)</p>
       </div>
 
       <div id="message"></div>
@@ -129,6 +93,15 @@
       document.getElementById('message').innerHTML = '<div class="error">Supabase initialization failed: ' + e.message + '</div>';
     }
 
+    // All available roles
+    const allRoles = [
+      'fan','artist','beatmaker','producer','singer','musician','engineer','songwriter','dj',
+      'label','promoter','videographer','photographer','filmmaker','podcaster','distributor',
+      'rapper','designer','author','blogger','game_creator','developer','streamer','gamer',
+      'influencer','brand_ambassador','community_leader','parent','student','educator',
+      'supporter','collector','mentor','kids','mod','admin','owner'
+    ];
+
     // All available badges - COMPLETE LIST
     const allBadges = [
       'artist','beatmaker','producer','singer','musician','engineer','songwriter','dj',
@@ -141,6 +114,18 @@
       'carrie_ai_assistant','carrie_performer','carrie_concert_vip','carrie_fashionista','carrie_voice_clone'
     ];
 
+    // Render role checkboxes
+    const roleContainer = document.getElementById('roleContainer');
+    allRoles.forEach(role => {
+      const div = document.createElement('div');
+      div.className = 'badge-item';
+      div.innerHTML = `
+        <input type="checkbox" id="role_${role}" value="${role}">
+        <label for="role_${role}" style="margin:0;cursor:pointer;font-size:.85rem;">${role.replace(/_/g, ' ')}</label>
+      `;
+      roleContainer.appendChild(div);
+    });
+
     // Render badge checkboxes
     const badgeContainer = document.getElementById('badgeContainer');
     allBadges.forEach(badge => {
@@ -151,19 +136,6 @@
         <label for="badge_${badge}" style="margin:0;cursor:pointer;font-size:.85rem;">${badge}</label>
       `;
       badgeContainer.appendChild(div);
-    });
-
-    // Show verification section for certain roles
-    const roleSelect = document.getElementById('role');
-    const verificationSection = document.getElementById('verificationSection');
-    
-    roleSelect.addEventListener('change', () => {
-      const needsVerification = ['artist', 'beatmaker', 'producer', 'singer', 'musician', 'engineer', 'songwriter', 'dj', 'rapper'];
-      if (needsVerification.includes(roleSelect.value)) {
-        verificationSection.style.display = 'block';
-      } else {
-        verificationSection.style.display = 'none';
-      }
     });
 
     // Signup function
@@ -178,7 +150,6 @@
       const username = document.getElementById('username').value.trim();
       const display_name = document.getElementById('display_name').value.trim();
       const bio = document.getElementById('bio').value.trim();
-      const role = document.getElementById('role').value;
       const verification_link = document.getElementById('verification_link').value.trim();
 
       const messageEl = document.getElementById('message');
@@ -186,9 +157,26 @@
       
       messageEl.innerHTML = '';
 
+      // Get selected roles
+      const selectedRoles = [];
+      document.querySelectorAll('#roleContainer input:checked').forEach(cb => {
+        selectedRoles.push(cb.value);
+      });
+
+      // Get selected badges
+      const selectedBadges = [];
+      document.querySelectorAll('#badgeContainer input:checked').forEach(cb => {
+        selectedBadges.push(cb.value);
+      });
+
       // Validation
       if (!email || !password || !username) {
         messageEl.innerHTML = '<div class="error">Email, password, and username are required.</div>';
+        return;
+      }
+
+      if (selectedRoles.length === 0) {
+        messageEl.innerHTML = '<div class="error">Please select at least one role.</div>';
         return;
       }
 
@@ -202,17 +190,8 @@
         return;
       }
 
-      const needsVerification = ['artist', 'beatmaker', 'producer', 'singer', 'musician', 'engineer', 'songwriter', 'dj', 'rapper'];
-      if (needsVerification.includes(role) && !verification_link) {
-        messageEl.innerHTML = '<div class="error">Verification link is required for ' + role + ' role.</div>';
-        return;
-      }
-
-      // Get selected badges
-      const selectedBadges = [];
-      document.querySelectorAll('#badgeContainer input:checked').forEach(cb => {
-        selectedBadges.push(cb.value);
-      });
+      // Use first role as primary role for database
+      const primaryRole = selectedRoles[0];
 
       signupBtn.disabled = true;
       signupBtn.textContent = 'Creating account...';
@@ -244,7 +223,9 @@
 
         messageEl.innerHTML = '<div class="muted">Creating profile...</div>';
 
-        // 2. Create profile
+        // 2. Create profile - combine roles and badges
+        const allTags = [...selectedRoles, ...selectedBadges];
+        
         const { error: profileError } = await supabase
           .from('profiles')
           .insert({
@@ -252,9 +233,9 @@
             email: email,
             username: username,
             display_name: display_name || username,
-            role: role,
+            role: primaryRole,
             bio: bio,
-            badges: selectedBadges,
+            badges: allTags,
             verify_url: verification_link || null,
             verified_artist: false,
             created_at: new Date().toISOString()
@@ -267,14 +248,17 @@
           return;
         }
 
-        // 3. Create verification request if needed
-        if (needsVerification.includes(role) && verification_link) {
+        // 3. Create verification request if artist-type role selected
+        const needsVerification = ['artist', 'beatmaker', 'producer', 'singer', 'musician', 'engineer', 'songwriter', 'dj', 'rapper'];
+        const hasArtistRole = selectedRoles.some(r => needsVerification.includes(r));
+        
+        if (hasArtistRole && verification_link) {
           const { error: vrError } = await supabase
             .from('verification_requests')
             .insert({
               user_id: user.id,
               username: username,
-              requested_role: role,
+              requested_role: selectedRoles.filter(r => needsVerification.includes(r)).join(', '),
               proof_link: verification_link,
               status: 'pending',
               created_at: new Date().toISOString()
