@@ -210,7 +210,8 @@
       
       supabase.auth.getSession().then(({ data: { session }, error }) => {
         if (error) {
-          document.getElementById('ownerName').textContent = 'Session error';
+          document.getElementById('ownerName').textContent = 'Session error: ' + error.message;
+          console.error('Session error:', error);
           return;
         }
         
@@ -222,16 +223,33 @@
         
         supabase.auth.getUser().then(({ data: { user } }) => {
           currentUser = user;
+          console.log('User loaded:', user.email);
           
-          supabase.from('profiles').select('*').eq('user_id', user.id).single().then(({ data: profile }) => {
+          supabase.from('profiles').select('*').eq('user_id', user.id).single().then(({ data: profile, error: profileErr }) => {
+            if (profileErr) {
+              document.getElementById('ownerName').textContent = 'Profile error: ' + profileErr.message;
+              console.error('Profile error:', profileErr);
+              return;
+            }
+            
+            console.log('Profile loaded:', profile);
             document.getElementById('ownerName').textContent = profile?.username || user.email.split('@')[0];
             
             renderBadgeCheckboxes();
             loadDashboardStats();
             loadUsers();
             setupEventListeners();
+          }).catch(err => {
+            document.getElementById('ownerName').textContent = 'Profile catch: ' + err.message;
+            console.error('Profile catch:', err);
           });
+        }).catch(err => {
+          document.getElementById('ownerName').textContent = 'User catch: ' + err.message;
+          console.error('User catch:', err);
         });
+      }).catch(err => {
+        document.getElementById('ownerName').textContent = 'Session catch: ' + err.message;
+        console.error('Session catch:', err);
       });
       
     }, 1000);
