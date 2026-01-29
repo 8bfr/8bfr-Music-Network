@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Supabase Debug — Profiles</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; margin: 0; padding: 20px; color:#111 }
+    header { margin-bottom: 12px }
+    pre { background:#f5f7fa; padding:12px; border-radius:6px; overflow:auto; max-height:40vh }
+    .status { margin:8px 0; padding:10px; border-radius:6px; background:#eef6ff; color:#034; }
+    button { padding:8px 12px; border-radius:6px; border:1px solid #ccc; background:#fff; cursor:pointer }
+    .error { background:#ffecec; color:#700; }
+    .ok { background:#ecffef; color:#063; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Supabase Debug — Profiles</h1>
+    <p>This page attempts to load loader.js and shim_client.js from <code>/docs</code> and runs basic checks.</p>
+  </header>
+
+  <section>
+    <div id="info" class="status">Starting checks...</div>
+    <button id="runChecks">Run checks</button>
+  </section>
+
+  <h3>Runtime log</h3>
+  <pre id="log">— ready —</pre>
+
+  <script>
+    // Simple logger to page + console
+    const logEl = document.getElementById('log');
+    function log(...args) {
+      console.log(...args);
+      const line = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
+      logEl.textContent += '\\n' + line;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+    function setInfo(text, kind) {
+      const info = document.getElementById('info');
+      info.textContent = text;
+      info.className = 'status' + (kind ? (kind === 'error' ? ' error' : ' ok') : '');
+    }
+
+    // Ensure we reference /docs paths (all files live in /docs)
+    (function injectScripts() {
+      log('Injecting scripts from /docs...');
+      // loader first
+      const loader = document.createElement('script');
+      loader.src = '/docs/loader.js';
+      loader.async = false;
+      loader.onload = () => log('loader.js loaded (onload)');
+      loader.onerror = (e) => {
+        log('loader.js failed to load', e);
+        setInfo('loader.js failed to load (check /docs path or permissions)', 'error');
+      };
+      document.head.appendChild(loader);
+
+      // shim next
+      const shim = document.createElement('script');
+      shim.src = '/docs/shim_client.js';
+      shim.async = false;
+      shim.onload = () => log('shim_client.js loaded (onload)');
+      shim.onerror = (e) => {
+        log('shim_client.js failed to load', e);
+        setInfo('shim_client.js failed to load (check /docs path or permissions)', 'error');
+      };
+      document.head.appendChild(shim);
+    })();
+
+    // Basic runtime checks (mimics the original debug flow)
+    function runtimeChecks() {
+      log('\\n--- Running runtime checks ---');
+      setInfo('Running runtime checks...');
+      try {
+        // Check window.supabase (shim) and createClient
+        const hasWindowSupabase = !!window.supabase;
+        const hasCreateClient = typeof window.createClient !== 'undefined' || (window.supabase && typeof window.supabase.createClient !== 'undefined');
+        log('Check: window.supabase exists?', hasWindowSupabase ? 'yes' : 'no');
+        log('Check: createClient exists?', hasCreateClient ? 'yes' : 'no');
+
+        if (!hasWindowSupabase && !hasCreateClient) {
+          log('No createClient or supabase.createClient available, aborting.');
+          setInfo('Client init failed: no createClient or window.supabase.createClient found', 'error');
+        } else {
+          log('Client appears available. Proceeding with a minimal connection test (no secrets printed).');
+          setInfo('Client available, running connection test...', 'ok');
+
+          // If supabase client is present, try creating a client (only if settings available)
+          // We don't include keys here; this is a lightweight presence/test only.
+          try {
+            const cc = window.createClient || (window.supabase && window.supabase.createClient);
+            log('createClient reference:', !!cc);
+            // Optionally attempt a harmless call if user has provided anon key in shim/loader;
+            // Wrap in try/catch to avoid throwing if missing.
+            if (typeof cc === 'function') {
+              try {
+                // If loader/shim defined defaults, they might set SUPABASE_URL/SUPABASE_ANON_KEY on window.
+                const url = window.SUPABASE_URL || (window.supabase && window.supabase.url) || null;
+                const key = window.SUPABASE_ANON_KEY || (window.supabase && window.supabase.anonKey) || null;
+                log('Detected SUPABASE_URL:', url ? 'present' : 'missing');
+                log('Detected SUPABASE_ANON_KEY:', key ? 'present' : 'missing');
+
+                if (url && key) {
+                  const client = cc(url, key);
+                  log('Client created. Attempting a simple health check: fetching from {url}/rest/v1?select=1 (OPTIONS allowed)');
+                  fetch(url + '/rest/v1', { method: 'OPTIONS' })
+                    .then(r => {
+                      log('Health check response status:', r.status);
+                      if (r.ok || r.status === 204) {
+                        setInfo('Supabase REST endpoint reachable (OPTIONS ok)', 'ok');
+                      } else {
+                        setInfo('Supabase REST endpoint returned status ' + r.status, 'error');
+                      }
+                    })
+                    .catch(err => {
+                      log('Health check fetch failed:', err);
+                      setInfo('Supabase REST endpoint fetch failed (network/CORS)', 'error');
+                    });
+                } else {
+                  log('No url/key detected; skipping REST health check.');
+                }
+              } catch (e) {
+                log('Error while attempting lightweight client test', e);
+              }
+            } else {
+              log('createClient is not a function. Aborting deep checks.');
+            }
+          } catch (e) {
+            log('Error during client presence checks', e);
+            setInfo('Error during client checks', 'error');
+          }
+        }
+      } catch (err) {
+        log('Unexpected error during runtimeChecks:', err);
+        setInfo('Unexpected error during checks', 'error');
+      }
+    }
+
+    // Wire button
+    document.getElementById('runChecks').addEventListener('click', () => runtimeChecks());
+
+    // Auto-run after a short delay to give loader/shim time to initialize
+    setTimeout(() => {
+      log('\\nAuto-running checks in 500ms...');
+      runtimeChecks();
+    }, 500);
+  </script>
+</body>
+</html>
