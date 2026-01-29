@@ -48,6 +48,8 @@
         .muted { color: var(--text-dim); font-size: 0.9rem; }
         .error { color: #ff4444; background: rgba(255, 68, 68, 0.1); padding: 0.75rem; border-radius: 4px; margin: 0.5rem 0; }
         .success-msg { color: #44ff88; background: rgba(68, 255, 136, 0.1); padding: 0.75rem; border-radius: 4px; margin: 0.5rem 0; }
+        .debug-log { background: #000; border: 1px solid var(--border); padding: 0.75rem; border-radius: 4px; margin: 1rem 0; max-height: 200px; overflow-y: auto; font-size: 0.8rem; font-family: monospace; }
+        .debug-log div { margin-bottom: 0.25rem; color: #0f0; }
     </style>
 </head>
 <body>
@@ -60,6 +62,12 @@
     </div>
 
     <div class="container">
+        <div class="card">
+            <h2>Debug Log</h2>
+            <button class="btn" onclick="clearDebugLog()">Clear Log</button>
+            <div id="debugLog" class="debug-log"></div>
+        </div>
+
         <div class="tabs">
             <button class="tab active" onclick="switchTab('users')">Users</button>
             <button class="tab" onclick="switchTab('create')">Create User</button>
@@ -69,7 +77,10 @@
         <div id="users" class="tab-content active">
             <div class="card">
                 <h2>All Users</h2>
-                <input type="text" id="userSearch" class="search-box" placeholder="Search users..." oninput="loadUsers()">
+                <div style="display:flex;gap:0.5rem;margin-bottom:1rem;">
+                    <input type="text" id="userSearch" class="search-box" placeholder="Search users..." oninput="loadUsers()" style="margin-bottom:0;">
+                    <button class="btn" onclick="loadUsers()" style="white-space:nowrap;">🔄 Refresh</button>
+                </div>
                 <div class="item-list" id="usersList"><p class="muted">Loading users...</p></div>
             </div>
         </div>
@@ -150,6 +161,21 @@
         let ownerPanelSupabase;
         let currentUser = null;
 
+        function log(msg, data) {
+            const logEl = document.getElementById('debugLog');
+            if (!logEl) return;
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.textContent = `[${time}] ${msg}${data ? ': ' + JSON.stringify(data).substring(0, 100) : ''}`;
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight;
+            console.log(msg, data); // Also log to console for non-mobile
+        }
+
+        function clearDebugLog() {
+            document.getElementById('debugLog').innerHTML = '';
+        }
+
         function init() {
             const { createClient } = supabase;
             ownerPanelSupabase = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -189,34 +215,50 @@
 
         async function loadUsers() {
             const search = document.getElementById('userSearch').value.toLowerCase();
-            const { data: users } = await ownerPanelSupabase.from('profiles').select('*').order('created_at', { ascending: false }).limit(100);
-            
-            const filtered = search ? users.filter(u => 
-                (u.username && u.username.toLowerCase().includes(search)) ||
-                (u.email && u.email.toLowerCase().includes(search)) ||
-                (u.display_name && u.display_name.toLowerCase().includes(search))
-            ) : users;
-            
             const list = document.getElementById('usersList');
             
-            if (!filtered || filtered.length === 0) {
-                list.innerHTML = '<p class="muted">No users found</p>';
-                return;
+            try {
+                list.innerHTML = '<p class="muted">Loading users...</p>';
+                
+                const { data: users, error } = await ownerPanelSupabase.from('profiles').select('*').order('created_at', { ascending: false }).limit(100);
+                
+                if (error) {
+                    log('Load users ERROR', error);
+                    list.innerHTML = '<div class="error">Error loading users: ' + error.message + '</div>';
+                    return;
+                }
+                
+                log('Loaded users', users?.length || 0);
+                
+                const filtered = search ? users.filter(u => 
+                    (u.username && u.username.toLowerCase().includes(search)) ||
+                    (u.email && u.email.toLowerCase().includes(search)) ||
+                    (u.display_name && u.display_name.toLowerCase().includes(search))
+                ) : users;
+                
+                if (!filtered || filtered.length === 0) {
+                    list.innerHTML = '<p class="muted">No users found</p>';
+                    return;
+                }
+                
+                list.innerHTML = filtered.map(u => `
+                    <div class="item">
+                        <div>
+                            <strong>${escapeHtml(u.username || u.display_name || u.email || 'user')}</strong>
+                            <div class="muted">${escapeHtml(u.email || 'No email')}</div>
+                            <span class="pill">${escapeHtml(u.role || 'fan')}</span>
+                        </div>
+                        <div class="item-actions">
+                            ${u.email ? `<button class="btn" onclick="sendPasswordReset('${escapeHtml(u.email)}')">Reset Password</button>` : ''}
+                            <button class="btn btn-danger" onclick="deleteUser('${u.user_id}')">Delete</button>
+                        </div>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                log('Load users EXCEPTION', error);
+                list.innerHTML = '<div class="error">Unexpected error: ' + error.message + '</div>';
             }
-            
-            list.innerHTML = filtered.map(u => `
-                <div class="item">
-                    <div>
-                        <strong>${escapeHtml(u.username || u.display_name || u.email || 'user')}</strong>
-                        <div class="muted">${escapeHtml(u.email || '')}</div>
-                        <span class="pill">${escapeHtml(u.role || 'fan')}</span>
-                    </div>
-                    <div class="item-actions">
-                        <button class="btn" onclick="sendPasswordReset('${escapeHtml(u.email)}')">Reset Password</button>
-                        <button class="btn btn-danger" onclick="deleteUser('${u.user_id}')">Delete</button>
-                    </div>
-                </div>
-            `).join('');
         }
 
         async function sendPasswordReset(email) {
@@ -262,37 +304,61 @@
             
             msg.innerHTML = '<div class="muted">Creating user...</div>';
             
-            const tempPassword = Math.random().toString(36) + Math.random().toString(36);
-            
-            const { data, error } = await ownerPanelSupabase.auth.signUp({
-                email: email,
-                password: tempPassword
-            });
-            
-            if (error) {
-                msg.innerHTML = '<div class="error">Error: ' + error.message + '</div>';
-                return;
+            try {
+                const tempPassword = Math.random().toString(36) + Math.random().toString(36);
+                
+                log('Signing up user', email);
+                const { data, error } = await ownerPanelSupabase.auth.signUp({
+                    email: email,
+                    password: tempPassword
+                });
+                
+                if (error) {
+                    log('SignUp ERROR', error);
+                    msg.innerHTML = '<div class="error">Error: ' + error.message + '</div>';
+                    return;
+                }
+                
+                if (!data.user) {
+                    log('No user returned');
+                    msg.innerHTML = '<div class="error">No user created</div>';
+                    return;
+                }
+                
+                log('User created', data.user.id);
+                msg.innerHTML = '<div class="muted">Creating profile...</div>';
+                
+                const profileData = {
+                    user_id: data.user.id,
+                    email: email,
+                    username: username,
+                    display_name: displayName || username,
+                    role: role,
+                    created_at: new Date().toISOString()
+                };
+                
+                log('Inserting profile', profileData);
+                const { data: profile, error: profileError } = await ownerPanelSupabase.from('profiles').insert(profileData).select();
+                
+                if (profileError) {
+                    log('Profile insert ERROR', profileError);
+                    msg.innerHTML = '<div class="error">Profile error: ' + profileError.message + '</div>';
+                    return;
+                }
+                
+                log('Profile created SUCCESS', profile);
+                msg.innerHTML = '<div class="success-msg">✅ User created! Confirmation email sent to ' + email + '<br>Check spam folder if not received.</div>';
+                document.getElementById('newEmail').value = '';
+                document.getElementById('newUsername').value = '';
+                document.getElementById('newDisplayName').value = '';
+                
+                // Wait a moment then refresh
+                setTimeout(loadUsers, 500);
+                
+            } catch (error) {
+                log('Create user EXCEPTION', error);
+                msg.innerHTML = '<div class="error">Unexpected error: ' + error.message + '</div>';
             }
-            
-            if (!data.user) {
-                msg.innerHTML = '<div class="error">No user created</div>';
-                return;
-            }
-            
-            await ownerPanelSupabase.from('profiles').insert({
-                user_id: data.user.id,
-                email: email,
-                username: username,
-                display_name: displayName || username,
-                role: role,
-                created_at: new Date().toISOString()
-            });
-            
-            msg.innerHTML = '<div class="success-msg">✅ User created! Confirmation email sent to ' + email + '</div>';
-            document.getElementById('newEmail').value = '';
-            document.getElementById('newUsername').value = '';
-            document.getElementById('newDisplayName').value = '';
-            loadUsers();
         }
 
         async function createDummy() {
@@ -309,21 +375,39 @@
             
             msg.innerHTML = '<div class="muted">Creating dummy profile...</div>';
             
-            const dummyId = 'dummy_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-            
-            await ownerPanelSupabase.from('profiles').insert({
-                user_id: dummyId,
-                username: username,
-                display_name: displayName || username,
-                role: role,
-                email: null,
-                created_at: new Date().toISOString()
-            });
-            
-            msg.innerHTML = '<div class="success-msg">✅ Dummy profile created: ' + username + '</div>';
-            document.getElementById('dummyUsername').value = '';
-            document.getElementById('dummyDisplayName').value = '';
-            loadUsers();
+            try {
+                const dummyId = 'dummy_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                
+                const dummyData = {
+                    user_id: dummyId,
+                    username: username,
+                    display_name: displayName || username,
+                    role: role,
+                    email: null,
+                    created_at: new Date().toISOString()
+                };
+                
+                log('Creating dummy', dummyData);
+                const { data, error } = await ownerPanelSupabase.from('profiles').insert(dummyData).select();
+                
+                if (error) {
+                    log('Dummy insert ERROR', error);
+                    msg.innerHTML = '<div class="error">Error: ' + error.message + '</div>';
+                    return;
+                }
+                
+                log('Dummy created SUCCESS', data);
+                msg.innerHTML = '<div class="success-msg">✅ Dummy profile created: ' + username + '</div>';
+                document.getElementById('dummyUsername').value = '';
+                document.getElementById('dummyDisplayName').value = '';
+                
+                // Wait a moment then refresh
+                setTimeout(loadUsers, 500);
+                
+            } catch (error) {
+                log('Create dummy EXCEPTION', error);
+                msg.innerHTML = '<div class="error">Unexpected error: ' + error.message + '</div>';
+            }
         }
 
         async function logout() {
