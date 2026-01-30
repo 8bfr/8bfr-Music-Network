@@ -64,7 +64,7 @@
 </head>
 <body>
     <div class="header">
-        <h1>\ud83d\udc51 OWNER PANEL</h1>
+        <h1>OWNER PANEL</h1>
         <div class="user-info">
             <span id="ownerName" class="pill">Loading...</span>
             <button class="logout-btn" onclick="logout()">Logout</button>
@@ -86,9 +86,9 @@
             <div class="card">
                 <h2>User Management</h2>
                 <input type="text" id="userSearch" class="search-box" placeholder="Search users by username, email, role, or badge..." oninput="loadUsers()">
-                <button class="btn" onclick="loadUsers()">\ud83d\udd04 Refresh</button>
-                <button class="btn btn-success" onclick="showCreateUser()">\u2795 Create User</button>
-                <button class="btn btn-secondary" onclick="showCreateDummy()">\ud83e\uddea Create Dummy</button>
+                <button class="btn" onclick="loadUsers()">Refresh</button>
+                <button class="btn btn-success" onclick="showCreateUser()">Create User</button>
+                <button class="btn btn-secondary" onclick="showCreateDummy()">Create Dummy</button>
                 <div class="item-list" id="usersList"><p class="muted">Loading users...</p></div>
             </div>
 
@@ -290,7 +290,7 @@
         <div id="content" class="tab-content">
             <div class="card">
                 <h2>Post Moderation</h2>
-                <button class="btn" onclick="loadPosts()">\ud83d\udd04 Refresh Posts</button>
+                <button class="btn" onclick="loadPosts()">Refresh Posts</button>
                 <div class="item-list" id="postsList"><p class="muted">Loading...</p></div>
             </div>
 
@@ -335,7 +335,7 @@
                         <p id="totalSongs" style="font-size:2rem; color:var(--warning);">-</p>
                     </div>
                 </div>
-                <button class="btn" onclick="loadAnalytics()">\ud83d\udd04 Refresh Analytics</button>
+                <button class="btn" onclick="loadAnalytics()">Refresh Analytics</button>
             </div>
         </div>
     </div>
@@ -343,8 +343,7 @@
     <script>
         const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
-        
-        let ownerSupabase;
+        const ownerSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         let currentUser = null;
 
         // ALL ROLES
@@ -353,35 +352,36 @@
         // ALL BADGES (same as roles for now)
         const ALL_BADGES = ALL_ROLES;
 
-        function init() {
-            const { createClient } = supabase;
-            ownerSupabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-            
-            ownerSupabase.auth.getSession().then(function({ data: sessionData }) {
+        async function init() {
+            try {
+                const { data: sessionData } = await ownerSupabase.auth.getSession();
                 if (!sessionData.session) {
-                    alert('Not logged in');
+                    alert('Please log in');
                     window.location.href = 'login.html';
                     return;
                 }
-                return ownerSupabase.auth.getUser();
-            }).then(function({ data: userData }) {
-                if (!userData.user) return;
-                currentUser = userData.user;
-                return ownerSupabase.from('profiles').select('*').eq('user_id', userData.user.id).single();
-            }).then(function({ data: profile }) {
-                if (!profile) return;
-                if (profile.role !== 'owner' && (!profile.roles_ordered || profile.roles_ordered[0] !== 'owner')) {
-                    alert('Access Denied: Owner only');
+                
+                const { data: { user } } = await ownerSupabase.auth.getUser();
+                if (!user) {
+                    window.location.href = 'login.html';
+                    return;
+                }
+                currentUser = user;
+
+                const { data: profile } = await ownerSupabase.from('profiles').select('*').eq('user_id', user.id).single();
+                if (!profile || (profile.role !== 'owner' && (!profile.roles_ordered || profile.roles_ordered[0] !== 'owner'))) {
+                    alert('Access Denied: Owner only. Your role: ' + (profile?.role || 'none'));
                     window.location.href = 'index.html';
                     return;
                 }
+                
                 document.getElementById('ownerName').textContent = profile.username || currentUser.email.split('@')[0];
                 populateRoleSelects();
                 loadUsers();
                 loadAnalytics();
-            }).catch(function(error) {
+            } catch (error) {
                 alert('Init error: ' + error.message);
-            });
+            }
         }
 
         function populateRoleSelects() {
@@ -460,9 +460,9 @@
                         (badges.length > 0 ? badges.map(function(b) { return '<span class="pill badge">' + b + '</span>'; }).join('') : '') +
                         '</div>' +
                         '<div class="item-actions">' +
-                        '<button class="btn btn-sm" onclick="editUser(\'' + u.user_id + '\')">\u270f\ufe0f Edit</button>' +
-                        (u.email ? '<button class="btn btn-sm" onclick="sendPasswordReset(\'' + escapeHtml(u.email) + '\')">\ud83d\udd11 Reset Password</button>' : '') +
-                        '<button class="btn btn-sm btn-danger" onclick="deleteUser(\'' + u.user_id + '\')">\ud83d\uddd1\ufe0f Delete</button>' +
+                        '<button class="btn btn-sm" onclick="editUser(\'' + u.user_id + '\')">Edit</button>' +
+                        (u.email ? '<button class="btn btn-sm" onclick="sendPasswordReset(\'' + escapeHtml(u.email) + '\')">Reset Password</button>' : '') +
+                        '<button class="btn btn-sm btn-danger" onclick="deleteUser(\'' + u.user_id + '\')">Delete</button>' +
                         '</div>' +
                         '</div>';
                 }).join('');
@@ -524,7 +524,7 @@
                     created_at: new Date().toISOString()
                 });
                 
-                msg.innerHTML = '<p class="message success">\u2705 User created!</p>';
+                msg.innerHTML = '<p class="message success">User created!</p>';
                 document.getElementById('newEmail').value = '';
                 document.getElementById('newUsername').value = '';
                 document.getElementById('newDisplayName').value = '';
@@ -557,7 +557,7 @@
                     created_at: new Date().toISOString()
                 });
                 
-                msg.innerHTML = '<p class="message success">\u2705 Dummy created!</p>';
+                msg.innerHTML = '<p class="message success">Dummy created!</p>';
                 document.getElementById('dummyUsername').value = '';
                 document.getElementById('dummyDisplayName').value = '';
                 setTimeout(function() { hideCreateDummy(); loadUsers(); }, 1000);
@@ -643,7 +643,7 @@
                     return;
                 }
                 
-                msg.innerHTML = '<p class="message success">\u2705 User updated!</p>';
+                msg.innerHTML = '<p class="message success">User updated!</p>';
                 setTimeout(function() { hideEditUser(); loadUsers(); }, 1000);
                 
             } catch (error) {
@@ -664,7 +664,7 @@
                     return;
                 }
                 
-                alert('\u2705 Password reset email sent!');
+                alert('Password reset email sent!');
                 
             } catch (error) {
                 alert('Exception: ' + error.message);
@@ -748,7 +748,7 @@
                     return;
                 }
                 
-                msg.innerHTML = '<p class="message success">\u2705 Updated!</p>';
+                msg.innerHTML = '<p class="message success">Updated!</p>';
                 setTimeout(function() { msg.innerHTML = ''; }, 2000);
                 
             } catch (error) {
@@ -789,7 +789,7 @@
                     return;
                 }
                 
-                msg.innerHTML = '<p class="message success">\u2705 Ad created!</p>';
+                msg.innerHTML = '<p class="message success">Ad created!</p>';
                 document.getElementById('adTitle').value = '';
                 document.getElementById('adContent').value = '';
                 document.getElementById('adImage').value = '';
@@ -816,8 +816,8 @@
                     return '<div class="item">' +
                         '<strong>' + escapeHtml(a.title || 'Untitled') + '</strong>' +
                         '<div class="item-actions">' +
-                        '<button class="btn btn-sm btn-success" onclick="approveAd(\'' + a.id + '\')">\u2705 Approve</button>' +
-                        '<button class="btn btn-sm btn-danger" onclick="denyAd(\'' + a.id + '\')">\u274c Deny</button>' +
+                        '<button class="btn btn-sm btn-success" onclick="approveAd(\'' + a.id + '\')">Approve</button>' +
+                        '<button class="btn btn-sm btn-danger" onclick="denyAd(\'' + a.id + '\')">Deny</button>' +
                         '</div></div>';
                 }).join('');
                 
@@ -843,7 +843,7 @@
                         '<strong>' + escapeHtml(a.title || 'Untitled') + '</strong>' +
                         '<span class="pill">' + a.status + '</span>' +
                         '<div class="item-actions">' +
-                        '<button class="btn btn-sm btn-danger" onclick="deleteAd(\'' + a.id + '\')">\ud83d\uddd1\ufe0f Delete</button>' +
+                        '<button class="btn btn-sm btn-danger" onclick="deleteAd(\'' + a.id + '\')">Delete</button>' +
                         '</div></div>';
                 }).join('');
                 
@@ -913,7 +913,7 @@
                     created_at: new Date().toISOString()
                 });
                 
-                msg.innerHTML = '<p class="message success">\u2705 Coins adjusted!</p>';
+                msg.innerHTML = '<p class="message success">Coins adjusted!</p>';
                 
             } catch (error) {
                 msg.innerHTML = '<p class="message error">' + error.message + '</p>';
@@ -928,4 +928,154 @@
                     code: document.getElementById('discountCode').value.toUpperCase(),
                     discount_percent: parseInt(document.getElementById('discountPercent').value),
                     usage_limit: parseInt(document.getElementById('discountLimit').value),
-                    expiry
+                    expiry_date: document.getElementById('discountExpiry').value,
+                    created_at: new Date().toISOString()
+                });
+                
+                if (error) {
+                    msg.innerHTML = '<p class="message error">' + error.message + '</p>';
+                    return;
+                }
+                
+                msg.innerHTML = '<p class="message success">Discount code created!</p>';
+                loadDiscounts();
+                
+            } catch (error) {
+                msg.innerHTML = '<p class="message error">' + error.message + '</p>';
+            }
+        }
+
+        async function loadDiscounts() {
+            const list = document.getElementById('discountList');
+            if (!list) return;
+            
+            try {
+                const { data: codes } = await ownerSupabase.from('discount_codes').select('*').order('created_at', { ascending: false });
+                
+                if (!codes || codes.length === 0) {
+                    list.innerHTML = '<p class="muted">No discount codes</p>';
+                    return;
+                }
+                
+                list.innerHTML = codes.map(function(c) {
+                    return '<div class="item">' +
+                        '<strong>' + c.code + '</strong> - ' + c.discount_percent + '% off' +
+                        '<div class="muted">Limit: ' + c.usage_limit + ' | Expires: ' + c.expiry_date + '</div>' +
+                        '</div>';
+                }).join('');
+                
+            } catch (error) {
+                list.innerHTML = '<p class="message error">' + error.message + '</p>';
+            }
+        }
+
+        // CONTENT
+        async function loadPosts() {
+            const list = document.getElementById('postsList');
+            if (!list) return;
+            
+            try {
+                const { data: posts } = await ownerSupabase.from('posts').select('*').order('created_at', { ascending: false }).limit(50);
+                
+                if (!posts || posts.length === 0) {
+                    list.innerHTML = '<p class="muted">No posts</p>';
+                    return;
+                }
+                
+                list.innerHTML = posts.map(function(p) {
+                    return '<div class="item">' +
+                        '<div>' + escapeHtml(p.content?.substring(0, 100) || 'No content') + '</div>' +
+                        '<div class="item-actions">' +
+                        '<button class="btn btn-sm" onclick="pinPost(\'' + p.id + '\')">Pin</button>' +
+                        '<button class="btn btn-sm btn-danger" onclick="deletePost(\'' + p.id + '\')">Delete</button>' +
+                        '</div></div>';
+                }).join('');
+                
+            } catch (error) {
+                list.innerHTML = '<p class="message error">' + error.message + '</p>';
+            }
+        }
+
+        async function pinPost(postId) {
+            try {
+                await ownerSupabase.from('posts').update({ pinned: true }).eq('id', postId);
+                alert('Post pinned');
+                loadPosts();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        async function deletePost(postId) {
+            if (!confirm('Delete this post?')) return;
+            try {
+                await ownerSupabase.from('posts').delete().eq('id', postId);
+                alert('Post deleted');
+                loadPosts();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        async function featureContent() {
+            const msg = document.getElementById('featureMessage');
+            
+            try {
+                const contentId = document.getElementById('featureContentId').value;
+                const type = document.getElementById('featureType').value;
+                
+                await ownerSupabase.from('featured_content').insert({
+                    content_id: contentId,
+                    content_type: type,
+                    created_at: new Date().toISOString()
+                });
+                
+                msg.innerHTML = '<p class="message success">Content featured!</p>';
+                
+            } catch (error) {
+                msg.innerHTML = '<p class="message error">' + error.message + '</p>';
+            }
+        }
+
+        // ANALYTICS
+        async function loadAnalytics() {
+            try {
+                const { data: users } = await ownerSupabase.from('profiles').select('user_id, role, badges');
+                const { data: posts } = await ownerSupabase.from('posts').select('id');
+                const { data: songs } = await ownerSupabase.from('songs').select('id');
+                
+                document.getElementById('totalUsers').textContent = users?.length || 0;
+                
+                const creators = (users || []).filter(function(u) {
+                    return u.role === 'artist' || u.role === 'beatmaker' || u.role === 'producer';
+                });
+                document.getElementById('totalCreators').textContent = creators.length;
+                
+                document.getElementById('totalPosts').textContent = posts?.length || 0;
+                document.getElementById('totalSongs').textContent = songs?.length || 0;
+                
+            } catch (error) {
+                console.error('Analytics error:', error);
+            }
+        }
+
+        async function logout() {
+            await ownerSupabase.auth.signOut();
+            window.location.href = 'login.html';
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>
