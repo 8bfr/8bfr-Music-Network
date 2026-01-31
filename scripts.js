@@ -1355,3 +1355,22 @@ document.addEventListener("DOMContentLoaded", () => {
     if (carrieWrap) carrieWrap.style.display = "none";
   }
 });
+// ========== PATCH: show global UI + avatar switcher on index.html ==========
+(function () {
+  // Call the inject function so UI actually renders
+  if (typeof injectGlobalUI === "function") {
+    injectGlobalUI();
+  }
+
+  // Force avatar switcher visible only on index.html
+  const path = window.location.pathname.split("/").pop() || "index.html";
+  const avatarSwitcher = document.getElementById("avatarSwitcher");
+  if (avatarSwitcher) {
+    if (path === "index.html") {
+      avatarSwitcher.style.display = "flex"; // show
+    } else {
+      avatarSwitcher.style.display = "none"; // hide elsewhere
+    }
+  }
+})();
+
