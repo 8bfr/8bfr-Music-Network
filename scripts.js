@@ -486,7 +486,7 @@ body.menu-open #carrieWrap{
 }
 
 #avatarSwitcher{
-  display:none !important;
+  display:none; /* Hidden by default, shown only on index.html */
 }
 #avatarSwitcher button{
   padding:2px 6px;
