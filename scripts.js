@@ -1257,8 +1257,19 @@ body.menu-open #carrieWrap{
     injectGlobalUI();
   }
 })();
+) carrieWrap.style.display = "none";
+
+    const bubbleTop = document.getElementById("bubble-top-single");
+    if (bubbleTop) bubbleTop.style.display = "block";
+  }
+
+
+
+
+// -------- Additional Page-Specific Fixes (Optional) --------
+  
 // ====================== 8BFR — COMPLETE PAGE-SPECIFIC UI FIXES & PRO AVATAR POPUP ======================
-(function adjustUIPerPage() {
+document.addEventListener("DOMContentLoaded", () => {
   const path = window.location.pathname.split("/").pop() || "index.html";
 
   const isHome = path === "index.html";
@@ -1321,12 +1332,11 @@ body.menu-open #carrieWrap{
         const avatarName = btn.dataset.avatar.toLowerCase();
         if (avatarName.includes("bf") || avatarName.includes("gf")) {
           if (!isProUser) {
-            // Show button but trigger popup instead of switching
             btn.addEventListener("click", (e) => {
               e.preventDefault();
               showProAlert();
             });
-            btn.style.opacity = "0.6"; // optional visual hint it's locked
+            btn.style.opacity = "0.6";
             btn.style.cursor = "pointer";
           }
         } else {
@@ -1340,10 +1350,8 @@ body.menu-open #carrieWrap{
     // HIDE avatar switcher on all other pages
     if (avatarSwitcher) avatarSwitcher.style.display = "none";
 
-    // -------- Other pages --------
     const bubbleStack = document.getElementById("bubbleStack");
     if (bubbleStack) {
-      // hide all bubbles except donate and top
       bubbleStack.querySelectorAll(".bubble-row").forEach((row) => {
         const btn = row.querySelector("button");
         if (!btn) return;
@@ -1362,10 +1370,6 @@ body.menu-open #carrieWrap{
     const bubbleTop = document.getElementById("bubble-top-single");
     if (bubbleTop) bubbleTop.style.display = "block";
   }
-
-  // -------- Additional Page-Specific Fixes (Optional) --------
-  // Add any future fixes here, e.g., hide certain popups, adjust banners, etc.
-})();
-
+});
 
   
