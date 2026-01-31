@@ -1,51 +1,345 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Owner Studio — 8BFR</title>
-<link rel="stylesheet" href="styles.css">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-client.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Owner Studio - 8BFR Music Network</title>
+  <link rel="stylesheet" href="global.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
 </head>
 <body>
 
-<header class="header">
-  <h1>🧠 Owner Studio (AI Tools)</h1>
-</header>
-
-<main class="container">
-  <div class="grid">
-    <div class="card"><h3>🎤 Lyrics Writer</h3><button class="btn" onclick="runAI('lyrics_creator')">Launch</button></div>
-    <div class="card"><h3>🎶 Song Creator</h3><button class="btn" onclick="runAI('song_creator')">Launch</button></div>
-    <div class="card"><h3>🎨 Album Cover</h3><button class="btn" onclick="runAI('album_cover')">Launch</button></div>
-    <div class="card"><h3>🎬 Music Video</h3><button class="btn" onclick="runAI('music_video')">Launch</button></div>
-    <div class="card"><h3>📢 Post Generator</h3><button class="btn" onclick="runAI('post_creator')">Launch</button></div>
+  <!-- Loading Screen -->
+  <div id="loading-screen">
+    <div class="loading-overlay">
+      <div class="spinner"></div>
+    </div>
   </div>
-</main>
 
-<script>
-async function runAI(tool){
-  const { data } = await supabase.auth.getSession();
-  if(!data.session) return alert('Login required');
+  <!-- Main Content -->
+  <div id="studio-content" style="display: none;">
+    
+    <header class="header">
+      <div class="header-content">
+        <h1>🎨 Owner Studio</h1>
+        <div class="nav-links">
+          <a href="owner-panel.html" class="nav-link">← Owner Panel</a>
+          <a href="index.html" class="nav-link">Home</a>
+        </div>
+      </div>
+    </header>
 
-  const prompt = prompt('Enter prompt');
-  if(!prompt) return;
+    <div class="container">
+      
+      <div class="card">
+        <h2>AI Music & Content Tools</h2>
+        <p class="text-muted">All tools powered by OpenAI via your Vercel edge function</p>
+      </div>
 
-  const res = await fetch('https://YOUR_PROJECT_REF.functions.supabase.co/ai-proxy',{
-    method:'POST',
-    headers:{
-      'Content-Type':'application/json',
-      'Authorization':`Bearer ${data.session.access_token}`
-    },
-    body:JSON.stringify({ tool, prompt })
-  });
+      <!-- Tool Tabs -->
+      <div class="tabs">
+        <button class="tab active" onclick="showTab('beatmaker')">🎚️ Beatmaker</button>
+        <button class="tab" onclick="showTab('song')">🎵 Songmaker</button>
+        <button class="tab" onclick="showTab('lyrics')">✍️ Lyrics</button>
+        <button class="tab" onclick="showTab('rhyme')">📖 Rhyme Dict</button>
+        <button class="tab" onclick="showTab('cover')">🎨 Album Cover</button>
+        <button class="tab" onclick="showTab('master')">🎛️ Mastering</button>
+        <button class="tab" onclick="showTab('stem')">🎼 Stem Split</button>
+        <button class="tab" onclick="showTab('post')">📱 Post Maker</button>
+        <button class="tab" onclick="showTab('ad')">📢 Ad Creator</button>
+        <button class="tab" onclick="showTab('video')">🎬 Music Video</button>
+        <button class="tab" onclick="showTab('vocal')">🎤 Vocal Remover</button>
+        <button class="tab" onclick="showTab('photo')">📸 Photo/Video</button>
+      </div>
 
-  const json = await res.json();
-  if(json.result?.text) alert(json.result.text);
-  if(json.result?.image_url) window.open(json.result.image_url);
-}
-</script>
+      <!-- Beatmaker AI -->
+      <div id="beatmaker" class="tab-content active">
+        <div class="card">
+          <h3>🎚️ AI Beatmaker</h3>
+          <p class="text-muted">Generate beat concepts and production ideas</p>
+          <div class="form-group">
+            <label>Describe the beat you want</label>
+            <textarea id="beatInput" placeholder="E.g., hard trap beat with 808s, dark melody, 140 BPM, aggressive snare rolls"></textarea>
+          </div>
+          <button class="btn btn-primary" onclick="generate('beat')">Generate Beat</button>
+          <div id="beatResult"></div>
+        </div>
+      </div>
+
+      <!-- Songmaker AI -->
+      <div id="song" class="tab-content">
+        <div class="card">
+          <h3>🎵 AI Songmaker</h3>
+          <p class="text-muted">Create complete song concepts and structures</p>
+          <div class="form-group">
+            <label>Song description</label>
+            <textarea id="songInput" placeholder="E.g., emotional R&B love song with piano intro, verse-chorus-bridge structure"></textarea>
+          </div>
+          <button class="btn btn-primary" onclick="generate('song')">Generate Song</button>
+          <div id="songResult"></div>
+        </div>
+      </div>
+
+      <!-- Lyrics Writer AI -->
+      <div id="lyrics" class="tab-content">
+        <div class="card">
+          <h3>✍️ AI Lyrics Writer</h3>
+          <p class="text-muted">Generate full lyrics for any style or topic</p>
+          <div class="form-group">
+            <label>Topic & style</label>
+            <textarea id="lyricsInput" placeholder="E.g., heartbreak and moving on, modern hip-hop style with metaphors"></textarea>
+          </div>
+          <button class="btn btn-primary" onclick="generate('lyrics')">Write Lyrics</button>
+          <div id="lyricsResult"></div>
+        </div>
+      </div>
+
+      <!-- Rhyming Dictionary AI -->
+      <div id="rhyme" class="tab-content">
+        <div class="card">
+          <h3>📖 Rhyming Dictionary AI</h3>
+          <p class="text-muted">Find perfect rhymes and similar-sounding words</p>
+          <div class="form-group">
+            <label>Word to rhyme</label>
+            <input type="text" id="rhymeInput" placeholder="E.g., love, money, dream">
+          </div>
+          <button class="btn btn-primary" onclick="generate('rhyme')">Find Rhymes</button>
+          <div id="rhymeResult"></div>
+        </div>
+      </div>
+
+      <!-- Album Cover Creator -->
+      <div id="cover" class="tab-content">
+        <div class="card">
+          <h3>🎨 Album Cover Creator</h3>
+          <p class="text-muted">Design concepts for album and single artwork</p>
+          <div class="form-group">
+            <label>Cover concept</label>
+            <textarea id="coverInput" placeholder="E.g., neon cyberpunk city at night with purple sky, futuristic aesthetic"></textarea>
+          </div>
+          <button class="btn btn-primary" onclick="generate('cover')">Create Cover Concept</button>
+          <div id="coverResult"></div>
+        </div>
+      </div>
+
+      <!-- Mastering AI -->
+      <div id="master" class="tab-content">
+        <div class="card">
+          <h3>🎛️ Mastering AI</h3>
+          <p class="text-muted">Get mastering suggestions and techniques</p>
+          <div class="form-group">
+            <label>Mastering goals</label>
+            <textarea id="masterInput" placeholder="E.g., increase bass presence, brighten highs, add warmth, competitive loudness for streaming"></textarea>
+          </div>
+          <button class="btn btn-primary" onclick="generate('master')">Get Mastering Advice</button>
+          <div id="masterResult"></div>
+        </div>
+      </div>
+
+      <!-- Stem Splitter AI -->
+      <div id="stem" class="tab-content">
+        <div class="card">
+          <h3>🎼 Stem Splitter AI</h3>
+          <p class="text-muted">Guidance on separating and isolating audio elements</p>
+          <div class="form-group">
+            <label>What to separate</label>
+            <textarea id="stemInput" placeholder="E.g., isolate vocals from instrumental, separate drums and bass"></textarea>
+          </div>
+          <button class="btn btn-primary" onclick="generate('stem')">Get Stem Splitting Guide</button>
+          <div id="stemResult"></div>
+        </div>
+      </div>
+
+      <!-- Post Maker AI -->
+      <div id="post" class="tab-content">
+        <div class="card">
+          <h3>📱 Social Post Maker AI</h3>
+          <p class="text-muted">Create engaging social media posts</p>
+          <div class="form-group">
+            <label>Post topic</label>
+            <textarea id="postInput" placeholder="E.g., announcing new single release this Friday, hype up the fans"></textarea>
+          </div>
+          <button class="btn btn-primary" onclick="generate('post')">Create Post</button>
+          <div id="postResult"></div>
+        </div>
+      </div>
+
+      <!-- Ad Creator AI -->
+      <div id="ad" class="tab-content">
+        <div class="card">
+          <h3>📢 Ad Creator AI</h3>
+          <p class="text-muted">Generate compelling advertisement copy</p>
+          <div class="form-group">
+            <label>What to advertise</label>
+            <textarea id="adInput" placeholder="E.g., promote my beatmaking service, affordable custom beats for artists"></textarea>
+          </div>
+          <button class="btn btn-primary" onclick="generate('ad')">Create Ad Copy</button>
+          <div id="adResult"></div>
+        </div>
+      </div>
+
+      <!-- Music Video Creator -->
+      <div id="video" class="tab-content">
+        <div class="card">
+          <h3>🎬 Music Video Creator AI</h3>
+          <p class="text-muted">Develop music video concepts and storyboards</p>
+          <div class="form-group">
+            <label>Video concept</label>
+            <textarea id="videoInput" placeholder="E.g., dark urban night scenes with neon lights, artist performing in abandoned warehouse"></textarea>
+          </div>
+          <button class="btn btn-primary" onclick="generate('video')">Create Video Concept</button>
+          <div id="videoResult"></div>
+        </div>
+      </div>
+
+      <!-- Vocal Remover AI -->
+      <div id="vocal" class="tab-content">
+        <div class="card">
+          <h3>🎤 Vocal Remover AI</h3>
+          <p class="text-muted">Techniques for removing or isolating vocals</p>
+          <div class="form-group">
+            <label>Processing goal</label>
+            <textarea id="vocalInput" placeholder="E.g., remove vocals completely, create karaoke version, isolate acapella"></textarea>
+          </div>
+          <button class="btn btn-primary" onclick="generate('vocal')">Get Vocal Processing Guide</button>
+          <div id="vocalResult"></div>
+        </div>
+      </div>
+
+      <!-- Photo/Video Creator -->
+      <div id="photo" class="tab-content">
+        <div class="card">
+          <h3>📸 Photo/Video Creator AI</h3>
+          <p class="text-muted">Create concepts for promotional visuals</p>
+          <div class="form-group">
+            <label>Visual description</label>
+            <textarea id="photoInput" placeholder="E.g., artist promo photo with dramatic purple lighting, moody atmosphere"></textarea>
+          </div>
+          <button class="btn btn-primary" onclick="generate('photo')">Create Visual Concept</button>
+          <div id="photoResult"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // Supabase configuration
+    const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+    
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    
+    // OpenAI Edge Function
+    const OPENAI_API = 'https://8bfr-music-network.vercel.app/api/openai';
+    
+    let currentUserId = '';
+    
+    // Check authentication
+    async function checkAuth() {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error || !session) {
+          window.location.href = 'login.html';
+          return;
+        }
+        
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .single();
+        
+        if (!profile || profile.role !== 'owner') {
+          alert('Owner access only');
+          window.location.href = 'owner-panel.html';
+          return;
+        }
+        
+        currentUserId = session.user.id;
+        
+        document.getElementById('loading-screen').style.display = 'none';
+        document.getElementById('studio-content').style.display = 'block';
+        
+      } catch (err) {
+        console.error('Auth error:', err);
+        alert('Authentication failed');
+      }
+    }
+    
+    // Switch between tool tabs
+    function showTab(tabName) {
+      // Remove active class from all tabs and content
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      
+      // Add active class to clicked tab and corresponding content
+      event.target.classList.add('active');
+      document.getElementById(tabName).classList.add('active');
+    }
+    
+    // Generate AI content
+    async function generate(toolType) {
+      const inputElement = document.getElementById(toolType + 'Input');
+      const resultElement = document.getElementById(toolType + 'Result');
+      
+      const userInput = inputElement.value.trim();
+      
+      if (!userInput) {
+        resultElement.innerHTML = '<div class="message message-error">Please enter a description</div>';
+        return;
+      }
+      
+      // Show loading state
+      resultElement.innerHTML = '<div class="loading"><div class="spinner"></div> Generating...</div>';
+      
+      try {
+        // Call OpenAI via edge function
+        const response = await fetch(OPENAI_API, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            user_id: currentUserId,
+            input: `Create ${toolType} based on: ${userInput}`,
+            model: 'gpt-4o-mini'
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'ok') {
+          resultElement.innerHTML = `
+            <div class="message message-success">✅ Generated successfully!</div>
+            <div class="card mt-2">
+              <h4>Result:</h4>
+              <pre style="white-space: pre-wrap; background: rgba(15, 0, 30, 0.6); padding: 1rem; border-radius: 8px; overflow-x: auto;">${data.response}</pre>
+              <p class="text-muted mt-2">Saved to: ${data.path}</p>
+            </div>
+          `;
+        } else {
+          resultElement.innerHTML = `
+            <div class="message message-error">Error: ${data.message || 'Unknown error occurred'}</div>
+          `;
+        }
+        
+      } catch (error) {
+        resultElement.innerHTML = `
+          <div class="message message-error">Error: ${error.message}</div>
+        `;
+      }
+    }
+    
+    // Run auth check on page load
+    checkAuth();
+  </script>
 
 </body>
 </html>
