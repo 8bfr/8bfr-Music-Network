@@ -1257,3 +1257,51 @@ body.menu-open #carrieWrap{
     injectGlobalUI();
   }
 })();
+// ====================== 8BFR — PAGE-SPECIFIC UI FIX ======================
+(function adjustUIPerPage() {
+  const path = window.location.pathname.split("/").pop() || "index.html";
+
+  const isHome = path === "index.html";
+  const isProUser = false; // <-- set true if user is pro (you can replace with real logic)
+
+  // -------- Home page (index.html) --------
+  if (isHome) {
+    // Show avatar switcher and optionally BF/GF versions
+    const avatarSwitcher = document.getElementById("avatarSwitcher");
+    if (avatarSwitcher) {
+      avatarSwitcher.style.display = "flex";
+
+      // Hide BF/GF buttons if not pro
+      avatarSwitcher.querySelectorAll("button[data-avatar]").forEach((btn) => {
+        const avatarName = btn.dataset.avatar.toLowerCase();
+        if (avatarName.includes("bf") || avatarName.includes("gf")) {
+          btn.style.display = isProUser ? "inline-flex" : "none";
+        } else {
+          btn.style.display = "inline-flex";
+        }
+      });
+    }
+  } else {
+    // -------- Other pages --------
+    const bubbleStack = document.getElementById("bubbleStack");
+    if (bubbleStack) {
+      // hide all bubbles except donate and top
+      bubbleStack.querySelectorAll(".bubble-row").forEach((row) => {
+        const btn = row.querySelector("button");
+        if (!btn) return;
+        const id = btn.id;
+        if (id === "bubble-donate" || id === "bubble-top-single") {
+          row.style.display = "flex";
+        } else {
+          row.style.display = "none";
+        }
+      });
+    }
+
+    const carrieWrap = document.getElementById("carrieWrap");
+    if (carrieWrap) carrieWrap.style.display = "none";
+
+    const bubbleTop = document.getElementById("bubble-top-single");
+    if (bubbleTop) bubbleTop.style.display = "block";
+  }
+})();
