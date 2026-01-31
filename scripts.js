@@ -1257,3 +1257,13 @@ body.menu-open #carrieWrap{
     injectGlobalUI();
   }
 })();
+
+// ---------- Avatar Switcher (index.html only) ----------
+(function() {
+  if (window.location.pathname.split("/").pop() === "index.html") {
+    const switcher = document.getElementById("avatarSwitcher");
+    if (switcher) {
+      switcher.style.display = "flex"; // override the global hide
+    }
+  }
+})();
