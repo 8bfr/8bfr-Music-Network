@@ -1267,13 +1267,11 @@ body.menu-open #carrieWrap{
 
 
 // -------- Additional Page-Specific Fixes (Optional) --------
-  
-// ====================== 8BFR — COMPLETE PAGE-SPECIFIC UI FIXES & PRO AVATAR POPUP ======================
+
 document.addEventListener("DOMContentLoaded", () => {
   const path = window.location.pathname.split("/").pop() || "index.html";
-
   const isHome = path === "index.html";
-  const isProUser = false; // <-- set true if user is pro (replace with real logic)
+  const isProUser = false; // <-- set true if user is pro
 
   // ---------- PRO AVATAR ALERT ----------
   function showProAlert() {
@@ -1322,10 +1320,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // -------- Avatar Switcher --------
   const avatarSwitcher = document.getElementById("avatarSwitcher");
-
-  if (isHome) {
-    // SHOW avatar switcher on home page
-    if (avatarSwitcher) {
+  if (avatarSwitcher) {
+    if (isHome) {
+      // SHOW on home
       avatarSwitcher.style.display = "flex";
 
       avatarSwitcher.querySelectorAll("button[data-avatar]").forEach((btn) => {
@@ -1345,31 +1342,16 @@ document.addEventListener("DOMContentLoaded", () => {
           btn.style.cursor = "pointer";
         }
       });
+    } else {
+      // HIDE avatar switcher on non-home pages
+      avatarSwitcher.style.display = "none";
     }
-  } else {
-    // HIDE avatar switcher on all other pages
-    if (avatarSwitcher) avatarSwitcher.style.display = "none";
+  }
 
-    const bubbleStack = document.getElementById("bubbleStack");
-    if (bubbleStack) {
-      bubbleStack.querySelectorAll(".bubble-row").forEach((row) => {
-        const btn = row.querySelector("button");
-        if (!btn) return;
-        const id = btn.id;
-        if (id === "bubble-donate" || id === "bubble-top-single") {
-          row.style.display = "flex";
-        } else {
-          row.style.display = "none";
-        }
-      });
-    }
-
+  // -------- Bubble / Carrie adjustments --------
+  // Only hide carrieWrap on non-home pages
+  if (!isHome) {
     const carrieWrap = document.getElementById("carrieWrap");
     if (carrieWrap) carrieWrap.style.display = "none";
-
-    const bubbleTop = document.getElementById("bubble-top-single");
-    if (bubbleTop) bubbleTop.style.display = "block";
   }
 });
-
-  
