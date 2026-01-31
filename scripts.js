@@ -1257,27 +1257,80 @@ body.menu-open #carrieWrap{
     injectGlobalUI();
   }
 })();
-// ====================== 8BFR — PAGE-SPECIFIC UI FIX ======================
+// ====================== 8BFR — COMPLETE PAGE-SPECIFIC UI FIXES & PRO AVATAR POPUP ======================
 (function adjustUIPerPage() {
   const path = window.location.pathname.split("/").pop() || "index.html";
 
   const isHome = path === "index.html";
-  const isProUser = false; // <-- set true if user is pro (you can replace with real logic)
+  const isProUser = false; // <-- set true if user is pro (replace with real logic)
+
+  // ---------- PRO AVATAR ALERT ----------
+  function showProAlert() {
+    if (document.getElementById("proAlertOverlay")) return;
+
+    const overlay = document.createElement("div");
+    overlay.id = "proAlertOverlay";
+    overlay.style.position = "fixed";
+    overlay.style.inset = "0";
+    overlay.style.background = "rgba(0,0,0,0.75)";
+    overlay.style.display = "flex";
+    overlay.style.alignItems = "center";
+    overlay.style.justifyContent = "center";
+    overlay.style.zIndex = "13000";
+
+    overlay.innerHTML = `
+      <div style="
+        background: #1a0328;
+        padding: 1.5rem 2rem;
+        border-radius: 18px;
+        border: 1px solid #7c3aed;
+        text-align: center;
+        max-width: 300px;
+        color: #fff;
+        font-family: sans-serif;
+      ">
+        <h2 style="margin-bottom:0.5rem;">Upgrade to PRO</h2>
+        <p style="font-size:0.85rem; margin-bottom:1rem;">This avatar is available for PRO members only.</p>
+        <button id="proAlertClose" style="
+          padding:0.45rem 0.9rem;
+          background:#7c3aed;
+          border:none;
+          border-radius:12px;
+          color:#fff;
+          cursor:pointer;
+        ">Close</button>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    document.getElementById("proAlertClose").addEventListener("click", () => {
+      overlay.remove();
+    });
+  }
 
   // -------- Home page (index.html) --------
   if (isHome) {
-    // Show avatar switcher and optionally BF/GF versions
     const avatarSwitcher = document.getElementById("avatarSwitcher");
     if (avatarSwitcher) {
       avatarSwitcher.style.display = "flex";
 
-      // Hide BF/GF buttons if not pro
       avatarSwitcher.querySelectorAll("button[data-avatar]").forEach((btn) => {
         const avatarName = btn.dataset.avatar.toLowerCase();
         if (avatarName.includes("bf") || avatarName.includes("gf")) {
-          btn.style.display = isProUser ? "inline-flex" : "none";
+          if (!isProUser) {
+            // Show button but trigger popup instead of switching
+            btn.addEventListener("click", (e) => {
+              e.preventDefault();
+              showProAlert();
+            });
+            btn.style.opacity = "0.6"; // optional visual hint it's locked
+            btn.style.cursor = "pointer";
+          }
         } else {
           btn.style.display = "inline-flex";
+          btn.style.opacity = "1";
+          btn.style.cursor = "pointer";
         }
       });
     }
@@ -1304,4 +1357,7 @@ body.menu-open #carrieWrap{
     const bubbleTop = document.getElementById("bubble-top-single");
     if (bubbleTop) bubbleTop.style.display = "block";
   }
+
+  // -------- Additional Page-Specific Fixes (Optional) --------
+  // Add any future fixes here, e.g., hide certain popups, adjust banners, etc.
 })();
