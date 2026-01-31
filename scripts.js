@@ -1309,9 +1309,11 @@ body.menu-open #carrieWrap{
     });
   }
 
-  // -------- Home page (index.html) --------
+  // -------- Avatar Switcher --------
+  const avatarSwitcher = document.getElementById("avatarSwitcher");
+
   if (isHome) {
-    const avatarSwitcher = document.getElementById("avatarSwitcher");
+    // SHOW avatar switcher on home page
     if (avatarSwitcher) {
       avatarSwitcher.style.display = "flex";
 
@@ -1335,6 +1337,9 @@ body.menu-open #carrieWrap{
       });
     }
   } else {
+    // HIDE avatar switcher on all other pages
+    if (avatarSwitcher) avatarSwitcher.style.display = "none";
+
     // -------- Other pages --------
     const bubbleStack = document.getElementById("bubbleStack");
     if (bubbleStack) {
@@ -1361,3 +1366,6 @@ body.menu-open #carrieWrap{
   // -------- Additional Page-Specific Fixes (Optional) --------
   // Add any future fixes here, e.g., hide certain popups, adjust banners, etc.
 })();
+
+
+  
