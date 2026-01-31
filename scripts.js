@@ -1266,61 +1266,7 @@ body.menu-open #carrieWrap{
 
 
 
-// -------- Additional Page-Specific Fixes (Optional) --------
-
-document.addEventListener("DOMContentLoaded", () => {
-  const path = window.location.pathname.split("/").pop() || "index.html";
-  const isHome = path === "index.html";
-  const isProUser = false; // <-- set true if user is pro
-
-  // ---------- PRO AVATAR ALERT ----------
-  function showProAlert() {
-    if (document.getElementById("proAlertOverlay")) return;
-
-    const overlay = document.createElement("div");
-    overlay.id = "proAlertOverlay";
-    overlay.style.position = "fixed";
-    overlay.style.inset = "0";
-    overlay.style.background = "rgba(0,0,0,0.75)";
-    overlay.style.display = "flex";
-    overlay.style.alignItems = "center";
-    overlay.style.justifyContent = "center";
-    overlay.style.zIndex = "13000";
-
-    overlay.innerHTML = `
-      <div style="
-        background: #1a0328;
-        padding: 1.5rem 2rem;
-        border-radius: 18px;
-        border: 1px solid #7c3aed;
-        text-align: center;
-        max-width: 300px;
-        color: #fff;
-        font-family: sans-serif;
-      ">
-        <h2 style="margin-bottom:0.5rem;">Upgrade to PRO</h2>
-        <p style="font-size:0.85rem; margin-bottom:1rem;">This avatar is available for PRO members only.</p>
-        <button id="proAlertClose" style="
-          padding:0.45rem 0.9rem;
-          background:#7c3aed;
-          border:none;
-          border-radius:12px;
-          color:#fff;
-          cursor:pointer;
-        ">Close</button>
-      </div>
-    `;
-
-    document.body.appendChild(overlay);
-
-    document.getElementById("proAlertClose").addEventListener("click", () => {
-      overlay.remove();
-    });
-  }
-
-  // -------- Avatar Switcher --------
-  const avatarSwitcher = document.getElementById("avatarSwitcher");
-  if (avatarSwitcher) {
+) {
     if (isHome) {
       // SHOW on home
       avatarSwitcher.style.display = "flex";
