@@ -1373,4 +1373,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 })();
+// ========== SHOW AVATAR SWITCHER ONLY ON INDEX.HTML ==========
+(function () {
+  const path = window.location.pathname.split("/").pop() || "index.html";
+  const avatarSwitcher = document.getElementById("avatarSwitcher");
+  if (avatarSwitcher) {
+    avatarSwitcher.style.display = path === "index.html" ? "flex" : "none";
+  }
+})();
 
