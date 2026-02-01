@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coupon Codes - 8BFR Music Network</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary: #7c3aed; --secondary: #6d28d9; --dark: #0b0014; --dark-card: #0c0618; --success: #00ff88; --danger: #ff0044; --text: #eae6ff; --text-dim: #a855f7; --border: rgba(124,58,237,.35); }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Work Sans', sans-serif; background: radial-gradient(1200px 600px at 10% -10%, rgba(124,58,237,.35), transparent 60%), radial-gradient(900px 400px at 110% 10%, rgba(0,217,255,.22), transparent 60%), linear-gradient(#0b0014,#000); color: var(--text); line-height: 1.6; min-height: 100vh; }
+        .header { background: rgba(15,0,30,.9); border-bottom: 2px solid var(--primary); padding: 1.5rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-family: 'Bebas Neue', cursive; font-size: 2rem; color: var(--primary); }
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        .card { background: var(--dark-card); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .card h2 { font-family: 'Bebas Neue', cursive; font-size: 1.5rem; color: var(--primary); margin-bottom: 1rem; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; }
+        .form-group input { width: 100%; padding: 0.75rem; background: var(--dark); border: 1px solid var(--border); border-radius: 4px; color: var(--text); }
+        .btn { background: var(--primary); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 4px; cursor: pointer; font-weight: 600; }
+        .btn:hover { background: var(--secondary); }
+        .coupon-item { background: var(--dark); border: 1px solid var(--border); padding: 1rem; margin-bottom: 0.5rem; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎟️ Discount Codes</h1>
+        <a href="owner-panel.html" style="color: var(--text); text-decoration: none;">← Back</a>
+    </div>
+    <div class="container">
+        <div class="card">
+            <h2>Create New Coupon</h2>
+            <div class="form-group"><label>Code</label><input id="code" placeholder="SAVE20"></div>
+            <div class="form-group"><label>Discount Amount (%)</label><input id="discount" type="number" placeholder="20"></div>
+            <div class="form-group"><label>Max Uses</label><input id="maxUses" type="number" placeholder="100"></div>
+            <button class="btn" onclick="createCoupon()">Create Coupon</button>
+        </div>
+        <div class="card">
+            <h2>Active Coupons</h2>
+            <div id="coupons">Loading...</div>
+        </div>
+    </div>
+    <script src="scripts.js"></script>
+    <script>
+        const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+        const ownerCouponsSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        async function init() {
+            const { data: { session } } = await ownerCouponsSupabase.auth.getSession();
+            if (!session) { location.href = 'login.html'; return; }
+            const { data: profile } = await ownerCouponsSupabase.from('profiles').select('*').eq('user_id', session.user.id).single();
+            if (!profile || profile.role !== 'owner') { location.href = 'owner-panel.html'; return; }
+            loadCoupons();
+        }
+        
+        async function loadCoupons() {
+            const { data } = await ownerCouponsSupabase.from('discount_codes').select('*').order('created_at', {ascending: false});
+            document.getElementById('coupons').innerHTML = data && data.length > 0
+                ? data.map(c => `
+                    <div class="coupon-item">
+                        <div><strong>${c.code}</strong> - ${c.discount_amount}% off | Uses: ${c.uses || 0}/${c.max_uses || '∞'}</div>
+                        <button class="btn" style="background: var(--danger);" onclick="deleteCoupon('${c.id}')">Delete</button>
+                    </div>
+                `).join('')
+                : '<p style="color: var(--text-dim);">No coupons</p>';
+        }
+        
+        async function createCoupon() {
+            const code = document.getElementById('code').value.trim();
+            const discount = parseInt(document.getElementById('discount').value);
+            const maxUses = parseInt(document.getElementById('maxUses').value);
+            if (!code || !discount) { alert('Fill all fields'); return; }
+            await ownerCouponsSupabase.from('discount_codes').insert({code, discount_amount: discount, max_uses: maxUses || null, uses: 0});
+            alert('Coupon created');
+            document.getElementById('code').value = '';
+            document.getElementById('discount').value = '';
+            document.getElementById('maxUses').value = '';
+            loadCoupons();
+        }
+        
+        async function deleteCoupon(id) {
+            if (!confirm('Delete this coupon?')) return;
+            await ownerCouponsSupabase.from('discount_codes').delete().eq('id', id);
+            loadCoupons();
+        }
+        
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>
