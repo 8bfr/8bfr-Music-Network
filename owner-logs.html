@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activity Logs - 8BFR</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary: #7c3aed; --dark: #0b0014; --dark-card: #0c0618; --text: #eae6ff; --border: rgba(124,58,237,.35); }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Work Sans', sans-serif; background: linear-gradient(#0b0014,#000); color: var(--text); min-height: 100vh; }
+        .header { background: rgba(15,0,30,.9); border-bottom: 2px solid var(--primary); padding: 1.5rem 2rem; }
+        .header h1 { font-family: 'Bebas Neue', cursive; font-size: 2rem; color: var(--primary); }
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        .card { background: var(--dark-card); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+        th { color: var(--primary); }
+    </style>
+</head>
+<body>
+    <div class="header"><h1>📋 Activity Logs</h1><a href="owner-panel.html" style="color: var(--text); text-decoration: none;">← Back</a></div>
+    <div class="container">
+        <div class="card"><h2 style="color: var(--primary);">Recent Activity</h2><table><thead><tr><th>Time</th><th>Action</th><th>User</th><th>Details</th></tr></thead><tbody id="logs">Loading...</tbody></table></div>
+    </div>
+    <script src="scripts.js"></script>
+    <script>
+        const s = window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
+        async function init() {
+            const { data: { session } } = await s.auth.getSession();
+            if (!session) { location.href = 'login.html'; return; }
+            const { data: p } = await s.from('profiles').select('*').eq('user_id', session.user.id).single();
+            if (!p || p.role !== 'owner') { location.href = 'owner-panel.html'; return; }
+            const { data } = await s.from('activity_logs').select('*').order('created_at', {ascending: false}).limit(100);
+            document.getElementById('logs').innerHTML = data && data.length > 0
+                ? data.map(l => `<tr><td>${new Date(l.created_at).toLocaleString()}</td><td>${l.action}</td><td>${l.user_email || '-'}</td><td>${l.details || '-'}</td></tr>`).join('')
+                : '<tr><td colspan="4">No logs</td></tr>';
+        }
+        if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
+    </script>
+</body>
+</html>
