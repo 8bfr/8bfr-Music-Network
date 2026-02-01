@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ads Manager - 8BFR Music Network</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary: #7c3aed; --secondary: #6d28d9; --dark: #0b0014; --dark-card: #0c0618; --success: #00ff88; --danger: #ff0044; --text: #eae6ff; --text-dim: #a855f7; --border: rgba(124,58,237,.35); }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Work Sans', sans-serif; background: radial-gradient(1200px 600px at 10% -10%, rgba(124,58,237,.35), transparent 60%), radial-gradient(900px 400px at 110% 10%, rgba(0,217,255,.22), transparent 60%), linear-gradient(#0b0014,#000); color: var(--text); line-height: 1.6; min-height: 100vh; }
+        .header { background: rgba(15,0,30,.9); border-bottom: 2px solid var(--primary); padding: 1.5rem 2rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header h1 { font-family: 'Bebas Neue', cursive; font-size: 2rem; color: var(--primary); }
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        .card { background: var(--dark-card); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .card h2 { font-family: 'Bebas Neue', cursive; font-size: 1.5rem; color: var(--primary); margin-bottom: 1rem; }
+        .ad-item { background: var(--dark); border: 1px solid var(--border); padding: 1rem; margin-bottom: 0.5rem; border-radius: 8px; }
+        .ad-item h3 { color: var(--primary); margin-bottom: 0.5rem; }
+        .btn { background: var(--primary); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 4px; cursor: pointer; font-weight: 600; margin: 0.25rem; }
+        .btn:hover { background: var(--secondary); }
+        .btn-success { background: var(--success); }
+        .btn-danger { background: var(--danger); }
+        .badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.85rem; }
+        .badge-pending { background: rgba(255,170,0,0.2); color: #ffaa00; }
+        .badge-approved { background: rgba(0,255,136,0.2); color: #00ff88; }
+        .badge-rejected { background: rgba(255,0,68,0.2); color: #ff0044; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📢 Ads Manager</h1>
+        <a href="owner-panel.html" style="color: var(--text); text-decoration: none;">← Back</a>
+    </div>
+    <div class="container">
+        <div class="card">
+            <h2>Pending Ads</h2>
+            <div id="pendingAds">Loading...</div>
+        </div>
+        <div class="card">
+            <h2>All Ads</h2>
+            <div id="allAds">Loading...</div>
+        </div>
+    </div>
+    <script src="scripts.js"></script>
+    <script>
+        const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+        const ownerAdsSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        async function init() {
+            const { data: { session } } = await ownerAdsSupabase.auth.getSession();
+            if (!session) { location.href = 'login.html'; return; }
+            const { data: profile } = await ownerAdsSupabase.from('profiles').select('*').eq('user_id', session.user.id).single();
+            if (!profile || profile.role !== 'owner') { location.href = 'owner-panel.html'; return; }
+            loadAds();
+        }
+        
+        async function loadAds() {
+            const { data: pending } = await ownerAdsSupabase.from('ads').select('*').eq('status', 'pending').order('created_at', {ascending: false});
+            const { data: all } = await ownerAdsSupabase.from('ads').select('*').order('created_at', {ascending: false}).limit(50);
+            
+            document.getElementById('pendingAds').innerHTML = pending && pending.length > 0 
+                ? pending.map(ad => `
+                    <div class="ad-item">
+                        <h3>${ad.title || 'Untitled Ad'}</h3>
+                        <p style="color: var(--text-dim); font-size: 0.9rem;">${ad.content || 'No content'}</p>
+                        <div style="margin-top: 0.5rem;">
+                            <button class="btn btn-success" onclick="approveAd('${ad.id}')">Approve</button>
+                            <button class="btn btn-danger" onclick="rejectAd('${ad.id}')">Reject</button>
+                        </div>
+                    </div>
+                `).join('') 
+                : '<p style="color: var(--text-dim);">No pending ads</p>';
+            
+            document.getElementById('allAds').innerHTML = all && all.length > 0
+                ? all.map(ad => `
+                    <div class="ad-item">
+                        <h3>${ad.title || 'Untitled'} <span class="badge badge-${ad.status}">${ad.status}</span></h3>
+                        <p style="color: var(--text-dim); font-size: 0.9rem;">${ad.content || 'No content'}</p>
+                    </div>
+                `).join('')
+                : '<p style="color: var(--text-dim);">No ads</p>';
+        }
+        
+        async function approveAd(id) {
+            await ownerAdsSupabase.from('ads').update({status: 'approved'}).eq('id', id);
+            alert('Ad approved');
+            loadAds();
+        }
+        
+        async function rejectAd(id) {
+            const reason = prompt('Rejection reason:');
+            if (!reason) return;
+            await ownerAdsSupabase.from('ads').update({status: 'rejected', rejection_reason: reason}).eq('id', id);
+            alert('Ad rejected');
+            loadAds();
+        }
+        
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>
