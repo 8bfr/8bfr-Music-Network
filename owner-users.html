@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Management - 8BFR Music Network</title>
+  <link rel="stylesheet" href="global.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Loading Screen -->
+  <div id="loading-screen">
+    <div class="loading-overlay">
+      <div class="spinner"></div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div id="users-content" style="display: none;">
+    
+    <header class="header">
+      <div class="header-content">
+        <h1>👥 User Management</h1>
+        <div class="nav-links">
+          <a href="owner-panel.html" class="nav-link">← Owner Panel</a>
+          <button class="btn btn-primary btn-sm" onclick="showModal('create')">+ New User</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="container">
+      
+      <!-- Search -->
+      <div class="card">
+        <h2>Search Users</h2>
+        <div class="form-group">
+          <input type="text" id="search-input" placeholder="Search by name, email, role..." oninput="loadUsers()">
+        </div>
+      </div>
+
+      <!-- Users Table -->
+      <div class="card">
+        <h2>All Users</h2>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Badges</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="users-table">
+              <tr>
+                <td colspan="5" class="text-center text-muted">Loading users...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Create User Modal -->
+  <div id="createModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Create New User</h3>
+        <button class="modal-close" onclick="hideModal('create')">×</button>
+      </div>
+      
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="new-email" placeholder="user@example.com">
+      </div>
+      
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="new-username" placeholder="username">
+      </div>
+      
+      <div class="form-group">
+        <label>Role</label>
+        <select id="new-role">
+          <option value="fan">Fan</option>
+          <option value="artist">Artist</option>
+          <option value="beatmaker">Beatmaker</option>
+          <option value="verified">Verified</option>
+          <option value="mod">Moderator</option>
+          <option value="admin">Admin</option>
+          <option value="owner">Owner</option>
+        </select>
+      </div>
+      
+      <div id="create-message"></div>
+      
+      <button class="btn btn-primary" onclick="createUser()">Create User</button>
+    </div>
+  </div>
+
+  <!-- Edit User Modal -->
+  <div id="editModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Edit User</h3>
+        <button class="modal-close" onclick="hideModal('edit')">×</button>
+      </div>
+      
+      <input type="hidden" id="edit-id">
+      
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="edit-username">
+      </div>
+      
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="edit-email">
+      </div>
+      
+      <div class="form-group">
+        <label>Role</label>
+        <select id="edit-role">
+          <option value="fan">Fan</option>
+          <option value="artist">Artist</option>
+          <option value="beatmaker">Beatmaker</option>
+          <option value="verified">Verified</option>
+          <option value="mod">Moderator</option>
+          <option value="admin">Admin</option>
+          <option value="owner">Owner</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label>Badges (comma-separated)</label>
+        <input type="text" id="edit-badges" placeholder="artist, verified, founder">
+      </div>
+      
+      <div id="edit-message"></div>
+      
+      <button class="btn btn-success" onclick="saveEdit()">Save Changes</button>
+    </div>
+  </div>
+
+  <script>
+    // Supabase configuration
+    const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+    
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    
+    // Check authentication
+    async function checkAuth() {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error || !session) {
+          window.location.href = 'login.html';
+          return;
+        }
+        
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .single();
+        
+        if (!profile || profile.role !== 'owner') {
+          alert('Owner access only');
+          window.location.href = 'owner-panel.html';
+          return;
+        }
+        
+        document.getElementById('loading-screen').style.display = 'none';
+        document.getElementById('users-content').style.display = 'block';
+        
+        loadUsers();
+        
+      } catch (err) {
+        console.error('Auth error:', err);
+        alert('Authentication failed');
+      }
+    }
+    
+    // Load users
+    async function loadUsers() {
+      const searchQuery = document.getElementById('search-input').value.toLowerCase();
+      
+      try {
+        const { data: users, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        
+        let filteredUsers = users || [];
+        
+        // Filter by search query
+        if (searchQuery) {
+          filteredUsers = filteredUsers.filter(user => 
+            (user.username || '').toLowerCase().includes(searchQuery) ||
+            (user.email || '').toLowerCase().includes(searchQuery) ||
+            (user.role || '').toLowerCase().includes(searchQuery)
+          );
+        }
+        
+        const tbody = document.getElementById('users-table');
+        
+        if (filteredUsers.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No users found</td></tr>';
+          return;
+        }
+        
+        tbody.innerHTML = filteredUsers.map(user => `
+          <tr>
+            <td><strong>${user.username || 'No name'}</strong></td>
+            <td>${user.email || '-'}</td>
+            <td><span class="badge badge-primary">${user.role || 'fan'}</span></td>
+            <td>
+              ${(user.badges || []).map(badge => 
+                `<span class="badge badge-success">${badge}</span>`
+              ).join(' ')}
+            </td>
+            <td>
+              <button class="btn btn-sm" onclick='editUser(${JSON.stringify(user).replace(/'/g, "&#39;")})'>Edit</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteUser('${user.user_id}')">Delete</button>
+            </td>
+          </tr>
+        `).join('');
+        
+      } catch (error) {
+        document.getElementById('users-table').innerHTML = 
+          `<tr><td colspan="5" class="text-center text-muted">Error: ${error.message}</td></tr>`;
+      }
+    }
+    
+    // Show modal
+    function showModal(modalName) {
+      document.getElementById(modalName + 'Modal').classList.add('active');
+    }
+    
+    // Hide modal
+    function hideModal(modalName) {
+      document.getElementById(modalName + 'Modal').classList.remove('active');
+    }
+    
+    // Create new user
+    async function createUser() {
+      const email = document.getElementById('new-email').value.trim();
+      const username = document.getElementById('new-username').value.trim();
+      const role = document.getElementById('new-role').value;
+      const messageDiv = document.getElementById('create-message');
+      
+      if (!email || !username) {
+        messageDiv.innerHTML = '<div class="message message-error">Email and username are required</div>';
+        return;
+      }
+      
+      try {
+        // Create random password
+        const password = Math.random().toString(36).substring(2) + '!' + Math.random().toString(36).substring(2);
+        
+        // Create auth user
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: email,
+          password: password
+        });
+        
+        if (authError) throw authError;
+        
+        // Create profile
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            user_id: authData.user.id,
+            email: email,
+            username: username,
+            role: role,
+            badges: [],
+            created_at: new Date().toISOString()
+          });
+        
+        if (profileError) throw profileError;
+        
+        messageDiv.innerHTML = '<div class="message message-success">User created successfully!</div>';
+        
+        setTimeout(() => {
+          hideModal('create');
+          loadUsers();
+        }, 1500);
+        
+      } catch (error) {
+        messageDiv.innerHTML = `<div class="message message-error">${error.message}</div>`;
+      }
+    }
+    
+    // Edit user
+    function editUser(user) {
+      document.getElementById('edit-id').value = user.user_id;
+      document.getElementById('edit-username').value = user.username || '';
+      document.getElementById('edit-email').value = user.email || '';
+      document.getElementById('edit-role').value = user.role || 'fan';
+      document.getElementById('edit-badges').value = (user.badges || []).join(', ');
+      
+      showModal('edit');
+    }
+    
+    // Save user edits
+    async function saveEdit() {
+      const userId = document.getElementById('edit-id').value;
+      const messageDiv = document.getElementById('edit-message');
+      
+      try {
+        // Parse badges
+        const badgesInput = document.getElementById('edit-badges').value;
+        const badges = badgesInput
+          .split(',')
+          .map(b => b.trim())
+          .filter(b => b);
+        
+        // Update profile
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            username: document.getElementById('edit-username').value,
+            email: document.getElementById('edit-email').value,
+            role: document.getElementById('edit-role').value,
+            badges: badges
+          })
+          .eq('user_id', userId);
+        
+        if (error) throw error;
+        
+        messageDiv.innerHTML = '<div class="message message-success">User updated successfully!</div>';
+        
+        setTimeout(() => {
+          hideModal('edit');
+          loadUsers();
+        }, 1000);
+        
+      } catch (error) {
+        messageDiv.innerHTML = `<div class="message message-error">${error.message}</div>`;
+      }
+    }
+    
+    // Delete user
+    async function deleteUser(userId) {
+      if (!confirm('Are you sure you want to delete this user? This cannot be undone.')) {
+        return;
+      }
+      
+      try {
+        const { error } = await supabase
+          .from('profiles')
+          .delete()
+          .eq('user_id', userId);
+        
+        if (error) throw error;
+        
+        loadUsers();
+        
+      } catch (error) {
+        alert('Error deleting user: ' + error.message);
+      }
+    }
+    
+    // Run auth check on page load
+    checkAuth();
+  </script>
+
+</body>
+</html>
