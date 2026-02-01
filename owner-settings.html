@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Site Settings - 8BFR</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary: #7c3aed; --dark: #0b0014; --dark-card: #0c0618; --text: #eae6ff; --border: rgba(124,58,237,.35); }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Work Sans', sans-serif; background: linear-gradient(#0b0014,#000); color: var(--text); min-height: 100vh; }
+        .header { background: rgba(15,0,30,.9); border-bottom: 2px solid var(--primary); padding: 1.5rem 2rem; }
+        .header h1 { font-family: 'Bebas Neue', cursive; font-size: 2rem; color: var(--primary); }
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        .card { background: var(--dark-card); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; }
+        .form-group input { width: 100%; padding: 0.75rem; background: var(--dark); border: 1px solid var(--border); border-radius: 4px; color: var(--text); }
+        .btn { background: var(--primary); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="header"><h1>⚙️ Site Settings</h1><a href="owner-panel.html" style="color: var(--text); text-decoration: none;">← Back</a></div>
+    <div class="container">
+        <div class="card"><h2 style="color: var(--primary);">General Settings</h2>
+            <div class="form-group"><label>Site Name</label><input id="siteName" value="8BFR Music Network"></div>
+            <div class="form-group"><label>Maintenance Message</label><input id="maintenanceMsg" value="Site under maintenance"></div>
+            <button class="btn" onclick="save()">Save Settings</button>
+        </div>
+    </div>
+    <script src="scripts.js"></script>
+    <script>
+        const s = window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
+        async function init() {
+            const { data: { session } } = await s.auth.getSession();
+            if (!session) { location.href = 'login.html'; return; }
+            const { data: p } = await s.from('profiles').select('*').eq('user_id', session.user.id).single();
+            if (!p || p.role !== 'owner') { location.href = 'owner-panel.html'; return; }
+            const { data: settings } = await s.from('site_settings').select('*').single();
+            if (settings) {
+                document.getElementById('siteName').value = settings.site_name || '8BFR Music Network';
+                document.getElementById('maintenanceMsg').value = settings.maintenance_message || 'Site under maintenance';
+            }
+        }
+        async function save() {
+            await s.from('site_settings').update({
+                site_name: document.getElementById('siteName').value,
+                maintenance_message: document.getElementById('maintenanceMsg').value
+            }).eq('id', 1);
+            alert('Settings saved');
+        }
+        if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
+    </script>
+</body>
+</html>
