@@ -1,578 +1,186 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Moderator Panel - 8BFR Music Network</title>
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        :root {
-            --primary: #ffaa00;
-            --secondary: #ff8800;
-            --dark: #0a0a0a;
-            --dark-card: #1a1a1a;
-            --success: #00ff88;
-            --warning: #ffaa00;
-            --danger: #ff0044;
-            --text: #ffffff;
-            --text-dim: #999999;
-            --border: #333333;
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Moderator Panel • 8BFR Music Network</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'purple-8bfr': '#7c3aed',
+            'purple-dark': '#6d28d9',
+          }
         }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Work Sans', sans-serif; background: var(--dark); color: var(--text); line-height: 1.6; }
-        .header { background: linear-gradient(135deg, var(--dark-card) 0%, #000 100%); border-bottom: 2px solid var(--primary); padding: 1.5rem 2rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 20px rgba(255, 170, 0, 0.2); }
-        .header h1 { font-family: 'Bebas Neue', cursive; font-size: 2rem; letter-spacing: 2px; background: linear-gradient(90deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-        .user-info { display: flex; align-items: center; gap: 1rem; }
-        .logout-btn { background: var(--danger); color: white; border: none; padding: 0.5rem 1.5rem; border-radius: 4px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; }
-        .logout-btn:hover { background: #cc0033; transform: translateY(-2px); }
-        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
-        .tabs { display: flex; gap: 0.5rem; margin-bottom: 2rem; border-bottom: 2px solid var(--border); flex-wrap: wrap; overflow-x: auto; }
-        .tab { background: transparent; color: var(--text-dim); border: none; padding: 1rem 1.5rem; cursor: pointer; font-weight: 600; font-size: 0.95rem; border-bottom: 3px solid transparent; transition: all 0.3s ease; font-family: 'Work Sans', sans-serif; white-space: nowrap; }
-        .tab:hover { color: var(--text); border-bottom-color: var(--secondary); }
-        .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
-        .tab-content { display: none; animation: fadeIn 0.3s ease; }
-        .tab-content.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .card { background: var(--dark-card); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); }
-        .card h2 { font-family: 'Bebas Neue', cursive; font-size: 1.5rem; letter-spacing: 1px; color: var(--primary); margin-bottom: 1rem; border-left: 4px solid var(--secondary); padding-left: 1rem; }
-        .card h3 { color: var(--primary); margin: 1rem 0; }
-        .form-group { margin-bottom: 1.5rem; }
-        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text); }
-        .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 0.75rem; background: var(--dark); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-family: 'Work Sans', sans-serif; transition: border-color 0.3s ease; }
-        .form-group input:focus, .form-group textarea:focus, .form-group select:focus { outline: none; border-color: var(--primary); }
-        .form-group textarea { min-height: 150px; resize: vertical; }
-        .btn { background: var(--primary); color: white; border: none; padding: 0.75rem 2rem; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 1rem; transition: all 0.3s ease; font-family: 'Work Sans', sans-serif; margin: 0.25rem; }
-        .btn:hover { background: var(--secondary); transform: translateY(-2px); box-shadow: 0 4px 15px rgba(255, 170, 0, 0.4); }
-        .btn-danger { background: var(--danger); }
-        .btn-danger:hover { background: #cc0033; }
-        .btn-success { background: var(--success); }
-        .btn-success:hover { background: #00cc6e; }
-        .btn-warning { background: var(--warning); }
-        .btn-warning:hover { background: #cc8800; }
-        .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
-        .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
-        .item-list { max-height: 500px; overflow-y: auto; }
-        .item { background: var(--dark); border: 1px solid var(--border); padding: 1rem; margin-bottom: 0.5rem; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; transition: all 0.3s ease; }
-        .item:hover { border-color: var(--primary); transform: translateX(4px); }
-        .item-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-        .item-actions button { padding: 0.4rem 0.8rem; font-size: 0.85rem; }
-        .search-box { width: 100%; padding: 0.75rem; background: var(--dark); border: 1px solid var(--border); border-radius: 4px; color: var(--text); margin-bottom: 1rem; font-family: 'Work Sans', sans-serif; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
-        .stat-card { background: linear-gradient(135deg, var(--dark-card), var(--dark)); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; text-align: center; transition: all 0.3s ease; }
-        .stat-card:hover { transform: translateY(-4px); border-color: var(--primary); }
-        .stat-card h3 { font-size: 2rem; color: var(--primary); margin-bottom: 0.5rem; }
-        .stat-card p { color: var(--text-dim); font-size: 0.9rem; }
-
-        /* Hamburger Menu */
-        .panel-hamburger {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            cursor: pointer;
-            padding: 0.5rem;
-            z-index: 1001;
-        }
-        .panel-hamburger span {
-            width: 28px;
-            height: 3px;
-            background: var(--primary);
-            border-radius: 2px;
-            transition: all 0.3s ease;
-        }
-        .panel-hamburger.active span:nth-child(1) {
-            transform: rotate(45deg) translate(6px, 6px);
-        }
-        .panel-hamburger.active span:nth-child(2) {
-            opacity: 0;
-        }
-        .panel-hamburger.active span:nth-child(3) {
-            transform: rotate(-45deg) translate(6px, -6px);
-        }
-        .panel-sidemenu {
-            position: fixed;
-            top: 0;
-            left: -320px;
-            width: 320px;
-            height: 100vh;
-            background: var(--dark-card);
-            border-right: 2px solid var(--primary);
-            transition: left 0.3s ease;
-            z-index: 1000;
-            padding: 6rem 1.5rem 1.5rem;
-            overflow-y: auto;
-            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
-        }
-        .panel-sidemenu.active {
-            left: 0;
-        }
-        .panel-menu-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100vh;
-            background: rgba(0, 0, 0, 0.8);
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
-            z-index: 999;
-        }
-        .panel-menu-overlay.active {
-            opacity: 1;
-            pointer-events: all;
-        }
-        .panel-menu-item {
-            padding: 1rem 1.2rem;
-            margin-bottom: 0.5rem;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            border-left: 3px solid transparent;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            color: var(--text);
-            text-decoration: none;
-            font-size: 0.95rem;
-        }
-        .panel-menu-item:hover {
-            background: var(--dark);
-            border-left-color: var(--primary);
-            transform: translateX(5px);
-        }
-        .panel-menu-section {
-            margin-bottom: 2rem;
-        }
-        .panel-menu-section h3 {
-            color: var(--primary);
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            margin-bottom: 1rem;
-            padding-left: 1.2rem;
-            font-weight: 700;
-        }
-        .panel-back-top {
-            position: fixed;
-            bottom: 2rem;
-            right: 2rem;
-            width: 56px;
-            height: 56px;
-            background: var(--primary);
-            border: none;
-            border-radius: 50%;
-            color: white;
-            font-size: 1.8rem;
-            cursor: pointer;
-            opacity: 0;
-            pointer-events: none;
-            transition: all 0.3s ease;
-            z-index: 100;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .panel-back-top.visible {
-            opacity: 1;
-            pointer-events: all;
-        }
-        .panel-back-top:hover {
-            background: var(--secondary);
-            transform: translateY(-5px);
-            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.6);
-        }
-        .panel-home-btn {
-            background: var(--secondary);
-            color: white;
-            border: none;
-            padding: 0.5rem 1.2rem;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.9rem;
-        }
-        .panel-home-btn:hover {
-            background: var(--primary);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-        }
-    </style>
+      }
+    }
+  </script>
 </head>
-<body data-no-global-carrie="true">
-    <div class="header">
-        <div class="panel-hamburger" onclick="togglePanelMenu()">
-            <span></span>
-            <span></span>
-            <span></span>
-        </div>
-        <h1>🛡️ MODERATOR PANEL</h1>
-        <div class="user-info">
-            <a href="index.html" class="panel-home-btn">🏠 Home</a>
-            <span id="modName">Loading...</span>
-            <button class="logout-btn" onclick="logout()">Logout</button>
-        </div>
+<body class="bg-black text-white">
+  <main class="max-w-6xl mx-auto p-6 space-y-6">
+    <header class="flex items-center justify-between">
+      <h1 class="text-2xl font-bold text-purple-400">💬 Moderator Panel</h1>
+      <div class="flex items-center gap-4">
+        <span class="text-sm text-gray-400" id="modName">Moderator</span>
+        <button onclick="logout()" class="text-sm bg-red-600 hover:bg-red-700 px-4 py-2 rounded">Logout</button>
+      </div>
+    </header>
+
+    <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="bg-zinc-900 p-4 rounded-xl">
+        <h2 class="font-semibold text-purple-300 mb-2">🚨 Reports Queue</h2>
+        <ul class="text-sm space-y-1 text-gray-300">
+          <li>• Review user reports</li>
+          <li>• Flag inappropriate content</li>
+          <li>• Escalate to Admin</li>
+        </ul>
+        <button onclick="showReports()" class="mt-3 bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded text-white font-semibold w-full">View Reports</button>
+      </div>
+
+      <div class="bg-zinc-900 p-4 rounded-xl">
+        <h2 class="font-semibold text-purple-300 mb-2">🧹 Content Actions</h2>
+        <ul class="text-sm space-y-1 text-gray-300">
+          <li>• Hide posts</li>
+          <li>• Lock comment threads</li>
+          <li>• Issue soft warnings</li>
+        </ul>
+        <button onclick="showContent()" class="mt-3 bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded text-white font-semibold w-full">Moderate Content</button>
+      </div>
+    </section>
+
+    <!-- Reports Section -->
+    <div id="reportsSection" class="bg-zinc-900 p-4 rounded-xl hidden">
+      <h2 class="font-semibold text-purple-300 mb-4">Pending Reports</h2>
+      <div id="reportsList" class="space-y-2">Loading...</div>
     </div>
 
-    <!-- Side Menu -->
-    <div class="panel-menu-overlay" onclick="togglePanelMenu()"></div>
-    <div class="panel-sidemenu">
-        <div class="panel-menu-section">
-            <h3>📊 Navigation</h3>
-            <div class="panel-menu-item" onclick="switchTab('dashboard'); togglePanelMenu();">📈 Dashboard</div>
-            <div class="panel-menu-item" onclick="switchTab('content'); togglePanelMenu();">📝 Content</div>
-            <div class="panel-menu-item" onclick="switchTab('chat'); togglePanelMenu();">💬 Chat</div>
-            <div class="panel-menu-item" onclick="switchTab('reports'); togglePanelMenu();">📋 Reports</div>
-        </div>
-        <div class="panel-menu-section">
-            <h3>🔗 Quick Links</h3>
-            <a href="index.html" class="panel-menu-item">🏠 Home</a>
-            <a href="owner-panel.html" class="panel-menu-item">👑 Owner Panel</a>
-            <a href="admin-panel.html" class="panel-menu-item">⚡ Admin Panel</a>
-        </div>
-        <div class="panel-menu-section">
-            <div class="panel-menu-item" onclick="logout()">🚪 Logout</div>
-        </div>
+    <!-- Content Moderation -->
+    <div id="contentSection" class="bg-zinc-900 p-4 rounded-xl hidden">
+      <h2 class="font-semibold text-purple-300 mb-4">Recent Posts</h2>
+      <input type="text" id="searchPosts" placeholder="Search posts..." class="w-full bg-black border border-gray-700 rounded px-3 py-2 mb-3 text-white" oninput="searchPosts()">
+      <div id="postsList" class="space-y-2">Loading...</div>
     </div>
 
-    <!-- Back to Top -->
-    <button class="panel-back-top" onclick="scrollPanelToTop()">↑</button>
-
-    <div class="container">
-        <div class="tabs">
-            <button class="tab active" onclick="switchTab('dashboard')">Dashboard</button>
-            <button class="tab" onclick="switchTab('content')">Content</button>
-            <button class="tab" onclick="switchTab('chat')">Chat</button>
-            <button class="tab" onclick="switchTab('reports')">Reports</button>
-        </div>
-
-        <div id="dashboard" class="tab-content active">
-            <div class="stats-grid">
-                <div class="stat-card"><h3 id="totalPosts">0</h3><p>Posts Today</p></div>
-                <div class="stat-card"><h3 id="totalComments">0</h3><p>Comments Today</p></div>
-                <div class="stat-card"><h3 id="hiddenToday">0</h3><p>Hidden Today</p></div>
-                <div class="stat-card"><h3 id="reportsToday">0</h3><p>Reports Today</p></div>
-            </div>
-            <div class="card">
-                <h2>Quick Actions</h2>
-                <div class="grid-3">
-                    <button class="btn" onclick="switchTab('content')">Moderate Content</button>
-                    <button class="btn btn-warning" onclick="switchTab('chat')">Chat Control</button>
-                    <button class="btn btn-danger" onclick="switchTab('reports')">View Reports</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="content" class="tab-content">
-            <div class="card">
-                <h2>Content Moderation</h2>
-                <input type="text" class="search-box" id="contentSearch" placeholder="Search posts and comments..." onkeyup="searchContent()">
-                <div class="grid-2">
-                    <div>
-                        <h3>Posts</h3>
-                        <div class="item-list" id="postsList"></div>
-                    </div>
-                    <div>
-                        <h3>Comments</h3>
-                        <div class="item-list" id="commentsList"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div id="chat" class="tab-content">
-            <div class="card">
-                <h2>Chat Moderation</h2>
-                <div class="grid-2">
-                    <div>
-                        <h3>User Actions</h3>
-                        <div class="form-group">
-                            <label>User ID or Username:</label>
-                            <input type="text" id="chatUserId" placeholder="Enter user identifier">
-                        </div>
-                        <button class="btn" onclick="kickUser()">Kick from Chat</button>
-                        <button class="btn btn-warning" onclick="muteUser()">Mute User</button>
-                        <div class="form-group" style="margin-top: 1rem;">
-                            <label>Mute Duration (minutes):</label>
-                            <select id="muteDuration">
-                                <option value="5">5 minutes</option>
-                                <option value="15">15 minutes</option>
-                                <option value="30">30 minutes</option>
-                                <option value="60">1 hour</option>
-                                <option value="1440">24 hours</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div>
-                        <h3>Message Actions</h3>
-                        <div class="form-group">
-                            <label>Message ID:</label>
-                            <input type="text" id="messageId" placeholder="Enter message ID">
-                        </div>
-                        <div class="form-group">
-                            <label>Reason:</label>
-                            <textarea id="messageHideReason" placeholder="Reason for action..."></textarea>
-                        </div>
-                        <button class="btn btn-warning" onclick="hideMessage()">Hide Message</button>
-                        <button class="btn btn-danger" onclick="deleteMessage()">Delete Message</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div id="reports" class="tab-content">
-            <div class="card">
-                <h2>Report to Admin</h2>
-                <div class="form-group">
-                    <label>Content Type:</label>
-                    <select id="reportContentType">
-                        <option value="post">Post</option>
-                        <option value="comment">Comment</option>
-                        <option value="user">User</option>
-                        <option value="message">Message</option>
-                        <option value="other">Other</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Content ID:</label>
-                    <input type="text" id="reportContentId" placeholder="Enter content identifier">
-                </div>
-                <div class="form-group">
-                    <label>Priority Level:</label>
-                    <select id="reportPriority">
-                        <option value="low">Low Priority</option>
-                        <option value="medium">Medium Priority</option>
-                        <option value="high">High Priority</option>
-                        <option value="urgent">Urgent</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Details:</label>
-                    <textarea id="reportDetails" placeholder="Describe the issue in detail..."></textarea>
-                </div>
-                <button class="btn btn-danger" onclick="reportToAdmin()">Send Report</button>
-            </div>
-            <div class="card">
-                <h2>My Reports</h2>
-                <div class="item-list" id="myReportsList"></div>
-            </div>
-        </div>
+    <!-- Hide Post Form -->
+    <div id="hideForm" class="bg-zinc-900 p-4 rounded-xl hidden">
+      <h2 class="font-semibold text-purple-300 mb-4">Hide Post/Comment</h2>
+      <input type="text" id="hideId" placeholder="Post or Comment ID" class="w-full bg-black border border-gray-700 rounded px-3 py-2 mb-3 text-white">
+      <textarea id="hideReason" placeholder="Reason for hiding..." class="w-full bg-black border border-gray-700 rounded px-3 py-2 mb-3 text-white h-24"></textarea>
+      <button onclick="hidePost()" class="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded text-white font-semibold">Hide Content</button>
     </div>
 
-    <script>
-        const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
-        const modPanelSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        let currentUser = null;
+    <footer class="text-xs text-gray-500 text-center pt-6">Moderator permissions are limited and logged.</footer>
+  </main>
 
-        async function init() {
-            try {
-                const { data: sessionData } = await modPanelSupabase.auth.getSession();
-                if (!sessionData.session) {
-                    alert('Please log in');
-                    window.location.href = 'login.html';
-                    return;
-                }
-                
-                const { data: { user } } = await modPanelSupabase.auth.getUser();
-                if (!user) {
-                    window.location.href = 'login.html';
-                    return;
-                }
-                currentUser = user;
+  <script src="scripts.js"></script>
+  <script>
+    const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+    const modPanelSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    let currentUser = null;
 
-                const { data: profile } = await modPanelSupabase.from('profiles').select('*').eq('user_id', user.id).single();
-                if (!profile || (profile.role !== 'mod' && profile.role !== 'admin' && profile.role !== 'owner')) {
-                    alert('Access Denied: Moderator only. Your role: ' + (profile?.role || 'none'));
-                    window.location.href = 'index.html';
-                    return;
-                }
+    async function init() {
+      const { data: { session } } = await modPanelSupabase.auth.getSession();
+      if (!session) { location.href = 'login.html'; return; }
+      const { data: profile } = await modPanelSupabase.from('profiles').select('*').eq('user_id', session.user.id).single();
+      if (!profile || profile.role !== 'mod') { alert('Moderator only'); location.href = 'index.html'; return; }
+      currentUser = profile;
+      document.getElementById('modName').textContent = profile.username || profile.email;
+    }
 
-                document.getElementById('modName').textContent = profile.username || user.email.split('@')[0];
-                loadDashboardStats();
-            } catch (error) {
-                alert('Error: ' + error.message);
-            }
-        }
+    function showReports() {
+      document.getElementById('reportsSection').classList.remove('hidden');
+      document.getElementById('contentSection').classList.add('hidden');
+      document.getElementById('hideForm').classList.add('hidden');
+      loadReports();
+    }
 
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById(tabName).classList.add('active');
-            if (tabName === 'content') { loadPosts(); loadComments(); }
-            if (tabName === 'reports') loadMyReports();
-        }
+    function showContent() {
+      document.getElementById('contentSection').classList.remove('hidden');
+      document.getElementById('reportsSection').classList.add('hidden');
+      document.getElementById('hideForm').classList.remove('hidden');
+      loadPosts();
+    }
 
-        async function loadDashboardStats() {
-            const today = new Date().toISOString().split('T')[0];
-            const { count: p } = await modPanelSupabase.from('posts').select('*', { count: 'exact', head: true }).gte('created_at', today);
-            const { count: c } = await modPanelSupabase.from('comments').select('*', { count: 'exact', head: true }).gte('created_at', today);
-            const { count: h } = await modPanelSupabase.from('posts').select('*', { count: 'exact', head: true }).eq('is_hidden', true).gte('created_at', today);
-            const { count: r } = await modPanelSupabase.from('mod_reports').select('*', { count: 'exact', head: true }).gte('created_at', today);
-            document.getElementById('totalPosts').textContent = p || 0;
-            document.getElementById('totalComments').textContent = c || 0;
-            document.getElementById('hiddenToday').textContent = h || 0;
-            document.getElementById('reportsToday').textContent = r || 0;
-        }
+    async function loadReports() {
+      const { data } = await modPanelSupabase.from('reports').select('*').eq('status', 'pending').order('created_at', {ascending: false});
+      document.getElementById('reportsList').innerHTML = data && data.length > 0
+        ? data.map(r => `
+            <div class="bg-black border border-gray-700 p-3 rounded">
+              <strong class="text-purple-300">${r.content_type}</strong> - ID: ${r.content_id}
+              <p class="text-sm text-gray-400 mt-1">${r.reason || 'No reason'}</p>
+              <button onclick="resolveReport('${r.id}')" class="mt-2 bg-green-600 hover:bg-green-700 px-3 py-1 rounded text-sm">Resolve</button>
+            </div>
+          `).join('')
+        : '<p class="text-gray-400">No pending reports</p>';
+    }
 
-        async function loadPosts(query = '') {
-            let q = modPanelSupabase.from('posts').select('*');
-            if (query) q = q.ilike('content', `%${query}%`);
-            const { data: posts } = await q.limit(50).order('created_at', { ascending: false });
-            const list = document.getElementById('postsList');
-            if (!posts || posts.length === 0) {
-                list.innerHTML = '<p style="text-align:center;color:var(--text-dim);">No posts</p>';
-                return;
-            }
-            list.innerHTML = posts.map(p => `<div class="item"><div><small>${p.content?.substring(0,80)}...</small>${p.is_hidden ? '<br><small style="color:var(--warning);">HIDDEN</small>' : ''}</div><div class="item-actions"><button class="btn btn-warning" onclick="hidePost('${p.id}')">Hide</button><button class="btn btn-danger" onclick="deletePost('${p.id}')">Delete</button></div></div>`).join('');
-        }
+    async function loadPosts() {
+      const { data } = await modPanelSupabase.from('posts').select('*').order('created_at', {ascending: false}).limit(50);
+      document.getElementById('postsList').innerHTML = data && data.length > 0
+        ? data.map(p => `
+            <div class="bg-black border border-gray-700 p-3 rounded">
+              <p class="text-sm">${p.content?.substring(0,150)}...</p>
+              <div class="flex gap-2 mt-2">
+                <button onclick="quickHide('${p.id}', 'post')" class="bg-yellow-600 hover:bg-yellow-700 px-3 py-1 rounded text-sm">Hide</button>
+              </div>
+            </div>
+          `).join('')
+        : '<p class="text-gray-400">No posts</p>';
+    }
 
-        async function loadComments(query = '') {
-            let q = modPanelSupabase.from('comments').select('*');
-            if (query) q = q.ilike('content', `%${query}%`);
-            const { data: comments } = await q.limit(50).order('created_at', { ascending: false });
-            const list = document.getElementById('commentsList');
-            if (!comments || comments.length === 0) {
-                list.innerHTML = '<p style="text-align:center;color:var(--text-dim);">No comments</p>';
-                return;
-            }
-            list.innerHTML = comments.map(c => `<div class="item"><div><small>${c.content?.substring(0,80)}...</small>${c.is_hidden ? '<br><small style="color:var(--warning);">HIDDEN</small>' : ''}</div><div class="item-actions"><button class="btn btn-warning" onclick="hideComment('${c.id}')">Hide</button><button class="btn btn-danger" onclick="deleteComment('${c.id}')">Delete</button></div></div>`).join('');
-        }
+    async function searchPosts() {
+      const q = document.getElementById('searchPosts').value;
+      if (!q) { loadPosts(); return; }
+      const { data } = await modPanelSupabase.from('posts').select('*').ilike('content', `%${q}%`).limit(50);
+      document.getElementById('postsList').innerHTML = data && data.length > 0
+        ? data.map(p => `
+            <div class="bg-black border border-gray-700 p-3 rounded">
+              <p class="text-sm">${p.content?.substring(0,150)}...</p>
+              <button onclick="quickHide('${p.id}', 'post')" class="mt-2 bg-yellow-600 hover:bg-yellow-700 px-3 py-1 rounded text-sm">Hide</button>
+            </div>
+          `).join('')
+        : '<p class="text-gray-400">No results</p>';
+    }
 
-        function searchContent() {
-            const query = document.getElementById('contentSearch').value;
-            loadPosts(query);
-            loadComments(query);
-        }
+    async function resolveReport(id) {
+      await modPanelSupabase.from('reports').update({status: 'resolved', resolved_by: currentUser.user_id}).eq('id', id);
+      loadReports();
+    }
 
-        async function hidePost(id) {
-            if (!confirm('Hide this post?')) return;
-            await modPanelSupabase.from('posts').update({ is_hidden: true }).eq('id', id);
-            alert('Post hidden');
-            loadPosts();
-        }
+    async function hidePost() {
+      const id = document.getElementById('hideId').value.trim();
+      const reason = document.getElementById('hideReason').value.trim();
+      if (!id || !reason) { alert('Fill all fields'); return; }
+      await modPanelSupabase.from('posts').update({is_hidden: true, hide_reason: reason}).eq('id', id);
+      alert('Content hidden');
+      document.getElementById('hideId').value = '';
+      document.getElementById('hideReason').value = '';
+      loadPosts();
+    }
 
-        async function deletePost(id) {
-            if (!confirm('Delete this post permanently?')) return;
-            await modPanelSupabase.from('posts').delete().eq('id', id);
-            alert('Post deleted');
-            loadPosts();
-        }
+    async function quickHide(id, type) {
+      const reason = prompt('Reason for hiding:');
+      if (!reason) return;
+      const table = type === 'post' ? 'posts' : 'comments';
+      await modPanelSupabase.from(table).update({is_hidden: true, hide_reason: reason}).eq('id', id);
+      alert('Hidden');
+      loadPosts();
+    }
 
-        async function hideComment(id) {
-            if (!confirm('Hide this comment?')) return;
-            await modPanelSupabase.from('comments').update({ is_hidden: true }).eq('id', id);
-            alert('Comment hidden');
-            loadComments();
-        }
+    async function logout() {
+      await modPanelSupabase.auth.signOut();
+      location.href = 'login.html';
+    }
 
-        async function deleteComment(id) {
-            if (!confirm('Delete this comment permanently?')) return;
-            await modPanelSupabase.from('comments').delete().eq('id', id);
-            alert('Comment deleted');
-            loadComments();
-        }
-
-        async function kickUser() {
-            const uid = document.getElementById('chatUserId').value;
-            if (!uid) { alert('Enter user ID'); return; }
-            await modPanelSupabase.from('chat_kicks').insert({ user_id: uid, kicked_by: currentUser.id });
-            alert('User kicked from chat');
-        }
-
-        async function muteUser() {
-            const uid = document.getElementById('chatUserId').value;
-            const duration = document.getElementById('muteDuration').value;
-            if (!uid) { alert('Enter user ID'); return; }
-            const muteUntil = new Date();
-            muteUntil.setMinutes(muteUntil.getMinutes() + parseInt(duration));
-            await modPanelSupabase.from('chat_mutes').insert({ user_id: uid, muted_by: currentUser.id, muted_until: muteUntil.toISOString() });
-            alert(`User muted for ${duration} minutes`);
-        }
-
-        async function hideMessage() {
-            const mid = document.getElementById('messageId').value;
-            const reason = document.getElementById('messageHideReason').value;
-            if (!mid) { alert('Enter message ID'); return; }
-            await modPanelSupabase.from('messages').update({ hidden: true, hide_reason: reason }).eq('id', mid);
-            alert('Message hidden');
-        }
-
-        async function deleteMessage() {
-            if (!confirm('Delete this message permanently?')) return;
-            const mid = document.getElementById('messageId').value;
-            if (!mid) { alert('Enter message ID'); return; }
-            await modPanelSupabase.from('messages').delete().eq('id', mid);
-            alert('Message deleted');
-        }
-
-        async function reportToAdmin() {
-            const type = document.getElementById('reportContentType').value;
-            const cid = document.getElementById('reportContentId').value;
-            const priority = document.getElementById('reportPriority').value;
-            const details = document.getElementById('reportDetails').value;
-            if (!cid || !details) { alert('Fill all required fields'); return; }
-            await modPanelSupabase.from('mod_reports').insert({ content_type: type, content_id: cid, priority, details, reported_by: currentUser.id, reporter_role: 'mod' });
-            alert('Report sent to admin');
-            document.getElementById('reportContentId').value = '';
-            document.getElementById('reportDetails').value = '';
-            loadMyReports();
-        }
-
-        async function loadMyReports() {
-            const { data: reports } = await modPanelSupabase.from('mod_reports').select('*').eq('reported_by', currentUser.id).order('created_at', { ascending: false });
-            const list = document.getElementById('myReportsList');
-            if (!reports || reports.length === 0) {
-                list.innerHTML = '<p style="text-align:center;color:var(--text-dim);">No reports submitted</p>';
-                return;
-            }
-            list.innerHTML = reports.map(r => `<div class="item"><div><strong>${r.content_type} - ${r.priority}</strong><br><small>${r.details?.substring(0,100)}...</small><br><small>Status: ${r.status || 'pending'}</small></div></div>`).join('');
-        }
-
-        function togglePanelMenu() {
-            const menu = document.querySelector('.panel-sidemenu');
-            const overlay = document.querySelector('.panel-menu-overlay');
-            const hamburger = document.querySelector('.panel-hamburger');
-            
-            menu.classList.toggle('active');
-            overlay.classList.toggle('active');
-            hamburger.classList.toggle('active');
-        }
-
-        window.addEventListener('scroll', function() {
-            const backBtn = document.querySelector('.panel-back-top');
-            if (window.pageYOffset > 400) {
-                backBtn.classList.add('visible');
-            } else {
-                backBtn.classList.remove('visible');
-            }
-        });
-
-        function scrollPanelToTop() {
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
-        }
-
-        async function logout() {
-            await modPanelSupabase.auth.signOut();
-            window.location.href = 'login.html';
-        }
-
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', init);
-        } else {
-            init();
-        }
-    </script>
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  </script>
 </body>
 </html>
