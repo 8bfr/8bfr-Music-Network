@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Owner Panel - 8BFR</title>
+  <link rel="stylesheet" href="global.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <div id="app">
+    <div style="padding: 2rem; text-align: center;">
+      <h1>👑 Owner Panel</h1>
+      <p id="status">Loading...</p>
+      <div id="error" style="color: #ff0044; margin-top: 1rem;"></div>
+      <div id="content" style="display: none; margin-top: 2rem;">
+        <div style="display: grid; gap: 1rem;">
+          <a href="owner-studio.html" style="background: rgba(124,58,237,0.2); border: 1px solid #7c3aed; padding: 1.5rem; border-radius: 1rem; text-decoration: none; color: #eae6ff;">
+            <h3>🎨 Owner Studio</h3>
+            <p style="font-size: 0.9rem; color: #a78bfa;">AI Music Tools</p>
+          </a>
+          <a href="owner-users.html" style="background: rgba(124,58,237,0.2); border: 1px solid #7c3aed; padding: 1.5rem; border-radius: 1rem; text-decoration: none; color: #eae6ff;">
+            <h3>👥 Users</h3>
+            <p style="font-size: 0.9rem; color: #a78bfa;">Manage Members</p>
+          </a>
+          <a href="index.html" style="background: rgba(124,58,237,0.2); border: 1px solid #7c3aed; padding: 1rem; border-radius: 1rem; text-decoration: none; color: #eae6ff;">
+            ← Back to Home
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const statusEl = document.getElementById('status');
+    const errorEl = document.getElementById('error');
+    const contentEl = document.getElementById('content');
+    
+    async function init() {
+      try {
+        statusEl.textContent = 'Step 1: Loading Supabase...';
+        
+        // Check if Supabase loaded
+        if (!window.supabase) {
+          throw new Error('Supabase library failed to load. Check internet connection.');
+        }
+        
+        statusEl.textContent = 'Step 2: Creating client...';
+        
+        const supabase = window.supabase.createClient(
+          'https://novbuvwpjnxwwvdekjhr.supabase.co',
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0'
+        );
+        
+        statusEl.textContent = 'Step 3: Checking login...';
+        
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          throw new Error('Session error: ' + sessionError.message);
+        }
+        
+        if (!session) {
+          errorEl.innerHTML = 'Not logged in. <a href="login.html" style="color: #7c3aed;">Login here</a>';
+          statusEl.textContent = '';
+          return;
+        }
+        
+        statusEl.textContent = 'Step 4: Loading profile...';
+        
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .single();
+        
+        if (profileError) {
+          throw new Error('Profile error: ' + profileError.message);
+        }
+        
+        if (!profile) {
+          throw new Error('No profile found for your account');
+        }
+        
+        statusEl.textContent = 'Step 5: Checking permissions...';
+        
+        const isOwner = profile.role === 'owner' || 
+                       (profile.roles_ordered && profile.roles_ordered.includes('owner'));
+        
+        if (!isOwner) {
+          errorEl.innerHTML = 'Access Denied: Owner role required. Your role: ' + profile.role;
+          statusEl.textContent = '';
+          return;
+        }
+        
+        // Success!
+        statusEl.textContent = 'Welcome, ' + (profile.username || profile.email) + '!';
+        contentEl.style.display = 'block';
+        
+      } catch (err) {
+        errorEl.textContent = 'ERROR: ' + err.message;
+        statusEl.textContent = '';
+        console.error(err);
+      }
+    }
+    
+    // Wait for DOM and Supabase library
+    setTimeout(init, 1000);
+  </script>
+
+</body>
+</html>
