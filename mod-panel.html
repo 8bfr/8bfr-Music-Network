@@ -1,186 +1,74 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Moderator Panel • 8BFR Music Network</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            'purple-8bfr': '#7c3aed',
-            'purple-dark': '#6d28d9',
-          }
-        }
-      }
-    }
-  </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moderator Panel - 8BFR</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-black text-white">
-  <main class="max-w-6xl mx-auto p-6 space-y-6">
-    <header class="flex items-center justify-between">
-      <h1 class="text-2xl font-bold text-purple-400">💬 Moderator Panel</h1>
-      <div class="flex items-center gap-4">
-        <span class="text-sm text-gray-400" id="modName">Moderator</span>
-        <button onclick="logout()" class="text-sm bg-red-600 hover:bg-red-700 px-4 py-2 rounded">Logout</button>
-      </div>
-    </header>
-
-    <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div class="bg-zinc-900 p-4 rounded-xl">
-        <h2 class="font-semibold text-purple-300 mb-2">🚨 Reports Queue</h2>
-        <ul class="text-sm space-y-1 text-gray-300">
-          <li>• Review user reports</li>
-          <li>• Flag inappropriate content</li>
-          <li>• Escalate to Admin</li>
-        </ul>
-        <button onclick="showReports()" class="mt-3 bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded text-white font-semibold w-full">View Reports</button>
-      </div>
-
-      <div class="bg-zinc-900 p-4 rounded-xl">
-        <h2 class="font-semibold text-purple-300 mb-2">🧹 Content Actions</h2>
-        <ul class="text-sm space-y-1 text-gray-300">
-          <li>• Hide posts</li>
-          <li>• Lock comment threads</li>
-          <li>• Issue soft warnings</li>
-        </ul>
-        <button onclick="showContent()" class="mt-3 bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded text-white font-semibold w-full">Moderate Content</button>
-      </div>
-    </section>
-
-    <!-- Reports Section -->
-    <div id="reportsSection" class="bg-zinc-900 p-4 rounded-xl hidden">
-      <h2 class="font-semibold text-purple-300 mb-4">Pending Reports</h2>
-      <div id="reportsList" class="space-y-2">Loading...</div>
-    </div>
-
-    <!-- Content Moderation -->
-    <div id="contentSection" class="bg-zinc-900 p-4 rounded-xl hidden">
-      <h2 class="font-semibold text-purple-300 mb-4">Recent Posts</h2>
-      <input type="text" id="searchPosts" placeholder="Search posts..." class="w-full bg-black border border-gray-700 rounded px-3 py-2 mb-3 text-white" oninput="searchPosts()">
-      <div id="postsList" class="space-y-2">Loading...</div>
-    </div>
-
-    <!-- Hide Post Form -->
-    <div id="hideForm" class="bg-zinc-900 p-4 rounded-xl hidden">
-      <h2 class="font-semibold text-purple-300 mb-4">Hide Post/Comment</h2>
-      <input type="text" id="hideId" placeholder="Post or Comment ID" class="w-full bg-black border border-gray-700 rounded px-3 py-2 mb-3 text-white">
-      <textarea id="hideReason" placeholder="Reason for hiding..." class="w-full bg-black border border-gray-700 rounded px-3 py-2 mb-3 text-white h-24"></textarea>
-      <button onclick="hidePost()" class="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded text-white font-semibold">Hide Content</button>
-    </div>
-
-    <footer class="text-xs text-gray-500 text-center pt-6">Moderator permissions are limited and logged.</footer>
-  </main>
-
-  <script src="scripts.js"></script>
-  <script>
-    const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
-    const modPanelSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    let currentUser = null;
-
-    async function init() {
-      const { data: { session } } = await modPanelSupabase.auth.getSession();
-      if (!session) { location.href = 'login.html'; return; }
-      const { data: profile } = await modPanelSupabase.from('profiles').select('*').eq('user_id', session.user.id).single();
-      if (!profile || profile.role !== 'mod') { alert('Moderator only'); location.href = 'index.html'; return; }
-      currentUser = profile;
-      document.getElementById('modName').textContent = profile.username || profile.email;
-    }
-
-    function showReports() {
-      document.getElementById('reportsSection').classList.remove('hidden');
-      document.getElementById('contentSection').classList.add('hidden');
-      document.getElementById('hideForm').classList.add('hidden');
-      loadReports();
-    }
-
-    function showContent() {
-      document.getElementById('contentSection').classList.remove('hidden');
-      document.getElementById('reportsSection').classList.add('hidden');
-      document.getElementById('hideForm').classList.remove('hidden');
-      loadPosts();
-    }
-
-    async function loadReports() {
-      const { data } = await modPanelSupabase.from('reports').select('*').eq('status', 'pending').order('created_at', {ascending: false});
-      document.getElementById('reportsList').innerHTML = data && data.length > 0
-        ? data.map(r => `
-            <div class="bg-black border border-gray-700 p-3 rounded">
-              <strong class="text-purple-300">${r.content_type}</strong> - ID: ${r.content_id}
-              <p class="text-sm text-gray-400 mt-1">${r.reason || 'No reason'}</p>
-              <button onclick="resolveReport('${r.id}')" class="mt-2 bg-green-600 hover:bg-green-700 px-3 py-1 rounded text-sm">Resolve</button>
+    <main class="max-w-6xl mx-auto p-6 space-y-6">
+        <header class="flex items-center justify-between">
+            <h1 class="text-2xl font-bold text-purple-400">💬 Moderator Panel</h1>
+            <div class="flex items-center gap-4">
+                <span class="text-sm text-gray-400" id="modName">Moderator</span>
+                <button onclick="logout()" class="text-sm bg-red-600 hover:bg-red-700 px-4 py-2 rounded">Logout</button>
             </div>
-          `).join('')
-        : '<p class="text-gray-400">No pending reports</p>';
-    }
+        </header>
 
-    async function loadPosts() {
-      const { data } = await modPanelSupabase.from('posts').select('*').order('created_at', {ascending: false}).limit(50);
-      document.getElementById('postsList').innerHTML = data && data.length > 0
-        ? data.map(p => `
-            <div class="bg-black border border-gray-700 p-3 rounded">
-              <p class="text-sm">${p.content?.substring(0,150)}...</p>
-              <div class="flex gap-2 mt-2">
-                <button onclick="quickHide('${p.id}', 'post')" class="bg-yellow-600 hover:bg-yellow-700 px-3 py-1 rounded text-sm">Hide</button>
-              </div>
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-zinc-900 p-4 rounded-xl">
+                <h2 class="font-semibold text-purple-300 mb-2">🚨 Reports Queue</h2>
+                <div id="reportsList">Loading...</div>
             </div>
-          `).join('')
-        : '<p class="text-gray-400">No posts</p>';
-    }
-
-    async function searchPosts() {
-      const q = document.getElementById('searchPosts').value;
-      if (!q) { loadPosts(); return; }
-      const { data } = await modPanelSupabase.from('posts').select('*').ilike('content', `%${q}%`).limit(50);
-      document.getElementById('postsList').innerHTML = data && data.length > 0
-        ? data.map(p => `
-            <div class="bg-black border border-gray-700 p-3 rounded">
-              <p class="text-sm">${p.content?.substring(0,150)}...</p>
-              <button onclick="quickHide('${p.id}', 'post')" class="mt-2 bg-yellow-600 hover:bg-yellow-700 px-3 py-1 rounded text-sm">Hide</button>
+            <div class="bg-zinc-900 p-4 rounded-xl">
+                <h2 class="font-semibold text-purple-300 mb-2">🧹 Content Moderation</h2>
+                <input type="text" id="contentId" placeholder="Post/Comment ID" class="w-full bg-black border border-gray-700 rounded px-3 py-2 mb-2 text-white">
+                <button onclick="hideContent()" class="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded">Hide Content</button>
             </div>
-          `).join('')
-        : '<p class="text-gray-400">No results</p>';
-    }
+        </section>
 
-    async function resolveReport(id) {
-      await modPanelSupabase.from('reports').update({status: 'resolved', resolved_by: currentUser.user_id}).eq('id', id);
-      loadReports();
-    }
+        <footer class="text-xs text-gray-500 text-center pt-6">Moderator permissions are limited and logged.</footer>
+    </main>
 
-    async function hidePost() {
-      const id = document.getElementById('hideId').value.trim();
-      const reason = document.getElementById('hideReason').value.trim();
-      if (!id || !reason) { alert('Fill all fields'); return; }
-      await modPanelSupabase.from('posts').update({is_hidden: true, hide_reason: reason}).eq('id', id);
-      alert('Content hidden');
-      document.getElementById('hideId').value = '';
-      document.getElementById('hideReason').value = '';
-      loadPosts();
-    }
-
-    async function quickHide(id, type) {
-      const reason = prompt('Reason for hiding:');
-      if (!reason) return;
-      const table = type === 'post' ? 'posts' : 'comments';
-      await modPanelSupabase.from(table).update({is_hidden: true, hide_reason: reason}).eq('id', id);
-      alert('Hidden');
-      loadPosts();
-    }
-
-    async function logout() {
-      await modPanelSupabase.auth.signOut();
-      location.href = 'login.html';
-    }
-
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', init);
-    } else {
-      init();
-    }
-  </script>
+    <script src="scripts.js"></script>
+    <script>
+        const s = window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
+        
+        async function init() {
+            const { data: { session } } = await s.auth.getSession();
+            if (!session) { location.href = 'login.html'; return; }
+            const { data: profile } = await s.from('profiles').select('*').eq('user_id', session.user.id).single();
+            if (!profile || !['mod', 'admin', 'owner'].includes(profile.role)) { alert('Moderator/Admin/Owner only'); location.href = 'index.html'; return; }
+            document.getElementById('modName').textContent = profile.username || profile.email;
+            loadReports();
+        }
+        
+        async function loadReports() {
+            const { data } = await s.from('reports').select('*').eq('status', 'pending').limit(10);
+            document.getElementById('reportsList').innerHTML = data && data.length > 0
+                ? data.map(r => `<div class="bg-black p-2 rounded mb-2 text-sm">${r.content_type}: ${r.content_id}</div>`).join('')
+                : '<p class="text-gray-400 text-sm">No pending reports</p>';
+        }
+        
+        async function hideContent() {
+            const id = document.getElementById('contentId').value.trim();
+            if (!id) { alert('Enter ID'); return; }
+            await s.from('posts').update({is_hidden: true}).eq('id', id);
+            alert('Hidden');
+        }
+        
+        async function logout() {
+            await s.auth.signOut();
+            location.href = 'login.html';
+        }
+        
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
 </body>
 </html>
