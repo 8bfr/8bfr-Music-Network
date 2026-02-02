@@ -118,86 +118,135 @@
     }
 
     /* Ad carousel */
-    .ad-frame{
-      position:relative;
-      overflow:hidden;
-      border-radius:16px;
-      border:1px solid rgba(124,58,237,.4);
-      background:#0c0618;
-    }
-    .ad-track{
-      position:relative;
-      height:340px;
-    }
-    .ad-slide{
-      position:absolute;
-      inset:0;
-      display:grid;
-      place-items:center;
-      opacity:0;
-      transform:translateX(20px);
-      transition:opacity .35s ease, transform .35s ease;
-    }
-    .ad-slide.show{
-      opacity:1;
-      transform:translateX(0);
-    }
-    .ad-slide img{
-      display:block;
-      width:100%;
-      height:100%;
-      object-fit:cover;
-    }
-    .ad-btn{
-      position:absolute;
-      top:50%;
-      transform:translateY(-50%);
-      background:rgba(0,0,0,.35);
-      border:1px solid rgba(124,58,237,.35);
-      padding:.45rem .65rem;
-      border-radius:.5rem;
-      cursor:pointer;
-    }
-    #adPrev{ left:10px; }
-    #adNext{ right:10px; }
+    <!-- ONLY REPLACE THE AD CAROUSEL SCRIPT (lines 854-923) with this: -->
 
-    /* Pause button on left */
-    #adPause{
-      left:10px;
-      right:auto;
-      bottom:10px;
-      top:auto;
-      transform:none;
-    }
+<script>
+    // featured ads carousel (index only) - UPDATED TO LOAD FROM SUPABASE
+    (function(){
+      const track = document.getElementById('adTrack');
+      const prev  = document.getElementById('adPrev');
+      const next  = document.getElementById('adNext');
+      const pause = document.getElementById('adPause');
+      if (!track || !prev || !next || !pause) return;
+
+      // Default ads (fallback when no approved ads exist)
+      const defaultAds = [
+        { img:'assets/images/ad_banner_1.jpg', url:'ads.html#ad1' },
+        { img:'assets/images/ad_banner_2.jpg', url:'ads.html#ad2' },
+        { img:'assets/images/ad_banner_3.jpg', url:'ads.html#ad3' },
+        { img:'assets/images/ad_banner_4.jpg', url:'ads.html#ad4' },
+        { img:'assets/images/ad_banner_5.jpg', url:'ads.html#ad5' }
+      ];
+
+      let ads = [...defaultAds]; // Start with defaults
+      let i=0, paused=false, t=null;
+
+      // Load approved ads from Supabase
+      async function loadApprovedAds() {
+        try {
+          if (!window.supabase) {
+            console.log('Supabase not loaded, using default ads');
+            return;
+          }
+          
+          const supabase = window.supabase.createClient(
+            'https://novbuvwpjnxwwvdekjhr.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0'
+          );
+
+          const { data, error } = await supabase
+            .from('ads')
+            .select('*')
+            .eq('status', 'approved')
+            .gte('expires_at', new Date().toISOString())
+            .order('approved_at', { ascending: false })
+            .limit(5);
+
+          if (!error && data && data.length > 0) {
+            // Replace default ads with approved ads
+            ads = data.map((ad, idx) => ({
+              img: ad.image_url || defaultAds[idx].img,
+              url: ad.link_url || 'ads.html#ad' + (idx + 1),
+              title: ad.title || 'Sponsored Ad'
+            }));
+            
+            // Fill remaining slots with defaults if needed
+            while (ads.length < 5) {
+              ads.push(defaultAds[ads.length]);
+            }
+            
+            console.log('Loaded ' + data.length + ' approved ads from Supabase');
+          } else {
+            console.log('No approved ads found, using defaults');
+          }
+        } catch (err) {
+          console.log('Error loading ads, using defaults:', err);
+        }
+      }
+
+      function slide(idx){
+        i = (idx+ads.length) % ads.length;
+        const old = track.querySelector('.ad-slide.show');
+        const a = document.createElement('a');
+        a.className = 'ad-slide';
+        a.href = ads[i].url || '#';
+        a.target = '_blank';
+        a.rel = 'noopener';
+
+        const img = new Image();
+        img.src = ads[i].img;
+        img.alt = ads[i].title || 'Ad slot ' + (i+1);
+        a.appendChild(img);
+        track.appendChild(a);
+
+        requestAnimationFrame(()=>a.classList.add('show'));
+        if (old){ setTimeout(()=>old.remove(),380); }
+      }
+
+      function auto(){ if(paused) return; slide(i+1); schedule(); }
+      function schedule(){ clearTimeout(t); t = setTimeout(auto, 5000); }
+
+      prev.onclick = () => { if(!paused){ paused=true; pause.textContent='Play'; } slide(i-1); };
+      next.onclick = () => { if(!paused){ paused=true; pause.textContent='Play'; } slide(i+1); };
+      pause.onclick = () => {
+        paused = !paused;
+        pause.textContent = paused ? 'Play' : 'Pause';
+        if (!paused) schedule(); else clearTimeout(t);
+      };
+
+      // swipe on touch
+      let sx=0, dx=0, down=false;
+      track.addEventListener('touchstart', e=>{
+        down=true;
+        sx=e.touches[0].clientX;
+        dx=0;
+        clearTimeout(t);
+      }, {passive:true});
+      track.addEventListener('touchmove', e=>{
+        if(!down) return;
+        dx = e.touches[0].clientX - sx;
+      }, {passive:true});
+      track.addEventListener('touchend', ()=>{
+        down=false;
+        if(Math.abs(dx)>40){
+          if(dx<0) next.click(); else prev.click();
+        }
+        schedule();
+      }, {passive:true});
+
+      // Load ads then start carousel
+      loadApprovedAds().then(() => {
+        slide(0); 
+        schedule();
+      });
+    })();
+  </script>
+
   </style>
 </head>
 <body>
 
-  <!-- Home avatar switcher (Carrie / James / Azreen) - bottom-left -->
-  <div id="homeAvatarSwitcher"
-       class="fixed bottom-4 left-4 z-40 flex items-center gap-2 bg-black/60 border border-purple-500/70 rounded-full px-2 py-1">
-    <span class="text-[11px] text-purple-200/80 hidden sm:inline">
-      Avatar:
-    </span>
-    <button
-      type="button"
-      class="px-2 py-0.5 text-[11px] rounded-full border border-transparent"
-      data-avatar-choice="carrie">
-      Carrie
-    </button>
-    <button
-      type="button"
-      class="px-2 py-0.5 text-[11px] rounded-full border border-transparent"
-      data-avatar-choice="james">
-      James
-    </button>
-    <button
-      type="button"
-      class="px-2 py-0.5 text-[11px] rounded-full border border-transparent"
-      data-avatar-choice="azreen">
-      Azreen
-    </button>
-  </div>
+
 
   <header id="top" class="px-4 py-4">
     <div class="max-w-6xl mx-auto flex items-end justify-between gap-3">
@@ -1013,6 +1062,31 @@
       } catch (e) {}
     });
   </script>
+    <!-- Home avatar switcher (Carrie / James / Azreen) - bottom-left -->
+  <div id="homeAvatarSwitcher"
+       class="fixed bottom-4 left-4 z-40 flex items-center gap-2 bg-black/60 border border-purple-500/70 rounded-full px-2 py-1">
+    <span class="text-[11px] text-purple-200/80 hidden sm:inline">
+      Avatar:
+    </span>
+    <button
+      type="button"
+      class="px-2 py-0.5 text-[11px] rounded-full border border-transparent"
+      data-avatar-choice="carrie">
+      Carrie
+    </button>
+    <button
+      type="button"
+      class="px-2 py-0.5 text-[11px] rounded-full border border-transparent"
+      data-avatar-choice="james">
+      James
+    </button>
+    <button
+      type="button"
+      class="px-2 py-0.5 text-[11px] rounded-full border border-transparent"
+      data-avatar-choice="azreen">
+      Azreen
+    </button>
+  </div>
   
   <!-- Admin Management Functions (Placeholder - Wire up functionality tomorrow) -->
   <script>
