@@ -10,51 +10,108 @@
         :root { --primary: #7c3aed; --dark: #0b0014; --dark-card: #0c0618; --text: #eae6ff; --border: rgba(124,58,237,.35); }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Work Sans', sans-serif; background: linear-gradient(#0b0014,#000); color: var(--text); min-height: 100vh; }
-        .header { background: rgba(15,0,30,.9); border-bottom: 2px solid var(--primary); padding: 1.5rem 2rem; }
+        .header { background: rgba(15,0,30,.9); border-bottom: 2px solid var(--primary); padding: 1.5rem 2rem; display: flex; justify-content: space-between; align-items: center; }
         .header h1 { font-family: 'Bebas Neue', cursive; font-size: 2rem; color: var(--primary); }
         .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
         .card { background: var(--dark-card); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
-        .item { background: var(--dark); border: 1px solid var(--border); padding: 1rem; margin-bottom: 0.5rem; border-radius: 8px; }
+        .item { background: var(--dark); border: 1px solid var(--border); padding: 1rem; margin-bottom: 0.5rem; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
         .btn { background: var(--primary); color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; margin: 0.25rem; }
+        .btn-success { background: #00ff88; }
+        .btn-danger { background: #ff0044; }
     </style>
 </head>
 <body>
-    <div class="header"><h1>✅ Verifications</h1><a href="owner-panel.html" style="color: var(--text); text-decoration: none;">← Back</a></div>
+    <div class="header">
+        <h1>✅ Verifications</h1>
+        <a href="owner-panel.html" style="color: var(--text); text-decoration: none;">← Back</a>
+    </div>
     <div class="container">
-        <div class="card"><h2 style="color: var(--primary);">Pending Verifications</h2><div id="pending">Loading...</div></div>
+        <div class="card">
+            <h2 style="color: var(--primary); margin-bottom: 1rem;">Pending Verifications</h2>
+            <div id="pending">Loading...</div>
+        </div>
     </div>
     <script src="scripts.js"></script>
     <script>
         const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
         const s = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
         async function init() {
-            const { data: { session } } = await s.auth.getSession();
-            if (!session) { location.href = 'login.html'; return; }
-            const { data: p } = await s.from('profiles').select('*').eq('user_id', session.user.id).single();
-            if (!p || p.role !== 'owner') { location.href = 'owner-panel.html'; return; }
-            load();
+            try {
+                const { data: { session } } = await s.auth.getSession();
+                if (!session) { location.href = 'login.html'; return; }
+                const { data: profile } = await s.from('profiles').select('*').eq('user_id', session.user.id).single();
+                if (!profile || profile.role !== 'owner') { alert('Owner only'); location.href = 'owner-panel.html'; return; }
+                load();
+            } catch (error) {
+                console.error('Init error:', error);
+            }
         }
+        
         async function load() {
-            const { data } = await s.from('artist_verifications').select('*, profiles(username, email)').eq('status', 'pending');
-            document.getElementById('pending').innerHTML = data && data.length > 0
-                ? data.map(v => `<div class="item"><strong>${v.profiles?.username || 'Unknown'}</strong> - ${v.type}<br><button class="btn" onclick="approve('${v.id}', '${v.user_id}', '${v.type}')">Approve</button><button class="btn" onclick="reject('${v.id}')">Reject</button></div>`).join('')
-                : '<p>No pending verifications</p>';
+            try {
+                const { data, error } = await s.from('artist_verifications').select('*, profiles(username, email)').eq('status', 'pending').order('created_at', {ascending: false});
+                
+                if (error) {
+                    console.error('Load error:', error);
+                    document.getElementById('pending').innerHTML = '<p style="color: #ff0044;">Error: ' + error.message + '</p>';
+                    return;
+                }
+                
+                if (!data || data.length === 0) {
+                    document.getElementById('pending').innerHTML = '<p style="text-align: center; padding: 2rem; color: var(--text-dim);">No pending verifications. Check back later!</p>';
+                    return;
+                }
+                
+                document.getElementById('pending').innerHTML = data.map(v => `
+                    <div class="item">
+                        <div>
+                            <strong>${v.profiles?.username || v.profiles?.email || 'Unknown'}</strong><br>
+                            <small style="color: var(--text-dim);">Type: ${v.type} | Created: ${new Date(v.created_at).toLocaleDateString()}</small>
+                        </div>
+                        <div>
+                            <button class="btn btn-success" onclick="approve('${v.id}', '${v.user_id}', '${v.type}')">Approve</button>
+                            <button class="btn btn-danger" onclick="reject('${v.id}')">Reject</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Load error:', error);
+                document.getElementById('pending').innerHTML = '<p>Error: ' + error.message + '</p>';
+            }
         }
-        async function approve(id, uid, type) {
-            await s.from('artist_verifications').update({status: 'approved'}).eq('id', id);
-            const { data: profile } = await s.from('profiles').select('badges').eq('user_id', uid).single();
-            const badges = profile.badges || [];
-            if (!badges.includes(type)) badges.push(type);
-            await s.from('profiles').update({badges}).eq('user_id', uid);
-            alert('Approved');
-            load();
+        
+        async function approve(id, userId, type) {
+            try {
+                await s.from('artist_verifications').update({status: 'approved'}).eq('id', id);
+                const { data: profile } = await s.from('profiles').select('badges').eq('user_id', userId).single();
+                const badges = profile.badges || [];
+                if (!badges.includes(type)) badges.push(type);
+                await s.from('profiles').update({badges}).eq('user_id', userId);
+                alert('Approved!');
+                load();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
         }
+        
         async function reject(id) {
-            await s.from('artist_verifications').update({status: 'rejected'}).eq('id', id);
-            load();
+            if (!confirm('Reject this verification?')) return;
+            try {
+                await s.from('artist_verifications').update({status: 'rejected'}).eq('id', id);
+                alert('Rejected');
+                load();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
         }
-        if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
+        
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
     </script>
 </body>
 </html>
