@@ -3,28 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ads Manager - 8BFR Music Network</title>
+    <title>Ads Manager - 8BFR</title>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --primary: #7c3aed; --secondary: #6d28d9; --dark: #0b0014; --dark-card: #0c0618; --success: #00ff88; --danger: #ff0044; --text: #eae6ff; --text-dim: #a855f7; --border: rgba(124,58,237,.35); }
+        :root { --primary: #7c3aed; --dark: #0b0014; --dark-card: #0c0618; --text: #eae6ff; --border: rgba(124,58,237,.35); }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Work Sans', sans-serif; background: radial-gradient(1200px 600px at 10% -10%, rgba(124,58,237,.35), transparent 60%), radial-gradient(900px 400px at 110% 10%, rgba(0,217,255,.22), transparent 60%), linear-gradient(#0b0014,#000); color: var(--text); line-height: 1.6; min-height: 100vh; }
-        .header { background: rgba(15,0,30,.9); border-bottom: 2px solid var(--primary); padding: 1.5rem 2rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        body { font-family: 'Work Sans', sans-serif; background: linear-gradient(#0b0014,#000); color: var(--text); min-height: 100vh; }
+        .header { background: rgba(15,0,30,.9); border-bottom: 2px solid var(--primary); padding: 1.5rem 2rem; display: flex; justify-content: space-between; align-items: center; }
         .header h1 { font-family: 'Bebas Neue', cursive; font-size: 2rem; color: var(--primary); }
         .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
         .card { background: var(--dark-card); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
-        .card h2 { font-family: 'Bebas Neue', cursive; font-size: 1.5rem; color: var(--primary); margin-bottom: 1rem; }
-        .ad-item { background: var(--dark); border: 1px solid var(--border); padding: 1rem; margin-bottom: 0.5rem; border-radius: 8px; }
-        .ad-item h3 { color: var(--primary); margin-bottom: 0.5rem; }
+        .ad-item { background: var(--dark); border: 1px solid var(--border); padding: 1.5rem; margin-bottom: 1rem; border-radius: 8px; }
+        .ad-preview { background: rgba(124,58,237,0.1); border: 1px dashed var(--border); padding: 1rem; border-radius: 8px; margin: 1rem 0; }
         .btn { background: var(--primary); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 4px; cursor: pointer; font-weight: 600; margin: 0.25rem; }
-        .btn:hover { background: var(--secondary); }
-        .btn-success { background: var(--success); }
-        .btn-danger { background: var(--danger); }
+        .btn-success { background: #00ff88; }
+        .btn-danger { background: #ff0044; }
         .badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.85rem; }
         .badge-pending { background: rgba(255,170,0,0.2); color: #ffaa00; }
         .badge-approved { background: rgba(0,255,136,0.2); color: #00ff88; }
-        .badge-rejected { background: rgba(255,0,68,0.2); color: #ff0044; }
+        .badge-denied { background: rgba(255,0,68,0.2); color: #ff0044; }
+        textarea { width: 100%; min-height: 100px; padding: 0.75rem; background: var(--dark); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-family: inherit; }
     </style>
 </head>
 <body>
@@ -34,67 +33,164 @@
     </div>
     <div class="container">
         <div class="card">
-            <h2>Pending Ads</h2>
+            <h2 style="color: var(--primary); margin-bottom: 1rem;">Pending Ads</h2>
             <div id="pendingAds">Loading...</div>
         </div>
         <div class="card">
-            <h2>All Ads</h2>
+            <h2 style="color: var(--primary); margin-bottom: 1rem;">All Ads</h2>
             <div id="allAds">Loading...</div>
         </div>
     </div>
+    
     <script src="scripts.js"></script>
     <script>
         const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
-        const ownerAdsSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const s = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
         async function init() {
-            const { data: { session } } = await ownerAdsSupabase.auth.getSession();
-            if (!session) { location.href = 'login.html'; return; }
-            const { data: profile } = await ownerAdsSupabase.from('profiles').select('*').eq('user_id', session.user.id).single();
-            if (!profile || profile.role !== 'owner') { location.href = 'owner-panel.html'; return; }
-            loadAds();
+            try {
+                const { data: { session } } = await s.auth.getSession();
+                if (!session) { location.href = 'login.html'; return; }
+                const { data: profile } = await s.from('profiles').select('*').eq('user_id', session.user.id).single();
+                if (!profile || profile.role !== 'owner') { alert('Owner only'); location.href = 'owner-panel.html'; return; }
+                loadAds();
+            } catch (error) {
+                console.error('Init error:', error);
+            }
         }
         
         async function loadAds() {
-            const { data: pending } = await ownerAdsSupabase.from('ads').select('*').eq('status', 'pending').order('created_at', {ascending: false});
-            const { data: all } = await ownerAdsSupabase.from('ads').select('*').order('created_at', {ascending: false}).limit(50);
-            
-            document.getElementById('pendingAds').innerHTML = pending && pending.length > 0 
-                ? pending.map(ad => `
-                    <div class="ad-item">
-                        <h3>${ad.title || 'Untitled Ad'}</h3>
-                        <p style="color: var(--text-dim); font-size: 0.9rem;">${ad.content || 'No content'}</p>
-                        <div style="margin-top: 0.5rem;">
-                            <button class="btn btn-success" onclick="approveAd('${ad.id}')">Approve</button>
-                            <button class="btn btn-danger" onclick="rejectAd('${ad.id}')">Reject</button>
+            try {
+                // Load pending ads
+                const { data: pending, error: pendingError } = await s.from('ads')
+                    .select('*, profiles(username, email)')
+                    .eq('status', 'pending')
+                    .order('created_at', {ascending: false});
+                
+                if (pendingError) {
+                    console.error('Pending ads error:', pendingError);
+                    document.getElementById('pendingAds').innerHTML = '<p style="color: #ff0044;">Error: ' + pendingError.message + '</p>';
+                } else if (!pending || pending.length === 0) {
+                    document.getElementById('pendingAds').innerHTML = '<p style="color: var(--text-dim);">No pending ads</p>';
+                } else {
+                    document.getElementById('pendingAds').innerHTML = pending.map(ad => `
+                        <div class="ad-item">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+                                <div>
+                                    <h3 style="color: var(--primary);">${ad.title || 'Untitled Ad'}</h3>
+                                    <p style="font-size: 0.9rem; color: var(--text-dim);">By: ${ad.profiles?.username || ad.profiles?.email || 'Unknown'}</p>
+                                    <p style="font-size: 0.85rem; color: var(--text-dim);">Created: ${new Date(ad.created_at).toLocaleDateString()}</p>
+                                </div>
+                                <span class="badge badge-pending">PENDING</span>
+                            </div>
+                            <div class="ad-preview">
+                                <p>${ad.content || 'No content'}</p>
+                                ${ad.image_url ? `<img src="${ad.image_url}" style="max-width: 100%; margin-top: 0.5rem; border-radius: 4px;">` : ''}
+                                ${ad.link_url ? `<p style="margin-top: 0.5rem;"><a href="${ad.link_url}" target="_blank" style="color: var(--primary);">Link: ${ad.link_url}</a></p>` : ''}
+                            </div>
+                            <div>
+                                <textarea id="notes-${ad.id}" placeholder="Notes or reason for decision..."></textarea>
+                                <div style="margin-top: 0.5rem;">
+                                    <button class="btn btn-success" onclick="approveAd('${ad.id}')">✓ Approve</button>
+                                    <button class="btn btn-danger" onclick="denyAd('${ad.id}')">✗ Deny</button>
+                                    <button class="btn" onclick="contactUser('${ad.user_id}', '${ad.id}')">💬 Contact User</button>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                `).join('') 
-                : '<p style="color: var(--text-dim);">No pending ads</p>';
-            
-            document.getElementById('allAds').innerHTML = all && all.length > 0
-                ? all.map(ad => `
-                    <div class="ad-item">
-                        <h3>${ad.title || 'Untitled'} <span class="badge badge-${ad.status}">${ad.status}</span></h3>
-                        <p style="color: var(--text-dim); font-size: 0.9rem;">${ad.content || 'No content'}</p>
-                    </div>
-                `).join('')
-                : '<p style="color: var(--text-dim);">No ads</p>';
+                    `).join('');
+                }
+                
+                // Load all ads
+                const { data: all, error: allError } = await s.from('ads')
+                    .select('*, profiles(username)')
+                    .order('created_at', {ascending: false})
+                    .limit(50);
+                
+                if (allError) {
+                    console.error('All ads error:', allError);
+                    document.getElementById('allAds').innerHTML = '<p style="color: #ff0044;">Error: ' + allError.message + '</p>';
+                } else if (!all || all.length === 0) {
+                    document.getElementById('allAds').innerHTML = '<p style="color: var(--text-dim);">No ads yet</p>';
+                } else {
+                    document.getElementById('allAds').innerHTML = all.map(ad => `
+                        <div class="ad-item">
+                            <div style="display: flex; justify-content: space-between;">
+                                <div>
+                                    <h3 style="color: var(--primary);">${ad.title || 'Untitled'}</h3>
+                                    <p style="font-size: 0.9rem; color: var(--text-dim);">By: ${ad.profiles?.username || 'Unknown'}</p>
+                                </div>
+                                <span class="badge badge-${ad.status}">${ad.status.toUpperCase()}</span>
+                            </div>
+                            ${ad.status === 'approved' ? `<p style="font-size: 0.85rem; color: var(--text-dim); margin-top: 0.5rem;">Expires: ${ad.expires_at ? new Date(ad.expires_at).toLocaleDateString() : 'Never'}</p>` : ''}
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Load ads error:', error);
+                document.getElementById('pendingAds').innerHTML = '<p>Error: ' + error.message + '</p>';
+                document.getElementById('allAds').innerHTML = '<p>Error: ' + error.message + '</p>';
+            }
         }
         
         async function approveAd(id) {
-            await ownerAdsSupabase.from('ads').update({status: 'approved'}).eq('id', id);
-            alert('Ad approved');
-            loadAds();
+            const notes = document.getElementById('notes-' + id).value.trim();
+            
+            try {
+                // Calculate expiry (7 days from now)
+                const expiryDate = new Date();
+                expiryDate.setDate(expiryDate.getDate() + 7);
+                
+                const { error } = await s.from('ads').update({
+                    status: 'approved',
+                    approval_notes: notes,
+                    approved_at: new Date().toISOString(),
+                    expires_at: expiryDate.toISOString()
+                }).eq('id', id);
+                
+                if (error) {
+                    alert('Error: ' + error.message);
+                    return;
+                }
+                
+                alert('✓ Ad approved! It will run for 7 days.');
+                loadAds();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
         }
         
-        async function rejectAd(id) {
-            const reason = prompt('Rejection reason:');
-            if (!reason) return;
-            await ownerAdsSupabase.from('ads').update({status: 'rejected', rejection_reason: reason}).eq('id', id);
-            alert('Ad rejected');
-            loadAds();
+        async function denyAd(id) {
+            const notes = document.getElementById('notes-' + id).value.trim();
+            
+            if (!notes) {
+                alert('Please provide a reason for denial');
+                return;
+            }
+            
+            if (!confirm('Deny this ad?')) return;
+            
+            try {
+                const { error } = await s.from('ads').update({
+                    status: 'denied',
+                    denial_reason: notes
+                }).eq('id', id);
+                
+                if (error) {
+                    alert('Error: ' + error.message);
+                    return;
+                }
+                
+                alert('✗ Ad denied');
+                loadAds();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        function contactUser(userId, adId) {
+            // TODO: Connect to DM system when it's ready
+            alert('DM system not yet connected. User ID: ' + userId + ', Ad ID: ' + adId);
         }
         
         if (document.readyState === 'loading') {
