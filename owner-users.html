@@ -14,13 +14,13 @@
         .header h1 { font-family: 'Bebas Neue', cursive; font-size: 2rem; color: var(--primary); }
         .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
         .card { background: var(--dark-card); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
-        th { color: var(--primary); }
+        .user-item { background: var(--dark); border: 1px solid var(--border); padding: 1rem; margin-bottom: 0.5rem; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
         .btn { background: var(--primary); color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; margin: 0.25rem; }
+        .btn-danger { background: #ff0044; }
         .search-box { width: 100%; padding: 0.75rem; background: var(--dark); border: 1px solid var(--border); border-radius: 4px; color: var(--text); margin-bottom: 1rem; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; }
-        .modal-content { background: var(--dark-card); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; max-width: 500px; margin: 5rem auto; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; }
+        .modal.show { display: flex; }
+        .modal-content { background: var(--dark-card); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; max-width: 500px; width: 90%; }
         .form-group { margin-bottom: 1rem; }
         .form-group label { display: block; margin-bottom: 0.5rem; }
         .form-group input, .form-group select { width: 100%; padding: 0.75rem; background: var(--dark); border: 1px solid var(--border); border-radius: 4px; color: var(--text); }
@@ -33,12 +33,9 @@
     </div>
     <div class="container">
         <div class="card">
-            <button class="btn" onclick="showCreateModal()">Create User</button>
-            <input type="text" class="search-box" id="searchBox" placeholder="Search users..." oninput="searchUsers()">
-            <table>
-                <thead><tr><th>Username</th><th>Email</th><th>Role</th><th>Badges</th><th>Actions</th></tr></thead>
-                <tbody id="usersTable"><tr><td colspan="5">Loading...</td></tr></tbody>
-            </table>
+            <button class="btn" onclick="showCreateModal()">+ Create User</button>
+            <input type="text" class="search-box" id="searchBox" placeholder="Search by username, email, or role..." oninput="searchUsers()">
+            <div id="userList">Loading...</div>
         </div>
     </div>
 
@@ -46,19 +43,32 @@
     <div id="createModal" class="modal">
         <div class="modal-content">
             <h2 style="color: var(--primary); margin-bottom: 1rem;">Create User</h2>
-            <div class="form-group"><label>Email</label><input type="email" id="createEmail"></div>
-            <div class="form-group"><label>Username</label><input type="text" id="createUsername"></div>
-            <div class="form-group"><label>Role</label>
+            <div class="form-group">
+                <label>Email *</label>
+                <input type="email" id="createEmail" required>
+            </div>
+            <div class="form-group">
+                <label>Username *</label>
+                <input type="text" id="createUsername" required>
+            </div>
+            <div class="form-group">
+                <label>Password *</label>
+                <input type="password" id="createPassword" required>
+            </div>
+            <div class="form-group">
+                <label>Role</label>
                 <select id="createRole">
                     <option value="user">User</option>
-                    <option value="pro">Pro</option>
+                    <option value="artist">Artist</option>
+                    <option value="beatmaker">Beatmaker</option>
                     <option value="mod">Moderator</option>
                     <option value="admin">Admin</option>
-                    <option value="owner">Owner</option>
                 </select>
             </div>
-            <button class="btn" onclick="createUser()">Create</button>
-            <button class="btn" onclick="closeModal('createModal')">Cancel</button>
+            <div style="display: flex; gap: 0.5rem; margin-top: 1.5rem;">
+                <button class="btn" onclick="createUser()">Create</button>
+                <button class="btn" style="background: #666;" onclick="closeCreateModal()">Cancel</button>
+            </div>
         </div>
     </div>
 
@@ -67,20 +77,33 @@
         <div class="modal-content">
             <h2 style="color: var(--primary); margin-bottom: 1rem;">Edit User</h2>
             <input type="hidden" id="editUserId">
-            <div class="form-group"><label>Username</label><input type="text" id="editUsername"></div>
-            <div class="form-group"><label>Email</label><input type="text" id="editEmail"></div>
-            <div class="form-group"><label>Role</label>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="editEmail">
+            </div>
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="editUsername">
+            </div>
+            <div class="form-group">
+                <label>Role</label>
                 <select id="editRole">
                     <option value="user">User</option>
-                    <option value="pro">Pro</option>
+                    <option value="artist">Artist</option>
+                    <option value="beatmaker">Beatmaker</option>
                     <option value="mod">Moderator</option>
                     <option value="admin">Admin</option>
                     <option value="owner">Owner</option>
                 </select>
             </div>
-            <div class="form-group"><label>Badges (comma-separated)</label><input type="text" id="editBadges" placeholder="artist,verified,founder"></div>
-            <button class="btn" onclick="updateUser()">Save</button>
-            <button class="btn" onclick="closeModal('editModal')">Cancel</button>
+            <div class="form-group">
+                <label>Badges (comma separated)</label>
+                <input type="text" id="editBadges" placeholder="verified, artist, pro">
+            </div>
+            <div style="display: flex; gap: 0.5rem; margin-top: 1.5rem;">
+                <button class="btn" onclick="saveUser()">Save Changes</button>
+                <button class="btn" style="background: #666;" onclick="closeEditModal()">Cancel</button>
+            </div>
         </div>
     </div>
 
@@ -91,156 +114,204 @@
         const s = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
         let allUsers = [];
-
+        
         async function init() {
             try {
                 const { data: { session } } = await s.auth.getSession();
                 if (!session) { location.href = 'login.html'; return; }
+                
                 const { data: profile } = await s.from('profiles').select('*').eq('user_id', session.user.id).single();
-                if (!profile || profile.role !== 'owner') { alert('Owner only'); location.href = 'owner-panel.html'; return; }
+                if (!profile || profile.role !== 'owner') {
+                    alert('Owner only');
+                    location.href = 'owner-panel.html';
+                    return;
+                }
+                
                 loadUsers();
             } catch (error) {
                 console.error('Init error:', error);
                 alert('Error: ' + error.message);
             }
         }
-
+        
         async function loadUsers() {
             try {
-                const { data, error } = await s.from('profiles').select('*').order('created_at', {ascending: false});
+                const { data, error } = await s.from('profiles').select('*').order('created_at', { ascending: false });
                 
                 if (error) {
                     console.error('Load error:', error);
-                    document.getElementById('usersTable').innerHTML = '<tr><td colspan="5">Error: ' + error.message + '</td></tr>';
+                    document.getElementById('userList').innerHTML = '<p style="color: #ff0044;">Error: ' + error.message + '</p>';
                     return;
                 }
-
+                
                 if (!data || data.length === 0) {
-                    document.getElementById('usersTable').innerHTML = '<tr><td colspan="5">No users found</td></tr>';
+                    document.getElementById('userList').innerHTML = '<p style="text-align: center; padding: 2rem; color: var(--text-dim);">No users found</p>';
+                    allUsers = [];
                     return;
                 }
-
+                
                 allUsers = data;
                 displayUsers(data);
             } catch (error) {
                 console.error('Load error:', error);
-                document.getElementById('usersTable').innerHTML = '<tr><td colspan="5">Error: ' + error.message + '</td></tr>';
+                document.getElementById('userList').innerHTML = '<p>Error: ' + error.message + '</p>';
             }
         }
-
+        
         function displayUsers(users) {
-            document.getElementById('usersTable').innerHTML = users.map(u => `
-                <tr>
-                    <td>${u.username || 'N/A'}</td>
-                    <td>${u.email || 'N/A'}</td>
-                    <td>${u.role || 'user'}</td>
-                    <td>${u.badges ? u.badges.join(', ') : 'None'}</td>
-                    <td>
-                        <button class="btn" onclick="showEditModal('${u.user_id}')">Edit</button>
-                        <button class="btn" style="background: #ff0044;" onclick="deleteUser('${u.user_id}')">Delete</button>
-                    </td>
-                </tr>
+            document.getElementById('userList').innerHTML = users.map(user => `
+                <div class="user-item">
+                    <div>
+                        <strong style="color: var(--primary);">${user.username || 'No username'}</strong><br>
+                        <small style="color: var(--text-dim);">📧 ${user.email || 'No email'}</small><br>
+                        <small style="color: var(--text-dim);">👤 Role: ${user.role || 'user'}</small><br>
+                        <small style="color: var(--text-dim);">🏅 Badges: ${user.badges && user.badges.length > 0 ? user.badges.join(', ') : 'None'}</small>
+                    </div>
+                    <div>
+                        <button class="btn" onclick="editUser('${user.user_id}')">Edit</button>
+                        <button class="btn btn-danger" onclick="deleteUser('${user.user_id}', '${user.username}')">Delete</button>
+                    </div>
+                </div>
             `).join('');
         }
-
+        
         function searchUsers() {
-            const query = document.getElementById('searchBox').value.toLowerCase();
+            const query = document.getElementById('searchBox').value.toLowerCase().trim();
             if (!query) {
                 displayUsers(allUsers);
                 return;
             }
+            
             const filtered = allUsers.filter(u => 
                 (u.username && u.username.toLowerCase().includes(query)) ||
                 (u.email && u.email.toLowerCase().includes(query)) ||
                 (u.role && u.role.toLowerCase().includes(query))
             );
+            
             displayUsers(filtered);
         }
-
+        
         function showCreateModal() {
-            document.getElementById('createModal').style.display = 'block';
+            document.getElementById('createModal').classList.add('show');
         }
-
-        function showEditModal(userId) {
+        
+        function closeCreateModal() {
+            document.getElementById('createModal').classList.remove('show');
+            document.getElementById('createEmail').value = '';
+            document.getElementById('createUsername').value = '';
+            document.getElementById('createPassword').value = '';
+            document.getElementById('createRole').value = 'user';
+        }
+        
+        async function createUser() {
+            const email = document.getElementById('createEmail').value.trim();
+            const username = document.getElementById('createUsername').value.trim();
+            const password = document.getElementById('createPassword').value;
+            const role = document.getElementById('createRole').value;
+            
+            if (!email || !username || !password) {
+                alert('Please fill in all required fields');
+                return;
+            }
+            
+            try {
+                // Create auth user
+                const { data: authData, error: authError } = await s.auth.signUp({
+                    email: email,
+                    password: password,
+                    options: {
+                        data: {
+                            username: username,
+                            role: role
+                        }
+                    }
+                });
+                
+                if (authError) {
+                    alert('Error creating user: ' + authError.message);
+                    return;
+                }
+                
+                alert('✓ User created successfully!');
+                closeCreateModal();
+                loadUsers();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        function editUser(userId) {
             const user = allUsers.find(u => u.user_id === userId);
             if (!user) return;
             
             document.getElementById('editUserId').value = userId;
-            document.getElementById('editUsername').value = user.username || '';
             document.getElementById('editEmail').value = user.email || '';
+            document.getElementById('editUsername').value = user.username || '';
             document.getElementById('editRole').value = user.role || 'user';
-            document.getElementById('editBadges').value = user.badges ? user.badges.join(',') : '';
-            document.getElementById('editModal').style.display = 'block';
+            document.getElementById('editBadges').value = user.badges ? user.badges.join(', ') : '';
+            
+            document.getElementById('editModal').classList.add('show');
         }
-
-        function closeModal(modalId) {
-            document.getElementById(modalId).style.display = 'none';
+        
+        function closeEditModal() {
+            document.getElementById('editModal').classList.remove('show');
         }
-
-        async function createUser() {
-            const email = document.getElementById('createEmail').value.trim();
-            const username = document.getElementById('createUsername').value.trim();
-            const role = document.getElementById('createRole').value;
-
-            if (!email || !username) {
-                alert('Email and username required');
+        
+        async function saveUser() {
+            const userId = document.getElementById('editUserId').value;
+            const email = document.getElementById('editEmail').value.trim();
+            const username = document.getElementById('editUsername').value.trim();
+            const role = document.getElementById('editRole').value;
+            const badgesText = document.getElementById('editBadges').value.trim();
+            const badges = badgesText ? badgesText.split(',').map(b => b.trim()).filter(b => b) : [];
+            
+            if (!username) {
+                alert('Username is required');
                 return;
             }
-
+            
             try {
-                // Note: You'll need to use Supabase auth.admin.createUser for this
-                alert('User creation requires admin API - contact developer');
-                closeModal('createModal');
-            } catch (error) {
-                alert('Error: ' + error.message);
-            }
-        }
-
-        async function updateUser() {
-            const userId = document.getElementById('editUserId').value;
-            const username = document.getElementById('editUsername').value.trim();
-            const email = document.getElementById('editEmail').value.trim();
-            const role = document.getElementById('editRole').value;
-            const badgesStr = document.getElementById('editBadges').value.trim();
-            const badges = badgesStr ? badgesStr.split(',').map(b => b.trim()) : [];
-
-            try {
-                const { error } = await s.from('profiles').update({
-                    username,
-                    email,
-                    role,
-                    badges
-                }).eq('user_id', userId);
-
+                const { error } = await s.from('profiles')
+                    .update({
+                        email: email,
+                        username: username,
+                        role: role,
+                        badges: badges
+                    })
+                    .eq('user_id', userId);
+                
                 if (error) {
-                    alert('Error: ' + error.message);
+                    console.error('Save error:', error);
+                    alert('Error saving: ' + error.message);
                     return;
                 }
-
-                alert('User updated');
-                closeModal('editModal');
+                
+                alert('✓ User updated successfully!');
+                closeEditModal();
                 loadUsers();
             } catch (error) {
                 alert('Error: ' + error.message);
             }
         }
-
-        async function deleteUser(userId) {
-            if (!confirm('Delete this user? This cannot be undone!')) return;
-
+        
+        async function deleteUser(userId, username) {
+            if (!confirm(`Delete user "${username}"? This cannot be undone.`)) return;
+            
             try {
                 const { error } = await s.from('profiles').delete().eq('user_id', userId);
+                
                 if (error) {
-                    alert('Error: ' + error.message);
+                    alert('Error deleting: ' + error.message);
                     return;
                 }
-                alert('User deleted');
+                
+                alert('✓ User deleted');
                 loadUsers();
             } catch (error) {
                 alert('Error: ' + error.message);
             }
         }
-
+        
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', init);
         } else {
