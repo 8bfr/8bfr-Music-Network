@@ -6,7 +6,6 @@
     <title>Buy an Ad - 8BFR Music Network</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Stripe SDK -->
     <script src="https://js.stripe.com/v3/"></script>
     <style>
         body {
@@ -75,10 +74,29 @@
         .back-link:hover {
             color: #c084fc;
         }
+        
+        /* FORCE PAYPAL BUTTON TO BE VISIBLE */
         #paypal-button-container {
-            margin-bottom: 0.75rem;
-            min-height: 50px;
+            margin-bottom: 0.75rem !important;
+            min-height: 150px !important;
+            background: rgba(255,255,255,0.05) !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            position: relative !important;
+            z-index: 9999 !important;
         }
+        
+        #paypal-button-container * {
+            visibility: visible !important;
+            opacity: 1 !important;
+            display: block !important;
+        }
+        
+        #paypal-button-container iframe {
+            min-height: 45px !important;
+            width: 100% !important;
+        }
+        
         .divider {
             text-align: center;
             margin: 1rem 0;
@@ -154,7 +172,9 @@
             <p style="color: #a855f7; font-size: 0.9rem; margin-bottom: 1rem; font-weight: 600;">Choose Payment Method:</p>
             
             <!-- PayPal Button -->
-            <div id="paypal-button-container"></div>
+            <div id="paypal-button-container">
+                <!-- PayPal button renders here -->
+            </div>
             
             <div class="divider">OR</div>
             
@@ -169,7 +189,7 @@
         </p>
     </div>
 
-    <!-- PayPal SDK - LOAD LAST to ensure DOM is ready -->
+    <!-- PayPal SDK -->
     <script src="https://www.paypal.com/sdk/js?client-id=AWx0LwdZ_sCyCE5gEj9mL1ha7ZbG_eZLE_R636KjLXFMV1pOfmGwNg9prM5kVKQspvnpNLJDZxPp100G&currency=USD"></script>
     
     <script>
@@ -179,7 +199,6 @@
         
         const stripe = Stripe('pk_live_51OkBOuEvK9FbOwLilOaOLSHSLx47wT1q7T6xiMuODRF2j4a2DM0BHI16A5z8ovscAfhv83l7d1OFPbUjehHtQIeH00RwDCQ0I1');
         
-        // Pricing structure
         const PRICES = {
             carousel: { 7: 5, 14: 8, 30: 12 },
             featured: { 7: 10, 14: 18, 30: 30 }
@@ -306,84 +325,61 @@
             }
         }
         
-        // Initialize PayPal - WAIT for SDK to load
+        // Initialize PayPal
         function initPayPal() {
-            console.log('Initializing PayPal...');
-            console.log('PayPal SDK loaded:', !!window.paypal);
+            if (!window.paypal) {
+                setTimeout(initPayPal, 100);
+                return;
+            }
             
-            if (window.paypal) {
-                try {
-                    paypal.Buttons({
-                        createOrder: function(data, actions) {
-                            if (!validateForm()) return;
-                            
-                            return actions.order.create({
-                                purchase_units: [{
-                                    amount: {
-                                        value: finalPrice.toFixed(2)
-                                    },
-                                    description: 'Ad on 8BFR Music Network - ' + document.getElementById('adDuration').value + ' days'
-                                }]
-                            });
-                        },
-                        onApprove: async function(data, actions) {
-                            const orderDetails = await actions.order.capture();
-                            await saveAdToDatabase('paypal', orderDetails.id);
-                        },
-                        onError: function(err) {
-                            alert('Payment error. Please try again.');
-                            console.error(err);
+            try {
+                paypal.Buttons({
+                    style: {
+                        layout: 'vertical',
+                        color: 'gold',
+                        shape: 'rect',
+                        label: 'paypal'
+                    },
+                    createOrder: function(data, actions) {
+                        if (!validateForm()) {
+                            return Promise.reject();
                         }
-                    }).render('#paypal-button-container');
-                    console.log('✅ PayPal button rendered successfully!');
-                } catch (err) {
-                    console.error('❌ Error rendering PayPal button:', err);
-                    document.getElementById('paypal-button-container').innerHTML = `
-                        <div style="background: rgba(255, 0, 68, 0.2); border: 1px solid #ff0044; padding: 1rem; border-radius: 8px; text-align: center; color: #ff0044;">
-                            ⚠️ Error loading PayPal button. Please refresh the page.
-                        </div>
-                    `;
-                }
-            } else {
-                console.error('❌ PayPal SDK not available!');
-                document.getElementById('paypal-button-container').innerHTML = `
-                    <div style="background: rgba(255, 0, 68, 0.2); border: 1px solid #ff0044; padding: 1rem; border-radius: 8px; text-align: center; color: #ff0044;">
-                        ⚠️ PayPal not loaded. Please disable ad blockers and refresh.
-                    </div>
-                `;
+                        
+                        return actions.order.create({
+                            purchase_units: [{
+                                amount: {
+                                    value: finalPrice.toFixed(2)
+                                },
+                                description: 'Ad on 8BFR Music Network - ' + document.getElementById('adDuration').value + ' days'
+                            }]
+                        });
+                    },
+                    onApprove: async function(data, actions) {
+                        const orderDetails = await actions.order.capture();
+                        await saveAdToDatabase('paypal', orderDetails.id);
+                    },
+                    onError: function(err) {
+                        alert('Payment error. Please try again.');
+                        console.error(err);
+                    }
+                }).render('#paypal-button-container');
+                
+                console.log('✅ PayPal button rendered!');
+            } catch (err) {
+                console.error('PayPal render error:', err);
+                document.getElementById('paypal-button-container').innerHTML = 
+                    '<p style="color: #ff0044;">Error loading PayPal. Please refresh.</p>';
             }
         }
         
-        // Wait for PayPal SDK to be ready
-        if (window.paypal) {
-            initPayPal();
-        } else {
-            // Poll for PayPal to load
-            let attempts = 0;
-            const checkPayPal = setInterval(() => {
-                attempts++;
-                if (window.paypal) {
-                    clearInterval(checkPayPal);
-                    initPayPal();
-                } else if (attempts > 20) {
-                    clearInterval(checkPayPal);
-                    console.error('PayPal SDK failed to load after 20 attempts');
-                    document.getElementById('paypal-button-container').innerHTML = `
-                        <div style="background: rgba(255, 0, 68, 0.2); border: 1px solid #ff0044; padding: 1rem; border-radius: 8px; text-align: center; color: #ff0044;">
-                            ⚠️ PayPal failed to load. Please refresh the page or try again later.
-                        </div>
-                    `;
-                }
-            }, 100);
-        }
+        initPayPal();
         
         // Stripe Button
         document.getElementById('stripe-button').addEventListener('click', async function() {
             if (!validateForm()) return;
-            alert('Stripe integration requires backend setup. For now, please use PayPal. We\'ll add full Stripe support soon!');
+            alert('Stripe requires backend setup. Please use PayPal for now!');
         });
         
-        // Initialize price
         updatePrice();
     </script>
 </body>
