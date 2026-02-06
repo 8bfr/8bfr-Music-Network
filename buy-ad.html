@@ -74,23 +74,17 @@
         .back-link:hover {
             color: #c084fc;
         }
-        
-        /* PAYPAL BUTTON CONTAINER - EXACT SETTINGS THAT WORK */
-        #paypal-button-container {
-            margin-bottom: 0.75rem !important;
-            min-height: 200px !important;
-            padding: 1rem !important;
-            background: rgba(255,255,255,0.03) !important;
-            border: 1px solid rgba(124, 58, 237, 0.3) !important;
-            border-radius: 8px !important;
-            overflow: visible !important;
-        }
-        
         .divider {
             text-align: center;
             margin: 1rem 0;
             color: #a855f7;
             font-size: 0.9rem;
+        }
+        #paypal-button-container {
+            margin-bottom: 0.75rem;
+            min-height: 50px;
+            border: 2px dashed #00ff88;
+            padding: 1rem;
         }
     </style>
 </head>
@@ -160,9 +154,9 @@
             
             <p style="color: #a855f7; font-size: 0.9rem; margin-bottom: 1rem; font-weight: 600;">Choose Payment Method:</p>
             
-            <!-- PayPal Button -->
+            <!-- PayPal Button - KEEP EXACT AS DEBUG -->
             <div id="paypal-button-container">
-                <!-- PayPal button renders here -->
+                <p style="color: #ff0044;">⏳ Waiting for PayPal...</p>
             </div>
             
             <div class="divider">OR</div>
@@ -314,54 +308,32 @@
             }
         }
         
-        // Initialize PayPal
-        function initPayPal() {
-            if (!window.paypal) {
-                setTimeout(initPayPal, 100);
-                return;
-            }
-            
-            try {
-                paypal.Buttons({
-                    style: {
-                        layout: 'vertical',
-                        color: 'gold',
-                        shape: 'rect',
-                        label: 'paypal'
-                    },
-                    createOrder: function(data, actions) {
-                        if (!validateForm()) {
-                            return Promise.reject();
-                        }
-                        
-                        return actions.order.create({
-                            purchase_units: [{
-                                amount: {
-                                    value: finalPrice.toFixed(2)
-                                },
-                                description: 'Ad on 8BFR Music Network - ' + document.getElementById('adDuration').value + ' days'
-                            }]
-                        });
-                    },
-                    onApprove: async function(data, actions) {
-                        const orderDetails = await actions.order.capture();
-                        await saveAdToDatabase('paypal', orderDetails.id);
-                    },
-                    onError: function(err) {
-                        alert('Payment error. Please try again.');
-                        console.error(err);
+        // EXACT SAME PAYPAL RENDERING FROM DEBUG VERSION
+        if (window.paypal) {
+            paypal.Buttons({
+                createOrder: function(data, actions) {
+                    if (!validateForm()) {
+                        return Promise.reject();
                     }
-                }).render('#paypal-button-container');
-                
-                console.log('✅ PayPal button rendered!');
-            } catch (err) {
-                console.error('PayPal render error:', err);
-                document.getElementById('paypal-button-container').innerHTML = 
-                    '<p style="color: #ff0044;">Error loading PayPal. Please refresh.</p>';
-            }
+                    return actions.order.create({
+                        purchase_units: [{
+                            amount: {
+                                value: finalPrice.toFixed(2)
+                            },
+                            description: 'Ad on 8BFR Music Network - ' + document.getElementById('adDuration').value + ' days'
+                        }]
+                    });
+                },
+                onApprove: function(data, actions) {
+                    return actions.order.capture().then(async function(details) {
+                        await saveAdToDatabase('paypal', details.id);
+                    });
+                },
+                onError: function(err) {
+                    alert('Payment error: ' + err);
+                }
+            }).render('#paypal-button-container');
         }
-        
-        initPayPal();
         
         // Stripe Button
         document.getElementById('stripe-button').addEventListener('click', async function() {
