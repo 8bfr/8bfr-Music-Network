@@ -23,6 +23,7 @@
       overflow-x:hidden;
       margin:0;
       min-height:100vh;
+      padding-bottom: 70px;
     }
     header{
       position:relative;
@@ -118,136 +119,87 @@
     }
 
     /* Ad carousel */
-    <!-- ONLY REPLACE THE AD CAROUSEL SCRIPT (lines 854-923) with this: -->
-
-<script>
-    // featured ads carousel (index only) - UPDATED TO LOAD FROM SUPABASE
-    (function(){
-      const track = document.getElementById('adTrack');
-      const prev  = document.getElementById('adPrev');
-      const next  = document.getElementById('adNext');
-      const pause = document.getElementById('adPause');
-      if (!track || !prev || !next || !pause) return;
-
-      // Default ads (fallback when no approved ads exist)
-      const defaultAds = [
-        { img:'assets/images/ad_banner_1.jpg', url:'ads.html#ad1' },
-        { img:'assets/images/ad_banner_2.jpg', url:'ads.html#ad2' },
-        { img:'assets/images/ad_banner_3.jpg', url:'ads.html#ad3' },
-        { img:'assets/images/ad_banner_4.jpg', url:'ads.html#ad4' },
-        { img:'assets/images/ad_banner_5.jpg', url:'ads.html#ad5' }
-      ];
-
-      let ads = [...defaultAds]; // Start with defaults
-      let i=0, paused=false, t=null;
-
-      // Load approved ads from Supabase
-      async function loadApprovedAds() {
-        try {
-          if (!window.supabase) {
-            console.log('Supabase not loaded, using default ads');
-            return;
-          }
-          
-          const supabase = window.supabase.createClient(
-            'https://novbuvwpjnxwwvdekjhr.supabase.co',
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0'
-          );
-
-          const { data, error } = await supabase
-            .from('ads')
-            .select('*')
-            .eq('status', 'approved')
-            .gte('expires_at', new Date().toISOString())
-            .order('approved_at', { ascending: false })
-            .limit(5);
-
-          if (!error && data && data.length > 0) {
-            // Replace default ads with approved ads
-            ads = data.map((ad, idx) => ({
-              img: ad.image_url || defaultAds[idx].img,
-              url: ad.link_url || 'ads.html#ad' + (idx + 1),
-              title: ad.title || 'Sponsored Ad'
-            }));
-            
-            // Fill remaining slots with defaults if needed
-            while (ads.length < 5) {
-              ads.push(defaultAds[ads.length]);
-            }
-            
-            console.log('Loaded ' + data.length + ' approved ads from Supabase');
-          } else {
-            console.log('No approved ads found, using defaults');
-          }
-        } catch (err) {
-          console.log('Error loading ads, using defaults:', err);
-        }
-      }
-
-      function slide(idx){
-        i = (idx+ads.length) % ads.length;
-        const old = track.querySelector('.ad-slide.show');
-        const a = document.createElement('a');
-        a.className = 'ad-slide';
-        a.href = ads[i].url || '#';
-        a.target = '_blank';
-        a.rel = 'noopener';
-
-        const img = new Image();
-        img.src = ads[i].img;
-        img.alt = ads[i].title || 'Ad slot ' + (i+1);
-        a.appendChild(img);
-        track.appendChild(a);
-
-        requestAnimationFrame(()=>a.classList.add('show'));
-        if (old){ setTimeout(()=>old.remove(),380); }
-      }
-
-      function auto(){ if(paused) return; slide(i+1); schedule(); }
-      function schedule(){ clearTimeout(t); t = setTimeout(auto, 5000); }
-
-      prev.onclick = () => { if(!paused){ paused=true; pause.textContent='Play'; } slide(i-1); };
-      next.onclick = () => { if(!paused){ paused=true; pause.textContent='Play'; } slide(i+1); };
-      pause.onclick = () => {
-        paused = !paused;
-        pause.textContent = paused ? 'Play' : 'Pause';
-        if (!paused) schedule(); else clearTimeout(t);
-      };
-
-      // swipe on touch
-      let sx=0, dx=0, down=false;
-      track.addEventListener('touchstart', e=>{
-        down=true;
-        sx=e.touches[0].clientX;
-        dx=0;
-        clearTimeout(t);
-      }, {passive:true});
-      track.addEventListener('touchmove', e=>{
-        if(!down) return;
-        dx = e.touches[0].clientX - sx;
-      }, {passive:true});
-      track.addEventListener('touchend', ()=>{
-        down=false;
-        if(Math.abs(dx)>40){
-          if(dx<0) next.click(); else prev.click();
-        }
-        schedule();
-      }, {passive:true});
-
-      // Load ads then start carousel
-      loadApprovedAds().then(() => {
-        slide(0); 
-        schedule();
-      });
-    })();
-  </script>
-
+    .ad-frame{
+      position:relative;
+      width:100%;
+      height:200px;
+      border-radius:12px;
+      overflow:hidden;
+      background:#000;
+    }
+    .ad-track{
+      position:relative;
+      width:100%;
+      height:100%;
+    }
+    .ad-slide{
+      position:absolute;
+      inset:0;
+      opacity:0;
+      transition:opacity .35s;
+    }
+    .ad-slide.show{
+      opacity:1;
+      z-index:1;
+    }
+    .ad-slide img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+    }
+    .ad-btn{
+      position:absolute;
+      top:50%;
+      transform:translateY(-50%);
+      background:rgba(0,0,0,0.6);
+      color:#fff;
+      border:none;
+      padding:0.5rem 0.75rem;
+      cursor:pointer;
+      font-size:1.5rem;
+      z-index:10;
+    }
+    .ad-btn:hover{
+      background:rgba(0,0,0,0.8);
+    }
+    #adPrev{ left:10px; }
+    #adNext{ right:10px; }
+    
+    /* Bottom Navigation Styles */
+    .bottom-nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.5rem 0.75rem;
+      text-decoration: none;
+      color: #a855f7;
+      transition: all 0.2s;
+      border-radius: 0.5rem;
+      flex: 1;
+      max-width: 100px;
+    }
+    .bottom-nav-item:hover {
+      background: rgba(124, 58, 237, 0.2);
+      color: #c084fc;
+    }
+    .bottom-nav-item.active {
+      color: #fff;
+      background: rgba(124, 58, 237, 0.3);
+    }
+    .bottom-nav-icon {
+      font-size: 1.25rem;
+      line-height: 1;
+    }
+    .bottom-nav-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
-
-
-
+  
   <header id="top" class="px-4 py-4">
     <div class="max-w-6xl mx-auto flex items-end justify-between gap-3">
       <div class="flex items-center gap-3">
@@ -259,7 +211,6 @@
           <h1 class="text-2xl sm:text-3xl font-extrabold">
             8BFR <span class="text-[#00d9ff]">Music</span> Network
           </h1>
-          <!-- tiny version tag so we know this build is live -->
           <p class="text-[10px] text-green-300/90 font-mono">HOME v11</p>
           <p class="text-xs sm:text-sm text-purple-300/80 -mt-1">
             Create • Connect • Collab
@@ -323,7 +274,6 @@
       </button>
     </div>
     <div class="mt-3 flex items-center gap-2 flex-wrap">
-      <!-- ⬇️ Now go to full page content on ads.html -->
       <a href="ads.html#buy" class="btn btn-primary">Buy an Ad</a>
       <a href="ads.html#how" class="btn">How ads work</a>
     </div>
@@ -362,7 +312,7 @@
         More →
       </a>
     </div>
-    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div id="featuredArtistsGrid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
       <a href="profile_artist.html"
          class="block rounded-lg border border-purple-400/30 bg-black/30 p-4 hover:bg-black/40">
         <img src="assets/images/default_user_32_40.png"
@@ -392,14 +342,13 @@
       </a>
     </div>
     
-    <!-- Bottom More Link -->
     <div class="text-center mt-4 pt-4 border-t border-purple-500/20">
       <a href="featured_songs.html#artists" class="text-sm text-purple-400 hover:text-purple-300 hover:underline inline-flex items-center gap-1">
         View All Featured Artists →
       </a>
     </div>
   </section>
-
+  
   <!-- Featured Songs -->
   <section class="max-w-6xl mx-auto px-4 mt-6 section-card p-5">
     <div class="flex items-center justify-between mb-4">
@@ -413,7 +362,7 @@
         More →
       </a>
     </div>
-    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div id="featuredSongsGrid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
       <a href="song-killa-bees.html"
          class="block rounded-lg border border-purple-400/30 bg-black/30 p-4 hover:bg-black/40">
         <img src="assets/images/default_post.jpg"
@@ -442,7 +391,6 @@
       </a>
     </div>
     
-    <!-- Bottom More Link -->
     <div class="text-center mt-4 pt-4 border-t border-purple-500/20">
       <a href="featured_songs.html#songs" class="text-sm text-purple-400 hover:text-purple-300 hover:underline inline-flex items-center gap-1">
         View All Featured Songs →
@@ -462,9 +410,7 @@
     </div>
     <p class="mb-3 text-purple-200/80">See what other creators are posting.</p>
     
-    <!-- Feed Preview Posts -->
     <div class="space-y-3 mb-4">
-      <!-- Post 1 -->
       <div style="background: rgba(15, 0, 30, 0.6); border: 1px solid rgba(124, 58, 237, 0.3); border-radius: 12px; padding: 1rem;">
         <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem;">
           <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #7c3aed, #a855f7); display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">🎧</div>
@@ -483,7 +429,6 @@
         </div>
       </div>
       
-      <!-- Post 2 -->
       <div style="background: rgba(15, 0, 30, 0.6); border: 1px solid rgba(124, 58, 237, 0.3); border-radius: 12px; padding: 1rem;">
         <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem;">
           <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #7c3aed, #a855f7); display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">🎤</div>
@@ -521,7 +466,6 @@
       </div>
     </div>
     
-    <!-- Stats Bar -->
     <div class="flex gap-4 mb-4 text-sm">
       <div class="flex items-center gap-2">
         <span class="text-purple-400">🎵</span>
@@ -537,7 +481,6 @@
       </div>
     </div>
     
-    <!-- Now Playing -->
     <div id="homeNowPlaying" style="background: rgba(124, 58, 237, 0.15); border: 1px solid rgba(124, 58, 237, 0.3); border-radius: 12px; padding: 1rem; margin-bottom: 1rem; display: none;">
       <div style="display: flex; align-items: center; gap: 1rem;">
         <div style="width: 50px; height: 50px; border-radius: 8px; background: linear-gradient(135deg, #7c3aed, #a855f7); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0;">
@@ -558,13 +501,11 @@
       </div>
     </div>
     
-    <!-- Track List Preview -->
     <div id="homeRadioTracks" style="margin-bottom: 1rem;">
       <div style="font-size: 0.85rem; color: #a855f7; margin-bottom: 0.75rem; font-weight: 600;">
         🎶 Featured Tracks:
       </div>
       <div id="homeTrackList" style="display: flex; flex-direction: column; gap: 0.5rem;">
-        <!-- Tracks populated by JS -->
       </div>
     </div>
     
@@ -575,18 +516,130 @@
       </div>
     </div>
   </section>
+  
+  <!-- Donate -->
+  <section id="donate" class="max-w-6xl mx-auto px-4 mt-6 section-card p-5">
+    <h3 class="text-xl font-bold mb-2">💜 Support 8BFR</h3>
+    <p class="text-sm opacity-85 mb-4">
+      Help us empower creators and keep the lights neon.
+    </p>
+    <a class="btn btn-primary"
+       href="https://www.paypal.com/donate?business=8bfr.music@gmail.com"
+       target="_blank" rel="noopener">
+      Donate via PayPal
+    </a>
+  </section>
 
+  <!-- bottom marquee -->
+  <div class="marquee">
+    <a href="#ads-info" style="text-decoration:none">
+      <span>💎 Promote your drop • Support creators • Ads always rotating — tap to learn more 💎</span>
+    </a>
+  </div>
+
+  <!-- footer -->
+  <footer id="page-footer" class="mt-10 border-t border-purple-400/30 bg-black/30">
+    <div class="max-w-6xl mx-auto px-4 py-8 grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div>
+        <div class="font-bold mb-2">8BFR</div>
+        <a class="block opacity-85 hover:underline" href="index.html">Home</a>
+        <a class="block opacity-85 hover:underline" href="about.html">About</a>
+        <a class="block opacity-85 hover:underline" href="contact.html">Contact</a>
+      </div>
+      <div>
+        <div class="font-bold mb-2">Studio & AI</div>
+        <a class="block opacity-85 hover:underline" href="studio-tools.html">All Tools</a>
+        <a class="block opacity-85 hover:underline" href="lyrics-ai.html">AI Lyrics</a>
+        <a class="block opacity-85 hover:underline" href="song-ai.html">AI Song</a>
+        <a class="block opacity-85 hover:underline" href="album-ai.html">AI Album</a>
+        <a class="block opacity-85 hover:underline" href="voice-ai.html">Voice / Post VO</a>
+      </div>
+      <div>
+        <div class="font-bold mb-2">Community</div>
+        <a class="block opacity-85 hover:underline" href="feed.html">Feed</a>
+        <a class="block opacity-85 hover:underline" href="profiles.html">Profiles</a>
+        <a class="block opacity-85 hover:underline" href="featured.html">Featured</a>
+        <a class="block opacity-85 hover:underline" href="radio.html">Radio</a>
+        <a class="block opacity-85 hover:underline" href="podcast.html">Podcast</a>
+      </div>
+      <div>
+        <div class="font-bold mb-2">Legal</div>
+        <a class="block opacity-85 hover:underline" href="privacy.html">Privacy</a>
+        <a class="block opacity-85 hover:underline" href="terms.html">Terms</a>
+        <a class="block opacity-85 hover:underline" href="credits.html">Credits</a>
+      </div>
+    </div>
+    <div class="max-w-6xl mx-auto px-4 pb-6 text-center text-xs text-purple-300/80">
+      © 2025 8BFR Music Network — "Empowering creators, connecting the world — 8BFR Music Network."
+    </div>
+  </footer>
+
+  <!-- global scripts -->
+  <script src="scripts.js?v=1ed5604" defer></script>
+
+  <!-- Bottom Navigation Bar -->
+  <nav id="bottomNav" class="fixed bottom-0 left-0 right-0 z-50 bg-[rgba(15,0,30,0.95)] backdrop-blur-md border-t border-purple-500/40">
+    <div class="max-w-6xl mx-auto px-2 py-2">
+      <div class="flex items-center justify-around gap-1">
+        <a href="index.html" class="bottom-nav-item active">
+          <div class="bottom-nav-icon">🏠</div>
+          <div class="bottom-nav-label">Home</div>
+        </a>
+        <a href="search.html" class="bottom-nav-item">
+          <div class="bottom-nav-icon">🔍</div>
+          <div class="bottom-nav-label">Search</div>
+        </a>
+        <a href="feed.html" class="bottom-nav-item">
+          <div class="bottom-nav-icon">📰</div>
+          <div class="bottom-nav-label">Feed</div>
+        </a>
+        <a href="radio.html" class="bottom-nav-item">
+          <div class="bottom-nav-icon">📻</div>
+          <div class="bottom-nav-label">Radio</div>
+        </a>
+        <a href="shop.html" class="bottom-nav-item">
+          <div class="bottom-nav-icon">🛒</div>
+          <div class="bottom-nav-label">Shop</div>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Home avatar switcher -->
+  <div id="homeAvatarSwitcher"
+       class="fixed bottom-4 left-4 z-40 flex items-center gap-2 bg-black/60 border border-purple-500/70 rounded-full px-2 py-1">
+    <span class="text-[11px] text-purple-200/80 hidden sm:inline">
+      Avatar:
+    </span>
+    <button
+      type="button"
+      class="px-2 py-0.5 text-[11px] rounded-full border border-transparent"
+      data-avatar-choice="carrie">
+      Carrie
+    </button>
+    <button
+      type="button"
+      class="px-2 py-0.5 text-[11px] rounded-full border border-transparent"
+      data-avatar-choice="james">
+      James
+    </button>
+    <button
+      type="button"
+      class="px-2 py-0.5 text-[11px] rounded-full border border-transparent"
+      data-avatar-choice="azreen">
+      Azreen
+    </button>
+  </div>
+  
+  <!-- Radio preview script -->
   <script>
-    // Radio preview for homepage
     (function(){
-      // Initialize mock radio data if empty (for demo)
       function initMockRadioData() {
         const hasArtistProfiles = Array.from({length: localStorage.length}, (_, i) => localStorage.key(i))
           .some(key => key.startsWith('profile_') && !key.includes('settings'));
         
-        if (hasArtistProfiles) return; // Real data exists
+        if (hasArtistProfiles) return;
         
-        // Create mock artist profiles for demo
         const mockArtists = [
           {
             id: 'demo_artist_1',
@@ -644,7 +697,6 @@
           } catch(e) {}
         });
         
-        // Set initial play count for demo
         if (!localStorage.getItem('radio_plays')) {
           localStorage.setItem('radio_plays', '1247');
         }
@@ -661,20 +713,16 @@
           try {
             const profile = JSON.parse(localStorage.getItem(key) || '{}');
             
-            // Check for artist OR beatmaker badge
             const hasCreatorBadge = 
               profile.badges && (
                 profile.badges.includes('artist') || 
                 profile.badges.includes('beatmaker')
               );
             
-            // Check verified status
             const isVerified = profile.verified === true;
             
-            // Must have both to show in radio
             if (!hasCreatorBadge || !isVerified) continue;
             
-            // Determine badge emoji
             let badgeEmoji = '🎵';
             if (profile.badges.includes('artist')) badgeEmoji = '🎤';
             else if (profile.badges.includes('beatmaker')) badgeEmoji = '🎚️';
@@ -696,14 +744,11 @@
         return { tracks, artistCount: artists.size };
       }
       
-      // Initialize mock data for demo
       initMockRadioData();
       
-      // Get data
       const { tracks, artistCount } = collectRadioTracks();
       const totalPlays = parseInt(localStorage.getItem('radio_plays') || '0');
       
-      // Update stats
       const trackCountEl = document.getElementById('homeRadioTracks');
       const artistCountEl = document.getElementById('homeRadioArtists');
       const playsEl = document.getElementById('homeRadioPlays');
@@ -712,7 +757,6 @@
       if (artistCountEl) artistCountEl.textContent = artistCount;
       if (playsEl) playsEl.textContent = totalPlays.toLocaleString();
       
-      // Show now playing (simulate)
       if (tracks.length > 0) {
         const nowPlayingSection = document.getElementById('homeNowPlaying');
         const currentTrack = tracks[Math.floor(Math.random() * tracks.length)];
@@ -725,7 +769,6 @@
         }
       }
       
-      // Show track list (5 random tracks)
       const trackListEl = document.getElementById('homeTrackList');
       if (trackListEl) {
         if (tracks.length === 0) {
@@ -737,7 +780,6 @@
             </div>
           `;
         } else {
-          // Show up to 5 random tracks
           const displayTracks = tracks
             .sort(() => Math.random() - 0.5)
             .slice(0, 5);
@@ -766,141 +808,8 @@
     })();
   </script>
 
-  <!-- Donate -->
-  <section id="donate" class="max-w-6xl mx-auto px-4 mt-6 section-card p-5">
-    <h3 class="text-xl font-bold mb-2">💜 Support 8BFR</h3>
-    <p class="text-sm opacity-85 mb-4">
-      Help us empower creators and keep the lights neon.
-    </p>
-    <a class="btn btn-primary"
-       href="https://www.paypal.com/donate?business=8bfr.music@gmail.com"
-       target="_blank" rel="noopener">
-      Donate via PayPal
-    </a>
-  </section>
-
-  <!-- bottom marquee that links back up -->
-  <div class="marquee">
-    <a href="#ads-info" style="text-decoration:none">
-      <span>💎 Promote your drop • Support creators • Ads always rotating — tap to learn more 💎</span>
-    </a>
-  </div>
-
-  <!-- footer has id so the bottom bubble can scroll here -->
-  <footer id="page-footer" class="mt-10 border-t border-purple-400/30 bg-black/30">
-    <div class="max-w-6xl mx-auto px-4 py-8 grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-      <div>
-        <div class="font-bold mb-2">8BFR</div>
-        <a class="block opacity-85 hover:underline" href="index.html">Home</a>
-        <a class="block opacity-85 hover:underline" href="about.html">About</a>
-        <a class="block opacity-85 hover:underline" href="contact.html">Contact</a>
-      </div>
-      <div>
-        <div class="font-bold mb-2">Studio & AI</div>
-        <a class="block opacity-85 hover:underline" href="studio-tools.html">All Tools</a>
-        <a class="block opacity-85 hover:underline" href="lyrics-ai.html">AI Lyrics</a>
-        <a class="block opacity-85 hover:underline" href="song-ai.html">AI Song</a>
-        <a class="block opacity-85 hover:underline" href="album-ai.html">AI Album</a>
-        <a class="block opacity-85 hover:underline" href="voice-ai.html">Voice / Post VO</a>
-      </div>
-      <div>
-        <div class="font-bold mb-2">Community</div>
-        <a class="block opacity-85 hover:underline" href="feed.html">Feed</a>
-        <a class="block opacity-85 hover:underline" href="profiles.html">Profiles</a>
-        <a class="block opacity-85 hover:underline" href="featured.html">Featured</a>
-        <a class="block opacity-85 hover:underline" href="radio.html">Radio</a>
-        <a class="block opacity-85 hover:underline" href="podcast.html">Podcast</a>
-      </div>
-      <div>
-        <div class="font-bold mb-2">Legal</div>
-        <a class="block opacity-85 hover:underline" href="privacy.html">Privacy</a>
-        <a class="block opacity-85 hover:underline" href="terms.html">Terms</a>
-        <a class="block opacity-85 hover:underline" href="credits.html">Credits</a>
-      </div>
-    </div>
-    <div class="max-w-6xl mx-auto px-4 pb-6 text-center text-xs text-purple-300/80">
-      © 2025 8BFR Music Network — "Empowering creators, connecting the world — 8BFR Music Network."
-    </div>
-  </footer>
-
-  <!-- global Carrie/menu/etc -->
-  <script src="scripts.js?v=1ed5604" defer></script>
-
-  <!-- Bottom Navigation Bar -->
-  <nav id="bottomNav" class="fixed bottom-0 left-0 right-0 z-50 bg-[rgba(15,0,30,0.95)] backdrop-blur-md border-t border-purple-500/40">
-    <div class="max-w-6xl mx-auto px-2 py-2">
-      <div class="flex items-center justify-around gap-1">
-        <a href="index.html" class="bottom-nav-item active">
-          <div class="bottom-nav-icon">🏠</div>
-          <div class="bottom-nav-label">Home</div>
-        </a>
-        <a href="search.html" class="bottom-nav-item">
-          <div class="bottom-nav-icon">🔍</div>
-          <div class="bottom-nav-label">Search</div>
-        </a>
-        <a href="feed.html" class="bottom-nav-item">
-          <div class="bottom-nav-icon">📰</div>
-          <div class="bottom-nav-label">Feed</div>
-        </a>
-        <a href="radio.html" class="bottom-nav-item">
-          <div class="bottom-nav-icon">📻</div>
-          <div class="bottom-nav-label">Radio</div>
-        </a>
-        <a href="shop.html" class="bottom-nav-item">
-          <div class="bottom-nav-icon">🛒</div>
-          <div class="bottom-nav-label">Shop</div>
-        </a>
-      </div>
-    </div>
-  </nav>
-
-  <style>
-    /* Bottom Navigation Styles */
-    .bottom-nav-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.25rem;
-      padding: 0.5rem 0.75rem;
-      text-decoration: none;
-      color: #a855f7;
-      transition: all 0.2s;
-      border-radius: 0.5rem;
-      flex: 1;
-      max-width: 100px;
-    }
-    .bottom-nav-item:hover {
-      background: rgba(124, 58, 237, 0.2);
-      color: #c084fc;
-    }
-    .bottom-nav-item.active {
-      color: #fff;
-      background: rgba(124, 58, 237, 0.3);
-    }
-    .bottom-nav-icon {
-      font-size: 1.25rem;
-      line-height: 1;
-    }
-    .bottom-nav-label {
-      font-size: 0.7rem;
-      font-weight: 600;
-      text-align: center;
-    }
-    /* Add padding to body so content doesn't get hidden behind nav */
-    body {
-      padding-bottom: 70px;
-    }
-  </style>
-
-  <!-- page-specific scripts: hero text + ad carousel -->
+  <!-- Ad carousel script with Supabase -->
   <script>
-    // hero (kept simple)
-    (function(){
-      const line = document.getElementById('line');
-      if (!line) return;
-    })();
-
-    // featured ads carousel (index only)
     (function(){
       const track = document.getElementById('adTrack');
       const prev  = document.getElementById('adPrev');
@@ -908,7 +817,7 @@
       const pause = document.getElementById('adPause');
       if (!track || !prev || !next || !pause) return;
 
-      const ads = [
+      const defaultAds = [
         { img:'assets/images/ad_banner_1.jpg', url:'ads.html#ad1' },
         { img:'assets/images/ad_banner_2.jpg', url:'ads.html#ad2' },
         { img:'assets/images/ad_banner_3.jpg', url:'ads.html#ad3' },
@@ -916,7 +825,48 @@
         { img:'assets/images/ad_banner_5.jpg', url:'ads.html#ad5' }
       ];
 
+      let ads = [...defaultAds];
       let i=0, paused=false, t=null;
+
+      async function loadApprovedAds() {
+        try {
+          if (!window.supabase) {
+            console.log('Supabase not loaded, using default ads');
+            return;
+          }
+          
+          const supabase = window.supabase.createClient(
+            'https://novbuvwpjnxwwvdekjhr.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0'
+          );
+
+          const { data, error } = await supabase
+            .from('ads')
+            .select('*')
+            .eq('status', 'approved')
+            .gte('expires_at', new Date().toISOString())
+            .order('approved_at', { ascending: false })
+            .limit(5);
+
+          if (!error && data && data.length > 0) {
+            ads = data.map((ad, idx) => ({
+              img: ad.image_url || defaultAds[idx].img,
+              url: ad.link_url || 'ads.html#ad' + (idx + 1),
+              title: ad.title || 'Sponsored Ad'
+            }));
+            
+            while (ads.length < 5) {
+              ads.push(defaultAds[ads.length]);
+            }
+            
+            console.log('Loaded ' + data.length + ' approved ads');
+          } else {
+            console.log('No approved ads, using defaults');
+          }
+        } catch (err) {
+          console.log('Error loading ads:', err);
+        }
+      }
 
       function slide(idx){
         i = (idx+ads.length) % ads.length;
@@ -929,7 +879,7 @@
 
         const img = new Image();
         img.src = ads[i].img;
-        img.alt = 'Ad slot ' + (i+1);
+        img.alt = ads[i].title || 'Ad slot ' + (i+1);
         a.appendChild(img);
         track.appendChild(a);
 
@@ -948,7 +898,6 @@
         if (!paused) schedule(); else clearTimeout(t);
       };
 
-      // swipe on touch
       let sx=0, dx=0, down=false;
       track.addEventListener('touchstart', e=>{
         down=true;
@@ -968,10 +917,14 @@
         schedule();
       }, {passive:true});
 
-      slide(0); schedule();
+      loadApprovedAds().then(() => {
+        slide(0); 
+        schedule();
+      });
     })();
   </script>
-<!-- Avatar switcher logic (HOME only) -->
+
+  <!-- Avatar switcher logic -->
   <script>
     window.addEventListener("load", function () {
       const switcher = document.getElementById("homeAvatarSwitcher");
@@ -993,12 +946,10 @@
       }
 
       function saveAvatarChoice(key) {
-        // Save choice for Carrie system
         try {
           localStorage.setItem("carrie_avatar", key);
         } catch (e) {}
 
-        // Let other pages/widgets (like chat) react to the change
         try {
           window.dispatchEvent(
             new StorageEvent("storage", {
@@ -1011,7 +962,6 @@
         setActiveButton(key);
       }
 
-      // Load saved avatar on page load
       let current = "carrie";
       try {
         const stored = localStorage.getItem("carrie_avatar");
@@ -1021,7 +971,6 @@
       } catch (e) {}
       setActiveButton(current);
 
-      // Wire up clicks
       buttons.forEach((btn) => {
         btn.addEventListener("click", () => {
           const key = btn.getAttribute("data-avatar-choice");
@@ -1030,13 +979,11 @@
         });
       });
 
-      // 🔇 Hide old Carrie/James-only switcher bar from scripts.js (the one above the avatar)
       try {
-        // find any other bar that has Carrie + James buttons but NO Azreen
         const candidateBars = new Set();
 
         document.querySelectorAll("button").forEach((btn) => {
-          if (switcher.contains(btn)) return; // skip our new bottom-left switcher
+          if (switcher.contains(btn)) return;
 
           const label = (btn.textContent || "").trim().toLowerCase();
           if (!label.includes("carrie") && !label.includes("james")) return;
@@ -1054,7 +1001,6 @@
           const hasJames = names.some((t) => t.includes("james"));
           const hasAzreen = names.some((t) => t.includes("azreen"));
 
-          // Old switcher = Carrie + James, NO Azreen
           if (hasCarrie && hasJames && !hasAzreen) {
             bar.style.display = "none";
           }
@@ -1062,54 +1008,136 @@
       } catch (e) {}
     });
   </script>
-    <!-- Home avatar switcher (Carrie / James / Azreen) - bottom-left -->
-  <div id="homeAvatarSwitcher"
-       class="fixed bottom-4 left-4 z-40 flex items-center gap-2 bg-black/60 border border-purple-500/70 rounded-full px-2 py-1">
-    <span class="text-[11px] text-purple-200/80 hidden sm:inline">
-      Avatar:
-    </span>
-    <button
-      type="button"
-      class="px-2 py-0.5 text-[11px] rounded-full border border-transparent"
-      data-avatar-choice="carrie">
-      Carrie
-    </button>
-    <button
-      type="button"
-      class="px-2 py-0.5 text-[11px] rounded-full border border-transparent"
-      data-avatar-choice="james">
-      James
-    </button>
-    <button
-      type="button"
-      class="px-2 py-0.5 text-[11px] rounded-full border border-transparent"
-      data-avatar-choice="azreen">
-      Azreen
-    </button>
-  </div>
   
-  <!-- Admin Management Functions (Placeholder - Wire up functionality tomorrow) -->
+  <!-- Admin Management Functions -->
   <script>
     function manageFeaturedArtists() {
-      alert('Featured Artists Management\n\nWire up functionality here:\n- Add/remove featured artists\n- Reorder artists\n- Edit artist info');
-      // TODO: Open management modal or redirect to admin page
+      window.location.href = 'owner-picks.html';
     }
     
     function manageFeaturedSongs() {
-      alert('Featured Songs Management\n\nWire up functionality here:\n- Add/remove featured songs\n- Reorder songs\n- Edit song info');
-      // TODO: Open management modal or redirect to admin page
+      window.location.href = 'owner-picks.html';
     }
     
     function manageFeedPosts() {
       alert('Feed Posts Management\n\nWire up functionality here:\n- Add/remove preview posts\n- Edit post content\n- Moderate posts');
-      // TODO: Open management modal or redirect to admin page
     }
     
     function manageRadioTracks() {
       alert('Radio Tracks Management\n\nWire up functionality here:\n- Add/remove tracks\n- Feature/unfeature tracks\n- Edit track info');
-      // TODO: Open management modal or redirect to admin page
     }
+  </script>
+
+  <!-- Load Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Load Featured Content from Supabase -->
+  <script>
+  (async function loadFeaturedContent() {
+      if (!window.supabase) {
+          console.log('Supabase not loaded');
+          return;
+      }
+      
+      try {
+          const supabase = window.supabase.createClient(
+              'https://novbuvwpjnxwwvdekjhr.supabase.co',
+              'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0'
+          );
+          
+          console.log('Loading featured content...');
+          
+          // Load featured artists
+          const { data: artists, error: artistError } = await supabase
+              .from('featured_content')
+              .select('content_id')
+              .eq('content_type', 'artist')
+              .order('created_at', { ascending: false })
+              .limit(10);
+          
+          if (!artistError && artists && artists.length > 0) {
+              const { data: profiles } = await supabase
+                  .from('profiles')
+                  .select('user_id, username, email, badges')
+                  .in('user_id', artists.map(a => a.content_id));
+              
+              if (profiles && profiles.length > 0) {
+                  const grid = document.getElementById('featuredArtistsGrid');
+                  
+                  if (grid) {
+                      const html = profiles.map(p => `
+                          <a href="profile.html?id=${p.user_id}"
+                             class="block rounded-lg border border-green-400/50 bg-black/40 p-4 hover:bg-black/50"
+                             style="position: relative;">
+                              <div style="position: absolute; top: 8px; right: 8px; background: rgba(0,255,136,0.2); border: 1px solid #00ff88; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.7rem; color: #00ff88; font-weight: 600;">
+                                  ⭐ FEATURED
+                              </div>
+                              <img src="assets/images/default_user_32_40.png"
+                                   class="w-full h-40 object-cover rounded-md mb-2"
+                                   alt="${p.username || 'Artist'}">
+                              <div class="font-semibold">${p.username || 'Unknown'}</div>
+                              <div class="text-sm text-purple-300/80">
+                                  ${p.badges?.includes('artist') ? '🎤 Artist' : ''}
+                                  ${p.badges?.includes('beatmaker') ? '🎚️ Beatmaker' : ''}
+                              </div>
+                          </a>
+                      `).join('');
+                      
+                      grid.insertAdjacentHTML('afterbegin', html);
+                      console.log('✓ Featured artists loaded:', profiles.length);
+                  }
+              }
+          }
+          
+          // Load featured songs
+          const { data: songs, error: songError } = await supabase
+              .from('featured_content')
+              .select('content_id')
+              .eq('content_type', 'song')
+              .order('created_at', { ascending: false })
+              .limit(10);
+          
+          if (!songError && songs && songs.length > 0) {
+              const { data: posts } = await supabase
+                  .from('posts')
+                  .select('id, title, artist_name')
+                  .in('id', songs.map(s => s.content_id));
+              
+              if (posts && posts.length > 0) {
+                  const grid = document.getElementById('featuredSongsGrid');
+                  
+                  if (grid) {
+                      const html = posts.map(p => `
+                          <a href="song.html?id=${p.id}"
+                             class="block rounded-lg border border-green-400/50 bg-black/40 p-4 hover:bg-black/50"
+                             style="position: relative;">
+                              <div style="position: absolute; top: 8px; right: 8px; background: rgba(0,255,136,0.2); border: 1px solid #00ff88; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.7rem; color: #00ff88; font-weight: 600;">
+                                  ⭐ FEATURED
+                              </div>
+                              <img src="assets/images/default_post.jpg"
+                                   class="w-full h-40 object-cover rounded-md mb-2"
+                                   alt="${p.title || 'Song'}">
+                              <div class="font-semibold">${p.title || 'Untitled'}</div>
+                              <div class="text-sm text-purple-300/80">${p.artist_name || 'Unknown'}</div>
+                          </a>
+                      `).join('');
+                      
+                      grid.insertAdjacentHTML('afterbegin', html);
+                      console.log('✓ Featured songs loaded:', posts.length);
+                  }
+              }
+          }
+          
+      } catch (error) {
+          console.error('Error loading featured content:', error);
+      }
+  })();
   </script>
   
 </body>
-        </html>
+</html>
+
+
+
+
+
