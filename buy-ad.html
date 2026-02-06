@@ -43,15 +43,10 @@
             width: 100%;
             margin-bottom: 0.75rem;
         }
-        .btn:hover {
-            background: #6d28d9;
-        }
-        .btn-stripe {
-            background: #635bff;
-        }
-        .btn-stripe:hover {
-            background: #5145e5;
-        }
+        .btn:hover { background: #6d28d9; }
+        .btn-stripe { background: #635bff; }
+        .btn-stripe:hover { background: #5145e5; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .price-display {
             background: rgba(124, 58, 237, 0.2);
             border: 1px solid rgba(124, 58, 237, 0.4);
@@ -71,9 +66,7 @@
             display: inline-block;
             margin-bottom: 1rem;
         }
-        .back-link:hover {
-            color: #c084fc;
-        }
+        .back-link:hover { color: #c084fc; }
         .divider {
             text-align: center;
             margin: 1rem 0;
@@ -83,9 +76,24 @@
         #paypal-button-container {
             margin-bottom: 0.75rem;
             min-height: 50px;
-            border: 2px dashed #00ff88;
-            padding: 1rem;
         }
+        .pp-loading {
+            text-align: center;
+            color: #a855f7;
+            padding: 1rem;
+            font-size: 0.9rem;
+        }
+        .pp-loading .spin {
+            display: inline-block;
+            width: 16px; height: 16px;
+            border: 2px solid #a855f7;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: sp 0.8s linear infinite;
+            vertical-align: middle;
+            margin-right: 0.5rem;
+        }
+        @keyframes sp { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -100,17 +108,14 @@
                 <label for="adTitle">Ad Title *</label>
                 <input type="text" id="adTitle" required placeholder="Your ad headline">
             </div>
-            
             <div>
                 <label for="adLink">Website Link *</label>
                 <input type="url" id="adLink" required placeholder="https://yoursite.com">
             </div>
-            
             <div>
                 <label for="adImage">Ad Image * (1200x600px recommended, max 5MB)</label>
                 <input type="file" id="adImage" accept="image/*" required>
             </div>
-            
             <div>
                 <label for="adType">Ad Type *</label>
                 <select id="adType" onchange="updatePrice()">
@@ -118,7 +123,6 @@
                     <option value="featured">Featured Ad</option>
                 </select>
             </div>
-            
             <div>
                 <label for="adDuration">Duration *</label>
                 <select id="adDuration" onchange="updatePrice()">
@@ -127,7 +131,6 @@
                     <option value="30">30 Days</option>
                 </select>
             </div>
-            
             <div>
                 <label for="discountCode">Discount Code (optional)</label>
                 <div style="display: flex; gap: 0.5rem;">
@@ -154,14 +157,14 @@
             
             <p style="color: #a855f7; font-size: 0.9rem; margin-bottom: 1rem; font-weight: 600;">Choose Payment Method:</p>
             
-            <!-- PayPal Button - KEEP EXACT AS DEBUG -->
+            <!-- PayPal -->
             <div id="paypal-button-container">
-                <p style="color: #ff0044;">⏳ Waiting for PayPal...</p>
+                <div class="pp-loading" id="pp-loading"><span class="spin"></span> Loading PayPal...</div>
             </div>
             
             <div class="divider">OR</div>
             
-            <!-- Stripe Button -->
+            <!-- Stripe -->
             <button type="button" id="stripe-button" class="btn btn-stripe">
                 💳 Pay with Credit Card (Stripe)
             </button>
@@ -172,106 +175,92 @@
         </p>
     </div>
 
-    <!-- PayPal SDK -->
-    <script src="https://www.paypal.com/sdk/js?client-id=AWx0LwdZ_sCyCE5gEj9mL1ha7ZbG_eZLE_R636KjLXFMV1pOfmGwNg9prM5kVKQspvnpNLJDZxPp100G&currency=USD"></script>
-    
+    <!-- ALL scripts at end of body, PayPal SDK loaded dynamically -->
     <script>
+        // ── Config ──
         const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        
         const stripe = Stripe('pk_live_51OkBOuEvK9FbOwLilOaOLSHSLx47wT1q7T6xiMuODRF2j4a2DM0BHI16A5z8ovscAfhv83l7d1OFPbUjehHtQIeH00RwDCQ0I1');
-        
+
         const PRICES = {
             carousel: { 7: 5, 14: 8, 30: 12 },
             featured: { 7: 10, 14: 18, 30: 30 }
         };
-        
+
+        /*  ── STRIPE PRICE IDS ──
+            To enable Stripe, create products in your Stripe Dashboard:
+            Dashboard → Products → + Add Product → set name & price → copy Price ID
+            Then paste each price_XXXX ID below.
+        */
+        const STRIPE_PRICE_IDS = {
+            'carousel_7':  '',   // paste price_XXXX here
+            'carousel_14': '',
+            'carousel_30': '',
+            'featured_7':  '',
+            'featured_14': '',
+            'featured_30': ''
+        };
+
         let discountData = null;
         let finalPrice = 5;
-        
+
+        // ── Price ──
         function updatePrice() {
             const type = document.getElementById('adType').value;
             const duration = document.getElementById('adDuration').value;
             const basePrice = PRICES[type][duration];
-            
             finalPrice = basePrice;
-            
+
             if (discountData) {
-                const discountAmount = parseFloat(discountData.discount_amount || 0);
-                finalPrice = Math.max(0, basePrice - discountAmount);
-                
+                const amt = parseFloat(discountData.discount_amount || 0);
+                finalPrice = Math.max(0, basePrice - amt);
                 document.getElementById('discountRow').hidden = false;
-                document.getElementById('discountAmount').textContent = '-$' + discountAmount.toFixed(2);
+                document.getElementById('discountAmount').textContent = '-$' + amt.toFixed(2);
             } else {
                 document.getElementById('discountRow').hidden = true;
             }
-            
             document.getElementById('basePrice').textContent = '$' + basePrice.toFixed(2);
             document.getElementById('finalPrice').textContent = '$' + finalPrice.toFixed(2);
         }
-        
+
+        // ── Discount ──
         async function applyDiscount() {
             const code = document.getElementById('discountCode').value.trim().toUpperCase();
             const msgEl = document.getElementById('discountMessage');
-            
-            if (!code) {
-                msgEl.textContent = 'Please enter a code';
-                msgEl.style.color = '#ff0044';
-                return;
-            }
-            
+            if (!code) { msgEl.textContent = 'Please enter a code'; msgEl.style.color = '#ff0044'; return; }
+
             try {
-                const { data, error } = await supabase
-                    .from('discount_codes')
-                    .select('*')
-                    .eq('code', code)
-                    .single();
-                
+                const { data, error } = await supabase.from('discount_codes').select('*').eq('code', code).single();
                 if (error || !data) {
-                    msgEl.textContent = '❌ Invalid code';
-                    msgEl.style.color = '#ff0044';
-                    discountData = null;
-                    updatePrice();
-                    return;
+                    msgEl.textContent = '❌ Invalid code'; msgEl.style.color = '#ff0044';
+                    discountData = null; updatePrice(); return;
                 }
-                
                 if (data.max_uses && data.uses >= data.max_uses) {
-                    msgEl.textContent = '❌ Code expired';
-                    msgEl.style.color = '#ff0044';
-                    discountData = null;
-                    updatePrice();
-                    return;
+                    msgEl.textContent = '❌ Code expired'; msgEl.style.color = '#ff0044';
+                    discountData = null; updatePrice(); return;
                 }
-                
-                discountData = data;
-                updatePrice();
-                
-                msgEl.textContent = '✓ Discount applied!';
-                msgEl.style.color = '#00ff88';
+                discountData = data; updatePrice();
+                msgEl.textContent = '✓ Discount applied!'; msgEl.style.color = '#00ff88';
             } catch (err) {
-                msgEl.textContent = '❌ Error applying code';
-                msgEl.style.color = '#ff0044';
+                msgEl.textContent = '❌ Error applying code'; msgEl.style.color = '#ff0044';
                 console.error(err);
             }
         }
-        
+
+        // ── Validate ──
         function validateForm() {
             const title = document.getElementById('adTitle').value.trim();
             const link = document.getElementById('adLink').value.trim();
             const image = document.getElementById('adImage').files[0];
-            
-            if (!title || !link || !image) {
-                alert('Please fill in all required fields');
-                return false;
-            }
+            if (!title || !link || !image) { alert('Please fill in all required fields'); return false; }
             return true;
         }
-        
+
+        // ── Save to DB ──
         async function saveAdToDatabase(paymentMethod, paymentId) {
             try {
                 const { data: { user } } = await supabase.auth.getUser();
-                
                 const adData = {
                     user_id: user?.id || null,
                     title: document.getElementById('adTitle').value.trim(),
@@ -283,22 +272,16 @@
                     payment_id: paymentId,
                     status: 'pending',
                     created_at: new Date().toISOString(),
-                    expires_at: new Date(Date.now() + (parseInt(document.getElementById('adDuration').value) * 24 * 60 * 60 * 1000)).toISOString()
+                    expires_at: new Date(Date.now() + parseInt(document.getElementById('adDuration').value) * 86400000).toISOString()
                 };
-                
                 const { error } = await supabase.from('ads').insert(adData);
-                
                 if (error) {
-                    console.error('Database error:', error);
-                    alert('Payment successful but error saving ad. Contact support with payment ID: ' + paymentId);
+                    console.error('DB error:', error);
+                    alert('Payment successful but error saving ad. Contact support with ID: ' + paymentId);
                 } else {
                     if (discountData) {
-                        await supabase
-                            .from('discount_codes')
-                            .update({ uses: (discountData.uses || 0) + 1 })
-                            .eq('code', discountData.code);
+                        await supabase.from('discount_codes').update({ uses: (discountData.uses || 0) + 1 }).eq('code', discountData.code);
                     }
-                    
                     alert('✓ Payment successful! Your ad is pending approval. Payment ID: ' + paymentId);
                     window.location.href = 'index.html';
                 }
@@ -307,48 +290,115 @@
                 alert('Payment successful but error occurred. Contact support.');
             }
         }
-        
-        // Wait for PayPal SDK to load before rendering buttons
-        function initPayPalButton() {
-            if (window.paypal) {
+
+        // ══════════════════════════════════════════════
+        //  PAYPAL - Load SDK dynamically with onload
+        // ══════════════════════════════════════════════
+        (function loadPayPal() {
+            var s = document.createElement('script');
+            s.src = 'https://www.paypal.com/sdk/js?client-id=AWx0LwdZ_sCyCE5gEj9mL1ha7ZbG_eZLE_R636KjLXFMV1pOfmGwNg9prM5kVKQspvnpNLJDZxPp100G&currency=USD';
+
+            s.onload = function() {
+                console.log('✅ PayPal SDK loaded');
+                var loader = document.getElementById('pp-loading');
+                if (loader) loader.remove();
+
                 paypal.Buttons({
+                    style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'paypal' },
                     createOrder: function(data, actions) {
-                        if (!validateForm()) {
-                            return Promise.reject();
-                        }
+                        if (!validateForm()) return Promise.reject(new Error('Validation failed'));
                         return actions.order.create({
                             purchase_units: [{
-                                amount: {
-                                    value: finalPrice.toFixed(2)
-                                },
+                                amount: { value: finalPrice.toFixed(2) },
                                 description: 'Ad on 8BFR Music Network - ' + document.getElementById('adDuration').value + ' days'
                             }]
                         });
                     },
                     onApprove: function(data, actions) {
                         return actions.order.capture().then(async function(details) {
+                            console.log('✅ PayPal captured:', details.id);
                             await saveAdToDatabase('paypal', details.id);
                         });
                     },
+                    onCancel: function() { console.log('PayPal cancelled'); },
                     onError: function(err) {
-                        alert('Payment error: ' + err);
+                        console.error('PayPal error:', err);
+                        alert('Payment error. Please try again.');
                     }
-                }).render('#paypal-button-container');
-            } else {
-                // Retry if PayPal hasn't loaded yet
-                setTimeout(initPayPalButton, 100);
-            }
-        }
-        
-        // Start initialization
-        initPayPalButton();
-        
-        // Stripe Button
+                }).render('#paypal-button-container').then(function() {
+                    console.log('✅ PayPal buttons rendered');
+                }).catch(function(err) {
+                    console.error('PayPal render error:', err);
+                    document.getElementById('paypal-button-container').innerHTML =
+                        '<p style="color:#ff0044;text-align:center;">❌ PayPal failed to render. <a href="javascript:location.reload()" style="color:#a855f7;text-decoration:underline;">Reload</a></p>';
+                });
+            };
+
+            s.onerror = function() {
+                console.error('❌ PayPal SDK failed to load');
+                document.getElementById('paypal-button-container').innerHTML =
+                    '<p style="color:#ff0044;text-align:center;">❌ PayPal failed to load. <a href="javascript:location.reload()" style="color:#a855f7;text-decoration:underline;">Reload</a></p>';
+            };
+
+            document.head.appendChild(s);
+        })();
+
+        // ══════════════════════════════════════════════
+        //  STRIPE CHECKOUT
+        // ══════════════════════════════════════════════
         document.getElementById('stripe-button').addEventListener('click', async function() {
             if (!validateForm()) return;
-            alert('Stripe requires backend setup. Please use PayPal for now!');
+
+            var type = document.getElementById('adType').value;
+            var duration = document.getElementById('adDuration').value;
+            var priceId = STRIPE_PRICE_IDS[type + '_' + duration];
+
+            if (!priceId) {
+                alert(
+                    'Stripe is not fully set up yet.\n\n' +
+                    'To enable credit card payments:\n' +
+                    '1. Go to Stripe Dashboard → Products\n' +
+                    '2. Create a product for each ad type + duration\n' +
+                    '3. Copy each Price ID (price_XXXX) into the\n' +
+                    '   STRIPE_PRICE_IDS object in buy-ad.html\n\n' +
+                    'Please use PayPal for now!'
+                );
+                return;
+            }
+
+            this.disabled = true;
+            this.textContent = '⏳ Redirecting to Stripe...';
+
+            try {
+                // Store ad info for after redirect
+                localStorage.setItem('8bfr_pending_ad', JSON.stringify({
+                    title: document.getElementById('adTitle').value.trim(),
+                    link_url: document.getElementById('adLink').value.trim(),
+                    ad_type: type,
+                    duration_days: parseInt(duration),
+                    amount_paid: finalPrice,
+                    discount_code: discountData ? discountData.code : null
+                }));
+
+                var result = await stripe.redirectToCheckout({
+                    lineItems: [{ price: priceId, quantity: 1 }],
+                    mode: 'payment',
+                    successUrl: window.location.origin + '/ad-success.html?session_id={CHECKOUT_SESSION_ID}',
+                    cancelUrl: window.location.href
+                });
+                if (result.error) {
+                    alert('Stripe error: ' + result.error.message);
+                }
+            } catch (err) {
+                console.error('Stripe error:', err);
+                alert('Error connecting to Stripe. Please try PayPal.');
+            }
+
+            this.disabled = false;
+            this.textContent = '💳 Pay with Credit Card (Stripe)';
         });
-        
+
+        // ── Init ──
         updatePrice();
     </script>
 </body>
