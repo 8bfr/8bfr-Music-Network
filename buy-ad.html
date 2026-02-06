@@ -6,19 +6,25 @@
     <title>Buy an Ad - 8BFR Music Network</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- PayPal SDK - LIVE MODE -->
+    <!-- PayPal SDK -->
     <script src="https://www.paypal.com/sdk/js?client-id=AWx0LwdZ_sCyCE5gEj9mL1ha7ZbG_eZLE_R636KjLXFMV1pOfmGwNg9prM5kVKQspvnpNLJDZxPp100G&currency=USD"></script>
+    <!-- Stripe SDK -->
+    <script src="https://js.stripe.com/v3/"></script>
     <style>
         body {
             background: linear-gradient(#0b0014, #000);
             color: #eae6ff;
             font-family: system-ui, sans-serif;
+            min-height: 100vh;
+            padding: 2rem 1rem;
         }
         .card {
             background: rgba(12, 6, 24, 0.8);
             border: 1px solid rgba(124, 58, 237, 0.4);
             border-radius: 16px;
             padding: 2rem;
+            max-width: 600px;
+            margin: 0 auto;
         }
         input, select, textarea {
             width: 100%;
@@ -37,9 +43,17 @@
             border: none;
             cursor: pointer;
             font-weight: 600;
+            width: 100%;
+            margin-bottom: 0.75rem;
         }
         .btn:hover {
             background: #6d28d9;
+        }
+        .btn-stripe {
+            background: #635bff;
+        }
+        .btn-stripe:hover {
+            background: #5145e5;
         }
         .price-display {
             background: rgba(124, 58, 237, 0.2);
@@ -48,80 +62,112 @@
             border-radius: 8px;
             margin: 1rem 0;
         }
-        .discount-applied {
-            color: #00ff88;
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #a855f7;
             font-weight: 600;
         }
-        .original-price {
-            text-decoration: line-through;
+        .back-link {
             color: #a855f7;
-            opacity: 0.6;
+            text-decoration: none;
+            display: inline-block;
+            margin-bottom: 1rem;
+        }
+        .back-link:hover {
+            color: #c084fc;
+        }
+        #paypal-button-container {
+            margin-bottom: 0.75rem;
+        }
+        .divider {
+            text-align: center;
+            margin: 1rem 0;
+            color: #a855f7;
+            font-size: 0.9rem;
         }
     </style>
 </head>
 <body>
-    <div class="max-w-2xl mx-auto p-6">
-        <a href="index.html" style="color: #a855f7; text-decoration: none; display: inline-block; margin-bottom: 1rem;">← Back to Home</a>
+    <div class="card">
+        <a href="index.html" class="back-link">← Back to Home</a>
         
-        <h1 class="text-3xl font-bold mb-6" style="color: #7c3aed;">Buy an Ad on 8BFR</h1>
+        <h1 style="font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; color: #7c3aed;">Buy Ad Space</h1>
+        <p style="color: #a855f7; margin-bottom: 2rem;">Reach thousands of music creators and fans</p>
         
-        <div class="card">
-            <h2 class="text-xl font-bold mb-4">Ad Details</h2>
+        <form id="adForm">
+            <div>
+                <label for="adTitle">Ad Title *</label>
+                <input type="text" id="adTitle" required placeholder="Your ad headline">
+            </div>
             
-            <label class="block mb-2 font-semibold">Ad Title</label>
-            <input type="text" id="adTitle" placeholder="Your business name or promotion" maxlength="50">
+            <div>
+                <label for="adLink">Website Link *</label>
+                <input type="url" id="adLink" required placeholder="https://yoursite.com">
+            </div>
             
-            <label class="block mb-2 font-semibold">Destination Link</label>
-            <input type="url" id="adLink" placeholder="https://yourwebsite.com">
+            <div>
+                <label for="adImage">Ad Image * (1200x600px recommended, max 5MB)</label>
+                <input type="file" id="adImage" accept="image/*" required>
+            </div>
             
-            <label class="block mb-2 font-semibold">Ad Image (1200x600px recommended)</label>
-            <input type="file" id="adImage" accept="image/*" style="padding: 0.5rem;">
-            <p class="text-xs text-purple-300 mb-4">Max file size: 5MB. Formats: JPG, PNG, WebP</p>
+            <div>
+                <label for="adType">Ad Type *</label>
+                <select id="adType" onchange="updatePrice()">
+                    <option value="carousel">Carousel Ad</option>
+                    <option value="featured">Featured Ad</option>
+                </select>
+            </div>
             
-            <label class="block mb-2 font-semibold">Ad Type</label>
-            <select id="adType" onchange="updatePrice()">
-                <option value="carousel">Carousel Ad (rotates with others)</option>
-                <option value="featured">Featured Spot (premium placement)</option>
-            </select>
+            <div>
+                <label for="adDuration">Duration *</label>
+                <select id="adDuration" onchange="updatePrice()">
+                    <option value="7">7 Days</option>
+                    <option value="14">14 Days</option>
+                    <option value="30">30 Days</option>
+                </select>
+            </div>
             
-            <label class="block mb-2 font-semibold">Duration</label>
-            <select id="adDuration" onchange="updatePrice()">
-                <option value="7">7 Days</option>
-                <option value="14">14 Days</option>
-                <option value="30">30 Days</option>
-            </select>
+            <div>
+                <label for="discountCode">Discount Code (optional)</label>
+                <div style="display: flex; gap: 0.5rem;">
+                    <input type="text" id="discountCode" placeholder="Enter code">
+                    <button type="button" onclick="applyDiscount()" class="btn" style="width: auto; padding: 0.75rem 1rem;">Apply</button>
+                </div>
+                <p id="discountMessage" style="margin-top: 0.5rem; font-size: 0.9rem;"></p>
+            </div>
             
             <div class="price-display">
-                <div class="flex justify-between items-center mb-2">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
                     <span>Base Price:</span>
-                    <span id="basePrice" class="text-xl font-bold">$5.00</span>
+                    <span id="basePrice">$5.00</span>
                 </div>
-                <div id="discountSection" style="display: none;">
-                    <div class="flex justify-between items-center mb-2">
-                        <span>Discount:</span>
-                        <span id="discountAmount" class="discount-applied">-$0.00</span>
-                    </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; color: #00ff88;" id="discountRow" hidden>
+                    <span>Discount:</span>
+                    <span id="discountAmount">-$0.00</span>
                 </div>
-                <hr style="border-color: rgba(124, 58, 237, 0.4); margin: 1rem 0;">
-                <div class="flex justify-between items-center">
-                    <span class="text-lg font-bold">Total:</span>
-                    <span id="finalPrice" class="text-2xl font-bold" style="color: #00ff88;">$5.00</span>
+                <div style="display: flex; justify-content: space-between; border-top: 1px solid rgba(124, 58, 237, 0.4); padding-top: 0.5rem; font-size: 1.25rem; font-weight: 700;">
+                    <span>Total:</span>
+                    <span id="finalPrice">$5.00</span>
                 </div>
             </div>
             
-            <label class="block mb-2 font-semibold">Discount Code (Optional)</label>
-            <div class="flex gap-2 mb-4">
-                <input type="text" id="discountCode" placeholder="Enter code" style="margin-bottom: 0;">
-                <button class="btn" onclick="applyDiscount()" style="white-space: nowrap;">Apply</button>
-            </div>
-            <p id="discountMessage" class="text-sm" style="margin-top: -0.5rem; margin-bottom: 1rem;"></p>
+            <p style="color: #a855f7; font-size: 0.9rem; margin-bottom: 1rem; font-weight: 600;">Choose Payment Method:</p>
             
+            <!-- PayPal Button -->
             <div id="paypal-button-container"></div>
             
-            <p class="text-xs text-purple-300 mt-4">
-                After payment, your ad will be reviewed by our team within 24 hours. You'll be notified when it goes live.
-            </p>
-        </div>
+            <div class="divider">OR</div>
+            
+            <!-- Stripe Button -->
+            <button type="button" id="stripe-button" class="btn btn-stripe">
+                💳 Pay with Credit Card (Stripe)
+            </button>
+        </form>
+        
+        <p style="margin-top: 1rem; font-size: 0.8rem; color: #a855f7; text-align: center;">
+            Your ad will be reviewed within 24 hours
+        </p>
     </div>
 
     <script>
@@ -129,31 +175,35 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
+        const stripe = Stripe('pk_live_51OkBOuEvK9FbOwLilOaOLSHSLx47wT1q7T6xiMuODRF2j4a2DM0BHI16A5z8ovscAfhv83l7d1OFPbUjehHtQIeH00RwDCQ0I1');
+        
         // Pricing structure
-        const basePrices = {
-            carousel: { 7: 5.00, 14: 8.00, 30: 12.00 },
-            featured: { 7: 10.00, 14: 18.00, 30: 30.00 }
+        const PRICES = {
+            carousel: { 7: 5, 14: 8, 30: 12 },
+            featured: { 7: 10, 14: 18, 30: 30 }
         };
         
-        let originalPrice = 5.00;
-        let finalPrice = 5.00;
         let discountData = null;
-        let uploadedImageUrl = null;
+        let finalPrice = 5;
         
         function updatePrice() {
             const type = document.getElementById('adType').value;
-            const duration = parseInt(document.getElementById('adDuration').value);
+            const duration = document.getElementById('adDuration').value;
+            const basePrice = PRICES[type][duration];
             
-            originalPrice = basePrices[type][duration];
-            finalPrice = originalPrice;
+            finalPrice = basePrice;
             
-            // Reapply discount if one was applied
             if (discountData) {
-                const discount = parseFloat(discountData.discount_amount || 0);
-                finalPrice = Math.max(0, originalPrice - discount);
+                const discountAmount = parseFloat(discountData.amount);
+                finalPrice = Math.max(0, basePrice - discountAmount);
+                
+                document.getElementById('discountRow').hidden = false;
+                document.getElementById('discountAmount').textContent = '-$' + discountAmount.toFixed(2);
+            } else {
+                document.getElementById('discountRow').hidden = true;
             }
             
-            document.getElementById('basePrice').textContent = '$' + originalPrice.toFixed(2);
+            document.getElementById('basePrice').textContent = '$' + basePrice.toFixed(2);
             document.getElementById('finalPrice').textContent = '$' + finalPrice.toFixed(2);
         }
         
@@ -162,7 +212,7 @@
             const msgEl = document.getElementById('discountMessage');
             
             if (!code) {
-                msgEl.textContent = 'Please enter a discount code';
+                msgEl.textContent = 'Please enter a code';
                 msgEl.style.color = '#ff0044';
                 return;
             }
@@ -175,28 +225,23 @@
                     .single();
                 
                 if (error || !data) {
-                    msgEl.textContent = '❌ Invalid discount code';
+                    msgEl.textContent = '❌ Invalid code';
                     msgEl.style.color = '#ff0044';
                     discountData = null;
-                    document.getElementById('discountSection').style.display = 'none';
                     updatePrice();
                     return;
                 }
                 
-                // Check if max uses reached
                 if (data.max_uses && data.uses >= data.max_uses) {
-                    msgEl.textContent = '❌ This code has been fully used';
+                    msgEl.textContent = '❌ Code expired';
                     msgEl.style.color = '#ff0044';
+                    discountData = null;
+                    updatePrice();
                     return;
                 }
                 
-                const discount = parseFloat(data.discount_amount || 0);
-                finalPrice = Math.max(0, originalPrice - discount);
                 discountData = data;
-                
-                document.getElementById('discountAmount').textContent = '-$' + discount.toFixed(2);
-                document.getElementById('finalPrice').textContent = '$' + finalPrice.toFixed(2);
-                document.getElementById('discountSection').style.display = 'block';
+                updatePrice();
                 
                 msgEl.textContent = '✓ Discount applied!';
                 msgEl.style.color = '#00ff88';
@@ -207,19 +252,64 @@
             }
         }
         
-        // PayPal integration
+        function validateForm() {
+            const title = document.getElementById('adTitle').value.trim();
+            const link = document.getElementById('adLink').value.trim();
+            const image = document.getElementById('adImage').files[0];
+            
+            if (!title || !link || !image) {
+                alert('Please fill in all required fields');
+                return false;
+            }
+            return true;
+        }
+        
+        async function saveAdToDatabase(paymentMethod, paymentId) {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                
+                const adData = {
+                    user_id: user?.id || null,
+                    title: document.getElementById('adTitle').value.trim(),
+                    link_url: document.getElementById('adLink').value.trim(),
+                    ad_type: document.getElementById('adType').value,
+                    duration_days: parseInt(document.getElementById('adDuration').value),
+                    amount_paid: finalPrice,
+                    payment_method: paymentMethod,
+                    payment_id: paymentId,
+                    status: 'pending',
+                    created_at: new Date().toISOString(),
+                    expires_at: new Date(Date.now() + (parseInt(document.getElementById('adDuration').value) * 24 * 60 * 60 * 1000)).toISOString()
+                };
+                
+                const { error } = await supabase.from('ads').insert(adData);
+                
+                if (error) {
+                    console.error('Database error:', error);
+                    alert('Payment successful but error saving ad. Contact support with payment ID: ' + paymentId);
+                } else {
+                    // Update discount code usage
+                    if (discountData) {
+                        await supabase
+                            .from('discount_codes')
+                            .update({ uses: (discountData.uses || 0) + 1 })
+                            .eq('code', discountData.code);
+                    }
+                    
+                    alert('✓ Payment successful! Your ad is pending approval. Payment ID: ' + paymentId);
+                    window.location.href = 'index.html';
+                }
+            } catch (err) {
+                console.error('Error:', err);
+                alert('Payment successful but error occurred. Contact support.');
+            }
+        }
+        
+        // PayPal Button
         if (window.paypal) {
             paypal.Buttons({
                 createOrder: function(data, actions) {
-                    // Validate form
-                    const title = document.getElementById('adTitle').value.trim();
-                    const link = document.getElementById('adLink').value.trim();
-                    const image = document.getElementById('adImage').files[0];
-                    
-                    if (!title || !link || !image) {
-                        alert('Please fill in all fields and upload an image');
-                        return;
-                    }
+                    if (!validateForm()) return;
                     
                     return actions.order.create({
                         purchase_units: [{
@@ -232,55 +322,38 @@
                 },
                 onApprove: async function(data, actions) {
                     const orderDetails = await actions.order.capture();
-                    
-                    // Upload image to Supabase Storage (you'll need to set this up)
-                    const imageFile = document.getElementById('adImage').files[0];
-                    const fileName = 'ad_' + Date.now() + '_' + imageFile.name;
-                    
-                    // For now, we'll just save the ad data
-                    // TODO: Upload image to Supabase Storage and get URL
-                    
-                    const { data: { user } } = await supabase.auth.getUser();
-                    
-                    const adData = {
-                        user_id: user?.id || null,
-                        title: document.getElementById('adTitle').value.trim(),
-                        link_url: document.getElementById('adLink').value.trim(),
-                        content: 'Ad purchased via PayPal',
-                        status: 'pending',
-                        // image_url will be added after upload is implemented
-                        created_at: new Date().toISOString()
-                    };
-                    
-                    const { error } = await supabase.from('ads').insert(adData);
-                    
-                    if (error) {
-                        alert('Payment successful but there was an error saving your ad. Please contact support with order ID: ' + orderDetails.id);
-                        console.error(error);
-                    } else {
-                        // Update discount code usage if one was used
-                        if (discountData) {
-                            await supabase
-                                .from('discount_codes')
-                                .update({ uses: (discountData.uses || 0) + 1 })
-                                .eq('code', discountData.code);
-                        }
-                        
-                        alert('✓ Payment successful! Your ad is pending approval. Order ID: ' + orderDetails.id);
-                        window.location.href = 'index.html';
-                    }
+                    await saveAdToDatabase('paypal', orderDetails.id);
                 },
                 onError: function(err) {
                     alert('Payment error. Please try again.');
                     console.error(err);
                 }
             }).render('#paypal-button-container');
-        } else {
-            document.getElementById('paypal-button-container').innerHTML = 
-                '<p style="color: #ff0044;">PayPal SDK not loaded. Please check your internet connection.</p>';
         }
         
-        // Initialize price
+        // Stripe Button
+        document.getElementById('stripe-button').addEventListener('click', async function() {
+            if (!validateForm()) return;
+            
+            // For now, redirect to Stripe Checkout
+            // You'll need to create a Stripe Checkout session on your backend
+            alert('Stripe integration requires backend setup. For now, please use PayPal. We\'ll add full Stripe support soon!');
+            
+            // TODO: Call your backend to create Stripe Checkout session
+            // const response = await fetch('/create-checkout-session', {
+            //     method: 'POST',
+            //     headers: { 'Content-Type': 'application/json' },
+            //     body: JSON.stringify({
+            //         amount: finalPrice * 100, // Stripe uses cents
+            //         title: document.getElementById('adTitle').value,
+            //         duration: document.getElementById('adDuration').value
+            //     })
+            // });
+            // const session = await response.json();
+            // stripe.redirectToCheckout({ sessionId: session.id });
+        });
+        
+        // Initialize
         updatePrice();
     </script>
 </body>
