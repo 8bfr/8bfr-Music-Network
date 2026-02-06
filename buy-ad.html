@@ -308,32 +308,40 @@
             }
         }
         
-        // EXACT SAME PAYPAL RENDERING FROM DEBUG VERSION
-        if (window.paypal) {
-            paypal.Buttons({
-                createOrder: function(data, actions) {
-                    if (!validateForm()) {
-                        return Promise.reject();
+        // Wait for PayPal SDK to load before rendering buttons
+        function initPayPalButton() {
+            if (window.paypal) {
+                paypal.Buttons({
+                    createOrder: function(data, actions) {
+                        if (!validateForm()) {
+                            return Promise.reject();
+                        }
+                        return actions.order.create({
+                            purchase_units: [{
+                                amount: {
+                                    value: finalPrice.toFixed(2)
+                                },
+                                description: 'Ad on 8BFR Music Network - ' + document.getElementById('adDuration').value + ' days'
+                            }]
+                        });
+                    },
+                    onApprove: function(data, actions) {
+                        return actions.order.capture().then(async function(details) {
+                            await saveAdToDatabase('paypal', details.id);
+                        });
+                    },
+                    onError: function(err) {
+                        alert('Payment error: ' + err);
                     }
-                    return actions.order.create({
-                        purchase_units: [{
-                            amount: {
-                                value: finalPrice.toFixed(2)
-                            },
-                            description: 'Ad on 8BFR Music Network - ' + document.getElementById('adDuration').value + ' days'
-                        }]
-                    });
-                },
-                onApprove: function(data, actions) {
-                    return actions.order.capture().then(async function(details) {
-                        await saveAdToDatabase('paypal', details.id);
-                    });
-                },
-                onError: function(err) {
-                    alert('Payment error: ' + err);
-                }
-            }).render('#paypal-button-container');
+                }).render('#paypal-button-container');
+            } else {
+                // Retry if PayPal hasn't loaded yet
+                setTimeout(initPayPalButton, 100);
+            }
         }
+        
+        // Start initialization
+        initPayPalButton();
         
         // Stripe Button
         document.getElementById('stripe-button').addEventListener('click', async function() {
