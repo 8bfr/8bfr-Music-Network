@@ -1,0 +1,312 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>All Ads - 8BFR Music Network</title>
+  <meta name="description" content="Browse all active ads on 8BFR Music Network." />
+  <link rel="icon" href="assets/images/favicon.png" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(124,58,237,.35), transparent 60%),
+        radial-gradient(900px 400px at 110% 10%, rgba(0,217,255,.22), transparent 60%),
+        linear-gradient(#0b0014,#000);
+      color: #eae6ff;
+      margin: 0;
+      min-height: 100vh;
+    }
+    .page-shell {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 2.5rem;
+    }
+    .section-card {
+      border-radius: 16px;
+      border: 1px solid rgba(124,58,237,.35);
+      background: #0c0618;
+      box-shadow: 0 0 24px rgba(124,58,237,.20);
+    }
+    .btn {
+      display: inline-block;
+      background: #120327;
+      border: 1px solid rgba(124,58,237,.6);
+      color: #eae6ff;
+      padding: .55rem .9rem;
+      border-radius: .75rem;
+      text-decoration: none;
+      font-size: .9rem;
+    }
+    .btn:hover { background: #190536; }
+    .btn-primary {
+      background: #7c3aed;
+      border-color: #7c3aed;
+      color: #fff;
+    }
+    .btn-primary:hover { filter: brightness(1.05); }
+    .ad-card {
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid rgba(124,58,237,.4);
+      background: #050008;
+      transition: all 0.3s;
+    }
+    .ad-card:hover {
+      border-color: rgba(124,58,237,.7);
+      box-shadow: 0 0 20px rgba(124,58,237,.3);
+    }
+    .ad-card img {
+      display: block;
+      width: 100%;
+      height: auto;
+      max-height: 400px;
+      object-fit: contain;
+      background: #050008;
+    }
+    .ad-card-info {
+      padding: 1rem;
+      border-top: 1px solid rgba(124,58,237,.2);
+    }
+    .badge-featured {
+      display: inline-block;
+      background: rgba(124,58,237,0.3);
+      border: 1px solid #7c3aed;
+      color: #c084fc;
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .badge-main {
+      display: inline-block;
+      background: rgba(0,217,255,0.15);
+      border: 1px solid rgba(0,217,255,0.4);
+      color: #00d9ff;
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .time-left {
+      font-size: 0.75rem;
+      color: #a855f7;
+      opacity: 0.8;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: #a855f7;
+      opacity: 0.7;
+    }
+    .empty-state .icon {
+      font-size: 3rem;
+      margin-bottom: 0.75rem;
+    }
+    .loading {
+      text-align: center;
+      padding: 3rem;
+      color: #a855f7;
+    }
+    .loading .spinner {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      border: 3px solid #a855f7;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 0.5rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <header class="border-b border-purple-500/50 bg-black/60 backdrop-blur">
+    <div class="max-w-5xl mx-auto flex items-center justify-between px-4 py-3 gap-3">
+      <div class="flex items-center gap-2">
+        <a href="index.html">
+          <img src="assets/images/logo_8bfr.svg"
+               onerror="this.onerror=null;this.src='assets/images/8bfr.png'"
+               alt="8BFR logo"
+               class="h-9 w-auto" />
+        </a>
+        <div>
+          <div class="text-sm font-semibold uppercase tracking-widest text-purple-200/80">All Ads</div>
+          <div class="text-xs text-purple-200/70 -mt-1">Active ads on 8BFR Music Network</div>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <a href="buy-ad.html" class="btn btn-primary text-xs">Buy an Ad</a>
+        <a href="index.html" class="btn text-xs">Home</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-shell">
+
+    <!-- Featured Ads Section -->
+    <section class="mb-8">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-2xl font-bold flex items-center gap-2">
+          &#9733; Featured Ads
+        </h2>
+        <span class="text-xs text-purple-300/60" id="featuredCount"></span>
+      </div>
+      <div id="featuredLoading" class="loading section-card">
+        <div class="spinner"></div>
+        <div>Loading featured ads...</div>
+      </div>
+      <div id="featuredAds" class="space-y-4" style="display:none;"></div>
+      <div id="featuredEmpty" class="section-card empty-state" style="display:none;">
+        <div class="icon">&#9733;</div>
+        <div style="font-size: 1rem; margin-bottom: 0.25rem;">No featured ads running right now</div>
+        <div style="font-size: 0.85rem;">Want premium placement on the home page?</div>
+        <a href="buy-ad.html" class="btn btn-primary text-xs" style="margin-top: 1rem;">Buy a Featured Ad</a>
+      </div>
+    </section>
+
+    <!-- Main / Other Ads Section -->
+    <section class="mb-8">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-2xl font-bold flex items-center gap-2">
+          &#9654; Ads
+        </h2>
+        <span class="text-xs text-purple-300/60" id="mainCount"></span>
+      </div>
+      <div id="mainLoading" class="loading section-card">
+        <div class="spinner"></div>
+        <div>Loading ads...</div>
+      </div>
+      <div id="mainAds" class="space-y-4" style="display:none;"></div>
+      <div id="mainEmpty" class="section-card empty-state" style="display:none;">
+        <div class="icon">&#128226;</div>
+        <div style="font-size: 1rem; margin-bottom: 0.25rem;">No ads running right now</div>
+        <div style="font-size: 0.85rem;">Be the first to advertise on 8BFR!</div>
+        <a href="buy-ad.html" class="btn btn-primary text-xs" style="margin-top: 1rem;">Buy an Ad</a>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="section-card p-5 text-center">
+      <h3 class="text-lg font-bold mb-2">Want your ad here?</h3>
+      <p class="text-sm text-purple-200/80 mb-4">Reach thousands of music creators and fans on 8BFR Music Network.</p>
+      <div class="flex justify-center gap-3 flex-wrap">
+        <a href="buy-ad.html" class="btn btn-primary">Buy an Ad</a>
+        <a href="ads.html#how" class="btn">How Ads Work</a>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+  (async function() {
+    var SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+    var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+    var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    function timeLeft(expiresAt) {
+      var now = new Date();
+      var exp = new Date(expiresAt);
+      var diff = exp - now;
+      if (diff <= 0) return 'Expired';
+      var days = Math.floor(diff / 86400000);
+      var hours = Math.floor((diff % 86400000) / 3600000);
+      if (days > 0) return days + 'd ' + hours + 'h left';
+      return hours + 'h left';
+    }
+
+    function buildAdCard(ad) {
+      var isFeatured = ad.ad_type === 'featured';
+      var tl = timeLeft(ad.expires_at);
+      var card = document.createElement('a');
+      card.href = ad.link_url || '#';
+      card.target = '_blank';
+      card.rel = 'noopener';
+      card.className = 'ad-card block';
+
+      var imgSrc = ad.image_url || 'assets/images/ad_banner_1.jpg';
+
+      card.innerHTML =
+        '<img src="' + imgSrc + '" alt="' + (ad.title || 'Ad') + '">' +
+        '<div class="ad-card-info">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;flex-wrap:wrap;">' +
+            '<div>' +
+              '<span class="' + (isFeatured ? 'badge-featured' : 'badge-main') + '">' +
+                (isFeatured ? 'Featured' : 'Ad') +
+              '</span>' +
+              ' <span style="font-weight:700;margin-left:0.5rem;">' + (ad.title || 'Sponsored Ad') + '</span>' +
+            '</div>' +
+            '<span class="time-left">' + tl + '</span>' +
+          '</div>' +
+        '</div>';
+
+      return card;
+    }
+
+    try {
+      var now = new Date().toISOString();
+
+      var res = await sb
+        .from('ads')
+        .select('*')
+        .eq('status', 'approved')
+        .gte('expires_at', now)
+        .order('created_at', { ascending: false });
+
+      var ads = (res.data || []);
+      var featured = [];
+      var main = [];
+
+      ads.forEach(function(ad) {
+        if (ad.ad_type === 'featured') {
+          featured.push(ad);
+        } else {
+          main.push(ad);
+        }
+      });
+
+      // Featured section
+      document.getElementById('featuredLoading').style.display = 'none';
+      if (featured.length > 0) {
+        var featuredContainer = document.getElementById('featuredAds');
+        featuredContainer.style.display = 'block';
+        document.getElementById('featuredCount').textContent = featured.length + ' active';
+        featured.forEach(function(ad) {
+          featuredContainer.appendChild(buildAdCard(ad));
+        });
+      } else {
+        document.getElementById('featuredEmpty').style.display = 'block';
+      }
+
+      // Main section
+      document.getElementById('mainLoading').style.display = 'none';
+      if (main.length > 0) {
+        var mainContainer = document.getElementById('mainAds');
+        mainContainer.style.display = 'block';
+        document.getElementById('mainCount').textContent = main.length + ' active';
+        main.forEach(function(ad) {
+          mainContainer.appendChild(buildAdCard(ad));
+        });
+      } else {
+        document.getElementById('mainEmpty').style.display = 'block';
+      }
+
+    } catch (err) {
+      console.error('Error loading ads:', err);
+      document.getElementById('featuredLoading').innerHTML = '<div style="color:#ff0044;">Error loading ads. Please reload.</div>';
+      document.getElementById('mainLoading').innerHTML = '<div style="color:#ff0044;">Error loading ads. Please reload.</div>';
+    }
+  })();
+  </script>
+
+  <script src="scripts.js?v=8" defer></script>
+</body>
+</html>
