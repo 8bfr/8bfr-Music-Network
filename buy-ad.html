@@ -193,7 +193,7 @@
             finalPrice = basePrice;
             if (discountData) {
                 var amt = parseFloat(discountData.discount_amount || 0);
-                finalPrice = Math.max(0, basePrice - amt);
+                if (amt >= basePrice) { finalPrice = 0; } else { finalPrice = basePrice - amt; }
                 document.getElementById('discountRow').hidden = false;
                 document.getElementById('discountAmount').textContent = '-$' + amt.toFixed(2);
             } else {
@@ -201,6 +201,42 @@
             }
             document.getElementById('basePrice').textContent = '$' + basePrice.toFixed(2);
             document.getElementById('finalPrice').textContent = '$' + finalPrice.toFixed(2);
+
+            var ppContainer = document.getElementById('paypal-button-container');
+            var ppStat = document.getElementById('paypal-status');
+            var stripeBtn = document.getElementById('stripe-button');
+            var freeBtn = document.getElementById('free-btn');
+
+            if (finalPrice <= 0 && discountData) {
+                if (ppContainer) ppContainer.style.display = 'none';
+                if (ppStat) ppStat.style.display = 'none';
+                if (stripeBtn) stripeBtn.style.display = 'none';
+                if (!freeBtn) {
+                    var b = document.createElement('button');
+                    b.id = 'free-btn';
+                    b.type = 'button';
+                    b.className = 'btn';
+                    b.style.background = '#00ff88';
+                    b.style.color = '#000';
+                    b.style.fontSize = '1.1rem';
+                    b.textContent = 'Claim Free Ad';
+                    b.addEventListener('click', function() {
+                        var title = document.getElementById('adTitle').value.trim();
+                        var link = document.getElementById('adLink').value.trim();
+                        var image = document.getElementById('adImage').files[0];
+                        if (!title || !link || !image) { alert('Please fill in all required fields'); return; }
+                        b.disabled = true;
+                        b.textContent = 'Submitting...';
+                        saveAdToDatabase('free_coupon', 'FREE-' + discountData.code);
+                    });
+                    ppContainer.parentNode.insertBefore(b, ppContainer);
+                }
+            } else {
+                if (ppContainer) ppContainer.style.display = '';
+                if (ppStat) ppStat.style.display = '';
+                if (stripeBtn) stripeBtn.style.display = '';
+                if (freeBtn) freeBtn.remove();
+            }
         }
 
         document.getElementById('adType').addEventListener('change', updatePrice);
