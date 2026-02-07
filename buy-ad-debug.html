@@ -1,47 +1,25 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buy an Ad - 8BFR Music Network (DEBUG)</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://js.stripe.com/v3/"></script>
+    <title>8BFR Payment Debug</title>
     <style>
         body {
-            background: linear-gradient(#0b0014, #000);
+            background: #0b0014;
             color: #eae6ff;
             font-family: system-ui, sans-serif;
             min-height: 100vh;
-            padding: 2rem 1rem;
+            padding: 1rem;
         }
         .card {
             background: rgba(12, 6, 24, 0.8);
             border: 1px solid rgba(124, 58, 237, 0.4);
             border-radius: 16px;
-            padding: 2rem;
+            padding: 1.5rem;
             max-width: 600px;
             margin: 0 auto;
-        }
-        input, select, textarea {
-            width: 100%;
-            padding: 0.75rem;
-            background: #0b0014;
-            border: 1px solid rgba(124, 58, 237, 0.4);
-            border-radius: 8px;
-            color: #eae6ff;
-            margin-bottom: 1rem;
-        }
-        .btn {
-            background: #7c3aed;
-            color: white;
-            padding: 0.75rem 1.5rem;
-            border-radius: 8px;
-            border: none;
-            cursor: pointer;
-            font-weight: 600;
-            width: 100%;
-            margin-bottom: 0.75rem;
         }
         .debug-box {
             background: rgba(0, 255, 136, 0.1);
@@ -50,129 +28,220 @@
             border-radius: 8px;
             margin: 1rem 0;
             font-family: monospace;
-            font-size: 0.85rem;
+            font-size: 0.75rem;
+            max-height: 300px;
+            overflow-y: auto;
+            word-break: break-all;
         }
+        .debug-box .ok { color: #00ff88; }
+        .debug-box .err { color: #ff0044; }
+        .debug-box .warn { color: #fbbf24; }
+        .debug-box .info { color: #a855f7; }
         #paypal-button-container {
-            margin-bottom: 0.75rem;
+            margin: 1rem 0;
             min-height: 50px;
             border: 2px dashed #00ff88;
-            padding: 1rem;
+            padding: 0.5rem;
         }
+        #stripe-test {
+            margin: 1rem 0;
+            min-height: 50px;
+            border: 2px dashed #635bff;
+            padding: 0.5rem;
+        }
+        button {
+            background: #7c3aed;
+            color: white;
+            padding: 0.6rem 1rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        h1 { color: #00ff88; font-size: 1.3rem; margin-bottom: 0.5rem; }
+        h2 { color: #a855f7; font-size: 1rem; margin: 1rem 0 0.5rem; }
     </style>
 </head>
 <body>
     <div class="card">
-        <h1 style="color: #00ff88; margin-bottom: 1rem;">🔍 DEBUG MODE - PayPal Test</h1>
-        
+        <h1>&#128269; Payment Debug Page</h1>
+        <p style="font-size:0.8rem;color:#a855f7;margin-bottom:1rem;">This shows exactly what's happening with PayPal and Stripe</p>
+
         <div class="debug-box" id="debugLog">
-            <div>📋 DEBUG LOG:</div>
-            <div id="logContent"></div>
+            <div style="color:#00ff88;font-weight:bold;">DEBUG LOG:</div>
         </div>
-        
-        <h2 style="margin: 1rem 0;">PayPal Button Should Appear Below:</h2>
+
+        <h2>PayPal Button:</h2>
         <div id="paypal-button-container">
-            <p style="color: #ff0044;">⏳ Waiting for PayPal...</p>
+            <p style="color:#fbbf24;font-size:0.8rem;">Waiting...</p>
         </div>
-        
-        <button onclick="window.location.reload()" style="background: #ff0044; color: white; padding: 0.75rem; border: none; border-radius: 8px; cursor: pointer; width: 100%;">
-            🔄 Refresh Page
-        </button>
+
+        <h2>Stripe Test:</h2>
+        <div id="stripe-test">
+            <p style="color:#fbbf24;font-size:0.8rem;">Waiting...</p>
+        </div>
+
+        <button onclick="window.location.reload()">&#128260; Reload Page</button>
+        <button onclick="copyLog()" style="background:#00ff88;color:#000;">&#128203; Copy Log</button>
     </div>
 
-    <!-- PayPal SDK -->
-    <script src="https://www.paypal.com/sdk/js?client-id=AWx0LwdZ_sCyCE5gEj9mL1ha7ZbG_eZLE_R636KjLXFMV1pOfmGwNg9prM5kVKQspvnpNLJDZxPp100G&currency=USD"></script>
-    
     <script>
-        const logDiv = document.getElementById('logContent');
-        
-        function log(msg) {
-            const timestamp = new Date().toLocaleTimeString();
-            const line = document.createElement('div');
-            line.textContent = `[${timestamp}] ${msg}`;
+        var logDiv = document.getElementById('debugLog');
+        var allLogs = [];
+
+        function log(msg, type) {
+            var t = new Date().toLocaleTimeString();
+            var cls = type || 'info';
+            var line = document.createElement('div');
+            line.className = cls;
+            line.textContent = '[' + t + '] ' + msg;
             logDiv.appendChild(line);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            allLogs.push('[' + t + '] ' + msg);
             console.log(msg);
         }
-        
-        log('🚀 Page loaded');
-        log('📍 Script starting...');
-        
-        // Check if PayPal script tag exists
-        const paypalScript = document.querySelector('script[src*="paypal.com"]');
-        log(paypalScript ? '✅ PayPal script tag found in DOM' : '❌ PayPal script tag NOT found');
-        
-        // Immediate check
-        log('Checking window.paypal immediately...');
-        log('window.paypal = ' + (window.paypal ? 'EXISTS ✅' : 'DOES NOT EXIST ❌'));
-        
-        let attempts = 0;
-        const maxAttempts = 50;
-        
-        function tryRenderPayPal() {
-            attempts++;
-            log(`Attempt ${attempts}/${maxAttempts}: Checking for PayPal...`);
-            
-            if (window.paypal) {
-                log('🎉 PayPal SDK FOUND!');
-                log('PayPal object: ' + JSON.stringify(Object.keys(window.paypal)));
-                
-                try {
-                    log('Attempting to render PayPal button...');
-                    
-                    paypal.Buttons({
-                        createOrder: function(data, actions) {
-                            log('createOrder called');
-                            return actions.order.create({
-                                purchase_units: [{
-                                    amount: { value: '10.00' }
-                                }]
-                            });
-                        },
-                        onApprove: function(data, actions) {
-                            log('onApprove called');
-                            return actions.order.capture().then(function(details) {
-                                log('✅ Payment captured: ' + details.id);
-                                alert('Payment successful!');
-                            });
-                        },
-                        onError: function(err) {
-                            log('❌ PayPal error: ' + err);
-                        }
-                    }).render('#paypal-button-container');
-                    
-                    log('✅✅✅ PAYPAL BUTTON RENDERED SUCCESSFULLY!');
-                    
-                } catch (err) {
-                    log('❌ ERROR rendering button: ' + err.message);
-                    log('Error stack: ' + err.stack);
-                    document.getElementById('paypal-button-container').innerHTML = 
-                        '<p style="color: #ff0044;">Render error: ' + err.message + '</p>';
-                }
-                
+
+        function copyLog() {
+            var text = allLogs.join('\n');
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).then(function() {
+                    alert('Log copied!');
+                });
             } else {
-                log(`PayPal not loaded yet (attempt ${attempts}/${maxAttempts})`);
-                
-                if (attempts < maxAttempts) {
-                    setTimeout(tryRenderPayPal, 200);
-                } else {
-                    log('❌❌❌ PAYPAL FAILED TO LOAD AFTER ' + maxAttempts + ' ATTEMPTS');
-                    document.getElementById('paypal-button-container').innerHTML = 
-                        '<p style="color: #ff0044;">❌ PayPal SDK never loaded. Check your internet connection or ad blockers.</p>';
-                }
+                prompt('Copy this log:', text);
             }
         }
-        
-        // Start checking immediately
-        setTimeout(tryRenderPayPal, 100);
-        
-        // Also listen for script load event
-        if (paypalScript) {
-            paypalScript.addEventListener('load', function() {
-                log('📡 PayPal script LOAD event fired!');
-            });
-            paypalScript.addEventListener('error', function() {
-                log('❌ PayPal script ERROR event fired!');
-            });
+
+        log('Page loaded', 'ok');
+        log('URL: ' + window.location.href, 'info');
+        log('User Agent: ' + navigator.userAgent.substring(0, 80), 'info');
+
+        // ── TEST 1: Check if Supabase loaded ──
+        if (typeof window.supabase !== 'undefined') {
+            log('Supabase JS: LOADED', 'ok');
+        } else {
+            log('Supabase JS: NOT LOADED', 'err');
         }
+
+        // ── TEST 2: Load and test Stripe ──
+        var stripeScript = document.createElement('script');
+        stripeScript.src = 'https://js.stripe.com/v3/';
+        stripeScript.onload = function() {
+            log('Stripe JS: LOADED', 'ok');
+            try {
+                var s = Stripe('pk_live_51OkBOuEvK9FbOwLilOaOLSHSLx47wT1q7T6xiMuODRF2j4a2DM0BHI16A5z8ovscAfhv83l7d1OFPbUjehHtQIeH00RwDCQ0I1');
+                log('Stripe initialized OK', 'ok');
+                document.getElementById('stripe-test').innerHTML =
+                    '<p style="color:#00ff88;font-size:0.8rem;">Stripe loaded and initialized OK</p>' +
+                    '<button onclick="testStripeRedirect()" style="background:#635bff;margin-top:0.5rem;">Test Stripe Redirect (Carousel 7-day $5)</button>';
+
+                window.testStripeRedirect = async function() {
+                    log('Testing Stripe redirect...', 'warn');
+                    try {
+                        var result = await s.redirectToCheckout({
+                            lineItems: [{ price: 'price_1SxvB9EvK9FbOwLivDlFaHpj', quantity: 1 }],
+                            mode: 'payment',
+                            successUrl: window.location.origin + '/index.html?stripe=success',
+                            cancelUrl: window.location.href
+                        });
+                        if (result.error) {
+                            log('Stripe redirect error: ' + result.error.message, 'err');
+                        }
+                    } catch (err) {
+                        log('Stripe error: ' + err.message, 'err');
+                    }
+                };
+            } catch (err) {
+                log('Stripe init ERROR: ' + err.message, 'err');
+                document.getElementById('stripe-test').innerHTML =
+                    '<p style="color:#ff0044;font-size:0.8rem;">Stripe error: ' + err.message + '</p>';
+            }
+        };
+        stripeScript.onerror = function() {
+            log('Stripe JS: FAILED TO LOAD', 'err');
+            document.getElementById('stripe-test').innerHTML =
+                '<p style="color:#ff0044;font-size:0.8rem;">Stripe script failed to load</p>';
+        };
+        document.head.appendChild(stripeScript);
+
+        // ── TEST 3: Load and test PayPal ──
+        log('Loading PayPal SDK...', 'warn');
+        var ppScript = document.createElement('script');
+        ppScript.src = 'https://www.paypal.com/sdk/js?client-id=AWx0LwdZ_sCyCE5gEj9mL1ha7ZbG_eZLE_R636KjLXFMV1pOfmGwNg9prM5kVKQspvnpNLJDZxPp100G&currency=USD&intent=capture&components=buttons';
+        ppScript.setAttribute('data-sdk-integration-source', 'button-factory');
+
+        ppScript.onload = function() {
+            log('PayPal SDK: LOADED', 'ok');
+
+            if (typeof window.paypal === 'undefined') {
+                log('PayPal SDK loaded but window.paypal is undefined!', 'err');
+                return;
+            }
+
+            log('window.paypal keys: ' + Object.keys(window.paypal).join(', '), 'info');
+
+            try {
+                log('Rendering PayPal buttons...', 'warn');
+                window.paypal.Buttons({
+                    style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'paypal', height: 45 },
+                    createOrder: function(data, actions) {
+                        log('createOrder called - creating $5 test order', 'warn');
+                        return actions.order.create({
+                            purchase_units: [{
+                                amount: { value: '5.00' },
+                                description: 'DEBUG TEST - 8BFR Ad'
+                            }]
+                        });
+                    },
+                    onApprove: function(data, actions) {
+                        log('onApprove called!', 'ok');
+                        return actions.order.capture().then(function(details) {
+                            log('Payment captured: ' + details.id, 'ok');
+                            alert('Payment successful! ID: ' + details.id);
+                        });
+                    },
+                    onCancel: function() {
+                        log('Payment cancelled by user', 'warn');
+                    },
+                    onError: function(err) {
+                        log('PayPal button error: ' + err, 'err');
+                    }
+                }).render('#paypal-button-container').then(function() {
+                    log('PayPal buttons RENDERED OK', 'ok');
+                }).catch(function(err) {
+                    log('PayPal render FAILED: ' + err.message, 'err');
+                    document.getElementById('paypal-button-container').innerHTML =
+                        '<p style="color:#ff0044;font-size:0.8rem;">Render failed: ' + err.message + '</p>';
+                });
+            } catch (err) {
+                log('PayPal render ERROR: ' + err.message, 'err');
+                log('Stack: ' + (err.stack || 'none').substring(0, 200), 'err');
+            }
+        };
+
+        ppScript.onerror = function() {
+            log('PayPal SDK: FAILED TO LOAD', 'err');
+            log('This usually means: ad blocker, network issue, or invalid client ID', 'err');
+            document.getElementById('paypal-button-container').innerHTML =
+                '<p style="color:#ff0044;font-size:0.8rem;">PayPal script failed to load. Check ad blockers or try incognito.</p>';
+        };
+
+        document.body.appendChild(ppScript);
+        log('PayPal script tag appended to page', 'info');
+
+        // ── TEST 4: Network connectivity ──
+        fetch('https://www.paypal.com/sdk/js?client-id=test', { mode: 'no-cors' })
+            .then(function() { log('Network: Can reach paypal.com', 'ok'); })
+            .catch(function(err) { log('Network: Cannot reach paypal.com - ' + err.message, 'err'); });
+
+        fetch('https://js.stripe.com/v3/', { mode: 'no-cors' })
+            .then(function() { log('Network: Can reach stripe.com', 'ok'); })
+            .catch(function(err) { log('Network: Cannot reach stripe.com - ' + err.message, 'err'); });
     </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </body>
 </html>
+    
