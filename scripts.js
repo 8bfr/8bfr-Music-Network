@@ -186,22 +186,40 @@
     }
   }
 
-  function showAuthOverlay() {
-    if (document.getElementById("authGateOverlay")) return;
-    const overlay = document.createElement("div");
-    overlay.id = "authGateOverlay";
-    overlay.innerHTML = `
-      <div id="authGateCard">
-        <h2>Login required</h2>
-        <p>You need an 8BFR account to open this page.</p>
-        <div class="auth-buttons">
-          <a href="login.html">Log in</a>
-          <a href="signup.html">Sign up free</a>
-          <a href="index.html">Back to home</a>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(overlay);
+  function enforceAuthGate() {
+    const publicPages = [
+      "index.html",
+      "login.html",
+      "signup.html",
+      "reset-password.html",
+      "reset_password.html",
+      "logout.html",
+    ];
+    let path = window.location.pathname.split("/").pop();
+    if (!path) path = "index.html";
+
+    if (publicPages.includes(path)) {
+      return;
+    }
+
+    // Show login overlay after 3 seconds if Supabase hasn't loaded yet
+    var authTimeout = setTimeout(function() {
+      showAuthOverlay();
+    }, 3000);
+
+    loadSupabaseClient(async (client) => {
+      try {
+        const { data, error } = await client.auth.getSession();
+        clearTimeout(authTimeout);
+        if (error || !data || !data.session) {
+          showAuthOverlay();
+        }
+      } catch (e) {
+        clearTimeout(authTimeout);
+        console.warn("Auth gate check failed", e);
+        showAuthOverlay();
+      }
+    });
   }
 
   function enforceAuthGate() {
