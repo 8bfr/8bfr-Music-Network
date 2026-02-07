@@ -7,7 +7,6 @@
     <title>Buy an Ad - 8BFR Music Network</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://js.stripe.com/v3/"></script>
     <style>
         body {
             background: linear-gradient(#0b0014, #000);
@@ -166,21 +165,21 @@
         var SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
         var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
         var WEBHOOK_URL = 'https://qjzcoybmcrmonzjctama.supabase.co/functions/v1/paypal-webhook';
-        var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        var stripeObj = Stripe('pk_live_51OkBOuEvK9FbOwLilOaOLSHSLx47wT1q7T6xiMuODRF2j4a2DM0BHI16A5z8ovscAfhv83l7d1OFPbUjehHtQIeH00RwDCQ0I1');
+        var sb = null;
+        try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); } catch(e) { console.warn('Supabase not loaded'); }
 
         var PRICES = {
             carousel: { 7: 5, 14: 8, 30: 12 },
             featured: { 7: 10, 14: 18, 30: 30 }
         };
 
-        var STRIPE_PRICE_IDS = {
-            'carousel_7':  'price_1SxvB9EvK9FbOwLivDlFaHpj',
-            'carousel_14': 'price_1SxvFCEvK9FbOwLi8mYGzBXx',
-            'carousel_30': 'price_1SxvGdEvK9FbOwLip3sLzCje',
-            'featured_7':  'price_1SxvIHEvK9FbOwLiIaEDZWwZ',
-            'featured_14': 'price_1SxvLWEvK9FbOwLi4crOdTRW',
-            'featured_30': 'price_1SxvMuEvK9FbOwLiwDx4itL5'
+        var STRIPE_LINKS = {
+            'carousel_7':  'https://buy.stripe.com/28EdR9aVIb5h7iC3hs3sI00',
+            'carousel_14': 'https://buy.stripe.com/eVq8wP6Fsddp9qK05g3sI01',
+            'carousel_30': 'https://buy.stripe.com/dRm28re7Ua1dfP83hs3sI02',
+            'featured_7':  'https://buy.stripe.com/9B6aEXgg21uHeL43hs3sI03',
+            'featured_14': 'https://buy.stripe.com/bJedR94xkehteL4aJU3sI04',
+            'featured_30': 'https://buy.stripe.com/6oU8wP5Bo6P132m05g3sI05'
         };
 
         var discountData = null;
@@ -210,6 +209,7 @@
             var code = document.getElementById('discountCode').value.trim().toUpperCase();
             var msgEl = document.getElementById('discountMessage');
             if (!code) { msgEl.textContent = 'Please enter a code'; msgEl.style.color = '#ff0044'; return; }
+            if (!sb) { msgEl.textContent = 'Database not available'; msgEl.style.color = '#ff0044'; return; }
             try {
                 var res = await sb.from('discount_codes').select('*').eq('code', code).single();
                 if (res.error || !res.data) {
@@ -236,6 +236,7 @@
         }
 
         async function saveAdToDatabase(paymentMethod, paymentId) {
+            if (!sb) { alert('Payment successful! ID: ' + paymentId + '. Contact support to activate your ad.'); return; }
             try {
                 var userRes = await sb.auth.getUser();
                 var user = userRes.data ? userRes.data.user : null;
@@ -276,7 +277,6 @@
         ppScript.setAttribute('data-sdk-integration-source', 'button-factory');
 
         ppScript.onload = function() {
-            console.log('PayPal SDK loaded');
             ppStatus.style.display = 'none';
             window.paypal.Buttons({
                 style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'paypal', height: 45 },
@@ -312,7 +312,6 @@
             }).render('#paypal-button-container').then(function() {
                 console.log('PayPal buttons rendered');
             }).catch(function(err) {
-                console.error('PayPal render failed:', err);
                 ppStatus.style.display = 'block';
                 ppStatus.textContent = 'PayPal failed to render. Reload page.';
                 ppStatus.style.color = '#ff0044';
@@ -326,40 +325,27 @@
 
         document.body.appendChild(ppScript);
 
-        // STRIPE
-        document.getElementById('stripe-button').addEventListener('click', async function() {
+        // STRIPE - Payment Links (no backend needed)
+        document.getElementById('stripe-button').addEventListener('click', function() {
             if (!validateForm()) return;
             var type = document.getElementById('adType').value;
             var duration = document.getElementById('adDuration').value;
-            var priceId = STRIPE_PRICE_IDS[type + '_' + duration];
-            if (!priceId) { alert('Stripe config error. Use PayPal.'); return; }
+            var linkUrl = STRIPE_LINKS[type + '_' + duration];
 
-            this.disabled = true;
-            this.textContent = 'Redirecting to Stripe...';
+            if (!linkUrl) { alert('Error: no payment link for this option. Use PayPal.'); return; }
 
-            try {
-                localStorage.setItem('8bfr_pending_ad', JSON.stringify({
-                    title: document.getElementById('adTitle').value.trim(),
-                    link_url: document.getElementById('adLink').value.trim(),
-                    ad_type: type,
-                    duration_days: parseInt(duration),
-                    amount_paid: finalPrice,
-                    discount_code: discountData ? discountData.code : null
-                }));
+            // Save ad info to localStorage so we can retrieve it after payment
+            localStorage.setItem('8bfr_pending_ad', JSON.stringify({
+                title: document.getElementById('adTitle').value.trim(),
+                link_url: document.getElementById('adLink').value.trim(),
+                ad_type: type,
+                duration_days: parseInt(duration),
+                amount_paid: finalPrice,
+                discount_code: discountData ? discountData.code : null
+            }));
 
-                var result = await stripeObj.redirectToCheckout({
-                    lineItems: [{ price: priceId, quantity: 1 }],
-                    mode: 'payment',
-                    successUrl: window.location.origin + '/ad-success.html?session_id={CHECKOUT_SESSION_ID}',
-                    cancelUrl: window.location.href
-                });
-                if (result.error) alert('Stripe error: ' + result.error.message);
-            } catch (err) {
-                console.error('Stripe error:', err);
-                alert('Error: ' + err.message);
-            }
-            this.disabled = false;
-            this.textContent = 'Pay with Credit Card (Stripe)';
+            // Redirect to Stripe Payment Link
+            window.location.href = linkUrl;
         });
 
         updatePrice();
@@ -367,4 +353,3 @@
     </script>
 </body>
 </html>
- 
