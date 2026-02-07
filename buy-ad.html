@@ -277,37 +277,34 @@
         }
 
         async function saveAdToDatabase(paymentMethod, paymentId) {
-            if (!sb) { alert('Payment successful! ID: ' + paymentId + '. Contact support to activate your ad.'); return; }
+            if (!sb) { alert('Ad submitted! ID: ' + paymentId + '. Contact support to activate.'); return; }
             try {
                 var userRes = await sb.auth.getUser();
                 var user = userRes.data ? userRes.data.user : null;
                 var adData = {
                     user_id: user ? user.id : null,
+                    submitted_by: user ? user.id : null,
                     title: document.getElementById('adTitle').value.trim(),
                     link_url: document.getElementById('adLink').value.trim(),
-                    ad_type: document.getElementById('adType').value,
-                    duration_days: parseInt(document.getElementById('adDuration').value),
-                    amount_paid: finalPrice,
-                    payment_method: paymentMethod,
-                    payment_id: paymentId,
+                    link: document.getElementById('adLink').value.trim(),
+                    description: document.getElementById('adType').value + ' | ' + document.getElementById('adDuration').value + ' days | $' + finalPrice.toFixed(2) + ' | ' + paymentMethod + ' | ' + paymentId,
                     status: 'pending',
-                    created_at: new Date().toISOString(),
-                    expires_at: new Date(Date.now() + parseInt(document.getElementById('adDuration').value) * 86400000).toISOString()
+                    approved: false
                 };
                 var insertRes = await sb.from('ads').insert(adData);
                 if (insertRes.error) {
                     console.error('DB error:', insertRes.error);
-                    alert('Payment successful but error saving ad. Contact support with ID: ' + paymentId);
+                    alert('Error saving ad: ' + insertRes.error.message);
                 } else {
                     if (discountData) {
                         await sb.from('discount_codes').update({ uses: (discountData.uses || 0) + 1 }).eq('code', discountData.code);
                     }
-                    alert('Payment successful! Your ad is pending approval. Payment ID: ' + paymentId);
+                    alert('Ad submitted! Your ad is pending approval.');
                     window.location.href = 'index.html';
                 }
             } catch (err) {
                 console.error('Error:', err);
-                alert('Payment successful but error occurred. Contact support.');
+                alert('Error: ' + err.message);
             }
         }
 
