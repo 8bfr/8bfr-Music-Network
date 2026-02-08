@@ -1,9 +1,13 @@
 // ========== FEATURED ADS + BUTTONS (index.html only, with swipe) ==========
 (function () {
-  const track = document.getElementById("adTrack");
+  var track = document.getElementById("adTrack");
   if (!track) return;
 
-  const ads = [
+  var SUPABASE_URL = "https://novbuvwpjnxwwvdekjhr.supabase.co";
+  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0";
+
+  // Default placeholder ads (shown when no paid featured ads are active)
+  var defaultAds = [
     { img: "assets/images/ad_banner_1.jpg", url: "ads.html#ad1" },
     { img: "assets/images/ad_banner_2.jpg", url: "ads.html#ad2" },
     { img: "assets/images/ad_banner_3.jpg", url: "ads.html#ad3" },
@@ -11,23 +15,22 @@
     { img: "assets/images/ad_banner_5.jpg", url: "ads.html#ad5" },
   ];
 
-  const prev = document.getElementById("adPrev");
-  const next = document.getElementById("adNext");
-  const pause = document.getElementById("adPause");
-
-  let index = 0;
-  let paused = false;
-  let timer = null;
+  var ads = defaultAds.slice();
+  var prev = document.getElementById("adPrev");
+  var next = document.getElementById("adNext");
+  var pause = document.getElementById("adPause");
+  var index = 0;
+  var paused = false;
+  var timer = null;
 
   function createSlide(i) {
-    const data = ads[i];
-    const a = document.createElement("a");
+    var data = ads[i];
+    var a = document.createElement("a");
     a.className = "ad-slide";
     a.href = data.url || "#";
     a.target = "_blank";
     a.rel = "noopener";
-
-    const img = new Image();
+    var img = new Image();
     img.src = data.img;
     img.alt = "Featured ad banner " + (i + 1);
     a.appendChild(img);
@@ -35,114 +38,133 @@
   }
 
   function showSlide(nextIndex) {
+    if (ads.length === 0) return;
     index = (nextIndex + ads.length) % ads.length;
-
-    const oldSlide = track.querySelector(".ad-slide.show");
-    const newSlide = createSlide(index);
-
+    var oldSlide = track.querySelector(".ad-slide.show");
+    var newSlide = createSlide(index);
     track.appendChild(newSlide);
-    requestAnimationFrame(() => newSlide.classList.add("show"));
-
+    requestAnimationFrame(function() { newSlide.classList.add("show"); });
     if (oldSlide) {
-      setTimeout(() => oldSlide.remove(), 380);
+      setTimeout(function() { oldSlide.remove(); }, 380);
     }
   }
 
   function schedule() {
     clearTimeout(timer);
     if (paused) return;
-    timer = setTimeout(() => {
+    timer = setTimeout(function() {
       showSlide(index + 1);
       schedule();
     }, 5000);
   }
 
   if (prev) {
-    prev.addEventListener("click", () => {
-      if (!paused && pause) {
-        paused = true;
-        pause.textContent = "Play";
-      }
+    prev.addEventListener("click", function() {
+      if (!paused && pause) { paused = true; pause.textContent = "Play"; }
       showSlide(index - 1);
     });
   }
-
   if (next) {
-    next.addEventListener("click", () => {
-      if (!paused && pause) {
-        paused = true;
-        pause.textContent = "Play";
-      }
+    next.addEventListener("click", function() {
+      if (!paused && pause) { paused = true; pause.textContent = "Play"; }
       showSlide(index + 1);
     });
   }
-
   if (pause) {
-    pause.addEventListener("click", () => {
+    pause.addEventListener("click", function() {
       paused = !paused;
       pause.textContent = paused ? "Play" : "Pause";
-      if (!paused) {
-        schedule();
-      } else {
-        clearTimeout(timer);
-      }
+      if (!paused) schedule();
+      else clearTimeout(timer);
     });
   }
 
-  // ✅ Touch swipe left/right
-  let startX = 0;
-  let deltaX = 0;
-  let dragging = false;
+  // Touch swipe
+  var startX = 0;
+  var deltaX = 0;
+  var dragging = false;
 
-  track.addEventListener(
-    "touchstart",
-    (e) => {
-      dragging = true;
-      startX = e.touches[0].clientX;
-      deltaX = 0;
-      clearTimeout(timer);
-    },
-    { passive: true }
-  );
+  track.addEventListener("touchstart", function(e) {
+    dragging = true;
+    startX = e.touches[0].clientX;
+    deltaX = 0;
+    clearTimeout(timer);
+  }, { passive: true });
 
-  track.addEventListener(
-    "touchmove",
-    (e) => {
-      if (!dragging) return;
-      deltaX = e.touches[0].clientX - startX;
-    },
-    { passive: true }
-  );
+  track.addEventListener("touchmove", function(e) {
+    if (!dragging) return;
+    deltaX = e.touches[0].clientX - startX;
+  }, { passive: true });
 
-  track.addEventListener(
-    "touchend",
-    () => {
-      if (!dragging) return;
-      dragging = false;
-      if (Math.abs(deltaX) > 40) {
-        if (deltaX < 0) {
-          if (!paused && pause) {
-            paused = true;
-            pause.textContent = "Play";
-          }
-          showSlide(index + 1);
-        } else {
-          if (!paused && pause) {
-            paused = true;
-            pause.textContent = "Play";
-          }
-          showSlide(index - 1);
-        }
+  track.addEventListener("touchend", function() {
+    if (!dragging) return;
+    dragging = false;
+    if (Math.abs(deltaX) > 40) {
+      if (!paused && pause) { paused = true; pause.textContent = "Play"; }
+      if (deltaX < 0) showSlide(index + 1);
+      else showSlide(index - 1);
+    }
+    schedule();
+  }, { passive: true });
+
+  // Load featured ads from Supabase, fall back to defaults
+  function loadFeaturedAds() {
+    try {
+      var client = null;
+      if (window._8bfrSupabaseClient) {
+        client = window._8bfrSupabaseClient;
+      } else if (window.supabase && window.supabase.createClient) {
+        client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       }
+
+      if (!client) {
+        showSlide(0);
+        schedule();
+        return;
+      }
+
+      var now = new Date().toISOString();
+      client
+        .from("ads")
+        .select("*")
+        .eq("status", "approved")
+        .eq("ad_type", "featured")
+        .gte("expires_at", now)
+        .order("created_at", { ascending: false })
+        .then(function(res) {
+          if (res.data && res.data.length > 0) {
+            // Build ads array: live featured ads fill slots, rest are placeholders
+            var liveAds = res.data.map(function(ad) {
+              return {
+                img: ad.image_url || "assets/images/ad_banner_1.jpg",
+                url: ad.link_url || "all-ads.html"
+              };
+            });
+
+            // Fill remaining slots with placeholders up to 5
+            var remaining = 5 - liveAds.length;
+            if (remaining > 0) {
+              for (var i = 0; i < remaining && i < defaultAds.length; i++) {
+                liveAds.push(defaultAds[i]);
+              }
+            }
+
+            ads = liveAds;
+          }
+          showSlide(0);
+          schedule();
+        })
+        .catch(function() {
+          showSlide(0);
+          schedule();
+        });
+    } catch (e) {
+      showSlide(0);
       schedule();
-    },
-    { passive: true }
-  );
+    }
+  }
 
-  showSlide(0);
-  schedule();
-
-  // Buttons under the carousel are plain links in index.html (Buy / How ads work)
+  loadFeaturedAds();
 })();
 
 // ========== GLOBAL 8BFR UI (menu, bubbles, Avatars, auth gate, Spotify stripe) ==========
