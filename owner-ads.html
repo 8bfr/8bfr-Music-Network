@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,23 +8,44 @@
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --primary: #7c3aed; --dark: #0b0014; --dark-card: #0c0618; --text: #eae6ff; --border: rgba(124,58,237,.35); }
+        :root { --primary: #7c3aed; --dark: #0b0014; --dark-card: #0c0618; --text: #eae6ff; --text-dim: #a855f7; --border: rgba(124,58,237,.35); --success: #00ff88; --danger: #ff0044; --warn: #ffaa00; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Work Sans', sans-serif; background: linear-gradient(#0b0014,#000); color: var(--text); min-height: 100vh; }
         .header { background: rgba(15,0,30,.9); border-bottom: 2px solid var(--primary); padding: 1.5rem 2rem; display: flex; justify-content: space-between; align-items: center; }
         .header h1 { font-family: 'Bebas Neue', cursive; font-size: 2rem; color: var(--primary); }
         .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
         .card { background: var(--dark-card); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .card h2 { color: var(--primary); margin-bottom: 1rem; font-family: 'Bebas Neue', cursive; font-size: 1.5rem; border-left: 4px solid var(--primary); padding-left: 1rem; }
         .ad-item { background: var(--dark); border: 1px solid var(--border); padding: 1.5rem; margin-bottom: 1rem; border-radius: 8px; }
         .ad-preview { background: rgba(124,58,237,0.1); border: 1px dashed var(--border); padding: 1rem; border-radius: 8px; margin: 1rem 0; }
-        .btn { background: var(--primary); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 4px; cursor: pointer; font-weight: 600; margin: 0.25rem; }
-        .btn-success { background: #00ff88; }
-        .btn-danger { background: #ff0044; }
-        .badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.85rem; }
+        .ad-preview img { max-width: 100%; max-height: 300px; border-radius: 4px; display: block; margin-top: 0.5rem; }
+        .btn { background: var(--primary); color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-weight: 600; margin: 0.25rem; font-size: 0.85rem; }
+        .btn:hover { filter: brightness(1.1); }
+        .btn-success { background: var(--success); color: #000; }
+        .btn-danger { background: var(--danger); }
+        .btn-warn { background: var(--warn); color: #000; }
+        .btn-small { padding: 0.35rem 0.75rem; font-size: 0.8rem; }
+        .badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.85rem; font-weight: 600; }
         .badge-pending { background: rgba(255,170,0,0.2); color: #ffaa00; }
         .badge-approved { background: rgba(0,255,136,0.2); color: #00ff88; }
         .badge-denied { background: rgba(255,0,68,0.2); color: #ff0044; }
-        textarea { width: 100%; min-height: 100px; padding: 0.75rem; background: var(--dark); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-family: inherit; }
+        .badge-expired { background: rgba(128,128,128,0.2); color: #888; }
+        textarea, input[type="text"], input[type="url"], select {
+            width: 100%; padding: 0.75rem; background: var(--dark); border: 1px solid var(--border);
+            border-radius: 4px; color: var(--text); font-family: inherit; margin-bottom: 0.5rem;
+        }
+        textarea { min-height: 80px; }
+        .info-row { display: flex; flex-wrap: wrap; gap: 0.5rem; font-size: 0.85rem; color: var(--text-dim); margin: 0.5rem 0; }
+        .info-row span { background: rgba(124,58,237,0.15); padding: 0.2rem 0.6rem; border-radius: 4px; }
+        .edit-form { display: none; background: rgba(124,58,237,0.08); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-top: 1rem; }
+        .edit-form.active { display: block; }
+        .stats-bar { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
+        .stat-pill { background: rgba(124,58,237,0.15); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1.25rem; text-align: center; }
+        .stat-pill strong { display: block; font-size: 1.5rem; color: var(--primary); }
+        .stat-pill span { font-size: 0.8rem; color: var(--text-dim); }
+        .time-left { font-size: 0.8rem; }
+        .time-left.expired { color: var(--danger); }
+        .time-left.active { color: var(--success); }
     </style>
 </head>
 <body>
@@ -32,247 +54,382 @@
         <a href="owner-panel.html" style="color: var(--text); text-decoration: none;">← Back</a>
     </div>
     <div class="container">
+        <div class="stats-bar" id="statsBar"></div>
+
         <div class="card">
-            <h2 style="color: var(--primary); margin-bottom: 1rem;">Pending Ads</h2>
+            <h2>⏳ Pending Approval</h2>
             <div id="pendingAds">Loading...</div>
         </div>
+
         <div class="card">
-            <h2 style="color: var(--primary); margin-bottom: 1rem;">All Ads</h2>
+            <h2>✅ Active Ads</h2>
+            <div id="activeAds">Loading...</div>
+        </div>
+
+        <div class="card">
+            <h2>📋 All Ads (History)</h2>
             <div id="allAds">Loading...</div>
         </div>
     </div>
-    
+
     <script src="scripts.js"></script>
     <script>
         const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
         const s = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        
+
         async function init() {
             try {
                 const { data: { session } } = await s.auth.getSession();
                 if (!session) { location.href = 'login.html'; return; }
                 const { data: profile } = await s.from('profiles').select('*').eq('user_id', session.user.id).single();
                 if (!profile || profile.role !== 'owner') { alert('Owner only'); location.href = 'owner-panel.html'; return; }
+                await cleanupExpiredAds();
                 loadAds();
             } catch (error) {
                 console.error('Init error:', error);
             }
         }
-        
-        async function loadAds() {
+
+        function parseDescription(desc) {
+            if (!desc) return {};
+            var parts = desc.split(' | ');
+            return {
+                ad_type: parts[0] || '',
+                duration: parts[1] || '',
+                price: parts[2] || '',
+                payment_method: parts[3] || '',
+                payment_id: parts[4] || ''
+            };
+        }
+
+        function getTimeLeft(expiresAt) {
+            if (!expiresAt) return { text: 'No expiry set', expired: false, cls: '' };
+            var now = new Date();
+            var exp = new Date(expiresAt);
+            var diff = exp - now;
+            if (diff <= 0) return { text: 'EXPIRED', expired: true, cls: 'expired' };
+            var days = Math.floor(diff / 86400000);
+            var hours = Math.floor((diff % 86400000) / 3600000);
+            return { text: days + 'd ' + hours + 'h left', expired: false, cls: 'active' };
+        }
+
+        async function cleanupExpiredAds() {
             try {
-                // Load pending ads
-                const { data: pending, error: pendingError } = await s.from('ads')
-                    .select('*')
-                    .eq('status', 'pending')
-                    .order('created_at', {ascending: false});
-                
-                if (pendingError) {
-                    console.error('Pending ads error:', pendingError);
-                    document.getElementById('pendingAds').innerHTML = '<p style="color: #ff0044;">Error: ' + pendingError.message + '</p>';
-                } else if (!pending || pending.length === 0) {
-                    document.getElementById('pendingAds').innerHTML = '<p style="color: var(--text-dim);">No pending ads</p>';
-                } else {
-                    document.getElementById('pendingAds').innerHTML = pending.map(ad => `
-                        <div class="ad-item">
-                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
-                                <div>
-                                    <h3 style="color: var(--primary);">${ad.title || 'Untitled Ad'}</h3>
-                                    <p style="font-size: 0.9rem; color: var(--text-dim);">User ID: ${ad.user_id || 'Unknown'}</p>
-                                    <p style="font-size: 0.85rem; color: var(--text-dim);">Created: ${new Date(ad.created_at).toLocaleDateString()}</p>
-                                </div>
-                                <span class="badge badge-pending">PENDING</span>
-                            </div>
-                            <div class="ad-preview">
-                                <p>${ad.content || 'No content'}</p>
-                                ${ad.image_url ? `<img src="${ad.image_url}" style="max-width: 100%; margin-top: 0.5rem; border-radius: 4px;">` : ''}
-                                ${ad.link_url ? `<p style="margin-top: 0.5rem;"><a href="${ad.link_url}" target="_blank" style="color: var(--primary);">Link: ${ad.link_url}</a></p>` : ''}
-                            </div>
-                            <div>
-                                <textarea id="notes-${ad.id}" placeholder="Notes or reason for decision..."></textarea>
-                                <div style="margin-top: 0.5rem;">
-                                    <button class="btn btn-success" onclick="approveAd('${ad.id}')">✓ Approve</button>
-                                    <button class="btn btn-danger" onclick="denyAd('${ad.id}')">✗ Deny</button>
-                                    <button class="btn" onclick="contactUser('${ad.user_id}', '${ad.id}')">💬 Contact User</button>
-                                </div>
-                            </div>
-                        </div>
-                    `).join('');
+                var { data: expired } = await s.from('ads')
+                    .select('id, image_url')
+                    .eq('status', 'approved')
+                    .lt('expires_at', new Date().toISOString());
+
+                if (expired && expired.length > 0) {
+                    for (var i = 0; i < expired.length; i++) {
+                        await s.from('ads').update({
+                            status: 'expired',
+                            image_url: null
+                        }).eq('id', expired[i].id);
+                    }
+                    console.log('Cleaned up ' + expired.length + ' expired ads');
                 }
-                
-                // Load all ads
-                const { data: all, error: allError } = await s.from('ads')
-                    .select('*')
-                    .order('created_at', {ascending: false})
-                    .limit(50);
-                
-                if (allError) {
-                    console.error('All ads error:', allError);
-                    document.getElementById('allAds').innerHTML = '<p style="color: #ff0044;">Error: ' + allError.message + '</p>';
-                } else if (!all || all.length === 0) {
-                    document.getElementById('allAds').innerHTML = '<p style="color: var(--text-dim);">No ads yet</p>';
-                } else {
-                    document.getElementById('allAds').innerHTML = all.map(ad => `
-                        <div class="ad-item">
-                            <div style="display: flex; justify-content: space-between;">
-                                <div>
-                                    <h3 style="color: var(--primary);">${ad.title || 'Untitled'}</h3>
-                                    <p style="font-size: 0.9rem; color: var(--text-dim);">User ID: ${ad.user_id || 'Unknown'}</p>
-                                </div>
-                                <span class="badge badge-${ad.status}">${ad.status.toUpperCase()}</span>
-                            </div>
-                            ${ad.status === 'approved' ? `<p style="font-size: 0.85rem; color: var(--text-dim); margin-top: 0.5rem;">Expires: ${ad.expires_at ? new Date(ad.expires_at).toLocaleDateString() : 'Never'}</p>` : ''}
-                        </div>
-                    `).join('');
-                }
-            } catch (error) {
-                console.error('Load ads error:', error);
-                document.getElementById('pendingAds').innerHTML = '<p>Error: ' + error.message + '</p>';
-                document.getElementById('allAds').innerHTML = '<p>Error: ' + error.message + '</p>';
+            } catch (e) {
+                console.warn('Cleanup error:', e);
             }
         }
-        
-        async function approveAd(id) {
-            const notes = document.getElementById('notes-' + id).value.trim();
-            
+
+        function renderAdCard(ad, showActions) {
+            var info = parseDescription(ad.description);
+            var time = getTimeLeft(ad.expires_at);
+            var statusClass = ad.status === 'approved' ? 'approved' : ad.status === 'denied' ? 'denied' : ad.status === 'expired' ? 'expired' : 'pending';
+
+            var html = '<div class="ad-item" id="ad-' + ad.id + '">';
+            html += '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:0.75rem;">';
+            html += '<div>';
+            html += '<h3 style="color:var(--primary);margin-bottom:0.25rem;">' + (ad.title || 'Untitled Ad') + '</h3>';
+            html += '<div class="info-row">';
+            if (info.ad_type) html += '<span>' + info.ad_type + '</span>';
+            if (info.duration) html += '<span>' + info.duration + '</span>';
+            if (info.price) html += '<span>' + info.price + '</span>';
+            if (info.payment_method) html += '<span>' + info.payment_method + '</span>';
+            html += '<span>Created: ' + new Date(ad.created_at).toLocaleDateString() + '</span>';
+            html += '</div>';
+            if (ad.status === 'approved' && ad.expires_at) {
+                html += '<p class="time-left ' + time.cls + '">' + time.text + '</p>';
+            }
+            html += '</div>';
+            html += '<span class="badge badge-' + statusClass + '">' + ad.status.toUpperCase() + '</span>';
+            html += '</div>';
+
+            // Preview
+            html += '<div class="ad-preview">';
+            if (ad.image_url) {
+                html += '<img src="' + ad.image_url + '" alt="Ad image">';
+            } else {
+                html += '<p style="color:var(--text-dim);font-style:italic;">No image</p>';
+            }
+            if (ad.link_url) {
+                html += '<p style="margin-top:0.5rem;"><a href="' + ad.link_url + '" target="_blank" style="color:var(--primary);">' + ad.link_url + '</a></p>';
+            }
+            if (ad.approval_notes) {
+                html += '<p style="margin-top:0.5rem;font-size:0.85rem;color:var(--success);">Notes: ' + ad.approval_notes + '</p>';
+            }
+            if (ad.denial_reason) {
+                html += '<p style="margin-top:0.5rem;font-size:0.85rem;color:var(--danger);">Denial reason: ' + ad.denial_reason + '</p>';
+            }
+            html += '</div>';
+
+            // Action buttons
+            if (showActions === 'pending') {
+                html += '<textarea id="notes-' + ad.id + '" placeholder="Notes or reason..."></textarea>';
+                html += '<div style="margin-top:0.5rem;">';
+                html += '<button class="btn btn-success" onclick="approveAd(\'' + ad.id + '\')">✓ Approve</button>';
+                html += '<button class="btn btn-danger" onclick="denyAd(\'' + ad.id + '\')">✗ Deny</button>';
+                html += '<button class="btn btn-warn" onclick="toggleEdit(\'' + ad.id + '\')">✎ Edit</button>';
+                html += '<button class="btn btn-danger btn-small" onclick="deleteAd(\'' + ad.id + '\')">🗑 Delete</button>';
+                html += '</div>';
+            } else {
+                html += '<div style="margin-top:0.5rem;">';
+                html += '<button class="btn btn-warn btn-small" onclick="toggleEdit(\'' + ad.id + '\')">✎ Edit</button>';
+                html += '<button class="btn btn-danger btn-small" onclick="deleteAd(\'' + ad.id + '\')">🗑 Delete</button>';
+                if (ad.status === 'denied') {
+                    html += '<button class="btn btn-success btn-small" onclick="approveAd(\'' + ad.id + '\')">✓ Approve</button>';
+                }
+                if (ad.status === 'approved') {
+                    html += '<button class="btn btn-danger btn-small" onclick="expireAd(\'' + ad.id + '\')">⏹ Expire Now</button>';
+                }
+                html += '</div>';
+            }
+
+            // Edit form (hidden by default)
+            html += '<div class="edit-form" id="edit-' + ad.id + '">';
+            html += '<label style="color:var(--text-dim);font-size:0.85rem;">Title</label>';
+            html += '<input type="text" id="edit-title-' + ad.id + '" value="' + (ad.title || '').replace(/"/g, '&quot;') + '">';
+            html += '<label style="color:var(--text-dim);font-size:0.85rem;">Link URL</label>';
+            html += '<input type="url" id="edit-link-' + ad.id + '" value="' + (ad.link_url || '').replace(/"/g, '&quot;') + '">';
+            html += '<label style="color:var(--text-dim);font-size:0.85rem;">Status</label>';
+            html += '<select id="edit-status-' + ad.id + '">';
+            html += '<option value="pending"' + (ad.status === 'pending' ? ' selected' : '') + '>Pending</option>';
+            html += '<option value="approved"' + (ad.status === 'approved' ? ' selected' : '') + '>Approved</option>';
+            html += '<option value="denied"' + (ad.status === 'denied' ? ' selected' : '') + '>Denied</option>';
+            html += '<option value="expired"' + (ad.status === 'expired' ? ' selected' : '') + '>Expired</option>';
+            html += '</select>';
+            html += '<label style="color:var(--text-dim);font-size:0.85rem;">Notes</label>';
+            html += '<textarea id="edit-notes-' + ad.id + '">' + (ad.approval_notes || '') + '</textarea>';
+            html += '<button class="btn btn-success" onclick="saveEdit(\'' + ad.id + '\')">💾 Save Changes</button>';
+            html += '<button class="btn" onclick="toggleEdit(\'' + ad.id + '\')">Cancel</button>';
+            html += '</div>';
+
+            html += '</div>';
+            return html;
+        }
+
+        async function loadAds() {
             try {
-                // Calculate expiry (7 days from now)
-                const expiryDate = new Date();
-                expiryDate.setDate(expiryDate.getDate() + 7);
-                
-                const { error } = await s.from('ads').update({
+                var { data: allData, error } = await s.from('ads')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(100);
+
+                if (error) {
+                    document.getElementById('pendingAds').innerHTML = '<p style="color:var(--danger);">Error: ' + error.message + '</p>';
+                    return;
+                }
+
+                if (!allData || allData.length === 0) {
+                    document.getElementById('pendingAds').innerHTML = '<p style="color:var(--text-dim);">No ads yet</p>';
+                    document.getElementById('activeAds').innerHTML = '<p style="color:var(--text-dim);">No active ads</p>';
+                    document.getElementById('allAds').innerHTML = '<p style="color:var(--text-dim);">No ads</p>';
+                    document.getElementById('statsBar').innerHTML = '';
+                    return;
+                }
+
+                var pending = allData.filter(function(a) { return a.status === 'pending'; });
+                var active = allData.filter(function(a) { return a.status === 'approved'; });
+                var denied = allData.filter(function(a) { return a.status === 'denied'; });
+                var expired = allData.filter(function(a) { return a.status === 'expired'; });
+
+                // Stats
+                document.getElementById('statsBar').innerHTML =
+                    '<div class="stat-pill"><strong>' + allData.length + '</strong><span>Total</span></div>' +
+                    '<div class="stat-pill"><strong style="color:#ffaa00;">' + pending.length + '</strong><span>Pending</span></div>' +
+                    '<div class="stat-pill"><strong style="color:#00ff88;">' + active.length + '</strong><span>Active</span></div>' +
+                    '<div class="stat-pill"><strong style="color:#ff0044;">' + denied.length + '</strong><span>Denied</span></div>' +
+                    '<div class="stat-pill"><strong style="color:#888;">' + expired.length + '</strong><span>Expired</span></div>';
+
+                // Pending
+                if (pending.length === 0) {
+                    document.getElementById('pendingAds').innerHTML = '<p style="color:var(--text-dim);">No pending ads ✓</p>';
+                } else {
+                    document.getElementById('pendingAds').innerHTML = pending.map(function(ad) { return renderAdCard(ad, 'pending'); }).join('');
+                }
+
+                // Active
+                if (active.length === 0) {
+                    document.getElementById('activeAds').innerHTML = '<p style="color:var(--text-dim);">No active ads</p>';
+                } else {
+                    document.getElementById('activeAds').innerHTML = active.map(function(ad) { return renderAdCard(ad, 'active'); }).join('');
+                }
+
+                // All (denied + expired)
+                var history = denied.concat(expired);
+                if (history.length === 0) {
+                    document.getElementById('allAds').innerHTML = '<p style="color:var(--text-dim);">No denied or expired ads</p>';
+                } else {
+                    document.getElementById('allAds').innerHTML = history.map(function(ad) { return renderAdCard(ad, 'history'); }).join('');
+                }
+
+            } catch (error) {
+                console.error('Load error:', error);
+            }
+        }
+
+        function toggleEdit(id) {
+            var form = document.getElementById('edit-' + id);
+            if (form) form.classList.toggle('active');
+        }
+
+        async function saveEdit(id) {
+            var title = document.getElementById('edit-title-' + id).value.trim();
+            var link = document.getElementById('edit-link-' + id).value.trim();
+            var status = document.getElementById('edit-status-' + id).value;
+            var notes = document.getElementById('edit-notes-' + id).value.trim();
+
+            try {
+                var updateData = {
+                    title: title,
+                    link_url: link,
+                    link: link,
+                    status: status,
+                    approval_notes: notes
+                };
+
+                if (status === 'approved') {
+                    updateData.approved = true;
+                    updateData.approved_at = new Date().toISOString();
+                }
+
+                var { error } = await s.from('ads').update(updateData).eq('id', id);
+                if (error) {
+                    alert('Error: ' + error.message);
+                    return;
+                }
+                alert('✓ Ad updated');
+                loadAds();
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        async function approveAd(id) {
+            var notesEl = document.getElementById('notes-' + id);
+            var notes = notesEl ? notesEl.value.trim() : '';
+
+            try {
+                var { data: ad } = await s.from('ads').select('description').eq('id', id).single();
+                var info = parseDescription(ad ? ad.description : '');
+                var days = parseInt(info.duration) || 7;
+
+                var expiryDate = new Date();
+                expiryDate.setDate(expiryDate.getDate() + days);
+
+                var { error } = await s.from('ads').update({
                     status: 'approved',
+                    approved: true,
                     approval_notes: notes,
                     approved_at: new Date().toISOString(),
                     expires_at: expiryDate.toISOString()
                 }).eq('id', id);
-                
-                if (error) {
-                    alert('Error: ' + error.message);
-                    return;
-                }
-                
-                alert('✓ Ad approved! It will run for 7 days.');
+
+                if (error) { alert('Error: ' + error.message); return; }
+                alert('✓ Ad approved! Runs for ' + days + ' days.');
                 loadAds();
-            } catch (error) {
-                alert('Error: ' + error.message);
+            } catch (e) {
+                alert('Error: ' + e.message);
             }
         }
-        
+
         async function denyAd(id) {
-            const notes = document.getElementById('notes-' + id).value.trim();
-            
-            if (!notes) {
-                alert('Please provide a reason for denial');
-                return;
-            }
-            
+            var notesEl = document.getElementById('notes-' + id);
+            var notes = notesEl ? notesEl.value.trim() : '';
+            if (!notes) { alert('Please provide a reason for denial'); return; }
             if (!confirm('Deny this ad?')) return;
-            
+
             try {
-                const { error } = await s.from('ads').update({
+                var { error } = await s.from('ads').update({
                     status: 'denied',
+                    approved: false,
                     denial_reason: notes
                 }).eq('id', id);
-                
-                if (error) {
-                    alert('Error: ' + error.message);
-                    return;
-                }
-                
+
+                if (error) { alert('Error: ' + error.message); return; }
                 alert('✗ Ad denied');
                 loadAds();
-            } catch (error) {
-                alert('Error: ' + error.message);
+            } catch (e) {
+                alert('Error: ' + e.message);
             }
         }
-        
-        function contactUser(userId, adId) {
-            // TODO: Connect to DM system when it's ready
-            alert('DM system not yet connected. User ID: ' + userId + ', Ad ID: ' + adId);
+
+        async function expireAd(id) {
+            if (!confirm('Expire this ad now? This will remove it from the site.')) return;
+            try {
+                var { error } = await s.from('ads').update({
+                    status: 'expired',
+                    approved: false,
+                    image_url: null
+                }).eq('id', id);
+
+                if (error) { alert('Error: ' + error.message); return; }
+                alert('Ad expired and image cleared');
+                loadAds();
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
         }
-        
+
+        async function deleteAd(id) {
+            if (!confirm('DELETE this ad permanently? This cannot be undone!')) return;
+            try {
+                var { error } = await s.from('ads').delete().eq('id', id);
+                if (error) { alert('Error: ' + error.message); return; }
+                alert('Ad deleted');
+                loadAds();
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', init);
         } else {
             init();
         }
     </script>
-    <!-- ADD THIS SCRIPT TO EVERY PAGE (except index.html where you want it always shown) -->
-<!-- Place it right before the closing </body> tag -->
 
-<script>
-// Avatar & Bubble Toggle System
-(function() {
-    // Create toggle button
-    const toggleBtn = document.createElement('button');
-    toggleBtn.id = 'avatarToggle';
-    toggleBtn.innerHTML = '👁️';
-    toggleBtn.title = 'Toggle Avatar/Bubbles';
-    toggleBtn.style.cssText = `
-        position: fixed;
-        top: 80px;
-        right: 20px;
-        z-index: 9999;
-        background: rgba(124, 58, 237, 0.9);
-        border: 2px solid rgba(124, 58, 237, 1);
-        color: white;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.5);
-        transition: all 0.3s ease;
-    `;
-    
-    toggleBtn.addEventListener('mouseenter', function() {
-        this.style.transform = 'scale(1.1)';
-    });
-    
-    toggleBtn.addEventListener('mouseleave', function() {
-        this.style.transform = 'scale(1)';
-    });
-    
-    document.body.appendChild(toggleBtn);
-    
-    // Load saved preference
-    let isHidden = localStorage.getItem('hideAvatarBubbles') === 'true';
-    
-    function updateVisibility() {
-        const elementsToToggle = [
-            document.getElementById('homeAvatarSwitcher'),
-            ...document.querySelectorAll('[id*="bubble"]'),
-            ...document.querySelectorAll('[class*="bubble"]'),
-            ...document.querySelectorAll('[id*="avatar"][id*="switcher"]')
-        ];
-        
-        elementsToToggle.forEach(el => {
-            if (el) {
-                el.style.display = isHidden ? 'none' : '';
-            }
+    <script>
+    // Avatar & Bubble Toggle (without MutationObserver)
+    (function() {
+        var toggleBtn = document.createElement('button');
+        toggleBtn.id = 'avatarToggle';
+        toggleBtn.innerHTML = '👁️';
+        toggleBtn.title = 'Toggle Avatar/Bubbles';
+        toggleBtn.style.cssText = 'position:fixed;top:80px;right:20px;z-index:9999;background:rgba(124,58,237,0.9);border:2px solid rgba(124,58,237,1);color:white;width:50px;height:50px;border-radius:50%;cursor:pointer;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(124,58,237,0.5);';
+        document.body.appendChild(toggleBtn);
+        var isHidden = localStorage.getItem('hideAvatarBubbles') === 'true';
+        function updateVisibility() {
+            var els = [document.getElementById('homeAvatarSwitcher')].concat(
+                Array.from(document.querySelectorAll('[id*="bubble"]')),
+                Array.from(document.querySelectorAll('[class*="bubble"]')),
+                Array.from(document.querySelectorAll('[id*="avatar"][id*="switcher"]'))
+            );
+            els.forEach(function(el) { if (el) el.style.display = isHidden ? 'none' : ''; });
+            toggleBtn.innerHTML = isHidden ? '👁️‍🗨️' : '👁️';
+        }
+        toggleBtn.addEventListener('click', function() {
+            isHidden = !isHidden;
+            localStorage.setItem('hideAvatarBubbles', isHidden);
+            updateVisibility();
         });
-        
-        toggleBtn.innerHTML = isHidden ? '👁️‍🗨️' : '👁️';
-        toggleBtn.title = isHidden ? 'Show Avatar/Bubbles' : 'Hide Avatar/Bubbles';
-    }
-    
-    toggleBtn.addEventListener('click', function() {
-        isHidden = !isHidden;
-        localStorage.setItem('hideAvatarBubbles', isHidden);
         updateVisibility();
-    });
-    
-    // Apply on load
-    updateVisibility();
-    
-    
-})();
-</script>
-
+    })();
+    </script>
 </body>
 </html>
+  
