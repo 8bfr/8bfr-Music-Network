@@ -283,34 +283,16 @@
                 var userRes = await sb.auth.getUser();
                 var user = userRes.data ? userRes.data.user : null;
 
-                // Upload image to Supabase Storage via REST
+                // Convert image to base64 data URL
                 var imageUrl = null;
                 var imageFile = document.getElementById('adImage').files[0];
                 if (imageFile) {
-                    var fileName = Date.now() + '-' + imageFile.name.replace(/[^a-zA-Z0-9._-]/g, '');
-                    try {
-                        var uploadResp = await fetch(SUPABASE_URL + '/storage/v1/object/ads/' + fileName, {
-                            method: 'POST',
-                            headers: {
-                                'apikey': SUPABASE_ANON_KEY,
-                                'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-                                'Content-Type': imageFile.type
-                            },
-                            body: imageFile
-                        });
-                        if (uploadResp.ok) {
-                            imageUrl = SUPABASE_URL + '/storage/v1/object/public/ads/' + fileName;
-                        } else {
-                            var errData = await uploadResp.json();
-                            console.error('Upload error:', errData);
-                            alert('Image upload failed: ' + (errData.message || errData.error || 'Unknown error'));
-                            return;
-                        }
-                    } catch (uploadErr) {
-                        console.error('Upload error:', uploadErr);
-                        alert('Image upload failed: ' + uploadErr.message);
-                        return;
-                    }
+                    imageUrl = await new Promise(function(resolve) {
+                        var reader = new FileReader();
+                        reader.onload = function(e) { resolve(e.target.result); };
+                        reader.readAsDataURL(imageFile);
+                    });
+                
                 }
 
                 var adData = {
