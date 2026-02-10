@@ -811,6 +811,122 @@
     })();
   </script>
 
+  <!-- Ad carousel script with Supabase -->
+  <script>
+    (function(){
+      const track = document.getElementById('adTrack');
+      const prev  = document.getElementById('adPrev');
+      const next  = document.getElementById('adNext');
+      const pause = document.getElementById('adPause');
+      if (!track || !prev || !next || !pause) return;
+
+      const defaultAds = [
+        { img:'assets/images/ad_banner_1.jpg', url:'ads.html#ad1' },
+        { img:'assets/images/ad_banner_2.jpg', url:'ads.html#ad2' },
+        { img:'assets/images/ad_banner_3.jpg', url:'ads.html#ad3' },
+        { img:'assets/images/ad_banner_4.jpg', url:'ads.html#ad4' },
+        { img:'assets/images/ad_banner_5.jpg', url:'ads.html#ad5' }
+      ];
+
+      let ads = [...defaultAds];
+      let i=0, paused=false, t=null;
+
+      async function loadApprovedAds() {
+        try {
+          if (!window.supabase) {
+            console.log('Supabase not loaded, using default ads');
+            return;
+          }
+          
+          const supabase = window.supabase.createClient(
+            'https://novbuvwpjnxwwvdekjhr.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0'
+          );
+
+          const { data, error } = await supabase
+            .from('ads')
+            .select('*')
+            .eq('status', 'approved')
+            .eq('approved', true)
+            .eq('ad_type', 'featured')
+            .gte('expires_at', new Date().toISOString())
+            .order('approved_at', { ascending: false });
+
+          if (!error && data && data.length > 0) {
+            ads = data.map((ad, idx) => ({
+              img: ad.image_url || 'assets/images/ad_banner_1.jpg',
+              url: ad.link_url || 'all-ads.html',
+              title: ad.title || 'Sponsored Ad'
+            }));
+            
+            while (ads.length < defaultAds.length) {
+              ads.push(defaultAds[ads.length]);
+            }
+            
+            console.log('Loaded ' + data.length + ' approved featured ads');
+          } else {
+            console.log('No approved featured ads, using defaults');
+          }
+        } catch (err) {
+          console.log('Error loading ads:', err);
+        }
+      }
+
+      function slide(idx){
+        i = (idx+ads.length) % ads.length;
+        const old = track.querySelector('.ad-slide.show');
+        const a = document.createElement('a');
+        a.className = 'ad-slide';
+        a.href = ads[i].url || '#';
+        a.target = '_blank';
+        a.rel = 'noopener';
+
+        const img = new Image();
+        img.src = ads[i].img;
+        img.alt = ads[i].title || 'Ad slot ' + (i+1);
+        a.appendChild(img);
+        track.appendChild(a);
+
+        requestAnimationFrame(()=>a.classList.add('show'));
+        if (old){ setTimeout(()=>old.remove(),380); }
+      }
+
+      function auto(){ if(paused) return; slide(i+1); schedule(); }
+      function schedule(){ clearTimeout(t); t = setTimeout(auto, 5000); }
+
+      prev.onclick = () => { if(!paused){ paused=true; pause.textContent='Play'; } slide(i-1); };
+      next.onclick = () => { if(!paused){ paused=true; pause.textContent='Play'; } slide(i+1); };
+      pause.onclick = () => {
+        paused = !paused;
+        pause.textContent = paused ? 'Play' : 'Pause';
+        if (!paused) schedule(); else clearTimeout(t);
+      };
+
+      let sx=0, dx=0, down=false;
+      track.addEventListener('touchstart', e=>{
+        down=true;
+        sx=e.touches[0].clientX;
+        dx=0;
+        clearTimeout(t);
+      }, {passive:true});
+      track.addEventListener('touchmove', e=>{
+        if(!down) return;
+        dx = e.touches[0].clientX - sx;
+      }, {passive:true});
+      track.addEventListener('touchend', ()=>{
+        down=false;
+        if(Math.abs(dx)>40){
+          if(dx<0) next.click(); else prev.click();
+        }
+        schedule();
+      }, {passive:true});
+
+      loadApprovedAds().then(() => {
+        slide(0); 
+        schedule();
+      });
+    })();
+  </script>
   <!-- Admin Management Functions -->
   <script>
     function manageFeaturedArtists() {
