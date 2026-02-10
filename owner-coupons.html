@@ -18,7 +18,7 @@
         .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; }
         .form-group input, .form-group select { width: 100%; padding: 0.75rem; background: var(--dark); border: 1px solid var(--border); border-radius: 4px; color: var(--text); }
         .btn { background: var(--primary); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 4px; cursor: pointer; font-weight: 600; }
-        .coupon-item { background: var(--dark); border: 1px solid var(--border); padding: 1rem; margin-bottom: 0.5rem; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .coupon-item { background: var(--dark); border: 1px solid var(--border); padding: 1rem; margin-bottom: 0.5rem; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
     </style>
 </head>
 <body>
@@ -54,99 +54,96 @@
             <div id="coupons">Loading...</div>
         </div>
     </div>
-    
+
     <script>
         const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
         const s = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        
+
         async function init() {
             try {
                 const { data: { session } } = await s.auth.getSession();
-                if (!session) { location.href = 'login.html'; return; }
+                if (!session) { document.getElementById('coupons').innerHTML = '<p style="color:#ff0044;">Not logged in</p>'; return; }
                 const { data: profile } = await s.from('profiles').select('*').eq('user_id', session.user.id).single();
-                if (!profile || profile.role !== 'owner') { alert('Owner only'); location.href = 'owner-panel.html'; return; }
+                if (!profile || profile.role !== 'owner') { document.getElementById('coupons').innerHTML = '<p style="color:#ff0044;">Owner access required</p>'; return; }
                 loadCoupons();
             } catch (error) {
-                console.error('Init error:', error);
+                document.getElementById('coupons').innerHTML = '<p style="color:#ff0044;">Init error: ' + error.message + '</p>';
             }
         }
-        
+
         async function loadCoupons() {
             try {
-                const { data, error } = await s.from('discount_codes').select('*').order('created_at', {ascending: false});
-                
+                const { data, error } = await s.from('discount_codes').select('*').order('created_at', { ascending: false });
+
                 if (error) {
-                    console.error('Load error:', error);
-                    document.getElementById('coupons').innerHTML = '<p style="color: #ff0044;">Error: ' + error.message + '</p>';
+                    document.getElementById('coupons').innerHTML = '<p style="color:#ff0044;">Error: ' + error.message + '</p>';
                     return;
                 }
 
                 if (!data || data.length === 0) {
-                    document.getElementById('coupons').innerHTML = '<p style="color: var(--text-dim);">No coupons yet. Create one above!</p>';
+                    document.getElementById('coupons').innerHTML = '<p style="color:#a855f7;">No coupons yet. Create one above!</p>';
                     return;
                 }
 
-                document.getElementById('coupons').innerHTML = data.map(c => `
-                    <div class="coupon-item">
-                        <div>
-                            <strong>${c.code}</strong> - $${parseFloat(c.discount_amount).toFixed(2)} off 
-                            | Uses: ${c.uses || 0}${c.max_uses ? '/' + c.max_uses : '/∞'}
-                        </div>
-                        <button class="btn" style="background: #ff0044;" onclick="deleteCoupon('${c.id}')">Delete</button>
-                    </div>
-                `).join('');
+                document.getElementById('coupons').innerHTML = data.map(function(c) {
+                    return '<div class="coupon-item">' +
+                        '<div>' +
+                            '<strong>' + c.code + '</strong> - $' + parseFloat(c.discount_amount).toFixed(2) + ' off' +
+                            ' | Uses: ' + (c.uses || 0) + (c.max_uses ? '/' + c.max_uses : '/∞') +
+                        '</div>' +
+                        '<button class="btn" style="background:#ff0044;" onclick="deleteCoupon(\'' + c.id + '\')">Delete</button>' +
+                    '</div>';
+                }).join('');
             } catch (error) {
-                console.error('Load error:', error);
-                document.getElementById('coupons').innerHTML = '<p>Error: ' + error.message + '</p>';
+                document.getElementById('coupons').innerHTML = '<p style="color:#ff0044;">Error: ' + error.message + '</p>';
             }
         }
-        
+
         async function createCoupon() {
-            const code = document.getElementById('code').value.trim().toUpperCase();
-            const discount = parseFloat(document.getElementById('discount').value);
-            if (!discount || discount <= 0 || discount > 30) {
-            const maxUses = document.getElementById('maxUses').value.trim();
+            var code = document.getElementById('code').value.trim().toUpperCase();
+            var discount = parseFloat(document.getElementById('discount').value);
+            var maxUses = document.getElementById('maxUses').value.trim();
 
             if (!code) {
                 alert('Please enter a coupon code');
                 return;
             }
 
+            if (!discount || discount <= 0 || discount > 30) {
+                alert('Please enter a discount amount between $0.01 and $30.00');
+                return;
+            }
+
             try {
-                const { data, error } = await s.from('discount_codes').insert({
+                var result = await s.from('discount_codes').insert({
                     code: code,
                     discount_amount: discount,
                     max_uses: maxUses ? parseInt(maxUses) : null,
                     uses: 0
                 }).select();
 
-                if (error) {
-                    console.error('Create error:', error);
-                    alert('Error: ' + error.message);
+                if (result.error) {
+                    alert('Error: ' + result.error.message);
                     return;
                 }
 
-                alert('✅ Coupon created: ' + code);
+                alert('Coupon created: ' + code);
                 document.getElementById('code').value = '';
-                document.getElementById('discount').value = '1.00';
+                document.getElementById('discount').value = '';
                 document.getElementById('maxUses').value = '';
-                
-                // Force reload after slight delay
-                setTimeout(() => loadCoupons(), 300);
+                loadCoupons();
             } catch (error) {
-                console.error('Create error:', error);
                 alert('Error: ' + error.message);
             }
         }
-        
+
         async function deleteCoupon(id) {
-            if (!confirm('Delete this coupon? This cannot be undone!')) return;
-            
+            if (!confirm('Delete this coupon?')) return;
             try {
-                const { error } = await s.from('discount_codes').delete().eq('id', id);
-                if (error) {
-                    alert('Error: ' + error.message);
+                var result = await s.from('discount_codes').delete().eq('id', id);
+                if (result.error) {
+                    alert('Error: ' + result.error.message);
                     return;
                 }
                 alert('Coupon deleted');
@@ -155,81 +152,35 @@
                 alert('Error: ' + error.message);
             }
         }
-        
+
         init();
     </script>
-    <!-- ADD THIS SCRIPT TO EVERY PAGE (except index.html where you want it always shown) -->
-<!-- Place it right before the closing </body> tag -->
 
-<script>
-// Avatar & Bubble Toggle System
-(function() {
-    // Create toggle button
-    const toggleBtn = document.createElement('button');
-    toggleBtn.id = 'avatarToggle';
-    toggleBtn.innerHTML = '👁️';
-    toggleBtn.title = 'Toggle Avatar/Bubbles';
-    toggleBtn.style.cssText = `
-        position: fixed;
-        top: 80px;
-        right: 20px;
-        z-index: 9999;
-        background: rgba(124, 58, 237, 0.9);
-        border: 2px solid rgba(124, 58, 237, 1);
-        color: white;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.5);
-        transition: all 0.3s ease;
-    `;
-    
-    toggleBtn.addEventListener('mouseenter', function() {
-        this.style.transform = 'scale(1.1)';
-    });
-    
-    toggleBtn.addEventListener('mouseleave', function() {
-        this.style.transform = 'scale(1)';
-    });
-    
-    document.body.appendChild(toggleBtn);
-    
-    // Load saved preference
-    let isHidden = localStorage.getItem('hideAvatarBubbles') === 'true';
-    
-    function updateVisibility() {
-        const elementsToToggle = [
-            document.getElementById('homeAvatarSwitcher'),
-            ...document.querySelectorAll('[id*="bubble"]'),
-            ...document.querySelectorAll('[class*="bubble"]'),
-            ...document.querySelectorAll('[id*="avatar"][id*="switcher"]')
-        ];
-        
-        elementsToToggle.forEach(el => {
-            if (el) {
-                el.style.display = isHidden ? 'none' : '';
-            }
+    <script>
+    (function() {
+        var toggleBtn = document.createElement('button');
+        toggleBtn.id = 'avatarToggle';
+        toggleBtn.innerHTML = '👁️';
+        toggleBtn.title = 'Toggle Avatar/Bubbles';
+        toggleBtn.style.cssText = 'position:fixed;top:80px;right:20px;z-index:9999;background:rgba(124,58,237,0.9);border:2px solid rgba(124,58,237,1);color:white;width:50px;height:50px;border-radius:50%;cursor:pointer;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(124,58,237,0.5);';
+        document.body.appendChild(toggleBtn);
+        var isHidden = localStorage.getItem('hideAvatarBubbles') === 'true';
+        function updateVisibility() {
+            var els = [document.getElementById('homeAvatarSwitcher')].concat(
+                Array.from(document.querySelectorAll('[id*="bubble"]')),
+                Array.from(document.querySelectorAll('[class*="bubble"]')),
+                Array.from(document.querySelectorAll('[id*="avatar"][id*="switcher"]'))
+            );
+            els.forEach(function(el) { if (el) el.style.display = isHidden ? 'none' : ''; });
+            toggleBtn.innerHTML = isHidden ? '👁️‍🗨️' : '👁️';
+        }
+        toggleBtn.addEventListener('click', function() {
+            isHidden = !isHidden;
+            localStorage.setItem('hideAvatarBubbles', isHidden);
+            updateVisibility();
         });
-        
-        toggleBtn.innerHTML = isHidden ? '👁️‍🗨️' : '👁️';
-        toggleBtn.title = isHidden ? 'Show Avatar/Bubbles' : 'Hide Avatar/Bubbles';
-    }
-    
-    toggleBtn.addEventListener('click', function() {
-        isHidden = !isHidden;
-        localStorage.setItem('hideAvatarBubbles', isHidden);
         updateVisibility();
-    });
-    
-    // Apply on load
-    updateVisibility();
-})();
-</script>
-
+    })();
+    </script>
 </body>
 </html>
