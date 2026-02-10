@@ -128,6 +128,7 @@
         .from("ads")
         .select("*")
         .eq("status", "approved")
+        .eq("approved", true)
         .eq("ad_type", "featured")
         .gte("expires_at", now)
         .order("created_at", { ascending: false })
@@ -142,15 +143,14 @@
             });
 
             // Fill remaining slots with placeholders up to 5
-            var remaining = 5 - liveAds.length;
-            if (remaining > 0) {
-              for (var i = 0; i < remaining && i < defaultAds.length; i++) {
+            // Use all live ads, pad with placeholders only if fewer than 5
+            if (liveAds.length < defaultAds.length) {
+              for (var i = liveAds.length; i < defaultAds.length; i++) {
                 liveAds.push(defaultAds[i]);
               }
             }
 
             ads = liveAds;
-          }
           showSlide(0);
           schedule();
         })
@@ -244,34 +244,7 @@
     });
   }
 
-  function enforceAuthGate() {
-    const publicPages = [
-      "index.html",
-      "login.html",
-      "signup.html",
-      "reset-password.html",
-      "reset_password.html",
-      "logout.html",
-    ];
-    let path = window.location.pathname.split("/").pop();
-    if (!path) path = "index.html";
-
-    if (publicPages.includes(path)) {
-      return;
-    }
-
-    loadSupabaseClient(async (client) => {
-      try {
-        const { data, error } = await client.auth.getSession();
-        if (error || !data || !data.session) {
-          showAuthOverlay();
-        }
-      } catch (e) {
-        console.warn("Auth gate check failed", e);
-      }
-    });
-  }
-
+  
   function injectGlobalUI() {
     // Already injected?
     if (document.getElementById("fab")) {
