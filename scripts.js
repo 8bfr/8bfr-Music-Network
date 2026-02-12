@@ -1,5 +1,6 @@
 // ========== FEATURED ADS + BUTTONS (index.html only, with swipe) ==========
 (function () {
+  if (window._8bfrInlineCarousel) return;
   var track = document.getElementById("adTrack");
   if (!track) return;
 
@@ -151,6 +152,7 @@
             }
 
             ads = liveAds;
+          }
           showSlide(0);
           schedule();
         })
