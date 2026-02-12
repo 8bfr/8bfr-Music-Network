@@ -258,6 +258,10 @@
     // <body data-no-global-carrie="true">
     const noCarrie =
       document.body && document.body.dataset.noGlobalCarrie === "true";
+    
+    // Bubbles + avatars only on index.html
+    let currentPage = window.location.pathname.split("/").pop() || "index.html";
+    const isIndex = (currentPage === "index.html" || currentPage === "" || currentPage === "/");
 
     // ---------- STYLES ----------
     const css = document.createElement("style");
@@ -744,7 +748,7 @@ body.menu-open #carrieWrap{
   </div>
 </nav>
 
-<div id="bubbleStack">
+${isIndex ? '<div id="bubbleStack">' : '<!-- bubbles hidden -->'}
   <div class="bubble-row">
     <span class="bubble-label">Contact</span>
     <button class="bubble" id="bubble-contact" title="Contact"><span>✉️</span></button>
@@ -772,7 +776,9 @@ body.menu-open #carrieWrap{
   </div>
 </div>
 
-<button class="bubble" id="bubble-top-single" title="Back to top">
+${isIndex ? '</div>' : ''}
+
+<button class="bubble" id="bubble-top-single"
   <span>⬆️</span>
 </button>
 `;
