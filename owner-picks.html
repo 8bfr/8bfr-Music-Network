@@ -255,7 +255,7 @@
             const btn = document.getElementById('addArtistBtn');
             btn.disabled = true; btn.textContent = 'Saving…';
             try {
-                const { error } = await s.from('featured_content').insert({ content_type: type, content_id: userId });
+                const { error } = await s.from('featured_artists').insert({ user_id: userId });
                 if (error) throw error;
                 showNotice('artistNotice', '⭐ Artist added to Owner Picks!', 'success');
                 await loadFeatured();
@@ -278,9 +278,8 @@
             const el = document.getElementById('featuredArtists');
             try {
                 const { data: rows, error } = await s
-                    .from('featured_content')
-                    .select('id, content_id')
-                    .eq('content_type', 'artist')
+                    .from('featured_artists')
+                    .select('user_id')
                     .order('created_at', { ascending: false });
 
                 if (error) throw error;
@@ -291,7 +290,7 @@
                     return;
                 }
 
-                const ids = rows.map(r => r.content_id).filter(Boolean);
+                const ids = rows.map(r => r.user_id).filter(Boolean);
                 const { data: profiles } = await s
                     .from('profiles')
                     .select('user_id, username, display_name, avatar_url, role, badges, verified_artist')
@@ -301,8 +300,8 @@
                 (profiles || []).forEach(p => { profileMap[p.user_id] = p; featuredArtistIds.add(p.user_id); });
 
                 el.innerHTML = rows.map(row => {
-                    const p = profileMap[row.content_id];
-                    const name = p ? (p.display_name || p.username || 'Unknown') : 'Unknown (ID: ' + (row.content_id?.substring(0,8) || '?') + '…)';
+                    const p = profileMap[row.user_id];
+                    const name = p ? (p.display_name || p.username || 'Unknown') : 'Unknown (ID: ' + (row.user_id?.substring(0,8) || '?') + '…)';
                     const badge = p?.badges?.includes('beatmaker') ? '🎚️ Beatmaker' : p?.badges?.includes('artist') ? '🎤 Artist' : p?.role || '';
                     const avatarSrc = p?.avatar_url || '';
                     const avatarInner = avatarSrc
@@ -318,7 +317,7 @@
                             </div>
                             <span class="owner-pick-badge">⭐ Owner Pick</span>
                         </div>
-                        <button class="btn btn-danger" onclick="removeFeatured('${row.id}', 'artist')">Remove</button>
+                        <button class="btn btn-danger" onclick="removeFeaturedArtist('${row.user_id}')">Remove</button>
                     </div>`;
                 }).join('');
             } catch (err) {
@@ -330,9 +329,8 @@
             const el = document.getElementById('featuredSongs');
             try {
                 const { data: rows, error } = await s
-                    .from('featured_content')
-                    .select('id, content_id')
-                    .eq('content_type', 'song')
+                    .from('featured_songs')
+                    .select('song_id')
                     .order('created_at', { ascending: false });
 
                 if (error) throw error;
@@ -341,15 +339,15 @@
                     return;
                 }
 
-                const ids = rows.map(r => r.content_id).filter(Boolean);
-                const { data: posts } = await s.from('posts').select('id, title, artist_name').in('id', ids);
-                const postMap = {};
-                (posts || []).forEach(p => { postMap[p.id] = p; });
+                const ids = rows.map(r => r.song_id).filter(Boolean);
+                const { data: songs } = await s.from('songs').select('id, title, artist').in('id', ids);
+                const songMap = {};
+                (songs || []).forEach(s => { songMap[s.id] = s; });
 
                 el.innerHTML = rows.map(row => {
-                    const p = postMap[row.content_id];
+                    const p = songMap[row.song_id];
                     const title = p?.title || 'Untitled';
-                    const artist = p?.artist_name || '';
+                    const artist = p?.artist || '';
                     return `
                     <div class="featured-item">
                         <div class="featured-item-info">
@@ -360,7 +358,7 @@
                             </div>
                             <span class="owner-pick-badge">⭐ Owner Pick</span>
                         </div>
-                        <button class="btn btn-danger" onclick="removeFeatured('${row.id}', 'song')">Remove</button>
+                        <button class="btn btn-danger" onclick="removeFeaturedSong('${row.song_id}')">Remove</button>
                     </div>`;
                 }).join('');
             } catch (err) {
@@ -384,13 +382,13 @@
                 }
 
                 const ids = rows.map(r => r.content_id).filter(Boolean);
-                const { data: posts } = await s.from('posts').select('id, content, title').in('id', ids);
+                const { data: posts } = await s.from('posts').select('id, text').in('id', ids);
                 const postMap = {};
                 (posts || []).forEach(p => { postMap[p.id] = p; });
 
                 el.innerHTML = rows.map(row => {
                     const p = postMap[row.content_id];
-                    const preview = p?.content ? p.content.substring(0, 80) + (p.content.length > 80 ? '…' : '') : (p?.title || 'Post ID: ' + row.content_id?.substring(0,8) + '…');
+                    const preview = p?.text ? p.text.substring(0, 80) + (p.text.length > 80 ? '…' : '') : 'Post ID: ' + row.content_id?.substring(0,8) + '…';
                     return `
                     <div class="featured-item">
                         <div class="featured-item-info">
@@ -409,13 +407,35 @@
         }
 
         // ── REMOVE ──────────────────────────────────────────────────
+        async function removeFeaturedArtist(userId) {
+            if (!confirm('Remove this artist from Owner Picks?')) return;
+            try {
+                const { error } = await s.from('featured_artists').delete().eq('user_id', userId);
+                if (error) throw error;
+                await loadFeatured();
+                await populateArtistDropdown();
+            } catch (err) {
+                alert('Error removing: ' + err.message);
+            }
+        }
+
+        async function removeFeaturedSong(songId) {
+            if (!confirm('Remove this song from Owner Picks?')) return;
+            try {
+                const { error } = await s.from('featured_songs').delete().eq('song_id', songId);
+                if (error) throw error;
+                await loadFeatured();
+            } catch (err) {
+                alert('Error removing: ' + err.message);
+            }
+        }
+
         async function removeFeatured(id, type) {
             if (!confirm('Remove this ' + type + ' from Owner Picks?')) return;
             try {
                 const { error } = await s.from('featured_content').delete().eq('id', id);
                 if (error) throw error;
                 await loadFeatured();
-                await populateArtistDropdown();
             } catch (err) {
                 alert('Error removing: ' + err.message);
             }
@@ -428,12 +448,12 @@
             if (!query) { el.innerHTML = '<span style="color:rgba(168,85,247,0.5);font-size:0.9rem;">Type to search…</span>'; return; }
             el.innerHTML = '<span style="color:rgba(168,85,247,0.5);font-size:0.9rem;">Searching…</span>';
             try {
-                const { data, error } = await s.from('posts').select('id, title, artist_name').or('title.ilike.%' + query + '%,artist_name.ilike.%' + query + '%').limit(20);
+                const { data, error } = await s.from('songs').select('id, title, artist').or('title.ilike.%' + query + '%,artist.ilike.%' + query + '%').limit(20);
                 if (error) throw error;
                 if (!data || data.length === 0) { el.innerHTML = '<span style="color:rgba(168,85,247,0.5);font-size:0.9rem;">No songs found for "' + query + '"</span>'; return; }
                 el.innerHTML = '<div style="display:flex;flex-direction:column;gap:0.5rem;margin-top:0.5rem;">' + data.map(p => `
                     <div onclick="toggleSong('${p.id}')" style="background:var(--dark);border:1px solid ${selectedSongs.has(p.id) ? '#00ff88' : 'var(--border)'};background:${selectedSongs.has(p.id) ? 'rgba(0,255,136,0.08)' : 'var(--dark)'};border-radius:8px;padding:0.75rem;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
-                        <div><strong>${p.title || 'Untitled'}</strong><br><small style="color:rgba(168,85,247,0.7);">${p.artist_name || ''}</small></div>
+                        <div><strong>${p.title || 'Untitled'}</strong><br><small style="color:rgba(168,85,247,0.7);">${p.artist || ''}</small></div>
                         ${selectedSongs.has(p.id) ? '<span style="color:#00ff88;font-weight:700;">✓ Selected</span>' : ''}
                     </div>`).join('') + '</div>';
             } catch (err) {
@@ -453,11 +473,11 @@
             if (!query) { el.innerHTML = '<span style="color:rgba(168,85,247,0.5);font-size:0.9rem;">Type to search…</span>'; return; }
             el.innerHTML = '<span style="color:rgba(168,85,247,0.5);font-size:0.9rem;">Searching…</span>';
             try {
-                const { data, error } = await s.from('posts').select('id, content, title').ilike('content', '%' + query + '%').limit(20);
+                const { data, error } = await s.from('posts').select('id, text').ilike('text', '%' + query + '%').limit(20);
                 if (error) throw error;
                 if (!data || data.length === 0) { el.innerHTML = '<span style="color:rgba(168,85,247,0.5);font-size:0.9rem;">No posts found</span>'; return; }
                 el.innerHTML = '<div style="display:flex;flex-direction:column;gap:0.5rem;margin-top:0.5rem;">' + data.map(p => {
-                    const preview = p.content ? p.content.substring(0, 120) + (p.content.length > 120 ? '…' : '') : (p.title || 'Untitled');
+                    const preview = p.text ? p.text.substring(0, 120) + (p.text.length > 120 ? '…' : '') : 'Post ID: ' + p.id?.substring(0,8) + '…';
                     return `<div onclick="togglePost('${p.id}')" style="background:${selectedPosts.has(p.id) ? 'rgba(0,255,136,0.08)' : 'var(--dark)'};border:1px solid ${selectedPosts.has(p.id) ? '#00ff88' : 'var(--border)'};border-radius:8px;padding:0.75rem;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:0.5rem;">
                         <small style="line-height:1.5;">${preview}</small>
                         ${selectedPosts.has(p.id) ? '<span style="color:#00ff88;font-weight:700;flex-shrink:0;">✓</span>' : ''}
@@ -479,9 +499,15 @@
             const noticeId = type === 'song' ? 'songNotice' : 'postNotice';
             if (set.size === 0) { showNotice(noticeId, 'Select at least one item first.', 'error'); return; }
             try {
-                const items = Array.from(set).map(id => ({ content_type: type, content_id: id }));
-                const { error } = await s.from('featured_content').insert(items);
-                if (error) throw error;
+                if (type === 'song') {
+                    const items = Array.from(set).map(id => ({ song_id: id }));
+                    const { error } = await s.from('featured_songs').insert(items);
+                    if (error) throw error;
+                } else {
+                    const items = Array.from(set).map(id => ({ content_type: type, content_id: id }));
+                    const { error } = await s.from('featured_content').insert(items);
+                    if (error) throw error;
+                }
                 showNotice(noticeId, '⭐ Added ' + set.size + ' ' + type + '(s) to Owner Picks!', 'success');
                 set.clear();
                 await loadFeatured();
