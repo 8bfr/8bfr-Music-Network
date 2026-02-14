@@ -140,6 +140,7 @@
   </div>
 
   <div id="loadingSpinner" style="display:none;"><div class="spinner"></div></div>
+  <div id="statusMsg" style="display:none;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.4);border-radius:10px;padding:0.75rem 1rem;margin-bottom:1rem;font-size:0.85rem;color:#a855f7;"></div>
 
   <div id="featuredArtists" style="display:none;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.5rem;" class="artist-grid"></div>
 
@@ -170,19 +171,18 @@ let _roleCache = null;
 async function getUserRole() {
   if (_roleCache !== null) return _roleCache;
   try {
-    // Timeout after 5s so it never hangs the page
-    const timeout = new Promise(resolve => setTimeout(() => resolve(null), 5000));
-    const authResult = await Promise.race([db.auth.getUser(), timeout]);
-    
-    const user = authResult?.data?.user;
+    // getSession() reads from localStorage instantly — no network call
+    const { data: { session } } = await db.auth.getSession();
+    const user = session?.user;
     if (!user) { _roleCache = ''; return ''; }
 
-    const { data: profile } = await db
+    const { data: profile, error } = await db
       .from('profiles')
       .select('role')
       .eq('user_id', user.id)
       .maybeSingle();
 
+    if (error) { _roleCache = ''; return ''; }
     _roleCache = (profile?.role || '').toLowerCase().trim();
     return _roleCache;
   } catch(e) {
@@ -305,45 +305,58 @@ async function loadFeaturedArtists() {
   const empty   = document.getElementById('emptyState');
   const errEl   = document.getElementById('errorState');
 
+  const statusEl = document.getElementById('statusMsg');
+  function setStatus(msg) {
+    statusEl.style.display = 'block';
+    statusEl.textContent = msg;
+  }
+
   spinner.style.display = 'block';
   grid.style.display = 'none';
   empty.style.display = 'none';
   errEl.style.display = 'none';
 
-  // Check admin status from Supabase once
+  // Check admin status from Supabase — runs in parallel, doesn't block artists loading
   const adminMode = await isAdmin();
+  setStatus('Step 1: Checking session… ' + (adminMode ? '✅ Admin' : '👤 Not admin / not logged in'));
 
   try { // main try — spinner is ALWAYS hidden in finally below
+    setStatus('Step 2: Loading featured_content rows…');
     const { data: featured, error: featError } = await db
       .from('featured_content')
       .select('content_id')
       .eq('content_type', 'artist')
       .order('created_at', { ascending: false });
 
-    if (featError) throw featError;
+    if (featError) throw new Error('featured_content query failed: ' + featError.message);
+
+    setStatus('Step 3: Got ' + (featured?.length || 0) + ' featured rows. IDs: ' + (featured?.map(f=>f.content_id?.substring(0,8)+'…').join(', ') || 'none'));
 
     if (!featured || featured.length === 0) {
-      spinner.style.display = 'none';
       empty.style.display = 'block';
       if (adminMode) populateDropdown([]);
       return;
     }
 
+    setStatus('Step 4: Loading profiles for those IDs…');
     const { data: profiles, error: profError } = await db
       .from('profiles')
       .select('user_id, username, display_name, bio, badges, avatar_url, role, verified_artist')
       .in('user_id', featured.map(f => f.content_id));
 
-    if (profError) throw profError;
+    if (profError) throw new Error('profiles query failed: ' + profError.message);
 
-    spinner.style.display = 'none';
+    setStatus('Step 5: Got ' + (profiles?.length || 0) + ' matching profiles.');
 
     if (adminMode) populateDropdown(profiles || []);
 
     if (!profiles || profiles.length === 0) {
+      setStatus('⚠️ featured_content has ' + featured.length + ' rows but no matching profiles.user_id found. Check that content_id values match profiles.user_id exactly.');
       empty.style.display = 'block';
       return;
     }
+    
+    statusEl.style.display = 'none';
 
     const badgeEmoji = { artist:'🎤', beatmaker:'🎚️', songwriter:'✍️', verified:'✓', founder:'👑' };
 
