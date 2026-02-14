@@ -228,9 +228,9 @@ async function searchSongs() {
     resultsEl.innerHTML = '<div style="color:rgba(168,85,247,0.5);font-size:0.85rem;padding:0.5rem;">Searching…</div>';
 
     try {
-      const { data, error } = await db.from('posts')
-        .select('id, title, artist_name')
-        .or('title.ilike.%' + query + '%,artist_name.ilike.%' + query + '%')
+      const { data, error } = await db.from('songs')
+        .select('id, title, artist')
+        .or('title.ilike.%' + query + '%,artist.ilike.%' + query + '%')
         .limit(15);
 
       if (error) throw error;
@@ -244,7 +244,7 @@ async function searchSongs() {
         <div class="search-result-item ${selectedSongId === p.id ? 'selected' : ''}" onclick="selectSong('${p.id}', '${(p.title||'Untitled').replace(/'/g,"\\'")}')">
           <div>
             <div style="font-weight:600;font-size:0.9rem;">${p.title || 'Untitled'}</div>
-            <div style="font-size:0.78rem;color:rgba(168,85,247,0.7);">${p.artist_name || ''}</div>
+            <div style="font-size:0.78rem;color:rgba(168,85,247,0.7);">${p.artist || ''}</div>
           </div>
           ${selectedSongId === p.id ? '<span style="color:#00ff88;font-weight:700;">✓</span>' : ''}
         </div>`).join('');
@@ -270,12 +270,12 @@ async function featureSelected() {
   btn.disabled = true; btn.textContent = 'Saving…';
 
   try {
-    const { data: existing } = await db.from('featured_content')
-      .select('id').eq('content_type', 'song').eq('content_id', selectedSongId).maybeSingle();
+    const { data: existing } = await db.from('featured_songs')
+      .select('song_id').eq('song_id', selectedSongId).maybeSingle();
 
     if (existing) { showNotice('This song is already featured!', 'warn'); return; }
 
-    const { error } = await db.from('featured_content').insert({ content_type: 'song', content_id: selectedSongId });
+    const { error } = await db.from('featured_songs').insert({ song_id: selectedSongId });
     if (error) throw error;
 
     showNotice('⭐ Song added to featured!', 'success');
@@ -294,8 +294,8 @@ async function featureSelected() {
 async function removeFeatured(contentId) {
   if (!confirm('Remove this song from featured?')) return;
   try {
-    const { error } = await db.from('featured_content')
-      .delete().eq('content_type', 'song').eq('content_id', contentId);
+    const { error } = await db.from('featured_songs')
+      .delete().eq('song_id', contentId);
     if (error) throw error;
     await loadFeaturedSongs();
   } catch (err) {
@@ -317,9 +317,8 @@ async function loadFeaturedSongs() {
 
   try {
     const { data: featured, error: featErr } = await db
-      .from('featured_content')
-      .select('content_id')
-      .eq('content_type', 'song')
+      .from('featured_songs')
+      .select('song_id')
       .order('created_at', { ascending: false });
 
     if (featErr) throw featErr;
@@ -329,27 +328,26 @@ async function loadFeaturedSongs() {
       return;
     }
 
-    const ids = [...new Set(featured.map(f => f.content_id).filter(Boolean))];
-    const { data: posts, error: postsErr } = await db
-      .from('posts')
-      .select('id, title, artist_name, cover_url')
+    const ids = [...new Set(featured.map(f => f.song_id).filter(Boolean))];
+    const { data: songs, error: songsErr } = await db
+      .from('songs')
+      .select('id, title, artist, cover_art, song_url')
       .in('id', ids);
 
-    if (postsErr) throw postsErr;
+    if (songsErr) throw songsErr;
 
-    if (!posts || posts.length === 0) {
+    if (!songs || songs.length === 0) {
       empty.style.display = 'block';
       return;
     }
 
-    // Keep order from featured_content
-    const postMap = {};
-    (posts || []).forEach(p => { postMap[p.id] = p; });
+    const songMap = {};
+    (songs || []).forEach(s => { songMap[s.id] = s; });
 
     list.innerHTML = featured.map(row => {
-      const p = postMap[row.content_id];
+      const p = songMap[row.song_id];
       if (!p) return '';
-      const cover = p.cover_url || '';
+      const cover = p.cover_art || '';
       const coverInner = cover
         ? '<img src="' + cover + '" alt="' + (p.title||'Song') + '" onerror="this.parentNode.textContent=\'🎵\'">'
         : '🎵';
@@ -363,7 +361,7 @@ async function loadFeaturedSongs() {
           <div class="song-cover">${coverInner}</div>
           <div class="song-info">
             <div class="song-title">${p.title || 'Untitled'}</div>
-            <div class="song-artist">${p.artist_name || 'Unknown Artist'}</div>
+            <div class="song-artist">${p.artist || 'Unknown Artist'}</div>
           </div>
         </div>
         <button class="remove-btn" onclick="removeFeatured('${p.id}')">❌ Remove Featured</button>
