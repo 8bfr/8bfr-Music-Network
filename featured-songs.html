@@ -6,417 +6,440 @@
 <title>Featured Songs — 8BFR Music Network</title>
 <link rel="icon" href="assets/images/favicon.png" />
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { box-sizing: border-box; }
   body {
     background: linear-gradient(#0b0014, #000);
     color: #eae6ff;
     font-family: system-ui, -apple-system, sans-serif;
-    margin: 0;
-    padding: 0;
+    margin: 0; padding: 0;
   }
-  
   .header {
     background: rgba(15, 0, 30, 0.95);
     border-bottom: 1px solid rgba(124, 58, 237, 0.5);
-    position: sticky;
-    top: 0;
-    z-index: 100;
+    position: sticky; top: 0; z-index: 100;
     backdrop-filter: blur(12px);
   }
-  
   .featured-badge {
     display: inline-block;
     background: linear-gradient(135deg, #f59e0b, #d97706);
-    color: white;
-    padding: 0.4rem 1rem;
-    border-radius: 20px;
-    font-size: 0.85rem;
-    font-weight: 700;
-    margin-bottom: 1rem;
+    color: white; padding: 0.4rem 1rem; border-radius: 20px;
+    font-size: 0.85rem; font-weight: 700; margin-bottom: 1rem;
   }
-  
   .song-card {
     background: rgba(12, 6, 24, 0.8);
     border: 1px solid rgba(124, 58, 237, 0.35);
-    border-radius: 16px;
-    padding: 1.5rem;
-    transition: all 0.3s;
-    display: flex;
-    gap: 1rem;
-    align-items: center;
+    border-radius: 16px; padding: 1.25rem;
+    transition: all 0.3s; position: relative; overflow: hidden;
   }
-  
   .song-card:hover {
     border-color: rgba(168, 85, 247, 0.6);
     box-shadow: 0 8px 32px rgba(124, 58, 237, 0.3);
   }
-  
-  .song-icon {
-    width: 60px;
-    height: 60px;
-    border-radius: 12px;
+  .song-card-inner {
+    display: flex; gap: 1rem; align-items: center;
+  }
+  .song-cover {
+    width: 70px; height: 70px; border-radius: 10px;
     background: linear-gradient(135deg, #7c3aed, #a855f7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.8rem;
-    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.8rem; flex-shrink: 0;
     box-shadow: 0 4px 20px rgba(124, 58, 237, 0.4);
+    overflow: hidden;
   }
-  
-  .song-info {
-    flex: 1;
-    min-width: 0;
+  .song-cover img { width: 100%; height: 100%; object-fit: cover; }
+  .song-info { flex: 1; min-width: 0; }
+  .song-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.3rem;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .song-artist { font-size: 0.9rem; color: #a855f7; opacity: 0.85;
+    display: flex; align-items: center; gap: 0.4rem; }
+  .badge-row {
+    position: absolute; top: 8px; left: 8px; right: 8px;
+    display: flex; justify-content: space-between; pointer-events: none;
   }
-  
-  .song-title {
-    font-size: 1.1rem;
-    font-weight: 700;
-    margin-bottom: 0.3rem;
+  .owner-pick-badge {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white; padding: 0.2rem 0.55rem; border-radius: 20px;
+    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.03em;
   }
-  
-  .song-artist {
-    font-size: 0.9rem;
-    color: #a855f7;
-    opacity: 0.8;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
+  .featured-green-badge {
+    background: rgba(0,255,136,0.12); border: 1px solid #00ff88;
+    color: #00ff88; padding: 0.2rem 0.45rem; border-radius: 4px;
+    font-size: 0.68rem; font-weight: 600;
   }
-  
-  .verified-badge {
-    color: #00d9ff;
-    font-size: 0.9rem;
-  }
-  
-  .play-btn {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #7c3aed, #a855f7);
-    border: none;
-    color: white;
-    font-size: 1.3rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    flex-shrink: 0;
-  }
-  
-  .play-btn:hover {
-    box-shadow: 0 4px 20px rgba(124, 58, 237, 0.6);
-    transform: scale(1.05);
-  }
-  
-  /* ADMIN CONTROLS */
-  .admin-controls {
-    display: none;
-    margin-top: 0.75rem;
-    padding-top: 0.75rem;
-    border-top: 1px solid rgba(124, 58, 237, 0.2);
-    gap: 0.5rem;
-  }
-  
-  .admin-btn {
-    flex: 1;
-    padding: 0.6rem;
-    border: 1px solid;
-    border-radius: 8px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  
   .remove-btn {
-    background: rgba(239, 68, 68, 0.2);
-    border-color: rgba(239, 68, 68, 0.5);
-    color: #ef4444;
+    width: 100%; margin-top: 0.75rem; padding: 0.55rem;
+    border: 1px solid rgba(239,68,68,0.5);
+    border-radius: 8px; font-size: 0.85rem; font-weight: 600;
+    cursor: pointer; background: rgba(239,68,68,0.15);
+    color: #ef4444; transition: all 0.2s; display: none;
   }
-  
-  .remove-btn:hover {
-    background: rgba(239, 68, 68, 0.4);
+  .remove-btn:hover { background: rgba(239,68,68,0.35); }
+
+  /* Admin panel */
+  .admin-panel {
+    display: none;
+    background: rgba(124,58,237,0.08);
+    border: 1px solid rgba(124,58,237,0.35);
+    border-radius: 14px; padding: 1.25rem 1.5rem; margin-bottom: 2rem;
   }
-  
+  .admin-panel h3 { margin: 0 0 1rem; font-size: 1rem; font-weight: 700; color: #a855f7; }
+  .search-input {
+    width: 100%; padding: 0.65rem 0.9rem;
+    border-radius: 9px; border: 1px solid rgba(124,58,237,0.4);
+    background: rgba(0,0,0,0.4); color: #eae6ff; font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+  }
+  .search-input:focus { outline: none; border-color: #a855f7; }
+  .search-results { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.75rem; max-height: 250px; overflow-y: auto; }
+  .search-result-item {
+    background: rgba(0,0,0,0.3); border: 1px solid rgba(124,58,237,0.25);
+    border-radius: 8px; padding: 0.65rem 0.9rem; cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center;
+    transition: all 0.15s;
+  }
+  .search-result-item:hover { border-color: rgba(124,58,237,0.6); background: rgba(124,58,237,0.1); }
+  .search-result-item.selected { border-color: #00ff88; background: rgba(0,255,136,0.08); }
+  .feature-btn {
+    padding: 0.6rem 1.25rem;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    border: none; border-radius: 9px; color: white; font-weight: 700;
+    font-size: 0.9rem; cursor: pointer; transition: all 0.2s;
+  }
+  .feature-btn:hover { opacity: 0.9; }
+  .feature-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .admin-notice { margin-top: 0.6rem; font-size: 0.82rem; min-height: 1.2em; }
+  .notice-success { color: #4ade80; }
+  .notice-warn { color: #f59e0b; }
+  .notice-info { color: rgba(168,85,247,0.7); }
+
+  .spinner {
+    width: 40px; height: 40px; border-radius: 50%;
+    border: 3px solid rgba(168,85,247,0.2); border-top-color: #a855f7;
+    animation: spin 0.7s linear infinite; margin: 3rem auto;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
   @media (max-width: 640px) {
-    .song-card {
-      flex-direction: column;
-      text-align: center;
-    }
-    
-    .song-info {
-      text-align: center;
-    }
+    .song-card-inner { flex-direction: column; text-align: center; }
+    .song-artist { justify-content: center; }
   }
 </style>
 </head>
 <body>
 
 <header class="header">
-  <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-    <a href="index.html" style="color: #a855f7; text-decoration: none; font-weight: 600;">← Home</a>
-    <h1 style="font-size: 1.25rem; font-weight: 800; background: linear-gradient(135deg, #f59e0b, #d97706); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+  <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+    <a href="index.html" style="color:#a855f7;text-decoration:none;font-weight:600;">← Home</a>
+    <h1 style="font-size:1.25rem;font-weight:800;background:linear-gradient(135deg,#f59e0b,#d97706);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
       🎵 Featured Songs
     </h1>
-    <div style="width: 80px;"></div>
+    <div style="width:80px;"></div>
   </div>
 </header>
 
 <main class="max-w-4xl mx-auto px-4 py-6">
-  
-  <div style="text-align: center; margin-bottom: 2rem;">
+
+  <div style="text-align:center;margin-bottom:2rem;">
     <div class="featured-badge">✨ HAND-PICKED BY 8BFR</div>
-    <p style="color: #a855f7; opacity: 0.8; font-size: 0.95rem;">
-      Top tracks selected by our team
-    </p>
+    <p style="color:#a855f7;opacity:0.8;font-size:0.95rem;">Top tracks selected by our team</p>
   </div>
-  
-  <div id="featuredSongs" style="display: flex; flex-direction: column; gap: 1rem;">
-    <!-- Songs load here -->
+
+  <!-- ADMIN PANEL -->
+  <div class="admin-panel" id="adminPanel">
+    <h3>⚙️ Admin — Manage Featured Songs</h3>
+    <input type="text" class="search-input" id="songSearch" placeholder="Search songs by title or artist…" oninput="searchSongs()">
+    <div class="search-results" id="searchResults" style="display:none;"></div>
+    <button class="feature-btn" id="featureBtn" onclick="featureSelected()" disabled>⭐ Feature Selected Song</button>
+    <div class="admin-notice" id="adminNotice"></div>
   </div>
-  
-  <div id="emptyState" style="display: none; text-align: center; padding: 4rem 2rem; color: #a855f7; opacity: 0.7;">
-    <div style="font-size: 4rem; margin-bottom: 1rem;">🎵</div>
-    <div style="font-size: 1.2rem; font-weight: 600; margin-bottom: 0.5rem;">No featured songs yet</div>
-    <div style="font-size: 0.9rem;">Check back soon for hand-picked tracks!</div>
+
+  <div id="loadingSpinner"><div class="spinner"></div></div>
+
+  <div id="featuredSongsList" style="display:none;flex-direction:column;gap:1rem;"></div>
+
+  <div id="emptyState" style="display:none;text-align:center;padding:4rem 2rem;color:#a855f7;opacity:0.7;">
+    <div style="font-size:4rem;margin-bottom:1rem;">🎵</div>
+    <div style="font-size:1.2rem;font-weight:600;margin-bottom:0.5rem;">No featured songs yet</div>
+    <div style="font-size:0.9rem;">Check back soon for hand-picked tracks!</div>
   </div>
-  
+
+  <div id="errorState" style="display:none;text-align:center;padding:3rem 2rem;color:#ef4444;opacity:0.8;">
+    <div style="font-size:3rem;margin-bottom:1rem;">⚠️</div>
+    <div id="errorMsg" style="font-size:0.95rem;"></div>
+  </div>
+
 </main>
 
 <script src="scripts.js?v=6" defer></script>
 
 <script>
-// ===== ADMIN SYSTEM =====
-function isAdmin() {
-  const role = localStorage.getItem('userRole');
-  return role === 'owner' || role === 'admin' || role === 'mod';
+const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let _roleCache = null;
+let selectedSongId = null;
+let adminMode = false;
+
+// ── AUTH ────────────────────────────────────────────────────────
+async function getUserRole() {
+  if (_roleCache !== null) return _roleCache;
+  try {
+    const { data: { session } } = await db.auth.getSession();
+    const user = session?.user;
+    if (!user) { _roleCache = ''; return ''; }
+    const { data: profile } = await db.from('profiles').select('role').eq('user_id', user.id).maybeSingle();
+    _roleCache = (profile?.role || '').toLowerCase().trim();
+    return _roleCache;
+  } catch(e) { _roleCache = ''; return ''; }
 }
 
-function logAdminAction(action, targetId, targetType) {
-  const logs = JSON.parse(localStorage.getItem('admin_activity_log') || '[]');
-  
-  logs.push({
-    action: action,
-    targetId: targetId,
-    targetType: targetType,
-    performedBy: localStorage.getItem('username') || 'Admin',
-    role: localStorage.getItem('userRole'),
-    timestamp: Date.now()
-  });
-  
-  if (logs.length > 1000) logs.shift();
-  
-  localStorage.setItem('admin_activity_log', JSON.stringify(logs));
-  
-  // Notify owner
-  const notifications = JSON.parse(localStorage.getItem('owner_notifications') || '[]');
-  notifications.push({
-    type: 'admin_action',
-    action: action,
-    targetId: targetId,
-    targetType: targetType,
-    performedBy: localStorage.getItem('username'),
-    timestamp: Date.now(),
-    read: false
-  });
-  localStorage.setItem('owner_notifications', JSON.stringify(notifications));
+async function isAdmin() {
+  const role = await getUserRole();
+  return ['owner', 'admin', 'mod', 'moderator'].includes(role);
 }
 
-function removeFeatured(trackKey) {
-  if (!confirm('Remove this song from featured?')) return;
-  
-  const featured = JSON.parse(localStorage.getItem('featured_items') || '{}');
-  if (!featured.songs) featured.songs = [];
-  
-  featured.songs = featured.songs.filter(key => key !== trackKey);
-  localStorage.setItem('featured_items', JSON.stringify(featured));
-  
-  logAdminAction('featured_remove', trackKey, 'song');
-  
-  alert('❌ Removed from featured');
-  location.reload();
+// ── NOTICE ──────────────────────────────────────────────────────
+function showNotice(msg, type) {
+  const el = document.getElementById('adminNotice');
+  el.textContent = msg;
+  el.className = 'admin-notice notice-' + type;
+  if (type === 'success') setTimeout(() => { el.textContent = ''; }, 3000);
 }
 
-function playSong(url) {
-  if (url.includes('spotify.com') || url.includes('apple.com')) {
-    window.open(url, '_blank');
-  } else {
-    alert('🎵 Playing: ' + url);
-    // Add actual player logic here
-  }
-}
+// ── SEARCH ──────────────────────────────────────────────────────
+let searchTimer = null;
+async function searchSongs() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(async () => {
+    const query = document.getElementById('songSearch').value.trim();
+    const resultsEl = document.getElementById('searchResults');
+    const btn = document.getElementById('featureBtn');
 
-// ===== LOAD FEATURED SONGS =====
-function loadFeaturedSongs() {
-  const featured = JSON.parse(localStorage.getItem('featured_items') || '{}');
-  const featuredSongs = featured.songs || [];
-  
-  if (featuredSongs.length === 0) {
-    document.getElementById('featuredSongs').style.display = 'none';
-    document.getElementById('emptyState').style.display = 'block';
-    return;
-  }
-  
-  // Parse track keys (format: "profileKey::trackIndex")
-  const songsHTML = featuredSongs.map(trackKey => {
-    const [profileKey, trackIndex] = trackKey.split('::');
-    const profile = JSON.parse(localStorage.getItem(profileKey) || '{}');
-    
-    if (!profile.name || !profile.tracks) return '';
-    
-    const track = profile.tracks[parseInt(trackIndex)];
-    if (!track) return '';
-    
-    const artistId = profileKey.replace('profile_', '');
-    
-    // Get badge emoji
-    let badgeEmoji = '🎵';
-    if (profile.badges) {
-      if (profile.badges.includes('artist')) badgeEmoji = '🎤';
-      else if (profile.badges.includes('beatmaker')) badgeEmoji = '🎚️';
+    if (!query) {
+      resultsEl.style.display = 'none';
+      selectedSongId = null;
+      btn.disabled = true;
+      return;
     }
-    
-    return `
-      <div class="song-card">
-        <div class="song-icon">${badgeEmoji}</div>
-        
-        <div class="song-info">
-          <div class="song-title">${track.title || 'Untitled Track'}</div>
-          <div class="song-artist">
-            <a href="profile.html?id=${artistId}" style="color: inherit; text-decoration: none;">
-              ${profile.name}
-            </a>
-            ${profile.verified ? '<span class="verified-badge">✓</span>' : ''}
+
+    resultsEl.style.display = 'flex';
+    resultsEl.innerHTML = '<div style="color:rgba(168,85,247,0.5);font-size:0.85rem;padding:0.5rem;">Searching…</div>';
+
+    try {
+      const { data, error } = await db.from('posts')
+        .select('id, title, artist_name')
+        .or('title.ilike.%' + query + '%,artist_name.ilike.%' + query + '%')
+        .limit(15);
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        resultsEl.innerHTML = '<div style="color:rgba(168,85,247,0.5);font-size:0.85rem;padding:0.5rem;">No songs found for "' + query + '"</div>';
+        return;
+      }
+
+      resultsEl.innerHTML = data.map(p => `
+        <div class="search-result-item ${selectedSongId === p.id ? 'selected' : ''}" onclick="selectSong('${p.id}', '${(p.title||'Untitled').replace(/'/g,"\\'")}')">
+          <div>
+            <div style="font-weight:600;font-size:0.9rem;">${p.title || 'Untitled'}</div>
+            <div style="font-size:0.78rem;color:rgba(168,85,247,0.7);">${p.artist_name || ''}</div>
           </div>
-          
-          <!-- ADMIN CONTROLS -->
-          <div class="admin-controls" data-admin-controls style="display: none;">
-            <button class="admin-btn remove-btn" onclick="removeFeatured('${trackKey}')">
-              ❌ Remove Featured
-            </button>
+          ${selectedSongId === p.id ? '<span style="color:#00ff88;font-weight:700;">✓</span>' : ''}
+        </div>`).join('');
+    } catch (err) {
+      resultsEl.innerHTML = '<div style="color:#ef4444;font-size:0.85rem;padding:0.5rem;">Error: ' + err.message + '</div>';
+    }
+  }, 300);
+}
+
+function selectSong(id, title) {
+  selectedSongId = id;
+  document.getElementById('featureBtn').disabled = false;
+  showNotice('Selected: ' + title, 'info');
+  // re-render results to show checkmark
+  searchSongs();
+}
+
+// ── FEATURE SELECTED ────────────────────────────────────────────
+async function featureSelected() {
+  if (!selectedSongId) { showNotice('Select a song first.', 'warn'); return; }
+
+  const btn = document.getElementById('featureBtn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+
+  try {
+    const { data: existing } = await db.from('featured_content')
+      .select('id').eq('content_type', 'song').eq('content_id', selectedSongId).maybeSingle();
+
+    if (existing) { showNotice('This song is already featured!', 'warn'); return; }
+
+    const { error } = await db.from('featured_content').insert({ content_type: 'song', content_id: selectedSongId });
+    if (error) throw error;
+
+    showNotice('⭐ Song added to featured!', 'success');
+    selectedSongId = null;
+    document.getElementById('songSearch').value = '';
+    document.getElementById('searchResults').style.display = 'none';
+    await loadFeaturedSongs();
+  } catch (err) {
+    showNotice('Error: ' + err.message, 'warn');
+  } finally {
+    btn.disabled = false; btn.textContent = '⭐ Feature Selected Song';
+  }
+}
+
+// ── REMOVE ──────────────────────────────────────────────────────
+async function removeFeatured(contentId) {
+  if (!confirm('Remove this song from featured?')) return;
+  try {
+    const { error } = await db.from('featured_content')
+      .delete().eq('content_type', 'song').eq('content_id', contentId);
+    if (error) throw error;
+    await loadFeaturedSongs();
+  } catch (err) {
+    alert('Error removing: ' + err.message);
+  }
+}
+
+// ── LOAD FEATURED SONGS ─────────────────────────────────────────
+async function loadFeaturedSongs() {
+  const spinner  = document.getElementById('loadingSpinner');
+  const list     = document.getElementById('featuredSongsList');
+  const empty    = document.getElementById('emptyState');
+  const errEl    = document.getElementById('errorState');
+
+  spinner.style.display = 'block';
+  list.style.display = 'none';
+  empty.style.display = 'none';
+  errEl.style.display = 'none';
+
+  try {
+    const { data: featured, error: featErr } = await db
+      .from('featured_content')
+      .select('content_id')
+      .eq('content_type', 'song')
+      .order('created_at', { ascending: false });
+
+    if (featErr) throw featErr;
+
+    if (!featured || featured.length === 0) {
+      empty.style.display = 'block';
+      return;
+    }
+
+    const ids = [...new Set(featured.map(f => f.content_id).filter(Boolean))];
+    const { data: posts, error: postsErr } = await db
+      .from('posts')
+      .select('id, title, artist_name, cover_url')
+      .in('id', ids);
+
+    if (postsErr) throw postsErr;
+
+    if (!posts || posts.length === 0) {
+      empty.style.display = 'block';
+      return;
+    }
+
+    // Keep order from featured_content
+    const postMap = {};
+    (posts || []).forEach(p => { postMap[p.id] = p; });
+
+    list.innerHTML = featured.map(row => {
+      const p = postMap[row.content_id];
+      if (!p) return '';
+      const cover = p.cover_url || '';
+      const coverInner = cover
+        ? '<img src="' + cover + '" alt="' + (p.title||'Song') + '" onerror="this.parentNode.textContent=\'🎵\'">'
+        : '🎵';
+      return `
+      <div class="song-card">
+        <div class="badge-row">
+          <span class="owner-pick-badge">⭐ Owner Pick</span>
+          <span class="featured-green-badge">⭐ FEATURED</span>
+        </div>
+        <div class="song-card-inner" style="margin-top:1.5rem;">
+          <div class="song-cover">${coverInner}</div>
+          <div class="song-info">
+            <div class="song-title">${p.title || 'Untitled'}</div>
+            <div class="song-artist">${p.artist_name || 'Unknown Artist'}</div>
           </div>
         </div>
-        
-        <button class="play-btn" onclick="playSong('${track.url}')">▶️</button>
-      </div>
-    `;
-  }).filter(html => html).join('');
-  
-  if (!songsHTML) {
-    document.getElementById('featuredSongs').style.display = 'none';
-    document.getElementById('emptyState').style.display = 'block';
-    return;
-  }
-  
-  document.getElementById('featuredSongs').innerHTML = songsHTML;
-  
-  // Show admin controls if admin
-  if (isAdmin()) {
-    document.querySelectorAll('[data-admin-controls]').forEach(el => {
-      el.style.display = 'flex';
-    });
+        <button class="remove-btn" onclick="removeFeatured('${p.id}')">❌ Remove Featured</button>
+      </div>`;
+    }).filter(Boolean).join('');
+
+    list.style.display = 'flex';
+
+    // Show remove buttons for admins
+    if (adminMode) {
+      list.querySelectorAll('.remove-btn').forEach(btn => btn.style.display = 'block');
+    }
+
+  } catch (err) {
+    document.getElementById('errorMsg').textContent = 'Could not load featured songs: ' + err.message;
+    errEl.style.display = 'block';
+  } finally {
+    spinner.style.display = 'none';
   }
 }
 
-// ===== INIT =====
-loadFeaturedSongs();
+// ── INIT ────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async function() {
+  loadFeaturedSongs();
 
-// ===== HIDE BUBBLES =====
-window.addEventListener("load", function(){
-  setTimeout(function(){
-    const idsToHide = ['bubbleStack', 'bubble-top-single', 'carrieWrap', 'carrieBubble', 'carrieToggleBar'];
-    idsToHide.forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.style.display = 'none';
+  isAdmin().then(admin => {
+    adminMode = admin;
+    if (admin) {
+      document.getElementById('adminPanel').style.display = 'block';
+      // Show remove buttons if songs already loaded
+      document.querySelectorAll('.remove-btn').forEach(btn => btn.style.display = 'block');
+    }
+  });
+});
+
+// ── HIDE BUBBLES ────────────────────────────────────────────────
+window.addEventListener('load', function() {
+  setTimeout(function() {
+    ['bubbleStack','bubble-top-single','carrieWrap','carrieBubble','carrieToggleBar'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.style.display = 'none';
     });
-    
-    const classesToHide = ['.bubble-stack', '.floating-bubbles', '.carrie-bubble', '.bubble-container'];
-    classesToHide.forEach(cls => {
+    ['.bubble-stack','.floating-bubbles','.carrie-bubble','.bubble-container'].forEach(cls => {
       document.querySelectorAll(cls).forEach(el => el.style.display = 'none');
     });
-    
-    document.querySelectorAll('[data-bubble]').forEach(el => el.style.display = 'none');
-    document.querySelectorAll('[data-role="carrie"], [data-carrie]').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('[data-bubble],[data-role="carrie"],[data-carrie]').forEach(el => el.style.display = 'none');
   }, 300);
 });
 </script>
- <!-- ADD THIS SCRIPT TO EVERY PAGE (except index.html where you want it always shown) -->
-<!-- Place it right before the closing </body> tag -->
 
+<!-- Avatar & Bubble Toggle -->
 <script>
-// Avatar & Bubble Toggle System
 (function() {
-    // Create toggle button
-    const toggleBtn = document.createElement('button');
-    toggleBtn.id = 'avatarToggle';
-    toggleBtn.innerHTML = '👁️';
-    toggleBtn.title = 'Toggle Avatar/Bubbles';
-    toggleBtn.style.cssText = `
-        position: fixed;
-        top: 80px;
-        right: 20px;
-        z-index: 9999;
-        background: rgba(124, 58, 237, 0.9);
-        border: 2px solid rgba(124, 58, 237, 1);
-        color: white;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.5);
-        transition: all 0.3s ease;
-    `;
-    
-    toggleBtn.addEventListener('mouseenter', function() {
-        this.style.transform = 'scale(1.1)';
-    });
-    
-    toggleBtn.addEventListener('mouseleave', function() {
-        this.style.transform = 'scale(1)';
-    });
-    
-    document.body.appendChild(toggleBtn);
-    
-    // Load saved preference
-    let isHidden = localStorage.getItem('hideAvatarBubbles') === 'true';
-    
-    function updateVisibility() {
-        const elementsToToggle = [
-            document.getElementById('homeAvatarSwitcher'),
-            ...document.querySelectorAll('[id*="bubble"]'),
-            ...document.querySelectorAll('[class*="bubble"]'),
-            ...document.querySelectorAll('[id*="avatar"][id*="switcher"]')
-        ];
-        
-        elementsToToggle.forEach(el => {
-            if (el) {
-                el.style.display = isHidden ? 'none' : '';
-            }
-        });
-        
-        toggleBtn.innerHTML = isHidden ? '👁️‍🗨️' : '👁️';
-        toggleBtn.title = isHidden ? 'Show Avatar/Bubbles' : 'Hide Avatar/Bubbles';
-    }
-    
-    toggleBtn.addEventListener('click', function() {
-        isHidden = !isHidden;
-        localStorage.setItem('hideAvatarBubbles', isHidden);
-        updateVisibility();
-    });
-    
-    // Apply on load
+  const toggleBtn = document.createElement('button');
+  toggleBtn.id = 'avatarToggle';
+  toggleBtn.innerHTML = '👁️';
+  toggleBtn.title = 'Toggle Avatar/Bubbles';
+  toggleBtn.style.cssText = 'position:fixed;top:80px;right:20px;z-index:9999;background:rgba(124,58,237,0.9);border:2px solid rgba(124,58,237,1);color:white;width:50px;height:50px;border-radius:50%;cursor:pointer;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(124,58,237,0.5);transition:all 0.3s ease;';
+  toggleBtn.addEventListener('mouseenter', function() { this.style.transform = 'scale(1.1)'; });
+  toggleBtn.addEventListener('mouseleave', function() { this.style.transform = 'scale(1)'; });
+  document.body.appendChild(toggleBtn);
+  let isHidden = localStorage.getItem('hideAvatarBubbles') === 'true';
+  function updateVisibility() {
+    [document.getElementById('homeAvatarSwitcher'),
+     ...document.querySelectorAll('[id*="bubble"],[class*="bubble"],[id*="avatar"][id*="switcher"]')
+    ].forEach(el => { if (el) el.style.display = isHidden ? 'none' : ''; });
+    toggleBtn.innerHTML = isHidden ? '👁️‍🗨️' : '👁️';
+    toggleBtn.title = isHidden ? 'Show Avatar/Bubbles' : 'Hide Avatar/Bubbles';
+  }
+  toggleBtn.addEventListener('click', function() {
+    isHidden = !isHidden;
+    localStorage.setItem('hideAvatarBubbles', isHidden);
     updateVisibility();
-    
-    
+  });
+  updateVisibility();
+})();
 </script>
-
 
 </body>
 </html>
