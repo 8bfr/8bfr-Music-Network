@@ -1,569 +1,529 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>My Profile - 8BFR Music Network</title>
+  <title>Profile - 8BFR Music Network</title>
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { padding-bottom: 70px; }
-    .profile-header { background: rgba(12,6,24,0.7); border: 1px solid rgba(124,58,237,0.35); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; }
-    .profile-avatar { width: 120px; height: 120px; border-radius: 50%; background: linear-gradient(135deg, #7c3aed, #a855f7); display: flex; align-items: center; justify-content: center; font-size: 3rem; margin-bottom: 1rem; }
-    .badge { background: rgba(12,0,25,0.9); border: 1px solid #7c3aed; padding: 0.4rem 0.8rem; border-radius: 15px; font-size: 0.85rem; margin: 0.25rem; display: inline-block; }
-    .card { background: rgba(12,6,24,0.7); border: 1px solid rgba(124,58,237,0.35); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
-    .btn { background: #7c3aed; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; }
+    body { padding-bottom: 80px; background: linear-gradient(#0b0014,#000); color: #eae6ff; font-family: system-ui, -apple-system, sans-serif; }
+    .profile-header { background: rgba(12,6,24,0.85); border: 1px solid rgba(124,58,237,0.35); border-radius: 16px; padding: 2rem; margin-bottom: 1.5rem; }
+    .avatar-ring { width: 110px; height: 110px; border-radius: 50%; background: linear-gradient(135deg, #7c3aed, #a855f7); display: flex; align-items: center; justify-content: center; font-size: 2.8rem; flex-shrink: 0; overflow: hidden; border: 3px solid rgba(124,58,237,0.5); }
+    .avatar-ring img { width: 100%; height: 100%; object-fit: cover; }
+    .badge { background: rgba(124,58,237,0.15); border: 1px solid rgba(124,58,237,0.4); color: #a855f7; padding: 0.3rem 0.75rem; border-radius: 20px; font-size: 0.78rem; font-weight: 600; display: inline-block; margin: 0.2rem; }
+    .badge.verified { border-color: #00d9ff; color: #00d9ff; background: rgba(0,217,255,0.08); }
+    .badge.owner { border-color: #f59e0b; color: #f59e0b; background: rgba(245,158,11,0.08); }
+    .card { background: rgba(12,6,24,0.7); border: 1px solid rgba(124,58,237,0.3); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+    .card h2 { color: #a855f7; margin-bottom: 1rem; font-size: 1.1rem; font-weight: 700; }
+    .form-group { margin-bottom: 1.25rem; }
+    .form-group label { display: block; margin-bottom: 0.4rem; font-size: 0.88rem; font-weight: 600; color: rgba(234,230,255,0.75); }
+    .form-input { width: 100%; padding: 0.7rem 0.9rem; background: rgba(12,0,25,0.9); border: 1px solid rgba(124,58,237,0.35); border-radius: 8px; color: #eae6ff; font-size: 0.93rem; }
+    .form-input:focus { outline: none; border-color: #a855f7; }
+    .btn { background: #7c3aed; color: white; border: none; padding: 0.7rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.2s; }
     .btn:hover { background: #6d28d9; }
-    .form-group { margin-bottom: 1.5rem; }
-    .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; }
-    .form-group input, .form-group textarea { width: 100%; padding: 0.75rem; background: rgba(12,0,25,0.9); border: 1px solid rgba(124,58,237,0.35); border-radius: 4px; color: white; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-green { background: #059669; }
+    .btn-green:hover { background: #047857; }
+    .btn-red { background: #dc2626; }
+    .btn-red:hover { background: #b91c1c; }
+    .song-row { display: flex; align-items: center; gap: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(124,58,237,0.2); border-radius: 10px; padding: 0.85rem 1rem; margin-bottom: 0.6rem; }
+    .song-cover { width: 46px; height: 46px; border-radius: 8px; background: linear-gradient(135deg,#7c3aed,#a855f7); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; overflow: hidden; }
+    .song-cover img { width: 100%; height: 100%; object-fit: cover; }
+    .song-info { flex: 1; min-width: 0; }
+    .song-title { font-weight: 700; font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .song-meta { font-size: 0.78rem; color: rgba(168,85,247,0.7); margin-top: 0.1rem; }
+    .play-btn { width: 38px; height: 38px; border-radius: 50%; background: #7c3aed; border: none; color: white; font-size: 1rem; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .play-btn:hover { background: #6d28d9; }
+    .upload-zone { border: 2px dashed rgba(124,58,237,0.4); border-radius: 10px; padding: 2rem; text-align: center; cursor: pointer; transition: all 0.2s; }
+    .upload-zone:hover, .upload-zone.drag-over { border-color: #a855f7; background: rgba(124,58,237,0.06); }
+    .upload-zone input[type=file] { display: none; }
+    .progress-bar { height: 6px; background: rgba(124,58,237,0.2); border-radius: 3px; margin-top: 0.75rem; overflow: hidden; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg,#7c3aed,#a855f7); border-radius: 3px; transition: width 0.3s; }
+    .owner-pick-badge { background: linear-gradient(135deg,#f59e0b,#d97706); color: white; padding: 0.15rem 0.5rem; border-radius: 20px; font-size: 0.68rem; font-weight: 700; }
+    .spinner { width: 32px; height: 32px; border-radius: 50%; border: 3px solid rgba(168,85,247,0.2); border-top-color: #a855f7; animation: spin 0.7s linear infinite; margin: 2rem auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .tab-btn { background: transparent; border: none; color: rgba(234,230,255,0.6); padding: 0.6rem 1rem; cursor: pointer; font-weight: 600; border-bottom: 2px solid transparent; font-size: 0.9rem; }
+    .tab-btn.active { color: #a855f7; border-bottom-color: #a855f7; }
+    audio { width: 100%; border-radius: 8px; margin-top: 0.5rem; }
   </style>
 </head>
 <body>
 
-  <header id="top" class="px-4 py-4">
-    <div class="max-w-6xl mx-auto flex items-end justify-between gap-3">
-      <div class="flex items-center gap-3">
-        <img src="assets/images/logo_8bfr.svg" alt="8BFR logo" class="h-10 w-auto" onerror="this.onerror=null;this.src='assets/images/8bfr.png'">
-        <div>
-          <h1 class="text-2xl sm:text-3xl font-extrabold">👤 MY PROFILE</h1>
-          <p class="text-xs sm:text-sm text-purple-300/80 -mt-1">View and edit your profile</p>
-        </div>
-      </div>
-      <a href="index.html" class="text-[#00d9ff] underline/50 hover:underline">Home</a>
+  <header class="px-4 py-4" style="background:rgba(15,0,30,0.9);border-bottom:1px solid rgba(124,58,237,0.5);position:sticky;top:0;z-index:100;">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+      <a href="index.html" style="color:#a855f7;font-weight:600;text-decoration:none;">← Home</a>
+      <h1 class="text-xl font-extrabold" id="pageTitle">👤 Profile</h1>
+      <div style="width:60px;"></div>
     </div>
   </header>
 
-  <div class="max-w-6xl mx-auto px-4 mt-5">
-    
-    <!-- Profile Display -->
-    <div class="profile-header">
-      <div class="flex gap-6 items-start flex-wrap">
-        <div class="profile-avatar" id="profileAvatar">👤</div>
-        <div class="flex-1">
-          <h2 class="text-3xl font-bold mb-2" id="profileUsername">Loading...</h2>
-          <p class="text-purple-400 mb-2" id="profileRole"></p>
-          <p class="text-purple-200/80 mb-4" id="profileBio"></p>
-          <div id="profileBadges"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Edit Profile Card -->
-    <div class="card">
-      <h2 class="text-2xl font-bold mb-4 text-purple-400">✏️ Edit Profile</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="form-group">
-          <label>Username:</label>
-          <input type="text" id="editUsername">
-        </div>
-        <div class="form-group">
-          <label>Display Name:</label>
-          <input type="text" id="editDisplayName">
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Bio:</label>
-        <textarea id="editBio" rows="4"></textarea>
-      </div>
-      <div class="form-group">
-        <label>Email:</label>
-        <input type="email" id="editEmail">
-      </div>
-      <button class="btn" onclick="saveProfile()">💾 Save Changes</button>
-    </div>
-
-    <!-- Artist Features (if has artist badge) -->
-    <div class="card" id="artistSection" style="display:none;">
-      <h2 class="text-2xl font-bold mb-4 text-purple-400">🎤 Artist Tools</h2>
-      <p class="text-purple-200/80">Music upload and management features coming soon!</p>
-    </div>
-
-    <!-- Beatmaker Features (if has beatmaker badge) -->
-    <div class="card" id="beatmakerSection" style="display:none;">
-      <h2 class="text-2xl font-bold mb-4 text-purple-400">🎚️ Beatmaker Tools</h2>
-      <p class="text-purple-200/80">Beat upload and licensing features coming soon!</p>
-    </div>
-
+  <div class="max-w-4xl mx-auto px-4 mt-5">
+    <div id="loadingSpinner"><div class="spinner"></div></div>
+    <div id="profileContent" style="display:none;"></div>
   </div>
 
-  <script>
-    const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    let currentUser = null;
-
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        window.location.href = 'login.html';
-        return;
-      }
-      currentUser = user;
-      await loadProfile();
-    }
-
-    async function loadProfile() {
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', currentUser.id)
-        .single();
-      
-      if (error || !profile) {
-        alert('Profile not found!');
-        return;
-      }
-
-      // Display profile
-      document.getElementById('profileUsername').textContent = profile.username || 'No Username';
-      document.getElementById('profileRole').textContent = (profile.role || 'user').toUpperCase();
-      document.getElementById('profileBio').textContent = profile.bio || 'No bio yet';
-      
-      // Fill edit form
-      document.getElementById('editUsername').value = profile.username || '';
-      document.getElementById('editDisplayName').value = profile.display_name || '';
-      document.getElementById('editBio').value = profile.bio || '';
-      document.getElementById('editEmail').value = profile.email || '';
-
-      // Display badges
-      const badgeIcons = {
-        'artist': '🎤', 'beatmaker': '🎚️', 'producer': '🎧', 'owner': '👑',
-        'g7': '👑', 'admin': '⚙️', 'mod': '💬', 'verified': '🛡️',
-        'founder': '⚡', 'vip_member': '🎖️', 'rapper': '🎤', 'songwriter': '🎼',
-        'engineer': '🎛️', '8bfrfan': '🟣', 'beta_tester': '🧪', 'early_supporter': '🎫'
-      };
-      
-      const tags = profile.tags || [];
-      const badgesHtml = tags.map(tag => 
-        `<span class="badge">${badgeIcons[tag] || '🏷️'} ${tag}</span>`
-      ).join('');
-      document.getElementById('profileBadges').innerHTML = badgesHtml || '<span class="text-purple-300/50">No badges</span>';
-
-      // Show role-specific sections
-      if (tags.includes('artist')) {
-        document.getElementById('artistSection').style.display = 'block';
-      }
-      if (tags.includes('beatmaker')) {
-        document.getElementById('beatmakerSection').style.display = 'block';
-      }
-    }
-
-    async function saveProfile() {
-      const username = document.getElementById('editUsername').value;
-      const displayName = document.getElementById('editDisplayName').value;
-      const bio = document.getElementById('editBio').value;
-      const email = document.getElementById('editEmail').value;
-
-      if (!username) {
-        alert('Username is required');
-        return;
-      }
-
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          username,
-          display_name: displayName,
-          bio,
-          email
-        })
-        .eq('user_id', currentUser.id);
-
-      if (error) {
-        alert('Error: ' + error.message);
-      } else {
-        alert('✅ Profile updated!');
-        loadProfile();
-      }
-    }
-
-    init();
-  </script>
   <script src="scripts.js" defer></script>
-  <!-- ADD THIS SCRIPT TO EVERY PAGE (except index.html where you want it always shown) -->
-<!-- Place it right before the closing </body> tag -->
+  <script>
+  const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-<script>
-// Avatar & Bubble Toggle System
-(function() {
-    // Create toggle button
-    const toggleBtn = document.createElement('button');
-    toggleBtn.id = 'avatarToggle';
-    toggleBtn.innerHTML = '👁️';
-    toggleBtn.title = 'Toggle Avatar/Bubbles';
-    toggleBtn.style.cssText = `
-        position: fixed;
-        top: 80px;
-        right: 20px;
-        z-index: 9999;
-        background: rgba(124, 58, 237, 0.9);
-        border: 2px solid rgba(124, 58, 237, 1);
-        color: white;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.5);
-        transition: all 0.3s ease;
-    `;
-    
-    toggleBtn.addEventListener('mouseenter', function() {
-        this.style.transform = 'scale(1.1)';
-    });
-    
-    toggleBtn.addEventListener('mouseleave', function() {
-        this.style.transform = 'scale(1)';
-    });
-    
-    document.body.appendChild(toggleBtn);
-    
-    // Load saved preference
-    let isHidden = localStorage.getItem('hideAvatarBubbles') === 'true';
-    
-    function updateVisibility() {
-        const elementsToToggle = [
-            document.getElementById('homeAvatarSwitcher'),
-            ...document.querySelectorAll('[id*="bubble"]'),
-            ...document.querySelectorAll('[class*="bubble"]'),
-            ...document.querySelectorAll('[id*="avatar"][id*="switcher"]')
-        ];
-        
-        elementsToToggle.forEach(el => {
-            if (el) {
-                el.style.display = isHidden ? 'none' : '';
-            }
-        });
-        
-        toggleBtn.innerHTML = isHidden ? '👁️‍🗨️' : '👁️';
-        toggleBtn.title = isHidden ? 'Show Avatar/Bubbles' : 'Hide Avatar/Bubbles';
+  const BADGE_ICONS = {
+    artist:'🎤', beatmaker:'🎚️', producer:'🎧', singer:'🎙️', musician:'🎸',
+    engineer:'🎛️', songwriter:'🎼', dj:'📀', rapper:'🎤', label:'🏷️',
+    promoter:'🚀', designer:'🎨', author:'📖', blogger:'📰', developer:'🧠',
+    streamer:'📡', gamer:'🎮', game_creator:'🎮', influencer:'💫',
+    community_leader:'👥', fan:'💎', supporter:'🤝', mentor:'🧭',
+    owner:'👑', admin:'⚙️', mod:'💬', g7:'👑',
+    verified:'🛡️', founder:'⚡', vip_member:'🎖️', donor:'💰',
+    sponsor:'💵', beta_tester:'🧪', early_supporter:'🎫', top_creator:'🏅'
+  };
+
+  const MUSIC_ROLES = ['artist','beatmaker','producer','singer','musician','engineer','songwriter','dj','rapper'];
+
+  let currentUser = null;
+  let profileData = null;
+  let isOwnProfile = false;
+  let uploadingCover = false;
+
+  // ── INIT ────────────────────────────────────────────────────────
+  async function init() {
+    const params = new URLSearchParams(window.location.search);
+    const viewId = params.get('id');
+
+    const { data: { user } } = await db.auth.getSession().then(r => r.data.session ? {data:{user:r.data.session.user}} : db.auth.getUser());
+    currentUser = user;
+
+    let targetId = viewId;
+    if (!targetId && user) targetId = user.id;
+    if (!targetId) {
+      // not logged in, no id
+      document.getElementById('loadingSpinner').style.display = 'none';
+      document.getElementById('profileContent').style.display = 'block';
+      document.getElementById('profileContent').innerHTML = '<div style="text-align:center;padding:4rem;color:rgba(168,85,247,0.6);">Please <a href="login.html" style="color:#a855f7;">log in</a> to view your profile.</div>';
+      return;
     }
-    
-    toggleBtn.addEventListener('click', function() {
-        isHidden = !isHidden;
-        localStorage.setItem('hideAvatarBubbles', isHidden);
-        updateVisibility();
-    });
-    
-    // Apply on load
-    updateVisibility();
-    
-    // Watch for dynamically added elements
-    const observer = new MutationObserver(updateVisibility);
-    observer.observe(document.body, { childList: true, subtree: true });
-})();
-</script>
-  <!-- ADD THIS SCRIPT TO EVERY PAGE (except index.html where you want it always shown) -->
-<!-- Place it right before the closing </body> tag -->
 
-<script>
-// Avatar & Bubble Toggle System
-(function() {
-    // Create toggle button
-    const toggleBtn = document.createElement('button');
-    toggleBtn.id = 'avatarToggle';
-    toggleBtn.innerHTML = '👁️';
-    toggleBtn.title = 'Toggle Avatar/Bubbles';
-    toggleBtn.style.cssText = `
-        position: fixed;
-        top: 80px;
-        right: 20px;
-        z-index: 9999;
-        background: rgba(124, 58, 237, 0.9);
-        border: 2px solid rgba(124, 58, 237, 1);
-        color: white;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.5);
-        transition: all 0.3s ease;
-    `;
-    
-    toggleBtn.addEventListener('mouseenter', function() {
-        this.style.transform = 'scale(1.1)';
-    });
-    
-    toggleBtn.addEventListener('mouseleave', function() {
-        this.style.transform = 'scale(1)';
-    });
-    
-    document.body.appendChild(toggleBtn);
-    
-    // Load saved preference
-    let isHidden = localStorage.getItem('hideAvatarBubbles') === 'true';
-    
-    function updateVisibility() {
-        const elementsToToggle = [
-            document.getElementById('homeAvatarSwitcher'),
-            ...document.querySelectorAll('[id*="bubble"]'),
-            ...document.querySelectorAll('[class*="bubble"]'),
-            ...document.querySelectorAll('[id*="avatar"][id*="switcher"]')
-        ];
-        
-        elementsToToggle.forEach(el => {
-            if (el) {
-                el.style.display = isHidden ? 'none' : '';
-            }
-        });
-        
-        toggleBtn.innerHTML = isHidden ? '👁️‍🗨️' : '👁️';
-        toggleBtn.title = isHidden ? 'Show Avatar/Bubbles' : 'Hide Avatar/Bubbles';
+    isOwnProfile = user && (targetId === user.id || !viewId);
+
+    const { data: profile, error } = await db.from('profiles').select('*').eq('user_id', targetId).maybeSingle();
+    if (error || !profile) {
+      document.getElementById('loadingSpinner').style.display = 'none';
+      document.getElementById('profileContent').style.display = 'block';
+      document.getElementById('profileContent').innerHTML = '<div style="text-align:center;padding:4rem;color:rgba(168,85,247,0.6);">Profile not found.</div>';
+      return;
     }
-    
-    toggleBtn.addEventListener('click', function() {
-        isHidden = !isHidden;
-        localStorage.setItem('hideAvatarBubbles', isHidden);
-        updateVisibility();
-    });
-    
-    // Apply on load
-    updateVisibility();
-    
-    // Watch for dynamically added elements
-    const observer = new MutationObserver(updateVisibility);
-    observer.observe(document.body, { childList: true, subtree: true });
-})();
-</script>
-<!-- ADD THIS SCRIPT TO EVERY PAGE (except index.html where you want it always shown) -->
-<!-- Place it right before the closing </body> tag -->
 
-<script>
-// Avatar & Bubble Toggle System
-(function() {
-    // Create toggle button
-    const toggleBtn = document.createElement('button');
-    toggleBtn.id = 'avatarToggle';
-    toggleBtn.innerHTML = '👁️';
-    toggleBtn.title = 'Toggle Avatar/Bubbles';
-    toggleBtn.style.cssText = `
-        position: fixed;
-        top: 80px;
-        right: 20px;
-        z-index: 9999;
-        background: rgba(124, 58, 237, 0.9);
-        border: 2px solid rgba(124, 58, 237, 1);
-        color: white;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.5);
-        transition: all 0.3s ease;
-    `;
-    
-    toggleBtn.addEventListener('mouseenter', function() {
-        this.style.transform = 'scale(1.1)';
-    });
-    
-    toggleBtn.addEventListener('mouseleave', function() {
-        this.style.transform = 'scale(1)';
-    });
-    
-    document.body.appendChild(toggleBtn);
-    
-    // Load saved preference
-    let isHidden = localStorage.getItem('hideAvatarBubbles') === 'true';
-    
-    function updateVisibility() {
-        const elementsToToggle = [
-            document.getElementById('homeAvatarSwitcher'),
-            ...document.querySelectorAll('[id*="bubble"]'),
-            ...document.querySelectorAll('[class*="bubble"]'),
-            ...document.querySelectorAll('[id*="avatar"][id*="switcher"]')
-        ];
-        
-        elementsToToggle.forEach(el => {
-            if (el) {
-                el.style.display = isHidden ? 'none' : '';
-            }
-        });
-        
-        toggleBtn.innerHTML = isHidden ? '👁️‍🗨️' : '👁️';
-        toggleBtn.title = isHidden ? 'Show Avatar/Bubbles' : 'Hide Avatar/Bubbles';
+    profileData = profile;
+    document.getElementById('pageTitle').textContent = isOwnProfile ? '👤 My Profile' : ('👤 ' + (profile.display_name || profile.username || 'Profile'));
+    document.title = (profile.display_name || profile.username || 'Profile') + ' — 8BFR Music Network';
+
+    document.getElementById('loadingSpinner').style.display = 'none';
+    document.getElementById('profileContent').style.display = 'block';
+
+    renderProfile();
+  }
+
+  // ── RENDER ──────────────────────────────────────────────────────
+  function renderProfile() {
+    const p = profileData;
+    const tags = Array.isArray(p.tags) ? p.tags : [];
+    const isMusicCreator = tags.some(t => MUSIC_ROLES.includes(t)) || MUSIC_ROLES.includes(p.role);
+
+    const avatarHtml = p.avatar_url
+      ? `<img src="${p.avatar_url}" alt="${p.display_name||p.username}" onerror="this.parentNode.textContent='👤'">`
+      : '👤';
+
+    const badgesHtml = tags.map(t => {
+      const cls = t === 'verified' ? 'badge verified' : (t === 'owner' || t === 'admin') ? 'badge owner' : 'badge';
+      return `<span class="${cls}">${BADGE_ICONS[t]||'🏷️'} ${t}</span>`;
+    }).join('') || '<span style="color:rgba(168,85,247,0.4);font-size:0.85rem;">No badges</span>';
+
+    const verifiedHtml = p.verified_artist ? '<span style="color:#00d9ff;font-size:1.1rem;margin-left:6px;">✓</span>' : '';
+
+    let html = `
+    <!-- PROFILE HEADER -->
+    <div class="profile-header">
+      <div style="display:flex;gap:1.5rem;align-items:flex-start;flex-wrap:wrap;">
+        <div class="avatar-ring" id="avatarDisplay">${avatarHtml}</div>
+        <div style="flex:1;min-width:0;">
+          <h2 style="font-size:1.7rem;font-weight:800;margin-bottom:0.3rem;">${p.display_name||p.username||'Unknown'}${verifiedHtml}</h2>
+          <div style="color:#a855f7;font-size:0.9rem;margin-bottom:0.75rem;">${(p.role||'').toUpperCase()}</div>
+          <p style="color:rgba(234,230,255,0.7);font-size:0.92rem;margin-bottom:1rem;line-height:1.6;">${p.bio||'No bio yet.'}</p>
+          <div>${badgesHtml}</div>
+        </div>
+      </div>
+    </div>`;
+
+    // ── SONGS SECTION ──
+    if (isMusicCreator) {
+      html += `
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+        <h2 style="margin:0;">🎵 ${isOwnProfile ? 'My' : (p.display_name||p.username||'Their')+''s'} Songs</h2>
+        ${isOwnProfile ? `<button class="btn" onclick="toggleUploadForm()">+ Upload Song</button>` : ''}
+      </div>
+      ${isOwnProfile ? `
+      <!-- UPLOAD FORM (hidden by default) -->
+      <div id="uploadForm" style="display:none;background:rgba(0,0,0,0.3);border-radius:10px;padding:1.25rem;margin-bottom:1.25rem;border:1px solid rgba(124,58,237,0.25);">
+        <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:1rem;color:#a855f7;">📤 Upload New Song</h3>
+        <div class="form-group">
+          <label>Song Title *</label>
+          <input class="form-input" type="text" id="uploadTitle" placeholder="e.g. Killa Bees">
+        </div>
+        <div class="form-group">
+          <label>Artist Name</label>
+          <input class="form-input" type="text" id="uploadArtist" placeholder="Your artist name">
+        </div>
+        <div class="form-group">
+          <label>Audio File * (MP3, WAV, M4A)</label>
+          <div class="upload-zone" id="audioZone" onclick="document.getElementById('audioFile').click()">
+            <input type="file" id="audioFile" accept=".mp3,audio/mpeg" onchange="handleAudioSelect(event)">
+            <div id="audioZoneText">🎵 Click to select audio file</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Cover Art (optional)</label>
+          <div class="upload-zone" id="coverZone" onclick="document.getElementById('coverFile').click()">
+            <input type="file" id="coverFile" accept="image/*" onchange="handleCoverSelect(event)">
+            <div id="coverZoneText">🖼️ Click to select cover image</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Download Price (leave blank for free)</label>
+          <input class="form-input" type="number" id="uploadPrice" placeholder="e.g. 1.99" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>Explicit Content</label>
+          <select class="form-input" id="uploadExplicit">
+            <option value="false">No</option>
+            <option value="true">Yes</option>
+          </select>
+        </div>
+        <div id="uploadProgress" style="display:none;">
+          <div style="font-size:0.85rem;color:#a855f7;margin-bottom:0.4rem;" id="uploadStatus">Uploading…</div>
+          <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+        </div>
+        <div style="display:flex;gap:0.75rem;margin-top:1rem;">
+          <button class="btn btn-green" onclick="uploadSong()" id="uploadBtn">⬆️ Upload Song</button>
+          <button class="btn" style="background:rgba(124,58,237,0.2);" onclick="toggleUploadForm()">Cancel</button>
+        </div>
+        <div id="uploadNotice" style="margin-top:0.75rem;font-size:0.85rem;"></div>
+      </div>
+      ` : ''}
+      <!-- SONG LIST -->
+      <div id="songList"><div class="spinner"></div></div>
+    </div>`;
     }
-    
-    toggleBtn.addEventListener('click', function() {
-        isHidden = !isHidden;
-        localStorage.setItem('hideAvatarBubbles', isHidden);
-        updateVisibility();
-    });
-    
-    // Apply on load
-    updateVisibility();
-    
-    // Watch for dynamically added elements
-    const observer = new MutationObserver(updateVisibility);
-    observer.observe(document.body, { childList: true, subtree: true });
-})();
-</script>
-  <!-- ADD THIS SCRIPT TO EVERY PAGE (except index.html where you want it always shown) -->
-<!-- Place it right before the closing </body> tag -->
 
-<script>
-// Avatar & Bubble Toggle System
-(function() {
-    // Create toggle button
-    const toggleBtn = document.createElement('button');
-    toggleBtn.id = 'avatarToggle';
-    toggleBtn.innerHTML = '👁️';
-    toggleBtn.title = 'Toggle Avatar/Bubbles';
-    toggleBtn.style.cssText = `
-        position: fixed;
-        top: 80px;
-        right: 20px;
-        z-index: 9999;
-        background: rgba(124, 58, 237, 0.9);
-        border: 2px solid rgba(124, 58, 237, 1);
-        color: white;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.5);
-        transition: all 0.3s ease;
-    `;
-    
-    toggleBtn.addEventListener('mouseenter', function() {
-        this.style.transform = 'scale(1.1)';
-    });
-    
-    toggleBtn.addEventListener('mouseleave', function() {
-        this.style.transform = 'scale(1)';
-    });
-    
-    document.body.appendChild(toggleBtn);
-    
-    // Load saved preference
-    let isHidden = localStorage.getItem('hideAvatarBubbles') === 'true';
-    
-    function updateVisibility() {
-        const elementsToToggle = [
-            document.getElementById('homeAvatarSwitcher'),
-            ...document.querySelectorAll('[id*="bubble"]'),
-            ...document.querySelectorAll('[class*="bubble"]'),
-            ...document.querySelectorAll('[id*="avatar"][id*="switcher"]')
-        ];
-        
-        elementsToToggle.forEach(el => {
-            if (el) {
-                el.style.display = isHidden ? 'none' : '';
-            }
-        });
-        
-        toggleBtn.innerHTML = isHidden ? '👁️‍🗨️' : '👁️';
-        toggleBtn.title = isHidden ? 'Show Avatar/Bubbles' : 'Hide Avatar/Bubbles';
+    // ── EDIT FORM (own profile only) ──
+    if (isOwnProfile) {
+      html += `
+    <div class="card">
+      <h2>✏️ Edit Profile</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div class="form-group">
+          <label>Username</label>
+          <input class="form-input" type="text" id="editUsername" value="${p.username||''}">
+        </div>
+        <div class="form-group">
+          <label>Display Name</label>
+          <input class="form-input" type="text" id="editDisplayName" value="${p.display_name||''}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Bio</label>
+        <textarea class="form-input" id="editBio" rows="3">${p.bio||''}</textarea>
+      </div>
+      <div class="form-group">
+        <label>Avatar URL (paste a direct image link)</label>
+        <input class="form-input" type="url" id="editAvatar" value="${p.avatar_url||''}" placeholder="https://…">
+      </div>
+      <button class="btn" onclick="saveProfile()">💾 Save Changes</button>
+      <span id="saveNotice" style="margin-left:1rem;font-size:0.85rem;"></span>
+    </div>`;
     }
-    
-    toggleBtn.addEventListener('click', function() {
-        isHidden = !isHidden;
-        localStorage.setItem('hideAvatarBubbles', isHidden);
-        updateVisibility();
-    });
-    
-    // Apply on load
-    updateVisibility();
-    
-    // Watch for dynamically added elements
-    const observer = new MutationObserver(updateVisibility);
-    observer.observe(document.body, { childList: true, subtree: true });
-})();
-</script>
 
-<!-- ADD THIS SCRIPT TO EVERY PAGE (except index.html where you want it always shown) -->
-<!-- Place it right before the closing </body> tag -->
+    document.getElementById('profileContent').innerHTML = html;
 
-<script>
-// Avatar & Bubble Toggle System
-(function() {
-    // Create toggle button
-    const toggleBtn = document.createElement('button');
-    toggleBtn.id = 'avatarToggle';
-    toggleBtn.innerHTML = '👁️';
-    toggleBtn.title = 'Toggle Avatar/Bubbles';
-    toggleBtn.style.cssText = `
-        position: fixed;
-        top: 80px;
-        right: 20px;
-        z-index: 9999;
-        background: rgba(124, 58, 237, 0.9);
-        border: 2px solid rgba(124, 58, 237, 1);
-        color: white;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.5);
-        transition: all 0.3s ease;
-    `;
-    
-    toggleBtn.addEventListener('mouseenter', function() {
-        this.style.transform = 'scale(1.1)';
-    });
-    
-    toggleBtn.addEventListener('mouseleave', function() {
-        this.style.transform = 'scale(1)';
-    });
-    
-    document.body.appendChild(toggleBtn);
-    
-    // Load saved preference
-    let isHidden = localStorage.getItem('hideAvatarBubbles') === 'true';
-    
-    function updateVisibility() {
-        const elementsToToggle = [
-            document.getElementById('homeAvatarSwitcher'),
-            ...document.querySelectorAll('[id*="bubble"]'),
-            ...document.querySelectorAll('[class*="bubble"]'),
-            ...document.querySelectorAll('[id*="avatar"][id*="switcher"]')
-        ];
-        
-        elementsToToggle.forEach(el => {
-            if (el) {
-                el.style.display = isHidden ? 'none' : '';
-            }
-        });
-        
-        toggleBtn.innerHTML = isHidden ? '👁️‍🗨️' : '👁️';
-        toggleBtn.title = isHidden ? 'Show Avatar/Bubbles' : 'Hide Avatar/Bubbles';
+    // Load songs if music creator
+    if (isMusicCreator) loadSongs(profileData.user_id);
+  }
+
+  // ── LOAD SONGS ──────────────────────────────────────────────────
+  async function loadSongs(userId) {
+    const el = document.getElementById('songList');
+    if (!el) return;
+    try {
+      const { data: songs, error } = await db.from('songs')
+        .select('id, title, artist, cover_art, song_url, explicit, featured')
+        .eq('uploaded_by', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (!songs || songs.length === 0) {
+        el.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(168,85,247,0.5);font-size:0.9rem;">No songs yet' + (isOwnProfile ? ' — upload your first song above!' : '.') + '</div>';
+        return;
+      }
+
+      el.innerHTML = songs.map(s => {
+        const cover = s.cover_art ? `<img src="${s.cover_art}" alt="${s.title}" onerror="this.parentNode.textContent='🎵'">` : '🎵';
+        const featuredBadge = s.featured ? '<span class="owner-pick-badge" style="margin-left:0.4rem;">⭐ Featured</span>' : '';
+        const deleteBtnHtml = isOwnProfile ? `<button class="btn btn-red" style="padding:0.4rem 0.75rem;font-size:0.8rem;" onclick="deleteSong('${s.id}')">🗑️</button>` : '';
+        return `
+        <div class="song-row" id="song-${s.id}">
+          <div class="song-cover">${cover}</div>
+          <div class="song-info">
+            <div class="song-title">${s.title||'Untitled'}${s.explicit ? ' <span style="color:#ef4444;font-size:0.7rem;">🔞</span>' : ''}${featuredBadge}</div>
+            <div class="song-meta">${s.artist||''}</div>
+            ${s.song_url ? `<audio controls src="${s.song_url}" preload="none" style="height:32px;margin-top:6px;"></audio>` : ''}
+          </div>
+          ${deleteBtnHtml}
+        </div>`;
+      }).join('');
+
+    } catch (err) {
+      el.innerHTML = `<div style="color:#ef4444;font-size:0.85rem;padding:1rem;">Error loading songs: ${err.message}</div>`;
     }
-    
-    toggleBtn.addEventListener('click', function() {
-        isHidden = !isHidden;
-        localStorage.setItem('hideAvatarBubbles', isHidden);
-        updateVisibility();
-    });
-    
-    // Apply on load
-    updateVisibility();
-    
-    
-</script>
+  }
 
-  
+  // ── UPLOAD HELPERS ───────────────────────────────────────────────
+  function toggleUploadForm() {
+    const f = document.getElementById('uploadForm');
+    f.style.display = f.style.display === 'none' ? 'block' : 'none';
+  }
+
+  let selectedAudio = null, selectedCover = null;
+
+  const MAX_AUDIO_MB = 20;
+  const ALLOWED_AUDIO_TYPES = ['audio/mpeg', 'audio/mp3'];
+
+  function handleAudioSelect(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Type check — MP3 only
+    if (!ALLOWED_AUDIO_TYPES.includes(file.type) && !file.name.toLowerCase().endsWith('.mp3')) {
+      setUploadNotice('❌ Only MP3 files are allowed.', '#ef4444');
+      e.target.value = '';
+      return;
+    }
+    // Size check — 20MB max
+    if (file.size > MAX_AUDIO_MB * 1024 * 1024) {
+      setUploadNotice(`❌ File too large. Max is ${MAX_AUDIO_MB}MB. Your file is ${(file.size/1024/1024).toFixed(1)}MB.`, '#ef4444');
+      e.target.value = '';
+      return;
+    }
+
+    selectedAudio = file;
+    const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+    document.getElementById('audioZoneText').textContent = `✅ ${file.name} (${sizeMB}MB)`;
+    setUploadNotice('');
+
+    // Auto-fill title from filename if empty
+    const titleEl = document.getElementById('uploadTitle');
+    if (!titleEl.value) {
+      titleEl.value = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g,' ');
+    }
+  }
+
+  function handleCoverSelect(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    selectedCover = file;
+    document.getElementById('coverZoneText').textContent = '✅ ' + file.name;
+  }
+
+  function setUploadNotice(msg, color) {
+    const el = document.getElementById('uploadNotice');
+    if (el) { el.textContent = msg; el.style.color = color || '#a855f7'; }
+  }
+
+  function setProgress(pct, label) {
+    document.getElementById('uploadProgress').style.display = 'block';
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('uploadStatus').textContent = label || 'Uploading…';
+  }
+
+  // ── UPLOAD SONG ─────────────────────────────────────────────────
+  async function uploadSong() {
+    const title = document.getElementById('uploadTitle').value.trim();
+    const artist = document.getElementById('uploadArtist').value.trim() || profileData.display_name || profileData.username || '';
+    const price = document.getElementById('uploadPrice').value;
+    const explicit = document.getElementById('uploadExplicit').value === 'true';
+
+    if (!title) { setUploadNotice('Song title is required.', '#ef4444'); return; }
+    if (!selectedAudio) { setUploadNotice('Please select an audio file.', '#ef4444'); return; }
+
+    const btn = document.getElementById('uploadBtn');
+    btn.disabled = true;
+    setProgress(10, 'Uploading audio…');
+    setUploadNotice('');
+
+    try {
+      // Upload audio file
+      const audioExt = selectedAudio.name.split('.').pop();
+      const audioPath = `${currentUser.id}/${Date.now()}_${title.replace(/\s+/g,'_')}.${audioExt}`;
+      const { data: audioData, error: audioErr } = await db.storage
+        .from('songs')
+        .upload(audioPath, selectedAudio, { contentType: selectedAudio.type, upsert: false });
+
+      if (audioErr) throw new Error('Audio upload failed: ' + audioErr.message);
+      setProgress(60, 'Audio uploaded. Processing cover…');
+
+      const { data: audioUrlData } = db.storage.from('songs').getPublicUrl(audioPath);
+      const songUrl = audioUrlData.publicUrl;
+
+      // Upload cover if provided
+      let coverUrl = null;
+      if (selectedCover) {
+        const coverExt = selectedCover.name.split('.').pop();
+        const coverPath = `covers/${currentUser.id}/${Date.now()}.${coverExt}`;
+        const { error: coverErr } = await db.storage
+          .from('songs')
+          .upload(coverPath, selectedCover, { contentType: selectedCover.type, upsert: false });
+        if (!coverErr) {
+          const { data: coverUrlData } = db.storage.from('songs').getPublicUrl(coverPath);
+          coverUrl = coverUrlData.publicUrl;
+        }
+      }
+
+      setProgress(80, 'Saving to database…');
+
+      // Insert into songs table
+      const { error: insertErr } = await db.from('songs').insert({
+        title,
+        artist,
+        uploaded_by: currentUser.id,
+        song_url: songUrl,
+        cover_art: coverUrl,
+        explicit,
+        featured: false
+      });
+
+      if (insertErr) throw new Error('Database save failed: ' + insertErr.message);
+
+      setProgress(100, '✅ Upload complete!');
+      setUploadNotice('⭐ "' + title + '" uploaded successfully!', '#4ade80');
+
+      // Reset form
+      selectedAudio = null; selectedCover = null;
+      document.getElementById('uploadTitle').value = '';
+      document.getElementById('uploadArtist').value = '';
+      document.getElementById('uploadPrice').value = '';
+      document.getElementById('audioZoneText').textContent = '🎵 Click to select audio file';
+      document.getElementById('coverZoneText').textContent = '🖼️ Click to select cover image';
+      document.getElementById('audioFile').value = '';
+      document.getElementById('coverFile').value = '';
+
+      setTimeout(() => {
+        toggleUploadForm();
+        document.getElementById('uploadProgress').style.display = 'none';
+        loadSongs(currentUser.id);
+      }, 1500);
+
+    } catch (err) {
+      setProgress(0, '');
+      document.getElementById('uploadProgress').style.display = 'none';
+      setUploadNotice('Error: ' + err.message, '#ef4444');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // ── DELETE SONG ─────────────────────────────────────────────────
+  async function deleteSong(id) {
+    if (!confirm('Delete this song? This cannot be undone.')) return;
+    try {
+      const { error } = await db.from('songs').delete().eq('id', id).eq('uploaded_by', currentUser.id);
+      if (error) throw error;
+      const row = document.getElementById('song-' + id);
+      if (row) row.remove();
+    } catch (err) {
+      alert('Error deleting: ' + err.message);
+    }
+  }
+
+  // ── SAVE PROFILE ─────────────────────────────────────────────────
+  async function saveProfile() {
+    const username = document.getElementById('editUsername').value.trim();
+    const displayName = document.getElementById('editDisplayName').value.trim();
+    const bio = document.getElementById('editBio').value.trim();
+    const avatarUrl = document.getElementById('editAvatar').value.trim();
+    const notice = document.getElementById('saveNotice');
+
+    if (!username) { notice.textContent = '⚠️ Username required'; notice.style.color = '#ef4444'; return; }
+
+    try {
+      const { error } = await db.from('profiles').update({
+        username, display_name: displayName, bio, avatar_url: avatarUrl || null
+      }).eq('user_id', currentUser.id);
+
+      if (error) throw error;
+      notice.textContent = '✅ Saved!';
+      notice.style.color = '#4ade80';
+      setTimeout(() => { notice.textContent = ''; }, 2500);
+
+      // Update avatar display
+      if (avatarUrl) {
+        const avatarEl = document.getElementById('avatarDisplay');
+        if (avatarEl) avatarEl.innerHTML = `<img src="${avatarUrl}" alt="avatar" onerror="this.parentNode.textContent='👤'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+      }
+    } catch (err) {
+      notice.textContent = '❌ ' + err.message;
+      notice.style.color = '#ef4444';
+    }
+  }
+
+  // ── DRAG & DROP ──────────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', () => {
+    ['audioZone','coverZone'].forEach(id => {
+      const zone = document.getElementById(id);
+      if (!zone) return;
+      zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+      zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+      zone.addEventListener('drop', e => {
+        e.preventDefault(); zone.classList.remove('drag-over');
+        const file = e.dataTransfer.files[0];
+        if (!file) return;
+        if (id === 'audioZone') {
+            if (!ALLOWED_AUDIO_TYPES.includes(file.type) && !file.name.toLowerCase().endsWith('.mp3')) {
+              setUploadNotice('❌ Only MP3 files are allowed.', '#ef4444'); return;
+            }
+            if (file.size > MAX_AUDIO_MB * 1024 * 1024) {
+              setUploadNotice(`❌ File too large. Max ${MAX_AUDIO_MB}MB. Yours is ${(file.size/1024/1024).toFixed(1)}MB.`, '#ef4444'); return;
+            }
+            selectedAudio = file;
+            document.getElementById('audioZoneText').textContent = `✅ ${file.name} (${(file.size/1024/1024).toFixed(1)}MB)`;
+            setUploadNotice('');
+          }
+        else { selectedCover = file; document.getElementById('coverZoneText').textContent = '✅ ' + file.name; }
+      });
+    });
+  });
+
+  init();
+  </script>
+
+  <!-- Avatar & Bubble Toggle -->
+  <script>
+  (function() {
+    const toggleBtn = document.createElement('button');
+    toggleBtn.innerHTML = '👁️';
+    toggleBtn.style.cssText = 'position:fixed;top:80px;right:20px;z-index:9999;background:rgba(124,58,237,0.9);border:2px solid rgba(124,58,237,1);color:white;width:50px;height:50px;border-radius:50%;cursor:pointer;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(124,58,237,0.5);';
+    document.body.appendChild(toggleBtn);
+    let hidden = localStorage.getItem('hideAvatarBubbles') === 'true';
+    function update() {
+      document.querySelectorAll('[id*="bubble"],[class*="bubble"],[id*="avatar"][id*="switcher"]').forEach(el => { if(el) el.style.display = hidden ? 'none' : ''; });
+      toggleBtn.innerHTML = hidden ? '👁️‍🗨️' : '👁️';
+    }
+    toggleBtn.addEventListener('click', () => { hidden = !hidden; localStorage.setItem('hideAvatarBubbles', hidden); update(); });
+    update();
+  })();
+  </script>
 
 </body>
 </html>
- 
