@@ -127,12 +127,6 @@
     <p style="color:#a855f7;opacity:0.8;font-size:0.95rem;">Exceptional talent selected by our team</p>
   </div>
 
-  <!-- DEBUG PANEL — remove after fixing -->
-  <div id="debugPanel" style="background:rgba(0,0,0,0.8);border:2px solid #f59e0b;border-radius:12px;padding:1rem;margin-bottom:1.5rem;font-size:0.8rem;font-family:monospace;">
-    <div style="color:#f59e0b;font-weight:700;margin-bottom:0.5rem;">🔍 DEBUG — localStorage values</div>
-    <div id="debugOutput" style="color:#eae6ff;line-height:1.8;"></div>
-  </div>
-
   <!-- ADMIN PANEL -->
   <div class="admin-panel" id="adminPanel">
     <h3>⚙️ Admin — Manage Featured Artists</h3>
@@ -176,13 +170,15 @@ let _roleCache = null;
 async function getUserRole() {
   if (_roleCache !== null) return _roleCache;
   try {
-    const { data: { user } } = await db.auth.getUser();
-    if (!user) { _roleCache = ''; return ''; }
+    const { data: { user }, error } = await db.auth.getUser();
+    if (error || !user) { _roleCache = ''; return ''; }
+
     const { data: profile } = await db
       .from('profiles')
       .select('role')
       .eq('user_id', user.id)
       .maybeSingle();
+
     _roleCache = (profile?.role || '').toLowerCase().trim();
     return _roleCache;
   } catch(e) {
@@ -313,7 +309,7 @@ async function loadFeaturedArtists() {
   // Check admin status from Supabase once
   const adminMode = await isAdmin();
 
-  try {
+  try { // main try — spinner is ALWAYS hidden in finally below
     const { data: featured, error: featError } = await db
       .from('featured_content')
       .select('content_id')
@@ -370,10 +366,11 @@ async function loadFeaturedArtists() {
     grid.style.display = 'grid';
 
   } catch (err) {
-    spinner.style.display = 'none';
     document.getElementById('errorMsg').textContent = 'Could not load featured artists: ' + (err.message || err);
     errEl.style.display = 'block';
     console.error('Featured artists error:', err);
+  } finally {
+    spinner.style.display = 'none';
   }
 }
 
