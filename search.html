@@ -1,5 +1,3 @@
-
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -63,7 +61,8 @@
     a.result-link{color:inherit;text-decoration:none}
     .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/bundle.js"></script>
+  <!-- FIX: Use the UMD build which exposes createClient directly on window -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
   <div class="container" role="main">
@@ -101,8 +100,11 @@
   <script>
     // --- CONFIG ---
     const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0'; // <-- ensure this is the anon key only
-    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+
+    // FIX: Destructure createClient from window.supabase, then use a different variable name
+    const { createClient } = window.supabase;
+    const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
     // --- ELEMENTS ---
     const input = document.getElementById('searchInput');
@@ -115,7 +117,7 @@
     function escapeHtml(s) {
       if (s == null) return '';
       return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;')
-        .replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll(\"'\",'&#039;');
+        .replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
     }
 
     function debounce(fn, wait) {
@@ -127,7 +129,7 @@
     }
 
     function normalizeQuery(q) {
-      return q.replace(/[\\x00-\\x1F\\x7F]/g, ' ').replace(/\\s+/g,' ').trim();
+      return q.replace(/[\x00-\x1F\x7F]/g, ' ').replace(/\s+/g,' ').trim();
     }
 
     function validQuery(q) {
@@ -158,10 +160,10 @@
         return;
       }
 
-      resultsEl.innerHTML = '<div class=\"empty-state\">Searching…</div>';
+      resultsEl.innerHTML = '<div class="empty-state">Searching…</div>';
 
       try {
-        const { data, error } = await supabase.rpc('site_search', { q: q, limit_rows: 200 });
+        const { data, error } = await db.rpc('site_search', { q: q, limit_rows: 200 });
         if (error) throw error;
         const items = Array.isArray(data) ? data : [];
         renderCombinedResults(items);
@@ -180,21 +182,21 @@
     // --- RENDERERS ---
     function renderEmpty(note) {
       resultsEl.innerHTML = `
-        <div class=\"empty-state\">
-          <div style=\"font-size:3rem\">🔎</div>
-          <div style=\"font-weight:700;margin-top:8px\">${ note ? escapeHtml(note) : 'Start typing to search the site' }</div>
-          <div style=\"margin-top:6px;color:var(--muted)\">Searching profiles, songs, posts, pages, content, ads, comments and coins</div>
+        <div class="empty-state">
+          <div style="font-size:3rem">🔎</div>
+          <div style="font-weight:700;margin-top:8px">${ note ? escapeHtml(note) : 'Start typing to search the site' }</div>
+          <div style="margin-top:6px;color:var(--muted)">Searching profiles, songs, posts, pages, content, ads, comments and coins</div>
         </div>
       `;
     }
 
     function renderError(msg) {
-      resultsEl.innerHTML = `<div class=\"empty-state\"><div style=\"font-weight:700\">Error</div><div style=\"margin-top:6px;color:var(--muted)\">${escapeHtml(msg)}</div></div>`;
+      resultsEl.innerHTML = `<div class="empty-state"><div style="font-weight:700">Error</div><div style="margin-top:6px;color:var(--muted)">${escapeHtml(msg)}</div></div>`;
     }
 
     function renderCombinedResults(items) {
       if (!items || items.length === 0) {
-        resultsEl.innerHTML = '<div class=\"empty-state\">No results</div>';
+        resultsEl.innerHTML = '<div class="empty-state">No results</div>';
         return;
       }
 
@@ -204,11 +206,11 @@
       }
 
       if (filtered.length === 0) {
-        resultsEl.innerHTML = '<div class=\"empty-state\">No results for selected source</div>';
+        resultsEl.innerHTML = '<div class="empty-state">No results for selected source</div>';
         return;
       }
 
-      const countHtml = `<div class=\"results-count\">${filtered.length} result${filtered.length===1?'':'s'}</div>`;
+      const countHtml = `<div class="results-count">${filtered.length} result${filtered.length===1?'':'s'}</div>`;
 
       const labelMap = { profiles: 'Profiles', songs: 'Songs', posts: 'Posts', pages: 'Pages', content: 'Content', ads: 'Ads', comments: 'Comments', coins: 'Coins' };
       const iconMap = { profiles: '👤', songs: '🎵', posts: '📝', pages: '📄', content: '📚', ads: '📢', comments: '💬', coins: '🪙' };
@@ -216,7 +218,7 @@
       const html = filtered.map(it => {
         const src = (it.source || '').toLowerCase();
         const title = escapeHtml(it.title || (src === 'profiles' ? 'Profile' : src || 'Result'));
-        const snippet = escapeHtml((it.snippet || '').toString()).replace(/\\n/g, ' ');
+        const snippet = escapeHtml((it.snippet || '').toString()).replace(/\n/g, ' ');
         const created = it.created_at ? new Date(it.created_at).toLocaleString() : '';
         let href = '#';
         if (src === 'profiles') href = `profile.html?id=${encodeURIComponent(it.id)}`;
@@ -229,20 +231,20 @@
         else if (src === 'coins') href = `coins.html?id=${encodeURIComponent(it.id)}`;
 
         return `
-          <div class=\"result-card\" role=\"article\" aria-labelledby=\"r-${escapeHtml(it.id)}\">
-            <div style=\"display:flex;align-items:center;gap:12px\">
-              <div style=\"font-size:22px\">${iconMap[src] || '📌'}</div>
-              <div class=\"result-info\">
-                <div class=\"result-name\" id=\"r-${escapeHtml(it.id)}\">
-                  <a class=\"result-link\" href=\"${href}\">${title}</a>
-                  <small style=\"color:var(--muted);font-weight:600;margin-left:8px\">${escapeHtml(labelMap[src] || src)}</small>
+          <div class="result-card" role="article" aria-labelledby="r-${escapeHtml(it.id)}">
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="font-size:22px">${iconMap[src] || '📌'}</div>
+              <div class="result-info">
+                <div class="result-name" id="r-${escapeHtml(it.id)}">
+                  <a class="result-link" href="${href}">${title}</a>
+                  <small style="color:var(--muted);font-weight:600;margin-left:8px">${escapeHtml(labelMap[src] || src)}</small>
                 </div>
-                <div class=\"result-snippet\">${snippet}</div>
+                <div class="result-snippet">${snippet}</div>
               </div>
             </div>
-            <div style=\"text-align:right;min-width:120px;color:var(--muted);font-size:12px\">
+            <div style="text-align:right;min-width:120px;color:var(--muted);font-size:12px">
               <div>${escapeHtml(created)}</div>
-              ${ typeof it.rank !== 'undefined' ? `<div class=\"meta\">score: ${Number(it.rank).toFixed(3)}</div>` : '' }
+              ${ typeof it.rank !== 'undefined' ? `<div class="meta">score: ${Number(it.rank).toFixed(3)}</div>` : '' }
             </div>
           </div>
         `;
