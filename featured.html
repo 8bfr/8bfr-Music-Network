@@ -165,8 +165,9 @@ const { createClient } = window.supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 function isAdmin() {
-  const role = localStorage.getItem('userRole');
-  return role === 'owner' || role === 'admin' || role === 'mod';
+  const role = (localStorage.getItem('userRole') || '').toLowerCase().trim();
+  console.log('[8BFR] userRole =', JSON.stringify(localStorage.getItem('userRole')));
+  return role === 'owner' || role === 'admin' || role === 'mod' || role === 'moderator';
 }
 
 function logAdminAction(action, targetId) {
@@ -304,7 +305,7 @@ async function loadFeaturedArtists() {
     // Same join as index.html
     const { data: profiles, error: profError } = await db
       .from('profiles')
-      .select('user_id, username, display_name, bio, badges, verified, avatar_url, emoji')
+      .select('user_id, username, display_name, bio, badges, avatar_url, emoji')
       .in('user_id', featured.map(f => f.content_id));
 
     if (profError) throw profError;
@@ -333,7 +334,7 @@ async function loadFeaturedArtists() {
 
       return '<div class="artist-card">' +
         '<div class="artist-avatar">' + avatarInner + '</div>' +
-        '<div class="artist-name">' + name + (p.verified ? '<span class="verified-badge">✓</span>' : '') + '</div>' +
+        '<div class="artist-name">' + name + (badges.includes('verified') ? '<span class="verified-badge">✓</span>' : '') + '</div>' +
         (badgesHTML ? '<div class="artist-badges">' + badgesHTML + '</div>' : '') +
         (p.bio ? '<div style="text-align:center;font-size:0.9rem;color:#a855f7;opacity:0.8;margin-bottom:1rem;line-height:1.5;">' + p.bio + '</div>' : '') +
         '<a href="profile.html?id=' + encodeURIComponent(p.user_id) + '" class="view-profile-btn">👤 View Profile</a>' +
@@ -352,6 +353,14 @@ async function loadFeaturedArtists() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+  // Debug: log all role-related localStorage keys
+  console.log('[8BFR Admin Debug]');
+  console.log('  userRole:', localStorage.getItem('userRole'));
+  console.log('  user_role:', localStorage.getItem('user_role'));
+  console.log('  role:', localStorage.getItem('role'));
+  console.log('  username:', localStorage.getItem('username'));
+  console.log('  isAdmin():', isAdmin());
+
   if (isAdmin()) document.getElementById('adminPanel').style.display = 'block';
   loadFeaturedArtists();
 });
