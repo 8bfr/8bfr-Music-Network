@@ -235,8 +235,11 @@ async function populateDropdown(currentlyFeatured) {
     }
 
     const featuredIds = new Set((currentlyFeatured || []).map(p => p.user_id));
+    const validProfiles = profiles.filter(p => p.user_id && p.user_id !== 'null');
+    const skipped = profiles.length - validProfiles.length;
     dropdown.innerHTML = '<option value="">— Select an artist to feature —</option>';
-    profiles.forEach(p => {
+    // Only include profiles that have a valid user_id
+    validProfiles.forEach(p => {
       const name = p.display_name || p.username || p.user_id;
       const already = featuredIds.has(p.user_id);
       const opt = document.createElement('option');
@@ -245,7 +248,8 @@ async function populateDropdown(currentlyFeatured) {
       if (already) opt.style.color = '#f59e0b';
       dropdown.appendChild(opt);
     });
-    showNotice(profiles.length + ' profile(s) · ' + featuredIds.size + ' currently featured', 'info');
+    const skipNote = skipped > 0 ? ' (' + skipped + ' skipped — no user_id)' : '';
+    showNotice(validProfiles.length + ' profile(s)' + skipNote + ' · ' + featuredIds.size + ' currently featured', 'info');
   } catch (err) {
     dropdown.innerHTML = '<option value="" disabled>Error loading profiles</option>';
     showNotice('Error: ' + (err.message || err), 'warn');
@@ -255,7 +259,9 @@ async function populateDropdown(currentlyFeatured) {
 async function featureSelected() {
   const dropdown = document.getElementById('artistDropdown');
   const userId = dropdown.value;
-  if (!userId) { showNotice('Please select an artist first.', 'warn'); return; }
+  if (!userId || userId === 'null' || userId.length < 10) { 
+    showNotice('Please select a valid profile.', 'warn'); return; 
+  }
 
   const btn = document.getElementById('featureBtn');
   btn.disabled = true; btn.textContent = 'Saving…';
