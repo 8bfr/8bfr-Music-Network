@@ -139,7 +139,7 @@
     <div class="admin-notice" id="adminNotice">Loading profiles from Supabase…</div>
   </div>
 
-  <div id="loadingSpinner"><div class="spinner"></div></div>
+  <div id="loadingSpinner" style="display:none;"><div class="spinner"></div></div>
 
   <div id="featuredArtists" style="display:none;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.5rem;" class="artist-grid"></div>
 
@@ -170,8 +170,12 @@ let _roleCache = null;
 async function getUserRole() {
   if (_roleCache !== null) return _roleCache;
   try {
-    const { data: { user }, error } = await db.auth.getUser();
-    if (error || !user) { _roleCache = ''; return ''; }
+    // Timeout after 5s so it never hangs the page
+    const timeout = new Promise(resolve => setTimeout(() => resolve(null), 5000));
+    const authResult = await Promise.race([db.auth.getUser(), timeout]);
+    
+    const user = authResult?.data?.user;
+    if (!user) { _roleCache = ''; return ''; }
 
     const { data: profile } = await db
       .from('profiles')
@@ -374,10 +378,14 @@ async function loadFeaturedArtists() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', async function() {
-  const adminMode = await isAdmin();
-  if (adminMode) document.getElementById('adminPanel').style.display = 'block';
+document.addEventListener('DOMContentLoaded', function() {
+  // Load artists immediately — don't wait for role check
   loadFeaturedArtists();
+  
+  // Check admin role in parallel — shows panel when ready
+  isAdmin().then(adminMode => {
+    if (adminMode) document.getElementById('adminPanel').style.display = 'block';
+  });
 });
 
 window.addEventListener('load', function() {
