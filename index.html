@@ -642,16 +642,15 @@
     // ── FEATURED ARTISTS ─────────────────────────────────────────
     try {
       const { data: artists, error: artistError } = await supabase
-        .from('featured_content')
-        .select('content_id')
-        .eq('content_type', 'artist')
+        .from('featured_artists')
+        .select('user_id')
         .order('created_at', { ascending: false })
         .limit(10);
 
       if (artistError) throw artistError;
 
       if (artists && artists.length > 0) {
-        const ids = [...new Set(artists.map(a => a.content_id).filter(Boolean))];
+        const ids = [...new Set(artists.map(a => a.user_id).filter(Boolean))];
         const { data: profiles, error: profError } = await supabase
           .from('profiles')
           .select('user_id, username, display_name, badges, avatar_url, verified_artist')
@@ -689,34 +688,34 @@
 
     // ── FEATURED SONGS ───────────────────────────────────────────
     try {
-      const { data: songs, error: songError } = await supabase
-        .from('featured_content')
-        .select('content_id')
-        .eq('content_type', 'song')
+      const { data: featSongs, error: songError } = await supabase
+        .from('featured_songs')
+        .select('song_id')
         .order('created_at', { ascending: false })
         .limit(10);
 
       if (songError) throw songError;
 
-      if (songs && songs.length > 0) {
-        const ids = [...new Set(songs.map(s => s.content_id).filter(Boolean))];
-        const { data: posts, error: postsError } = await supabase
-          .from('posts')
-          .select('id, title, artist_name, cover_url')
+      if (featSongs && featSongs.length > 0) {
+        const ids = [...new Set(featSongs.map(s => s.song_id).filter(Boolean))];
+        const { data: songs, error: songsError } = await supabase
+          .from('songs')
+          .select('id, title, artist, cover_art')
           .in('id', ids);
 
-        if (postsError) throw postsError;
+        if (songsError) throw songsError;
 
-        if (posts && posts.length > 0) {
-          songGrid.innerHTML = posts.map(p => {
-            const cover = p.cover_url || 'assets/images/default_post.jpg';
+        if (songs && songs.length > 0) {
+          songGrid.innerHTML = songs.map(p => {
+            const cover = p.cover_art || 'assets/images/default_post.jpg';
             return `<a href="song.html?id=${encodeURIComponent(p.id)}"
                        class="block rounded-lg border border-green-400/50 bg-black/40 p-4 hover:bg-black/50"
                        style="position:relative;">
-                      <div style="position:absolute;top:8px;left:8px;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;padding:0.25rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:700;letter-spacing:0.03em;">⭐ Owner Pick</div><div style="position:absolute;top:8px;right:8px;background:rgba(0,255,136,0.12);border:1px solid #00ff88;padding:0.25rem 0.5rem;border-radius:4px;font-size:0.7rem;color:#00ff88;font-weight:600;">⭐ FEATURED</div>
+                      <div style="position:absolute;top:8px;left:8px;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;padding:0.25rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:700;letter-spacing:0.03em;">⭐ Owner Pick</div>
+                      <div style="position:absolute;top:8px;right:8px;background:rgba(0,255,136,0.12);border:1px solid #00ff88;padding:0.25rem 0.5rem;border-radius:4px;font-size:0.7rem;color:#00ff88;font-weight:600;">⭐ FEATURED</div>
                       <img src="${cover}" class="w-full h-40 object-cover rounded-md mb-2" alt="${p.title||'Song'}" onerror="this.src='assets/images/default_post.jpg'">
                       <div class="font-semibold">${p.title||'Untitled'}</div>
-                      <div class="text-sm text-purple-300/80">${p.artist_name||'Unknown Artist'}</div>
+                      <div class="text-sm text-purple-300/80">${p.artist||'Unknown Artist'}</div>
                     </a>`;
           }).join('');
           if (songFallback) songFallback.style.display = 'none';
