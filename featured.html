@@ -165,9 +165,12 @@ const { createClient } = window.supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 function isAdmin() {
-  const role = (localStorage.getItem('userRole') || '').toLowerCase().trim();
-  console.log('[8BFR] userRole =', JSON.stringify(localStorage.getItem('userRole')));
-  return role === 'owner' || role === 'admin' || role === 'mod' || role === 'moderator';
+  const keys = ['userRole', 'user_role', 'role'];
+  for (const k of keys) {
+    const val = (localStorage.getItem(k) || '').toLowerCase().trim();
+    if (['owner', 'admin', 'mod', 'moderator'].includes(val)) return true;
+  }
+  return false;
 }
 
 function logAdminAction(action, targetId) {
@@ -197,7 +200,7 @@ async function populateDropdown(currentlyFeatured) {
   try {
     const { data: profiles, error } = await db
       .from('profiles')
-      .select('user_id, username, display_name, badges')
+      .select('user_id, username, display_name, role, badges')
       .order('username', { ascending: true });
 
     if (error) throw error;
@@ -305,7 +308,7 @@ async function loadFeaturedArtists() {
     // Same join as index.html
     const { data: profiles, error: profError } = await db
       .from('profiles')
-      .select('user_id, username, display_name, bio, badges, avatar_url, emoji')
+      .select('user_id, username, display_name, bio, badges, avatar_url, role, verified_artist')
       .in('user_id', featured.map(f => f.content_id));
 
     if (profError) throw profError;
@@ -330,11 +333,11 @@ async function loadFeaturedArtists() {
       ).join('');
       const avatarInner = p.avatar_url
         ? '<img src="' + p.avatar_url + '" alt="' + name + '" onerror="this.parentNode.textContent=\'🎵\'">'
-        : (p.emoji || '🎵');
+        : '🎵';
 
       return '<div class="artist-card">' +
         '<div class="artist-avatar">' + avatarInner + '</div>' +
-        '<div class="artist-name">' + name + (badges.includes('verified') ? '<span class="verified-badge">✓</span>' : '') + '</div>' +
+        '<div class="artist-name">' + name + (p.verified_artist ? '<span class="verified-badge">✓</span>' : '') + '</div>' +
         (badgesHTML ? '<div class="artist-badges">' + badgesHTML + '</div>' : '') +
         (p.bio ? '<div style="text-align:center;font-size:0.9rem;color:#a855f7;opacity:0.8;margin-bottom:1rem;line-height:1.5;">' + p.bio + '</div>' : '') +
         '<a href="profile.html?id=' + encodeURIComponent(p.user_id) + '" class="view-profile-btn">👤 View Profile</a>' +
@@ -353,14 +356,7 @@ async function loadFeaturedArtists() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-  // Debug: log all role-related localStorage keys
-  console.log('[8BFR Admin Debug]');
-  console.log('  userRole:', localStorage.getItem('userRole'));
-  console.log('  user_role:', localStorage.getItem('user_role'));
-  console.log('  role:', localStorage.getItem('role'));
-  console.log('  username:', localStorage.getItem('username'));
-  console.log('  isAdmin():', isAdmin());
-
+  console.log('[8BFR] userRole:', localStorage.getItem('userRole'), '| role:', localStorage.getItem('role'), '| user_role:', localStorage.getItem('user_role'), '| isAdmin:', isAdmin());
   if (isAdmin()) document.getElementById('adminPanel').style.display = 'block';
   loadFeaturedArtists();
 });
