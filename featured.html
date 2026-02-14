@@ -267,8 +267,8 @@ async function featureSelected() {
   btn.disabled = true; btn.textContent = 'Saving…';
 
   try {
-    const { data: existing } = await db.from('featured_content')
-      .select('id').eq('content_type', 'artist').eq('content_id', userId).maybeSingle();
+    const { data: existing } = await db.from('featured_artists')
+      .select('user_id').eq('user_id', userId).maybeSingle();
 
     if (existing) {
       showNotice('This artist is already featured!', 'warn');
@@ -276,10 +276,7 @@ async function featureSelected() {
       return;
     }
 
-    const { error } = await db.from('featured_content').insert({
-      content_type: 'artist',
-      content_id: userId
-    });
+    const { error } = await db.from('featured_artists').insert({ user_id: userId });
 
     if (error) throw error;
     logAdminAction('featured_add', userId);
@@ -295,8 +292,8 @@ async function featureSelected() {
 async function removeFeatured(userId) {
   if (!confirm('Remove this artist from featured?')) return;
   try {
-    const { error } = await db.from('featured_content')
-      .delete().eq('content_type', 'artist').eq('content_id', userId);
+    const { error } = await db.from('featured_artists')
+      .delete().eq('user_id', userId);
     if (error) throw error;
     logAdminAction('featured_remove', userId);
     await loadFeaturedArtists();
@@ -327,16 +324,15 @@ async function loadFeaturedArtists() {
   setStatus('Step 1: Checking session… ' + (adminMode ? '✅ Admin' : '👤 Not admin / not logged in'));
 
   try { // main try — spinner is ALWAYS hidden in finally below
-    setStatus('Step 2: Loading featured_content rows…');
+    setStatus('Step 2: Loading featured_artists rows…');
     const { data: featured, error: featError } = await db
-      .from('featured_content')
-      .select('content_id')
-      .eq('content_type', 'artist')
+      .from('featured_artists')
+      .select('user_id')
       .order('created_at', { ascending: false });
 
-    if (featError) throw new Error('featured_content query failed: ' + featError.message);
+    if (featError) throw new Error('featured_artists query failed: ' + featError.message);
 
-    setStatus('Step 3: Got ' + (featured?.length || 0) + ' featured rows. IDs: ' + (featured?.map(f=>f.content_id?.substring(0,8)+'…').join(', ') || 'none'));
+    setStatus('Step 3: Got ' + (featured?.length || 0) + ' featured rows. IDs: ' + (featured?.map(f=>f.user_id?.substring(0,8)+'…').join(', ') || 'none'));
 
     if (!featured || featured.length === 0) {
       empty.style.display = 'block';
@@ -348,7 +344,7 @@ async function loadFeaturedArtists() {
     const { data: profiles, error: profError } = await db
       .from('profiles')
       .select('user_id, username, display_name, bio, badges, avatar_url, role, verified_artist')
-      .in('user_id', featured.map(f => f.content_id));
+      .in('user_id', featured.map(f => f.user_id));
 
     if (profError) throw new Error('profiles query failed: ' + profError.message);
 
@@ -357,7 +353,7 @@ async function loadFeaturedArtists() {
     if (adminMode) populateDropdown(profiles || []);
 
     if (!profiles || profiles.length === 0) {
-      setStatus('⚠️ featured_content has ' + featured.length + ' rows but no matching profiles.user_id found. Check that content_id values match profiles.user_id exactly.');
+      setStatus('⚠️ featured_artists has ' + featured.length + ' rows but no matching profiles.user_id found. Check that user_id values match profiles.user_id exactly.');
       empty.style.display = 'block';
       return;
     }
