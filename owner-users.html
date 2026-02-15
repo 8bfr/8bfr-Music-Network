@@ -69,9 +69,49 @@
     <div class="card">
       <div class="search-row">
         <input type="text" class="search-box" id="searchBox" placeholder="Search by username, role, or badges…" oninput="searchUsers()">
-        <button class="btn btn-green" onclick="showCreateModal()">+ Create User</button>
+        <a href="https://supabase.com/dashboard/project/novbuvwpjnxwwvdekjhr/auth/users" target="_blank" class="btn btn-green">➕ Add Real User</a>
+        <button class="btn" style="background:#0e7490;" onclick="showDummySection()">🤖 Dummy Accounts</button>
       </div>
       <div id="userList"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+
+  <!-- DUMMY ACCOUNTS SECTION -->
+  <div id="dummySection" style="display:none;">
+    <div class="card" style="border-color:rgba(14,116,144,0.5);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+        <h2 style="font-family:'Bebas Neue',cursive;color:#22d3ee;font-size:1.4rem;letter-spacing:1px;">🤖 Dummy Accounts <span style="font-size:0.75rem;color:rgba(234,230,255,0.4);font-family:'Work Sans',sans-serif;font-weight:normal;">(local only — not in Supabase)</span></h2>
+        <button class="btn btn-gray" onclick="hideDummySection()">✕ Close</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem;">
+        <div class="form-group" style="margin:0;">
+          <label>Username *</label>
+          <input class="form-input" type="text" id="dUsername" placeholder="e.g. beatking99">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label>Display Name</label>
+          <input class="form-input" type="text" id="dDispName" placeholder="e.g. Beat King">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label>Primary Role</label>
+          <select class="form-input" id="dRole"></select>
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label>Bio</label>
+          <input class="form-input" type="text" id="dBio" placeholder="Short bio…">
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;">
+        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.9rem;">
+          <input type="checkbox" id="dVerified" style="accent-color:#7c3aed;"> 🛡️ Verified
+        </label>
+      </div>
+      <button class="btn" style="background:#0e7490;" onclick="createDummy()">+ Create Dummy</button>
+      <div id="dNotice" style="margin-top:0.5rem;font-size:0.85rem;"></div>
+
+      <div id="dummyList" style="margin-top:1.25rem;"></div>
     </div>
   </div>
 
@@ -364,6 +404,90 @@
     btn.addEventListener('click', () => { hidden = !hidden; localStorage.setItem('hideAvatarBubbles', hidden); update(); });
     update();
   })();
-  </script>
+  
+  // ── DUMMY ACCOUNTS (Supabase dummy_profiles table) ──────────────
+
+  function showDummySection() {
+    document.getElementById('dummySection').style.display = 'block';
+    buildRoleSelect('dRole');
+    loadDummies();
+    document.getElementById('dummySection').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function hideDummySection() {
+    document.getElementById('dummySection').style.display = 'none';
+  }
+
+  async function loadDummies() {
+    const el = document.getElementById('dummyList');
+    el.innerHTML = '<div class="spinner"></div>';
+    const { data, error } = await db.from('dummy_profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) {
+      el.innerHTML = `<p style="color:#f87171;">❌ ${error.message}</p>`;
+      return;
+    }
+    renderDummies(data || []);
+  }
+
+  async function createDummy() {
+    const username = document.getElementById('dUsername').value.trim();
+    const dispName = document.getElementById('dDispName').value.trim();
+    const role = document.getElementById('dRole').value;
+    const bio = document.getElementById('dBio').value.trim();
+    const verified = document.getElementById('dVerified').checked;
+    const tags = [role];
+
+    if (!username) { document.getElementById('dNotice').innerHTML = '<span style="color:#f87171;">⚠️ Username required</span>'; return; }
+
+    document.getElementById('dNotice').innerHTML = '<span style="color:#a855f7;">Creating…</span>';
+
+    const { error } = await db.from('dummy_profiles').insert({
+      username, display_name: dispName || username, role, bio, tags, verified_artist: verified
+    });
+
+    if (error) {
+      document.getElementById('dNotice').innerHTML = `<span style="color:#f87171;">❌ ${error.message}</span>`;
+      return;
+    }
+
+    document.getElementById('dUsername').value = '';
+    document.getElementById('dDispName').value = '';
+    document.getElementById('dBio').value = '';
+    document.getElementById('dVerified').checked = false;
+    document.getElementById('dNotice').innerHTML = '<span style="color:#4ade80;">✅ Dummy created!</span>';
+    setTimeout(() => document.getElementById('dNotice').innerHTML = '', 2000);
+    loadDummies();
+  }
+
+  async function deleteDummy(id) {
+    if (!confirm('Delete this dummy account?')) return;
+    const { error } = await db.from('dummy_profiles').delete().eq('id', id);
+    if (error) { alert('❌ ' + error.message); return; }
+    loadDummies();
+  }
+
+  function renderDummies(list) {
+    const el = document.getElementById('dummyList');
+    if (!list.length) {
+      el.innerHTML = '<p style="color:rgba(234,230,255,0.4);font-size:0.85rem;padding:0.5rem 0;">No dummy accounts yet.</p>';
+      return;
+    }
+    el.innerHTML = list.map(d => `
+      <div class="user-item" style="border-color:rgba(14,116,144,0.4);">
+        <div class="user-meta">
+          <div class="user-name">${d.username} ${d.verified_artist ? '🛡️' : ''} <span class="role-pill" style="background:rgba(14,116,144,0.3);color:#22d3ee;">${d.role}</span> <span style="font-size:0.7rem;color:rgba(234,230,255,0.3);">DUMMY</span></div>
+          <div class="user-detail">${d.display_name||''}${d.bio ? ' · ' + d.bio : ''}</div>
+          <div class="user-detail">Created: ${new Date(d.created_at).toLocaleDateString()}</div>
+        </div>
+        <div style="display:flex;gap:0.5rem;">
+          <button class="btn btn-danger" onclick="deleteDummy('${d.id}')">🗑️</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+</script>
 </body>
 </html>
