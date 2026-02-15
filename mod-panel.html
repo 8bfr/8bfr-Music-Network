@@ -1,17 +1,18 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Moderator Panel - 8BFR Music Network</title>
+    <title>Admin Panel - 8BFR Music Network</title>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
-            --primary: #00ff88;
-            --secondary: #00cc6e;
-            --dark: #0a0a0a;
-            --dark-card: #1a1a1a;
+            --primary: #7c3aed;
+            --secondary: #6d28d9;
+            --dark: #0b0014;
+            --dark-card: #0c0618;
             --success: #00ff88;
             --warning: #ffaa00;
             --danger: #ff0044;
@@ -19,977 +20,767 @@
             --text-dim: #999999;
             --border: #333333;
         }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Work Sans', sans-serif; background: var(--dark); color: var(--text); line-height: 1.6; }
+        .header { background: linear-gradient(135deg, var(--dark-card) 0%, #000 100%); border-bottom: 2px solid var(--primary); padding: 1.5rem 2rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 20px rgba(0, 204, 255, 0.2); }
+        .header h1 { font-family: 'Bebas Neue', cursive; font-size: 2rem; letter-spacing: 2px; background: linear-gradient(90deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .user-info { display: flex; align-items: center; gap: 1rem; }
+        .logout-btn { background: var(--danger); color: white; border: none; padding: 0.5rem 1.5rem; border-radius: 4px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; }
+        .logout-btn:hover { background: #cc0033; transform: translateY(-2px); }
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        .tabs { display: flex; gap: 0.5rem; margin-bottom: 2rem; border-bottom: 2px solid var(--border); flex-wrap: wrap; overflow-x: auto; }
+        .tab { background: transparent; color: var(--text-dim); border: none; padding: 1rem 1.5rem; cursor: pointer; font-weight: 600; font-size: 0.95rem; border-bottom: 3px solid transparent; transition: all 0.3s ease; font-family: 'Work Sans', sans-serif; white-space: nowrap; }
+        .tab:hover { color: var(--text); border-bottom-color: var(--secondary); }
+        .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+        .tab-content { display: none; animation: fadeIn 0.3s ease; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .card { background: var(--dark-card); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); }
+        .card h2 { font-family: 'Bebas Neue', cursive; font-size: 1.5rem; letter-spacing: 1px; color: var(--primary); margin-bottom: 1rem; border-left: 4px solid var(--secondary); padding-left: 1rem; }
+        .card h3 { color: var(--primary); margin: 1rem 0; }
+        .form-group { margin-bottom: 1.5rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text); }
+        .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 0.75rem; background: var(--dark); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-family: 'Work Sans', sans-serif; transition: border-color 0.3s ease; }
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus { outline: none; border-color: var(--primary); }
+        .form-group textarea { min-height: 150px; resize: vertical; }
+        .btn { background: var(--primary); color: white; border: none; padding: 0.75rem 2rem; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 1rem; transition: all 0.3s ease; font-family: 'Work Sans', sans-serif; margin: 0.25rem; }
+        .btn:hover { background: var(--secondary); transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0, 204, 255, 0.4); }
+        .btn-danger { background: var(--danger); }
+        .btn-danger:hover { background: #cc0033; }
+        .btn-success { background: var(--success); }
+        .btn-success:hover { background: #00cc6e; }
+        .btn-warning { background: var(--warning); }
+        .btn-warning:hover { background: #cc8800; }
+        .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
+        .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+        .item-list { max-height: 500px; overflow-y: auto; }
+        .item { background: var(--dark); border: 1px solid var(--border); padding: 1rem; margin-bottom: 0.5rem; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; transition: all 0.3s ease; }
+        .item:hover { border-color: var(--primary); transform: translateX(4px); }
+        .item-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .item-actions button { padding: 0.4rem 0.8rem; font-size: 0.85rem; }
+        .search-box { width: 100%; padding: 0.75rem; background: var(--dark); border: 1px solid var(--border); border-radius: 4px; color: var(--text); margin-bottom: 1rem; font-family: 'Work Sans', sans-serif; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card { background: linear-gradient(135deg, var(--dark-card), var(--dark)); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; text-align: center; transition: all 0.3s ease; }
+        .stat-card:hover { transform: translateY(-4px); border-color: var(--primary); }
+        .stat-card h3 { font-size: 2rem; color: var(--primary); margin-bottom: 0.5rem; }
+        .stat-card p { color: var(--text-dim); font-size: 0.9rem; }
+        .info-note { background: rgba(0, 204, 255, 0.1); border: 1px solid var(--primary); padding: 1rem; border-radius: 4px; margin-bottom: 1rem; color: var(--text-dim); }
+        .message-box { background: var(--dark); border: 1px solid var(--border); padding: 1rem; border-radius: 4px; margin-top: 1rem; }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Work Sans', sans-serif;
-            background: var(--dark);
-            color: var(--text);
-            line-height: 1.6;
-        }
-
-        .header {
-            background: linear-gradient(135deg, var(--dark-card) 0%, #000 100%);
-            border-bottom: 2px solid var(--primary);
-            padding: 1.5rem 2rem;
+        /* Hamburger Menu */
+        .panel-hamburger {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: 0 4px 20px rgba(0, 255, 136, 0.2);
-        }
-
-        .header h1 {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 2rem;
-            letter-spacing: 2px;
-            background: linear-gradient(90deg, var(--primary), var(--secondary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .logout-btn {
-            background: var(--danger);
-            color: white;
-            border: none;
-            padding: 0.5rem 1.5rem;
-            border-radius: 4px;
+            flex-direction: column;
+            gap: 5px;
             cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
+            padding: 0.5rem;
+            z-index: 1001;
         }
-
-        .logout-btn:hover {
-            background: #cc0033;
-            transform: translateY(-2px);
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-
-        .tabs {
-            display: flex;
-            gap: 0.5rem;
-            margin-bottom: 2rem;
-            border-bottom: 2px solid var(--border);
-            flex-wrap: wrap;
-        }
-
-        .tab {
-            background: transparent;
-            color: var(--text-dim);
-            border: none;
-            padding: 1rem 1.5rem;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 0.95rem;
-            border-bottom: 3px solid transparent;
-            transition: all 0.3s ease;
-            font-family: 'Work Sans', sans-serif;
-        }
-
-        .tab:hover {
-            color: var(--text);
-            border-bottom-color: var(--secondary);
-        }
-
-        .tab.active {
-            color: var(--primary);
-            border-bottom-color: var(--primary);
-        }
-
-        .tab-content {
-            display: none;
-            animation: fadeIn 0.3s ease;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .card {
-            background: var(--dark-card);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-        }
-
-        .card h2 {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 1.5rem;
-            letter-spacing: 1px;
-            color: var(--primary);
-            margin-bottom: 1rem;
-            border-left: 4px solid var(--secondary);
-            padding-left: 1rem;
-        }
-
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-            color: var(--text);
-        }
-
-        .form-group input,
-        .form-group textarea,
-        .form-group select {
-            width: 100%;
-            padding: 0.75rem;
-            background: var(--dark);
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            color: var(--text);
-            font-family: 'Work Sans', sans-serif;
-            transition: border-color 0.3s ease;
-        }
-
-        .form-group input:focus,
-        .form-group textarea:focus,
-        .form-group select:focus {
-            outline: none;
-            border-color: var(--primary);
-        }
-
-        .form-group textarea {
-            min-height: 150px;
-            resize: vertical;
-        }
-
-        .btn {
+        .panel-hamburger span {
+            width: 28px;
+            height: 3px;
             background: var(--primary);
-            color: var(--dark);
-            border: none;
-            padding: 0.75rem 2rem;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: 700;
-            font-size: 1rem;
+            border-radius: 2px;
             transition: all 0.3s ease;
-            font-family: 'Work Sans', sans-serif;
         }
-
-        .btn:hover {
-            background: var(--secondary);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(0, 255, 136, 0.4);
+        .panel-hamburger.active span:nth-child(1) {
+            transform: rotate(45deg) translate(6px, 6px);
         }
-
-        .btn-danger {
-            background: var(--danger);
-            color: white;
+        .panel-hamburger.active span:nth-child(2) {
+            opacity: 0;
         }
-
-        .btn-danger:hover {
-            background: #cc0033;
+        .panel-hamburger.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(6px, -6px);
         }
-
-        .btn-warning {
-            background: var(--warning);
-            color: var(--dark);
-        }
-
-        .btn-warning:hover {
-            background: #cc8800;
-        }
-
-        .grid-2 {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1.5rem;
-        }
-
-        .grid-3 {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1rem;
-        }
-
-        .item-list {
-            max-height: 500px;
+        .panel-sidemenu {
+            position: fixed;
+            top: 0;
+            left: -320px;
+            width: 320px;
+            height: 100vh;
+            background: var(--dark-card);
+            border-right: 2px solid var(--primary);
+            transition: left 0.3s ease;
+            z-index: 1000;
+            padding: 6rem 1.5rem 1.5rem;
             overflow-y: auto;
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
         }
-
-        .item {
-            background: var(--dark);
-            border: 1px solid var(--border);
-            padding: 1rem;
-            margin-bottom: 0.5rem;
-            border-radius: 4px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: all 0.3s ease;
+        .panel-sidemenu.active {
+            left: 0;
         }
-
-        .item:hover {
-            border-color: var(--primary);
-            transform: translateX(4px);
-        }
-
-        .item-actions {
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        .item-actions button {
-            padding: 0.4rem 0.8rem;
-            font-size: 0.85rem;
-        }
-
-        .search-box {
+        .panel-menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
-            padding: 0.75rem;
-            background: var(--dark);
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            color: var(--text);
-            margin-bottom: 1rem;
-            font-family: 'Work Sans', sans-serif;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.8);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 999;
         }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
+        .panel-menu-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        .panel-menu-item {
+            padding: 1rem 1.2rem;
+            margin-bottom: 0.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--text);
+            text-decoration: none;
+            font-size: 0.95rem;
+        }
+        .panel-menu-item:hover {
+            background: var(--dark);
+            border-left-color: var(--primary);
+            transform: translateX(5px);
+        }
+        .panel-menu-section {
             margin-bottom: 2rem;
         }
-
-        .stat-card {
-            background: linear-gradient(135deg, var(--dark-card), var(--dark));
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 1.5rem;
-            text-align: center;
-            transition: all 0.3s ease;
-        }
-
-        .stat-card:hover {
-            transform: translateY(-4px);
-            border-color: var(--primary);
-        }
-
-        .stat-card h3 {
-            font-size: 2rem;
+        .panel-menu-section h3 {
             color: var(--primary);
-            margin-bottom: 0.5rem;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 1rem;
+            padding-left: 1.2rem;
+            font-weight: 700;
         }
-
-        .stat-card p {
-            color: var(--text-dim);
+        .panel-back-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 56px;
+            height: 56px;
+            background: var(--primary);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 1.8rem;
+            cursor: pointer;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s ease;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .panel-back-top.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+        .panel-back-top:hover {
+            background: var(--secondary);
+            transform: translateY(-5px);
+            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.6);
+        }
+        .panel-home-btn {
+            background: var(--secondary);
+            color: white;
+            border: none;
+            padding: 0.5rem 1.2rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
             font-size: 0.9rem;
         }
-
-        .alert {
-            padding: 1rem;
-            border-radius: 4px;
-            margin-bottom: 1rem;
-            border-left: 4px solid;
-        }
-
-        .alert-success {
-            background: rgba(0, 255, 136, 0.1);
-            border-color: var(--success);
-            color: var(--success);
-        }
-
-        .alert-info {
-            background: rgba(0, 204, 255, 0.1);
-            border-color: #00ccff;
-            color: #00ccff;
-        }
-
-        .info-box {
-            background: rgba(0, 255, 136, 0.05);
-            border: 1px solid var(--primary);
-            border-radius: 4px;
-            padding: 1rem;
-            margin-bottom: 1rem;
-        }
-
-        .info-box h3 {
-            color: var(--primary);
-            margin-bottom: 0.5rem;
-        }
-
-        .info-box ul {
-            margin-left: 1.5rem;
-            color: var(--text-dim);
+        .panel-home-btn:hover {
+            background: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>🛡️ MODERATOR PANEL</h1>
+        <div class="panel-hamburger" onclick="togglePanelMenu()">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+        <h1>⚡ ADMIN PANEL</h1>
         <div class="user-info">
-            <span id="modName">Loading...</span>
+            <a href="index.html" class="panel-home-btn">🏠 Home</a>
+            <span id="adminName">Loading...</span>
             <button class="logout-btn" onclick="logout()">Logout</button>
         </div>
     </div>
 
-    <div class="container">
-        <div class="info-box">
-            <h3>Moderator Responsibilities</h3>
-            <ul>
-                <li>Monitor chat activity and mute disruptive users</li>
-                <li>Report inappropriate content to admins and owner</li>
-                <li>Help maintain a positive community environment</li>
-            </ul>
+    <!-- Side Menu -->
+    <div class="panel-menu-overlay" onclick="togglePanelMenu()"></div>
+    <div class="panel-sidemenu">
+        <div class="panel-menu-section">
+            <h3>📊 Navigation</h3>
+            <div class="panel-menu-item" onclick="switchTab('dashboard'); togglePanelMenu();">📈 Dashboard</div>
+            <div class="panel-menu-item" onclick="switchTab('verifications'); togglePanelMenu();">✅ Verifications</div>
+            <div class="panel-menu-item" onclick="switchTab('content'); togglePanelMenu();">📝 Content</div>
+            <div class="panel-menu-item" onclick="switchTab('chat'); togglePanelMenu();">💬 Chat</div>
+            <div class="panel-menu-item" onclick="switchTab('mods'); togglePanelMenu();">🛡️ Moderators</div>
+            <div class="panel-menu-item" onclick="switchTab('ads'); togglePanelMenu();">📢 Ads</div>
+            <div class="panel-menu-item" onclick="switchTab('reports'); togglePanelMenu();">📋 Reports</div>
         </div>
+        <div class="panel-menu-section">
+            <h3>🔗 Quick Links</h3>
+            <a href="index.html" class="panel-menu-item">🏠 Home</a>
+            <a href="owner-panel.html" class="panel-menu-item">👑 Owner Panel</a>
+            <a href="mod-panel.html" class="panel-menu-item">🛡️ Mod Panel</a>
+        </div>
+        <div class="panel-menu-section">
+            <div class="panel-menu-item" onclick="logout()">🚪 Logout</div>
+        </div>
+    </div>
 
+    <!-- Back to Top -->
+    <button class="panel-back-top" onclick="scrollPanelToTop()">↑</button>
+
+    <div class="container">
         <div class="tabs">
             <button class="tab active" onclick="switchTab('dashboard')">Dashboard</button>
-            <button class="tab" onclick="switchTab('chat')">Chat Moderation</button>
-            <button class="tab" onclick="switchTab('reports')">Report Content</button>
-            <button class="tab" onclick="switchTab('my-actions')">My Actions</button>
+            <button class="tab" onclick="switchTab('verifications')">Verifications</button>
+            <button class="tab" onclick="switchTab('content')">Content</button>
+            <button class="tab" onclick="switchTab('chat')">Chat</button>
+            <button class="tab" onclick="switchTab('mods')">Moderators</button>
+            <button class="tab" onclick="switchTab('ads')">Ads</button>
+            <button class="tab" onclick="switchTab('reports')">Reports</button>
         </div>
 
-        <!-- Dashboard Tab -->
         <div id="dashboard" class="tab-content active">
             <div class="stats-grid">
-                <div class="stat-card">
-                    <h3 id="actionsToday">0</h3>
-                    <p>Actions Today</p>
-                </div>
-                <div class="stat-card">
-                    <h3 id="mutesToday">0</h3>
-                    <p>Mutes Today</p>
-                </div>
-                <div class="stat-card">
-                    <h3 id="reportsSubmitted">0</h3>
-                    <p>Reports Submitted</p>
-                </div>
-                <div class="stat-card">
-                    <h3 id="activeChatUsers">0</h3>
-                    <p>Active Chat Users</p>
-                </div>
+                <div class="stat-card"><h3 id="totalPosts">0</h3><p>Posts Today</p></div>
+                <div class="stat-card"><h3 id="totalComments">0</h3><p>Comments Today</p></div>
+                <div class="stat-card"><h3 id="pendingAds">0</h3><p>Pending Ads</p></div>
+                <div class="stat-card"><h3 id="activeMods">0</h3><p>Active Moderators</p></div>
             </div>
-
             <div class="card">
                 <h2>Quick Actions</h2>
                 <div class="grid-3">
-                    <button class="btn" onclick="switchTab('chat')">Chat Moderation</button>
-                    <button class="btn btn-danger" onclick="switchTab('reports')">Report Content</button>
-                    <button class="btn btn-warning" onclick="switchTab('my-actions')">View My Actions</button>
-                </div>
-            </div>
-
-            <div class="card">
-                <h2>Recent Chat Activity</h2>
-                <div class="item-list" id="recentChatActivity">
-                    <!-- Recent chat activity will be loaded here -->
+                    <button class="btn" onclick="switchTab('verifications')">View Verifications</button>
+                    <button class="btn" onclick="switchTab('content')">Moderate Content</button>
+                    <button class="btn btn-warning" onclick="switchTab('chat')">Chat Control</button>
+                    <button class="btn btn-success" onclick="switchTab('ads')">Review Ads</button>
+                    <button class="btn btn-danger" onclick="switchTab('reports')">Report to Owner</button>
+                    <button class="btn" onclick="switchTab('mods')">Manage Mods</button>
                 </div>
             </div>
         </div>
 
-        <!-- Chat Moderation Tab -->
+        <div id="verifications" class="tab-content">
+            <div class="card">
+                <h2>Verification Requests (View Only)</h2>
+                <div class="info-note">ℹ️ You can view verification requests but only the owner can approve/deny them.</div>
+                <div class="form-group">
+                    <label>Filter by Status:</label>
+                    <select id="adminVerificationFilter" onchange="loadAdminVerifications()">
+                        <option value="pending">Pending</option>
+                        <option value="approved">Approved</option>
+                        <option value="denied">Denied</option>
+                        <option value="all">All</option>
+                    </select>
+                </div>
+                <div class="item-list" id="adminVerificationsList"></div>
+            </div>
+        </div>
+
+        <div id="content" class="tab-content">
+            <div class="card">
+                <h2>Content Review</h2>
+                <input type="text" class="search-box" id="contentSearch" placeholder="Search posts and comments..." onkeyup="searchContent()">
+                <div class="grid-2">
+                    <div><h3>Posts</h3><div class="item-list" id="postsList"></div></div>
+                    <div><h3>Comments</h3><div class="item-list" id="commentsList"></div></div>
+                </div>
+            </div>
+        </div>
+
         <div id="chat" class="tab-content">
             <div class="card">
-                <h2>Active Chat Users</h2>
-                <input type="text" class="search-box" id="chatUserSearch" placeholder="Search chat users..." onkeyup="searchChatUsers()">
-                <div class="item-list" id="chatUsersList">
-                    <!-- Active chat users will be loaded here -->
-                </div>
-            </div>
-
-            <div class="card">
-                <h2>Mute User in Chat</h2>
-                <div class="form-group">
-                    <label>User ID or Username:</label>
-                    <input type="text" id="muteUserId" placeholder="Enter user identifier">
-                </div>
-                <div class="form-group">
-                    <label>Mute Duration:</label>
-                    <select id="muteDuration">
-                        <option value="5">5 minutes</option>
-                        <option value="15">15 minutes</option>
-                        <option value="30">30 minutes</option>
-                        <option value="60">1 hour</option>
-                        <option value="120">2 hours</option>
-                        <option value="1440">24 hours</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Reason for Mute:</label>
-                    <textarea id="muteReason" placeholder="Explain why this user is being muted..."></textarea>
-                </div>
-                <button class="btn" onclick="muteUser()">Mute User</button>
-            </div>
-
-            <div class="card">
-                <h2>Recent Chat Messages</h2>
-                <input type="text" class="search-box" id="messageSearch" placeholder="Search messages..." onkeyup="searchMessages()">
-                <div class="item-list" id="messagesList">
-                    <!-- Messages will be loaded here -->
+                <h2>Chat Control</h2>
+                <div class="grid-2">
+                    <div>
+                        <h3>Chat Actions</h3>
+                        <div class="form-group"><label>User ID or Username:</label><input type="text" id="chatUserId" placeholder="Enter user identifier"></div>
+                        <button class="btn" onclick="kickUser()">Kick from Chat</button>
+                        <button class="btn btn-warning" onclick="muteUser()">Mute User</button>
+                        <div class="form-group" style="margin-top: 1rem;">
+                            <label>Mute Duration (minutes):</label>
+                            <select id="muteDuration">
+                                <option value="5">5 minutes</option>
+                                <option value="15">15 minutes</option>
+                                <option value="30">30 minutes</option>
+                                <option value="60">1 hour</option>
+                                <option value="1440">24 hours</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <h3>Hide/Delete Messages</h3>
+                        <div class="form-group"><label>Message ID:</label><input type="text" id="messageId" placeholder="Enter message ID"></div>
+                        <div class="form-group"><label>Reason:</label><textarea id="messageHideReason" placeholder="Reason for hiding/deleting..."></textarea></div>
+                        <button class="btn btn-warning" onclick="hideMessage()">Hide Message</button>
+                        <button class="btn btn-danger" onclick="deleteMessage()">Delete Message</button>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Report Content Tab -->
+        <div id="mods" class="tab-content">
+            <div class="card">
+                <h2>Current Moderators</h2>
+                <div class="item-list" id="modsList"></div>
+            </div>
+            <div class="card">
+                <h2>Promote to Moderator</h2>
+                <div class="form-group"><label>User ID or Username:</label><input type="text" id="promoteUserId" placeholder="Enter user identifier"></div>
+                <div class="form-group"><label>Reason for Promotion:</label><textarea id="promoteReason" placeholder="Why is this user being promoted?"></textarea></div>
+                <button class="btn btn-success" onclick="promoteMod()">Promote to Moderator</button>
+            </div>
+            <div class="card">
+                <h2>Demote Moderator</h2>
+                <div class="form-group"><label>Select Moderator:</label><select id="demoteModId"><option value="">Choose moderator...</option></select></div>
+                <div class="form-group"><label>Reason for Demotion:</label><textarea id="demoteReason" placeholder="Why is this moderator being demoted?"></textarea></div>
+                <button class="btn btn-danger" onclick="demoteMod()">Demote to User</button>
+            </div>
+        </div>
+
+        <div id="ads" class="tab-content">
+            <div class="card">
+                <h2>Pending Ad Approvals</h2>
+                <div class="item-list" id="pendingAdsList"></div>
+            </div>
+            <div class="card" id="adReviewSection" style="display: none;">
+                <h2>Ad Review</h2>
+                <div class="form-group"><label>Ad ID:</label><input type="text" id="reviewAdId" readonly></div>
+                <div id="adPreview" class="message-box"></div>
+                <div class="form-group"><label>Notes/Reason:</label><textarea id="adReviewNotes" placeholder="Add notes or reason for approval/denial..."></textarea></div>
+                <div class="message-box" id="adMessageBox">
+                    <label>Message to Advertiser (optional):</label>
+                    <textarea id="adMessage" placeholder="Send a message to the advertiser..." style="width: 100%; background: var(--dark-card); border: 1px solid var(--border); color: var(--text); padding: 0.5rem; margin-top: 0.5rem;"></textarea>
+                </div>
+                <button class="btn btn-success" onclick="approveAd()">Approve Ad</button>
+                <button class="btn btn-danger" onclick="denyAd()">Deny Ad</button>
+            </div>
+        </div>
+
         <div id="reports" class="tab-content">
             <div class="card">
-                <h2>Report to Admin/Owner</h2>
-                <div class="form-group">
-                    <label>Report To:</label>
-                    <select id="reportTo">
-                        <option value="admin">Admin</option>
-                        <option value="owner">Owner</option>
-                    </select>
-                </div>
+                <h2>Report Content to Owner</h2>
                 <div class="form-group">
                     <label>Content Type:</label>
                     <select id="reportContentType">
                         <option value="post">Post</option>
                         <option value="comment">Comment</option>
-                        <option value="user">User Behavior</option>
+                        <option value="user">User</option>
                         <option value="profile_photo">Profile Photo</option>
-                        <option value="message">Chat Message</option>
-                        <option value="profile">User Profile</option>
-                        <option value="song">Song</option>
-                        <option value="other">Other Content</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Content ID or Link:</label>
-                    <input type="text" id="reportContentId" placeholder="Enter content ID or paste link">
-                </div>
-                <div class="form-group">
-                    <label>User Involved (if applicable):</label>
-                    <input type="text" id="reportUserId" placeholder="User ID or username">
-                </div>
-                <div class="form-group">
-                    <label>Severity Level:</label>
-                    <select id="reportSeverity">
-                        <option value="low">Low - Minor rule violation</option>
-                        <option value="medium">Medium - Clear rule violation</option>
-                        <option value="high">High - Serious violation</option>
-                        <option value="urgent">Urgent - Requires immediate attention</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Violation Type:</label>
-                    <select id="violationType">
-                        <option value="spam">Spam</option>
-                        <option value="harassment">Harassment</option>
-                        <option value="hate_speech">Hate Speech</option>
-                        <option value="inappropriate">Inappropriate Content</option>
-                        <option value="scam">Scam/Fraud</option>
-                        <option value="copyright">Copyright Violation</option>
-                        <option value="impersonation">Impersonation</option>
+                        <option value="message">Message</option>
+                        <option value="ad">Advertisement</option>
                         <option value="other">Other</option>
                     </select>
                 </div>
+                <div class="form-group"><label>Content ID:</label><input type="text" id="reportContentId" placeholder="Enter content ID"></div>
                 <div class="form-group">
-                    <label>Report Details:</label>
-                    <textarea id="reportDetails" placeholder="Describe the issue in detail. Include context, what rule was violated, and any relevant information..."></textarea>
-                </div>
-                <div class="form-group">
-                    <label>Additional Evidence (optional):</label>
-                    <textarea id="reportEvidence" placeholder="Paste screenshots URLs, timestamps, or additional proof..."></textarea>
-                </div>
-                <button class="btn btn-danger" onclick="submitReport()">Submit Report</button>
-            </div>
-
-            <div class="card">
-                <h2>Quick Report Buttons</h2>
-                <p style="color: var(--text-dim); margin-bottom: 1rem;">Use these for common violations:</p>
-                <div class="grid-3">
-                    <button class="btn btn-warning" onclick="quickReport('spam')">Report Spam</button>
-                    <button class="btn btn-warning" onclick="quickReport('harassment')">Report Harassment</button>
-                    <button class="btn btn-warning" onclick="quickReport('inappropriate')">Inappropriate Content</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- My Actions Tab -->
-        <div id="my-actions" class="tab-content">
-            <div class="card">
-                <h2>My Moderation History</h2>
-                <div class="form-group">
-                    <label>Filter by Date:</label>
-                    <select id="actionDateFilter" onchange="loadMyActions()">
-                        <option value="today">Today</option>
-                        <option value="week">This Week</option>
-                        <option value="month">This Month</option>
-                        <option value="all">All Time</option>
+                    <label>Severity:</label>
+                    <select id="reportSeverity">
+                        <option value="low">Low Priority</option>
+                        <option value="medium">Medium Priority</option>
+                        <option value="high">High Priority</option>
+                        <option value="urgent">Urgent</option>
                     </select>
                 </div>
-                <div class="item-list" id="myActionsList">
-                    <!-- Actions will be loaded here -->
-                </div>
+                <div class="form-group"><label>Report Details:</label><textarea id="reportDetails" placeholder="Describe the issue in detail..."></textarea></div>
+                <button class="btn btn-danger" onclick="reportToOwner()">Send Report to Owner</button>
             </div>
-
             <div class="card">
                 <h2>My Submitted Reports</h2>
-                <div class="form-group">
-                    <label>Filter by Status:</label>
-                    <select id="reportStatusFilter" onchange="loadMyReports()">
-                        <option value="all">All Reports</option>
-                        <option value="pending">Pending Review</option>
-                        <option value="reviewed">Reviewed</option>
-                        <option value="resolved">Resolved</option>
-                    </select>
-                </div>
-                <div class="item-list" id="myReportsList">
-                    <!-- Reports will be loaded here -->
-                </div>
-            </div>
-
-            <div class="card">
-                <h2>Active Mutes</h2>
-                <p style="color: var(--text-dim); margin-bottom: 1rem;">Users currently muted by you:</p>
-                <div class="item-list" id="activeMutesList">
-                    <!-- Active mutes will be loaded here -->
-                </div>
+                <div class="item-list" id="myReportsList"></div>
             </div>
         </div>
     </div>
 
     <script>
-        // Supabase Configuration
         const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
+        const adminPanelSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         let currentUser = null;
 
-        // Initialize
         async function init() {
-            const { data: { user } } = await supabase.auth.getUser();
-            
-            if (!user) {
-                window.location.href = 'login.html';
-                return;
+            try {
+                const { data: sessionData } = await adminPanelSupabase.auth.getSession();
+                if (!sessionData.session) {
+                    alert('Please log in');
+                    window.location.href = 'login.html';
+                    return;
+                }
+                
+                const { data: { user } } = await adminPanelSupabase.auth.getUser();
+                if (!user) {
+                    window.location.href = 'login.html';
+                    return;
+                }
+                currentUser = user;
+
+                const { data: profile } = await adminPanelSupabase.from('profiles').select('*').eq('user_id', user.id).single();
+                if (!profile || (profile.role !== 'admin' && profile.role !== 'owner')) {
+                    alert('Access Denied: Admin only. Your role: ' + (profile?.role || 'none'));
+                    window.location.href = 'index.html';
+                    return;
+                }
+
+                document.getElementById('adminName').textContent = profile.username || user.email.split('@')[0];
+                loadDashboardStats();
+            } catch (error) {
+                alert('Error: ' + error.message);
             }
-
-            // Check if user is moderator
-            const { data: profile } = await supabase
-                .from('users')
-                .select('role, username, id')
-                .eq('id', user.id)
-                .single();
-
-            if (!profile || (profile.role !== 'mod' && profile.role !== 'admin' && profile.role !== 'owner')) {
-                alert('Access Denied: Moderator privileges required');
-                window.location.href = 'index.html';
-                return;
-            }
-
-            currentUser = profile;
-            document.getElementById('modName').textContent = profile.username;
-            
-            loadDashboardStats();
-            loadAllData();
         }
 
-        // Tab Switching
         function switchTab(tabName) {
-            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             event.target.classList.add('active');
             document.getElementById(tabName).classList.add('active');
+            if (tabName === 'verifications') loadAdminVerifications();
+            if (tabName === 'content') { loadPosts(); loadComments(); }
+            if (tabName === 'mods') loadMods();
+            if (tabName === 'ads') loadPendingAds();
+            if (tabName === 'reports') loadMyReports();
         }
 
-        // Dashboard Stats
         async function loadDashboardStats() {
             const today = new Date().toISOString().split('T')[0];
-            
-            const { count: actionCount } = await supabase
-                .from('mod_actions')
-                .select('*', { count: 'exact', head: true })
-                .eq('mod_id', currentUser.id)
-                .gte('created_at', today);
-            
-            const { count: muteCount } = await supabase
-                .from('chat_mutes')
-                .select('*', { count: 'exact', head: true })
-                .eq('muted_by', currentUser.username)
-                .gte('created_at', today);
-            
-            const { count: reportCount } = await supabase
-                .from('mod_reports')
-                .select('*', { count: 'exact', head: true })
-                .eq('reported_by', currentUser.username);
-
-            document.getElementById('actionsToday').textContent = actionCount || 0;
-            document.getElementById('mutesToday').textContent = muteCount || 0;
-            document.getElementById('reportsSubmitted').textContent = reportCount || 0;
+            const { count: p } = await adminPanelSupabase.from('posts').select('*', { count: 'exact', head: true }).gte('created_at', today);
+            const { count: c } = await adminPanelSupabase.from('comments').select('*', { count: 'exact', head: true }).gte('created_at', today);
+            const { count: a } = await adminPanelSupabase.from('ads').select('*', { count: 'exact', head: true }).eq('status', 'pending');
+            const { count: m } = await adminPanelSupabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'mod');
+            document.getElementById('totalPosts').textContent = p || 0;
+            document.getElementById('totalComments').textContent = c || 0;
+            document.getElementById('pendingAds').textContent = a || 0;
+            document.getElementById('activeMods').textContent = m || 0;
         }
 
-        // Chat Moderation
-        async function searchChatUsers() {
-            const query = document.getElementById('chatUserSearch').value;
-            loadChatUsers(query);
-        }
-
-        async function loadChatUsers(query = '') {
-            let queryBuilder = supabase
-                .from('users')
-                .select('id, username, is_online')
-                .eq('is_online', true);
+        async function loadAdminVerifications() {
+            const filter = document.getElementById('adminVerificationFilter')?.value || 'pending';
+            let q = adminPanelSupabase.from('verification_requests').select('*').order('created_at', { ascending: false });
+            if (filter !== 'all') q = q.eq('status', filter);
+            const { data: requests } = await q;
             
-            if (query) {
-                queryBuilder = queryBuilder.ilike('username', `%${query}%`);
-            }
-            
-            const { data: users } = await queryBuilder.limit(50);
-            const list = document.getElementById('chatUsersList');
-            
-            if (!users || users.length === 0) {
-                list.innerHTML = '<p style="color: var(--text-dim); padding: 1rem;">No active users found</p>';
-                return;
-            }
-            
-            list.innerHTML = users.map(user => `
-                <div class="item">
-                    <div>
-                        <strong>${user.username}</strong><br>
-                        <small>ID: ${user.id}</small>
-                    </div>
-                    <div class="item-actions">
-                        <button class="btn" onclick="quickMute('${user.id}', '${user.username}')">Mute</button>
-                        <button class="btn btn-danger" onclick="quickReport('user', '${user.id}')">Report</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        async function muteUser() {
-            const userId = document.getElementById('muteUserId').value;
-            const duration = document.getElementById('muteDuration').value;
-            const reason = document.getElementById('muteReason').value;
-            
-            if (!userId || !reason) {
-                alert('Please fill in all required fields');
+            const list = document.getElementById('adminVerificationsList');
+            if (!requests || requests.length === 0) {
+                list.innerHTML = '<p style="text-align:center;color:var(--text-dim);padding:2rem;">No requests</p>';
                 return;
             }
 
-            const muteUntil = new Date();
-            muteUntil.setMinutes(muteUntil.getMinutes() + parseInt(duration));
+            const userIds = [...new Set(requests.map(r => r.user_id))];
+            const { data: profiles } = await adminPanelSupabase.from('profiles').select('user_id, username, display_name').in('user_id', userIds);
+            const pMap = {};
+            profiles?.forEach(p => { pMap[p.user_id] = p; });
 
-            const { error } = await supabase
-                .from('chat_mutes')
-                .insert({ 
-                    user_id: userId, 
-                    muted_by: currentUser.username,
-                    muted_until: muteUntil.toISOString(),
-                    reason: reason
-                });
-            
-            if (!error) {
-                // Log the action
-                await supabase.from('mod_actions').insert({
-                    mod_id: currentUser.id,
-                    action_type: 'mute',
-                    target_id: userId,
-                    details: `Muted for ${duration} minutes: ${reason}`
-                });
-                
-                alert(`User muted for ${duration} minutes`);
-                document.getElementById('muteUserId').value = '';
-                document.getElementById('muteReason').value = '';
-                loadActiveMutes();
-            } else {
-                alert('Error muting user: ' + error.message);
-            }
-        }
-
-        function quickMute(userId, username) {
-            document.getElementById('muteUserId').value = userId;
-            switchTab('chat');
-            document.getElementById('muteReason').focus();
-        }
-
-        async function loadActiveMutes() {
-            const { data: mutes } = await supabase
-                .from('chat_mutes')
-                .select('*, users(username)')
-                .eq('muted_by', currentUser.username)
-                .gt('muted_until', new Date().toISOString())
-                .order('created_at', { ascending: false });
-            
-            const list = document.getElementById('activeMutesList');
-            
-            if (!mutes || mutes.length === 0) {
-                list.innerHTML = '<p style="color: var(--text-dim); padding: 1rem;">No active mutes</p>';
-                return;
-            }
-            
-            list.innerHTML = mutes.map(mute => `
-                <div class="item">
-                    <div>
-                        <strong>${mute.users?.username || mute.user_id}</strong><br>
-                        <small>Until: ${new Date(mute.muted_until).toLocaleString()}</small><br>
-                        <small>Reason: ${mute.reason}</small>
-                    </div>
-                    <div class="item-actions">
-                        <button class="btn" onclick="unmute('${mute.id}')">Unmute</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        async function unmute(muteId) {
-            if (!confirm('Remove this mute?')) return;
-            
-            const { error } = await supabase
-                .from('chat_mutes')
-                .delete()
-                .eq('id', muteId);
-            
-            if (!error) {
-                alert('User unmuted');
-                loadActiveMutes();
-            }
-        }
-
-        // Report Functions
-        async function submitReport() {
-            const reportTo = document.getElementById('reportTo').value;
-            const contentType = document.getElementById('reportContentType').value;
-            const contentId = document.getElementById('reportContentId').value;
-            const userId = document.getElementById('reportUserId').value;
-            const severity = document.getElementById('reportSeverity').value;
-            const violationType = document.getElementById('violationType').value;
-            const details = document.getElementById('reportDetails').value;
-            const evidence = document.getElementById('reportEvidence').value;
-            
-            if (!contentId || !details) {
-                alert('Please fill in required fields (Content ID and Details)');
-                return;
-            }
-
-            const reportData = {
-                report_to: reportTo,
-                content_type: contentType,
-                content_id: contentId,
-                user_id: userId || null,
-                severity: severity,
-                violation_type: violationType,
-                details: details,
-                evidence: evidence || null,
-                reported_by: currentUser.username,
-                reporter_id: currentUser.id,
-                reporter_role: 'mod',
-                status: 'pending'
-            };
-
-            const { error } = await supabase
-                .from('mod_reports')
-                .insert(reportData);
-            
-            if (!error) {
-                // Log the action
-                await supabase.from('mod_actions').insert({
-                    mod_id: currentUser.id,
-                    action_type: 'report',
-                    target_id: contentId,
-                    details: `Reported ${contentType} to ${reportTo}: ${violationType}`
-                });
-                
-                alert('Report submitted successfully');
-                
-                // Clear form
-                document.getElementById('reportContentId').value = '';
-                document.getElementById('reportUserId').value = '';
-                document.getElementById('reportDetails').value = '';
-                document.getElementById('reportEvidence').value = '';
-                
-                loadMyReports();
-            } else {
-                alert('Error submitting report: ' + error.message);
-            }
-        }
-
-        function quickReport(type, id = '') {
-            switchTab('reports');
-            document.getElementById('reportContentType').value = type === 'user' ? 'user' : 'post';
-            if (id) {
-                if (type === 'user') {
-                    document.getElementById('reportUserId').value = id;
-                } else {
-                    document.getElementById('reportContentId').value = id;
-                }
-            }
-            
-            if (type === 'spam') {
-                document.getElementById('violationType').value = 'spam';
-            } else if (type === 'harassment') {
-                document.getElementById('violationType').value = 'harassment';
-            } else if (type === 'inappropriate') {
-                document.getElementById('violationType').value = 'inappropriate';
-            }
-        }
-
-        async function loadMyReports() {
-            const statusFilter = document.getElementById('reportStatusFilter')?.value || 'all';
-            
-            let query = supabase
-                .from('mod_reports')
-                .select('*')
-                .eq('reporter_id', currentUser.id)
-                .order('created_at', { ascending: false });
-            
-            if (statusFilter !== 'all') {
-                query = query.eq('status', statusFilter);
-            }
-            
-            const { data: reports } = await query;
-            const list = document.getElementById('myReportsList');
-            
-            if (!reports || reports.length === 0) {
-                list.innerHTML = '<p style="color: var(--text-dim); padding: 1rem;">No reports found</p>';
-                return;
-            }
-            
-            list.innerHTML = reports.map(report => {
-                const statusColor = report.status === 'pending' ? 'var(--warning)' : 
-                                   report.status === 'reviewed' ? 'var(--primary)' : 
-                                   'var(--success)';
-                return `
-                    <div class="item">
-                        <div>
-                            <strong>${report.violation_type} - ${report.content_type}</strong><br>
-                            <small>${report.details.substring(0, 100)}${report.details.length > 100 ? '...' : ''}</small><br>
-                            <small style="color: ${statusColor};">Status: ${report.status}</small><br>
-                            <small>Severity: ${report.severity} | Reported to: ${report.report_to}</small>
-                        </div>
-                    </div>
-                `;
+            list.innerHTML = requests.map(req => {
+                const p = pMap[req.user_id];
+                const sc = req.status === 'pending' ? 'var(--warning)' : req.status === 'approved' ? 'var(--success)' : 'var(--danger)';
+                const si = req.status === 'pending' ? '⏳' : req.status === 'approved' ? '✅' : '❌';
+                return `<div class="item"><div><strong>${p?.username || 'Unknown'}</strong> <span style="color:${sc}">${si} ${req.status.toUpperCase()}</span><br><small>Role: ${req.role_requested}</small><br><small>Link: <a href="${req.verification_link}" target="_blank" style="color:var(--primary);">View</a></small><br><small>${new Date(req.created_at).toLocaleString()}</small>${req.denial_reason ? `<br><small style="color:var(--danger);">Reason: ${req.denial_reason}</small>` : ''}</div></div>`;
             }).join('');
         }
 
-        async function loadMyActions() {
-            const dateFilter = document.getElementById('actionDateFilter')?.value || 'all';
-            
-            let query = supabase
-                .from('mod_actions')
-                .select('*')
-                .eq('mod_id', currentUser.id)
-                .order('created_at', { ascending: false });
-            
-            if (dateFilter !== 'all') {
-                const now = new Date();
-                let startDate;
-                
-                if (dateFilter === 'today') {
-                    startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                } else if (dateFilter === 'week') {
-                    startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-                } else if (dateFilter === 'month') {
-                    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-                }
-                
-                query = query.gte('created_at', startDate.toISOString());
-            }
-            
-            const { data: actions } = await query.limit(100);
-            const list = document.getElementById('myActionsList');
-            
-            if (!actions || actions.length === 0) {
-                list.innerHTML = '<p style="color: var(--text-dim); padding: 1rem;">No actions found</p>';
+        async function loadPosts(query = '') {
+            let q = adminPanelSupabase.from('posts').select('*');
+            if (query) q = q.ilike('content', `%${query}%`);
+            const { data: posts } = await q.limit(50).order('created_at', { ascending: false });
+            const list = document.getElementById('postsList');
+            if (!posts || posts.length === 0) {
+                list.innerHTML = '<p style="text-align:center;color:var(--text-dim);">No posts</p>';
                 return;
             }
-            
-            list.innerHTML = actions.map(action => `
-                <div class="item">
-                    <div>
-                        <strong>${action.action_type.toUpperCase()}</strong><br>
-                        <small>${action.details}</small><br>
-                        <small>${new Date(action.created_at).toLocaleString()}</small>
-                    </div>
-                </div>
-            `).join('');
+            list.innerHTML = posts.map(p => `<div class="item"><div><small>${p.content?.substring(0,80)}...</small></div><div class="item-actions"><button class="btn btn-warning" onclick="hidePost('${p.id}')">Hide</button></div></div>`).join('');
         }
 
-        async function searchMessages() {
-            const query = document.getElementById('messageSearch').value;
-            loadMessages(query);
-        }
-
-        async function loadMessages(query = '') {
-            let queryBuilder = supabase
-                .from('messages')
-                .select('*, users(username)')
-                .order('created_at', { ascending: false });
-            
-            if (query) {
-                queryBuilder = queryBuilder.ilike('content', `%${query}%`);
-            }
-            
-            const { data: messages } = await queryBuilder.limit(50);
-            const list = document.getElementById('messagesList');
-            
-            if (!messages || messages.length === 0) {
-                list.innerHTML = '<p style="color: var(--text-dim); padding: 1rem;">No messages found</p>';
+        async function loadComments(query = '') {
+            let q = adminPanelSupabase.from('comments').select('*');
+            if (query) q = q.ilike('content', `%${query}%`);
+            const { data: comments } = await q.limit(50).order('created_at', { ascending: false });
+            const list = document.getElementById('commentsList');
+            if (!comments || comments.length === 0) {
+                list.innerHTML = '<p style="text-align:center;color:var(--text-dim);">No comments</p>';
                 return;
             }
+            list.innerHTML = comments.map(c => `<div class="item"><div><small>${c.content?.substring(0,80)}...</small></div><div class="item-actions"><button class="btn btn-warning" onclick="hideComment('${c.id}')">Hide</button></div></div>`).join('');
+        }
+
+        function searchContent() {
+            const query = document.getElementById('contentSearch').value;
+            loadPosts(query);
+            loadComments(query);
+        }
+
+        async function hidePost(id) {
+            if (!confirm('Hide post?')) return;
+            await adminPanelSupabase.from('posts').update({ is_hidden: true }).eq('id', id);
+            alert('Hidden');
+            loadPosts();
+        }
+
+        async function hideComment(id) {
+            if (!confirm('Hide comment?')) return;
+            await adminPanelSupabase.from('comments').update({ is_hidden: true }).eq('id', id);
+            alert('Hidden');
+            loadComments();
+        }
+
+        async function kickUser() {
+            const uid = document.getElementById('chatUserId').value;
+            if (!uid) { alert('Enter user ID'); return; }
+            await adminPanelSupabase.from('chat_kicks').insert({ user_id: uid, kicked_by: currentUser.id });
+            alert('User kicked');
+        }
+
+        async function muteUser() {
+            const uid = document.getElementById('chatUserId').value;
+            const duration = document.getElementById('muteDuration').value;
+            if (!uid) { alert('Enter user ID'); return; }
+            const muteUntil = new Date();
+            muteUntil.setMinutes(muteUntil.getMinutes() + parseInt(duration));
+            await adminPanelSupabase.from('chat_mutes').insert({ user_id: uid, muted_by: currentUser.id, muted_until: muteUntil.toISOString() });
+            alert(`Muted for ${duration} min`);
+        }
+
+        async function hideMessage() {
+            const mid = document.getElementById('messageId').value;
+            const reason = document.getElementById('messageHideReason').value;
+            if (!mid) { alert('Enter message ID'); return; }
+            await adminPanelSupabase.from('messages').update({ hidden: true, hide_reason: reason }).eq('id', mid);
+            alert('Message hidden');
+        }
+
+        async function deleteMessage() {
+            if (!confirm('Delete permanently?')) return;
+            const mid = document.getElementById('messageId').value;
+            if (!mid) { alert('Enter message ID'); return; }
+            await adminPanelSupabase.from('messages').delete().eq('id', mid);
+            alert('Deleted');
+        }
+
+        async function loadMods() {
+            const { data: mods } = await adminPanelSupabase.from('profiles').select('*').eq('role', 'mod');
+            const list = document.getElementById('modsList');
+            const select = document.getElementById('demoteModId');
+            if (!mods || mods.length === 0) {
+                list.innerHTML = '<p style="text-align:center;color:var(--text-dim);">No mods</p>';
+                return;
+            }
+            list.innerHTML = mods.map(m => `<div class="item"><div><strong>${m.username}</strong></div><div class="item-actions"><button class="btn btn-danger" onclick="quickDemote('${m.user_id}')">Demote</button></div></div>`).join('');
+            select.innerHTML = '<option value="">Choose...</option>' + mods.map(m => `<option value="${m.user_id}">${m.username}</option>`).join('');
+        }
+
+        async function promoteMod() {
+            const uid = document.getElementById('promoteUserId').value;
+            const reason = document.getElementById('promoteReason').value;
+            if (!uid || !reason) { alert('Fill all fields'); return; }
+            await adminPanelSupabase.from('profiles').update({ role: 'mod' }).eq('user_id', uid);
+            alert('Promoted');
+            loadMods();
+        }
+
+        async function demoteMod() {
+            const uid = document.getElementById('demoteModId').value;
+            const reason = document.getElementById('demoteReason').value;
+            if (!uid || !reason) { alert('Fill all fields'); return; }
+            if (!confirm('Demote?')) return;
+            await adminPanelSupabase.from('profiles').update({ role: 'user' }).eq('user_id', uid);
+            alert('Demoted');
+            loadMods();
+        }
+
+        async function quickDemote(uid) {
+            const reason = prompt('Reason:');
+            if (!reason) return;
+            document.getElementById('demoteModId').value = uid;
+            document.getElementById('demoteReason').value = reason;
+            demoteMod();
+        }
+
+        async function loadPendingAds() {
+            const { data: ads } = await adminPanelSupabase.from('ads').select('*').eq('status', 'pending').order('created_at', { ascending: false });
+            const list = document.getElementById('pendingAdsList');
+            if (!ads || ads.length === 0) {
+                list.innerHTML = '<p style="text-align:center;color:var(--text-dim);">No pending ads</p>';
+                return;
+            }
+            list.innerHTML = ads.map(a => `<div class="item"><div><strong>${a.title || 'Untitled'}</strong></div><div class="item-actions"><button class="btn" onclick="reviewAd('${a.id}')">Review</button></div></div>`).join('');
+        }
+
+        async function reviewAd(adId) {
+            const { data: ad } = await adminPanelSupabase.from('ads').select('*').eq('id', adId).single();
+            document.getElementById('reviewAdId').value = ad.id;
+            document.getElementById('adPreview').innerHTML = `<h3>${ad.title || 'No title'}</h3><p>${ad.content || 'No content'}</p>`;
+            document.getElementById('adReviewSection').style.display = 'block';
+        }
+
+        async function approveAd() {
+            const aid = document.getElementById('reviewAdId').value;
+            const notes = document.getElementById('adReviewNotes').value;
+            await adminPanelSupabase.from('ads').update({ status: 'approved', approval_notes: notes }).eq('id', aid);
+            alert('Approved');
+            document.getElementById('adReviewSection').style.display = 'none';
+            loadPendingAds();
+        }
+
+        async function denyAd() {
+            const aid = document.getElementById('reviewAdId').value;
+            const notes = document.getElementById('adReviewNotes').value;
+            if (!notes) { alert('Provide reason'); return; }
+            await adminPanelSupabase.from('ads').update({ status: 'denied', denial_reason: notes }).eq('id', aid);
+            alert('Denied');
+            document.getElementById('adReviewSection').style.display = 'none';
+            loadPendingAds();
+        }
+
+        async function reportToOwner() {
+            const type = document.getElementById('reportContentType').value;
+            const cid = document.getElementById('reportContentId').value;
+            const severity = document.getElementById('reportSeverity').value;
+            const details = document.getElementById('reportDetails').value;
+            if (!cid || !details) { alert('Fill all fields'); return; }
+            await adminPanelSupabase.from('owner_reports').insert({ content_type: type, content_id: cid, severity, details, reported_by: currentUser.id, reporter_role: 'admin' });
+            alert('Sent');
+            document.getElementById('reportContentId').value = '';
+            document.getElementById('reportDetails').value = '';
+            loadMyReports();
+        }
+
+        async function loadMyReports() {
+            const { data: reports } = await adminPanelSupabase.from('owner_reports').select('*').eq('reported_by', currentUser.id).order('created_at', { ascending: false });
+            const list = document.getElementById('myReportsList');
+            if (!reports || reports.length === 0) {
+                list.innerHTML = '<p style="text-align:center;color:var(--text-dim);">No reports</p>';
+                return;
+            }
+            list.innerHTML = reports.map(r => `<div class="item"><div><strong>${r.content_type} - ${r.severity}</strong><br><small>${r.details?.substring(0,100)}...</small></div></div>`).join('');
+        }
+
+        function togglePanelMenu() {
+            const menu = document.querySelector('.panel-sidemenu');
+            const overlay = document.querySelector('.panel-menu-overlay');
+            const hamburger = document.querySelector('.panel-hamburger');
             
-            list.innerHTML = messages.map(msg => `
-                <div class="item">
-                    <div>
-                        <strong>${msg.users?.username || 'Unknown'}</strong><br>
-                        <small>${msg.content?.substring(0, 100)}...</small>
-                    </div>
-                    <div class="item-actions">
-                        <button class="btn btn-danger" onclick="reportMessage('${msg.id}')">Report</button>
-                    </div>
-                </div>
-            `).join('');
+            menu.classList.toggle('active');
+            overlay.classList.toggle('active');
+            hamburger.classList.toggle('active');
         }
 
-        function reportMessage(messageId) {
-            switchTab('reports');
-            document.getElementById('reportContentType').value = 'message';
-            document.getElementById('reportContentId').value = messageId;
+        window.addEventListener('scroll', function() {
+            const backBtn = document.querySelector('.panel-back-top');
+            if (window.pageYOffset > 400) {
+                backBtn.classList.add('visible');
+            } else {
+                backBtn.classList.remove('visible');
+            }
+        });
+
+        function scrollPanelToTop() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
         }
 
-        // Logout
         async function logout() {
-            await supabase.auth.signOut();
+            await adminPanelSupabase.auth.signOut();
             window.location.href = 'login.html';
         }
 
-        // Load all data
-        function loadAllData() {
-            loadChatUsers();
-            loadMessages();
-            loadMyReports();
-            loadMyActions();
-            loadActiveMutes();
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
         }
-
-        // Initialize on load
-        init();
     </script>
+    <!-- ADD THIS SCRIPT TO EVERY PAGE (except index.html where you want it always shown) -->
+<!-- Place it right before the closing </body> tag -->
+
+<script>
+// Avatar & Bubble Toggle System
+(function() {
+    // Create toggle button
+    const toggleBtn = document.createElement('button');
+    toggleBtn.id = 'avatarToggle';
+    toggleBtn.innerHTML = '👁️';
+    toggleBtn.title = 'Toggle Avatar/Bubbles';
+    toggleBtn.style.cssText = `
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        z-index: 9999;
+        background: rgba(124, 58, 237, 0.9);
+        border: 2px solid rgba(124, 58, 237, 1);
+        color: white;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.5);
+        transition: all 0.3s ease;
+    `;
+    
+    toggleBtn.addEventListener('mouseenter', function() {
+        this.style.transform = 'scale(1.1)';
+    });
+    
+    toggleBtn.addEventListener('mouseleave', function() {
+        this.style.transform = 'scale(1)';
+    });
+    
+    document.body.appendChild(toggleBtn);
+    
+    // Load saved preference
+    let isHidden = localStorage.getItem('hideAvatarBubbles') === 'true';
+    
+    function updateVisibility() {
+        const elementsToToggle = [
+            document.getElementById('homeAvatarSwitcher'),
+            ...document.querySelectorAll('[id*="bubble"]'),
+            ...document.querySelectorAll('[class*="bubble"]'),
+            ...document.querySelectorAll('[id*="avatar"][id*="switcher"]')
+        ];
+        
+        elementsToToggle.forEach(el => {
+            if (el) {
+                el.style.display = isHidden ? 'none' : '';
+            }
+        });
+        
+        toggleBtn.innerHTML = isHidden ? '👁️‍🗨️' : '👁️';
+        toggleBtn.title = isHidden ? 'Show Avatar/Bubbles' : 'Hide Avatar/Bubbles';
+    }
+    
+    toggleBtn.addEventListener('click', function() {
+        isHidden = !isHidden;
+        localStorage.setItem('hideAvatarBubbles', isHidden);
+        updateVisibility();
+    });
+    
+    updateVisibility();
+})();
+</script>
+
 </body>
 </html>
