@@ -195,9 +195,9 @@
     }
 
     const { data: profile } = await db
-      .from('users')
-      .select('role, username, id')
-      .eq('id', user.id)
+      .from('profiles')
+      .select('role, username, user_id')
+      .eq('user_id', user.id)
       .single();
 
     if (!profile || profile.role !== 'owner') {
@@ -210,8 +210,8 @@
   }
 
   async function loadUsers() {
-    const { data, error } = await db.from('users')
-      .select('id, username, display_name, bio, role, tags, verified_artist, avatar_url, created_at')
+    const { data, error } = await db.from('profiles')
+      .select('user_id, username, display_name, bio, role, tags, verified_artist, avatar_url, created_at')
       .order('created_at', { ascending: false });
     if (error) { document.getElementById('userList').innerHTML = `<p style="color:#ff0044;">${error.message}</p>`; return; }
     allUsers = data || [];
@@ -233,11 +233,11 @@
         <div class="user-meta">
           <div class="user-name">${u.username||'No username'} ${rolePill(u.role||'fan')}</div>
           <div class="user-detail">${u.display_name?'📛 '+u.display_name+' · ':''}${u.verified_artist?'✓ Verified · ':''}🏅 ${badgeStr}</div>
-          <div class="user-detail" style="font-size:0.7rem;opacity:0.4;margin-top:2px;">ID: ${u.id||u.user_id}</div>
+          <div class="user-detail" style="font-size:0.7rem;opacity:0.4;margin-top:2px;">ID: ${u.user_id}</div>
         </div>
         <div style="display:flex;gap:0.4rem;flex-shrink:0;">
-          <button class="btn" onclick="editUser('${u.id||u.user_id}')">Edit</button>
-          <button class="btn btn-danger" onclick="deleteUser('${u.id||u.user_id}','${(u.username||'').replace(/'/g,"\\'")}')">Del</button>
+          <button class="btn" onclick="editUser('${u.user_id}')">Edit</button>
+          <button class="btn btn-danger" onclick="deleteUser('${u.user_id}','${(u.username||'').replace(/'/g,"\\'")}')">Del</button>
         </div>
       </div>`;
     }).join('');
@@ -271,7 +271,7 @@
     try {
       const { data:auth, error:authErr } = await db.auth.signUp({ email, password, options:{ data:{ username, display_name:dispName } } });
       if (authErr) throw authErr;
-      const { error:profErr } = await db.from('users').insert({ id:auth.user.id, username, display_name:dispName, role, tags, verified_artist:verified });
+      const { error:profErr } = await db.from('profiles').insert({ user_id:auth.user.id, username, display_name:dispName, role, tags, verified_artist:verified });
       if (profErr) throw profErr;
       setNotice('cNotice','✅ User created!','#4ade80');
       setTimeout(()=>{ closeModal('createModal'); loadUsers(); }, 900);
@@ -279,7 +279,7 @@
   }
 
   function editUser(userId) {
-    const u = allUsers.find(x=>(x.id||x.user_id)===userId);
+    const u = allUsers.find(x=>x.user_id===userId);
     if (!u) return;
     document.getElementById('eUserId').value = userId;
     document.getElementById('eUsername').value = u.username||'';
@@ -303,12 +303,12 @@
     if (!username) { setNotice('eNotice','⚠️ Username required.','#ef4444'); return; }
     setNotice('eNotice','Saving…','#a855f7');
     try {
-      const { error } = await db.from('users')
+      const { error } = await db.from('profiles')
         .update({ username, display_name:dispName, bio, role, tags, verified_artist:verified })
-        .eq('id', userId);
+        .eq('user_id', userId);
       if (error) throw error;
       setNotice('eNotice','✅ Saved!','#4ade80');
-      const idx = allUsers.findIndex(x=>(x.id||x.user_id)===userId);
+      const idx = allUsers.findIndex(x=>x.user_id===userId);
       if (idx>=0) allUsers[idx] = {...allUsers[idx], username, display_name:dispName, bio, role, tags, verified_artist:verified};
       displayUsers(allUsers);
       setTimeout(()=>closeModal('editModal'), 800);
@@ -317,9 +317,9 @@
 
   async function deleteUser(userId, username) {
     if (!confirm(`Delete "${username}"? Cannot be undone.`)) return;
-    const { error } = await db.from('users').delete().eq('id', userId);
+    const { error } = await db.from('profiles').delete().eq('user_id', userId);
     if (error) { alert('Error: '+error.message); return; }
-    allUsers = allUsers.filter(u=>(u.id||u.user_id)!==userId);
+    allUsers = allUsers.filter(u=>u.user_id!==userId);
     displayUsers(allUsers);
   }
 
