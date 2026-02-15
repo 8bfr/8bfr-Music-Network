@@ -81,7 +81,7 @@
   <div id="dummySection" style="display:none;">
     <div class="card" style="border-color:rgba(14,116,144,0.5);">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
-        <h2 style="font-family:'Bebas Neue',cursive;color:#22d3ee;font-size:1.4rem;letter-spacing:1px;">🤖 Dummy Accounts <span style="font-size:0.75rem;color:rgba(234,230,255,0.4);font-family:'Work Sans',sans-serif;font-weight:normal;">(local only — not in Supabase)</span></h2>
+        <h2 style="font-family:'Bebas Neue',cursive;color:#22d3ee;font-size:1.4rem;letter-spacing:1px;">🤖 Dummy Accounts <span style="font-size:0.75rem;color:rgba(234,230,255,0.4);font-family:'Work Sans',sans-serif;font-weight:normal;">(cloud — stored in Supabase)</span></h2>
         <button class="btn btn-gray" onclick="hideDummySection()">✕ Close</button>
       </div>
 
@@ -103,10 +103,17 @@
           <input class="form-input" type="text" id="dBio" placeholder="Short bio…">
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;">
+      <div style="display:flex;align-items:center;gap:1.5rem;margin-bottom:1rem;flex-wrap:wrap;">
         <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.9rem;">
           <input type="checkbox" id="dVerified" style="accent-color:#7c3aed;"> 🛡️ Verified
         </label>
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+          <div id="dAvatarPreview" style="width:48px;height:48px;border-radius:50%;background:rgba(14,116,144,0.3);border:2px dashed rgba(34,211,238,0.4);display:flex;align-items:center;justify-content:center;font-size:1.2rem;overflow:hidden;">🤖</div>
+          <div>
+            <label style="font-size:0.85rem;color:rgba(234,230,255,0.6);display:block;margin-bottom:0.25rem;">Avatar (optional)</label>
+            <input type="file" id="dAvatarFile" accept="image/*" onchange="previewDummyAvatar()" style="font-size:0.8rem;color:var(--text);">
+          </div>
+        </div>
       </div>
       <button class="btn" style="background:#0e7490;" onclick="createDummy()">+ Create Dummy</button>
       <div id="dNotice" style="margin-top:0.5rem;font-size:0.85rem;"></div>
@@ -431,6 +438,24 @@
     renderDummies(data || []);
   }
 
+  function previewDummyAvatar() {
+    const file = document.getElementById('dAvatarFile').files[0];
+    const preview = document.getElementById('dAvatarPreview');
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => { preview.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;">`; };
+    reader.readAsDataURL(file);
+  }
+
+  async function uploadAvatarToStorage(file, filename) {
+    const { data, error } = await db.storage
+      .from('avatars')
+      .upload(`dummy/${filename}`, file, { upsert: true, contentType: file.type });
+    if (error) throw error;
+    const { data: urlData } = db.storage.from('avatars').getPublicUrl(`dummy/${filename}`);
+    return urlData.publicUrl;
+  }
+
   async function createDummy() {
     const username = document.getElementById('dUsername').value.trim();
     const dispName = document.getElementById('dDispName').value.trim();
@@ -438,13 +463,27 @@
     const bio = document.getElementById('dBio').value.trim();
     const verified = document.getElementById('dVerified').checked;
     const tags = [role];
+    const avatarFile = document.getElementById('dAvatarFile').files[0];
 
     if (!username) { document.getElementById('dNotice').innerHTML = '<span style="color:#f87171;">⚠️ Username required</span>'; return; }
 
     document.getElementById('dNotice').innerHTML = '<span style="color:#a855f7;">Creating…</span>';
 
+    let avatar_url = null;
+    if (avatarFile) {
+      try {
+        document.getElementById('dNotice').innerHTML = '<span style="color:#a855f7;">Uploading avatar…</span>';
+        const ext = avatarFile.name.split('.').pop();
+        avatar_url = await uploadAvatarToStorage(avatarFile, `${username}_${Date.now()}.${ext}`);
+      } catch(e) {
+        document.getElementById('dNotice').innerHTML = `<span style="color:#f87171;">❌ Avatar upload failed: ${e.message}</span>`;
+        return;
+      }
+    }
+
+    document.getElementById('dNotice').innerHTML = '<span style="color:#a855f7;">Saving profile…</span>';
     const { error } = await db.from('dummy_profiles').insert({
-      username, display_name: dispName || username, role, bio, tags, verified_artist: verified
+      username, display_name: dispName || username, role, bio, tags, verified_artist: verified, avatar_url
     });
 
     if (error) {
@@ -456,6 +495,8 @@
     document.getElementById('dDispName').value = '';
     document.getElementById('dBio').value = '';
     document.getElementById('dVerified').checked = false;
+    document.getElementById('dAvatarFile').value = '';
+    document.getElementById('dAvatarPreview').innerHTML = '🤖';
     document.getElementById('dNotice').innerHTML = '<span style="color:#4ade80;">✅ Dummy created!</span>';
     setTimeout(() => document.getElementById('dNotice').innerHTML = '', 2000);
     loadDummies();
@@ -476,16 +517,41 @@
     }
     el.innerHTML = list.map(d => `
       <div class="user-item" style="border-color:rgba(14,116,144,0.4);">
+        <div style="width:44px;height:44px;border-radius:50%;overflow:hidden;flex-shrink:0;background:rgba(14,116,144,0.3);display:flex;align-items:center;justify-content:center;font-size:1.2rem;">
+          ${d.avatar_url ? `<img src="${d.avatar_url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML='🤖'">` : '🤖'}
+        </div>
         <div class="user-meta">
           <div class="user-name">${d.username} ${d.verified_artist ? '🛡️' : ''} <span class="role-pill" style="background:rgba(14,116,144,0.3);color:#22d3ee;">${d.role}</span> <span style="font-size:0.7rem;color:rgba(234,230,255,0.3);">DUMMY</span></div>
           <div class="user-detail">${d.display_name||''}${d.bio ? ' · ' + d.bio : ''}</div>
           <div class="user-detail">Created: ${new Date(d.created_at).toLocaleDateString()}</div>
         </div>
-        <div style="display:flex;gap:0.5rem;">
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:flex-end;">
+          <label class="btn" style="background:#0e7490;cursor:pointer;font-size:0.8rem;" title="Change avatar">
+            🖼️
+            <input type="file" accept="image/*" style="display:none;" onchange="changeDummyAvatar('${d.id}', '${d.username}', this)">
+          </label>
           <button class="btn btn-danger" onclick="deleteDummy('${d.id}')">🗑️</button>
         </div>
       </div>
     `).join('');
+  }
+
+  async function changeDummyAvatar(id, username, input) {
+    const file = input.files[0];
+    if (!file) return;
+    const notice = document.getElementById('dNotice');
+    notice.innerHTML = '<span style="color:#a855f7;">Uploading avatar…</span>';
+    try {
+      const ext = file.name.split('.').pop();
+      const avatar_url = await uploadAvatarToStorage(file, `${username}_${Date.now()}.${ext}`);
+      const { error } = await db.from('dummy_profiles').update({ avatar_url }).eq('id', id);
+      if (error) throw error;
+      notice.innerHTML = '<span style="color:#4ade80;">✅ Avatar updated!</span>';
+      setTimeout(() => notice.innerHTML = '', 2000);
+      loadDummies();
+    } catch(e) {
+      notice.innerHTML = `<span style="color:#f87171;">❌ ${e.message}</span>`;
+    }
   }
 
 </script>
