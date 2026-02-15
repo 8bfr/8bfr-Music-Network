@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Management - 8BFR</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root { --primary:#7c3aed; --dark:#0b0014; --card:#0c0618; --text:#eae6ff; --border:rgba(124,58,237,.35); --red:#ff0044; }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Work Sans',sans-serif; background:linear-gradient(#0b0014,#000); color:var(--text); min-height:100vh; }
+    .header { background:rgba(15,0,30,.9); border-bottom:2px solid var(--primary); padding:1.25rem 2rem; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:50; }
+    .header h1 { font-family:'Bebas Neue',cursive; font-size:1.8rem; color:var(--primary); }
+    .container { max-width:1200px; margin:0 auto; padding:2rem; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:1.5rem; margin-bottom:1.5rem; }
+    .notice { background:rgba(255,0,68,0.08); border:1px solid rgba(255,0,68,0.3); border-radius:8px; padding:1rem; margin-bottom:1.25rem; font-size:0.88rem; color:#ffb3c6; line-height:1.8; }
+    .notice code { background:rgba(0,0,0,0.4); padding:0.3rem 0.5rem; border-radius:4px; font-family:monospace; font-size:0.82em; display:block; margin-top:0.5rem; word-break:break-all; }
+    .search-row { display:flex; gap:0.75rem; margin-bottom:1rem; align-items:center; }
+    .search-box { flex:1; padding:0.7rem 1rem; background:var(--dark); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:0.9rem; }
+    .btn { background:var(--primary); color:white; border:none; padding:0.55rem 1.1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.85rem; transition:opacity 0.2s; }
+    .btn:hover { opacity:0.85; }
+    .btn-danger { background:var(--red); }
+    .btn-green { background:#059669; }
+    .btn-gray { background:#444; }
+    .user-item { background:var(--dark); border:1px solid var(--border); padding:1rem 1.25rem; margin-bottom:0.5rem; border-radius:10px; display:flex; justify-content:space-between; align-items:center; gap:1rem; }
+    .user-meta { flex:1; min-width:0; }
+    .user-name { font-weight:700; color:#a855f7; font-size:1rem; }
+    .user-detail { font-size:0.8rem; color:rgba(234,230,255,0.55); margin-top:0.15rem; }
+    .role-pill { display:inline-block; padding:0.15rem 0.6rem; border-radius:20px; font-size:0.72rem; font-weight:700; margin-left:0.4rem; }
+    .role-owner { background:rgba(245,158,11,0.15); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); }
+    .role-admin { background:rgba(124,58,237,0.2); color:#a855f7; border:1px solid var(--border); }
+    .role-mod { background:rgba(0,217,255,0.1); color:#00d9ff; border:1px solid rgba(0,217,255,0.3); }
+    .role-music { background:rgba(0,255,136,0.1); color:#00ff88; border:1px solid rgba(0,255,136,0.3); }
+    .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:1000; align-items:flex-start; justify-content:center; padding:2rem 1rem; overflow-y:auto; }
+    .modal.show { display:flex; }
+    .modal-box { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:2rem; width:100%; max-width:560px; margin:auto; }
+    .modal-box h2 { color:var(--primary); margin-bottom:1.5rem; font-family:'Bebas Neue',cursive; font-size:1.6rem; }
+    .form-group { margin-bottom:1rem; }
+    .form-group label { display:block; margin-bottom:0.4rem; font-size:0.88rem; font-weight:600; color:rgba(234,230,255,0.7); }
+    .form-input { width:100%; padding:0.7rem 0.9rem; background:var(--dark); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:0.9rem; }
+    .form-input:focus { outline:none; border-color:#a855f7; }
+    .section-label { font-size:0.78rem; font-weight:700; color:#a855f7; text-transform:uppercase; letter-spacing:0.06em; margin:1.25rem 0 0.5rem; }
+    .badge-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); gap:0.3rem; }
+    .bci { display:flex; align-items:center; gap:0.45rem; padding:0.4rem 0.6rem; border-radius:6px; border:1px solid rgba(124,58,237,0.2); background:rgba(124,58,237,0.04); cursor:pointer; transition:all 0.15s; }
+    .bci:hover { border-color:rgba(124,58,237,0.5); background:rgba(124,58,237,0.1); }
+    .bci input { cursor:pointer; accent-color:#7c3aed; flex-shrink:0; }
+    .bci label { cursor:pointer; font-size:0.82rem; }
+    .modal-footer { display:flex; gap:0.75rem; margin-top:1.5rem; flex-wrap:wrap; }
+    .notice-msg { margin-top:0.75rem; font-size:0.85rem; }
+    .spinner { width:28px; height:28px; border-radius:50%; border:3px solid rgba(168,85,247,0.2); border-top-color:#a855f7; animation:spin 0.7s linear infinite; margin:2rem auto; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>👥 User Management</h1>
+    <a href="owner-panel.html" style="color:var(--text);text-decoration:none;font-weight:600;">← Back</a>
+  </div>
+  <div class="container">
+    <!-- DEBUG PANEL -->
+    <div id="debugPanel" style="display:none;background:rgba(0,0,0,0.5);border:1px solid rgba(124,58,237,0.5);border-radius:8px;padding:1rem;margin-bottom:1rem;font-size:0.85rem;line-height:1.8;color:#eae6ff;"></div>
+
+    <div class="notice" id="rlsNotice">
+      ⚠️ <strong>If saves aren't working</strong>, add this RLS policy in Supabase → SQL Editor:
+      <code>CREATE POLICY "Owners manage profiles" ON public.profiles FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'owner' );</code>
+      <button onclick="document.getElementById('rlsNotice').style.display='none'" style="background:none;border:1px solid rgba(255,0,68,0.4);color:#ffb3c6;padding:0.25rem 0.75rem;border-radius:4px;cursor:pointer;margin-top:0.75rem;display:block;">Dismiss</button>
+    </div>
+    <div class="card">
+      <div class="search-row">
+        <input type="text" class="search-box" id="searchBox" placeholder="Search by username, role, or badges…" oninput="searchUsers()">
+        <button class="btn btn-green" onclick="showCreateModal()">+ Create User</button>
+      </div>
+      <div id="userList"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- CREATE MODAL -->
+  <div id="createModal" class="modal">
+    <div class="modal-box">
+      <h2>➕ Create User</h2>
+      <div class="form-group"><label>Email *</label><input class="form-input" type="email" id="cEmail"></div>
+      <div class="form-group"><label>Username *</label><input class="form-input" type="text" id="cUsername"></div>
+      <div class="form-group"><label>Display Name</label><input class="form-input" type="text" id="cDispName"></div>
+      <div class="form-group"><label>Password *</label><input class="form-input" type="password" id="cPassword"></div>
+      <div class="form-group"><label>Primary Role</label><select class="form-input" id="cRole"></select></div>
+      <div class="section-label">Badges</div>
+      <div class="badge-grid" id="cBadgeGrid"></div>
+      <div class="form-group" style="margin-top:1rem;">
+        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-weight:normal;">
+          <input type="checkbox" id="cVerified" style="accent-color:#7c3aed;"> 🛡️ Verified Artist
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-green" onclick="createUser()">✅ Create</button>
+        <button class="btn btn-gray" onclick="closeModal('createModal')">Cancel</button>
+      </div>
+      <div class="notice-msg" id="cNotice"></div>
+    </div>
+  </div>
+
+  <!-- EDIT MODAL -->
+  <div id="editModal" class="modal">
+    <div class="modal-box">
+      <h2>✏️ Edit User</h2>
+      <input type="hidden" id="eUserId">
+      <div class="form-group"><label>Username</label><input class="form-input" type="text" id="eUsername"></div>
+      <div class="form-group"><label>Display Name</label><input class="form-input" type="text" id="eDispName"></div>
+      <div class="form-group"><label>Bio</label><textarea class="form-input" id="eBio" rows="2"></textarea></div>
+      <div class="form-group"><label>Primary Role</label><select class="form-input" id="eRole"></select></div>
+      <div class="section-label">🎵 Music Creator Badges</div>
+      <div class="badge-grid" id="eMusicBadges"></div>
+      <div class="section-label">🌐 Community Badges</div>
+      <div class="badge-grid" id="eCommunityBadges"></div>
+      <div class="section-label">🏅 Special Badges</div>
+      <div class="badge-grid" id="eSpecialBadges"></div>
+      <div class="form-group" style="margin-top:1rem;">
+        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-weight:normal;">
+          <input type="checkbox" id="eVerified" style="accent-color:#7c3aed;"> 🛡️ Verified Artist/Beatmaker
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="saveUser()">💾 Save Changes</button>
+        <button class="btn btn-gray" onclick="closeModal('editModal')">Cancel</button>
+      </div>
+      <div class="notice-msg" id="eNotice"></div>
+    </div>
+  </div>
+
+  <script>
+  const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  const ROLES = [
+    {v:'fan',l:'💎 Fan'},{v:'artist',l:'🎤 Artist'},{v:'beatmaker',l:'🎚️ Beatmaker'},
+    {v:'producer',l:'🎧 Producer'},{v:'rapper',l:'🎤 Rapper'},{v:'singer',l:'🎙️ Singer'},
+    {v:'songwriter',l:'🎼 Songwriter'},{v:'dj',l:'📀 DJ'},{v:'musician',l:'🎸 Musician'},
+    {v:'engineer',l:'🎛️ Engineer'},{v:'label',l:'🏷️ Label'},{v:'promoter',l:'🚀 Promoter'},
+    {v:'designer',l:'🎨 Designer'},{v:'influencer',l:'💫 Influencer'},{v:'blogger',l:'📰 Blogger'},
+    {v:'developer',l:'🧠 Developer'},{v:'streamer',l:'📡 Streamer'},{v:'gamer',l:'🎮 Gamer'},
+    {v:'mod',l:'💬 Moderator'},{v:'admin',l:'⚙️ Admin'},{v:'owner',l:'👑 Owner'}
+  ];
+  const MUSIC_B = [
+    {v:'artist',l:'🎤 Artist'},{v:'beatmaker',l:'🎚️ Beatmaker'},{v:'producer',l:'🎧 Producer'},
+    {v:'rapper',l:'🎤 Rapper'},{v:'singer',l:'🎙️ Singer'},{v:'songwriter',l:'🎼 Songwriter'},
+    {v:'dj',l:'📀 DJ'},{v:'musician',l:'🎸 Musician'},{v:'engineer',l:'🎛️ Engineer'},
+    {v:'label',l:'🏷️ Label'},{v:'promoter',l:'🚀 Promoter'},{v:'designer',l:'🎨 Designer'}
+  ];
+  const COMMUNITY_B = [
+    {v:'influencer',l:'💫 Influencer'},{v:'community_leader',l:'👥 Community Leader'},
+    {v:'fan',l:'💎 Fan'},{v:'supporter',l:'🤝 Supporter'},{v:'mentor',l:'🧭 Mentor'},
+    {v:'blogger',l:'📰 Blogger'},{v:'developer',l:'🧠 Developer'},{v:'streamer',l:'📡 Streamer'},{v:'gamer',l:'🎮 Gamer'}
+  ];
+  const SPECIAL_B = [
+    {v:'verified',l:'🛡️ Verified'},{v:'founder',l:'⚡ Founder'},{v:'vip_member',l:'🎖️ VIP'},
+    {v:'donor',l:'💰 Donor'},{v:'sponsor',l:'💵 Sponsor'},{v:'beta_tester',l:'🧪 Beta Tester'},
+    {v:'early_supporter',l:'🎫 Early Supporter'},{v:'top_creator',l:'🏅 Top Creator'},{v:'g7',l:'👑 G7'}
+  ];
+
+  let allUsers = [];
+
+  function buildRoleSelect(elId) {
+    document.getElementById(elId).innerHTML = ROLES.map(r => `<option value="${r.v}">${r.l}</option>`).join('');
+  }
+  function buildBadgeGrid(elId, items, prefix) {
+    document.getElementById(elId).innerHTML = items.map(b =>
+      `<div class="bci"><input type="checkbox" id="${prefix}_${b.v}" value="${b.v}"><label for="${prefix}_${b.v}">${b.l}</label></div>`
+    ).join('');
+  }
+  function getChecked(prefix) {
+    return [...document.querySelectorAll(`input[id^="${prefix}_"]:checked`)].map(el => el.value);
+  }
+  function setChecked(prefix, vals) {
+    document.querySelectorAll(`input[id^="${prefix}_"]`).forEach(el => { el.checked = vals.includes(el.value); });
+  }
+  function setNotice(id, msg, color) {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = msg; el.style.color = color || '#a855f7'; }
+  }
+
+  async function init() {
+    buildRoleSelect('cRole');
+    buildRoleSelect('eRole');
+    buildBadgeGrid('cBadgeGrid', [...MUSIC_B,...COMMUNITY_B,...SPECIAL_B], 'cb');
+    buildBadgeGrid('eMusicBadges', MUSIC_B, 'eb');
+    buildBadgeGrid('eCommunityBadges', COMMUNITY_B, 'eb');
+    buildBadgeGrid('eSpecialBadges', SPECIAL_B, 'eb');
+    try {
+      const { data:{ session } } = await db.auth.getSession();
+      if (!session) { location.href = 'login.html'; return; }
+      const { data:prof } = await db.from('profiles').select('role').eq('user_id', session.user.id).single();
+      if (!prof || prof.role !== 'owner') { alert('Owner access only'); location.href = 'owner-panel.html'; return; }
+      loadUsers();
+    } catch(err) {
+      document.getElementById('userList').innerHTML = `<p style="color:#ff0044;">Init error: ${err.message}</p>`;
+    }
+  }
+
+  async function loadUsers() {
+    const { data, error } = await db.from('profiles')
+      .select('user_id, username, display_name, bio, role, tags, verified_artist, avatar_url, created_at')
+      .order('created_at', { ascending: false });
+    if (error) { document.getElementById('userList').innerHTML = `<p style="color:#ff0044;">${error.message}</p>`; return; }
+    allUsers = data || [];
+    displayUsers(allUsers);
+  }
+
+  function rolePill(role) {
+    const cls = role==='owner'?'role-owner':role==='admin'?'role-admin':role==='mod'?'role-mod':['artist','beatmaker','rapper','producer','singer','songwriter','dj'].includes(role)?'role-music':'';
+    return cls ? `<span class="role-pill ${cls}">${role}</span>` : `<span style="font-size:0.78rem;color:rgba(234,230,255,0.5);margin-left:6px;">${role}</span>`;
+  }
+
+  function displayUsers(users) {
+    const el = document.getElementById('userList');
+    if (!users.length) { el.innerHTML = '<p style="text-align:center;padding:2rem;color:rgba(168,85,247,0.4);">No users found</p>'; return; }
+    el.innerHTML = users.map(u => {
+      const tags = Array.isArray(u.tags) ? u.tags : [];
+      const badgeStr = tags.length ? tags.slice(0,6).join(', ')+(tags.length>6?` +${tags.length-6}`:'') : 'None';
+      return `<div class="user-item">
+        <div class="user-meta">
+          <div class="user-name">${u.username||'No username'} ${rolePill(u.role||'fan')}</div>
+          <div class="user-detail">${u.display_name?'📛 '+u.display_name+' · ':''}${u.verified_artist?'✓ Verified · ':''}🏅 ${badgeStr}</div>
+          <div class="user-detail" style="font-size:0.7rem;opacity:0.4;margin-top:2px;">ID: ${u.user_id}</div>
+        </div>
+        <div style="display:flex;gap:0.4rem;flex-shrink:0;">
+          <button class="btn" onclick="editUser('${u.user_id}')">Edit</button>
+          <button class="btn btn-danger" onclick="deleteUser('${u.user_id}','${(u.username||'').replace(/'/g,"\\'")}')">Del</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function searchUsers() {
+    const q = document.getElementById('searchBox').value.toLowerCase().trim();
+    if (!q) { displayUsers(allUsers); return; }
+    displayUsers(allUsers.filter(u =>
+      (u.username||'').toLowerCase().includes(q) ||
+      (u.display_name||'').toLowerCase().includes(q) ||
+      (u.role||'').toLowerCase().includes(q) ||
+      (Array.isArray(u.tags) && u.tags.some(t=>t.toLowerCase().includes(q)))
+    ));
+  }
+
+  function showCreateModal() { document.getElementById('createModal').classList.add('show'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+  async function createUser() {
+    const email = document.getElementById('cEmail').value.trim();
+    const username = document.getElementById('cUsername').value.trim();
+    const dispName = document.getElementById('cDispName').value.trim();
+    const password = document.getElementById('cPassword').value;
+    const role = document.getElementById('cRole').value;
+    const verified = document.getElementById('cVerified').checked;
+    const badges = getChecked('cb');
+    const tags = [...new Set([role,...badges])];
+    if (!email||!username||!password) { setNotice('cNotice','⚠️ Email, username and password are required.','#ef4444'); return; }
+    setNotice('cNotice','Creating…','#a855f7');
+    try {
+      const { data:auth, error:authErr } = await db.auth.signUp({ email, password, options:{ data:{ username, display_name:dispName } } });
+      if (authErr) throw authErr;
+      const { error:profErr } = await db.from('profiles').insert({ user_id:auth.user.id, username, display_name:dispName, role, tags, verified_artist:verified });
+      if (profErr) throw profErr;
+      setNotice('cNotice','✅ User created!','#4ade80');
+      setTimeout(()=>{ closeModal('createModal'); loadUsers(); }, 900);
+    } catch(err) { setNotice('cNotice','❌ '+err.message,'#ef4444'); }
+  }
+
+  function editUser(userId) {
+    const u = allUsers.find(x=>x.user_id===userId);
+    if (!u) return;
+    document.getElementById('eUserId').value = userId;
+    document.getElementById('eUsername').value = u.username||'';
+    document.getElementById('eDispName').value = u.display_name||'';
+    document.getElementById('eBio').value = u.bio||'';
+    document.getElementById('eRole').value = u.role||'fan';
+    document.getElementById('eVerified').checked = !!u.verified_artist;
+    setChecked('eb', Array.isArray(u.tags)?u.tags:[]);
+    document.getElementById('editModal').classList.add('show');
+  }
+
+  async function saveUser() {
+    const userId = document.getElementById('eUserId').value;
+    const username = document.getElementById('eUsername').value.trim();
+    const dispName = document.getElementById('eDispName').value.trim();
+    const bio = document.getElementById('eBio').value.trim();
+    const role = document.getElementById('eRole').value;
+    const verified = document.getElementById('eVerified').checked;
+    const badges = getChecked('eb');
+    const tags = [...new Set([role,...badges])];
+    if (!username) { setNotice('eNotice','⚠️ Username required.','#ef4444'); return; }
+    setNotice('eNotice','Saving…','#a855f7');
+    try {
+      const { error } = await db.from('profiles')
+        .update({ username, display_name:dispName, bio, role, tags, verified_artist:verified })
+        .eq('user_id', userId);
+      if (error) throw error;
+      setNotice('eNotice','✅ Saved!','#4ade80');
+      const idx = allUsers.findIndex(x=>x.user_id===userId);
+      if (idx>=0) allUsers[idx] = {...allUsers[idx], username, display_name:dispName, bio, role, tags, verified_artist:verified};
+      displayUsers(allUsers);
+      setTimeout(()=>closeModal('editModal'), 800);
+    } catch(err) { setNotice('eNotice','❌ '+err.message+' — Check RLS policy (see notice at top).','#ef4444'); }
+  }
+
+  async function deleteUser(userId, username) {
+    if (!confirm(`Delete "${username}"? Cannot be undone.`)) return;
+    const { error } = await db.from('profiles').delete().eq('user_id', userId);
+    if (error) { alert('Error: '+error.message); return; }
+    allUsers = allUsers.filter(u=>u.user_id!==userId);
+    displayUsers(allUsers);
+  }
+
+  document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', init) : init();
+  </script>
+
+  <!-- Avatar toggle - no MutationObserver -->
+  <script>
+  (function() {
+    const btn = document.createElement('button');
+    btn.innerHTML = '👁️';
+    btn.style.cssText = 'position:fixed;top:80px;right:20px;z-index:9999;background:rgba(124,58,237,0.9);border:2px solid rgba(124,58,237,1);color:white;width:50px;height:50px;border-radius:50%;cursor:pointer;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(124,58,237,0.5);';
+    document.body.appendChild(btn);
+    let hidden = localStorage.getItem('hideAvatarBubbles') === 'true';
+    function update() {
+      document.querySelectorAll('[id*="bubble"],[class*="bubble"]').forEach(el => { if(el) el.style.display = hidden ? 'none' : ''; });
+      btn.innerHTML = hidden ? '👁️‍🗨️' : '👁️';
+    }
+    btn.addEventListener('click', () => { hidden = !hidden; localStorage.setItem('hideAvatarBubbles', hidden); update(); });
+    update();
+  })();
+  </script>
+</body>
+</html>
