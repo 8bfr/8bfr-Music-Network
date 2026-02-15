@@ -187,10 +187,26 @@
     buildBadgeGrid('eCommunityBadges', COMMUNITY_B, 'eb');
     buildBadgeGrid('eSpecialBadges', SPECIAL_B, 'eb');
     try {
-      const { data:{ session } } = await db.auth.getSession();
-      if (!session) { location.href = 'login.html'; return; }
-      const { data:prof } = await db.from('profiles').select('role').eq('user_id', session.user.id).single();
-      if (!prof || prof.role !== 'owner') { alert('Owner access only'); location.href = 'owner-panel.html'; return; }
+      const { data: sessionData } = await db.auth.getSession();
+      if (!sessionData.session) {
+        alert('Please log in');
+        window.location.href = 'login.html';
+        return;
+      }
+
+      const { data: { user } } = await db.auth.getUser();
+      if (!user) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      const { data: profile } = await db.from('profiles').select('*').eq('user_id', user.id).single();
+      if (!profile || profile.role !== 'owner') {
+        alert('Owner access only. Your role: ' + (profile?.role || 'none'));
+        window.location.href = 'owner-panel.html';
+        return;
+      }
+
       loadUsers();
     } catch(err) {
       document.getElementById('userList').innerHTML = `<p style="color:#ff0044;">Init error: ${err.message}</p>`;
