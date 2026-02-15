@@ -420,28 +420,33 @@
         let currentUser = null;
 
         async function init() {
-            const { data: { user } } = await adminPanelSupabase.auth.getUser();
+            try {
+                const { data: sessionData } = await adminPanelSupabase.auth.getSession();
+                if (!sessionData.session) {
+                    alert('Please log in');
+                    window.location.href = 'login.html';
+                    return;
+                }
+                
+                const { data: { user } } = await adminPanelSupabase.auth.getUser();
+                if (!user) {
+                    window.location.href = 'login.html';
+                    return;
+                }
+                currentUser = user;
 
-            if (!user) {
-                window.location.href = 'login.html';
-                return;
+                const { data: profile } = await adminPanelSupabase.from('profiles').select('*').eq('user_id', user.id).single();
+                if (!profile || (profile.role !== 'admin' && profile.role !== 'owner')) {
+                    alert('Access Denied: Admin only. Your role: ' + (profile?.role || 'none'));
+                    window.location.href = 'index.html';
+                    return;
+                }
+
+                document.getElementById('adminName').textContent = profile.username || user.email.split('@')[0];
+                loadDashboardStats();
+            } catch (error) {
+                alert('Error: ' + error.message);
             }
-
-            const { data: profile } = await adminPanelSupabase
-                .from('users')
-                .select('role, username, id')
-                .eq('id', user.id)
-                .single();
-
-            if (!profile || (profile.role !== 'admin' && profile.role !== 'owner')) {
-                alert('Access Denied: Admin only. Your role: ' + (profile?.role || 'none'));
-                window.location.href = 'index.html';
-                return;
-            }
-
-            currentUser = profile;
-            document.getElementById('adminName').textContent = profile.username;
-            loadDashboardStats();
         }
 
         function switchTab(tabName) {
@@ -699,7 +704,11 @@
             window.location.href = 'login.html';
         }
 
-        init();
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
     </script>
     <!-- ADD THIS SCRIPT TO EVERY PAGE (except index.html where you want it always shown) -->
 <!-- Place it right before the closing </body> tag -->
