@@ -89,41 +89,70 @@
   let uploadingCover = false;
 
   // ── INIT ────────────────────────────────────────────────────────
-  async function init() {
-    const params = new URLSearchParams(window.location.search);
-    const viewId = params.get('id');
-
-    const { data: { user } } = await db.auth.getSession().then(r => r.data.session ? {data:{user:r.data.session.user}} : db.auth.getUser());
-    currentUser = user;
-
-    let targetId = viewId;
-    if (!targetId && user) targetId = user.id;
-    if (!targetId) {
-      // not logged in, no id
-      document.getElementById('loadingSpinner').style.display = 'none';
-      document.getElementById('profileContent').style.display = 'block';
-      document.getElementById('profileContent').innerHTML = '<div style="text-align:center;padding:4rem;color:rgba(168,85,247,0.6);">Please <a href="login.html" style="color:#a855f7;">log in</a> to view your profile.</div>';
-      return;
-    }
-
-    isOwnProfile = user && (targetId === user.id || !viewId);
-
-    const { data: profile, error } = await db.from('profiles').select('*').eq('user_id', targetId).maybeSingle();
-    if (error || !profile) {
-      document.getElementById('loadingSpinner').style.display = 'none';
-      document.getElementById('profileContent').style.display = 'block';
-      document.getElementById('profileContent').innerHTML = '<div style="text-align:center;padding:4rem;color:rgba(168,85,247,0.6);">Profile not found.</div>';
-      return;
-    }
-
-    profileData = profile;
-    document.getElementById('pageTitle').textContent = isOwnProfile ? '👤 My Profile' : ('👤 ' + (profile.display_name || profile.username || 'Profile'));
-    document.title = (profile.display_name || profile.username || 'Profile') + ' — 8BFR Music Network';
-
+  function showError(msg) {
     document.getElementById('loadingSpinner').style.display = 'none';
     document.getElementById('profileContent').style.display = 'block';
+    document.getElementById('profileContent').innerHTML =
+      `<div style="text-align:center;padding:4rem;color:rgba(168,85,247,0.7);line-height:1.8;">${msg}</div>`;
+  }
 
-    renderProfile();
+  async function init() {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const viewId = params.get('id');
+
+      // Get current session
+      const { data: sessionData } = await db.auth.getSession();
+      currentUser = sessionData?.session?.user || null;
+
+      // Fallback auth check
+      if (!currentUser) {
+        const { data: userData } = await db.auth.getUser();
+        currentUser = userData?.user || null;
+      }
+
+      const targetId = viewId || (currentUser ? currentUser.id : null);
+
+      if (!targetId) {
+        showError('Please <a href="login.html" style="color:#a855f7;text-decoration:underline;">log in</a> to view your profile.');
+        return;
+      }
+
+      isOwnProfile = !viewId || (currentUser && viewId === currentUser.id);
+
+      const { data: profile, error } = await db
+        .from('profiles')
+        .select('*')
+        .eq('user_id', targetId)
+        .maybeSingle();
+
+      if (error) {
+        showError('Error loading profile: ' + error.message);
+        return;
+      }
+
+      if (!profile) {
+        if (isOwnProfile && currentUser) {
+          showError('Your profile row doesn\'t exist in Supabase yet.<br>Go to <a href="owner-panel.html" style="color:#a855f7;text-decoration:underline;">Owner Panel → Create Profile</a> and create one for your account.');
+        } else {
+          showError('Profile not found for ID: ' + targetId);
+        }
+        return;
+      }
+
+      profileData = profile;
+      document.getElementById('pageTitle').textContent = isOwnProfile
+        ? '👤 My Profile'
+        : '👤 ' + (profile.display_name || profile.username || 'Profile');
+      document.title = (profile.display_name || profile.username || 'Profile') + ' — 8BFR Music Network';
+
+      document.getElementById('loadingSpinner').style.display = 'none';
+      document.getElementById('profileContent').style.display = 'block';
+      renderProfile();
+
+    } catch (err) {
+      showError('Unexpected error: ' + err.message);
+    }
   }
 
   // ── RENDER ──────────────────────────────────────────────────────
