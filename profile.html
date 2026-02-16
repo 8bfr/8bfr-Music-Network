@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Profile - 8BFR Music Network</title>
   <link rel="stylesheet" href="styles.css">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" data-8bfr-supabase="1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" data-8bfr-supabase="1" defer></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body { padding-bottom: 80px; background: linear-gradient(#0b0014,#000); color: #eae6ff; font-family: system-ui, -apple-system, sans-serif; }
@@ -68,15 +68,40 @@
   </div>
 
   <script>
+  document.addEventListener('DOMContentLoaded', function() {
+
+  // DEBUG BAR
+  (function() {
+    var d = document.createElement('div');
+    d.id = 'mobileDebug';
+    d.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#7c3aed;color:#fff;font-size:14px;font-weight:bold;padding:10px 12px;max-height:50vh;overflow-y:auto;';
+    d.innerHTML = '🔍 DEBUG: DOM ready<br>';
+    document.body.appendChild(d);
+  })();
+
+  function dbgEarly(msg) {
+    var el = document.getElementById('mobileDebug');
+    if (el) el.innerHTML += msg + '<br>';
+  }
+
+  dbgEarly('Checking Supabase...');
+
   const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
-  // Safe Supabase init - shows visible error on page if CDN failed to load
-  if (!window.supabase || !window.supabase.createClient) {
+
+  let db;
+  if (window.supabase && window.supabase.createClient) {
+    db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    dbgEarly('✅ Supabase client ready');
+  } else if (window._8bfrSupabaseClient) {
+    db = window._8bfrSupabaseClient;
+    dbgEarly('✅ Using shared Supabase client');
+  } else {
+    dbgEarly('❌ Supabase not available!');
     document.getElementById('loadingSpinner').innerHTML =
-      '<div style="text-align:center;padding:2rem;color:#f87171;">❌ Supabase failed to load.<br><small>Check your internet connection and refresh.</small></div>';
-    throw new Error('Supabase CDN not loaded');
+      '<div style="text-align:center;padding:2rem;color:#f87171;">❌ Supabase failed to load. Refresh the page.</div>';
+    return;
   }
-  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   const BADGE_ICONS = {
     artist:'🎤', beatmaker:'🎚️', producer:'🎧', singer:'🎙️', musician:'🎸',
@@ -104,18 +129,8 @@
       `<div style="text-align:center;padding:4rem;color:rgba(168,85,247,0.7);line-height:1.8;">${msg}</div>`;
   }
 
-  // Debug overlay - shows at top of screen on mobile
-  (function() {
-    const d = document.createElement('div');
-    d.id = 'mobileDebug';
-    d.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#1a0033;color:#fff;font-size:13px;padding:8px 12px;max-height:40vh;overflow-y:auto;border-bottom:2px solid #a855f7;';
-    d.innerHTML = '<b style="color:#a855f7;">🔍 Profile Debug</b><br>';
-    document.body.appendChild(d);
-  })();
-
   function dbg(msg) {
-    const el = document.getElementById('mobileDebug');
-    if (el) el.innerHTML += msg + '<br>';
+    dbgEarly(msg);
     const el2 = document.getElementById('debugSteps');
     if (el2) el2.innerHTML += msg + '<br>';
   }
@@ -127,10 +142,18 @@
     const viewId = params.get('id');
 
     dbg('⏳ Checking auth...');
-    const { data: { user }, error: authErr } = await db.auth.getUser();
-    if (authErr) { dbg('❌ Auth error: ' + authErr.message); }
-    currentUser = user || null;
-    dbg(user ? '✅ Logged in: ' + user.email : '⚠️ Not logged in');
+    let user = null;
+    try {
+      const authResult = await Promise.race([
+        db.auth.getUser(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Auth timed out after 5s')), 5000))
+      ]);
+      user = authResult?.data?.user || null;
+    } catch(authEx) {
+      dbg('⚠️ Auth issue: ' + authEx.message + ' — continuing as guest');
+    }
+    currentUser = user;
+    dbg(user ? '✅ Logged in: ' + user.email : '⚠️ Not logged in (guest)');
 
     const targetId = viewId || (currentUser ? currentUser.id : null);
 
@@ -531,7 +554,7 @@
   }
 
   // ── DRAG & DROP ──────────────────────────────────────────────────
-  document.addEventListener('DOMContentLoaded', () => {
+  (function() {
     ['audioZone','coverZone'].forEach(id => {
       const zone = document.getElementById(id);
       if (!zone) return;
@@ -555,7 +578,7 @@
         else { selectedCover = file; document.getElementById('coverZoneText').textContent = '✅ ' + file.name; }
       });
     });
-  });
+  })();
 
   // Safety net - if still spinning after 8s, show error
   setTimeout(() => {
@@ -569,6 +592,8 @@
     document.getElementById('loadingSpinner').innerHTML =
       '<div style="text-align:center;padding:2rem;color:#f87171;">❌ ' + err.message + '</div>';
   });
+
+  }); // end DOMContentLoaded
   </script>
 
   <script src="scripts.js" defer></script>
