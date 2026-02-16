@@ -70,6 +70,12 @@
   <script>
   const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+  // Safe Supabase init - shows visible error on page if CDN failed to load
+  if (!window.supabase || !window.supabase.createClient) {
+    document.getElementById('loadingSpinner').innerHTML =
+      '<div style="text-align:center;padding:2rem;color:#f87171;">❌ Supabase failed to load.<br><small>Check your internet connection and refresh.</small></div>';
+    throw new Error('Supabase CDN not loaded');
+  }
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   const BADGE_ICONS = {
@@ -98,9 +104,20 @@
       `<div style="text-align:center;padding:4rem;color:rgba(168,85,247,0.7);line-height:1.8;">${msg}</div>`;
   }
 
+  // Debug overlay - shows at top of screen on mobile
+  (function() {
+    const d = document.createElement('div');
+    d.id = 'mobileDebug';
+    d.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#1a0033;color:#fff;font-size:13px;padding:8px 12px;max-height:40vh;overflow-y:auto;border-bottom:2px solid #a855f7;';
+    d.innerHTML = '<b style="color:#a855f7;">🔍 Profile Debug</b><br>';
+    document.body.appendChild(d);
+  })();
+
   function dbg(msg) {
-    const el = document.getElementById('debugSteps');
+    const el = document.getElementById('mobileDebug');
     if (el) el.innerHTML += msg + '<br>';
+    const el2 = document.getElementById('debugSteps');
+    if (el2) el2.innerHTML += msg + '<br>';
   }
 
   async function init() {
@@ -548,7 +565,10 @@
     }
   }, 8000);
 
-  init();
+  init().catch(err => {
+    document.getElementById('loadingSpinner').innerHTML =
+      '<div style="text-align:center;padding:2rem;color:#f87171;">❌ ' + err.message + '</div>';
+  });
   </script>
 
   <script src="scripts.js" defer></script>
