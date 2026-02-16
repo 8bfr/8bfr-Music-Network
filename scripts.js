@@ -218,6 +218,7 @@
       "reset-password.html",
       "reset_password.html",
       "logout.html",
+      "profile.html",
     ];
     let path = window.location.pathname.split("/").pop();
     if (!path) path = "index.html";
@@ -229,7 +230,7 @@
     // Show login overlay after 3 seconds if Supabase hasn't loaded yet
     var authTimeout = setTimeout(function() {
       showAuthOverlay();
-    }, 3000);
+    }, 8000);
 
     loadSupabaseClient(async (client) => {
       try {
@@ -1278,4 +1279,3 @@ ${isIndex ? '</div>' : ''}
     injectGlobalUI();
   }
 })();
-
