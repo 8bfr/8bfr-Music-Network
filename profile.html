@@ -60,7 +60,10 @@
   </header>
 
   <div class="max-w-4xl mx-auto px-4 mt-5">
-    <div id="loadingSpinner"><div class="spinner"></div></div>
+    <div id="loadingSpinner">
+      <div class="spinner"></div>
+      <div id="debugSteps" style="text-align:center;font-size:0.8rem;color:rgba(168,85,247,0.7);margin-top:1rem;line-height:2;"></div>
+    </div>
     <div id="profileContent" style="display:none;"></div>
   </div>
 
@@ -95,13 +98,22 @@
       `<div style="text-align:center;padding:4rem;color:rgba(168,85,247,0.7);line-height:1.8;">${msg}</div>`;
   }
 
+  function dbg(msg) {
+    const el = document.getElementById('debugSteps');
+    if (el) el.innerHTML += msg + '<br>';
+  }
+
   async function init() {
     try {
+    dbg('⏳ Starting...');
     const params = new URLSearchParams(window.location.search);
     const viewId = params.get('id');
 
-    const { data: { user } } = await db.auth.getUser();
+    dbg('⏳ Checking auth...');
+    const { data: { user }, error: authErr } = await db.auth.getUser();
+    if (authErr) { dbg('❌ Auth error: ' + authErr.message); }
     currentUser = user || null;
+    dbg(user ? '✅ Logged in: ' + user.email : '⚠️ Not logged in');
 
     const targetId = viewId || (currentUser ? currentUser.id : null);
 
@@ -110,6 +122,7 @@
       return;
     }
 
+    dbg('⏳ Loading profile for: ' + targetId.substring(0,8) + '...');
     isOwnProfile = !viewId || (currentUser && viewId === currentUser.id);
 
     const { data: profile, error } = await db
@@ -119,9 +132,12 @@
       .maybeSingle();
 
     if (error) {
+      dbg('❌ Profile error: ' + error.message);
       showError('Error loading profile: ' + error.message);
       return;
     }
+
+    dbg(profile ? '✅ Profile found: ' + profile.username : '⚠️ No profile row found');
 
     if (!profile) {
       if (isOwnProfile && currentUser) {
@@ -138,6 +154,7 @@
       : '👤 ' + (profile.display_name || profile.username || 'Profile');
     document.title = (profile.display_name || profile.username || 'Profile') + ' — 8BFR Music Network';
 
+    dbg('✅ Rendering...');
     document.getElementById('loadingSpinner').style.display = 'none';
     document.getElementById('profileContent').style.display = 'block';
     renderProfile();
