@@ -431,13 +431,19 @@
 
     try {
       // Upload audio file
+      setUploadNotice('📤 Uploading ' + selectedAudio.name + '...', '#a855f7');
       const audioExt = selectedAudio.name.split('.').pop();
-      const audioPath = `${currentUser.id}/${Date.now()}_${title.replace(/\s+/g,'_')}.${audioExt}`;
+      const audioPath = `${currentUser.id}/${Date.now()}-${title.replace(/\s+/g,'-')}.${audioExt}`;
+      
       const { data: audioData, error: audioErr } = await db.storage
         .from('songs')
         .upload(audioPath, selectedAudio, { contentType: selectedAudio.type, upsert: false });
 
-      if (audioErr) throw new Error('Audio upload failed: ' + audioErr.message);
+      if (audioErr) {
+        setUploadNotice('❌ Storage error: ' + audioErr.message + ' (Check if "songs" bucket exists in Supabase)', '#ef4444');
+        throw new Error('Audio upload failed: ' + audioErr.message);
+      }
+      setUploadNotice('✅ Audio uploaded to storage', '#4ade80');
       setProgress(60, 'Audio uploaded. Processing cover…');
 
       const { data: audioUrlData } = db.storage.from('songs').getPublicUrl(audioPath);
@@ -458,6 +464,7 @@
       }
 
       setProgress(80, 'Saving to database…');
+      setUploadNotice('💾 Saving song to database...', '#a855f7');
 
       // Insert into songs table
       const { error: insertErr } = await db.from('songs').insert({
@@ -470,7 +477,10 @@
         featured: false
       });
 
-      if (insertErr) throw new Error('Database save failed: ' + insertErr.message);
+      if (insertErr) {
+        setUploadNotice('❌ Database error: ' + insertErr.message + ' (Check RLS policies on songs table)', '#ef4444');
+        throw new Error('Database save failed: ' + insertErr.message);
+      }
 
       setProgress(100, '✅ Upload complete!');
       setUploadNotice('⭐ "' + title + '" uploaded successfully!', '#4ade80');
