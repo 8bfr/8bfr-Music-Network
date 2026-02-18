@@ -71,10 +71,13 @@
 
       const currentUser = session.user;
 
-      // Load purchases using the view
+      // Load purchases with payment confirmation status
       const { data: purchases, error } = await db
-        .from('purchase_history_with_downloads')
-        .select('*')
+        .from('song_purchases')
+        .select(`
+          *,
+          songs(title, artist, song_url, id)
+        `)
         .eq('buyer_id', currentUser.id)
         .order('purchased_at', { ascending: false });
 
@@ -120,37 +123,47 @@
     }
 
     function renderPurchase(p) {
-      const cover = p.song_url && p.song_url.includes('cover') 
-        ? `<img src="${p.song_url.replace(/\/songs\/.*/, '/covers/' + p.song_id + '.jpg')}" onerror="this.parentNode.textContent='🎵'">`
-        : '🎵';
+      const songData = p.songs || {};
+      const songTitle = songData.title || 'Unknown Song';
+      const songArtist = songData.artist || 'Unknown Artist';
+      const songUrl = songData.song_url || '';
+      const songId = songData.id || p.song_id;
+      
+      const cover = '🎵'; // Simplified for now
       
       const date = new Date(p.purchased_at).toLocaleDateString();
-      const canDownload = p.downloads_remaining > 0;
-      const statusClass = canDownload ? 'ok' : 'limit';
-      const statusText = `${p.downloads_used}/${p.max_downloads} used`;
+      const paymentConfirmed = p.payment_confirmed;
       
-      const downloadBtn = canDownload
-        ? `<button class="btn" onclick="downloadSong('${p.id}', '${p.song_url}', '${p.song_title}')">⬇️ Download</button>`
-        : `<button class="btn" disabled>Limit Reached</button>`;
+      // Status and buttons
+      let statusBadge = '';
+      let downloadBtn = '';
+      
+      if (!paymentConfirmed) {
+        statusBadge = '<span class="download-status" style="background:rgba(251,191,36,0.2);color:#fbbf24;">⏳ Pending Artist Confirmation</span>';
+        downloadBtn = '<button class="btn" disabled style="opacity:0.5;">⏳ Awaiting Confirmation</button>';
+      } else {
+        statusBadge = '<span class="download-status ok">✓ Confirmed</span>';
+        downloadBtn = `<button class="btn" onclick="downloadSong('${p.id}', '${songUrl}', '${songTitle}', '${songId}')">⬇️ Download</button>`;
+      }
 
       return `
         <div class="purchase-row">
           <div class="song-cover">${cover}</div>
           <div class="song-info">
-            <div class="song-title">${p.song_title}</div>
-            <div class="song-meta">${p.song_artist} • $${parseFloat(p.amount_paid).toFixed(2)} • ${date}</div>
-            <span class="download-status ${statusClass}">${statusText} ${canDownload ? '✓' : '⚠️'}</span>
+            <div class="song-title">${songTitle}</div>
+            <div class="song-meta">${songArtist} • $${parseFloat(p.amount_paid).toFixed(2)} • ${date}</div>
+            ${statusBadge}
           </div>
           ${downloadBtn}
         </div>`;
     }
 
-    window.downloadSong = async function(purchaseId, songUrl, title) {
+    window.downloadSong = async function(purchaseId, songUrl, title, songId) {
       try {
         // Call the record function
         const { data, error } = await db.rpc('record_and_check_download', {
           p_purchase_id: purchaseId,
-          p_song_id: null, // Will be fetched from purchase
+          p_song_id: songId,
           p_user_id: currentUser.id
         });
 
