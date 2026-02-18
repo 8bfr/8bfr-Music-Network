@@ -162,7 +162,7 @@
 
     const { data: profile, error } = await db
       .from('profiles')
-      .select('*')
+      .select('*, paypal_email, music_section_hidden')
       .eq('user_id', targetId)
       .maybeSingle();
 
@@ -326,6 +326,17 @@
   async function loadSongs(userId) {
     const el = document.getElementById('songList');
     if (!el) return;
+    
+    // Check if music section is hidden (penalty for unpaid platform fees)
+    if (profileData && profileData.music_section_hidden && !isOwnProfile) {
+      el.innerHTML = `
+        <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:2rem;text-align:center;">
+          <p style="color:#ef4444;font-size:1rem;font-weight:600;margin-bottom:0.5rem;">🚫 Music Section Temporarily Hidden</p>
+          <p style="color:rgba(239,68,68,0.8);font-size:0.85rem;">This artist's music is currently unavailable.</p>
+        </div>`;
+      return;
+    }
+    
     try {
       const { data: songs, error } = await db.from('songs')
         .select('id, title, artist, cover_art, song_url, explicit, featured, price')
@@ -401,8 +412,8 @@
         </div>`;
       }).join('');
 
-      // Render PayPal buttons for unpurchased paid songs
-      if (!isOwnProfile && window.paypal) {
+      // Render direct payment buttons for unpurchased paid songs (TRUST SYSTEM)
+      if (!isOwnProfile) {
         songs.forEach(s => {
           const price = parseFloat(s.price) || 0;
           const hasPurchased = purchasedSongIds.includes(s.id);
@@ -423,77 +434,27 @@
                 }
               }
 
-              // If free with discount, show claim button instead
+              // If free with discount, show claim button
               if (finalPrice === 0 && discount) {
                 container.innerHTML = `<button class="btn" style="background:#00ff88;color:#000;font-weight:700;" onclick="claimFreeSong('${s.id}', '${discount.code}')">Claim Free</button>`;
                 return;
               }
 
-              window.paypal.Buttons({
-                style: { layout: 'horizontal', color: 'gold', shape: 'rect', label: 'pay', height: 35 },
-                createOrder: function(data, actions) {
-                  return actions.order.create({
-                    purchase_units: [{
-                      amount: { value: finalPrice.toFixed(2) },
-                      description: `${s.title} by ${s.artist}`
-                    }]
-                  });
-                },
-                onApprove: async function(data, actions) {
-                  try {
-                    const details = await actions.order.capture();
-                    
-                    // Record purchase in database
-                    const { data: purchaseData, error: purchaseErr } = await db.from('song_purchases').insert({
-                      song_id: s.id,
-                      buyer_id: currentUser.id,
-                      buyer_email: currentUser.email,
-                      amount_paid: finalPrice,
-                      payment_method: 'paypal',
-                      payment_id: details.id
-                    }).select().single();
-                    
-                    if (purchaseErr) {
-                      console.error('Purchase recording error:', purchaseErr);
-                      alert('Payment received but error recording purchase. Contact support with order ID: ' + details.id);
-                      return;
-                    }
+              // Show artist's PayPal payment info
+              const artistPayPal = profileData.paypal_email;
+              
+              if (!artistPayPal) {
+                container.innerHTML = `<p style="font-size:0.75rem;color:#ef4444;">Artist hasn't set up payments yet</p>`;
+                return;
+              }
 
-                    // Record payout split (80/20)
-                    await db.rpc('record_song_payout', {
-                      p_purchase_id: purchaseData.id,
-                      p_song_id: s.id,
-                      p_total_amount: finalPrice
-                    });
-
-                    // Increment discount code usage if applied
-                    if (discount) {
-                      await db.from('song_discount_codes')
-                        .update({ uses: (discount.uses || 0) + 1 })
-                        .eq('id', discount.id);
-                    }
-                    
-                    // Trigger download
-                    const a = document.createElement('a');
-                    a.href = s.song_url;
-                    a.download = `${s.title}.mp3`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    
-                    // Reload songs to show download button instead
-                    alert('Purchase complete! Download starting...');
-                    loadSongs(userId);
-                  } catch (err) {
-                    console.error('Purchase error:', err);
-                    alert('Error completing purchase: ' + err.message);
-                  }
-                },
-                onError: function(err) {
-                  console.error('PayPal error:', err);
-                  alert('Payment error. Please try again.');
-                }
-              }).render(`#paypal-${s.id}`);
+              container.innerHTML = `
+                <div style="background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.3);padding:0.75rem;border-radius:8px;max-width:350px;">
+                  <p style="font-size:0.8rem;margin-bottom:0.5rem;color:#a855f7;"><strong>💳 Pay Artist Directly:</strong></p>
+                  <p style="font-size:0.75rem;margin-bottom:0.75rem;color:rgba(234,230,255,0.9);">Send <strong>$${finalPrice.toFixed(2)}</strong> to:<br><code style="background:rgba(0,0,0,0.3);padding:0.25rem 0.5rem;border-radius:4px;font-size:0.85rem;">${artistPayPal}</code></p>
+                  <button class="btn" onclick="markSongAsPaid('${s.id}', ${finalPrice}, '${artistPayPal}')" style="width:100%;font-size:0.85rem;background:#4ade80;color:#000;">✓ I Sent Payment</button>
+                  <p style="font-size:0.7rem;margin-top:0.5rem;color:rgba(168,85,247,0.6);font-style:italic;">Honor system - click after sending via PayPal</p>
+                </div>`;
             }
           }
         });
@@ -898,6 +859,66 @@
     } catch (err) {
       console.error('Claim error:', err);
       alert('Error claiming song: ' + err.message);
+    }
+  };
+
+  // Mark song as paid (TRUST SYSTEM - buyer confirms they sent payment to artist)
+  window.markSongAsPaid = async function(songId, amount, artistPayPal) {
+    if (!currentUser) {
+      alert('Please sign in to purchase');
+      return;
+    }
+
+    if (!confirm(`Confirm you sent $${amount.toFixed(2)} to ${artistPayPal} via PayPal?`)) {
+      return;
+    }
+
+    try {
+      // Get song info
+      const { data: song } = await db.from('songs').select('*').eq('id', songId).single();
+      if (!song) throw new Error('Song not found');
+
+      // Record purchase (honor system)
+      const { data: purchaseData, error: purchaseErr } = await db.from('song_purchases').insert({
+        song_id: songId,
+        buyer_id: currentUser.id,
+        buyer_email: currentUser.email,
+        amount_paid: amount,
+        payment_method: 'paypal_direct',
+        payment_id: 'DIRECT-' + Date.now()
+      }).select().single();
+
+      if (purchaseErr) throw purchaseErr;
+
+      // Record payout (artist received 100%, owes platform 20%)
+      await db.rpc('record_song_payout', {
+        p_purchase_id: purchaseData.id,
+        p_song_id: songId,
+        p_total_amount: amount
+      });
+
+      // Increment discount code usage if applied
+      const discount = appliedDiscounts[songId];
+      if (discount) {
+        await db.from('song_discount_codes')
+          .update({ uses: (discount.uses || 0) + 1 })
+          .eq('id', discount.id);
+      }
+
+      // Trigger download
+      const a = document.createElement('a');
+      a.href = song.song_url;
+      a.download = `${song.title}.mp3`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      alert('Purchase recorded! Download starting...\n\nNote: Artist owes platform 20% fee.');
+      loadSongs(profileData.user_id);
+
+    } catch (err) {
+      console.error('Purchase error:', err);
+      alert('Error: ' + err.message);
     }
   };
 
