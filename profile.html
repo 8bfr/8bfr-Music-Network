@@ -82,20 +82,20 @@
   }
   function dbg(msg) { dbgEarly(msg); }
 
-  const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
-  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
-
+  // Use shared client if available (safer than hardcoded anon key)
   let db;
-  if (window.supabase && window.supabase.createClient) {
-    db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    dbgEarly('✅ Supabase client ready');
-  } else if (window._8bfrSupabaseClient) {
+  if (window._8bfrSupabaseClient) {
     db = window._8bfrSupabaseClient;
     dbgEarly('✅ Using shared Supabase client');
+  } else if (window.supabase && window.supabase.createClient) {
+    const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+    db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    dbgEarly('✅ Supabase client created');
   } else {
     dbgEarly('❌ Supabase not available!');
     document.getElementById('loadingSpinner').innerHTML =
-      '<div style="text-align:center;padding:2rem;color:#f87171;">❌ Supabase failed to load. Refresh the page.</div>';
+      '<div style="text-align:center;padding:2rem;color:#f87171;">❌ Supabase failed to load. <a href="." style="color:#a855f7;">Refresh</a></div>';
     return;
   }
 
@@ -135,12 +135,16 @@
     dbg('⏳ Checking auth...');
     let user = null;
     try {
-      const authResult = await Promise.race([
-        db.auth.getUser(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Auth timed out after 5s')), 5000))
-      ]);
-      user = authResult?.data?.user || null;
+      // Use getSession first (faster and more reliable than getUser)
+      const { data: { session }, error: sessionErr } = await db.auth.getSession();
+      if (sessionErr) {
+        console.error('Auth session error:', sessionErr);
+        dbg('⚠️ Auth error: ' + sessionErr.message);
+      }
+      user = session?.user || null;
+      console.log('Auth user:', user);
     } catch(authEx) {
+      console.error('Auth exception:', authEx);
       dbg('⚠️ Auth issue: ' + authEx.message + ' — continuing as guest');
     }
     currentUser = user;
@@ -416,8 +420,15 @@
 
   // ── UPLOAD SONG ─────────────────────────────────────────────────
   async function uploadSong() {
+    // Critical: Check if user is authenticated
+    if (!currentUser || !currentUser.id) {
+      setUploadNotice('❌ Please sign in to upload songs.', '#ef4444');
+      console.error('Upload blocked: no currentUser');
+      return;
+    }
+
     const title = document.getElementById('uploadTitle').value.trim();
-    const artist = document.getElementById('uploadArtist').value.trim() || profileData.display_name || profileData.username || '';
+    const artist = document.getElementById('uploadArtist').value.trim() || profileData?.display_name || profileData?.username || '';
     const price = document.getElementById('uploadPrice').value;
     const explicit = document.getElementById('uploadExplicit').value === 'true';
 
@@ -430,17 +441,26 @@
     setUploadNotice('');
 
     try {
+      // Sanitize title for file path (remove special chars, limit length)
+      const safeTitle = title.replace(/[^a-zA-Z0-9-]/g, '-').substring(0, 50);
+      const userId = currentUser.id;
+      
       // Upload audio file
       setUploadNotice('📤 Uploading ' + selectedAudio.name + '...', '#a855f7');
+      console.log('Starting audio upload for user:', userId);
+      
       const audioExt = selectedAudio.name.split('.').pop();
-      const audioPath = `${currentUser.id}/${Date.now()}-${title.replace(/\s+/g,'-')}.${audioExt}`;
+      const audioPath = `${userId}/songs/${Date.now()}-${safeTitle}.${audioExt}`;
       
       const { data: audioData, error: audioErr } = await db.storage
         .from('songs')
         .upload(audioPath, selectedAudio, { contentType: selectedAudio.type, upsert: false });
 
+      console.log('Audio upload result:', { audioPath, audioData, audioErr });
+      
       if (audioErr) {
-        setUploadNotice('❌ Storage error: ' + audioErr.message + ' (Check if "songs" bucket exists in Supabase)', '#ef4444');
+        console.error('Storage error:', audioErr);
+        setUploadNotice('❌ Storage error: ' + audioErr.message + ' (Check "songs" bucket exists)', '#ef4444');
         throw new Error('Audio upload failed: ' + audioErr.message);
       }
       setUploadNotice('✅ Audio uploaded to storage', '#4ade80');
@@ -453,13 +473,22 @@
       let coverUrl = null;
       if (selectedCover) {
         const coverExt = selectedCover.name.split('.').pop();
-        const coverPath = `covers/${currentUser.id}/${Date.now()}.${coverExt}`;
-        const { error: coverErr } = await db.storage
+        const coverPath = `${userId}/covers/${Date.now()}.${coverExt}`;
+        console.log('Uploading cover:', coverPath);
+        
+        const { data: coverData, error: coverErr } = await db.storage
           .from('songs')
           .upload(coverPath, selectedCover, { contentType: selectedCover.type, upsert: false });
-        if (!coverErr) {
+        
+        console.log('Cover upload result:', { coverPath, coverData, coverErr });
+        
+        if (coverErr) {
+          console.error('Cover upload error (non-critical):', coverErr);
+          setUploadNotice('⚠️ Cover upload failed: ' + coverErr.message + ' (continuing without cover)', '#f59e0b');
+        } else {
           const { data: coverUrlData } = db.storage.from('songs').getPublicUrl(coverPath);
           coverUrl = coverUrlData.publicUrl;
+          console.log('Cover URL:', coverUrl);
         }
       }
 
@@ -467,18 +496,24 @@
       setUploadNotice('💾 Saving song to database...', '#a855f7');
 
       // Insert into songs table
-      const { error: insertErr } = await db.from('songs').insert({
+      const songData = {
         title,
         artist,
-        uploaded_by: currentUser.id,
+        uploaded_by: userId,
         song_url: songUrl,
         cover_art: coverUrl,
         explicit,
         featured: false
-      });
+      };
+      
+      console.log('Inserting song to DB:', songData);
+      const { error: insertErr } = await db.from('songs').insert(songData);
 
+      console.log('DB insert result:', insertErr);
+      
       if (insertErr) {
-        setUploadNotice('❌ Database error: ' + insertErr.message + ' (Check RLS policies on songs table)', '#ef4444');
+        console.error('Database error:', insertErr);
+        setUploadNotice('❌ Database error: ' + insertErr.message + ' (Check RLS policies)', '#ef4444');
         throw new Error('Database save failed: ' + insertErr.message);
       }
 
@@ -502,9 +537,10 @@
       }, 1500);
 
     } catch (err) {
+      console.error('Upload error:', err);
       setProgress(0, '');
       document.getElementById('uploadProgress').style.display = 'none';
-      setUploadNotice('Error: ' + err.message, '#ef4444');
+      setUploadNotice('❌ Error: ' + err.message, '#ef4444');
     } finally {
       btn.disabled = false;
     }
@@ -525,6 +561,13 @@
 
   // ── SAVE PROFILE ─────────────────────────────────────────────────
   async function saveProfile() {
+    if (!currentUser || !currentUser.id) {
+      const notice = document.getElementById('saveNotice');
+      notice.textContent = '❌ Please sign in to save profile';
+      notice.style.color = '#ef4444';
+      return;
+    }
+    
     const username = document.getElementById('editUsername').value.trim();
     const displayName = document.getElementById('editDisplayName').value.trim();
     const bio = document.getElementById('editBio').value.trim();
@@ -534,6 +577,7 @@
     if (!username) { notice.textContent = '⚠️ Username required'; notice.style.color = '#ef4444'; return; }
 
     try {
+      console.log('Updating profile for user:', currentUser.id);
       const { error } = await db.from('profiles').update({
         username, display_name: displayName, bio, avatar_url: avatarUrl || null
       }).eq('user_id', currentUser.id);
