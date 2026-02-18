@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Discount Codes - 8BFR Music Network</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { padding-bottom: 80px; background: linear-gradient(#0b0014,#000); color: #eae6ff; font-family: system-ui, -apple-system, sans-serif; }
+    .card { background: rgba(12,6,24,0.7); border: 1px solid rgba(124,58,237,0.3); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; font-size: 0.85rem; color: #a855f7; margin-bottom: 0.5rem; font-weight: 600; }
+    input, select { width: 100%; padding: 0.75rem; background: #0b0014; border: 1px solid rgba(124,58,237,0.4); border-radius: 8px; color: #eae6ff; font-size: 0.9rem; }
+    .btn { background: #7c3aed; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+    .btn:hover { background: #6d28d9; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-red { background: #ef4444; }
+    .btn-red:hover { background: #dc2626; }
+    .code-row { background: rgba(0,0,0,0.3); border: 1px solid rgba(124,58,237,0.2); border-radius: 8px; padding: 1rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+    .code-info { flex: 1; min-width: 200px; }
+    .code-badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; margin-right: 0.5rem; }
+    .badge-free { background: rgba(0,255,136,0.2); color: #00ff88; }
+    .badge-amount { background: rgba(74,222,128,0.2); color: #4ade80; }
+    .spinner { width: 32px; height: 32px; border-radius: 50%; border: 3px solid rgba(168,85,247,0.2); border-top-color: #a855f7; animation: spin 0.7s linear infinite; margin: 2rem auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <header class="px-4 py-4" style="background:rgba(15,0,30,0.9);border-bottom:1px solid rgba(124,58,237,0.5);position:sticky;top:0;z-index:100;">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+      <a href="profile.html" style="color:#a855f7;font-weight:600;text-decoration:none;">← Profile</a>
+      <h1 class="text-xl font-extrabold">🎟️ Discount Codes</h1>
+      <div style="width:80px;"></div>
+    </div>
+  </header>
+
+  <div class="max-w-4xl mx-auto px-4 mt-5">
+    <!-- CREATE CODE FORM -->
+    <div class="card">
+      <h2 style="font-size:1.25rem;font-weight:700;margin-bottom:1.5rem;color:#a855f7;">Create Discount Code</h2>
+      
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem;">
+        <div class="form-group">
+          <label>Code *</label>
+          <input type="text" id="codeInput" placeholder="SAVE10" style="text-transform:uppercase;">
+          <p style="font-size:0.75rem;color:rgba(168,85,247,0.7);margin-top:0.25rem;">Letters/numbers only</p>
+        </div>
+        
+        <div class="form-group">
+          <label>Apply To</label>
+          <select id="songSelect">
+            <option value="">All my songs</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label>Type *</label>
+          <select id="typeSelect" onchange="toggleAmountField()">
+            <option value="amount">$ Amount Off</option>
+            <option value="free">100% Free</option>
+          </select>
+        </div>
+        
+        <div class="form-group" id="amountField">
+          <label>Discount Amount ($)</label>
+          <input type="number" id="amountInput" placeholder="5.00" step="0.01" min="0.01">
+        </div>
+        
+        <div class="form-group">
+          <label>Max Uses</label>
+          <input type="number" id="maxUsesInput" placeholder="Unlimited" min="1">
+          <p style="font-size:0.75rem;color:rgba(168,85,247,0.7);margin-top:0.25rem;">Leave blank for unlimited</p>
+        </div>
+        
+        <div class="form-group">
+          <label>Expires</label>
+          <input type="date" id="expiresInput">
+          <p style="font-size:0.75rem;color:rgba(168,85,247,0.7);margin-top:0.25rem;">Optional</p>
+        </div>
+      </div>
+      
+      <button class="btn" onclick="createCode()" style="width:100%;margin-top:1rem;">Create Discount Code</button>
+      <p id="createNotice" style="margin-top:0.75rem;text-align:center;font-size:0.9rem;"></p>
+    </div>
+
+    <!-- EXISTING CODES -->
+    <div class="card">
+      <h2 style="font-size:1.25rem;font-weight:700;margin-bottom:1.5rem;color:#a855f7;">Your Discount Codes</h2>
+      <div id="codesList">
+        <div class="spinner"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="scripts.js" defer></script>
+  
+  <script>
+  document.addEventListener('DOMContentLoaded', async function() {
+    const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+    
+    let db;
+    if (window._8bfrSupabaseClient) {
+      db = window._8bfrSupabaseClient;
+    } else if (window.supabase && window.supabase.createClient) {
+      db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    } else {
+      alert('Supabase failed to load');
+      return;
+    }
+
+    let currentUser = null;
+
+    try {
+      const { data: { session } } = await db.auth.getSession();
+      if (!session || !session.user) {
+        window.location.href = 'login.html';
+        return;
+      }
+      currentUser = session.user;
+
+      const { data: songs } = await db.from('songs')
+        .select('id, title')
+        .eq('uploaded_by', currentUser.id)
+        .order('title');
+
+      const songSelect = document.getElementById('songSelect');
+      if (songs && songs.length > 0) {
+        songs.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.id;
+          opt.textContent = s.title;
+          songSelect.appendChild(opt);
+        });
+      }
+
+      loadCodes();
+
+    } catch (err) {
+      console.error('Init error:', err);
+      alert('Error: ' + err.message);
+    }
+
+    window.toggleAmountField = function() {
+      const type = document.getElementById('typeSelect').value;
+      document.getElementById('amountField').style.display = type === 'free' ? 'none' : 'block';
+    };
+
+    window.createCode = async function() {
+      const code = document.getElementById('codeInput').value.trim().toUpperCase();
+      const songId = document.getElementById('songSelect').value || null;
+      const type = document.getElementById('typeSelect').value;
+      const amount = document.getElementById('amountInput').value;
+      const maxUses = document.getElementById('maxUsesInput').value || null;
+      const expires = document.getElementById('expiresInput').value || null;
+      const notice = document.getElementById('createNotice');
+
+      if (!code) {
+        notice.textContent = '⚠️ Code is required';
+        notice.style.color = '#ef4444';
+        return;
+      }
+
+      if (!/^[A-Z0-9]+$/.test(code)) {
+        notice.textContent = '⚠️ Letters/numbers only';
+        notice.style.color = '#ef4444';
+        return;
+      }
+
+      if (type === 'amount' && (!amount || parseFloat(amount) <= 0)) {
+        notice.textContent = '⚠️ Amount required';
+        notice.style.color = '#ef4444';
+        return;
+      }
+
+      try {
+        const newCode = {
+          code,
+          song_id: songId,
+          created_by: currentUser.id,
+          discount_amount: type === 'amount' ? parseFloat(amount) : null,
+          is_free: type === 'free',
+          max_uses: maxUses ? parseInt(maxUses) : null,
+          expires_at: expires ? new Date(expires).toISOString() : null
+        };
+
+        const { error } = await db.from('song_discount_codes').insert(newCode);
+
+        if (error) {
+          if (error.message.includes('unique')) {
+            notice.textContent = '⚠️ Code exists';
+          } else {
+            notice.textContent = '❌ ' + error.message;
+          }
+          notice.style.color = '#ef4444';
+          return;
+        }
+
+        notice.textContent = '✅ Code created!';
+        notice.style.color = '#4ade80';
+
+        document.getElementById('codeInput').value = '';
+        document.getElementById('amountInput').value = '';
+        document.getElementById('maxUsesInput').value = '';
+        document.getElementById('expiresInput').value = '';
+        document.getElementById('songSelect').value = '';
+
+        setTimeout(() => {
+          notice.textContent = '';
+          loadCodes();
+        }, 1500);
+
+      } catch (err) {
+        console.error('Create error:', err);
+        notice.textContent = '❌ ' + err.message;
+        notice.style.color = '#ef4444';
+      }
+    };
+
+    async function loadCodes() {
+      const container = document.getElementById('codesList');
+      
+      try {
+        const { data: codes, error } = await db.from('song_discount_codes')
+          .select(`
+            *,
+            songs(title)
+          `)
+          .eq('created_by', currentUser.id)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (!codes || codes.length === 0) {
+          container.innerHTML = '<p style="text-align:center;padding:2rem;color:rgba(168,85,247,0.5);">No codes yet</p>';
+          return;
+        }
+
+        container.innerHTML = codes.map(c => {
+          const songTitle = c.song_id && c.songs ? c.songs.title : 'All songs';
+          const badgeClass = c.is_free ? 'badge-free' : 'badge-amount';
+          const badgeText = c.is_free ? '100% FREE' : `-$${parseFloat(c.discount_amount).toFixed(2)}`;
+          const uses = `${c.uses || 0}${c.max_uses ? '/' + c.max_uses : ''} uses`;
+          const expires = c.expires_at ? new Date(c.expires_at).toLocaleDateString() : 'Never';
+          const isExpired = c.expires_at && new Date(c.expires_at) < new Date();
+          const isMaxed = c.max_uses && c.uses >= c.max_uses;
+
+          return `
+            <div class="code-row" style="${isExpired || isMaxed ? 'opacity:0.5;' : ''}">
+              <div class="code-info">
+                <div style="font-weight:700;font-size:1.1rem;margin-bottom:0.5rem;">
+                  ${c.code}
+                  <span class="code-badge ${badgeClass}">${badgeText}</span>
+                  ${isExpired ? '<span style="color:#ef4444;font-size:0.8rem;">EXPIRED</span>' : ''}
+                  ${isMaxed ? '<span style="color:#ef4444;font-size:0.8rem;">MAX USES</span>' : ''}
+                </div>
+                <div style="font-size:0.85rem;color:rgba(168,85,247,0.7);">
+                  ${songTitle} • ${uses} • Expires: ${expires}
+                </div>
+              </div>
+              <button class="btn btn-red" onclick="deleteCode('${c.id}')" style="padding:0.5rem 1rem;font-size:0.85rem;">Delete</button>
+            </div>`;
+        }).join('');
+
+      } catch (err) {
+        console.error('Load error:', err);
+        container.innerHTML = '<p style="color:#ef4444;text-align:center;padding:2rem;">Error loading</p>';
+      }
+    }
+
+    window.deleteCode = async function(codeId) {
+      if (!confirm('Delete this code?')) return;
+
+      try {
+        const { error } = await db.from('song_discount_codes').delete().eq('id', codeId);
+        if (error) throw error;
+        loadCodes();
+      } catch (err) {
+        console.error('Delete error:', err);
+        alert('Error: ' + err.message);
+      }
+    };
+  });
+  </script>
+
+</body>
+</html>
