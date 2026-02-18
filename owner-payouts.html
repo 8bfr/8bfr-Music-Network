@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Artist Payouts - Owner Panel</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { padding-bottom: 80px; background: linear-gradient(#0b0014,#000); color: #eae6ff; font-family: system-ui, -apple-system, sans-serif; }
+    .card { background: rgba(12,6,24,0.7); border: 1px solid rgba(124,58,237,0.3); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+    .stat-box { background: rgba(124,58,237,0.15); border: 1px solid rgba(124,58,237,0.4); border-radius: 10px; padding: 1.5rem; text-align: center; }
+    .stat-value { font-size: 2rem; font-weight: 800; color: #4ade80; margin-bottom: 0.25rem; }
+    .stat-label { font-size: 0.85rem; color: rgba(168,85,247,0.8); text-transform: uppercase; letter-spacing: 0.5px; }
+    .payout-row { background: rgba(0,0,0,0.3); border: 1px solid rgba(124,58,237,0.2); border-radius: 8px; padding: 1rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+    .payout-info { flex: 1; min-width: 200px; }
+    .btn { background: #7c3aed; color: white; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem; }
+    .btn:hover { background: #6d28d9; }
+    .btn-success { background: #4ade80; color: #000; }
+    .btn-success:hover { background: #22c55e; }
+    .status-badge { display: inline-block; padding: 0.3rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+    .status-pending { background: rgba(251,191,36,0.2); color: #fbbf24; }
+    .status-paid { background: rgba(74,222,128,0.2); color: #4ade80; }
+    .spinner { width: 32px; height: 32px; border-radius: 50%; border: 3px solid rgba(168,85,247,0.2); border-top-color: #a855f7; animation: spin 0.7s linear infinite; margin: 2rem auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    select { padding: 0.5rem; background: #0b0014; border: 1px solid rgba(124,58,237,0.4); border-radius: 6px; color: #eae6ff; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+
+  <header class="px-4 py-4" style="background:rgba(15,0,30,0.9);border-bottom:1px solid rgba(124,58,237,0.5);position:sticky;top:0;z-index:100;">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <a href="owner-panel.html" style="color:#a855f7;font-weight:600;text-decoration:none;">← Owner Panel</a>
+      <h1 class="text-xl font-extrabold">💰 Artist Payouts</h1>
+      <div style="width:120px;"></div>
+    </div>
+  </header>
+
+  <div class="max-w-6xl mx-auto px-4 mt-5">
+    <!-- PLATFORM REVENUE SUMMARY -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1.5rem;margin-bottom:2rem;">
+      <div class="stat-box">
+        <div class="stat-value" id="platformRevenue">$0.00</div>
+        <div class="stat-label">Platform Revenue (20%)</div>
+      </div>
+      
+      <div class="stat-box">
+        <div class="stat-value" id="artistPending">$0.00</div>
+        <div class="stat-label">Artist Pending (80%)</div>
+      </div>
+      
+      <div class="stat-box">
+        <div class="stat-value" id="artistPaid">$0.00</div>
+        <div class="stat-label">Artist Paid</div>
+      </div>
+      
+      <div class="stat-box">
+        <div class="stat-value" id="totalSales">0</div>
+        <div class="stat-label">Total Sales</div>
+      </div>
+    </div>
+
+    <!-- FILTER -->
+    <div class="card">
+      <label style="display:block;font-size:0.85rem;color:#a855f7;margin-bottom:0.5rem;font-weight:600;">Filter By Status:</label>
+      <select id="statusFilter" onchange="loadPayouts()">
+        <option value="all">All Payouts</option>
+        <option value="pending">Pending Only</option>
+        <option value="paid">Paid Only</option>
+      </select>
+    </div>
+
+    <!-- PAYOUTS LIST -->
+    <div class="card">
+      <h2 style="font-size:1.25rem;font-weight:700;margin-bottom:1.5rem;color:#a855f7;">All Artist Payouts</h2>
+      <div id="payoutsList">
+        <div class="spinner"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="scripts.js" defer></script>
+  
+  <script>
+  document.addEventListener('DOMContentLoaded', async function() {
+    const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+    
+    let db;
+    if (window._8bfrSupabaseClient) {
+      db = window._8bfrSupabaseClient;
+    } else if (window.supabase && window.supabase.createClient) {
+      db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    } else {
+      alert('Supabase failed to load');
+      return;
+    }
+
+    try {
+      const { data: { session } } = await db.auth.getSession();
+      if (!session || !session.user) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      // Verify owner
+      const { data: profile } = await db.from('profiles').select('role').eq('user_id', session.user.id).single();
+      if (!profile || profile.role !== 'owner') {
+        alert('Owner only');
+        window.location.href = 'index.html';
+        return;
+      }
+
+      loadPayouts();
+
+    } catch (err) {
+      console.error('Init error:', err);
+      alert('Error: ' + err.message);
+    }
+
+    window.loadPayouts = async function() {
+      const container = document.getElementById('payoutsList');
+      const filter = document.getElementById('statusFilter').value;
+      
+      try {
+        let query = db.from('artist_payouts')
+          .select(`
+            *,
+            songs(title),
+            profiles!artist_payouts_artist_id_fkey(username, email),
+            song_purchases(buyer_email, payment_method, purchased_at)
+          `)
+          .order('created_at', { ascending: false });
+
+        if (filter !== 'all') {
+          query = query.eq('payout_status', filter);
+        }
+
+        const { data: payouts, error } = await query;
+
+        if (error) throw error;
+
+        // Calculate totals
+        let platformTotal = 0;
+        let artistPending = 0;
+        let artistPaid = 0;
+
+        if (payouts && payouts.length > 0) {
+          payouts.forEach(p => {
+            platformTotal += parseFloat(p.platform_amount) || 0;
+            const artistAmt = parseFloat(p.artist_amount) || 0;
+            
+            if (p.payout_status === 'paid') {
+              artistPaid += artistAmt;
+            } else {
+              artistPending += artistAmt;
+            }
+          });
+        }
+
+        // Update stats
+        document.getElementById('platformRevenue').textContent = '$' + platformTotal.toFixed(2);
+        document.getElementById('artistPending').textContent = '$' + artistPending.toFixed(2);
+        document.getElementById('artistPaid').textContent = '$' + artistPaid.toFixed(2);
+        document.getElementById('totalSales').textContent = payouts ? payouts.length : 0;
+
+        // Render list
+        if (!payouts || payouts.length === 0) {
+          container.innerHTML = '<p style="text-align:center;padding:2rem;color:rgba(168,85,247,0.5);">No payouts ' + (filter !== 'all' ? filter : '') + '</p>';
+          return;
+        }
+
+        container.innerHTML = payouts.map(p => {
+          const songTitle = p.songs ? p.songs.title : 'Unknown';
+          const artistName = p.profiles ? (p.profiles.username || p.profiles.email) : 'Unknown';
+          const buyerEmail = p.song_purchases ? p.song_purchases.buyer_email : 'Unknown';
+          const purchaseDate = p.song_purchases && p.song_purchases.purchased_at 
+            ? new Date(p.song_purchases.purchased_at).toLocaleDateString()
+            : new Date(p.created_at).toLocaleDateString();
+          
+          const statusClass = p.payout_status === 'paid' ? 'status-paid' : 'status-pending';
+          const statusText = p.payout_status === 'paid' ? 'Paid' : 'Pending';
+          const paidDate = p.paid_at ? ' on ' + new Date(p.paid_at).toLocaleDateString() : '';
+
+          const markPaidBtn = p.payout_status === 'pending'
+            ? `<button class="btn btn-success" onclick="markAsPaid('${p.id}')">✓ Mark as Paid</button>`
+            : '';
+
+          return `
+            <div class="payout-row">
+              <div class="payout-info">
+                <div style="font-weight:700;font-size:1rem;margin-bottom:0.5rem;">
+                  ${songTitle}
+                  <span class="status-badge ${statusClass}">${statusText}${paidDate}</span>
+                </div>
+                <div style="font-size:0.85rem;color:rgba(168,85,247,0.8);margin-bottom:0.25rem;">
+                  Artist: <strong>${artistName}</strong> • Buyer: ${buyerEmail} • ${purchaseDate}
+                </div>
+                <div style="font-size:0.75rem;color:rgba(168,85,247,0.5);">
+                  Total Sale: $${parseFloat(p.total_amount).toFixed(2)} → Artist 80%: $${parseFloat(p.artist_amount).toFixed(2)} • Platform 20%: $${parseFloat(p.platform_amount).toFixed(2)}
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:1.2rem;font-weight:700;color:#4ade80;margin-bottom:0.5rem;">
+                  $${parseFloat(p.artist_amount).toFixed(2)}
+                </div>
+                ${markPaidBtn}
+              </div>
+            </div>`;
+        }).join('');
+
+      } catch (err) {
+        console.error('Load error:', err);
+        container.innerHTML = '<p style="color:#ef4444;text-align:center;padding:2rem;">Error loading</p>';
+      }
+    };
+
+    window.markAsPaid = async function(payoutId) {
+      if (!confirm('Mark this payout as PAID? Make sure you\'ve sent the money via PayPal first.')) return;
+
+      try {
+        const { error } = await db.from('artist_payouts')
+          .update({
+            payout_status: 'paid',
+            paid_at: new Date().toISOString()
+          })
+          .eq('id', payoutId);
+
+        if (error) throw error;
+
+        alert('✓ Marked as paid!');
+        loadPayouts();
+
+      } catch (err) {
+        console.error('Update error:', err);
+        alert('Error: ' + err.message);
+      }
+    };
+  });
+  </script>
+
+</body>
+</html>
