@@ -61,7 +61,6 @@
     a.result-link{color:inherit;text-decoration:none}
     .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
   </style>
-  <!-- FIX: Use the UMD build which exposes createClient directly on window -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
@@ -90,7 +89,7 @@
       <div id="searchResults" aria-live="polite">
         <div class="empty-state">
           <div style="font-size:3rem">🔎</div>
-          <div style="font-weight:700;margin-top:8px">Start typing to search the site</div>
+          <div style="font-weight:700;margin-top:8px">Start typing to search or click a category to browse</div>
           <div style="margin-top:6px;color:var(--muted)">Searching profiles, songs, posts, pages, content, ads, comments and coins</div>
         </div>
       </div>
@@ -98,22 +97,18 @@
   </div>
 
   <script>
-    // --- CONFIG ---
     const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
 
-    // FIX: Destructure createClient from window.supabase, then use a different variable name
     const { createClient } = window.supabase;
     const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // --- ELEMENTS ---
     const input = document.getElementById('searchInput');
     const btn = document.getElementById('searchBtn');
     const resultsEl = document.getElementById('searchResults');
     const chips = Array.from(document.querySelectorAll('.chip'));
     let activeSource = 'all';
 
-    // --- UTILS ---
     function escapeHtml(s) {
       if (s == null) return '';
       return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;')
@@ -140,19 +135,121 @@
       return tokens.some(t => t.length >= 2);
     }
 
-    // --- CHIP INTERACTIONS ---
+    // CHIP INTERACTIONS - Browse category when clicked
     chips.forEach(c => {
       c.addEventListener('click', () => setActiveChip(c));
       c.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveChip(c); } });
     });
-    function setActiveChip(c) {
+    
+    async function setActiveChip(c) {
       chips.forEach(x => x.classList.remove('active'));
       c.classList.add('active');
       activeSource = c.dataset.src || 'all';
-      if (input.value && input.value.trim()) doSiteSearch(input.value.trim());
+      
+      // If there's a search query, re-run search with new filter
+      if (input.value && input.value.trim()) {
+        doSiteSearch(input.value.trim());
+      } else {
+        // No search query - load ALL items from this category
+        await loadAllFromCategory(activeSource);
+      }
     }
 
-    // --- SEARCH LOGIC ---
+    // LOAD ALL ITEMS FROM A CATEGORY
+    async function loadAllFromCategory(source) {
+      if (source === 'all') {
+        renderEmpty();
+        return;
+      }
+
+      resultsEl.innerHTML = '<div class="empty-state">Loading...</div>';
+
+      try {
+        let data = [];
+        
+        if (source === 'profiles') {
+          const { data: profiles } = await db.from('profiles').select('user_id, username, display_name, bio, created_at').order('created_at', { ascending: false }).limit(100);
+          data = (profiles || []).map(p => ({
+            id: p.user_id,
+            source: 'profiles',
+            title: p.display_name || p.username || 'Profile',
+            snippet: p.bio || '',
+            created_at: p.created_at
+          }));
+        } else if (source === 'songs') {
+          const { data: songs } = await db.from('songs').select('id, title, artist, created_at').order('created_at', { ascending: false }).limit(100);
+          data = (songs || []).map(s => ({
+            id: s.id,
+            source: 'songs',
+            title: s.title,
+            snippet: s.artist || '',
+            created_at: s.created_at
+          }));
+        } else if (source === 'posts') {
+          const { data: posts } = await db.from('posts').select('id, text, created_at').order('created_at', { ascending: false }).limit(100);
+          data = (posts || []).map(p => ({
+            id: p.id,
+            source: 'posts',
+            title: (p.text || '').substring(0, 50),
+            snippet: (p.text || '').substring(0, 200),
+            created_at: p.created_at
+          }));
+        } else if (source === 'pages') {
+          const { data: pages } = await db.from('pages').select('id, name, description, created_at').order('created_at', { ascending: false }).limit(100);
+          data = (pages || []).map(p => ({
+            id: p.id,
+            source: 'pages',
+            title: p.name,
+            snippet: p.description || '',
+            created_at: p.created_at
+          }));
+        } else if (source === 'ads') {
+          const { data: ads } = await db.from('ads').select('id, title, description, created_at').order('created_at', { ascending: false }).limit(100);
+          data = (ads || []).map(a => ({
+            id: a.id,
+            source: 'ads',
+            title: a.title,
+            snippet: a.description || '',
+            created_at: a.created_at
+          }));
+        } else if (source === 'comments') {
+          const { data: comments } = await db.from('comments').select('id, content, created_at').order('created_at', { ascending: false }).limit(100);
+          data = (comments || []).map(c => ({
+            id: c.id,
+            source: 'comments',
+            title: 'Comment',
+            snippet: (c.content || '').substring(0, 200),
+            created_at: c.created_at
+          }));
+        } else if (source === 'content') {
+          const { data: content } = await db.from('content').select('id, title, content, created_at').order('created_at', { ascending: false }).limit(100);
+          data = (content || []).map(c => ({
+            id: c.id,
+            source: 'content',
+            title: c.title || 'Content',
+            snippet: (c.content || '').substring(0, 200),
+            created_at: c.created_at
+          }));
+        } else if (source === 'coins') {
+          const { data: coins } = await db.from('coins').select('id, user_id, balance, updated_at').order('updated_at', { ascending: false }).limit(100);
+          data = (coins || []).map(c => ({
+            id: c.id,
+            source: 'coins',
+            title: 'Coin Balance',
+            snippet: `Balance: ${c.balance}`,
+            created_at: c.updated_at
+          }));
+        }
+
+        renderCombinedResults(data);
+        
+      } catch (err) {
+        console.error('Load error:', err);
+        renderError(err?.message || String(err));
+      }
+    }
+
+    // SEARCH LOGIC
     const doSiteSearch = debounce(async (qRaw) => {
       const q = normalizeQuery(qRaw || '');
       if (!validQuery(q)) {
@@ -179,12 +276,12 @@
     });
     input.addEventListener('input', (e) => doSiteSearch(e.target.value));
 
-    // --- RENDERERS ---
+    // RENDERERS
     function renderEmpty(note) {
       resultsEl.innerHTML = `
         <div class="empty-state">
           <div style="font-size:3rem">🔎</div>
-          <div style="font-weight:700;margin-top:8px">${ note ? escapeHtml(note) : 'Start typing to search the site' }</div>
+          <div style="font-weight:700;margin-top:8px">${ note ? escapeHtml(note) : 'Start typing to search or click a category to browse' }</div>
           <div style="margin-top:6px;color:var(--muted)">Searching profiles, songs, posts, pages, content, ads, comments and coins</div>
         </div>
       `;
@@ -206,7 +303,7 @@
       }
 
       if (filtered.length === 0) {
-        resultsEl.innerHTML = '<div class="empty-state">No results for selected source</div>';
+        resultsEl.innerHTML = '<div class="empty-state">No results for selected category</div>';
         return;
       }
 
