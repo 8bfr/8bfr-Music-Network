@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Members - 8BFR Music Network</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { padding-bottom: 80px; background: linear-gradient(#0b0014,#000); color: #eae6ff; font-family: system-ui, -apple-system, sans-serif; }
+    .card { background: rgba(12,6,24,0.7); border: 1px solid rgba(124,58,237,0.3); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+    .member-card { background: rgba(0,0,0,0.3); border: 1px solid rgba(124,58,237,0.2); border-radius: 8px; padding: 1rem; margin-bottom: 1rem; display: flex; gap: 1rem; align-items: center; cursor: pointer; transition: all 0.2s; }
+    .member-card:hover { border-color: rgba(124,58,237,0.5); background: rgba(124,58,237,0.1); }
+    .avatar { width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg,#7c3aed,#a855f7); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; }
+    .badge { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.7rem; font-weight: 600; margin-right: 0.25rem; margin-bottom: 0.25rem; }
+    .badge-owner { background: rgba(255,0,68,0.2); color: #ff0044; }
+    .badge-verified { background: rgba(0,217,255,0.2); color: #00d9ff; }
+    .badge-role { background: rgba(124,58,237,0.2); color: #a855f7; }
+    input, select { width: 100%; padding: 0.75rem; background: #0b0014; border: 1px solid rgba(124,58,237,0.4); border-radius: 8px; color: #eae6ff; font-size: 0.9rem; margin-bottom: 1rem; }
+    .spinner { width: 32px; height: 32px; border-radius: 50%; border: 3px solid rgba(168,85,247,0.2); border-top-color: #a855f7; animation: spin 0.7s linear infinite; margin: 2rem auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <header class="px-4 py-4" style="background:rgba(15,0,30,0.9);border-bottom:1px solid rgba(124,58,237,0.5);position:sticky;top:0;z-index:100;">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <a href="index.html" style="color:#a855f7;font-weight:600;text-decoration:none;">← Home</a>
+      <h1 class="text-xl font-extrabold">👥 Members</h1>
+      <div style="width:80px;"></div>
+    </div>
+  </header>
+
+  <div class="max-w-6xl mx-auto px-4 mt-5">
+    
+    <!-- SEARCH & FILTER -->
+    <div class="card">
+      <input type="text" id="searchInput" placeholder="Search members by name or username..." onkeyup="filterMembers()">
+      
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;">
+        <select id="roleFilter" onchange="filterMembers()">
+          <option value="">All Roles</option>
+          <option value="owner">Owners</option>
+          <option value="admin">Admins</option>
+          <option value="mod">Moderators</option>
+          <option value="artist">Artists</option>
+          <option value="beatmaker">Beatmakers</option>
+          <option value="producer">Producers</option>
+          <option value="fan">Fans</option>
+        </select>
+        
+        <select id="verifiedFilter" onchange="filterMembers()">
+          <option value="">All Members</option>
+          <option value="verified">Verified Only</option>
+          <option value="unverified">Unverified Only</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- MEMBERS LIST -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+        <h2 style="font-size:1.25rem;font-weight:700;color:#a855f7;">All Members</h2>
+        <span id="memberCount" style="color:rgba(168,85,247,0.7);font-size:0.9rem;">0 members</span>
+      </div>
+      <div id="membersList">
+        <div class="spinner"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="scripts.js" defer></script>
+  
+  <script>
+  document.addEventListener('DOMContentLoaded', async function() {
+    const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+    
+    let db;
+    if (window._8bfrSupabaseClient) {
+      db = window._8bfrSupabaseClient;
+    } else if (window.supabase && window.supabase.createClient) {
+      db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    } else {
+      alert('Supabase failed to load');
+      return;
+    }
+
+    let allMembers = [];
+
+    try {
+      // Load all members
+      const { data: members, error } = await db
+        .from('profiles')
+        .select('user_id, username, display_name, email, role, roles_ordered, verified_artist, avatar_url')
+        .order('username');
+
+      if (error) throw error;
+
+      allMembers = members || [];
+      renderMembers(allMembers);
+
+    } catch (err) {
+      console.error('Load error:', err);
+      document.getElementById('membersList').innerHTML = '<p style="color:#ef4444;text-align:center;padding:2rem;">Error loading members</p>';
+    }
+
+    window.filterMembers = function() {
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+      const roleFilter = document.getElementById('roleFilter').value;
+      const verifiedFilter = document.getElementById('verifiedFilter').value;
+
+      let filtered = allMembers;
+
+      // Search filter
+      if (searchTerm) {
+        filtered = filtered.filter(m => {
+          const username = (m.username || '').toLowerCase();
+          const displayName = (m.display_name || '').toLowerCase();
+          const email = (m.email || '').toLowerCase();
+          return username.includes(searchTerm) || displayName.includes(searchTerm) || email.includes(searchTerm);
+        });
+      }
+
+      // Role filter
+      if (roleFilter) {
+        filtered = filtered.filter(m => {
+          const roles = m.roles_ordered || [];
+          const mainRole = m.role || '';
+          return roles.includes(roleFilter) || mainRole === roleFilter;
+        });
+      }
+
+      // Verified filter
+      if (verifiedFilter === 'verified') {
+        filtered = filtered.filter(m => m.verified_artist);
+      } else if (verifiedFilter === 'unverified') {
+        filtered = filtered.filter(m => !m.verified_artist);
+      }
+
+      renderMembers(filtered);
+    };
+
+    function renderMembers(members) {
+      const container = document.getElementById('membersList');
+      document.getElementById('memberCount').textContent = members.length + ' member' + (members.length !== 1 ? 's' : '');
+
+      if (members.length === 0) {
+        container.innerHTML = '<p style="text-align:center;padding:2rem;color:rgba(168,85,247,0.5);">No members found</p>';
+        return;
+      }
+
+      container.innerHTML = members.map(m => {
+        const displayName = m.display_name || m.username || 'Unknown';
+        const username = m.username ? '@' + m.username : '';
+        const avatarContent = m.avatar_url 
+          ? `<img src="${m.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.parentNode.textContent='👤'">`
+          : '👤';
+
+        // Badges
+        let badges = '';
+        
+        // Owner/Admin badge
+        if (m.role === 'owner' || (m.roles_ordered && m.roles_ordered.includes('owner'))) {
+          badges += '<span class="badge badge-owner">👑 OWNER</span>';
+        } else if (m.role === 'admin' || (m.roles_ordered && m.roles_ordered.includes('admin'))) {
+          badges += '<span class="badge badge-owner">⚡ ADMIN</span>';
+        } else if (m.role === 'mod' || (m.roles_ordered && m.roles_ordered.includes('mod'))) {
+          badges += '<span class="badge badge-owner">🛡️ MOD</span>';
+        }
+
+        // Verified badge
+        if (m.verified_artist) {
+          badges += '<span class="badge badge-verified">✓ VERIFIED</span>';
+        }
+
+        // Role badges
+        const roles = m.roles_ordered || [];
+        roles.forEach(role => {
+          if (!['owner', 'admin', 'mod'].includes(role)) {
+            badges += `<span class="badge badge-role">${role}</span>`;
+          }
+        });
+
+        return `
+          <div class="member-card" onclick="window.location.href='profile.html?id=${m.user_id}'">
+            <div class="avatar">${avatarContent}</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:700;font-size:1rem;margin-bottom:0.25rem;">${displayName}</div>
+              <div style="font-size:0.85rem;color:rgba(168,85,247,0.7);margin-bottom:0.5rem;">${username}</div>
+              <div style="display:flex;flex-wrap:wrap;gap:0.25rem;">${badges || '<span class="badge badge-role">member</span>'}</div>
+            </div>
+          </div>`;
+      }).join('');
+    }
+  });
+  </script>
+
+</body>
+</html>
