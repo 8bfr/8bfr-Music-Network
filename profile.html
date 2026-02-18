@@ -328,7 +328,7 @@
     if (!el) return;
     try {
       const { data: songs, error } = await db.from('songs')
-        .select('id, title, artist, cover_art, song_url, explicit, featured')
+        .select('id, title, artist, cover_art, song_url, explicit, featured, price')
         .eq('uploaded_by', userId)
         .order('created_at', { ascending: false });
 
@@ -339,21 +339,163 @@
         return;
       }
 
+      // Check which songs current user has purchased
+      let purchasedSongIds = [];
+      if (currentUser && !isOwnProfile) {
+        const { data: purchases } = await db.from('song_purchases')
+          .select('song_id')
+          .eq('buyer_id', currentUser.id);
+        if (purchases) {
+          purchasedSongIds = purchases.map(p => p.song_id);
+        }
+      }
+
       el.innerHTML = songs.map(s => {
         const cover = s.cover_art ? `<img src="${s.cover_art}" alt="${s.title}" onerror="this.parentNode.textContent='🎵'">` : '🎵';
         const featuredBadge = s.featured ? '<span class="owner-pick-badge" style="margin-left:0.4rem;">⭐ Featured</span>' : '';
         const deleteBtnHtml = isOwnProfile ? `<button class="btn btn-red" style="padding:0.4rem 0.75rem;font-size:0.8rem;" onclick="deleteSong('${s.id}')">🗑️</button>` : '';
+        
+        // Price and download/buy button
+        const price = parseFloat(s.price) || 0;
+        const priceDisplay = price > 0 ? `<span style="color:#4ade80;font-weight:600;font-size:0.85rem;margin-left:0.5rem;">$${price.toFixed(2)}</span>` : '';
+        
+        let downloadBtn = '';
+        let discountInput = '';
+        if (s.song_url && !isOwnProfile) {
+          const hasPurchased = purchasedSongIds.includes(s.id);
+          
+          if (price > 0) {
+            if (hasPurchased) {
+              // Already purchased - show download button
+              downloadBtn = `<a href="${s.song_url}" download class="btn" style="padding:0.4rem 0.75rem;font-size:0.8rem;background:#4ade80;text-decoration:none;margin-left:0.5rem;">⬇️ Download</a>`;
+            } else {
+              // Not purchased - show discount code input and PayPal button
+              discountInput = `
+                <div style="margin-top:0.5rem;display:flex;gap:0.5rem;align-items:center;">
+                  <input type="text" id="discount-${s.id}" placeholder="Discount code" 
+                    style="padding:0.4rem;font-size:0.8rem;background:#0b0014;border:1px solid rgba(124,58,237,0.4);border-radius:6px;color:#eae6ff;width:120px;">
+                  <button onclick="applyDiscount('${s.id}', ${price})" class="btn" style="padding:0.4rem 0.75rem;font-size:0.8rem;">Apply</button>
+                  <span id="discount-msg-${s.id}" style="font-size:0.75rem;"></span>
+                </div>`;
+              downloadBtn = `<div id="paypal-${s.id}" style="margin-left:0.5rem;min-width:120px;"></div>`;
+            }
+          } else {
+            // Free song - show download
+            downloadBtn = `<a href="${s.song_url}" download class="btn" style="padding:0.4rem 0.75rem;font-size:0.8rem;background:#a855f7;text-decoration:none;margin-left:0.5rem;">⬇️ Download</a>`;
+          }
+        }
+        
         return `
         <div class="song-row" id="song-${s.id}">
           <div class="song-cover">${cover}</div>
           <div class="song-info">
-            <div class="song-title">${s.title||'Untitled'}${s.explicit ? ' <span style="color:#ef4444;font-size:0.7rem;">🔞</span>' : ''}${featuredBadge}</div>
+            <div class="song-title">${s.title||'Untitled'}${s.explicit ? ' <span style="color:#ef4444;font-size:0.7rem;">🔞</span>' : ''}${featuredBadge}${priceDisplay}</div>
             <div class="song-meta">${s.artist||''}</div>
             ${s.song_url ? `<audio controls src="${s.song_url}" preload="none" style="height:32px;margin-top:6px;"></audio>` : ''}
+            ${discountInput}
           </div>
+          ${downloadBtn}
           ${deleteBtnHtml}
         </div>`;
       }).join('');
+
+      // Render PayPal buttons for unpurchased paid songs
+      if (!isOwnProfile && window.paypal) {
+        songs.forEach(s => {
+          const price = parseFloat(s.price) || 0;
+          const hasPurchased = purchasedSongIds.includes(s.id);
+          
+          if (price > 0 && !hasPurchased && s.song_url) {
+            const container = document.getElementById(`paypal-${s.id}`);
+            if (container) {
+              // Calculate final price with discount
+              let finalPrice = price;
+              const discount = appliedDiscounts[s.id];
+              
+              if (discount) {
+                if (discount.is_free) {
+                  finalPrice = 0;
+                } else {
+                  const discountAmt = parseFloat(discount.discount_amount) || 0;
+                  finalPrice = Math.max(0, price - discountAmt);
+                }
+              }
+
+              // If free with discount, show claim button instead
+              if (finalPrice === 0 && discount) {
+                container.innerHTML = `<button class="btn" style="background:#00ff88;color:#000;font-weight:700;" onclick="claimFreeSong('${s.id}', '${discount.code}')">Claim Free</button>`;
+                return;
+              }
+
+              window.paypal.Buttons({
+                style: { layout: 'horizontal', color: 'gold', shape: 'rect', label: 'pay', height: 35 },
+                createOrder: function(data, actions) {
+                  return actions.order.create({
+                    purchase_units: [{
+                      amount: { value: finalPrice.toFixed(2) },
+                      description: `${s.title} by ${s.artist}`
+                    }]
+                  });
+                },
+                onApprove: async function(data, actions) {
+                  try {
+                    const details = await actions.order.capture();
+                    
+                    // Record purchase in database
+                    const { data: purchaseData, error: purchaseErr } = await db.from('song_purchases').insert({
+                      song_id: s.id,
+                      buyer_id: currentUser.id,
+                      buyer_email: currentUser.email,
+                      amount_paid: finalPrice,
+                      payment_method: 'paypal',
+                      payment_id: details.id
+                    }).select().single();
+                    
+                    if (purchaseErr) {
+                      console.error('Purchase recording error:', purchaseErr);
+                      alert('Payment received but error recording purchase. Contact support with order ID: ' + details.id);
+                      return;
+                    }
+
+                    // Record payout split (80/20)
+                    await db.rpc('record_song_payout', {
+                      p_purchase_id: purchaseData.id,
+                      p_song_id: s.id,
+                      p_total_amount: finalPrice
+                    });
+
+                    // Increment discount code usage if applied
+                    if (discount) {
+                      await db.from('song_discount_codes')
+                        .update({ uses: (discount.uses || 0) + 1 })
+                        .eq('id', discount.id);
+                    }
+                    
+                    // Trigger download
+                    const a = document.createElement('a');
+                    a.href = s.song_url;
+                    a.download = `${s.title}.mp3`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    
+                    // Reload songs to show download button instead
+                    alert('Purchase complete! Download starting...');
+                    loadSongs(userId);
+                  } catch (err) {
+                    console.error('Purchase error:', err);
+                    alert('Error completing purchase: ' + err.message);
+                  }
+                },
+                onError: function(err) {
+                  console.error('PayPal error:', err);
+                  alert('Payment error. Please try again.');
+                }
+              }).render(`#paypal-${s.id}`);
+            }
+          }
+        });
+      }
 
     } catch (err) {
       el.innerHTML = `<div style="color:#ef4444;font-size:0.85rem;padding:1rem;">Error loading songs: ${err.message}</div>`;
@@ -427,10 +569,7 @@
       return;
     }
 
-    // DEBUG: Show the user_id being used in an alert box
     const userId = currentUser.id;
-    alert(`DEBUG INFO:\n\nLogged in as: ${currentUser.email}\n\nUser ID: ${userId}\n\n(Copy this user_id and send to developer)`);
-
     const title = document.getElementById('uploadTitle').value.trim();
     const artist = document.getElementById('uploadArtist').value.trim() || profileData?.display_name || profileData?.username || '';
     const price = document.getElementById('uploadPrice').value;
@@ -508,9 +647,6 @@
         explicit,
         featured: false
       };
-      
-      // DEBUG: Show exact data being inserted
-      alert(`INSERTING TO DATABASE:\n\ntitle: ${songData.title}\nuploaded_by: ${songData.uploaded_by}\n\n(Check uploaded_by matches: cb556180-f032-4b21-9470-1d786f2664ab)`);
       
       console.log('Inserting song to DB:', songData);
       const { error: insertErr } = await db.from('songs').insert(songData);
@@ -644,6 +780,125 @@
       '<div style="text-align:center;padding:2rem;color:#f87171;">❌ ' + err.message + '</div>';
   });
 
+  // Discount code tracking
+  const appliedDiscounts = {};
+
+  // Apply discount code function
+  window.applyDiscount = async function(songId, basePrice) {
+    const input = document.getElementById(`discount-${songId}`);
+    const msgEl = document.getElementById(`discount-msg-${songId}`);
+    const code = input.value.trim().toUpperCase();
+    
+    if (!code) {
+      msgEl.textContent = 'Enter a code';
+      msgEl.style.color = '#ef4444';
+      return;
+    }
+
+    try {
+      // Validate discount code
+      const { data: discountData, error } = await db
+        .from('song_discount_codes')
+        .select('*')
+        .eq('code', code)
+        .or(`song_id.eq.${songId},song_id.is.null`)
+        .single();
+
+      if (error || !discountData) {
+        msgEl.textContent = 'Invalid code';
+        msgEl.style.color = '#ef4444';
+        appliedDiscounts[songId] = null;
+        return;
+      }
+
+      // Check if expired
+      if (discountData.expires_at && new Date(discountData.expires_at) < new Date()) {
+        msgEl.textContent = 'Code expired';
+        msgEl.style.color = '#ef4444';
+        appliedDiscounts[songId] = null;
+        return;
+      }
+
+      // Check max uses
+      if (discountData.max_uses && discountData.uses >= discountData.max_uses) {
+        msgEl.textContent = 'Code limit reached';
+        msgEl.style.color = '#ef4444';
+        appliedDiscounts[songId] = null;
+        return;
+      }
+
+      // Store discount
+      appliedDiscounts[songId] = discountData;
+      
+      // Calculate final price
+      let finalPrice = basePrice;
+      if (discountData.is_free) {
+        finalPrice = 0;
+        msgEl.textContent = '✓ FREE!';
+        msgEl.style.color = '#00ff88';
+      } else {
+        const discount = parseFloat(discountData.discount_amount) || 0;
+        finalPrice = Math.max(0, basePrice - discount);
+        msgEl.textContent = `✓ -$${discount.toFixed(2)} = $${finalPrice.toFixed(2)}`;
+        msgEl.style.color = '#4ade80';
+      }
+
+      // Re-render PayPal button with new price
+      loadSongs(profileData.user_id);
+
+    } catch (err) {
+      console.error('Discount error:', err);
+      msgEl.textContent = 'Error';
+      msgEl.style.color = '#ef4444';
+    }
+  };
+
+  // Claim free song with discount code
+  window.claimFreeSong = async function(songId, discountCode) {
+    if (!currentUser) {
+      alert('Please sign in to claim this song');
+      return;
+    }
+
+    try {
+      // Get song info
+      const { data: song } = await db.from('songs').select('*').eq('id', songId).single();
+      if (!song) throw new Error('Song not found');
+
+      // Record "purchase" with $0 amount
+      const { data: purchaseData, error: purchaseErr } = await db.from('song_purchases').insert({
+        song_id: songId,
+        buyer_id: currentUser.id,
+        buyer_email: currentUser.email,
+        amount_paid: 0,
+        payment_method: 'discount_code',
+        payment_id: 'FREE-' + discountCode
+      }).select().single();
+
+      if (purchaseErr) throw purchaseErr;
+
+      // Increment discount code usage
+      await db.from('song_discount_codes')
+        .update({ uses: db.raw('uses + 1') })
+        .eq('code', discountCode);
+
+      // Trigger download
+      const a = document.createElement('a');
+      a.href = song.song_url;
+      a.download = `${song.title}.mp3`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      alert('Song claimed! Download starting...');
+      loadSongs(profileData.user_id);
+
+    } catch (err) {
+      console.error('Claim error:', err);
+      alert('Error claiming song: ' + err.message);
+    }
+  };
+
   // Expose functions called by onclick attributes to global scope
   window.toggleUploadForm = toggleUploadForm;
   window.handleAudioSelect = handleAudioSelect;
@@ -673,6 +928,9 @@
     update();
   })();
   </script>
+
+  <!-- PayPal SDK for song purchases -->
+  <script src="https://www.paypal.com/sdk/js?client-id=AWx0LwdZ_sCyCE5gEj9mL1ha7ZbG_eZLE_R636KjLXFMV1pOfmGwNg9prM5kVKQspvnpNLJDZxPp100G&currency=USD&intent=capture&components=buttons"></script>
 
 </body>
 </html>
