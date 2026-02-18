@@ -54,20 +54,19 @@
         <div class="stat-label">Platform Fees Paid</div>
       </div>
       
-      <div class="stat-box">
-        <div class="stat-value" id="salesCount">0</div>
-        <div class="stat-label">Total Sales</div>
+      <div class="stat-box" style="border-color:rgba(251,191,36,0.4);">
+        <div class="stat-value" style="color:#fbbf24;" id="pendingConfirm">0</div>
+        <div class="stat-label">Pending Confirmation</div>
       </div>
     </div>
 
     <!-- PLATFORM FEE INFO -->
     <div class="card" style="background:rgba(124,58,237,0.1);border-color:rgba(124,58,237,0.4);">
-      <h3 style="font-size:1rem;font-weight:700;margin-bottom:0.75rem;color:#a855f7;">💡 How Platform Fees Work (Trust System)</h3>
+      <h3 style="font-size:1rem;font-weight:700;margin-bottom:0.75rem;color:#a855f7;">💡 How It Works (2-Step Verification)</h3>
       <p style="font-size:0.9rem;line-height:1.6;color:rgba(234,230,255,0.9);">
-        <strong>You keep 80%, owe platform 20%:</strong> When fans purchase your songs, they send payment directly to YOUR PayPal. You receive 100% immediately.<br>
-        <strong>Your responsibility:</strong> Send 20% of each sale to the platform owner. This is tracked below.<br>
-        <strong>Payment:</strong> Send fees to platform PayPal: <code style="background:rgba(0,0,0,0.3);padding:0.25rem 0.5rem;border-radius:4px;">8bfr.music@gmail.com</code><br>
-        <strong>⚠️ Non-payment penalty:</strong> If fees aren't paid, your music section will be hidden from buyers.
+        <strong>Step 1:</strong> Buyer claims they sent payment. Check your PayPal and click "Confirm Payment Received".<br>
+        <strong>Step 2:</strong> After confirming, buyer can download. Then send 20% platform fee to: <code style="background:rgba(0,0,0,0.3);padding:0.25rem 0.5rem;border-radius:4px;">8bfr.music@gmail.com</code><br>
+        <strong>⚠️ Penalty:</strong> If platform fees aren't paid, your music section will be hidden from buyers.
       </p>
     </div>
 
@@ -122,24 +121,30 @@
           .select(`
             *,
             songs(title),
-            song_purchases(buyer_email, payment_method, purchased_at)
+            song_purchases(id, buyer_email, payment_method, purchased_at, payment_confirmed)
           `)
           .eq('artist_id', userId)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
 
-        // Calculate totals (TRUST SYSTEM - artist received 100%, owes 20%)
+        // Calculate totals
         let totalReceived = 0;
         let feesOwed = 0;
         let feesPaid = 0;
+        let pendingConfirm = 0;
 
         if (payouts && payouts.length > 0) {
           payouts.forEach(p => {
             const saleAmount = parseFloat(p.total_amount) || 0;
             const platformFee = parseFloat(p.platform_amount) || 0;
+            const paymentConfirmed = p.song_purchases ? p.song_purchases.payment_confirmed : false;
             
-            totalReceived += saleAmount;
+            if (paymentConfirmed) {
+              totalReceived += saleAmount;
+            } else {
+              pendingConfirm += 1;
+            }
             
             if (p.platform_fee_paid) {
               feesPaid += platformFee;
@@ -152,7 +157,7 @@
         document.getElementById('totalEarnings').textContent = '$' + totalReceived.toFixed(2);
         document.getElementById('feesOwed').textContent = '$' + feesOwed.toFixed(2);
         document.getElementById('feesPaid').textContent = '$' + feesPaid.toFixed(2);
-        document.getElementById('salesCount').textContent = payouts ? payouts.length : 0;
+        document.getElementById('pendingConfirm').textContent = pendingConfirm;
 
         if (!payouts || payouts.length === 0) {
           container.innerHTML = '<p style="text-align:center;padding:2rem;color:rgba(168,85,247,0.5);">No sales yet</p>';
@@ -168,36 +173,54 @@
           
           const platformFee = parseFloat(p.platform_amount) || 0;
           const saleAmount = parseFloat(p.total_amount) || 0;
-          const statusClass = p.platform_fee_paid ? 'status-paid' : 'status-pending';
-          const statusText = p.platform_fee_paid ? 'Fee Paid' : 'Fee Owed';
-          const paidDate = p.platform_fee_paid_at ? ' on ' + new Date(p.platform_fee_paid_at).toLocaleDateString() : '';
+          const purchaseId = p.song_purchases ? p.song_purchases.id : null;
+          const paymentConfirmed = p.song_purchases ? p.song_purchases.payment_confirmed : false;
 
-          const sendButton = !p.platform_fee_paid
-            ? `<button class="btn btn-success" onclick="markFeePaid('${p.id}', ${platformFee})" style="margin-top:0.5rem;font-size:0.8rem;">✓ Mark as Sent</button>`
-            : '';
+          // Status badges
+          let paymentBadge = '';
+          if (!paymentConfirmed) {
+            paymentBadge = '<span class="status-badge status-pending">⏳ NEEDS CONFIRMATION</span>';
+          }
+          
+          const feeBadge = p.platform_fee_paid 
+            ? '<span class="status-badge status-paid">Fee Paid</span>'
+            : '<span class="status-badge status-pending">Fee Owed</span>';
+
+          // Action buttons
+          let actionButton = '';
+          let warningNote = '';
+          
+          if (!paymentConfirmed && purchaseId) {
+            actionButton = `<button class="btn btn-success" onclick="confirmPayment('${purchaseId}')" style="margin-top:0.5rem;font-size:0.8rem;background:#00ff88;">✅ Confirm Payment Received</button>`;
+            warningNote = '<div style="font-size:0.75rem;color:#fbbf24;margin-top:0.25rem;">⚠️ Check your PayPal before confirming!</div>';
+          } else if (!p.platform_fee_paid) {
+            actionButton = `<button class="btn btn-success" onclick="markFeePaid('${p.id}', ${platformFee})" style="margin-top:0.5rem;font-size:0.8rem;">✓ Send Platform Fee (20%)</button>`;
+          }
 
           return `
             <div class="payout-row">
               <div class="payout-info">
                 <div style="font-weight:700;font-size:1rem;margin-bottom:0.5rem;">
                   ${songTitle}
-                  <span class="status-badge ${statusClass}">${statusText}${paidDate}</span>
+                  ${paymentBadge}
+                  ${feeBadge}
                 </div>
                 <div style="font-size:0.85rem;color:rgba(168,85,247,0.8);margin-bottom:0.25rem;">
                   Buyer: ${buyerEmail} • ${purchaseDate}
                 </div>
                 <div style="font-size:0.75rem;color:rgba(168,85,247,0.5);">
-                  You received: $${saleAmount.toFixed(2)} (100%) • You owe platform: $${platformFee.toFixed(2)} (20%)
+                  Sale: $${saleAmount.toFixed(2)} (100%) • Platform Fee: $${platformFee.toFixed(2)} (20%)
                 </div>
+                ${warningNote}
               </div>
               <div style="text-align:right;">
                 <div style="font-size:1.3rem;font-weight:700;color:${p.platform_fee_paid ? '#4ade80' : '#fbbf24'};margin-bottom:0.25rem;">
-                  ${p.platform_fee_paid ? '✓ Sent' : '⚠️ Owe'} $${platformFee.toFixed(2)}
+                  ${p.platform_fee_paid ? '✓' : '⚠️'} $${platformFee.toFixed(2)}
                 </div>
                 <div style="font-size:0.7rem;color:rgba(168,85,247,0.6);margin-bottom:0.5rem;">
                   Send to: 8bfr.music@gmail.com
                 </div>
-                ${sendButton}
+                ${actionButton}
               </div>
             </div>`;
         }).join('');
@@ -207,6 +230,29 @@
         container.innerHTML = '<p style="color:#ef4444;text-align:center;padding:2rem;">Error loading payouts</p>';
       }
     }
+
+    window.confirmPayment = async function(purchaseId) {
+      if (!confirm('Confirm you received payment in your PayPal? This will allow the buyer to download.')) return;
+
+      try {
+        const { error } = await db.from('song_purchases')
+          .update({
+            payment_confirmed: true,
+            payment_confirmed_at: new Date().toISOString(),
+            payment_confirmed_by: currentUser.id
+          })
+          .eq('id', purchaseId);
+
+        if (error) throw error;
+
+        alert('✅ Payment confirmed! Buyer can now download.');
+        loadPayouts(currentUser.id);
+
+      } catch (err) {
+        console.error('Confirm error:', err);
+        alert('Error: ' + err.message);
+      }
+    };
 
     window.markFeePaid = async function(payoutId, amount) {
       if (!confirm(`Confirm you sent $${amount.toFixed(2)} platform fee to 8bfr.music@gmail.com via PayPal?`)) return;
