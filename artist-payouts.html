@@ -18,6 +18,10 @@
     .status-badge { display: inline-block; padding: 0.3rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
     .status-pending { background: rgba(251,191,36,0.2); color: #fbbf24; }
     .status-paid { background: rgba(74,222,128,0.2); color: #4ade80; }
+    .btn { background: #7c3aed; color: white; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem; }
+    .btn:hover { background: #6d28d9; }
+    .btn-success { background: #4ade80; color: #000; }
+    .btn-success:hover { background: #22c55e; }
     .spinner { width: 32px; height: 32px; border-radius: 50%; border: 3px solid rgba(168,85,247,0.2); border-top-color: #a855f7; animation: spin 0.7s linear infinite; margin: 2rem auto; }
     @keyframes spin { to { transform: rotate(360deg); } }
   </style>
@@ -27,27 +31,27 @@
   <header class="px-4 py-4" style="background:rgba(15,0,30,0.9);border-bottom:1px solid rgba(124,58,237,0.5);position:sticky;top:0;z-index:100;">
     <div class="max-w-4xl mx-auto flex items-center justify-between">
       <a href="profile.html" style="color:#a855f7;font-weight:600;text-decoration:none;">← Profile</a>
-      <h1 class="text-xl font-extrabold">💰 Earnings</h1>
+      <h1 class="text-xl font-extrabold">💰 Earnings & Fees</h1>
       <div style="width:80px;"></div>
     </div>
   </header>
 
   <div class="max-w-4xl mx-auto px-4 mt-5">
-    <!-- EARNINGS SUMMARY -->
+    <!-- FEE SUMMARY -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1.5rem;margin-bottom:2rem;">
       <div class="stat-box">
         <div class="stat-value" id="totalEarnings">$0.00</div>
-        <div class="stat-label">Total Earnings (80%)</div>
+        <div class="stat-label">Total Received (100%)</div>
+      </div>
+      
+      <div class="stat-box" style="border-color:rgba(251,191,36,0.4);">
+        <div class="stat-value" style="color:#fbbf24;" id="feesOwed">$0.00</div>
+        <div class="stat-label">You Owe Platform (20%)</div>
       </div>
       
       <div class="stat-box">
-        <div class="stat-value" id="pendingEarnings">$0.00</div>
-        <div class="stat-label">Pending</div>
-      </div>
-      
-      <div class="stat-box">
-        <div class="stat-value" id="paidEarnings">$0.00</div>
-        <div class="stat-label">Paid Out</div>
+        <div class="stat-value" style="color:#4ade80;" id="feesPaid">$0.00</div>
+        <div class="stat-label">Platform Fees Paid</div>
       </div>
       
       <div class="stat-box">
@@ -58,11 +62,12 @@
 
     <!-- PLATFORM FEE INFO -->
     <div class="card" style="background:rgba(124,58,237,0.1);border-color:rgba(124,58,237,0.4);">
-      <h3 style="font-size:1rem;font-weight:700;margin-bottom:0.75rem;color:#a855f7;">💡 How Payouts Work</h3>
+      <h3 style="font-size:1rem;font-weight:700;margin-bottom:0.75rem;color:#a855f7;">💡 How Platform Fees Work (Trust System)</h3>
       <p style="font-size:0.9rem;line-height:1.6;color:rgba(234,230,255,0.9);">
-        <strong>80/20 Split:</strong> You keep 80% of each sale, 20% goes to 8BFR Network to maintain the platform.<br>
-        <strong>Payout Schedule:</strong> Contact support when you're ready to withdraw earnings. Minimum payout: $25.<br>
-        <strong>Payment Method:</strong> PayPal (provide your PayPal email in settings).
+        <strong>You keep 80%, owe platform 20%:</strong> When fans purchase your songs, they send payment directly to YOUR PayPal. You receive 100% immediately.<br>
+        <strong>Your responsibility:</strong> Send 20% of each sale to the platform owner. This is tracked below.<br>
+        <strong>Payment:</strong> Send fees to platform PayPal: <code style="background:rgba(0,0,0,0.3);padding:0.25rem 0.5rem;border-radius:4px;">8bfr.music@gmail.com</code><br>
+        <strong>⚠️ Non-payment penalty:</strong> If fees aren't paid, your music section will be hidden from buyers.
       </p>
     </div>
 
@@ -92,6 +97,8 @@
       return;
     }
 
+    let currentUser = null;
+
     try {
       const { data: { session } } = await db.auth.getSession();
       if (!session || !session.user) {
@@ -99,7 +106,7 @@
         return;
       }
 
-      const currentUser = session.user;
+      currentUser = session.user;
       await loadPayouts(currentUser.id);
 
     } catch (err) {
@@ -111,7 +118,6 @@
       const container = document.getElementById('payoutsList');
       
       try {
-        // Load all payouts for this artist
         const { data: payouts, error } = await db.from('artist_payouts')
           .select(`
             *,
@@ -123,31 +129,31 @@
 
         if (error) throw error;
 
-        // Calculate totals
-        let totalEarnings = 0;
-        let pendingEarnings = 0;
-        let paidEarnings = 0;
+        // Calculate totals (TRUST SYSTEM - artist received 100%, owes 20%)
+        let totalReceived = 0;
+        let feesOwed = 0;
+        let feesPaid = 0;
 
         if (payouts && payouts.length > 0) {
           payouts.forEach(p => {
-            const amount = parseFloat(p.artist_amount) || 0;
-            totalEarnings += amount;
+            const saleAmount = parseFloat(p.total_amount) || 0;
+            const platformFee = parseFloat(p.platform_amount) || 0;
             
-            if (p.payout_status === 'paid') {
-              paidEarnings += amount;
+            totalReceived += saleAmount;
+            
+            if (p.platform_fee_paid) {
+              feesPaid += platformFee;
             } else {
-              pendingEarnings += amount;
+              feesOwed += platformFee;
             }
           });
         }
 
-        // Update stats
-        document.getElementById('totalEarnings').textContent = '$' + totalEarnings.toFixed(2);
-        document.getElementById('pendingEarnings').textContent = '$' + pendingEarnings.toFixed(2);
-        document.getElementById('paidEarnings').textContent = '$' + paidEarnings.toFixed(2);
+        document.getElementById('totalEarnings').textContent = '$' + totalReceived.toFixed(2);
+        document.getElementById('feesOwed').textContent = '$' + feesOwed.toFixed(2);
+        document.getElementById('feesPaid').textContent = '$' + feesPaid.toFixed(2);
         document.getElementById('salesCount').textContent = payouts ? payouts.length : 0;
 
-        // Render sales list
         if (!payouts || payouts.length === 0) {
           container.innerHTML = '<p style="text-align:center;padding:2rem;color:rgba(168,85,247,0.5);">No sales yet</p>';
           return;
@@ -159,33 +165,39 @@
           const purchaseDate = p.song_purchases && p.song_purchases.purchased_at 
             ? new Date(p.song_purchases.purchased_at).toLocaleDateString()
             : new Date(p.created_at).toLocaleDateString();
-          const paymentMethod = p.song_purchases ? p.song_purchases.payment_method : 'paypal';
           
-          const statusClass = p.payout_status === 'paid' ? 'status-paid' : 'status-pending';
-          const statusText = p.payout_status === 'paid' ? 'Paid' : 'Pending';
-          const paidDate = p.paid_at ? ' • Paid ' + new Date(p.paid_at).toLocaleDateString() : '';
+          const platformFee = parseFloat(p.platform_amount) || 0;
+          const saleAmount = parseFloat(p.total_amount) || 0;
+          const statusClass = p.platform_fee_paid ? 'status-paid' : 'status-pending';
+          const statusText = p.platform_fee_paid ? 'Fee Paid' : 'Fee Owed';
+          const paidDate = p.platform_fee_paid_at ? ' on ' + new Date(p.platform_fee_paid_at).toLocaleDateString() : '';
+
+          const sendButton = !p.platform_fee_paid
+            ? `<button class="btn btn-success" onclick="markFeePaid('${p.id}', ${platformFee})" style="margin-top:0.5rem;font-size:0.8rem;">✓ Mark as Sent</button>`
+            : '';
 
           return `
             <div class="payout-row">
               <div class="payout-info">
                 <div style="font-weight:700;font-size:1rem;margin-bottom:0.5rem;">
                   ${songTitle}
-                  <span class="status-badge ${statusClass}">${statusText}</span>
+                  <span class="status-badge ${statusClass}">${statusText}${paidDate}</span>
                 </div>
-                <div style="font-size:0.85rem;color:rgba(168,85,247,0.7);">
-                  Buyer: ${buyerEmail} • ${purchaseDate} • ${paymentMethod}${paidDate}
+                <div style="font-size:0.85rem;color:rgba(168,85,247,0.8);margin-bottom:0.25rem;">
+                  Buyer: ${buyerEmail} • ${purchaseDate}
                 </div>
-                <div style="font-size:0.75rem;color:rgba(168,85,247,0.5);margin-top:0.25rem;">
-                  Sale: $${parseFloat(p.total_amount).toFixed(2)} • Platform: $${parseFloat(p.platform_amount).toFixed(2)}
+                <div style="font-size:0.75rem;color:rgba(168,85,247,0.5);">
+                  You received: $${saleAmount.toFixed(2)} (100%) • You owe platform: $${platformFee.toFixed(2)} (20%)
                 </div>
               </div>
               <div style="text-align:right;">
-                <div style="font-size:1.5rem;font-weight:800;color:#4ade80;">
-                  +$${parseFloat(p.artist_amount).toFixed(2)}
+                <div style="font-size:1.3rem;font-weight:700;color:${p.platform_fee_paid ? '#4ade80' : '#fbbf24'};margin-bottom:0.25rem;">
+                  ${p.platform_fee_paid ? '✓ Sent' : '⚠️ Owe'} $${platformFee.toFixed(2)}
                 </div>
-                <div style="font-size:0.75rem;color:rgba(168,85,247,0.6);">
-                  Your 80%
+                <div style="font-size:0.7rem;color:rgba(168,85,247,0.6);margin-bottom:0.5rem;">
+                  Send to: 8bfr.music@gmail.com
                 </div>
+                ${sendButton}
               </div>
             </div>`;
         }).join('');
@@ -195,6 +207,28 @@
         container.innerHTML = '<p style="color:#ef4444;text-align:center;padding:2rem;">Error loading payouts</p>';
       }
     }
+
+    window.markFeePaid = async function(payoutId, amount) {
+      if (!confirm(`Confirm you sent $${amount.toFixed(2)} platform fee to 8bfr.music@gmail.com via PayPal?`)) return;
+
+      try {
+        const { error } = await db.from('artist_payouts')
+          .update({
+            platform_fee_paid: true,
+            platform_fee_paid_at: new Date().toISOString()
+          })
+          .eq('id', payoutId);
+
+        if (error) throw error;
+
+        alert('✓ Fee marked as sent! Owner will verify.');
+        loadPayouts(currentUser.id);
+
+      } catch (err) {
+        console.error('Update error:', err);
+        alert('Error: ' + err.message);
+      }
+    };
   });
   </script>
 
