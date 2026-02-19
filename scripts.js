@@ -607,8 +607,8 @@ body.menu-open #carrieWrap{
         <span class="menu-label-main">Network</span>
         <span class="menu-label-alt">Search</span>
       </a>
-      <a href="featured.html" class="menu-chip">Featured</a>
-      <a href="featured_songs.html" class="menu-chip">Featured Songs</a>
+      <a href="featured.html" class="menu-chip">Featured Artist</a>
+      <a href="featured-songs.html" class="menu-chip">Featured Songs</a>
       <a href="feed.html" class="menu-chip">Community Feed</a>
       <a href="radio.html" class="menu-chip">Radio</a>
       <a href="podcast.html" class="menu-chip">Podcast</a>
@@ -616,7 +616,7 @@ body.menu-open #carrieWrap{
       <a href="about.html" class="menu-chip">About</a>
       <a href="contact.html" class="menu-chip">Contact</a>
       <a href="blog.html" class="menu-chip">Blog</a>
-      <a href="algorithm-points.html" class="menu-chip">Algorithm & Points</a>
+      <a href="algorithm-points.html" class="menu-chip">Algorithm Points</a>
       <a href="stories.html" class="menu-chip">Stories</a>
       <a href="announcements.html" class="menu-chip">Announcements</a>
     </div>
@@ -743,7 +743,7 @@ body.menu-open #carrieWrap{
       <a href="credits.html" class="menu-chip">Credits</a>
       <a href="press.html" class="menu-chip">Press</a>
       <a href="reset-password.html" class="menu-chip">Reset Password</a>
-      <a href="reset_password.html" class="menu-chip">Reset Password (alt)</a>
+      
     </div>
   </div>
 
