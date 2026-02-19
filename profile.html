@@ -66,6 +66,35 @@
     <div id="profileContent" style="display:none;"></div>
   </div>
 
+  <!-- Create Post Modal -->
+  <div id="createPostModal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.8);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:1rem;">
+    <div style="background:rgba(12,6,24,0.98);border:1px solid rgba(124,58,237,0.5);border-radius:18px;width:100%;max-width:460px;padding:1.5rem;box-shadow:0 20px 50px rgba(0,0,0,0.8);max-height:90vh;overflow-y:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
+        <h3 style="font-size:1.15rem;font-weight:800;color:#a855f7;">📝 Create Post</h3>
+        <button onclick="closeCreatePost()" style="background:none;border:none;color:#eae6ff;font-size:1.5rem;cursor:pointer;padding:0.25rem;">✕</button>
+      </div>
+      <div style="display:flex;gap:0.5rem;margin-bottom:1.25rem;" id="postTypeButtons">
+        <button type="button" class="postTypeBtn active" data-type="text" onclick="selectPostType('text')" style="flex:1;padding:0.65rem;border-radius:10px;border:1px solid rgba(124,58,237,0.4);background:#7c3aed;color:white;font-weight:600;cursor:pointer;font-size:0.85rem;">📝 Text</button>
+        <button type="button" class="postTypeBtn" data-type="photo" onclick="selectPostType('photo')" style="flex:1;padding:0.65rem;border-radius:10px;border:1px solid rgba(124,58,237,0.4);background:rgba(124,58,237,0.2);color:white;font-weight:600;cursor:pointer;font-size:0.85rem;">📷 Photo</button>
+        <button type="button" class="postTypeBtn" data-type="video" onclick="selectPostType('video')" style="flex:1;padding:0.65rem;border-radius:10px;border:1px solid rgba(124,58,237,0.4);background:rgba(124,58,237,0.2);color:white;font-weight:600;cursor:pointer;font-size:0.85rem;">🎬 Video</button>
+      </div>
+      <input type="hidden" id="postMediaType" value="text">
+      <div style="margin-bottom:1rem;">
+        <textarea id="postText" placeholder="What's on your mind? Share an update, thought, or announcement…" style="width:100%;min-height:120px;padding:0.85rem;background:rgba(12,0,25,0.9);border:1px solid rgba(124,58,237,0.35);border-radius:10px;color:#eae6ff;font-size:0.93rem;resize:vertical;font-family:inherit;"></textarea>
+      </div>
+      <div id="postMediaUrlGroup" style="display:none;margin-bottom:1rem;">
+        <label style="display:block;margin-bottom:0.4rem;font-size:0.85rem;font-weight:600;color:rgba(234,230,255,0.75);">🔗 Media URL</label>
+        <input type="url" id="postMediaUrl" placeholder="Paste image or video URL" style="width:100%;padding:0.7rem 0.9rem;background:rgba(12,0,25,0.9);border:1px solid rgba(124,58,237,0.35);border-radius:8px;color:#eae6ff;font-size:0.93rem;">
+        <div style="font-size:0.75rem;color:rgba(168,85,247,0.5);margin-top:0.4rem;">📷 Photos: Direct image links (Imgur, Postimg)<br>🎬 Videos: YouTube, TikTok, or direct video URLs</div>
+      </div>
+      <div style="display:flex;gap:0.75rem;align-items:center;">
+        <button id="submitPostBtn" onclick="submitPost()" style="flex:1;padding:0.75rem;background:linear-gradient(135deg,#7c3aed,#a855f7);color:white;border:none;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer;">📤 Post</button>
+        <button onclick="closeCreatePost()" style="padding:0.75rem 1.25rem;background:rgba(124,58,237,0.15);color:#a855f7;border:1px solid rgba(124,58,237,0.3);border-radius:10px;font-weight:600;cursor:pointer;">Cancel</button>
+      </div>
+      <div id="postNotice" style="margin-top:0.75rem;font-size:0.85rem;text-align:center;"></div>
+    </div>
+  </div>
+
   <script>
   document.addEventListener('DOMContentLoaded', function() {
 
@@ -73,7 +102,7 @@
   (function() {
     var d = document.createElement('div');
     d.id = 'mobileDebug';
-    d.style.cssText = 'display:none;'; // hidden — remove display:none to re-enable
+    d.style.cssText = 'display:none;';
     document.body.appendChild(d);
   })();
   function dbgEarly(msg) {
@@ -82,7 +111,6 @@
   }
   function dbg(msg) { dbgEarly(msg); }
 
-  // Use shared client if available (safer than hardcoded anon key)
   let db;
   if (window._8bfrSupabaseClient) {
     db = window._8bfrSupabaseClient;
@@ -117,14 +145,12 @@
   let isOwnProfile = false;
   let uploadingCover = false;
 
-  // ── INIT ────────────────────────────────────────────────────────
   function showError(msg) {
     document.getElementById('loadingSpinner').style.display = 'none';
     document.getElementById('profileContent').style.display = 'block';
     document.getElementById('profileContent').innerHTML =
       `<div style="text-align:center;padding:4rem;color:rgba(168,85,247,0.7);line-height:1.8;">${msg}</div>`;
   }
-
 
   async function init() {
     try {
@@ -135,14 +161,9 @@
     dbg('⏳ Checking auth...');
     let user = null;
     try {
-      // Use getSession first (faster and more reliable than getUser)
       const { data: { session }, error: sessionErr } = await db.auth.getSession();
-      if (sessionErr) {
-        console.error('Auth session error:', sessionErr);
-        dbg('⚠️ Auth error: ' + sessionErr.message);
-      }
+      if (sessionErr) { console.error('Auth session error:', sessionErr); dbg('⚠️ Auth error: ' + sessionErr.message); }
       user = session?.user || null;
-      console.log('Auth user:', user);
     } catch(authEx) {
       console.error('Auth exception:', authEx);
       dbg('⚠️ Auth issue: ' + authEx.message + ' — continuing as guest');
@@ -166,12 +187,7 @@
       .eq('user_id', targetId)
       .maybeSingle();
 
-    if (error) {
-      dbg('❌ Profile error: ' + error.message);
-      showError('Error loading profile: ' + error.message);
-      return;
-    }
-
+    if (error) { dbg('❌ Profile error: ' + error.message); showError('Error loading profile: ' + error.message); return; }
     dbg(profile ? '✅ Profile found: ' + profile.username : '⚠️ No profile row found');
 
     if (!profile) {
@@ -184,9 +200,7 @@
     }
 
     profileData = profile;
-    document.getElementById('pageTitle').textContent = isOwnProfile
-      ? '👤 My Profile'
-      : '👤 ' + (profile.display_name || profile.username || 'Profile');
+    document.getElementById('pageTitle').textContent = isOwnProfile ? '👤 My Profile' : '👤 ' + (profile.display_name || profile.username || 'Profile');
     document.title = (profile.display_name || profile.username || 'Profile') + ' — 8BFR Music Network';
 
     dbg('✅ Rendering...');
@@ -214,7 +228,6 @@
     const verifiedHtml = p.verified_artist ? '<span style="color:#00d9ff;font-size:1.1rem;margin-left:6px;">✓</span>' : '';
 
     let html = `
-    <!-- PROFILE HEADER -->
     <div class="profile-header">
       <div style="display:flex;gap:1.5rem;align-items:flex-start;flex-wrap:wrap;">
         <div class="avatar-ring" id="avatarDisplay">${avatarHtml}</div>
@@ -236,7 +249,6 @@
         ${isOwnProfile ? `<button class="btn" onclick="toggleUploadForm()">+ Upload Song</button>` : ''}
       </div>
       ${isOwnProfile ? `
-      <!-- UPLOAD FORM (hidden by default) -->
       <div id="uploadForm" style="display:none;background:rgba(0,0,0,0.3);border-radius:10px;padding:1.25rem;margin-bottom:1.25rem;border:1px solid rgba(124,58,237,0.25);">
         <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:1rem;color:#a855f7;">📤 Upload New Song</h3>
         <div class="form-group">
@@ -283,7 +295,6 @@
         <div id="uploadNotice" style="margin-top:0.75rem;font-size:0.85rem;"></div>
       </div>
       ` : ''}
-      <!-- SONG LIST -->
       <div id="songList"><div class="spinner"></div></div>
     </div>`;
     }
@@ -316,10 +327,20 @@
     </div>`;
     }
 
+    // ── POSTS SECTION ──
+    html += `
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+        <h2 style="margin:0;">📝 ${isOwnProfile ? 'My' : (p.display_name||p.username||"Their")+"'s"} Posts</h2>
+        ${isOwnProfile ? '<button class="btn" onclick="openCreatePost()">+ Create Post</button>' : ''}
+      </div>
+      <div id="postList"><div class="spinner"></div></div>
+    </div>`;
+
     document.getElementById('profileContent').innerHTML = html;
 
-    // Load songs if music creator
     if (isMusicCreator) loadSongs(profileData.user_id);
+    loadPosts(profileData.user_id);
   }
 
   // ── LOAD SONGS ──────────────────────────────────────────────────
@@ -327,7 +348,6 @@
     const el = document.getElementById('songList');
     if (!el) return;
     
-    // Check if music section is hidden (penalty for unpaid platform fees)
     if (profileData && profileData.music_section_hidden && !isOwnProfile) {
       el.innerHTML = `
         <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:2rem;text-align:center;">
@@ -350,23 +370,16 @@
         return;
       }
 
-      // Check which songs current user has purchased
       let purchasedSongIds = [];
       if (currentUser && !isOwnProfile) {
-        const { data: purchases } = await db.from('song_purchases')
-          .select('song_id')
-          .eq('buyer_id', currentUser.id);
-        if (purchases) {
-          purchasedSongIds = purchases.map(p => p.song_id);
-        }
+        const { data: purchases } = await db.from('song_purchases').select('song_id').eq('buyer_id', currentUser.id);
+        if (purchases) purchasedSongIds = purchases.map(p => p.song_id);
       }
 
       el.innerHTML = songs.map(s => {
         const cover = s.cover_art ? `<img src="${s.cover_art}" alt="${s.title}" onerror="this.parentNode.textContent='🎵'">` : '🎵';
         const featuredBadge = s.featured ? '<span class="owner-pick-badge" style="margin-left:0.4rem;">⭐ Featured</span>' : '';
         const deleteBtnHtml = isOwnProfile ? `<button class="btn btn-red" style="padding:0.4rem 0.75rem;font-size:0.8rem;" onclick="deleteSong('${s.id}')">🗑️</button>` : '';
-        
-        // Price and download/buy button
         const price = parseFloat(s.price) || 0;
         const priceDisplay = price > 0 ? `<span style="color:#4ade80;font-weight:600;font-size:0.85rem;margin-left:0.5rem;">$${price.toFixed(2)}</span>` : '';
         
@@ -374,18 +387,14 @@
         let downloadBtn = '';
         if (s.song_url && !isOwnProfile) {
           const hasPurchased = purchasedSongIds.includes(s.id);
-          
           if (price > 0) {
             if (hasPurchased) {
-              // Already purchased - show download button outside song-info
               downloadBtn = `<a href="${s.song_url}" download class="btn" style="padding:0.4rem 0.75rem;font-size:0.8rem;background:#4ade80;text-decoration:none;margin-left:0.5rem;">⬇️ Download</a>`;
             } else {
-              // Not purchased - show discount code input and PayPal button INSIDE song-info
               discountInput = `
                 <div style="margin-top:0.75rem;">
                   <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;">
-                    <input type="text" id="discount-${s.id}" placeholder="Discount code" 
-                      style="padding:0.4rem;font-size:0.8rem;background:#0b0014;border:1px solid rgba(124,58,237,0.4);border-radius:6px;color:#eae6ff;flex:1;max-width:150px;">
+                    <input type="text" id="discount-${s.id}" placeholder="Discount code" style="padding:0.4rem;font-size:0.8rem;background:#0b0014;border:1px solid rgba(124,58,237,0.4);border-radius:6px;color:#eae6ff;flex:1;max-width:150px;">
                     <button onclick="applyDiscount('${s.id}', ${price})" class="btn" style="padding:0.4rem 0.75rem;font-size:0.8rem;">Apply</button>
                     <span id="discount-msg-${s.id}" style="font-size:0.75rem;"></span>
                   </div>
@@ -393,7 +402,6 @@
                 </div>`;
             }
           } else {
-            // Free song - show download outside song-info
             downloadBtn = `<a href="${s.song_url}" download class="btn" style="padding:0.4rem 0.75rem;font-size:0.8rem;background:#a855f7;text-decoration:none;margin-left:0.5rem;">⬇️ Download</a>`;
           }
         }
@@ -412,42 +420,25 @@
         </div>`;
       }).join('');
 
-      // Render direct payment buttons for unpurchased paid songs (TRUST SYSTEM)
+      // Render trust payment buttons for unpurchased paid songs
       if (!isOwnProfile) {
         songs.forEach(s => {
           const price = parseFloat(s.price) || 0;
           const hasPurchased = purchasedSongIds.includes(s.id);
-          
           if (price > 0 && !hasPurchased && s.song_url) {
             const container = document.getElementById(`paypal-${s.id}`);
             if (container) {
-              // Calculate final price with discount
               let finalPrice = price;
               const discount = appliedDiscounts[s.id];
-              
               if (discount) {
-                if (discount.is_free) {
-                  finalPrice = 0;
-                } else {
-                  const discountAmt = parseFloat(discount.discount_amount) || 0;
-                  finalPrice = Math.max(0, price - discountAmt);
-                }
+                if (discount.is_free) { finalPrice = 0; } else { finalPrice = Math.max(0, price - (parseFloat(discount.discount_amount) || 0)); }
               }
-
-              // If free with discount, show claim button
               if (finalPrice === 0 && discount) {
                 container.innerHTML = `<button class="btn" style="background:#00ff88;color:#000;font-weight:700;" onclick="claimFreeSong('${s.id}', '${discount.code}')">Claim Free</button>`;
                 return;
               }
-
-              // Show artist's PayPal payment info
               const artistPayPal = profileData.paypal_email;
-              
-              if (!artistPayPal) {
-                container.innerHTML = `<p style="font-size:0.75rem;color:#ef4444;">Artist hasn't set up payments yet</p>`;
-                return;
-              }
-
+              if (!artistPayPal) { container.innerHTML = `<p style="font-size:0.75rem;color:#ef4444;">Artist hasn't set up payments yet</p>`; return; }
               container.innerHTML = `
                 <div style="background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.3);padding:0.75rem;border-radius:8px;max-width:350px;">
                   <p style="font-size:0.8rem;margin-bottom:0.5rem;color:#a855f7;"><strong>💳 Pay Artist Directly:</strong></p>
@@ -459,10 +450,118 @@
           }
         });
       }
-
     } catch (err) {
       el.innerHTML = `<div style="color:#ef4444;font-size:0.85rem;padding:1rem;">Error loading songs: ${err.message}</div>`;
     }
+  }
+
+  // ── LOAD POSTS ──────────────────────────────────────────────────
+  async function loadPosts(userId) {
+    const el = document.getElementById('postList');
+    if (!el) return;
+    try {
+      const { data: posts, error } = await db.from('posts')
+        .select('id, text, media, media_type, likes, shares, favorites, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      if (!posts || posts.length === 0) {
+        el.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(168,85,247,0.5);font-size:0.9rem;">No posts yet' + (isOwnProfile ? ' — create your first post above!' : '.') + '</div>';
+        return;
+      }
+      el.innerHTML = posts.map(p => {
+        const timeAgo = getTimeAgo(p.created_at);
+        let mediaHtml = '';
+        if (p.media && p.media_type === 'photo') {
+          mediaHtml = '<div style="margin-top:0.75rem;border-radius:10px;overflow:hidden;"><img src="' + p.media + '" alt="Post" style="width:100%;max-height:400px;object-fit:cover;border-radius:10px;" onerror="this.style.display=\'none\'"></div>';
+        } else if (p.media && p.media_type === 'video') {
+          const ytMatch = p.media.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
+          if (ytMatch) {
+            mediaHtml = '<div style="margin-top:0.75rem;border-radius:10px;overflow:hidden;position:relative;padding-bottom:56.25%;height:0;"><iframe src="https://www.youtube.com/embed/' + ytMatch[1] + '" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;border-radius:10px;" allowfullscreen></iframe></div>';
+          } else {
+            mediaHtml = '<div style="margin-top:0.75rem;"><a href="' + p.media + '" target="_blank" rel="noopener" style="color:#00d9ff;font-size:0.85rem;">🎬 Watch Video →</a></div>';
+          }
+        }
+        const deleteBtn = isOwnProfile ? '<button onclick="deletePost(\'' + p.id + '\')" style="background:none;border:none;color:rgba(239,68,68,0.6);cursor:pointer;font-size:0.8rem;">🗑️</button>' : '';
+        return '<div style="background:rgba(0,0,0,0.3);border:1px solid rgba(124,58,237,0.2);border-radius:12px;padding:1rem;margin-bottom:0.75rem;">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;"><span style="font-size:0.78rem;color:rgba(168,85,247,0.6);">' + timeAgo + '</span>' + deleteBtn + '</div>' +
+          (p.text ? '<div style="line-height:1.6;margin-bottom:0.25rem;">' + escapeHtml(p.text) + '</div>' : '') +
+          mediaHtml +
+          '<div style="display:flex;gap:1rem;padding-top:0.5rem;margin-top:0.5rem;border-top:1px solid rgba(124,58,237,0.15);font-size:0.82rem;color:rgba(168,85,247,0.6);"><span>🤍 ' + (p.likes||0) + '</span><span>💬 ' + (p.shares||0) + '</span><span>⭐ ' + (p.favorites||0) + '</span></div></div>';
+      }).join('');
+    } catch (err) {
+      el.innerHTML = '<div style="color:#ef4444;font-size:0.85rem;padding:1rem;">Error loading posts: ' + err.message + '</div>';
+    }
+  }
+
+  function getTimeAgo(dateStr) {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return mins + 'm ago';
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return hrs + 'h ago';
+    const days = Math.floor(hrs / 24);
+    if (days < 30) return days + 'd ago';
+    return new Date(dateStr).toLocaleDateString();
+  }
+
+  function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+
+  // ── CREATE POST ─────────────────────────────────────────────────
+  function openCreatePost() { document.getElementById('createPostModal').style.display = 'flex'; }
+  function closeCreatePost() {
+    document.getElementById('createPostModal').style.display = 'none';
+    document.getElementById('postText').value = '';
+    document.getElementById('postMediaUrl').value = '';
+    document.getElementById('postMediaType').value = 'text';
+    document.getElementById('postMediaUrlGroup').style.display = 'none';
+    document.getElementById('postNotice').textContent = '';
+    document.querySelectorAll('.postTypeBtn').forEach(b => { b.style.background = 'rgba(124,58,237,0.2)'; });
+    document.querySelector('.postTypeBtn[data-type="text"]').style.background = '#7c3aed';
+  }
+
+  function selectPostType(type) {
+    document.getElementById('postMediaType').value = type;
+    document.querySelectorAll('.postTypeBtn').forEach(b => { b.style.background = b.dataset.type === type ? '#7c3aed' : 'rgba(124,58,237,0.2)'; });
+    const urlGroup = document.getElementById('postMediaUrlGroup');
+    const urlInput = document.getElementById('postMediaUrl');
+    if (type === 'text') { urlGroup.style.display = 'none'; urlInput.value = ''; }
+    else {
+      urlGroup.style.display = 'block';
+      urlInput.placeholder = type === 'photo' ? 'Paste image URL (e.g. https://imgur.com/xxx.jpg)' : 'Paste video URL (e.g. YouTube, TikTok link)';
+    }
+  }
+
+  async function submitPost() {
+    if (!currentUser) { document.getElementById('postNotice').textContent = '❌ Please sign in'; document.getElementById('postNotice').style.color = '#ef4444'; return; }
+    const text = document.getElementById('postText').value.trim();
+    const mediaType = document.getElementById('postMediaType').value;
+    const mediaUrl = document.getElementById('postMediaUrl').value.trim();
+    if (!text && !mediaUrl) { document.getElementById('postNotice').textContent = '⚠️ Write something or add media'; document.getElementById('postNotice').style.color = '#f59e0b'; return; }
+    const btn = document.getElementById('submitPostBtn');
+    btn.disabled = true; btn.textContent = 'Posting…';
+    try {
+      const { error } = await db.from('posts').insert({
+        user_id: currentUser.id, text: text || null,
+        media: (mediaType !== 'text' && mediaUrl) ? mediaUrl : null,
+        media_type: mediaType, likes: 0, shares: 0, favorites: 0
+      });
+      if (error) throw error;
+      document.getElementById('postNotice').textContent = '✅ Post created!';
+      document.getElementById('postNotice').style.color = '#4ade80';
+      setTimeout(() => { closeCreatePost(); loadPosts(currentUser.id); }, 800);
+    } catch (err) {
+      document.getElementById('postNotice').textContent = '❌ ' + err.message;
+      document.getElementById('postNotice').style.color = '#ef4444';
+    } finally { btn.disabled = false; btn.textContent = '📤 Post'; }
+  }
+
+  async function deletePost(id) {
+    if (!confirm('Delete this post?')) return;
+    try { const { error } = await db.from('posts').delete().eq('id', id).eq('user_id', currentUser.id); if (error) throw error; loadPosts(currentUser.id); }
+    catch (err) { alert('Error: ' + err.message); }
   }
 
   // ── UPLOAD HELPERS ───────────────────────────────────────────────
@@ -472,457 +571,175 @@
   }
 
   let selectedAudio = null, selectedCover = null;
-
   const MAX_AUDIO_MB = 20;
   const ALLOWED_AUDIO_TYPES = ['audio/mpeg', 'audio/mp3'];
 
   function handleAudioSelect(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    // Type check — MP3 only
-    if (!ALLOWED_AUDIO_TYPES.includes(file.type) && !file.name.toLowerCase().endsWith('.mp3')) {
-      setUploadNotice('❌ Only MP3 files are allowed.', '#ef4444');
-      e.target.value = '';
-      return;
-    }
-    // Size check — 20MB max
-    if (file.size > MAX_AUDIO_MB * 1024 * 1024) {
-      setUploadNotice(`❌ File too large. Max is ${MAX_AUDIO_MB}MB. Your file is ${(file.size/1024/1024).toFixed(1)}MB.`, '#ef4444');
-      e.target.value = '';
-      return;
-    }
-
+    const file = e.target.files[0]; if (!file) return;
+    if (!ALLOWED_AUDIO_TYPES.includes(file.type) && !file.name.toLowerCase().endsWith('.mp3')) { setUploadNotice('❌ Only MP3 files are allowed.', '#ef4444'); e.target.value = ''; return; }
+    if (file.size > MAX_AUDIO_MB * 1024 * 1024) { setUploadNotice(`❌ File too large. Max is ${MAX_AUDIO_MB}MB.`, '#ef4444'); e.target.value = ''; return; }
     selectedAudio = file;
-    const sizeMB = (file.size / 1024 / 1024).toFixed(1);
-    document.getElementById('audioZoneText').textContent = `✅ ${file.name} (${sizeMB}MB)`;
+    document.getElementById('audioZoneText').textContent = `✅ ${file.name} (${(file.size/1024/1024).toFixed(1)}MB)`;
     setUploadNotice('');
-
-    // Auto-fill title from filename if empty
     const titleEl = document.getElementById('uploadTitle');
-    if (!titleEl.value) {
-      titleEl.value = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g,' ');
-    }
+    if (!titleEl.value) titleEl.value = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g,' ');
   }
 
-  function handleCoverSelect(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    selectedCover = file;
-    document.getElementById('coverZoneText').textContent = '✅ ' + file.name;
-  }
-
-  function setUploadNotice(msg, color) {
-    const el = document.getElementById('uploadNotice');
-    if (el) { el.textContent = msg; el.style.color = color || '#a855f7'; }
-  }
-
-  function setProgress(pct, label) {
-    document.getElementById('uploadProgress').style.display = 'block';
-    document.getElementById('progressFill').style.width = pct + '%';
-    document.getElementById('uploadStatus').textContent = label || 'Uploading…';
-  }
+  function handleCoverSelect(e) { const file = e.target.files[0]; if (!file) return; selectedCover = file; document.getElementById('coverZoneText').textContent = '✅ ' + file.name; }
+  function setUploadNotice(msg, color) { const el = document.getElementById('uploadNotice'); if (el) { el.textContent = msg; el.style.color = color || '#a855f7'; } }
+  function setProgress(pct, label) { document.getElementById('uploadProgress').style.display = 'block'; document.getElementById('progressFill').style.width = pct + '%'; document.getElementById('uploadStatus').textContent = label || 'Uploading…'; }
 
   // ── UPLOAD SONG ─────────────────────────────────────────────────
   async function uploadSong() {
-    // Critical: Check if user is authenticated
-    if (!currentUser || !currentUser.id) {
-      setUploadNotice('❌ Please sign in to upload songs.', '#ef4444');
-      console.error('Upload blocked: no currentUser');
-      return;
-    }
-
+    if (!currentUser || !currentUser.id) { setUploadNotice('❌ Please sign in to upload songs.', '#ef4444'); return; }
     const userId = currentUser.id;
     const title = document.getElementById('uploadTitle').value.trim();
     const artist = document.getElementById('uploadArtist').value.trim() || profileData?.display_name || profileData?.username || '';
-    const price = document.getElementById('uploadPrice').value;
     const explicit = document.getElementById('uploadExplicit').value === 'true';
-
     if (!title) { setUploadNotice('Song title is required.', '#ef4444'); return; }
     if (!selectedAudio) { setUploadNotice('Please select an audio file.', '#ef4444'); return; }
-
     const btn = document.getElementById('uploadBtn');
-    btn.disabled = true;
-    setProgress(10, 'Uploading audio…');
-    setUploadNotice('');
-
+    btn.disabled = true; setProgress(10, 'Uploading audio…'); setUploadNotice('');
     try {
-      // Sanitize title for file path (remove special chars, limit length)
       const safeTitle = title.replace(/[^a-zA-Z0-9-]/g, '-').substring(0, 50);
-      
-      // Upload audio file
       setUploadNotice('📤 Uploading ' + selectedAudio.name + '...', '#a855f7');
-      console.log('Starting audio upload for user:', userId);
-      
       const audioExt = selectedAudio.name.split('.').pop();
       const audioPath = `${userId}/songs/${Date.now()}-${safeTitle}.${audioExt}`;
-      
-      const { data: audioData, error: audioErr } = await db.storage
-        .from('songs')
-        .upload(audioPath, selectedAudio, { contentType: selectedAudio.type, upsert: false });
-
-      console.log('Audio upload result:', { audioPath, audioData, audioErr });
-      
-      if (audioErr) {
-        console.error('Storage error:', audioErr);
-        setUploadNotice('❌ Storage error: ' + audioErr.message + ' (Check "songs" bucket exists)', '#ef4444');
-        throw new Error('Audio upload failed: ' + audioErr.message);
-      }
-      setUploadNotice('✅ Audio uploaded to storage', '#4ade80');
-      setProgress(60, 'Audio uploaded. Processing cover…');
-
+      const { data: audioData, error: audioErr } = await db.storage.from('songs').upload(audioPath, selectedAudio, { contentType: selectedAudio.type, upsert: false });
+      if (audioErr) { setUploadNotice('❌ Storage error: ' + audioErr.message, '#ef4444'); throw new Error('Audio upload failed: ' + audioErr.message); }
+      setUploadNotice('✅ Audio uploaded', '#4ade80'); setProgress(60, 'Processing cover…');
       const { data: audioUrlData } = db.storage.from('songs').getPublicUrl(audioPath);
       const songUrl = audioUrlData.publicUrl;
-
-      // Upload cover if provided
       let coverUrl = null;
       if (selectedCover) {
         const coverExt = selectedCover.name.split('.').pop();
         const coverPath = `${userId}/covers/${Date.now()}.${coverExt}`;
-        console.log('Uploading cover:', coverPath);
-        
-        const { data: coverData, error: coverErr } = await db.storage
-          .from('songs')
-          .upload(coverPath, selectedCover, { contentType: selectedCover.type, upsert: false });
-        
-        console.log('Cover upload result:', { coverPath, coverData, coverErr });
-        
-        if (coverErr) {
-          console.error('Cover upload error (non-critical):', coverErr);
-          setUploadNotice('⚠️ Cover upload failed: ' + coverErr.message + ' (continuing without cover)', '#f59e0b');
-        } else {
-          const { data: coverUrlData } = db.storage.from('songs').getPublicUrl(coverPath);
-          coverUrl = coverUrlData.publicUrl;
-          console.log('Cover URL:', coverUrl);
-        }
+        const { error: coverErr } = await db.storage.from('songs').upload(coverPath, selectedCover, { contentType: selectedCover.type, upsert: false });
+        if (coverErr) { setUploadNotice('⚠️ Cover failed: ' + coverErr.message, '#f59e0b'); }
+        else { const { data: coverUrlData } = db.storage.from('songs').getPublicUrl(coverPath); coverUrl = coverUrlData.publicUrl; }
       }
-
-      setProgress(80, 'Saving to database…');
-      setUploadNotice('💾 Saving song to database...', '#a855f7');
-
-      // Insert into songs table
-      const songData = {
-        title,
-        artist,
-        uploaded_by: userId,
-        song_url: songUrl,
-        cover_art: coverUrl,
-        explicit,
-        featured: false
-      };
-      
-      console.log('Inserting song to DB:', songData);
-      const { error: insertErr } = await db.from('songs').insert(songData);
-
-      console.log('DB insert result:', insertErr);
-      
-      if (insertErr) {
-        console.error('Database error:', insertErr);
-        setUploadNotice('❌ Database error: ' + insertErr.message + ' (Check RLS policies)', '#ef4444');
-        throw new Error('Database save failed: ' + insertErr.message);
-      }
-
-      setProgress(100, '✅ Upload complete!');
-      setUploadNotice('⭐ "' + title + '" uploaded successfully!', '#4ade80');
-
-      // Reset form
+      setProgress(80, 'Saving to database…'); setUploadNotice('💾 Saving…', '#a855f7');
+      const { error: insertErr } = await db.from('songs').insert({ title, artist, uploaded_by: userId, song_url: songUrl, cover_art: coverUrl, explicit, featured: false });
+      if (insertErr) { setUploadNotice('❌ Database error: ' + insertErr.message, '#ef4444'); throw new Error(insertErr.message); }
+      setProgress(100, '✅ Upload complete!'); setUploadNotice('⭐ "' + title + '" uploaded!', '#4ade80');
       selectedAudio = null; selectedCover = null;
-      document.getElementById('uploadTitle').value = '';
-      document.getElementById('uploadArtist').value = '';
-      document.getElementById('uploadPrice').value = '';
-      document.getElementById('audioZoneText').textContent = '🎵 Click to select audio file';
-      document.getElementById('coverZoneText').textContent = '🖼️ Click to select cover image';
-      document.getElementById('audioFile').value = '';
-      document.getElementById('coverFile').value = '';
-
-      setTimeout(() => {
-        toggleUploadForm();
-        document.getElementById('uploadProgress').style.display = 'none';
-        loadSongs(currentUser.id);
-      }, 1500);
-
-    } catch (err) {
-      console.error('Upload error:', err);
-      setProgress(0, '');
-      document.getElementById('uploadProgress').style.display = 'none';
-      setUploadNotice('❌ Error: ' + err.message, '#ef4444');
-    } finally {
-      btn.disabled = false;
-    }
+      document.getElementById('uploadTitle').value = ''; document.getElementById('uploadArtist').value = ''; document.getElementById('uploadPrice').value = '';
+      document.getElementById('audioZoneText').textContent = '🎵 Click to select audio file'; document.getElementById('coverZoneText').textContent = '🖼️ Click to select cover image';
+      document.getElementById('audioFile').value = ''; document.getElementById('coverFile').value = '';
+      setTimeout(() => { toggleUploadForm(); document.getElementById('uploadProgress').style.display = 'none'; loadSongs(currentUser.id); }, 1500);
+    } catch (err) { setProgress(0, ''); document.getElementById('uploadProgress').style.display = 'none'; setUploadNotice('❌ ' + err.message, '#ef4444'); }
+    finally { btn.disabled = false; }
   }
 
-  // ── DELETE SONG ─────────────────────────────────────────────────
   async function deleteSong(id) {
     if (!confirm('Delete this song? This cannot be undone.')) return;
-    try {
-      const { error } = await db.from('songs').delete().eq('id', id).eq('uploaded_by', currentUser.id);
-      if (error) throw error;
-      const row = document.getElementById('song-' + id);
-      if (row) row.remove();
-    } catch (err) {
-      alert('Error deleting: ' + err.message);
-    }
+    try { const { error } = await db.from('songs').delete().eq('id', id).eq('uploaded_by', currentUser.id); if (error) throw error; const row = document.getElementById('song-' + id); if (row) row.remove(); }
+    catch (err) { alert('Error deleting: ' + err.message); }
   }
 
-  // ── SAVE PROFILE ─────────────────────────────────────────────────
   async function saveProfile() {
-    if (!currentUser || !currentUser.id) {
-      const notice = document.getElementById('saveNotice');
-      notice.textContent = '❌ Please sign in to save profile';
-      notice.style.color = '#ef4444';
-      return;
-    }
-    
+    if (!currentUser || !currentUser.id) { const n = document.getElementById('saveNotice'); n.textContent = '❌ Please sign in'; n.style.color = '#ef4444'; return; }
     const username = document.getElementById('editUsername').value.trim();
     const displayName = document.getElementById('editDisplayName').value.trim();
     const bio = document.getElementById('editBio').value.trim();
     const avatarUrl = document.getElementById('editAvatar').value.trim();
     const notice = document.getElementById('saveNotice');
-
     if (!username) { notice.textContent = '⚠️ Username required'; notice.style.color = '#ef4444'; return; }
-
     try {
-      console.log('Updating profile for user:', currentUser.id);
-      const { error } = await db.from('profiles').update({
-        username, display_name: displayName, bio, avatar_url: avatarUrl || null
-      }).eq('user_id', currentUser.id);
-
+      const { error } = await db.from('profiles').update({ username, display_name: displayName, bio, avatar_url: avatarUrl || null }).eq('user_id', currentUser.id);
       if (error) throw error;
-      notice.textContent = '✅ Saved!';
-      notice.style.color = '#4ade80';
+      notice.textContent = '✅ Saved!'; notice.style.color = '#4ade80';
       setTimeout(() => { notice.textContent = ''; }, 2500);
-
-      // Update avatar display
       if (avatarUrl) {
         const avatarEl = document.getElementById('avatarDisplay');
         if (avatarEl) avatarEl.innerHTML = `<img src="${avatarUrl}" alt="avatar" onerror="this.parentNode.textContent='👤'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
       }
-    } catch (err) {
-      notice.textContent = '❌ ' + err.message;
-      notice.style.color = '#ef4444';
-    }
+    } catch (err) { notice.textContent = '❌ ' + err.message; notice.style.color = '#ef4444'; }
   }
 
   // ── DRAG & DROP ──────────────────────────────────────────────────
   (function() {
     ['audioZone','coverZone'].forEach(id => {
-      const zone = document.getElementById(id);
-      if (!zone) return;
+      const zone = document.getElementById(id); if (!zone) return;
       zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
       zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
       zone.addEventListener('drop', e => {
         e.preventDefault(); zone.classList.remove('drag-over');
-        const file = e.dataTransfer.files[0];
-        if (!file) return;
+        const file = e.dataTransfer.files[0]; if (!file) return;
         if (id === 'audioZone') {
-            if (!ALLOWED_AUDIO_TYPES.includes(file.type) && !file.name.toLowerCase().endsWith('.mp3')) {
-              setUploadNotice('❌ Only MP3 files are allowed.', '#ef4444'); return;
-            }
-            if (file.size > MAX_AUDIO_MB * 1024 * 1024) {
-              setUploadNotice(`❌ File too large. Max ${MAX_AUDIO_MB}MB. Yours is ${(file.size/1024/1024).toFixed(1)}MB.`, '#ef4444'); return;
-            }
-            selectedAudio = file;
-            document.getElementById('audioZoneText').textContent = `✅ ${file.name} (${(file.size/1024/1024).toFixed(1)}MB)`;
-            setUploadNotice('');
-          }
-        else { selectedCover = file; document.getElementById('coverZoneText').textContent = '✅ ' + file.name; }
+          if (!ALLOWED_AUDIO_TYPES.includes(file.type) && !file.name.toLowerCase().endsWith('.mp3')) { setUploadNotice('❌ Only MP3 files.', '#ef4444'); return; }
+          if (file.size > MAX_AUDIO_MB * 1024 * 1024) { setUploadNotice(`❌ Too large. Max ${MAX_AUDIO_MB}MB.`, '#ef4444'); return; }
+          selectedAudio = file; document.getElementById('audioZoneText').textContent = `✅ ${file.name} (${(file.size/1024/1024).toFixed(1)}MB)`; setUploadNotice('');
+        } else { selectedCover = file; document.getElementById('coverZoneText').textContent = '✅ ' + file.name; }
       });
     });
   })();
 
-  // Safety net - if still spinning after 8s, show error
-  setTimeout(() => {
-    const spinner = document.getElementById('loadingSpinner');
-    if (spinner && spinner.style.display !== 'none') {
-      showError('Timed out loading profile. Please check your connection and try again, or <a href="login.html" style="color:#a855f7;">log in again</a>.');
-    }
-  }, 8000);
+  // Safety timeout
+  setTimeout(() => { const s = document.getElementById('loadingSpinner'); if (s && s.style.display !== 'none') showError('Timed out. <a href="login.html" style="color:#a855f7;">Log in again</a>.'); }, 8000);
 
-  init().catch(err => {
-    document.getElementById('loadingSpinner').innerHTML =
-      '<div style="text-align:center;padding:2rem;color:#f87171;">❌ ' + err.message + '</div>';
-  });
+  init().catch(err => { document.getElementById('loadingSpinner').innerHTML = '<div style="text-align:center;padding:2rem;color:#f87171;">❌ ' + err.message + '</div>'; });
 
-  // Discount code tracking
+  // Discount tracking
   const appliedDiscounts = {};
 
-  // Apply discount code function
   window.applyDiscount = async function(songId, basePrice) {
     const input = document.getElementById(`discount-${songId}`);
     const msgEl = document.getElementById(`discount-msg-${songId}`);
     const code = input.value.trim().toUpperCase();
-    
-    if (!code) {
-      msgEl.textContent = 'Enter a code';
-      msgEl.style.color = '#ef4444';
-      return;
-    }
-
+    if (!code) { msgEl.textContent = 'Enter a code'; msgEl.style.color = '#ef4444'; return; }
     try {
-      // Validate discount code
-      const { data: discountData, error } = await db
-        .from('song_discount_codes')
-        .select('*')
-        .eq('code', code)
-        .or(`song_id.eq.${songId},song_id.is.null`)
-        .single();
-
-      if (error || !discountData) {
-        msgEl.textContent = 'Invalid code';
-        msgEl.style.color = '#ef4444';
-        appliedDiscounts[songId] = null;
-        return;
-      }
-
-      // Check if expired
-      if (discountData.expires_at && new Date(discountData.expires_at) < new Date()) {
-        msgEl.textContent = 'Code expired';
-        msgEl.style.color = '#ef4444';
-        appliedDiscounts[songId] = null;
-        return;
-      }
-
-      // Check max uses
-      if (discountData.max_uses && discountData.uses >= discountData.max_uses) {
-        msgEl.textContent = 'Code limit reached';
-        msgEl.style.color = '#ef4444';
-        appliedDiscounts[songId] = null;
-        return;
-      }
-
-      // Store discount
-      appliedDiscounts[songId] = discountData;
-      
-      // Calculate final price
-      let finalPrice = basePrice;
-      if (discountData.is_free) {
-        finalPrice = 0;
-        msgEl.textContent = '✓ FREE!';
-        msgEl.style.color = '#00ff88';
-      } else {
-        const discount = parseFloat(discountData.discount_amount) || 0;
-        finalPrice = Math.max(0, basePrice - discount);
-        msgEl.textContent = `✓ -$${discount.toFixed(2)} = $${finalPrice.toFixed(2)}`;
-        msgEl.style.color = '#4ade80';
-      }
-
-      // Re-render PayPal button with new price
+      const { data: d, error } = await db.from('song_discount_codes').select('*').eq('code', code).or(`song_id.eq.${songId},song_id.is.null`).single();
+      if (error || !d) { msgEl.textContent = 'Invalid code'; msgEl.style.color = '#ef4444'; appliedDiscounts[songId] = null; return; }
+      if (d.expires_at && new Date(d.expires_at) < new Date()) { msgEl.textContent = 'Code expired'; msgEl.style.color = '#ef4444'; return; }
+      if (d.max_uses && d.uses >= d.max_uses) { msgEl.textContent = 'Limit reached'; msgEl.style.color = '#ef4444'; return; }
+      appliedDiscounts[songId] = d;
+      if (d.is_free) { msgEl.textContent = '✓ FREE!'; msgEl.style.color = '#00ff88'; }
+      else { const disc = parseFloat(d.discount_amount)||0; msgEl.textContent = `✓ -$${disc.toFixed(2)}`; msgEl.style.color = '#4ade80'; }
       loadSongs(profileData.user_id);
-
-    } catch (err) {
-      console.error('Discount error:', err);
-      msgEl.textContent = 'Error';
-      msgEl.style.color = '#ef4444';
-    }
+    } catch (err) { msgEl.textContent = 'Error'; msgEl.style.color = '#ef4444'; }
   };
 
-  // Claim free song with discount code
   window.claimFreeSong = async function(songId, discountCode) {
-    if (!currentUser) {
-      alert('Please sign in to claim this song');
-      return;
-    }
-
+    if (!currentUser) { alert('Please sign in'); return; }
     try {
-      // Get song info
       const { data: song } = await db.from('songs').select('*').eq('id', songId).single();
       if (!song) throw new Error('Song not found');
-
-      // Record "purchase" with $0 amount
-      const { data: purchaseData, error: purchaseErr } = await db.from('song_purchases').insert({
-        song_id: songId,
-        buyer_id: currentUser.id,
-        buyer_email: currentUser.email,
-        amount_paid: 0,
-        payment_method: 'discount_code',
-        payment_id: 'FREE-' + discountCode
-      }).select().single();
-
+      const { error: purchaseErr } = await db.from('song_purchases').insert({ song_id: songId, buyer_id: currentUser.id, buyer_email: currentUser.email, amount_paid: 0, payment_method: 'discount_code', payment_id: 'FREE-' + discountCode });
       if (purchaseErr) throw purchaseErr;
-
-      // Increment discount code usage
-      await db.from('song_discount_codes')
-        .update({ uses: db.raw('uses + 1') })
-        .eq('code', discountCode);
-
-      // Trigger download
-      const a = document.createElement('a');
-      a.href = song.song_url;
-      a.download = `${song.title}.mp3`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-
-      alert('Song claimed! Download starting...');
-      loadSongs(profileData.user_id);
-
-    } catch (err) {
-      console.error('Claim error:', err);
-      alert('Error claiming song: ' + err.message);
-    }
+      const a = document.createElement('a'); a.href = song.song_url; a.download = `${song.title}.mp3`; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      alert('Song claimed!'); loadSongs(profileData.user_id);
+    } catch (err) { alert('Error: ' + err.message); }
   };
 
-  // Mark song as paid (TRUST SYSTEM - buyer confirms they sent payment to artist)
   window.markSongAsPaid = async function(songId, amount, artistPayPal) {
-    if (!currentUser) {
-      alert('Please sign in to purchase');
-      return;
-    }
-
-    if (!confirm(`Confirm you sent $${amount.toFixed(2)} to ${artistPayPal} via PayPal?`)) {
-      return;
-    }
-
+    if (!currentUser) { alert('Please sign in'); return; }
+    if (!confirm(`Confirm you sent $${amount.toFixed(2)} to ${artistPayPal} via PayPal?`)) return;
     try {
-      // Get song info
       const { data: song } = await db.from('songs').select('*').eq('id', songId).single();
       if (!song) throw new Error('Song not found');
-
-      // Record purchase (honor system)
-      const { data: purchaseData, error: purchaseErr } = await db.from('song_purchases').insert({
-        song_id: songId,
-        buyer_id: currentUser.id,
-        buyer_email: currentUser.email,
-        amount_paid: amount,
-        payment_method: 'paypal_direct',
-        payment_id: 'DIRECT-' + Date.now(),
-        payment_confirmed: false
-      }).select().single();
-
+      const { data: purchaseData, error: purchaseErr } = await db.from('song_purchases').insert({ song_id: songId, buyer_id: currentUser.id, buyer_email: currentUser.email, amount_paid: amount, payment_method: 'paypal_direct', payment_id: 'DIRECT-' + Date.now(), payment_confirmed: false }).select().single();
       if (purchaseErr) throw purchaseErr;
-
-      // Record payout (artist received 100%, owes platform 20%)
-      await db.rpc('record_song_payout', {
-        p_purchase_id: purchaseData.id,
-        p_song_id: songId,
-        p_total_amount: amount
-      });
-
-      // Increment discount code usage if applied
+      await db.rpc('record_song_payout', { p_purchase_id: purchaseData.id, p_song_id: songId, p_total_amount: amount });
       const discount = appliedDiscounts[songId];
-      if (discount) {
-        await db.from('song_discount_codes')
-          .update({ uses: (discount.uses || 0) + 1 })
-          .eq('id', discount.id);
-      }
-
-      // NO IMMEDIATE DOWNLOAD - wait for artist to confirm payment
-      alert('Payment claim submitted! The artist will confirm they received your payment, then you can download. Check "My Purchases" page for status.');
-      loadSongs(profileData.user_id);
-
-    } catch (err) {
-      console.error('Purchase error:', err);
-      alert('Error: ' + err.message);
-    }
+      if (discount) await db.from('song_discount_codes').update({ uses: (discount.uses||0) + 1 }).eq('id', discount.id);
+      alert('Payment claim submitted! Artist will confirm.'); loadSongs(profileData.user_id);
+    } catch (err) { alert('Error: ' + err.message); }
   };
 
-  // Expose functions called by onclick attributes to global scope
+  // Expose functions
   window.toggleUploadForm = toggleUploadForm;
   window.handleAudioSelect = handleAudioSelect;
   window.handleCoverSelect = handleCoverSelect;
   window.uploadSong = uploadSong;
   window.deleteSong = deleteSong;
   window.saveProfile = saveProfile;
+  window.openCreatePost = openCreatePost;
+  window.closeCreatePost = closeCreatePost;
+  window.selectPostType = selectPostType;
+  window.submitPost = submitPost;
+  window.deletePost = deletePost;
+  window.loadPosts = loadPosts;
 
   }); // end DOMContentLoaded
   </script>
@@ -946,7 +763,6 @@
   })();
   </script>
 
-  <!-- PayPal SDK for song purchases -->
   <script src="https://www.paypal.com/sdk/js?client-id=AWx0LwdZ_sCyCE5gEj9mL1ha7ZbG_eZLE_R636KjLXFMV1pOfmGwNg9prM5kVKQspvnpNLJDZxPp100G&currency=USD&intent=capture&components=buttons"></script>
 
 </body>
