@@ -25,8 +25,6 @@
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .btn-danger { background: #dc2626; }
         .btn-danger:hover { filter: brightness(1.1); }
-
-        /* Dropdown styles */
         .artist-select {
             width: 100%;
             padding: 0.75rem;
@@ -42,10 +40,6 @@
         .artist-select:focus { outline: none; border-color: var(--primary); }
         .select-wrapper { position: relative; }
         .select-wrapper::after { content: '▾'; position: absolute; right: 1rem; top: 50%; transform: translateY(-60%); color: var(--primary); pointer-events: none; font-size: 1.1rem; }
-        .search-box { width: 100%; padding: 0.75rem; background: var(--dark); border: 1px solid var(--border); border-radius: 8px; color: var(--text); margin-bottom: 1rem; font-size: 0.95rem; }
-        .search-box:focus { outline: none; border-color: var(--primary); }
-
-        /* Owner pick badge */
         .owner-pick-badge {
             display: inline-flex;
             align-items: center;
@@ -59,8 +53,6 @@
             letter-spacing: 0.03em;
             flex-shrink: 0;
         }
-
-        /* Featured list */
         .featured-list { display: flex; flex-direction: column; gap: 0.75rem; }
         .featured-item {
             background: var(--dark);
@@ -83,7 +75,6 @@
         .featured-avatar img { width: 100%; height: 100%; object-fit: cover; }
         .featured-name { font-weight: 700; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .featured-meta { font-size: 0.8rem; color: rgba(168,85,247,0.7); margin-top: 0.15rem; }
-
         .notice { padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.88rem; margin-top: 0.75rem; }
         .notice.success { background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.3); color: #4ade80; }
         .notice.error { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #ef4444; }
@@ -108,7 +99,7 @@
         <div id="tab-artists" class="tab-content active">
             <div class="card">
                 <h2>Add Featured Artist</h2>
-                <p style="font-size:0.85rem;color:rgba(168,85,247,0.7);margin-bottom:1rem;">Only artists and beatmakers are shown.</p>
+                <p style="font-size:0.85rem;color:rgba(168,85,247,0.7);margin-bottom:1rem;">Select a profile to feature.</p>
                 <div class="select-wrapper">
                     <select class="artist-select" id="artistDropdown">
                         <option value="">Loading artists…</option>
@@ -128,10 +119,14 @@
         <!-- Songs Tab -->
         <div id="tab-songs" class="tab-content">
             <div class="card">
-                <h2>Search & Add Songs</h2>
-                <input type="text" class="search-box" id="searchSongs" placeholder="Search songs by title…" oninput="searchSongs()">
-                <div id="songResults" style="color:rgba(168,85,247,0.5);font-size:0.9rem;">Type to search…</div>
-                <button class="btn" style="margin-top:1rem;" onclick="addSelectedToFeatured('song')">⭐ Add Selected to Owner Picks</button>
+                <h2>Add Featured Song</h2>
+                <p style="font-size:0.85rem;color:rgba(168,85,247,0.7);margin-bottom:1rem;">Select a song to feature.</p>
+                <div class="select-wrapper">
+                    <select class="artist-select" id="songDropdown">
+                        <option value="">Loading songs…</option>
+                    </select>
+                </div>
+                <button class="btn" onclick="addSongFromDropdown()">⭐ Add to Owner Picks</button>
                 <div id="songNotice"></div>
             </div>
             <div class="card">
@@ -145,10 +140,14 @@
         <!-- Posts Tab -->
         <div id="tab-posts" class="tab-content">
             <div class="card">
-                <h2>Search & Add Posts</h2>
-                <input type="text" class="search-box" id="searchPosts" placeholder="Search posts…" oninput="searchPosts()">
-                <div id="postResults" style="color:rgba(168,85,247,0.5);font-size:0.9rem;">Type to search…</div>
-                <button class="btn" style="margin-top:1rem;" onclick="addSelectedToFeatured('post')">⭐ Add Selected to Owner Picks</button>
+                <h2>Add Featured Post</h2>
+                <p style="font-size:0.85rem;color:rgba(168,85,247,0.7);margin-bottom:1rem;">Select a post to feature.</p>
+                <div class="select-wrapper">
+                    <select class="artist-select" id="postDropdown">
+                        <option value="">Loading posts…</option>
+                    </select>
+                </div>
+                <button class="btn" onclick="addPostFromDropdown()">⭐ Add to Owner Picks</button>
                 <div id="postNotice"></div>
             </div>
             <div class="card">
@@ -166,9 +165,9 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
         const s = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        let selectedSongs = new Set();
-        let selectedPosts = new Set();
-        let featuredArtistIds = new Set(); // track which are already featured
+        let featuredArtistIds = new Set();
+        let featuredSongIds = new Set();
+        let featuredPostIds = new Set();
 
         // ── INIT ────────────────────────────────────────────────────
         async function init() {
@@ -183,6 +182,8 @@
                 }
                 await loadFeatured();
                 await populateArtistDropdown();
+                await populateSongDropdown();
+                await populatePostDropdown();
             } catch (err) {
                 console.error('Init error:', err);
             }
@@ -194,8 +195,6 @@
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             btn.classList.add('active');
             document.getElementById('tab-' + tab).classList.add('active');
-            selectedSongs.clear();
-            selectedPosts.clear();
         }
 
         // ── NOTICE ──────────────────────────────────────────────────
@@ -217,7 +216,6 @@
                     .order('username', { ascending: true });
 
                 if (error) throw error;
-
                 if (!data || data.length === 0) {
                     dd.innerHTML = '<option value="">No artists found</option>';
                     return;
@@ -236,22 +234,81 @@
                 });
             } catch (err) {
                 dd.innerHTML = '<option value="">Error loading artists</option>';
-                showNotice('artistNotice', 'Error loading artists: ' + err.message, 'error');
+                showNotice('artistNotice', 'Error: ' + err.message, 'error');
             }
         }
 
-        // ── ADD FROM DROPDOWN ───────────────────────────────────────
+        // ── SONG DROPDOWN ───────────────────────────────────────────
+        async function populateSongDropdown() {
+            const dd = document.getElementById('songDropdown');
+            dd.innerHTML = '<option value="">Loading…</option>';
+            try {
+                const { data, error } = await s
+                    .from('songs')
+                    .select('id, title, artist')
+                    .order('created_at', { ascending: false })
+                    .limit(200);
+
+                if (error) throw error;
+                if (!data || data.length === 0) {
+                    dd.innerHTML = '<option value="">No songs found</option>';
+                    return;
+                }
+
+                dd.innerHTML = '<option value="">— Select a song to feature —</option>';
+                data.forEach(song => {
+                    const already = featuredSongIds.has(song.id);
+                    const opt = document.createElement('option');
+                    opt.value = song.id;
+                    opt.textContent = (already ? '⭐ ' : '🎵 ') + (song.title || 'Untitled') + ' — ' + (song.artist || 'Unknown') + (already ? ' (already featured)' : '');
+                    if (already) opt.style.color = '#f59e0b';
+                    dd.appendChild(opt);
+                });
+            } catch (err) {
+                dd.innerHTML = '<option value="">Error loading songs</option>';
+                showNotice('songNotice', 'Error: ' + err.message, 'error');
+            }
+        }
+
+        // ── POST DROPDOWN ───────────────────────────────────────────
+        async function populatePostDropdown() {
+            const dd = document.getElementById('postDropdown');
+            dd.innerHTML = '<option value="">Loading…</option>';
+            try {
+                const { data, error } = await s
+                    .from('posts')
+                    .select('id, text, user_id, created_at')
+                    .order('created_at', { ascending: false })
+                    .limit(200);
+
+                if (error) throw error;
+                if (!data || data.length === 0) {
+                    dd.innerHTML = '<option value="">No posts found</option>';
+                    return;
+                }
+
+                dd.innerHTML = '<option value="">— Select a post to feature —</option>';
+                data.forEach(post => {
+                    const already = featuredPostIds.has(post.id);
+                    const preview = post.text ? post.text.substring(0, 60) + (post.text.length > 60 ? '…' : '') : 'Post ' + post.id.substring(0,8);
+                    const opt = document.createElement('option');
+                    opt.value = post.id;
+                    opt.textContent = (already ? '⭐ ' : '📝 ') + preview + (already ? ' (already featured)' : '');
+                    if (already) opt.style.color = '#f59e0b';
+                    dd.appendChild(opt);
+                });
+            } catch (err) {
+                dd.innerHTML = '<option value="">Error loading posts</option>';
+                showNotice('postNotice', 'Error: ' + err.message, 'error');
+            }
+        }
+
+        // ── ADD FROM DROPDOWNS ──────────────────────────────────────
         async function addFromDropdown(type) {
             const dd = document.getElementById('artistDropdown');
             const userId = dd.value;
-            if (!userId || userId === 'null') {
-                showNotice('artistNotice', 'Please select an artist first.', 'error');
-                return;
-            }
-            if (featuredArtistIds.has(userId)) {
-                showNotice('artistNotice', 'This artist is already featured!', 'info');
-                return;
-            }
+            if (!userId) { showNotice('artistNotice', 'Please select an artist first.', 'error'); return; }
+            if (featuredArtistIds.has(userId)) { showNotice('artistNotice', 'Already featured!', 'info'); return; }
             const btn = document.getElementById('addArtistBtn');
             btn.disabled = true; btn.textContent = 'Saving…';
             try {
@@ -265,6 +322,39 @@
                 showNotice('artistNotice', 'Error: ' + err.message, 'error');
             } finally {
                 btn.disabled = false; btn.textContent = '⭐ Add to Owner Picks';
+            }
+        }
+
+        async function addSongFromDropdown() {
+            const dd = document.getElementById('songDropdown');
+            const songId = dd.value;
+            if (!songId) { showNotice('songNotice', 'Please select a song first.', 'error'); return; }
+            if (featuredSongIds.has(songId)) { showNotice('songNotice', 'Already featured!', 'info'); return; }
+            try {
+                const expiresAt = new Date(Date.now() + 365*24*60*60*1000).toISOString();
+                const { error } = await s.from('featured_songs').insert({ song_id: songId, expires_at: expiresAt });
+                if (error) throw error;
+                showNotice('songNotice', '⭐ Song added to Owner Picks!', 'success');
+                await loadFeatured();
+                await populateSongDropdown();
+            } catch (err) {
+                showNotice('songNotice', 'Error: ' + err.message, 'error');
+            }
+        }
+
+        async function addPostFromDropdown() {
+            const dd = document.getElementById('postDropdown');
+            const postId = dd.value;
+            if (!postId) { showNotice('postNotice', 'Please select a post first.', 'error'); return; }
+            if (featuredPostIds.has(postId)) { showNotice('postNotice', 'Already featured!', 'info'); return; }
+            try {
+                const { error } = await s.from('featured_content').insert({ content_type: 'post', content_id: postId });
+                if (error) throw error;
+                showNotice('postNotice', '⭐ Post added to Owner Picks!', 'success');
+                await loadFeatured();
+                await populatePostDropdown();
+            } catch (err) {
+                showNotice('postNotice', 'Error: ' + err.message, 'error');
             }
         }
 
@@ -284,7 +374,6 @@
                     .order('created_at', { ascending: false });
 
                 if (error) throw error;
-
                 featuredArtistIds.clear();
                 if (!rows || rows.length === 0) {
                     el.innerHTML = '<div class="empty-state">No featured artists yet.</div>';
@@ -308,18 +397,14 @@
                     const avatarInner = avatarSrc
                         ? '<img src="' + avatarSrc + '" alt="' + name + '" onerror="this.parentNode.textContent=\'🎵\'">'
                         : '🎵';
-                    return `
-                    <div class="featured-item">
-                        <div class="featured-item-info">
-                            <div class="featured-avatar">${avatarInner}</div>
-                            <div>
-                                <div class="featured-name">${name}</div>
-                                <div class="featured-meta">${badge}</div>
-                            </div>
-                            <span class="owner-pick-badge">⭐ Owner Pick</span>
-                        </div>
-                        <button class="btn btn-danger" onclick="removeFeaturedArtist('${row.user_id}')">Remove</button>
-                    </div>`;
+                    return '<div class="featured-item">' +
+                        '<div class="featured-item-info">' +
+                            '<div class="featured-avatar">' + avatarInner + '</div>' +
+                            '<div><div class="featured-name">' + name + '</div><div class="featured-meta">' + badge + '</div></div>' +
+                            '<span class="owner-pick-badge">⭐ Owner Pick</span>' +
+                        '</div>' +
+                        '<button class="btn btn-danger" onclick="removeFeaturedArtist(\'' + row.user_id + '\')">Remove</button>' +
+                    '</div>';
                 }).join('');
             } catch (err) {
                 el.innerHTML = '<div class="empty-state" style="color:#ef4444;">Error: ' + err.message + '</div>';
@@ -335,6 +420,7 @@
                     .order('created_at', { ascending: false });
 
                 if (error) throw error;
+                featuredSongIds.clear();
                 if (!rows || rows.length === 0) {
                     el.innerHTML = '<div class="empty-state">No featured songs yet.</div>';
                     return;
@@ -343,24 +429,20 @@
                 const ids = rows.map(r => r.song_id).filter(Boolean);
                 const { data: songs } = await s.from('songs').select('id, title, artist').in('id', ids);
                 const songMap = {};
-                (songs || []).forEach(s => { songMap[s.id] = s; });
+                (songs || []).forEach(song => { songMap[song.id] = song; featuredSongIds.add(song.id); });
 
                 el.innerHTML = rows.map(row => {
                     const p = songMap[row.song_id];
                     const title = p?.title || 'Untitled';
                     const artist = p?.artist || '';
-                    return `
-                    <div class="featured-item">
-                        <div class="featured-item-info">
-                            <div class="featured-avatar">🎵</div>
-                            <div>
-                                <div class="featured-name">${title}</div>
-                                <div class="featured-meta">${artist}</div>
-                            </div>
-                            <span class="owner-pick-badge">⭐ Owner Pick</span>
-                        </div>
-                        <button class="btn btn-danger" onclick="removeFeaturedSong('${row.song_id}')">Remove</button>
-                    </div>`;
+                    return '<div class="featured-item">' +
+                        '<div class="featured-item-info">' +
+                            '<div class="featured-avatar">🎵</div>' +
+                            '<div><div class="featured-name">' + title + '</div><div class="featured-meta">' + artist + '</div></div>' +
+                            '<span class="owner-pick-badge">⭐ Owner Pick</span>' +
+                        '</div>' +
+                        '<button class="btn btn-danger" onclick="removeFeaturedSong(\'' + row.song_id + '\')">Remove</button>' +
+                    '</div>';
                 }).join('');
             } catch (err) {
                 el.innerHTML = '<div class="empty-state" style="color:#ef4444;">Error: ' + err.message + '</div>';
@@ -377,6 +459,7 @@
                     .order('created_at', { ascending: false });
 
                 if (error) throw error;
+                featuredPostIds.clear();
                 if (!rows || rows.length === 0) {
                     el.innerHTML = '<div class="empty-state">No featured posts yet.</div>';
                     return;
@@ -385,22 +468,19 @@
                 const ids = rows.map(r => r.content_id).filter(Boolean);
                 const { data: posts } = await s.from('posts').select('id, text').in('id', ids);
                 const postMap = {};
-                (posts || []).forEach(p => { postMap[p.id] = p; });
+                (posts || []).forEach(p => { postMap[p.id] = p; featuredPostIds.add(p.id); });
 
                 el.innerHTML = rows.map(row => {
                     const p = postMap[row.content_id];
                     const preview = p?.text ? p.text.substring(0, 80) + (p.text.length > 80 ? '…' : '') : 'Post ID: ' + row.content_id?.substring(0,8) + '…';
-                    return `
-                    <div class="featured-item">
-                        <div class="featured-item-info">
-                            <div class="featured-avatar">📝</div>
-                            <div>
-                                <div class="featured-name" style="font-size:0.85rem;white-space:normal;">${preview}</div>
-                            </div>
-                            <span class="owner-pick-badge">⭐ Owner Pick</span>
-                        </div>
-                        <button class="btn btn-danger" onclick="removeFeatured('${row.id}', 'post')">Remove</button>
-                    </div>`;
+                    return '<div class="featured-item">' +
+                        '<div class="featured-item-info">' +
+                            '<div class="featured-avatar">📝</div>' +
+                            '<div><div class="featured-name" style="font-size:0.85rem;white-space:normal;">' + preview + '</div></div>' +
+                            '<span class="owner-pick-badge">⭐ Owner Pick</span>' +
+                        '</div>' +
+                        '<button class="btn btn-danger" onclick="removeFeaturedPost(\'' + row.id + '\')">Remove</button>' +
+                    '</div>';
                 }).join('');
             } catch (err) {
                 el.innerHTML = '<div class="empty-state" style="color:#ef4444;">Error: ' + err.message + '</div>';
@@ -415,9 +495,7 @@
                 if (error) throw error;
                 await loadFeatured();
                 await populateArtistDropdown();
-            } catch (err) {
-                alert('Error removing: ' + err.message);
-            }
+            } catch (err) { alert('Error: ' + err.message); }
         }
 
         async function removeFeaturedSong(songId) {
@@ -426,96 +504,18 @@
                 const { error } = await s.from('featured_songs').delete().eq('song_id', songId);
                 if (error) throw error;
                 await loadFeatured();
-            } catch (err) {
-                alert('Error removing: ' + err.message);
-            }
+                await populateSongDropdown();
+            } catch (err) { alert('Error: ' + err.message); }
         }
 
-        async function removeFeatured(id, type) {
-            if (!confirm('Remove this ' + type + ' from Owner Picks?')) return;
+        async function removeFeaturedPost(id) {
+            if (!confirm('Remove this post from Owner Picks?')) return;
             try {
                 const { error } = await s.from('featured_content').delete().eq('id', id);
                 if (error) throw error;
                 await loadFeatured();
-            } catch (err) {
-                alert('Error removing: ' + err.message);
-            }
-        }
-
-        // ── SONG SEARCH ─────────────────────────────────────────────
-        async function searchSongs() {
-            const query = document.getElementById('searchSongs').value.trim();
-            const el = document.getElementById('songResults');
-            if (!query) { el.innerHTML = '<span style="color:rgba(168,85,247,0.5);font-size:0.9rem;">Type to search…</span>'; return; }
-            el.innerHTML = '<span style="color:rgba(168,85,247,0.5);font-size:0.9rem;">Searching…</span>';
-            try {
-                const { data, error } = await s.from('songs').select('id, title, artist').or('title.ilike.%' + query + '%,artist.ilike.%' + query + '%').limit(20);
-                if (error) throw error;
-                if (!data || data.length === 0) { el.innerHTML = '<span style="color:rgba(168,85,247,0.5);font-size:0.9rem;">No songs found for "' + query + '"</span>'; return; }
-                el.innerHTML = '<div style="display:flex;flex-direction:column;gap:0.5rem;margin-top:0.5rem;">' + data.map(p => `
-                    <div onclick="toggleSong('${p.id}')" style="background:var(--dark);border:1px solid ${selectedSongs.has(p.id) ? '#00ff88' : 'var(--border)'};background:${selectedSongs.has(p.id) ? 'rgba(0,255,136,0.08)' : 'var(--dark)'};border-radius:8px;padding:0.75rem;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
-                        <div><strong>${p.title || 'Untitled'}</strong><br><small style="color:rgba(168,85,247,0.7);">${p.artist || ''}</small></div>
-                        ${selectedSongs.has(p.id) ? '<span style="color:#00ff88;font-weight:700;">✓ Selected</span>' : ''}
-                    </div>`).join('') + '</div>';
-            } catch (err) {
-                el.innerHTML = '<span style="color:#ef4444;">Error: ' + err.message + '</span>';
-            }
-        }
-
-        function toggleSong(id) {
-            if (selectedSongs.has(id)) selectedSongs.delete(id); else selectedSongs.add(id);
-            searchSongs();
-        }
-
-        // ── POST SEARCH ─────────────────────────────────────────────
-        async function searchPosts() {
-            const query = document.getElementById('searchPosts').value.trim();
-            const el = document.getElementById('postResults');
-            if (!query) { el.innerHTML = '<span style="color:rgba(168,85,247,0.5);font-size:0.9rem;">Type to search…</span>'; return; }
-            el.innerHTML = '<span style="color:rgba(168,85,247,0.5);font-size:0.9rem;">Searching…</span>';
-            try {
-                const { data, error } = await s.from('posts').select('id, text').ilike('text', '%' + query + '%').limit(20);
-                if (error) throw error;
-                if (!data || data.length === 0) { el.innerHTML = '<span style="color:rgba(168,85,247,0.5);font-size:0.9rem;">No posts found</span>'; return; }
-                el.innerHTML = '<div style="display:flex;flex-direction:column;gap:0.5rem;margin-top:0.5rem;">' + data.map(p => {
-                    const preview = p.text ? p.text.substring(0, 120) + (p.text.length > 120 ? '…' : '') : 'Post ID: ' + p.id?.substring(0,8) + '…';
-                    return `<div onclick="togglePost('${p.id}')" style="background:${selectedPosts.has(p.id) ? 'rgba(0,255,136,0.08)' : 'var(--dark)'};border:1px solid ${selectedPosts.has(p.id) ? '#00ff88' : 'var(--border)'};border-radius:8px;padding:0.75rem;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:0.5rem;">
-                        <small style="line-height:1.5;">${preview}</small>
-                        ${selectedPosts.has(p.id) ? '<span style="color:#00ff88;font-weight:700;flex-shrink:0;">✓</span>' : ''}
-                    </div>`;
-                }).join('') + '</div>';
-            } catch (err) {
-                el.innerHTML = '<span style="color:#ef4444;">Error: ' + err.message + '</span>';
-            }
-        }
-
-        function togglePost(id) {
-            if (selectedPosts.has(id)) selectedPosts.delete(id); else selectedPosts.add(id);
-            searchPosts();
-        }
-
-        // ── ADD SELECTED (songs/posts) ──────────────────────────────
-        async function addSelectedToFeatured(type) {
-            const set = type === 'song' ? selectedSongs : selectedPosts;
-            const noticeId = type === 'song' ? 'songNotice' : 'postNotice';
-            if (set.size === 0) { showNotice(noticeId, 'Select at least one item first.', 'error'); return; }
-            try {
-                if (type === 'song') {
-                    const expiresAt = new Date(Date.now() + 365*24*60*60*1000).toISOString();
-                    const items = Array.from(set).map(id => ({ song_id: id, expires_at: expiresAt }));
-                    const { error } = await s.from('featured_songs').insert(items);
-                    if (error) throw error;
-                } else {
-                    const items = Array.from(set).map(id => ({ content_type: type, content_id: id }));
-                    const { error } = await s.from('featured_content').insert(items);
-                    if (error) throw error;
-                }
-                showNotice(noticeId, '⭐ Added ' + set.size + ' ' + type + '(s) to Owner Picks!', 'success');
-                set.clear();
-                await loadFeatured();
-            } catch (err) {
-                showNotice(noticeId, 'Error: ' + err.message, 'error');
-            }
+                await populatePostDropdown();
+            } catch (err) { alert('Error: ' + err.message); }
         }
 
         // ── START ───────────────────────────────────────────────────
