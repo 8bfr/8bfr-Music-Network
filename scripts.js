@@ -623,6 +623,21 @@ body.menu-open #carrieWrap{
   </div>
 
   <div class="menu-group collapsed">
+    <div class="menu-group-title">Music & Content</div>
+    <div class="menu-links">
+      <a href="song.html" class="menu-chip">Songs</a>
+      <a href="singles.html" class="menu-chip">Singles</a>
+      <a href="albums.html" class="menu-chip">Albums</a>
+      <a href="beats.html" class="menu-chip">Beats</a>
+      <a href="beat-store.html" class="menu-chip">Beat Store</a>
+      <a href="playlists.html" class="menu-chip">Playlists</a>
+      <a href="genres.html" class="menu-chip">Genres</a>
+      <a href="charts.html" class="menu-chip">Charts</a>
+      <a href="dedications.html" class="menu-chip">Dedications</a>
+    </div>
+  </div>
+
+  <div class="menu-group collapsed">
     <div class="menu-group-title">Studio & AI</div>
     <div class="menu-links">
       <a href="studio-tools.html" class="menu-chip">Studio Tools</a>
@@ -667,20 +682,26 @@ body.menu-open #carrieWrap{
   <div class="menu-group collapsed">
     <div class="menu-group-title">Profiles & Community</div>
     <div class="menu-links">
-      <a href="profiles.html" class="menu-chip">All Profiles</a>
+      <a href="members.html" class="menu-chip">👥 Browse Members</a>
       <a href="profile.html" class="menu-chip">My Profile</a>
-      <a href="profile_artist.html" class="menu-chip">Artist Profile</a>
-      <a href="profile_beatmaker.html" class="menu-chip">Beatmaker Profile</a>
-      <a href="profile_author.html" class="menu-chip">Author Profile</a>
-      <a href="profile_dancer.html" class="menu-chip">Dancer Profile</a>
-      <a href="profile_influencer.html" class="menu-chip">Influencer Profile</a>
-      <a href="profile_fan.html" class="menu-chip">Fan Profile</a>
+      <a href="chat.html" class="menu-chip">Chat</a>
+      <a href="dm.html" class="menu-chip">DM</a>
       <a href="kids.html" class="menu-chip">Kids</a>
       <a href="kids-zone.html" class="menu-chip">Kids Zone</a>
       <a href="kids_games.html" class="menu-chip">Kids Games</a>
       <a href="kids_stories.html" class="menu-chip">Kids Stories</a>
-      <a href="chat.html" class="menu-chip">Chat</a>
-      <a href="dm.html" class="menu-chip">DM</a>
+    </div>
+  </div>
+
+  <div class="menu-group collapsed">
+    <div class="menu-group-title">My Account & Payments</div>
+    <div class="menu-links">
+      <a href="settings.html" class="menu-chip">⚙️ Settings</a>
+      <a href="purchases.html" class="menu-chip">🛒 My Purchases</a>
+      <a href="artist-payouts.html" class="menu-chip">💰 Earnings</a>
+      <a href="artist-discounts.html" class="menu-chip">🏷️ My Discounts</a>
+      <a href="notifications.html" class="menu-chip">🔔 Notifications</a>
+      <a href="messages.html" class="menu-chip">✉️ Messages</a>
     </div>
   </div>
 
@@ -739,11 +760,10 @@ body.menu-open #carrieWrap{
   </div>
 
   <div class="menu-group collapsed">
-    <div class="menu-group-title">Account</div>
+    <div class="menu-group-title">Login & Auth</div>
     <div class="menu-links">
       <a href="login.html" class="menu-chip">Log in</a>
       <a href="signup.html" class="menu-chip">Sign up</a>
-      <a href="profile.html" class="menu-chip">My Account</a>
       <a href="logout.html" class="menu-chip">Log out</a>
     </div>
   </div>
