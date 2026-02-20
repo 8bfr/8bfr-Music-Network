@@ -135,7 +135,6 @@
         .order("created_at", { ascending: false })
         .then(function(res) {
           if (res.data && res.data.length > 0) {
-            // Build ads array: live featured ads fill slots, rest are placeholders
             var liveAds = res.data.map(function(ad) {
               return {
                 img: ad.image_url || "assets/images/ad_banner_1.jpg",
@@ -143,8 +142,6 @@
               };
             });
 
-            // Fill remaining slots with placeholders up to 5
-            // Use all live ads, pad with placeholders only if fewer than 5
             if (liveAds.length < defaultAds.length) {
               for (var i = liveAds.length; i < defaultAds.length; i++) {
                 liveAds.push(defaultAds[i]);
@@ -210,6 +207,27 @@
     }
   }
 
+  // ========== AUTH OVERLAY ==========
+  function showAuthOverlay() {
+    // Don't double-create
+    if (document.getElementById('authGateOverlay')) return;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'authGateOverlay';
+    overlay.innerHTML = `
+      <div id="authGateCard">
+        <h2>🔒 Login Required</h2>
+        <p>Sign in to access this page and join the 8BFR community.</p>
+        <div class="auth-buttons">
+          <a href="login.html">Log In</a>
+          <a href="signup.html">Sign Up</a>
+          <a href="index.html">← Back to Home</a>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+  }
+
   function enforceAuthGate() {
     const publicPages = [
       "index.html",
@@ -227,7 +245,7 @@
       return;
     }
 
-    // Show login overlay after 3 seconds if Supabase hasn't loaded yet
+    // Show login overlay after 8 seconds if Supabase hasn't loaded yet
     var authTimeout = setTimeout(function() {
       showAuthOverlay();
     }, 8000);
@@ -255,12 +273,9 @@
       return;
     }
 
-    // 🔑 Pages can opt out of global avatars with:
-    // <body data-no-global-carrie="true">
     const noCarrie =
       document.body && document.body.dataset.noGlobalCarrie === "true";
     
-    // Bubbles + avatars only on index.html
     let currentPage = window.location.pathname.split("/").pop() || "index.html";
     const isIndex = (currentPage === "index.html" || currentPage === "" || currentPage === "/");
 
@@ -274,7 +289,6 @@
   --chip-hover: rgba(55,9,90,1);
 }
 
-/* stripe on the right behind the menu */
 #menuStripe{
   position:fixed; top:0; right:0; bottom:0;
   width:280px;
@@ -294,12 +308,10 @@
 }
 body.menu-open #menuStripe{ display:block; }
 
-/* shift page content left when menu is open (for pages using #pageWrap) */
 body.menu-open #pageWrap{
   margin-right:280px;
 }
 
-/* --- Floating menu button --- */
 #fab{
   position:fixed; top:10px; right:14px;
   z-index:9999; width:56px; height:56px;
@@ -312,7 +324,6 @@ body.menu-open #pageWrap{
 #fab:hover{ filter:brightness(1.1); }
 #fab svg{display:block}
 
-/* --- Menu panel --- */
 #menu-backdrop{
   position:fixed; inset:0; background:rgba(0,0,0,.25);
   backdrop-filter:blur(2px); z-index:9990;
@@ -375,7 +386,6 @@ body.menu-open #pageWrap{
 }
 .menu-chip:hover{background:var(--chip-hover)}
 
-/* Network/Search fading label */
 .menu-chip-network{
   position:relative;
   overflow:hidden;
@@ -405,7 +415,6 @@ body.menu-open #pageWrap{
   55%,100%{opacity:1;}
 }
 
-/* --- Floating bubbles with labels --- */
 #bubbleStack{
   position:fixed; top:76px; right:16px;
   z-index:9996; display:flex;
@@ -430,13 +439,11 @@ body.menu-open #pageWrap{
   text-shadow:0 0 6px rgba(0,0,0,.85);
 }
 
-/* Single bottom up-arrow bubble */
 #bubble-top-single{
   position:fixed; right:16px; bottom:18px;
   z-index:9996; transition:right .25s ease;
 }
 
-/* shift floaters when menu open */
 body.menu-open #bubbleStack,
 body.menu-open #bubble-top-single,
 body.menu-open #carrieWrap{
@@ -457,7 +464,6 @@ body.menu-open #carrieWrap{
   transform:translateY(-1px);
 }
 
-/* --- Global avatar wrapper & chat bubble --- */
 #carrieWrap{
   position:fixed;
   right:16px;
@@ -468,7 +474,6 @@ body.menu-open #carrieWrap{
   transition:right .25s ease;
 }
 
-/* One global avatar size shared by all three */
 .global-avatar{
   width:min(48vw,260px);
   object-fit:contain;
@@ -506,7 +511,7 @@ body.menu-open #carrieWrap{
 }
 
 #avatarSwitcher{
-  display:none; /* Hidden by default, shown only on index.html */
+  display:none;
 }
 #avatarSwitcher button{
   padding:2px 6px;
@@ -522,22 +527,6 @@ body.menu-open #carrieWrap{
   background:rgba(88,28,135,0.95);
 }
 
-
-#avatarSwitcher button{
-  padding:2px 6px;
-  border-radius:999px;
-  border:1px solid rgba(129,140,248,.6);
-  background:rgba(15,23,42,.85);
-  color:#e5e7eb;
-  font-size:.65rem;
-  cursor:pointer;
-}
-#avatarSwitcher button.active{
-  border-color:#a855f7;
-  background:rgba(88,28,135,0.95);
-}
-
-/* --- Auth lock overlay --- */
 #authGateOverlay{
   position:fixed; inset:0; z-index:12000;
   background:radial-gradient(circle at 10% -10%, rgba(124,58,237,.45), rgba(3,0,10,.96));
@@ -743,7 +732,6 @@ body.menu-open #carrieWrap{
       <a href="credits.html" class="menu-chip">Credits</a>
       <a href="press.html" class="menu-chip">Press</a>
       <a href="reset-password.html" class="menu-chip">Reset Password</a>
-      
     </div>
   </div>
 
@@ -790,7 +778,6 @@ ${isIndex ? '<div id="bubbleStack">' : '<!-- bubbles hidden -->'}
     <span class="bubble-label">Random</span>
     <button class="bubble" id="bubble-theme-random" title="Random theme"><span>🔀</span></button>
   </div>
-  <!-- ✅ Stream 8BFR bubble -->
   <div class="bubble-row">
     <span class="bubble-label">Stream 8BFR</span>
     <button class="bubble" id="bubble-stream" title="Stream 8BFR"><span>🎧</span></button>
@@ -799,12 +786,12 @@ ${isIndex ? '<div id="bubbleStack">' : '<!-- bubbles hidden -->'}
 
 ${isIndex ? '</div>' : ''}
 
-<button class="bubble" id="bubble-top-single"
+<button class="bubble" id="bubble-top-single">
   <span>⬆️</span>
 </button>
 `;
 
-    // ✅ Only add global avatars on pages that did NOT opt out
+    // Only add global avatars on pages that did NOT opt out
     if (!noCarrie) {
       html += `
 <div id="carrieWrap" title="Chat avatar (global)">
@@ -918,7 +905,6 @@ ${isIndex ? '</div>' : ''}
       azreen: "avatar-azreen",
     };
 
-    // base scales so they LOOK visually similar if framing is different
     const AVATAR_BASE_SCALE = {
       carrie: 1.0,
       james: 1.0,
@@ -942,7 +928,7 @@ ${isIndex ? '</div>' : ''}
     }
 
     let currentAvatar = getStoredAvatar();
-    let userScale = 1; // one shared size for all global avatars
+    let userScale = 1;
 
     function applyAvatarScale() {
       const base = AVATAR_BASE_SCALE[currentAvatar] || 1.0;
@@ -994,7 +980,6 @@ ${isIndex ? '</div>' : ''}
       applyAvatarScale();
     }
 
-    // init avatar + size
     if (avatarVideos.length) {
       setActiveAvatar(currentAvatar);
     }
@@ -1009,7 +994,6 @@ ${isIndex ? '</div>' : ''}
       });
     }
 
-    // stay in sync if another tab or the chat page changes avatar
     window.addEventListener("storage", (ev) => {
       if (ev.key === "carrie_avatar") {
         currentAvatar = getStoredAvatar();
@@ -1057,7 +1041,6 @@ ${isIndex ? '</div>' : ''}
       carrieWrap.addEventListener("mousedown", startDragOrResize);
       carrieWrap.addEventListener("touchstart", startTouch, { passive: false });
 
-      // click / tap on avatar area opens Carrie chat (but not on switcher)
       carrieWrap.addEventListener("click", (e) => {
         if (e.target.closest("#avatarSwitcher")) return;
         if (!moved && !pinchActive && !mouseResizeActive) {
