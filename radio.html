@@ -1,1084 +1,316 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>8BFR Radio — Non-Stop Music</title>
-<link rel="icon" href="assets/images/favicon.png" />
-<script src="https://cdn.tailwindcss.com"></script>
-<style>
-  * { box-sizing: border-box; }
-  body {
-    background: linear-gradient(#0b0014, #000);
-    color: #eae6ff;
-    font-family: system-ui, -apple-system, sans-serif;
-    margin: 0;
-    padding: 0;
-    overflow-x: hidden;
-  }
-  
-  .header {
-    background: rgba(15, 0, 30, 0.95);
-    border-bottom: 1px solid rgba(124, 58, 237, 0.5);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    backdrop-filter: blur(12px);
-  }
-  
-  .radio-player {
-    background: linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(168, 85, 247, 0.1));
-    border: 1px solid rgba(124, 58, 237, 0.4);
-    border-radius: 20px;
-    padding: 2rem;
-    box-shadow: 0 8px 32px rgba(124, 58, 237, 0.3);
-    position: relative;
-    overflow: hidden;
-  }
-  
-  .radio-player::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle, rgba(168, 85, 247, 0.1) 0%, transparent 70%);
-    animation: rotate 20s linear infinite;
-  }
-  
-  @keyframes rotate {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
-  
-  .album-art-container {
-    position: relative;
-    width: 100%;
-    max-width: 400px;
-    margin: 0 auto 2rem;
-  }
-  
-  .album-art {
-    width: 100%;
-    aspect-ratio: 1;
-    border-radius: 16px;
-    background: linear-gradient(135deg, #7c3aed, #a855f7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 6rem;
-    box-shadow: 0 8px 32px rgba(124, 58, 237, 0.5);
-    position: relative;
-    overflow: hidden;
-  }
-  
-  .album-art.playing {
-    animation: pulse 2s ease-in-out infinite;
-  }
-  
-  @keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.02); }
-  }
-  
-  .vinyl-effect {
-    position: absolute;
-    inset: 10%;
-    border-radius: 50%;
-    background: 
-      radial-gradient(circle at center, transparent 20%, rgba(0,0,0,0.1) 21%, transparent 22%),
-      conic-gradient(from 0deg, rgba(255,255,255,0.05) 0deg, transparent 90deg, rgba(255,255,255,0.05) 180deg, transparent 270deg);
-    animation: spin 3s linear infinite;
-  }
-  
-  .vinyl-effect.paused {
-    animation-play-state: paused;
-  }
-  
-  @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
-  
-  .now-playing {
-    text-align: center;
-    position: relative;
-    z-index: 1;
-  }
-  
-  .track-title {
-    font-size: 1.5rem;
-    font-weight: 800;
-    margin-bottom: 0.5rem;
-    background: linear-gradient(135deg, #fff, #a855f7);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-  
-  .artist-info {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    margin-bottom: 1.5rem;
-  }
-  
-  .artist-name {
-    font-size: 1.1rem;
-    color: #a855f7;
-    font-weight: 600;
-  }
-  
-  .verified-badge {
-    color: #00d9ff;
-    font-size: 1rem;
-  }
-  
-  .view-profile-btn {
-    display: inline-block;
-    padding: 0.5rem 1.5rem;
-    background: rgba(124, 58, 237, 0.3);
-    border: 1px solid rgba(124, 58, 237, 0.6);
-    border-radius: 20px;
-    color: #a855f7;
-    text-decoration: none;
-    font-weight: 600;
-    font-size: 0.9rem;
-    transition: all 0.2s;
-  }
-  
-  .view-profile-btn:hover {
-    background: rgba(124, 58, 237, 0.5);
-    border-color: #a855f7;
-    color: #fff;
-  }
-  
-  .player-controls {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
-    margin: 1.5rem 0;
-    position: relative;
-    z-index: 1;
-    flex-wrap: wrap;
-  }
-  
-  .control-btn {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    background: rgba(124, 58, 237, 0.3);
-    border: 1px solid rgba(124, 58, 237, 0.6);
-    color: #a855f7;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 1.2rem;
-    transition: all 0.2s;
-  }
-  
-  .control-btn:hover {
-    background: rgba(124, 58, 237, 0.5);
-    border-color: #a855f7;
-    transform: scale(1.05);
-  }
-  
-  .control-btn.play-pause {
-    width: 70px;
-    height: 70px;
-    background: linear-gradient(135deg, #7c3aed, #a855f7);
-    border: none;
-    color: white;
-    font-size: 1.5rem;
-    box-shadow: 0 4px 20px rgba(124, 58, 237, 0.5);
-  }
-  
-  .control-btn.play-pause:hover {
-    box-shadow: 0 6px 30px rgba(124, 58, 237, 0.7);
-  }
-  
-  .progress-container {
-    width: 100%;
-    margin: 1rem 0;
-    position: relative;
-    z-index: 1;
-  }
-  
-  .progress-bar {
-    width: 100%;
-    height: 6px;
-    background: rgba(124, 58, 237, 0.2);
-    border-radius: 3px;
-    position: relative;
-    cursor: pointer;
-  }
-  
-  .progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #7c3aed, #a855f7);
-    border-radius: 3px;
-    width: 0%;
-    transition: width 0.1s linear;
-  }
-  
-  .time-display {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.8rem;
-    color: #a855f7;
-    margin-top: 0.5rem;
-  }
-  
-  .volume-container {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-top: 1rem;
-    position: relative;
-    z-index: 1;
-  }
-  
-  .volume-slider {
-    flex: 1;
-    height: 4px;
-    background: rgba(124, 58, 237, 0.2);
-    border-radius: 2px;
-    -webkit-appearance: none;
-    appearance: none;
-  }
-  
-  .volume-slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 14px;
-    height: 14px;
-    background: #a855f7;
-    cursor: pointer;
-    border-radius: 50%;
-  }
-  
-  .volume-slider::-moz-range-thumb {
-    width: 14px;
-    height: 14px;
-    background: #a855f7;
-    cursor: pointer;
-    border-radius: 50%;
-    border: none;
-  }
-  
-  .queue-section {
-    background: rgba(12, 6, 24, 0.7);
-    border: 1px solid rgba(124, 58, 237, 0.35);
-    border-radius: 16px;
-    padding: 1.5rem;
-    margin-top: 2rem;
-  }
-  
-  .queue-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-  }
-  
-  .queue-title {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: #a855f7;
-  }
-  
-  .queue-count {
-    font-size: 0.85rem;
-    color: #a855f7;
-    opacity: 0.7;
-  }
-  
-  .queue-list {
-    max-height: 400px;
-    overflow-y: auto;
-  }
-  
-  .queue-item {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 0.75rem;
-    background: rgba(124, 58, 237, 0.05);
-    border-radius: 8px;
-    margin-bottom: 0.5rem;
-    cursor: pointer;
-    transition: all 0.2s;
-    border: 1px solid transparent;
-  }
-  
-  .queue-item:hover {
-    background: rgba(124, 58, 237, 0.15);
-    border-color: rgba(124, 58, 237, 0.4);
-  }
-  
-  .queue-item.playing {
-    background: rgba(124, 58, 237, 0.25);
-    border-color: rgba(168, 85, 247, 0.6);
-  }
-  
-  .queue-item-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    background: linear-gradient(135deg, #7c3aed, #a855f7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.2rem;
-    flex-shrink: 0;
-  }
-  
-  .queue-item-info {
-    flex: 1;
-    min-width: 0;
-  }
-  
-  .queue-item-title {
-    font-weight: 600;
-    font-size: 0.95rem;
-    margin-bottom: 0.25rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  
-  .queue-item-artist {
-    font-size: 0.8rem;
-    color: #a855f7;
-    opacity: 0.8;
-  }
-  
-  .empty-state {
-    text-align: center;
-    padding: 3rem 1rem;
-    color: #a855f7;
-    opacity: 0.7;
-  }
-  
-  .empty-state-icon {
-    font-size: 4rem;
-    margin-bottom: 1rem;
-  }
-  
-  .stats-bar {
-    display: flex;
-    justify-content: space-around;
-    padding: 1rem 0;
-    border-top: 1px solid rgba(124, 58, 237, 0.2);
-    margin-top: 1.5rem;
-  }
-  
-  .stat {
-    text-align: center;
-  }
-  
-  .stat-value {
-    font-size: 1.5rem;
-    font-weight: 800;
-    color: #a855f7;
-  }
-  
-  .stat-label {
-    font-size: 0.75rem;
-    color: #a855f7;
-    opacity: 0.7;
-    margin-top: 0.25rem;
-  }
-  
-  .btn {
-    display: inline-block;
-    background: rgba(18, 3, 39, 0.8);
-    border: 1px solid rgba(124, 58, 237, 0.6);
-    color: #eae6ff;
-    padding: 0.55rem 0.9rem;
-    border-radius: 0.7rem;
-    text-decoration: none;
-    transition: all 0.2s;
-  }
-  
-  .btn:hover {
-    background: rgba(25, 5, 54, 0.9);
-  }
-  
-  @media (max-width: 640px) {
-    .radio-player {
-      padding: 1.5rem;
-    }
-    
-    .album-art-container {
-      max-width: 280px;
-    }
-    
-    .track-title {
-      font-size: 1.2rem;
-    }
-    
-    .artist-name {
-      font-size: 1rem;
-    }
-    
-    .control-btn {
-      width: 45px;
-      height: 45px;
-    }
-    
-    .control-btn.play-pause {
-      width: 60px;
-      height: 60px;
-    }
-    
-    .queue-list {
-      max-height: 300px;
-    }
-  }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>📻 8BFR Radio — 8BFR Music Network</title>
+  <link rel="icon" href="assets/images/favicon.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; background: linear-gradient(#0b0014, #000); color: #eae6ff; margin: 0; min-height: 100vh; padding-bottom: 80px; overflow-x: hidden; }
+    .radio-card { background: rgba(12,6,24,0.85); border: 1px solid rgba(124,58,237,0.4); border-radius: 16px; box-shadow: 0 0 30px rgba(124,58,237,0.2); }
+    .vinyl { width: 180px; height: 180px; border-radius: 50%; border: 3px solid rgba(124,58,237,0.5); background: radial-gradient(circle, #1a0030 30%, #0b0014 70%); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 40px rgba(124,58,237,0.3); margin: 0 auto; position: relative; overflow: hidden; }
+    .vinyl.spinning { animation: spin 3s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .vinyl-art { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(124,58,237,0.6); }
+    .vinyl-ring { position: absolute; border-radius: 50%; border: 1px solid rgba(124,58,237,0.15); }
+    .vinyl-ring:nth-child(1) { width: 160px; height: 160px; }
+    .vinyl-ring:nth-child(2) { width: 130px; height: 130px; }
+    .vinyl-ring:nth-child(3) { width: 100px; height: 100px; }
+    .progress-track { width: 100%; height: 6px; background: rgba(124,58,237,0.2); border-radius: 3px; cursor: pointer; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, #7c3aed, #a855f7); border-radius: 3px; transition: width 0.3s linear; }
+    .ctrl-btn { width: 48px; height: 48px; border-radius: 50%; border: 1px solid rgba(124,58,237,0.5); background: rgba(12,6,24,0.9); color: #eae6ff; font-size: 1.3rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+    .ctrl-btn:hover { background: rgba(124,58,237,0.3); border-color: #a855f7; }
+    .ctrl-btn.active { background: rgba(124,58,237,0.4); border-color: #a855f7; color: #a855f7; }
+    .play-btn { width: 60px; height: 60px; font-size: 1.6rem; background: #7c3aed; border-color: #7c3aed; color: white; }
+    .play-btn:hover { background: #6d28d9; }
+    .queue-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: rgba(124,58,237,0.05); border: 1px solid rgba(124,58,237,0.15); border-radius: 10px; cursor: pointer; transition: all 0.2s; }
+    .queue-item:hover { background: rgba(124,58,237,0.15); border-color: rgba(124,58,237,0.4); }
+    .queue-cover { width: 42px; height: 42px; border-radius: 8px; background: linear-gradient(135deg, #7c3aed, #a855f7); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; overflow: hidden; }
+    .queue-cover img { width: 100%; height: 100%; object-fit: cover; }
+    .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); background: rgba(124,58,237,0.95); color: white; padding: 0.6rem 1.2rem; border-radius: 20px; font-size: 0.85rem; z-index: 9999; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+    .toast.show { opacity: 1; }
+    .volume-slider { -webkit-appearance: none; width: 100%; height: 4px; background: rgba(124,58,237,0.3); border-radius: 2px; outline: none; }
+    .volume-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #a855f7; cursor: pointer; }
+    .bottom-nav-item { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; padding: 0.5rem 0.75rem; text-decoration: none; color: #a855f7; transition: all 0.2s; border-radius: 0.5rem; flex: 1; max-width: 100px; }
+    .bottom-nav-item:hover { background: rgba(124,58,237,0.2); }
+    .bottom-nav-item.active { color: #fff; background: rgba(124,58,237,0.3); }
+  </style>
 </head>
 <body>
 
-<header class="header">
-  <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-    <a href="index.html" class="btn">← Home</a>
-    <h1 style="font-size: 1.25rem; font-weight: 800; background: linear-gradient(135deg, #a855f7, #7c3aed); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
-      📻 8BFR Radio
-    </h1>
-    <div style="width: 80px;"></div>
-  </div>
-</header>
-
-<main class="max-w-4xl mx-auto px-4 py-6">
-  <div class="radio-player">
-    <div class="album-art-container">
-      <div class="album-art" id="albumArt">
-        <div class="vinyl-effect" id="vinylEffect"></div>
-        <span id="albumEmoji">🎵</span>
+  <header class="px-4 py-4" style="background:rgba(15,0,30,0.9); border-bottom:1px solid rgba(124,58,237,0.5);">
+    <div class="max-w-3xl mx-auto flex items-center justify-between">
+      <div>
+        <h1 class="text-xl font-bold flex items-center gap-2">📻 8BFR Radio</h1>
+        <p class="text-xs text-purple-300/80">Non-stop music from verified artists</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+        <span class="text-xs text-red-400 font-semibold">LIVE</span>
       </div>
     </div>
-    
-    <div class="now-playing">
-      <div class="track-title" id="trackTitle">8BFR Radio</div>
-      <div class="artist-info">
-        <span class="artist-name" id="artistName">Loading tracks...</span>
-        <span class="verified-badge" id="verifiedBadge" style="display:none;">✓</span>
-      </div>
-      <a href="#" id="profileLink" class="view-profile-btn" style="display:none;">
-        👤 View Artist Profile
-      </a>
+  </header>
+
+  <main class="max-w-3xl mx-auto px-4 mt-6">
+    <div class="flex gap-4 mb-4 text-sm justify-center">
+      <div class="flex items-center gap-1"><span class="text-purple-400">🎵</span><span id="statTracks" class="font-bold text-purple-300">0</span><span class="text-purple-200/60 ml-1">Tracks</span></div>
+      <div class="flex items-center gap-1"><span class="text-purple-400">🎤</span><span id="statArtists" class="font-bold text-purple-300">0</span><span class="text-purple-200/60 ml-1">Artists</span></div>
     </div>
-    
-    <div class="progress-container">
-      <div class="progress-bar" id="progressBar">
-        <div class="progress-fill" id="progressFill"></div>
+
+    <div class="radio-card p-6 mb-6">
+      <div class="vinyl mb-4" id="vinyl">
+        <div class="vinyl-ring"></div><div class="vinyl-ring"></div><div class="vinyl-ring"></div>
+        <img id="vinylArt" class="vinyl-art" src="assets/images/default_post.jpg" alt="Album art" onerror="this.src='assets/images/default_post.jpg'">
       </div>
-      <div class="time-display">
-        <span id="currentTime">0:00</span>
-        <span id="duration">0:00</span>
+      <div class="text-center mb-4">
+        <div id="nowTitle" class="font-bold text-lg">Loading radio...</div>
+        <a id="nowArtistLink" href="#" class="text-purple-400 text-sm hover:underline">
+          <span id="nowArtist">—</span><span id="nowVerified" style="color:#00d9ff;display:none;"> ✓</span>
+        </a>
       </div>
+      <div class="flex items-center gap-2 mb-4 text-xs text-purple-300/70">
+        <span id="timeElapsed">0:00</span>
+        <div class="progress-track flex-1" id="progressTrack"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+        <span id="timeDuration">0:00</span>
+      </div>
+      <div class="flex items-center justify-center gap-3 mb-4">
+        <button class="ctrl-btn active" id="btnShuffle" title="Shuffle">🔀</button>
+        <button class="ctrl-btn" id="btnPrev" title="Previous">⏮</button>
+        <button class="ctrl-btn play-btn" id="btnPlay" title="Play/Pause">▶</button>
+        <button class="ctrl-btn" id="btnNext" title="Next">⏭</button>
+        <button class="ctrl-btn" id="btnRepeat" title="Repeat">🔁</button>
+      </div>
+      <div class="flex justify-center gap-3 mb-4">
+        <button class="ctrl-btn" id="btnLike" title="Like" style="width:40px;height:40px;font-size:1rem;">🤍</button>
+        <button class="ctrl-btn" id="btnShare" title="Share" style="width:40px;height:40px;font-size:1rem;">🔗</button>
+        <button class="ctrl-btn" id="btnBuy" title="Buy" style="width:40px;height:40px;font-size:1rem;display:none;">🛒</button>
+      </div>
+      <div class="flex items-center gap-2 px-4">
+        <span class="text-sm">🔊</span>
+        <input type="range" min="0" max="100" value="80" class="volume-slider flex-1" id="volumeSlider">
+      </div>
+      <audio id="audioPlayer" preload="auto"></audio>
     </div>
-    
-    <div class="player-controls">
-      <button class="control-btn" id="prevBtn" title="Previous">⏮</button>
-      <button class="control-btn play-pause" id="playPauseBtn">▶️</button>
-      <button class="control-btn" id="nextBtn" title="Next">⏭</button>
-      <button class="control-btn" id="shuffleBtn" title="Shuffle">🔀</button>
-      
-      <!-- NEW: Social Buttons -->
-      <button class="control-btn" id="likeBtn" title="Like Track" onclick="likeTrack()">❤️</button>
-      <button class="control-btn" id="commentBtn" title="Comment" onclick="commentTrack()">💬</button>
-      <button class="control-btn" id="shareBtn" title="Share" onclick="shareTrack()">📤</button>
-    </div>
-    
-    <div class="volume-container">
-      <span style="font-size: 1.2rem;">🔊</span>
-      <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="70">
-      <span style="font-size: 0.85rem; color: #a855f7; min-width: 35px;" id="volumeText">70%</span>
-    </div>
-    
-    <div class="stats-bar">
-      <div class="stat">
-        <div class="stat-value" id="trackCount">0</div>
-        <div class="stat-label">Tracks</div>
-      </div>
-      <div class="stat">
-        <div class="stat-value" id="artistCount">0</div>
-        <div class="stat-label">Artists</div>
-      </div>
-      <div class="stat">
-        <div class="stat-value" id="listenCount">0</div>
-        <div class="stat-label">Plays</div>
+
+    <div id="emptyState" class="radio-card p-6 mb-6" style="display:none;">
+      <div style="text-align:center;padding:3rem 1rem;">
+        <div style="font-size:4rem;margin-bottom:1rem;">📻</div>
+        <h3 class="text-lg font-bold mb-2">No tracks available yet</h3>
+        <p class="text-purple-300/70 mb-4">Verified artists can upload music to be played on 8BFR Radio.</p>
+        <a href="featured.html" style="background:#7c3aed;color:white;padding:0.6rem 1.2rem;border-radius:8px;text-decoration:none;font-weight:600;">Browse Artists</a>
       </div>
     </div>
-  </div>
-  
-  <div class="queue-section">
-    <div class="queue-header">
-      <div class="queue-title">🎶 Up Next</div>
-      <div class="queue-count" id="queueCount">0 tracks</div>
+
+    <div class="radio-card p-4 mb-6" id="queueSection">
+      <h3 class="font-bold text-sm text-purple-400 mb-3">🎶 Up Next</h3>
+      <div id="queueList" class="flex flex-col gap-2"></div>
     </div>
-    <div class="queue-list" id="queueList">
-      <!-- Queue items populated by JS -->
+  </main>
+
+  <div id="toast" class="toast"></div>
+
+  <nav class="fixed bottom-0 left-0 right-0 z-50 bg-[rgba(15,0,30,0.95)] backdrop-blur-md border-t border-purple-500/40">
+    <div class="max-w-6xl mx-auto px-2 py-2">
+      <div class="flex items-center justify-around gap-1">
+        <a href="index.html" class="bottom-nav-item"><div style="font-size:1.25rem;">🏠</div><div style="font-size:0.7rem;font-weight:600;">Home</div></a>
+        <a href="search.html" class="bottom-nav-item"><div style="font-size:1.25rem;">🔍</div><div style="font-size:0.7rem;font-weight:600;">Search</div></a>
+        <a href="feed.html" class="bottom-nav-item"><div style="font-size:1.25rem;">📰</div><div style="font-size:0.7rem;font-weight:600;">Feed</div></a>
+        <a href="radio.html" class="bottom-nav-item active"><div style="font-size:1.25rem;">📻</div><div style="font-size:0.7rem;font-weight:600;">Radio</div></a>
+        <a href="shop.html" class="bottom-nav-item"><div style="font-size:1.25rem;">🛒</div><div style="font-size:0.7rem;font-weight:600;">Shop</div></a>
+      </div>
     </div>
-  </div>
-</main>
+  </nav>
 
-<audio id="audioPlayer" preload="auto"></audio>
+  <script src="scripts.js?v=radio2" defer></script>
+  <script>
+  (async function() {
+    const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-<script src="scripts.js?v=6" defer></script>
+    let playlist = [], currentIndex = -1, isPlaying = false, isShuffled = true, isRepeat = false;
 
-<script>
-// ===== RADIO PLAYER SYSTEM =====
-const $ = (s) => document.querySelector(s);
-const $$ = (s) => Array.from(document.querySelectorAll(s));
+    const audio = document.getElementById('audioPlayer');
+    const vinyl = document.getElementById('vinyl');
+    const vinylArt = document.getElementById('vinylArt');
+    const nowTitle = document.getElementById('nowTitle');
+    const nowArtist = document.getElementById('nowArtist');
+    const nowArtistLink = document.getElementById('nowArtistLink');
+    const nowVerified = document.getElementById('nowVerified');
+    const progressFill = document.getElementById('progressFill');
+    const progressTrack = document.getElementById('progressTrack');
+    const timeElapsed = document.getElementById('timeElapsed');
+    const timeDuration = document.getElementById('timeDuration');
+    const btnPlay = document.getElementById('btnPlay');
+    const queueList = document.getElementById('queueList');
 
-const audioPlayer = $('#audioPlayer');
-const playPauseBtn = $('#playPauseBtn');
-const prevBtn = $('#prevBtn');
-const nextBtn = $('#nextBtn');
-const shuffleBtn = $('#shuffleBtn');
-const volumeSlider = $('#volumeSlider');
-const volumeText = $('#volumeText');
-const progressBar = $('#progressBar');
-const progressFill = $('#progressFill');
-const currentTimeEl = $('#currentTime');
-const durationEl = $('#duration');
-const trackTitle = $('#trackTitle');
-const artistName = $('#artistName');
-const verifiedBadge = $('#verifiedBadge');
-const profileLink = $('#profileLink');
-const albumEmoji = $('#albumEmoji');
-const vinylEffect = $('#vinylEffect');
-const queueList = $('#queueList');
-const queueCount = $('#queueCount');
-const trackCount = $('#trackCount');
-const artistCount = $('#artistCount');
-const listenCount = $('#listenCount');
+    async function loadSongs() {
+      try {
+        const { data: songs, error } = await db.from('songs')
+          .select('id, title, artist, cover_art, song_url, uploaded_by, price')
+          .not('song_url', 'is', null).neq('song_url', '');
+        if (error) throw error;
+        if (!songs || songs.length === 0) { showEmpty(); return; }
 
-let playlist = [];
-let currentIndex = 0;
-let isPlaying = false;
-let isShuffled = false;
-let totalPlays = parseInt(localStorage.getItem('radio_plays') || '0');
+        const uploaderIds = [...new Set(songs.map(s => s.uploaded_by).filter(Boolean))];
+        let profileMap = {};
+        if (uploaderIds.length > 0) {
+          const { data: profiles } = await db.from('profiles')
+            .select('user_id, username, display_name, verified_artist, badges')
+            .in('user_id', uploaderIds);
+          if (profiles) profiles.forEach(p => { profileMap[p.user_id] = p; });
+        }
 
-// ===== NEW: SOCIAL FEATURES =====
-function likeTrack() {
-  const track = playlist[currentIndex];
-  if (!track) return;
-  
-  const favorites = JSON.parse(localStorage.getItem('radio_favorites') || '[]');
-  const exists = favorites.some(f => f.title === track.title && f.artist === track.artist);
-  
-  if (exists) {
-    showNotification('Already in favorites!');
-    return;
-  }
-  
-  favorites.push(track);
-  localStorage.setItem('radio_favorites', JSON.stringify(favorites));
-  showNotification(`❤️ Added "${track.title}" to favorites!`);
-}
-
-function commentTrack() {
-  const track = playlist[currentIndex];
-  if (!track) return;
-  
-  const comment = prompt(`💬 Comment on "${track.title}":`);
-  if (!comment) return;
-  
-  const comments = JSON.parse(localStorage.getItem('radio_comments') || '{}');
-  const key = `${track.title}_${track.artist}`;
-  
-  if (!comments[key]) comments[key] = [];
-  comments[key].push({
-    text: comment,
-    user: localStorage.getItem('username') || 'Anonymous',
-    timestamp: Date.now()
-  });
-  
-  localStorage.setItem('radio_comments', JSON.stringify(comments));
-  showNotification('✅ Comment posted!');
-}
-
-function shareTrack() {
-  const track = playlist[currentIndex];
-  if (!track) return;
-  
-  const shareText = `🎵 Listening to "${track.title}" by ${track.artist} on 8BFR Radio!`;
-  const shareUrl = `${window.location.origin}/radio.html`;
-  
-  if (navigator.share) {
-    navigator.share({
-      title: track.title,
-      text: shareText,
-      url: shareUrl
-    }).catch(() => {});
-  } else {
-    navigator.clipboard.writeText(`${shareText}\n${shareUrl}`)
-      .then(() => showNotification('✅ Share link copied!'))
-      .catch(() => showNotification('📋 Share: ' + shareUrl));
-  }
-}
-
-function showNotification(message) {
-  const notification = document.createElement('div');
-  notification.style.cssText = `
-    position: fixed;
-    top: 80px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: linear-gradient(135deg, #7c3aed, #a855f7);
-    color: white;
-    padding: 0.75rem 1.5rem;
-    border-radius: 8px;
-    font-weight: 600;
-    z-index: 1000;
-    box-shadow: 0 4px 20px rgba(124, 58, 237, 0.4);
-  `;
-  notification.textContent = message;
-  document.body.appendChild(notification);
-  
-  setTimeout(() => notification.remove(), 2000);
-}
-
-// ===== COLLECT TRACKS =====
-function initMockRadioData() {
-  const hasArtistProfiles = Array.from({length: localStorage.length}, (_, i) => localStorage.key(i))
-    .some(key => key.startsWith('profile_') && !key.includes('settings'));
-  
-  if (hasArtistProfiles) return;
-  
-  const mockArtists = [
-    {
-      id: 'demo_artist_1',
-      name: '8BFR',
-      emoji: '🎤',
-      badges: ['artist', 'verified', 'founder'],
-      verified: true,
-      verification: {
-        type: 'artist',
-        link: 'https://open.spotify.com/artist/127tw52iDXr7BvgB0IGG2x',
-        status: 'approved'
-      },
-      tracks: [
-        { title: 'Killa Bees', url: 'https://open.spotify.com/track/2x1sJyFdgcRDh9zlGSqNsa?si=ruJ0reA1SaWOBMmD1B8b4w' },
-        { title: 'Purple Dreams', url: 'https://open.spotify.com/track/demo2' }
-      ]
-    },
-    {
-      id: 'demo_artist_2',
-      name: 'Nova Rae',
-      emoji: '🎤',
-      badges: ['artist', 'verified'],
-      verified: true,
-      verification: {
-        type: 'artist',
-        link: 'https://music.apple.com/artist/novarae',
-        status: 'approved'
-      },
-      tracks: [
-        { title: 'Dream State', url: 'https://open.spotify.com/track/demo3' },
-        { title: 'Midnight Vibes', url: 'https://open.spotify.com/track/demo4' }
-      ]
-    },
-    {
-      id: 'demo_beatmaker_1',
-      name: 'K. Drip',
-      emoji: '🎚️',
-      badges: ['beatmaker', 'verified'],
-      verified: true,
-      verification: {
-        type: 'beatmaker',
-        link: 'https://soundcloud.com/kdrip',
-        status: 'approved'
-      },
-      tracks: [
-        { title: 'Vapor Loop', url: 'https://open.spotify.com/track/demo5' },
-        { title: 'Neon Nights', url: 'https://open.spotify.com/track/demo6' }
-      ]
-    }
-  ];
-  
-  mockArtists.forEach(artist => {
-    try {
-      localStorage.setItem(`profile_${artist.id}`, JSON.stringify(artist));
-    } catch(e) {}
-  });
-  
-  if (!localStorage.getItem('radio_plays')) {
-    localStorage.setItem('radio_plays', '1247');
-  }
-}
-
-function collectTracks() {
-  const tracks = [];
-  const artists = new Set();
-  
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (!key.startsWith('profile_')) continue;
-    
-    try {
-      const profile = JSON.parse(localStorage.getItem(key) || '{}');
-      
-      const hasCreatorBadge = 
-        profile.badges && (
-          profile.badges.includes('artist') || 
-          profile.badges.includes('beatmaker')
-        );
-      
-      const isVerified = profile.verified === true;
-      
-      if (!hasCreatorBadge || !isVerified) continue;
-      
-      let badgeEmoji = '🎵';
-      if (profile.badges.includes('artist')) badgeEmoji = '🎤';
-      else if (profile.badges.includes('beatmaker')) badgeEmoji = '🎚️';
-      
-      const profileTracks = profile.tracks || [];
-      profileTracks.forEach(track => {
-        if (!track.url) return;
-        tracks.push({
-          title: track.title || 'Untitled Track',
-          url: track.url,
-          artist: profile.name || 'Unknown Artist',
-          artistId: key.replace('profile_', ''),
-          emoji: badgeEmoji,
-          verified: isVerified,
-          profileKey: key
+        playlist = songs.map(s => {
+          const pr = profileMap[s.uploaded_by] || {};
+          return {
+            id: s.id, title: s.title || 'Untitled',
+            artist: s.artist || pr.display_name || pr.username || 'Unknown',
+            cover: s.cover_art || 'assets/images/default_post.jpg',
+            url: s.song_url, uploadedBy: s.uploaded_by,
+            price: parseFloat(s.price) || 0,
+            verified: !!pr.verified_artist
+          };
         });
-        artists.add(profile.name || 'Unknown Artist');
-      });
-    } catch(e) {}
-  }
-  
-  return { tracks, artistCount: artists.size };
-}
 
-function initPlaylist() {
-  const { tracks, artistCount: artistsCount } = collectTracks();
-  playlist = tracks;
-  
-  trackCount.textContent = tracks.length;
-  artistCount.textContent = artistsCount;
-  listenCount.textContent = totalPlays;
-  
-  if (playlist.length === 0) {
-    showEmptyState();
-    return;
-  }
-  
-  shufflePlaylist();
-  renderQueue();
-  loadTrack(0);
-}
+        document.getElementById('statTracks').textContent = playlist.length;
+        document.getElementById('statArtists').textContent = new Set(playlist.map(t => t.artist)).size;
 
-function showEmptyState() {
-  queueList.innerHTML = `
-    <div class="empty-state">
-      <div class="empty-state-icon">📻</div>
-      <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem;">
-        No tracks available yet
-      </div>
-      <div style="font-size: 0.9rem;">
-        Artists with verified badges can upload tracks to their profiles.
-        <br>Those tracks will automatically appear here!
-      </div>
-    </div>
-  `;
-  trackTitle.textContent = '8BFR Radio';
-  artistName.textContent = 'No tracks loaded';
-}
-
-function shufflePlaylist() {
-  const currentTrack = playlist[currentIndex];
-  
-  for (let i = playlist.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [playlist[i], playlist[j]] = [playlist[j], playlist[i]];
-  }
-  
-  if (currentTrack) {
-    const newIndex = playlist.indexOf(currentTrack);
-    if (newIndex !== -1) {
-      [playlist[currentIndex], playlist[newIndex]] = [playlist[newIndex], playlist[currentIndex]];
+        if (isShuffled) shuffle();
+        renderQueue();
+        if (playlist.length > 0) { currentIndex = 0; loadTrack(0); setTimeout(playTrack, 500); }
+      } catch (err) { console.error('Radio:', err); showEmpty(); }
     }
-  }
-  
-  renderQueue();
-}
 
-function loadTrack(index) {
-  if (index < 0 || index >= playlist.length) return;
-  
-  currentIndex = index;
-  const track = playlist[currentIndex];
-  
-  trackTitle.textContent = track.title;
-  artistName.textContent = track.artist;
-  albumEmoji.textContent = track.emoji;
-  verifiedBadge.style.display = track.verified ? 'inline' : 'none';
-  
-  profileLink.href = `profile.html?id=${track.artistId}`;
-  profileLink.style.display = 'inline-block';
-  
-  if (/spotify\.com/.test(track.url)) {
-    audioPlayer.src = '';
-    trackTitle.textContent += ' (Spotify)';
-    return;
-  }
-  
-  audioPlayer.src = track.url;
-  audioPlayer.load();
-  
-  renderQueue();
-  
-  if (isPlaying) {
-    play();
-  }
-}
-
-function play() {
-  const track = playlist[currentIndex];
-  
-  if (/spotify\.com/.test(track.url)) {
-    window.open(track.url, '_blank');
-    next();
-    return;
-  }
-  
-  audioPlayer.play().then(() => {
-    isPlaying = true;
-    playPauseBtn.textContent = '⏸';
-    vinylEffect.classList.remove('paused');
-    $('#albumArt').classList.add('playing');
-    
-    totalPlays++;
-    localStorage.setItem('radio_plays', totalPlays);
-    listenCount.textContent = totalPlays;
-  }).catch(e => {
-    console.error('Playback error:', e);
-  });
-}
-
-function pause() {
-  audioPlayer.pause();
-  isPlaying = false;
-  playPauseBtn.textContent = '▶️';
-  vinylEffect.classList.add('paused');
-  $('#albumArt').classList.remove('playing');
-}
-
-function togglePlay() {
-  if (isPlaying) {
-    pause();
-  } else {
-    play();
-  }
-}
-
-function next() {
-  currentIndex = (currentIndex + 1) % playlist.length;
-  loadTrack(currentIndex);
-  if (isPlaying) play();
-}
-
-function prev() {
-  currentIndex = (currentIndex - 1 + playlist.length) % playlist.length;
-  loadTrack(currentIndex);
-  if (isPlaying) play();
-}
-
-function updateProgress() {
-  if (!audioPlayer.duration) return;
-  
-  const progress = (audioPlayer.currentTime / audioPlayer.duration) * 100;
-  progressFill.style.width = progress + '%';
-  
-  currentTimeEl.textContent = formatTime(audioPlayer.currentTime);
-  durationEl.textContent = formatTime(audioPlayer.duration);
-}
-
-function formatTime(seconds) {
-  if (isNaN(seconds)) return '0:00';
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-}
-
-function renderQueue() {
-  if (playlist.length === 0) {
-    showEmptyState();
-    return;
-  }
-  
-  queueCount.textContent = `${playlist.length} tracks`;
-  
-  const nextTracks = [];
-  for (let i = 1; i <= 10 && i < playlist.length; i++) {
-    const index = (currentIndex + i) % playlist.length;
-    nextTracks.push({ track: playlist[index], index });
-  }
-  
-  queueList.innerHTML = nextTracks.map(({ track, index }) => `
-    <div class="queue-item ${index === currentIndex ? 'playing' : ''}" data-index="${index}">
-      <div class="queue-item-icon">${track.emoji}</div>
-      <div class="queue-item-info">
-        <div class="queue-item-title">${track.title}</div>
-        <div class="queue-item-artist">${track.artist} ${track.verified ? '✓' : ''}</div>
-      </div>
-      ${index === currentIndex ? '<div style="color: #a855f7;">▶️</div>' : ''}
-    </div>
-  `).join('');
-  
-  $$('.queue-item').forEach(item => {
-    item.addEventListener('click', () => {
-      const index = parseInt(item.dataset.index);
-      loadTrack(index);
-      play();
-    });
-  });
-}
-
-playPauseBtn.addEventListener('click', togglePlay);
-nextBtn.addEventListener('click', next);
-prevBtn.addEventListener('click', prev);
-
-shuffleBtn.addEventListener('click', () => {
-  shufflePlaylist();
-  shuffleBtn.style.background = 'rgba(168, 85, 247, 0.5)';
-  setTimeout(() => {
-    shuffleBtn.style.background = '';
-  }, 200);
-});
-
-volumeSlider.addEventListener('input', (e) => {
-  const volume = e.target.value / 100;
-  audioPlayer.volume = volume;
-  volumeText.textContent = e.target.value + '%';
-});
-
-progressBar.addEventListener('click', (e) => {
-  if (!audioPlayer.duration) return;
-  const rect = progressBar.getBoundingClientRect();
-  const percent = (e.clientX - rect.left) / rect.width;
-  audioPlayer.currentTime = percent * audioPlayer.duration;
-});
-
-audioPlayer.addEventListener('timeupdate', updateProgress);
-audioPlayer.addEventListener('ended', next);
-audioPlayer.addEventListener('loadedmetadata', () => {
-  durationEl.textContent = formatTime(audioPlayer.duration);
-});
-
-audioPlayer.volume = 0.7;
-
-initMockRadioData();
-initPlaylist();
-
-setTimeout(() => {
-  if (playlist.length > 0) {
-    play();
-  }
-}, 500);
-
-window.addEventListener("load", function(){
-  setTimeout(function(){
-    const idsToHide = ['bubbleStack', 'bubble-top-single', 'carrieWrap', 'carrieBubble', 'carrieToggleBar'];
-    idsToHide.forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.style.display = 'none';
-    });
-    
-    const classesToHide = ['.bubble-stack', '.floating-bubbles', '.carrie-bubble', '.bubble-container'];
-    classesToHide.forEach(cls => {
-      document.querySelectorAll(cls).forEach(el => el.style.display = 'none');
-    });
-    
-    document.querySelectorAll('[data-bubble]').forEach(el => el.style.display = 'none');
-    document.querySelectorAll('[data-role="carrie"], [data-carrie]').forEach(el => el.style.display = 'none');
-  }, 300);
-});
-</script>
- <!-- ADD THIS SCRIPT TO EVERY PAGE (except index.html where you want it always shown) -->
-<!-- Place it right before the closing </body> tag -->
-
-<script>
-// Avatar & Bubble Toggle System
-(function() {
-    // Create toggle button
-    const toggleBtn = document.createElement('button');
-    toggleBtn.id = 'avatarToggle';
-    toggleBtn.innerHTML = '👁️';
-    toggleBtn.title = 'Toggle Avatar/Bubbles';
-    toggleBtn.style.cssText = `
-        position: fixed;
-        top: 80px;
-        right: 20px;
-        z-index: 9999;
-        background: rgba(124, 58, 237, 0.9);
-        border: 2px solid rgba(124, 58, 237, 1);
-        color: white;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.5);
-        transition: all 0.3s ease;
-    `;
-    
-    toggleBtn.addEventListener('mouseenter', function() {
-        this.style.transform = 'scale(1.1)';
-    });
-    
-    toggleBtn.addEventListener('mouseleave', function() {
-        this.style.transform = 'scale(1)';
-    });
-    
-    document.body.appendChild(toggleBtn);
-    
-    // Load saved preference
-    let isHidden = localStorage.getItem('hideAvatarBubbles') === 'true';
-    
-    function updateVisibility() {
-        const elementsToToggle = [
-            document.getElementById('homeAvatarSwitcher'),
-            ...document.querySelectorAll('[id*="bubble"]'),
-            ...document.querySelectorAll('[class*="bubble"]'),
-            ...document.querySelectorAll('[id*="avatar"][id*="switcher"]')
-        ];
-        
-        elementsToToggle.forEach(el => {
-            if (el) {
-                el.style.display = isHidden ? 'none' : '';
-            }
-        });
-        
-        toggleBtn.innerHTML = isHidden ? '👁️‍🗨️' : '👁️';
-        toggleBtn.title = isHidden ? 'Show Avatar/Bubbles' : 'Hide Avatar/Bubbles';
+    function showEmpty() {
+      document.getElementById('emptyState').style.display = 'block';
+      document.getElementById('queueSection').style.display = 'none';
+      nowTitle.textContent = 'No tracks available';
+      nowArtist.textContent = 'Upload songs to get started';
     }
-    
-    toggleBtn.addEventListener('click', function() {
-        isHidden = !isHidden;
-        localStorage.setItem('hideAvatarBubbles', isHidden);
-        updateVisibility();
+
+    function shuffle() {
+      for (let i = playlist.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [playlist[i], playlist[j]] = [playlist[j], playlist[i]];
+      }
+    }
+
+    function loadTrack(idx) {
+      if (idx < 0 || idx >= playlist.length) return;
+      currentIndex = idx;
+      const t = playlist[idx];
+      audio.src = t.url; audio.load();
+      vinylArt.src = t.cover;
+      nowTitle.textContent = t.title;
+      nowArtist.textContent = t.artist;
+      nowArtistLink.href = t.uploadedBy ? 'profile.html?id=' + t.uploadedBy : '#';
+      nowVerified.style.display = t.verified ? 'inline' : 'none';
+      const buyBtn = document.getElementById('btnBuy');
+      buyBtn.style.display = t.price > 0 ? 'flex' : 'none';
+      progressFill.style.width = '0%';
+      timeElapsed.textContent = '0:00'; timeDuration.textContent = '0:00';
+      renderQueue();
+      // Award listen point to artist
+      if (t.uploadedBy) db.rpc('award_points', { p_user_id: t.uploadedBy, p_action: 'song_played', p_points: 1, p_description: 'Radio play' }).catch(() => {});
+    }
+
+    function playTrack() {
+      if (!playlist.length) return;
+      audio.play().then(() => { isPlaying = true; btnPlay.textContent = '⏸'; vinyl.classList.add('spinning'); })
+        .catch(() => { btnPlay.textContent = '▶'; });
+    }
+    function pauseTrack() { audio.pause(); isPlaying = false; btnPlay.textContent = '▶'; vinyl.classList.remove('spinning'); }
+
+    function nextTrack() {
+      if (!playlist.length) return;
+      let n = currentIndex + 1;
+      if (n >= playlist.length) { if (isRepeat) n = 0; else { pauseTrack(); return; } }
+      loadTrack(n); playTrack();
+    }
+    function prevTrack() {
+      if (!playlist.length) return;
+      if (audio.currentTime > 3) { audio.currentTime = 0; return; }
+      let p = currentIndex - 1; if (p < 0) p = playlist.length - 1;
+      loadTrack(p); playTrack();
+    }
+
+    btnPlay.addEventListener('click', () => { if (isPlaying) pauseTrack(); else playTrack(); });
+    document.getElementById('btnNext').addEventListener('click', nextTrack);
+    document.getElementById('btnPrev').addEventListener('click', prevTrack);
+
+    document.getElementById('btnShuffle').addEventListener('click', function() {
+      isShuffled = !isShuffled; this.classList.toggle('active', isShuffled);
+      if (isShuffled) { const cur = playlist[currentIndex]; shuffle(); const i = playlist.findIndex(t => t.id === cur.id); if (i > 0) [playlist[0], playlist[i]] = [playlist[i], playlist[0]]; currentIndex = 0; renderQueue(); }
+      showToast(isShuffled ? '🔀 Shuffle on' : 'Shuffle off');
     });
-    
-    // Apply on load
-    updateVisibility();
-    
-</script>
 
+    document.getElementById('btnRepeat').addEventListener('click', function() {
+      isRepeat = !isRepeat; this.classList.toggle('active', isRepeat);
+      showToast(isRepeat ? '🔁 Repeat on' : 'Repeat off');
+    });
 
+    document.getElementById('btnLike').addEventListener('click', function() {
+      const liked = this.textContent === '❤️'; this.textContent = liked ? '🤍' : '❤️';
+      showToast(liked ? 'Removed from favorites' : '❤️ Added to favorites');
+    });
+
+    document.getElementById('btnShare').addEventListener('click', async function() {
+      const t = playlist[currentIndex]; if (!t) return;
+      const txt = '🎵 Listening to "' + t.title + '" by ' + t.artist + ' on 8BFR Radio!';
+      try { if (navigator.share) await navigator.share({ title: '8BFR Radio', text: txt, url: location.href });
+      else { await navigator.clipboard.writeText(txt + ' ' + location.href); showToast('📋 Link copied!'); }
+      } catch(e) {}
+    });
+
+    document.getElementById('btnBuy').addEventListener('click', () => {
+      const t = playlist[currentIndex]; if (t) location.href = 'checkout.html?song=' + t.id + '&price=' + t.price;
+    });
+
+    document.getElementById('volumeSlider').addEventListener('input', e => { audio.volume = e.target.value / 100; });
+    audio.volume = 0.8;
+
+    audio.addEventListener('timeupdate', () => {
+      if (!audio.duration) return;
+      progressFill.style.width = (audio.currentTime / audio.duration * 100) + '%';
+      timeElapsed.textContent = fmt(audio.currentTime); timeDuration.textContent = fmt(audio.duration);
+    });
+    audio.addEventListener('ended', nextTrack);
+
+    progressTrack.addEventListener('click', e => {
+      if (!audio.duration) return;
+      const r = progressTrack.getBoundingClientRect();
+      audio.currentTime = ((e.clientX - r.left) / r.width) * audio.duration;
+    });
+
+    function renderQueue() {
+      const up = [];
+      for (let i = 1; i <= Math.min(8, playlist.length - 1); i++) {
+        const idx = (currentIndex + i) % playlist.length;
+        up.push({ ...playlist[idx], qi: idx });
+      }
+      queueList.innerHTML = up.map(t => '<div class="queue-item" onclick="window._rJump(' + t.qi + ')">' +
+        '<div class="queue-cover">' + (t.cover !== 'assets/images/default_post.jpg' ? '<img src="' + t.cover + '" onerror="this.parentElement.innerHTML=\'🎵\'">' : '🎵') + '</div>' +
+        '<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + t.title + '</div>' +
+        '<div style="font-size:0.78rem;color:#a855f7;">' + t.artist + (t.verified ? ' <span style="color:#00d9ff;">✓</span>' : '') + '</div></div>' +
+        '<div style="color:#a855f7;opacity:0.5;">🎵</div></div>').join('');
+    }
+    window._rJump = function(i) { loadTrack(i); playTrack(); };
+
+    function fmt(s) { if (!s || isNaN(s)) return '0:00'; return Math.floor(s/60) + ':' + (Math.floor(s%60) < 10 ? '0' : '') + Math.floor(s%60); }
+    function showToast(m) { const t = document.getElementById('toast'); t.textContent = m; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2000); }
+
+    document.addEventListener('keydown', e => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.code === 'Space') { e.preventDefault(); if (isPlaying) pauseTrack(); else playTrack(); }
+      if (e.code === 'ArrowRight') nextTrack();
+      if (e.code === 'ArrowLeft') prevTrack();
+    });
+
+    await loadSongs();
+  })();
+  </script>
 </body>
 </html>
