@@ -148,13 +148,26 @@
 
     async function loadSongs() {
       try {
-        const { data: songs, error } = await db.from('songs')
-          .select('id, title, artist, cover_art, song_url, uploaded_by, price')
-          .not('song_url', 'is', null).neq('song_url', '');
-        if (error) throw error;
-        if (!songs || songs.length === 0) { showEmpty(); return; }
+        // First check: any songs at all?
+        const { data: allSongs, error: allErr } = await db.from('songs').select('id, title, song_url, price');
+        console.log('🎵 Radio: ALL songs in DB:', allSongs);
+        if (allErr) { console.error('Radio query error:', allErr); showEmpty(); return; }
+        if (!allSongs || allSongs.length === 0) { console.log('Radio: songs table is empty'); showEmpty(); return; }
 
-        const uploaderIds = [...new Set(songs.map(s => s.uploaded_by).filter(Boolean))];
+        // Filter to playable songs (have a song_url)
+        const songs = allSongs.filter(s => s.song_url && s.song_url.trim() !== '');
+        console.log('🎵 Radio: Playable songs (with URL):', songs.length, songs);
+        if (songs.length === 0) {
+          console.log('Radio: songs exist but none have song_url set');
+          document.getElementById('emptyState').innerHTML = '<div style="text-align:center;padding:2rem;"><div style="font-size:3rem;margin-bottom:1rem;">🎵</div><h3 style="color:#a855f7;font-size:1.3rem;margin-bottom:0.5rem;">Songs Found But No Audio URLs</h3><p style="color:rgba(168,85,247,0.7);margin-bottom:0.5rem;">' + allSongs.length + ' song(s) in database, but none have an audio file URL.</p><p style="color:rgba(168,85,247,0.5);font-size:0.85rem;">Upload songs with audio files from your profile page.</p></div>';
+          return;
+        }
+
+        // Get full data for playable songs
+        const songIds = songs.map(s => s.id);
+        const { data: fullSongs } = await db.from('songs').select('id, title, artist, cover_art, song_url, uploaded_by, price').in('id', songIds);
+
+        const uploaderIds = [...new Set((fullSongs||[]).map(s => s.uploaded_by).filter(Boolean))];
         let profileMap = {};
         if (uploaderIds.length > 0) {
           const { data: profiles } = await db.from('profiles')
@@ -163,7 +176,7 @@
           if (profiles) profiles.forEach(p => { profileMap[p.user_id] = p; });
         }
 
-        playlist = songs.map(s => {
+        playlist = (fullSongs||[]).map(s => {
           const pr = profileMap[s.uploaded_by] || {};
           return {
             id: s.id, title: s.title || 'Untitled',
