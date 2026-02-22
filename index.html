@@ -291,33 +291,8 @@
       </div>
     </div>
     <p class="mb-3 text-purple-200/80">See what other creators are posting.</p>
-    <div class="space-y-3 mb-4">
-      <div style="background:rgba(15,0,30,0.6);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:1rem;">
-        <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;">
-          <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:1.1rem;">🎧</div>
-          <div>
-            <div style="font-weight:700;font-size:0.95rem;">BeatMaster808 <span style="color:#00d9ff;">✓</span></div>
-            <div style="font-size:0.8rem;color:#a855f7;opacity:0.7;">3h ago</div>
-          </div>
-        </div>
-        <div style="margin-bottom:0.5rem;line-height:1.5;">Just dropped a new beat! 🔥 What y'all think?</div>
-        <div style="display:flex;gap:1rem;padding-top:0.5rem;border-top:1px solid rgba(124,58,237,0.2);font-size:0.85rem;color:#a855f7;">
-          <span>🤍 245</span><span>💬 32</span><span>🔁 15</span>
-        </div>
-      </div>
-      <div style="background:rgba(15,0,30,0.6);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:1rem;">
-        <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;">
-          <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:1.1rem;">🎤</div>
-          <div>
-            <div style="font-weight:700;font-size:0.95rem;">VocalQueen <span style="color:#00d9ff;">✓</span></div>
-            <div style="font-size:0.8rem;color:#a855f7;opacity:0.7;">5h ago</div>
-          </div>
-        </div>
-        <div style="margin-bottom:0.5rem;line-height:1.5;">Recording session vibes ✨</div>
-        <div style="display:flex;gap:1rem;padding-top:0.5rem;border-top:1px solid rgba(124,58,237,0.2);font-size:0.85rem;color:#a855f7;">
-          <span>🤍 188</span><span>💬 21</span><span>🔁 8</span>
-        </div>
-      </div>
+    <div id="homeFeedList" class="space-y-3 mb-4">
+      <div style="text-align:center;padding:1.5rem;color:#a855f7;opacity:0.6;">Loading posts...</div>
     </div>
     <a href="feed.html" class="btn btn-primary">View Full Feed</a>
   </section>
@@ -432,66 +407,107 @@
     <button type="button" class="px-2 py-0.5 text-[11px] rounded-full border border-transparent" data-avatar-choice="azreen">Azreen</button>
   </div>
 
-  <!-- Radio preview script -->
+  <!-- Radio preview + Feed + Founder counter — all from Supabase -->
   <script>
-  (function(){
-    function initMockRadioData() {
-      var hasArtistProfiles = Array.from({length:localStorage.length},function(_,i){return localStorage.key(i)})
-        .some(function(key){return key.startsWith('profile_')&&!key.includes('settings')});
-      if (hasArtistProfiles) return;
-      var mockArtists = [
-        { id:'demo_artist_1', name:'8BFR', emoji:'🎤', badges:['artist','verified','founder'], verified:true,
-          tracks:[{title:'Killa Bees',url:'https://open.spotify.com/track/2x1sJyFdgcRDh9zlGSqNsa'},{title:'Purple Dreams',url:'#'}] },
-        { id:'demo_artist_2', name:'Nova Rae', emoji:'🎤', badges:['artist','verified'], verified:true,
-          tracks:[{title:'Dream State',url:'#'},{title:'Midnight Vibes',url:'#'}] },
-        { id:'demo_beatmaker_1', name:'K. Drip', emoji:'🎚️', badges:['beatmaker','verified'], verified:true,
-          tracks:[{title:'Vapor Loop',url:'#'},{title:'Neon Nights',url:'#'}] }
-      ];
-      mockArtists.forEach(function(a){ try{ localStorage.setItem('profile_'+a.id,JSON.stringify(a)); }catch(e){} });
-      if (!localStorage.getItem('radio_plays')) localStorage.setItem('radio_plays','1247');
-    }
-    function collectRadioTracks() {
-      var tracks=[]; var artists=new Set();
-      for (var i=0;i<localStorage.length;i++) {
-        var key=localStorage.key(i);
-        if (!key.startsWith('profile_')) continue;
-        try {
-          var p=JSON.parse(localStorage.getItem(key)||'{}');
-          if (!p.badges||(!(p.badges.includes('artist'))&&!(p.badges.includes('beatmaker')))) continue;
-          if (!p.verified) continue;
-          var emoji=p.badges.includes('artist')?'🎤':'🎚️';
-          (p.tracks||[]).forEach(function(t){ if(!t.url) return; tracks.push({title:t.title||'Untitled',artist:p.name||'Unknown',emoji:emoji,verified:true}); artists.add(p.name||'Unknown'); });
-        } catch(e) {}
+  (async function(){
+    if (!window.supabase) return;
+    var sb = window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
+
+    // ── RADIO PREVIEW ──
+    try {
+      var sRes = await sb.from('songs').select('id,title,artist,cover_art,song_url,uploaded_by').not('song_url','is',null).neq('song_url','');
+      var songs = (sRes.data || []);
+      var uploaderIds = songs.map(function(s){return s.uploaded_by}).filter(Boolean);
+      uploaderIds = uploaderIds.filter(function(v,i,a){return a.indexOf(v)===i});
+      var pm = {};
+      if (uploaderIds.length > 0) {
+        var pRes = await sb.from('profiles').select('user_id,username,display_name,verified_artist').in('user_id', uploaderIds);
+        if (pRes.data) pRes.data.forEach(function(p){ pm[p.user_id] = p; });
       }
-      return {tracks:tracks, artistCount:artists.size};
-    }
-    initMockRadioData();
-    var result=collectRadioTracks();
-    var tracks=result.tracks; var artCount=result.artistCount;
-    var totalPlays=parseInt(localStorage.getItem('radio_plays')||'0');
-    var tcEl=document.getElementById('homeRadioTracks');
-    var acEl=document.getElementById('homeRadioArtists');
-    var plEl=document.getElementById('homeRadioPlays');
-    if(tcEl) tcEl.textContent=tracks.length;
-    if(acEl) acEl.textContent=artCount;
-    if(plEl) plEl.textContent=totalPlays.toLocaleString();
-    if(tracks.length>0){
-      var np=document.getElementById('homeNowPlaying');
-      var cur=tracks[Math.floor(Math.random()*tracks.length)];
-      if(np){
-        document.getElementById('homeNowPlayingEmoji').textContent=cur.emoji;
-        document.getElementById('homeNowPlayingTitle').textContent=cur.title;
-        document.getElementById('homeNowPlayingArtist').textContent=cur.artist;
-        np.style.display='block';
-      }
-    }
-    var tlEl=document.getElementById('homeTrackList');
-    if(tlEl){
-      if(tracks.length===0){
-        tlEl.innerHTML='<div style="text-align:center;padding:2rem 1rem;color:#a855f7;opacity:0.7;"><div style="font-size:3rem;margin-bottom:0.5rem;">📻</div><div style="font-size:0.9rem;">No tracks yet — artists with verified badges can upload!</div></div>';
+      var tracks = songs.map(function(s){
+        var pr = pm[s.uploaded_by] || {};
+        return { title: s.title||'Untitled', artist: s.artist||pr.display_name||pr.username||'Unknown', verified: !!pr.verified_artist };
+      });
+      var artists = {};
+      tracks.forEach(function(t){ artists[t.artist] = true; });
+      var tcEl = document.getElementById('homeRadioTracks');
+      var acEl = document.getElementById('homeRadioArtists');
+      var plEl = document.getElementById('homeRadioPlays');
+      if (tcEl) tcEl.textContent = tracks.length;
+      if (acEl) acEl.textContent = Object.keys(artists).length;
+      if (plEl) plEl.textContent = tracks.length > 0 ? '—' : '0';
+      if (tracks.length > 0) {
+        var np = document.getElementById('homeNowPlaying');
+        var cur = tracks[Math.floor(Math.random()*tracks.length)];
+        if (np) {
+          document.getElementById('homeNowPlayingEmoji').textContent = '🎵';
+          document.getElementById('homeNowPlayingTitle').textContent = cur.title;
+          document.getElementById('homeNowPlayingArtist').textContent = cur.artist;
+          np.style.display = 'block';
+        }
+        var tlEl = document.getElementById('homeTrackList');
+        if (tlEl) {
+          tlEl.innerHTML = tracks.slice(0,5).map(function(t){
+            return '<div style="display:flex;align-items:center;gap:0.75rem;padding:0.5rem;background:rgba(124,58,237,0.05);border-radius:8px;border:1px solid rgba(124,58,237,0.2);"><div style="width:35px;height:35px;border-radius:6px;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">🎵</div><div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+t.title+'</div><div style="font-size:0.75rem;color:#a855f7;">'+t.artist+(t.verified?' <span style="color:#00d9ff;">✓</span>':'')+'</div></div><div style="color:#a855f7;opacity:0.6;">🎵</div></div>';
+          }).join('');
+        }
       } else {
-        tlEl.innerHTML=tracks.sort(function(){return Math.random()-0.5}).slice(0,5).map(function(t){return '<div style="display:flex;align-items:center;gap:0.75rem;padding:0.5rem;background:rgba(124,58,237,0.05);border-radius:8px;border:1px solid rgba(124,58,237,0.2);cursor:pointer;" onmouseover="this.style.background=\'rgba(124,58,237,0.15)\'" onmouseout="this.style.background=\'rgba(124,58,237,0.05)\'"><div style="width:35px;height:35px;border-radius:6px;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">'+t.emoji+'</div><div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+t.title+'</div><div style="font-size:0.75rem;color:#a855f7;">'+t.artist+' <span style="color:#00d9ff;">✓</span></div></div><div style="color:#a855f7;opacity:0.6;">🎵</div></div>'}).join('');
+        var tlEl = document.getElementById('homeTrackList');
+        if (tlEl) tlEl.innerHTML = '<div style="text-align:center;padding:2rem 1rem;color:#a855f7;opacity:0.7;"><div style="font-size:3rem;margin-bottom:0.5rem;">📻</div><div style="font-size:0.9rem;">No tracks yet — artists can upload!</div></div>';
       }
+    } catch(e) { console.error('Home radio:', e); }
+
+    // ── COMMUNITY FEED PREVIEW ──
+    try {
+      var fRes = await sb.from('posts').select('id,user_id,text,media,media_type,likes,comments,shares,created_at').order('created_at',{ascending:false}).limit(3);
+      var posts = fRes.data || [];
+      var feedEl = document.getElementById('homeFeedList');
+      if (!feedEl) return;
+      if (posts.length === 0) {
+        feedEl.innerHTML = '<div style="text-align:center;padding:2rem;color:#a855f7;opacity:0.7;">No posts yet — be the first!</div>';
+      } else {
+        var authorIds = posts.map(function(p){return p.user_id}).filter(Boolean);
+        authorIds = authorIds.filter(function(v,i,a){return a.indexOf(v)===i});
+        var apm = {};
+        if (authorIds.length > 0) {
+          var apRes = await sb.from('profiles').select('user_id,username,display_name,avatar_url,verified_artist').in('user_id', authorIds);
+          if (apRes.data) apRes.data.forEach(function(p){ apm[p.user_id] = p; });
+        }
+        feedEl.innerHTML = posts.map(function(p){
+          var pr = apm[p.user_id] || {};
+          var name = pr.display_name || pr.username || 'User';
+          var av = pr.avatar_url ? '<img src="'+pr.avatar_url+'" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.textContent=\'🎵\'">' : '🎵';
+          var v = pr.verified_artist ? ' <span style="color:#00d9ff;">✓</span>' : '';
+          var ago = timeAgo(p.created_at);
+          var mediaHtml = '';
+          if (p.media && (p.media_type==='photo'||p.media_type==='image')) mediaHtml = '<div style="margin:0.5rem 0;border-radius:8px;overflow:hidden;"><img src="'+p.media+'" style="width:100%;max-height:200px;object-fit:cover;" onerror="this.style.display=\'none\'"></div>';
+          return '<div style="background:rgba(15,0,30,0.6);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:1rem;"><div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;"><div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:1.1rem;overflow:hidden;">'+av+'</div><div><div style="font-weight:700;font-size:0.95rem;">'+name+v+'</div><div style="font-size:0.8rem;color:#a855f7;opacity:0.7;">'+ago+'</div></div></div>'+(p.text?'<div style="margin-bottom:0.5rem;line-height:1.5;">'+p.text.substring(0,200)+'</div>':'')+mediaHtml+'<div style="display:flex;gap:1rem;padding-top:0.5rem;border-top:1px solid rgba(124,58,237,0.2);font-size:0.85rem;color:#a855f7;"><span>🤍 '+(p.likes||0)+'</span><span>💬 '+(p.comments||0)+'</span><span>🔁 '+(p.shares||0)+'</span></div></div>';
+        }).join('');
+      }
+    } catch(e) { console.error('Home feed:', e); }
+
+    // ── FOUNDER SPOTS COUNTER ──
+    try {
+      var mRes = await sb.from('profiles').select('user_id',{count:'exact',head:true});
+      var total = mRes.count || 0;
+      var remaining = Math.max(0, 1000 - total);
+      var strip = document.getElementById('founder-strip');
+      if (strip) {
+        if (remaining <= 0) {
+          strip.innerHTML = '<div class="max-w-6xl mx-auto text-[11px] sm:text-xs text-purple-100/90" style="position:relative;z-index:4;"><span style="color:#a855f7;">🎫 Founder spots are full!</span></div>';
+        } else {
+          strip.querySelector('span:last-child') && (strip.querySelector('.inline-flex span:last-child').textContent = '🎫 ' + remaining + ' founder slots left');
+        }
+      }
+    } catch(e) { console.error('Founder count:', e); }
+
+    function timeAgo(d) {
+      if (!d) return '';
+      var m = Math.floor((Date.now()-new Date(d).getTime())/60000);
+      if (m<1) return 'Just now'; if (m<60) return m+'m ago';
+      var h = Math.floor(m/60); if (h<24) return h+'h ago';
+      var dy = Math.floor(h/24); if (dy<7) return dy+'d ago';
+      return new Date(d).toLocaleDateString();
     }
   })();
   </script>
