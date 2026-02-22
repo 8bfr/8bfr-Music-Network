@@ -1,97 +1,94 @@
-<!DOCTYPE html><html lang="en"><head>
-<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>8BFR | Following</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
-<script src="https://cdn.tailwindcss.com"></script>
-<script defer src="assets/js/site-shell.js"></script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Following — 8BFR Music Network</title>
+  <link rel="icon" href="assets/images/favicon.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; background: linear-gradient(#0b0014, #000); color: #eae6ff; margin: 0; min-height: 100vh; padding-bottom: 80px; }
+    .card { background: rgba(12,6,24,0.85); border: 1px solid rgba(124,58,237,0.35); border-radius: 16px; padding: 1.5rem; margin-bottom: 1rem; }
+    .user-row { display: flex; align-items: center; gap: 1rem; padding: 0.75rem; border-radius: 10px; transition: background 0.2s; }
+    .user-row:hover { background: rgba(124,58,237,0.1); }
+    .avatar { width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #7c3aed, #a855f7); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; overflow: hidden; flex-shrink: 0; }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .btn-unfollow { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); color: #ef4444; padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer; }
+    .spinner { width: 40px; height: 40px; border: 3px solid rgba(124,58,237,0.2); border-top-color: #a855f7; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 2rem auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
 </head>
-<body class="min-h-screen bg-[radial-gradient(ellipse_at_top,_#1a0022,_#000)] text-white font-[Poppins]">
-<div id="site-header"></div>
-<main class="max-w-6xl mx-auto px-4 py-10">
-<section class="rounded-2xl p-6 bg-black/50 border border-purple-700/40 shadow-xl">
-  <h2 class="text-2xl font-bold mb-2">Following</h2>
-  <p class="text-purple-200">Glassy neon starter • Supabase-ready stub.</p>
-</section>
-</main>
-<div id="site-footer"></div>
-<script defer src="assets/js/carousel.js"></script>
-<script defer src="assets/js/supabase.js"></script>
-  <!-- ADD THIS SCRIPT TO EVERY PAGE (except index.html where you want it always shown) -->
-<!-- Place it right before the closing </body> tag -->
+<body>
+  <header style="background:rgba(15,0,30,0.9);border-bottom:1px solid rgba(124,58,237,0.5);padding:1rem;position:sticky;top:0;z-index:100;">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+      <a href="javascript:history.back()" style="color:#a855f7;text-decoration:none;font-weight:600;">← Back</a>
+      <h1 class="text-xl font-extrabold" id="pageTitle">Following</h1>
+      <div style="width:60px;"></div>
+    </div>
+  </header>
 
-<script>
-// Avatar & Bubble Toggle System
-(function() {
-    // Create toggle button
-    const toggleBtn = document.createElement('button');
-    toggleBtn.id = 'avatarToggle';
-    toggleBtn.innerHTML = '👁️';
-    toggleBtn.title = 'Toggle Avatar/Bubbles';
-    toggleBtn.style.cssText = `
-        position: fixed;
-        top: 80px;
-        right: 20px;
-        z-index: 9999;
-        background: rgba(124, 58, 237, 0.9);
-        border: 2px solid rgba(124, 58, 237, 1);
-        color: white;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.5);
-        transition: all 0.3s ease;
-    `;
-    
-    toggleBtn.addEventListener('mouseenter', function() {
-        this.style.transform = 'scale(1.1)';
-    });
-    
-    toggleBtn.addEventListener('mouseleave', function() {
-        this.style.transform = 'scale(1)';
-    });
-    
-    document.body.appendChild(toggleBtn);
-    
-    // Load saved preference
-    let isHidden = localStorage.getItem('hideAvatarBubbles') === 'true';
-    
-    function updateVisibility() {
-        const elementsToToggle = [
-            document.getElementById('homeAvatarSwitcher'),
-            ...document.querySelectorAll('[id*="bubble"]'),
-            ...document.querySelectorAll('[class*="bubble"]'),
-            ...document.querySelectorAll('[id*="avatar"][id*="switcher"]')
-        ];
-        
-        elementsToToggle.forEach(el => {
-            if (el) {
-                el.style.display = isHidden ? 'none' : '';
-            }
-        });
-        
-        toggleBtn.innerHTML = isHidden ? '👁️‍🗨️' : '👁️';
-        toggleBtn.title = isHidden ? 'Show Avatar/Bubbles' : 'Hide Avatar/Bubbles';
+  <main class="max-w-lg mx-auto px-4 mt-4">
+    <div id="loading"><div class="spinner"></div></div>
+    <div id="list"></div>
+    <div id="empty" style="display:none;" class="card">
+      <div style="text-align:center;padding:2rem;color:#a855f7;">
+        <div style="font-size:3rem;margin-bottom:0.5rem;">👥</div>
+        <p>Not following anyone yet.</p>
+        <a href="members.html" style="color:#00d9ff;margin-top:0.5rem;display:inline-block;">Browse Members →</a>
+      </div>
+    </div>
+  </main>
+
+  <script src="scripts.js" defer></script>
+  <script>
+  (async function() {
+    const db = window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
+    const params = new URLSearchParams(window.location.search);
+    const userId = params.get('id');
+    let currentUser = null;
+    try { const { data: { session } } = await db.auth.getSession(); if (session) currentUser = session.user; } catch(e) {}
+    const targetId = userId || (currentUser ? currentUser.id : null);
+    const isOwn = currentUser && targetId === currentUser.id;
+    if (!targetId) { document.getElementById('loading').style.display = 'none'; document.getElementById('empty').style.display = 'block'; return; }
+
+    try {
+      const { data: follows, error } = await db.from('follows').select('id, following_id').eq('follower_id', targetId);
+      if (error) throw error;
+      document.getElementById('loading').style.display = 'none';
+      if (!follows || follows.length === 0) { document.getElementById('empty').style.display = 'block'; return; }
+
+      const ids = follows.map(f => f.following_id);
+      const { data: profiles } = await db.from('profiles').select('user_id, username, display_name, avatar_url, verified_artist, role').in('user_id', ids);
+      const pm = {}; if (profiles) profiles.forEach(p => pm[p.user_id] = p);
+
+      document.getElementById('pageTitle').textContent = `Following (${follows.length})`;
+      document.getElementById('list').innerHTML = follows.map(f => {
+        const p = pm[f.following_id] || {};
+        const name = p.display_name || p.username || 'User';
+        const av = p.avatar_url ? `<img src="${p.avatar_url}" onerror="this.parentElement.textContent='👤'">` : '👤';
+        const v = p.verified_artist ? ' <span style="color:#00d9ff;">✓</span>' : '';
+        const unfollowBtn = isOwn ? `<button class="btn-unfollow" onclick="event.preventDefault();event.stopPropagation();unfollow('${f.id}',this)">Unfollow</button>` : '';
+        return `<a href="profile.html?id=${p.user_id || f.following_id}" style="text-decoration:none;color:inherit;">
+          <div class="user-row">
+            <div class="avatar">${av}</div>
+            <div style="flex:1;"><div style="font-weight:600;">${name}${v}</div><div style="font-size:0.8rem;color:#a855f7;">@${p.username || 'user'} · ${(p.role||'fan').toUpperCase()}</div></div>
+            ${unfollowBtn}
+          </div></a>`;
+      }).join('');
+    } catch(e) {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('list').innerHTML = `<div class="card"><p style="color:#ef4444;">Error: ${e.message}</p></div>`;
     }
-    
-    toggleBtn.addEventListener('click', function() {
-        isHidden = !isHidden;
-        localStorage.setItem('hideAvatarBubbles', isHidden);
-        updateVisibility();
-    });
-    
-    // Apply on load
-    updateVisibility();
-    
-    // Watch for dynamically added elements
-    const observer = new MutationObserver(updateVisibility);
-    observer.observe(document.body, { childList: true, subtree: true });
-})();
-</script>
 
-</body></html>
+    window.unfollow = async function(followId, btn) {
+      if (!confirm('Unfollow this user?')) return;
+      try {
+        await db.from('follows').delete().eq('id', followId);
+        btn.closest('.user-row').parentElement.remove();
+      } catch(e) { alert(e.message); }
+    };
+  })();
+  </script>
+</body>
+</html>
