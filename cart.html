@@ -1,97 +1,78 @@
-<!DOCTYPE html><html lang="en"><head>
-<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>8BFR | Cart</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
-<script src="https://cdn.tailwindcss.com"></script>
-<script defer src="assets/js/site-shell.js"></script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cart — 8BFR Music Network</title>
+  <link rel="icon" href="assets/images/favicon.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; background: linear-gradient(#0b0014, #000); color: #eae6ff; margin: 0; min-height: 100vh; padding-bottom: 80px; }
+    .card { background: rgba(12,6,24,0.85); border: 1px solid rgba(124,58,237,0.35); border-radius: 16px; padding: 1.5rem; margin-bottom: 1rem; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; background: #7c3aed; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 10px; font-size: 0.9rem; font-weight: 700; cursor: pointer; text-decoration: none; }
+    .btn:hover { background: #6d28d9; }
+    .song-row { display: flex; align-items: center; gap: 1rem; padding: 0.75rem; border-bottom: 1px solid rgba(124,58,237,0.15); }
+    .song-row:last-child { border-bottom: none; }
+    .cover { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; flex-shrink: 0; background: linear-gradient(135deg, #7c3aed, #a855f7); }
+    .spinner { width: 40px; height: 40px; border: 3px solid rgba(124,58,237,0.2); border-top-color: #a855f7; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 2rem auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
 </head>
-<body class="min-h-screen bg-[radial-gradient(ellipse_at_top,_#1a0022,_#000)] text-white font-[Poppins]">
-<div id="site-header"></div>
-<main class="max-w-6xl mx-auto px-4 py-10">
-<section class="rounded-2xl p-6 bg-black/50 border border-purple-700/40 shadow-xl">
-  <h2 class="text-2xl font-bold mb-2">Cart</h2>
-  <p class="text-purple-200">Glassy neon starter • Supabase-ready stub.</p>
-</section>
-</main>
-<div id="site-footer"></div>
-<script defer src="assets/js/carousel.js"></script>
-<script defer src="assets/js/supabase.js"></script>
-  <!-- ADD THIS SCRIPT TO EVERY PAGE (except index.html where you want it always shown) -->
-<!-- Place it right before the closing </body> tag -->
-
-<script>
-// Avatar & Bubble Toggle System
-(function() {
-    // Create toggle button
-    const toggleBtn = document.createElement('button');
-    toggleBtn.id = 'avatarToggle';
-    toggleBtn.innerHTML = '👁️';
-    toggleBtn.title = 'Toggle Avatar/Bubbles';
-    toggleBtn.style.cssText = `
-        position: fixed;
-        top: 80px;
-        right: 20px;
-        z-index: 9999;
-        background: rgba(124, 58, 237, 0.9);
-        border: 2px solid rgba(124, 58, 237, 1);
-        color: white;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.5);
-        transition: all 0.3s ease;
-    `;
-    
-    toggleBtn.addEventListener('mouseenter', function() {
-        this.style.transform = 'scale(1.1)';
-    });
-    
-    toggleBtn.addEventListener('mouseleave', function() {
-        this.style.transform = 'scale(1)';
-    });
-    
-    document.body.appendChild(toggleBtn);
-    
-    // Load saved preference
-    let isHidden = localStorage.getItem('hideAvatarBubbles') === 'true';
-    
-    function updateVisibility() {
-        const elementsToToggle = [
-            document.getElementById('homeAvatarSwitcher'),
-            ...document.querySelectorAll('[id*="bubble"]'),
-            ...document.querySelectorAll('[class*="bubble"]'),
-            ...document.querySelectorAll('[id*="avatar"][id*="switcher"]')
-        ];
-        
-        elementsToToggle.forEach(el => {
-            if (el) {
-                el.style.display = isHidden ? 'none' : '';
-            }
-        });
-        
-        toggleBtn.innerHTML = isHidden ? '👁️‍🗨️' : '👁️';
-        toggleBtn.title = isHidden ? 'Show Avatar/Bubbles' : 'Hide Avatar/Bubbles';
+<body>
+  <header style="background:rgba(15,0,30,0.9);border-bottom:1px solid rgba(124,58,237,0.5);padding:1rem;">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+      <a href="index.html" style="color:#a855f7;text-decoration:none;font-weight:600;">← Home</a>
+      <h1 class="text-xl font-extrabold">🛒 My Cart</h1>
+      <a href="profile.html" style="color:#a855f7;text-decoration:none;font-size:0.9rem;">Profile</a>
+    </div>
+  </header>
+  <main class="max-w-lg mx-auto px-4 mt-6">
+    <div id="loading"><div class="spinner"></div></div>
+    <div id="content" style="display:none;"></div>
+  </main>
+  <script src="scripts.js" defer></script>
+  <script>
+  (async function() {
+    var db = window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
+    var content = document.getElementById('content');
+    var loading = document.getElementById('loading');
+    var currentUser = null;
+    try { var s = await db.auth.getSession(); if (s.data.session) currentUser = s.data.session.user; } catch(e) {}
+    loading.style.display = 'none';
+    content.style.display = 'block';
+    if (!currentUser) {
+      content.innerHTML = '<div class="card" style="text-align:center;padding:2rem;"><div style="font-size:3rem;margin-bottom:1rem;">🔒</div><h2 style="font-size:1.3rem;font-weight:700;margin-bottom:0.5rem;">Log in to view your cart</h2><a href="login.html?return=cart.html" class="btn" style="margin-top:1rem;">🔓 Log In</a></div>';
+      return;
     }
-    
-    toggleBtn.addEventListener('click', function() {
-        isHidden = !isHidden;
-        localStorage.setItem('hideAvatarBubbles', isHidden);
-        updateVisibility();
-    });
-    
-    // Apply on load
-    updateVisibility();
-    
-    // Watch for dynamically added elements
-    const observer = new MutationObserver(updateVisibility);
-    observer.observe(document.body, { childList: true, subtree: true });
-})();
-</script>
-
-</body></html>
+    try {
+      // Show purchased songs
+      var pr = await db.from('song_purchases').select('song_id, amount, created_at, status').eq('buyer_id', currentUser.id).order('created_at', { ascending: false });
+      var purchases = pr.data || [];
+      if (purchases.length === 0) {
+        content.innerHTML = '<div class="card" style="text-align:center;padding:2rem;"><div style="font-size:3rem;margin-bottom:1rem;">🛒</div><h2 style="font-size:1.3rem;font-weight:700;margin-bottom:0.5rem;">Your cart is empty</h2><p style="color:#a855f7;margin-bottom:1.5rem;">Browse music and purchase songs to see them here.</p><a href="radio.html" class="btn">🎧 Browse Music</a></div>';
+        return;
+      }
+      var songIds = purchases.map(function(p) { return p.song_id; }).filter(Boolean);
+      songIds = songIds.filter(function(v,i,a) { return a.indexOf(v) === i; });
+      var sm = {};
+      if (songIds.length > 0) {
+        var sr = await db.from('songs').select('id, title, artist, cover_art, song_url, price').in('id', songIds);
+        if (sr.data) sr.data.forEach(function(s) { sm[s.id] = s; });
+      }
+      var html = '<div class="card"><h2 style="font-size:1.1rem;font-weight:700;margin-bottom:1rem;color:#a855f7;">🎵 My Purchases (' + purchases.length + ')</h2>';
+      html += purchases.map(function(p) {
+        var s = sm[p.song_id] || {};
+        var cover = s.cover_art || 'assets/images/default_post.jpg';
+        var dl = s.song_url ? '<a href="' + s.song_url + '" download style="color:#22c55e;font-size:0.8rem;font-weight:600;text-decoration:none;">⬇️ Download</a>' : '';
+        return '<div class="song-row"><img src="' + cover + '" class="cover" onerror="this.style.background=\'linear-gradient(135deg,#7c3aed,#a855f7)\';this.src=\'\'"><div style="flex:1;min-width:0;"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (s.title || 'Song') + '</div><div style="font-size:0.8rem;color:#a855f7;">' + (s.artist || 'Unknown') + ' · $' + (parseFloat(p.amount) || 0).toFixed(2) + '</div></div>' + dl + '</div>';
+      }).join('');
+      html += '</div>';
+      content.innerHTML = html;
+    } catch(e) {
+      content.innerHTML = '<div class="card"><p style="color:#ef4444;">Error: ' + e.message + '</p></div>';
+    }
+  })();
+  </script>
+</body>
+</html>
