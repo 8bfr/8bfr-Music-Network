@@ -236,6 +236,7 @@
           <div style="color:#a855f7;font-size:0.9rem;margin-bottom:0.75rem;">${(p.role||'').toUpperCase()}</div>
           <p style="color:rgba(234,230,255,0.7);font-size:0.92rem;margin-bottom:1rem;line-height:1.6;max-height:150px;overflow-y:auto;padding-right:0.5rem;width:100%;">${p.bio||'No bio yet.'}</p>
           <div style="display:flex;flex-wrap:wrap;gap:0.5rem;max-width:100%;">${badgesHtml}</div>
+          <div id="followCounts" style="margin-top:0.75rem;font-size:0.9rem;color:#a855f7;display:flex;gap:1rem;flex-wrap:wrap;"></div>
         </div>
       </div>
     </div>`;
@@ -322,6 +323,10 @@
         <label>Avatar URL (paste a direct image link)</label>
         <input class="form-input" type="url" id="editAvatar" value="${p.avatar_url||''}" placeholder="https://…">
       </div>
+      ${isMusicCreator ? `<div class="form-group">
+        <label>PayPal Email (for receiving payments)</label>
+        <input class="form-input" type="email" id="editPaypal" value="${p.paypal_email||''}" placeholder="your@paypal.com">
+      </div>` : ''}
       <button class="btn" onclick="saveProfile()">💾 Save Changes</button>
       <span id="saveNotice" style="margin-left:1rem;font-size:0.85rem;"></span>
     </div>`;
@@ -341,6 +346,7 @@
 
     if (isMusicCreator) loadSongs(profileData.user_id);
     loadPosts(profileData.user_id);
+    loadFollowCounts(profileData.user_id);
   }
 
   // ── LOAD SONGS ──────────────────────────────────────────────────
@@ -461,7 +467,7 @@
     if (!el) return;
     try {
       const { data: posts, error } = await db.from('posts')
-        .select('id, text, media, media_type, likes, shares, favorites, created_at')
+        .select('id, text, media, media_type, likes, shares, favorites, comments, created_at')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(20);
@@ -473,7 +479,7 @@
       el.innerHTML = posts.map(p => {
         const timeAgo = getTimeAgo(p.created_at);
         let mediaHtml = '';
-        if (p.media && p.media_type === 'photo') {
+        if (p.media && (p.media_type === 'photo' || p.media_type === 'image')) {
           mediaHtml = '<div style="margin-top:0.75rem;border-radius:10px;overflow:hidden;"><img src="' + p.media + '" alt="Post" style="width:100%;max-height:400px;object-fit:cover;border-radius:10px;" onerror="this.style.display=\'none\'"></div>';
         } else if (p.media && p.media_type === 'video') {
           const ytMatch = p.media.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
@@ -482,13 +488,20 @@
           } else {
             mediaHtml = '<div style="margin-top:0.75rem;"><a href="' + p.media + '" target="_blank" rel="noopener" style="color:#00d9ff;font-size:0.85rem;">🎬 Watch Video →</a></div>';
           }
+        } else if (p.media && p.media_type === 'audio') {
+          mediaHtml = '<div style="margin-top:0.75rem;"><audio controls preload="none" style="width:100%;"><source src="' + p.media + '"></audio></div>';
         }
         const deleteBtn = isOwnProfile ? '<button onclick="deletePost(\'' + p.id + '\')" style="background:none;border:none;color:rgba(239,68,68,0.6);cursor:pointer;font-size:0.8rem;">🗑️</button>' : '';
         return '<div style="background:rgba(0,0,0,0.3);border:1px solid rgba(124,58,237,0.2);border-radius:12px;padding:1rem;margin-bottom:0.75rem;">' +
           '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;"><span style="font-size:0.78rem;color:rgba(168,85,247,0.6);">' + timeAgo + '</span>' + deleteBtn + '</div>' +
           (p.text ? '<div style="line-height:1.6;margin-bottom:0.25rem;">' + escapeHtml(p.text) + '</div>' : '') +
           mediaHtml +
-          '<div style="display:flex;gap:1rem;padding-top:0.5rem;margin-top:0.5rem;border-top:1px solid rgba(124,58,237,0.15);font-size:0.82rem;color:rgba(168,85,247,0.6);"><span>🤍 ' + (p.likes||0) + '</span><span>💬 ' + (p.shares||0) + '</span><span>⭐ ' + (p.favorites||0) + '</span></div></div>';
+          '<div style="display:flex;gap:0.5rem;padding-top:0.5rem;margin-top:0.5rem;border-top:1px solid rgba(124,58,237,0.15);font-size:0.82rem;flex-wrap:wrap;">' +
+            '<button onclick="interactPost(\'' + p.id + '\',\'like\',this)" style="background:none;border:none;color:#a855f7;cursor:pointer;padding:0.3rem 0.5rem;border-radius:6px;font-size:0.82rem;" onmouseover="this.style.background=\'rgba(124,58,237,0.15)\'" onmouseout="this.style.background=\'none\'">🤍 <span>' + (p.likes||0) + '</span></button>' +
+            '<button onclick="interactPost(\'' + p.id + '\',\'comment\',this)" style="background:none;border:none;color:#a855f7;cursor:pointer;padding:0.3rem 0.5rem;border-radius:6px;font-size:0.82rem;" onmouseover="this.style.background=\'rgba(124,58,237,0.15)\'" onmouseout="this.style.background=\'none\'">💬 <span>' + (p.comments||0) + '</span></button>' +
+            '<button onclick="interactPost(\'' + p.id + '\',\'share\',this)" style="background:none;border:none;color:#a855f7;cursor:pointer;padding:0.3rem 0.5rem;border-radius:6px;font-size:0.82rem;" onmouseover="this.style.background=\'rgba(124,58,237,0.15)\'" onmouseout="this.style.background=\'none\'">🔁 <span>' + (p.shares||0) + '</span></button>' +
+            '<button onclick="interactPost(\'' + p.id + '\',\'favorite\',this)" style="background:none;border:none;color:#a855f7;cursor:pointer;padding:0.3rem 0.5rem;border-radius:6px;font-size:0.82rem;" onmouseover="this.style.background=\'rgba(124,58,237,0.15)\'" onmouseout="this.style.background=\'none\'">⭐ <span>' + (p.favorites||0) + '</span></button>' +
+          '</div></div>';
       }).join('');
     } catch (err) {
       el.innerHTML = '<div style="color:#ef4444;font-size:0.85rem;padding:1rem;">Error loading posts: ' + err.message + '</div>';
@@ -562,6 +575,57 @@
     if (!confirm('Delete this post?')) return;
     try { const { error } = await db.from('posts').delete().eq('id', id).eq('user_id', currentUser.id); if (error) throw error; loadPosts(currentUser.id); }
     catch (err) { alert('Error: ' + err.message); }
+  }
+
+  // Post interaction (like, comment, share, favorite) on profile page
+  window.interactPost = async function(postId, action, btn) {
+    if (!currentUser) { alert('Log in to interact with posts'); return; }
+    try {
+      const { data: post } = await db.from('posts').select('likes,comments,shares,favorites,user_id').eq('id', postId).single();
+      if (!post) return;
+      if (action === 'like') {
+        const n = (post.likes||0) + 1;
+        await db.from('posts').update({ likes: n }).eq('id', postId);
+        btn.innerHTML = '❤️ <span>' + n + '</span>';
+        try { await db.rpc('add_algorithm_points', { p_user_id: post.user_id, p_action: 'receive_like', p_points: 2 }); } catch(e) {}
+      } else if (action === 'comment') {
+        const txt = prompt('Write a comment:');
+        if (!txt || !txt.trim()) return;
+        const n = (post.comments||0) + 1;
+        await db.from('posts').update({ comments: n }).eq('id', postId);
+        btn.innerHTML = '💬 <span>' + n + '</span>';
+        try { await db.rpc('add_algorithm_points', { p_user_id: post.user_id, p_action: 'receive_comment', p_points: 5 }); } catch(e) {}
+      } else if (action === 'share') {
+        const n = (post.shares||0) + 1;
+        await db.from('posts').update({ shares: n }).eq('id', postId);
+        btn.innerHTML = '🔁 <span>' + n + '</span>';
+        try { if (navigator.clipboard) await navigator.clipboard.writeText(location.origin + '/profile.html?id=' + post.user_id); alert('Link copied!'); } catch(e) {}
+        try { await db.rpc('add_algorithm_points', { p_user_id: post.user_id, p_action: 'receive_share', p_points: 15 }); } catch(e) {}
+      } else if (action === 'favorite') {
+        const n = (post.favorites||0) + 1;
+        await db.from('posts').update({ favorites: n }).eq('id', postId);
+        btn.innerHTML = '⭐ <span>' + n + '</span>';
+        try { await db.from('favorites').insert({ user_id: currentUser.id, target_type: 'post', target_id: postId }); } catch(e) {}
+      }
+      try { await db.rpc('recalc_post_score', { p_post_id: postId }); } catch(e) {}
+    } catch(e) { console.error(e); }
+  };
+
+  // Load follower/following counts
+  async function loadFollowCounts(userId) {
+    try {
+      const [followers, following, friends] = await Promise.all([
+        db.from('follows').select('id', { count: 'exact', head: true }).eq('following_id', userId),
+        db.from('follows').select('id', { count: 'exact', head: true }).eq('follower_id', userId),
+        db.from('friends').select('id', { count: 'exact', head: true }).or('user_id.eq.' + userId + ',friend_id.eq.' + userId).eq('status', 'accepted')
+      ]);
+      const countsEl = document.getElementById('followCounts');
+      if (countsEl) {
+        countsEl.innerHTML = '<span style="cursor:pointer;" onclick="location.href=\'followers.html?id=' + userId + '\'"><strong>' + (followers.count||0) + '</strong> Followers</span> · ' +
+          '<span style="cursor:pointer;" onclick="location.href=\'following.html?id=' + userId + '\'"><strong>' + (following.count||0) + '</strong> Following</span> · ' +
+          '<span style="cursor:pointer;" onclick="location.href=\'friends.html?id=' + userId + '\'"><strong>' + (friends.count||0) + '</strong> Friends</span>';
+      }
+    } catch(e) { console.log('Follow counts:', e); }
   }
 
   // ── UPLOAD HELPERS ───────────────────────────────────────────────
@@ -643,10 +707,14 @@
     const displayName = document.getElementById('editDisplayName').value.trim();
     const bio = document.getElementById('editBio').value.trim();
     const avatarUrl = document.getElementById('editAvatar').value.trim();
+    const paypalEl = document.getElementById('editPaypal');
+    const paypalEmail = paypalEl ? paypalEl.value.trim() : null;
     const notice = document.getElementById('saveNotice');
     if (!username) { notice.textContent = '⚠️ Username required'; notice.style.color = '#ef4444'; return; }
     try {
-      const { error } = await db.from('profiles').update({ username, display_name: displayName, bio, avatar_url: avatarUrl || null }).eq('user_id', currentUser.id);
+      const updates = { username, display_name: displayName, bio, avatar_url: avatarUrl || null };
+      if (paypalEmail !== null) updates.paypal_email = paypalEmail || null;
+      const { error } = await db.from('profiles').update(updates).eq('user_id', currentUser.id);
       if (error) throw error;
       notice.textContent = '✅ Saved!'; notice.style.color = '#4ade80';
       setTimeout(() => { notice.textContent = ''; }, 2500);
