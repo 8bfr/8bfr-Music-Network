@@ -152,10 +152,14 @@
 
       let media = '';
       if (post.media && (post.media_type === 'image' || post.media_type === 'photo')) media = '<div style="margin:0.75rem 0;border-radius:10px;overflow:hidden;"><img src="'+post.media+'" style="width:100%;max-height:400px;object-fit:cover;" onerror="this.style.display=\'none\'"></div>';
-      else if (post.media && post.media_type === 'video') media = '<div style="margin:0.75rem 0;border-radius:10px;overflow:hidden;"><video controls preload="none" style="width:100%;max-height:400px;"><source src="'+post.media+'"></video></div>';
+      else if (post.media && post.media_type === 'video') {
+        const yt = post.media.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
+        if (yt) media = '<div style="margin:0.75rem 0;position:relative;padding-bottom:56.25%;height:0;border-radius:10px;overflow:hidden;"><iframe src="https://www.youtube.com/embed/'+yt[1]+'" style="position:absolute;inset:0;width:100%;height:100%;border:none;" allowfullscreen></iframe></div>';
+        else media = '<div style="margin:0.75rem 0;border-radius:10px;overflow:hidden;"><video controls preload="none" style="width:100%;max-height:400px;"><source src="'+post.media+'"></video></div>';
+      }
       else if (post.media && post.media_type === 'audio') media = '<div style="margin:0.75rem 0;"><audio controls preload="none" style="width:100%;"><source src="'+post.media+'"></audio></div>';
 
-      return '<div class="feed-card">' +
+      return '<div class="feed-card" data-post-id="'+post.id+'">' +
         '<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;">' +
           '<a href="profile.html?id='+post.user_id+'" style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden;text-decoration:none;">'+av+'</a>' +
           '<div style="flex:1;min-width:0;"><a href="profile.html?id='+post.user_id+'" style="font-weight:700;font-size:0.95rem;text-decoration:none;color:#eae6ff;">'+esc(name)+v+'</a> '+tb+'<div style="font-size:0.78rem;color:#a855f7;opacity:0.7;">'+ago+' '+si+'</div></div></div>' +
@@ -194,17 +198,64 @@
 
     window.commentPost = async function(id) {
       if (!currentUser) { alert('Log in to comment'); return; }
-      const txt = prompt('Write a comment:');
-      if (!txt || !txt.trim()) return;
+      // Toggle comment section
+      let commentSection = document.getElementById('comments-' + id);
+      if (commentSection) { commentSection.style.display = commentSection.style.display === 'none' ? 'block' : 'none'; return; }
+      // Create comment section
+      const postCard = document.querySelector('[data-post-id="' + id + '"]');
+      if (!postCard) return;
+      commentSection = document.createElement('div');
+      commentSection.id = 'comments-' + id;
+      commentSection.style.cssText = 'margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid rgba(124,58,237,0.2);';
+      commentSection.innerHTML = '<div class="spinner" style="width:20px;height:20px;margin:0.5rem auto;"></div>';
+      postCard.appendChild(commentSection);
+      // Load existing comments
       try {
-        const { data } = await db.from('posts').select('comments,user_id').eq('id',id).single();
-        if (!data) return;
-        const n = (data.comments||0)+1;
-        await db.from('posts').update({comments:n}).eq('id',id);
-        try { await db.rpc('add_algorithm_points',{p_user_id:data.user_id,p_action:'receive_comment',p_points:5}); } catch(e){}
-        try { await db.rpc('recalc_post_score',{p_post_id:id}); } catch(e){}
-        alert('Comment posted!');
-      } catch(e){ console.error(e); }
+        const { data: comments } = await db.from('post_comments').select('id, user_id, text, created_at').eq('post_id', id).order('created_at', { ascending: true }).limit(30);
+        let cHtml = '';
+        if (comments && comments.length > 0) {
+          const uids = [...new Set(comments.map(c => c.user_id))];
+          const { data: profs } = await db.from('profiles').select('user_id, username, display_name').in('user_id', uids);
+          const pm = {}; if (profs) profs.forEach(p => pm[p.user_id] = p);
+          cHtml = comments.map(c => {
+            const cp = pm[c.user_id] || {};
+            const mine = currentUser && c.user_id === currentUser.id;
+            const ago = Math.floor((Date.now() - new Date(c.created_at).getTime())/60000);
+            const timeStr = ago < 1 ? 'now' : ago < 60 ? ago+'m' : ago < 1440 ? Math.floor(ago/60)+'h' : Math.floor(ago/1440)+'d';
+            return '<div style="padding:0.4rem 0;display:flex;justify-content:space-between;"><div><span style="font-weight:600;font-size:0.8rem;color:#a855f7;">' + (cp.display_name||cp.username||'User') + '</span> <span style="font-size:0.83rem;">' + c.text.replace(/</g,'&lt;') + '</span> <span style="font-size:0.7rem;color:rgba(168,85,247,0.4);">' + timeStr + '</span></div>' +
+            (mine ? '<button onclick="delFeedComment(\''+c.id+'\',\''+id+'\')" style="background:none;border:none;color:rgba(239,68,68,0.5);cursor:pointer;font-size:0.7rem;">✕</button>' : '') + '</div>';
+          }).join('');
+        }
+        commentSection.innerHTML = cHtml +
+          '<div style="display:flex;gap:0.5rem;margin-top:0.5rem;"><input id="cinput-' + id + '" type="text" placeholder="Write a comment..." style="flex:1;background:rgba(0,0,0,0.3);border:1px solid rgba(124,58,237,0.3);border-radius:6px;padding:0.4rem 0.6rem;color:#eae6ff;font-size:0.83rem;" onkeypress="if(event.key===\'Enter\')sendFeedComment(\''+id+'\')"><button onclick="sendFeedComment(\'' + id + '\')" style="background:#7c3aed;border:none;color:white;padding:0.4rem 0.75rem;border-radius:6px;cursor:pointer;font-size:0.83rem;">Send</button></div>';
+      } catch(e) { commentSection.innerHTML = '<p style="color:#ef4444;font-size:0.8rem;">Error loading comments</p>'; }
+    };
+
+    window.sendFeedComment = async function(postId) {
+      const input = document.getElementById('cinput-' + postId);
+      if (!input || !input.value.trim() || !currentUser) return;
+      const text = input.value.trim(); input.value = '';
+      try {
+        await db.from('post_comments').insert({ post_id: postId, user_id: currentUser.id, text: text });
+        const { data } = await db.from('posts').select('comments,user_id').eq('id', postId).single();
+        if (data) {
+          await db.from('posts').update({ comments: (data.comments||0)+1 }).eq('id', postId);
+          try { await db.rpc('add_algorithm_points', { p_user_id: data.user_id, p_action: 'receive_comment', p_points: 5 }); } catch(e){}
+        }
+        // Reload comments
+        document.getElementById('comments-' + postId).remove();
+        commentPost(postId);
+      } catch(e) { alert('Error: ' + e.message); }
+    };
+
+    window.delFeedComment = async function(commentId, postId) {
+      try {
+        await db.from('post_comments').delete().eq('id', commentId).eq('user_id', currentUser.id);
+        const { data } = await db.from('posts').select('comments').eq('id', postId).single();
+        if (data) await db.from('posts').update({ comments: Math.max(0, (data.comments||1)-1) }).eq('id', postId);
+        document.getElementById('comments-' + postId).remove();
+        commentPost(postId);
+      } catch(e) { console.error(e); }
     };
 
     window.sharePost = async function(id, btn) {
