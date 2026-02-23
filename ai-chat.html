@@ -6,6 +6,7 @@
     <title>AI Chat - 8BFR</title>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="8bfr-knowledge.js"></script>
     <style>
         :root { --primary: #7c3aed; --dark: #0b0014; --dark-card: #0c0618; --text: #eae6ff; --text-dim: #a855f7; --border: rgba(124,58,237,.35); }
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -44,7 +45,7 @@
     
     <div class="chat-container">
         <div class="messages" id="messages">
-            <div class="msg msg-system">👋 Hi! I'm your general AI assistant. Ask me anything — coding, business ideas, writing, advice, brainstorming, or just chat. What's on your mind?</div>
+            <div class="msg msg-system">👋 Hi! I'm your AI assistant for the 8BFR Music Network. I can help with anything — platform questions, music advice, coding, business ideas, or just chat. What's up?</div>
         </div>
         <div class="input-area">
             <div class="input-row">
@@ -62,6 +63,16 @@
 
         let chatHistory = [];
         
+        const SYSTEM_PROMPT = `You are a helpful, friendly AI assistant on the 8BFR Music Network platform. You have deep knowledge of the platform and can help with anything.
+
+When users ask about 8BFR features, navigation, how to buy songs, how to upload, how to use the chat room, how profiles work, the algorithm system, tier badges, or any platform-related question — use the PLATFORM CONTEXT provided to give accurate, specific answers.
+
+For non-platform questions (coding, business, writing, general knowledge, etc.), answer naturally and helpfully.
+
+Be conversational, clear, and thorough. If the user asks for code, format it clearly. Keep responses focused and practical.
+
+You are speaking to the platform owner (Jim / 8bfr_Official) unless told otherwise.`;
+
         // Auth check
         (async function() {
             try {
@@ -80,25 +91,29 @@
             input.value = '';
             input.style.height = 'auto';
             addMessage(text, 'user');
-            
             chatHistory.push({ role: 'user', content: text });
             
-            // Show typing indicator
+            // Show typing
             const typingDiv = document.createElement('div');
             typingDiv.className = 'msg msg-ai';
             typingDiv.id = 'typing';
             typingDiv.innerHTML = '<div class="label">🤖 AI</div><div class="typing"><span></span><span></span><span></span></div>';
             document.getElementById('messages').appendChild(typingDiv);
             scrollToBottom();
-            
             document.getElementById('sendBtn').disabled = true;
 
             try {
-                // Build conversation for context (last 20 messages)
+                // Get relevant platform knowledge
+                let platformContext = '';
+                if (window.getRelevantKnowledge) {
+                    platformContext = window.getRelevantKnowledge(text);
+                }
+                
+                // Build conversation
                 const recentHistory = chatHistory.slice(-20);
                 const conversationText = recentHistory.map(m => (m.role === 'user' ? 'User: ' : 'Assistant: ') + m.content).join('\n\n');
                 
-                const fullPrompt = 'You are a helpful, friendly AI assistant. Be conversational, clear, and thorough. If the user asks for code, format it clearly. Here is the conversation so far:\n\n' + conversationText + '\n\nRespond to the user\'s latest message naturally.';
+                const fullPrompt = SYSTEM_PROMPT + platformContext + '\n\nConversation:\n\n' + conversationText + '\n\nRespond to the latest message.';
 
                 const res = await fetch('https://8bfr-api.vercel.app/api/openai', {
                     method: 'POST',
@@ -141,13 +156,11 @@
         }
 
         function formatText(text) {
-            // Basic formatting: code blocks, bold, newlines
-            let html = text
+            return text
                 .replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre style="background:rgba(0,0,0,0.3);padding:0.75rem;border-radius:8px;overflow-x:auto;margin:0.5rem 0;font-size:0.85rem;font-family:monospace;">$2</pre>')
                 .replace(/`([^`]+)`/g, '<code style="background:rgba(0,0,0,0.3);padding:0.15rem 0.4rem;border-radius:4px;font-size:0.85rem;">$1</code>')
                 .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
                 .replace(/\n/g, '<br>');
-            return html;
         }
 
         function scrollToBottom() {
@@ -161,7 +174,6 @@
             document.getElementById('messages').innerHTML = '<div class="msg msg-system">👋 Chat cleared! What would you like to talk about?</div>';
         }
 
-        // Auto-resize textarea
         document.getElementById('chatInput').addEventListener('input', function() {
             this.style.height = 'auto';
             this.style.height = Math.min(this.scrollHeight, 120) + 'px';
