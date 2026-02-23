@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Expert AI - 8BFR</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="8bfr-knowledge.js"></script>
+    <style>
+        :root { --primary: #7c3aed; --accent: #00d9ff; --dark: #0b0014; --dark-card: #0c0618; --text: #eae6ff; --text-dim: #a855f7; --border: rgba(124,58,237,.35); }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Work Sans', sans-serif; background: linear-gradient(#0b0014,#000); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+        .header { background: rgba(15,0,30,.95); border-bottom: 2px solid var(--accent); padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header h1 { font-family: 'Bebas Neue', cursive; font-size: 1.5rem; color: var(--accent); }
+        .chat-container { flex: 1; max-width: 800px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; height: calc(100vh - 60px); }
+        .messages { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 1rem; }
+        .msg { max-width: 85%; padding: 0.85rem 1.1rem; border-radius: 16px; line-height: 1.6; font-size: 0.95rem; word-wrap: break-word; }
+        .msg-user { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 4px; }
+        .msg-ai { align-self: flex-start; background: var(--dark-card); border: 1px solid rgba(0,217,255,0.3); color: var(--text); border-bottom-left-radius: 4px; }
+        .msg-ai .label { font-size: 0.7rem; color: var(--accent); margin-bottom: 0.3rem; font-weight: 600; }
+        .msg-system { align-self: center; background: rgba(0,217,255,0.1); border: 1px solid rgba(0,217,255,0.3); color: #00d9ff; font-size: 0.85rem; text-align: center; max-width: 90%; }
+        .input-area { padding: 1rem; background: rgba(15,0,30,.95); border-top: 1px solid var(--border); }
+        .input-row { display: flex; gap: 0.5rem; max-width: 800px; margin: 0 auto; }
+        .input-row textarea { flex: 1; padding: 0.75rem; background: var(--dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text); font-family: inherit; font-size: 0.95rem; resize: none; min-height: 44px; max-height: 120px; }
+        .input-row textarea:focus { outline: none; border-color: var(--accent); }
+        .send-btn { background: var(--accent); color: #000; border: none; padding: 0 1.25rem; border-radius: 12px; cursor: pointer; font-size: 1.2rem; font-weight: 700; transition: all 0.2s; flex-shrink: 0; }
+        .send-btn:hover { background: #00c4e6; }
+        .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .typing { display: flex; gap: 4px; padding: 0.5rem 0; }
+        .typing span { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; animation: bounce 1.4s infinite; }
+        .typing span:nth-child(2) { animation-delay: 0.2s; }
+        .typing span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-8px); } }
+        .quick-topics { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; padding: 0.5rem; }
+        .topic-btn { background: rgba(0,217,255,0.1); border: 1px solid rgba(0,217,255,0.3); color: var(--accent); padding: 0.35rem 0.75rem; border-radius: 20px; cursor: pointer; font-size: 0.8rem; transition: all 0.2s; }
+        .topic-btn:hover { background: rgba(0,217,255,0.2); }
+        .warn-bar { padding: 0.4rem 1rem; background: rgba(245,158,11,0.1); text-align: center; font-size: 0.75rem; color: #f59e0b; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="owner-studio.html" style="color:var(--text-dim);text-decoration:none;font-weight:600;">← Studio</a>
+        <h1>🎓 Music Expert AI</h1>
+        <button onclick="clearChat()" style="background:none;border:1px solid var(--border);color:var(--text-dim);padding:0.3rem 0.75rem;border-radius:6px;cursor:pointer;font-size:0.8rem;">🗑️ Clear</button>
+    </div>
+    <div class="warn-bar">⚠️ Chat is not saved — copy any valuable advice before leaving.</div>
+
+    <div class="chat-container">
+        <div class="messages" id="messages">
+            <div class="msg msg-system" style="line-height:1.7;">
+                🎓 <strong>Music Expert AI</strong><br><br>
+                I'm your personal music industry mentor on 8BFR. I can teach you about:<br>
+                🎵 Music theory, songwriting, composition<br>
+                🎛️ Production, mixing, mastering<br>
+                🎤 Vocal delivery, flow, recording<br>
+                📈 Marketing, promotion, audience growth<br>
+                💰 Music business, royalties, distribution<br>
+                🎹 Instruments, DAWs, gear<br>
+                📱 How to use the 8BFR platform effectively<br><br>
+                Ask me anything — I'll break it down step by step!
+            </div>
+        </div>
+
+        <div class="quick-topics" id="quickTopics">
+            <button class="topic-btn" onclick="quickAsk('How do I mix vocals to sit right in a beat?')">🎤 Vocal Mixing</button>
+            <button class="topic-btn" onclick="quickAsk('Explain song structure for hip-hop tracks')">📝 Song Structure</button>
+            <button class="topic-btn" onclick="quickAsk('How do I write better bars with internal rhyme schemes?')">✍️ Writing Bars</button>
+            <button class="topic-btn" onclick="quickAsk('What are the best ways to promote music on social media?')">📈 Music Marketing</button>
+            <button class="topic-btn" onclick="quickAsk('Explain music theory basics for producers')">🎹 Music Theory</button>
+            <button class="topic-btn" onclick="quickAsk('How do royalties and publishing work?')">💰 Royalties</button>
+            <button class="topic-btn" onclick="quickAsk('Tips for recording rap vocals at home')">🎙️ Home Recording</button>
+            <button class="topic-btn" onclick="quickAsk('How do I make my beats punch harder?')">🥁 Beat Making</button>
+            <button class="topic-btn" onclick="quickAsk('How do I get more followers and streams on 8BFR?')">📱 Grow on 8BFR</button>
+            <button class="topic-btn" onclick="quickAsk('How does the 8BFR algorithm and tier system work?')">⚡ Algorithm Tips</button>
+        </div>
+
+        <div class="input-area">
+            <div class="input-row">
+                <textarea id="chatInput" placeholder="Ask the music expert anything..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
+                <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="scripts.js" defer></script>
+    <script>
+        const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+        const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let chatHistory = [];
+        
+        const MUSIC_EXPERT_SYSTEM = `You are a world-class music industry expert, producer, songwriter, and mentor on the 8BFR Music Network platform. You have deep expertise in ALL areas of music AND knowledge of how the 8BFR platform works.
+
+PRODUCTION & ENGINEERING:
+- Beat making, sampling, sound design in FL Studio, Ableton, Logic, Pro Tools
+- Mixing techniques: EQ, compression, reverb, delay, saturation, stereo imaging
+- Mastering for streaming (Spotify LUFS targets, Apple Digital Masters)
+- Home studio setup on any budget ($200 to $20,000+)
+- Recording techniques: mic placement, vocal chains, room treatment
+- Sound selection, layering, arrangement, transitions
+
+SONGWRITING & LYRICS:
+- Rhyme schemes: perfect, slant, internal, multisyllabic, compound
+- Flow patterns: triplets, double-time, half-time, syncopation
+- Song structure: intro, verse, pre-chorus, chorus, bridge, outro, ad-libs
+- Hook writing, melody creation, topline writing
+- Writing for genres: rap, R&B, pop, rock, EDM, country, Latin
+- Storytelling techniques, metaphor, wordplay, punchlines
+
+MUSIC THEORY:
+- Scales (major, minor, pentatonic, blues, modes)
+- Chord progressions (I-IV-V-I, ii-V-I, trap progressions, jazz voicings)
+- Time signatures, tempo, BPM selection for genres
+- Key selection, transposition, modulation
+- Harmony, counterpoint, voice leading
+
+MUSIC BUSINESS:
+- Distribution: DistroKid, TuneCore, CD Baby, LANDR, Amuse
+- Royalties: mechanical, performance, sync, digital, neighboring rights
+- Publishing: PROs (ASCAP, BMI, SESAC), admin publishing
+- Contracts: 360 deals, licensing, work-for-hire, splits
+- Copyright: registering with Copyright Office, poor man's copyright myths
+- Building a team: manager, agent, lawyer, PR, A&R relationships
+
+MARKETING & GROWTH:
+- Social media strategy: Instagram Reels, TikTok, YouTube Shorts, X/Twitter
+- Playlist pitching: editorial, algorithmic, user-curated, playlist push services
+- Email lists, fan engagement, merch strategy
+- Content calendar, release strategy, rollout plans
+- Branding: visual identity, artist story, authenticity
+- Monetization: streaming, sync licensing, live shows, merch, Patreon
+
+RAP/HIP-HOP SPECIFIC:
+- Flow patterns and cadences (Eminem-style multisyllabic, Migos triplet, Wu-Tang boom-bap)
+- Battle rap techniques, freestyling, cipher skills
+- Punch-in recording technique, vocal stacking, ad-lib layering
+- 808 patterns, hi-hat rolls, trap vs boom-bap vs drill production
+- Breath control, projection, studio presence
+
+TEACHING STYLE:
+- Break complex topics into simple, actionable steps
+- Give real-world examples from successful artists
+- Include specific numbers, settings, techniques when relevant
+- Be encouraging but honest — if something needs work, say so constructively
+- Offer exercises and practice routines when appropriate
+- Reference specific tools, plugins, and resources by name
+
+When users ask about the 8BFR platform specifically (how to use features, upload songs, buy music, grow their audience on 8BFR, algorithm tips, etc.), use the PLATFORM CONTEXT provided to give accurate answers.`;
+
+        // Auth check
+        (async function() {
+            try {
+                const { data: { session } } = await sb.auth.getSession();
+                if (!session) { location.href = 'login.html?return=ai-music-expert.html'; return; }
+                const { data: p } = await sb.from('profiles').select('role').eq('user_id', session.user.id).single();
+                if (!p || p.role !== 'owner') { alert('Owner access only for now.'); location.href = 'index.html'; return; }
+            } catch(e) { console.error(e); }
+        })();
+
+        function quickAsk(question) {
+            document.getElementById('chatInput').value = question;
+            document.getElementById('quickTopics').style.display = 'none';
+            sendMessage();
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const text = input.value.trim();
+            if (!text) return;
+            
+            input.value = '';
+            input.style.height = 'auto';
+            document.getElementById('quickTopics').style.display = 'none';
+            addMessage(text, 'user');
+            chatHistory.push({ role: 'user', content: text });
+            
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'msg msg-ai';
+            typingDiv.id = 'typing';
+            typingDiv.innerHTML = '<div class="label">🎓 Music Expert</div><div class="typing"><span></span><span></span><span></span></div>';
+            document.getElementById('messages').appendChild(typingDiv);
+            scrollToBottom();
+            document.getElementById('sendBtn').disabled = true;
+
+            try {
+                // Get relevant platform knowledge
+                let platformContext = '';
+                if (window.getRelevantKnowledge) {
+                    platformContext = window.getRelevantKnowledge(text);
+                }
+                
+                const recentHistory = chatHistory.slice(-20);
+                const conversationText = recentHistory.map(m => (m.role === 'user' ? 'Student: ' : 'Expert: ') + m.content).join('\n\n');
+                
+                const fullPrompt = MUSIC_EXPERT_SYSTEM + platformContext + '\n\nConversation:\n\n' + conversationText + '\n\nRespond as the music expert. Be detailed, practical, and encouraging.';
+
+                const res = await fetch('https://8bfr-api.vercel.app/api/openai', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ input: fullPrompt, tool: 'general' })
+                });
+
+                const el = document.getElementById('typing');
+                if (el) el.remove();
+
+                if (!res.ok) {
+                    const err = await res.text();
+                    addMessage('Error (' + res.status + '): ' + err.substring(0, 200), 'ai');
+                } else {
+                    const data = await res.json();
+                    const reply = data.response || data.result || 'No response.';
+                    chatHistory.push({ role: 'assistant', content: reply });
+                    addMessage(reply, 'ai');
+                }
+            } catch(e) {
+                const el = document.getElementById('typing');
+                if (el) el.remove();
+                addMessage('Network error: ' + e.message, 'ai');
+            }
+            
+            document.getElementById('sendBtn').disabled = false;
+            input.focus();
+        }
+
+        function addMessage(text, role) {
+            const div = document.createElement('div');
+            div.className = 'msg msg-' + role;
+            if (role === 'ai') {
+                div.innerHTML = '<div class="label">🎓 Music Expert</div>' + formatText(text);
+            } else {
+                div.textContent = text;
+            }
+            document.getElementById('messages').appendChild(div);
+            scrollToBottom();
+        }
+
+        function formatText(text) {
+            return text
+                .replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre style="background:rgba(0,0,0,0.3);padding:0.75rem;border-radius:8px;overflow-x:auto;margin:0.5rem 0;font-size:0.85rem;font-family:monospace;">$2</pre>')
+                .replace(/`([^`]+)`/g, '<code style="background:rgba(0,0,0,0.3);padding:0.15rem 0.4rem;border-radius:4px;font-size:0.85rem;">$1</code>')
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n/g, '<br>');
+        }
+
+        function scrollToBottom() {
+            const m = document.getElementById('messages');
+            setTimeout(() => m.scrollTop = m.scrollHeight, 50);
+        }
+
+        function clearChat() {
+            if (!confirm('Clear chat history?')) return;
+            chatHistory = [];
+            document.getElementById('messages').innerHTML = '<div class="msg msg-system">🎓 Chat cleared! What would you like to learn about?</div>';
+            document.getElementById('quickTopics').style.display = 'flex';
+        }
+
+        document.getElementById('chatInput').addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+    </script>
+</body>
+</html>
