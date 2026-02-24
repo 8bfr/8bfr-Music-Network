@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rhyme AI — 8BFR</title>
+<link rel="icon" href="assets/images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--primary:#7c3aed;--accent:#f59e0b;--dark:#0b0014;--card:#0c0618;--text:#eae6ff;--dim:#a855f7;--border:rgba(124,58,237,.35);}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Work Sans',sans-serif;background:linear-gradient(135deg,#0b0014 0%,#0d001a 50%,#000 100%);color:var(--text);min-height:100vh;}
+.header{background:rgba(15,0,30,.95);border-bottom:2px solid var(--accent);padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;}
+.header h1{font-family:'Bebas Neue',cursive;font-size:1.6rem;color:var(--accent);}
+.container{max-width:1000px;margin:0 auto;padding:1.5rem;}
+
+/* Search area */
+.search-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:1.5rem;margin-bottom:1.5rem;}
+.search-row{display:flex;gap:.75rem;flex-wrap:wrap;}
+.search-input{flex:1;min-width:200px;padding:.8rem 1rem;background:var(--dark);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:inherit;font-size:1.1rem;font-weight:600;}
+.search-input:focus{outline:none;border-color:var(--accent);}
+.search-btn{background:var(--accent);color:#000;border:none;padding:.8rem 1.5rem;border-radius:12px;cursor:pointer;font-size:1rem;font-weight:700;transition:all .2s;white-space:nowrap;}
+.search-btn:hover{background:#d97706;transform:translateY(-1px);}
+.search-btn:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+
+/* Mode tabs */
+.mode-tabs{display:flex;gap:.5rem;margin-top:1rem;flex-wrap:wrap;}
+.mode-tab{padding:.4rem .9rem;border-radius:20px;border:1px solid var(--border);background:rgba(124,58,237,.08);color:var(--dim);cursor:pointer;font-size:.82rem;font-weight:600;transition:all .15s;}
+.mode-tab:hover{background:rgba(124,58,237,.15);}
+.mode-tab.active{background:var(--accent);color:#000;border-color:var(--accent);}
+
+/* Results */
+.results{display:grid;gap:1rem;}
+.result-section{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.25rem;transition:border-color .2s;}
+.result-section:hover{border-color:var(--primary);}
+.section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;}
+.section-title{font-family:'Bebas Neue',cursive;font-size:1.15rem;color:var(--accent);}
+.section-count{font-size:.7rem;color:var(--dim);background:rgba(124,58,237,.15);padding:.2rem .5rem;border-radius:10px;}
+.word-grid{display:flex;flex-wrap:wrap;gap:.4rem;}
+.word-chip{background:rgba(124,58,237,.12);border:1px solid rgba(124,58,237,.25);color:var(--text);padding:.35rem .7rem;border-radius:8px;font-size:.88rem;cursor:pointer;transition:all .15s;user-select:text;}
+.word-chip:hover{background:rgba(124,58,237,.25);border-color:var(--primary);transform:translateY(-1px);}
+.word-chip.perfect{border-color:rgba(245,158,11,.5);background:rgba(245,158,11,.1);}
+.word-chip.near{border-color:rgba(34,197,94,.4);background:rgba(34,197,94,.08);}
+.word-chip.multi{border-color:rgba(59,130,246,.4);background:rgba(59,130,246,.08);}
+
+/* Definition panel */
+.def-panel{background:rgba(15,0,30,.8);border:1px solid var(--border);border-radius:12px;padding:1rem;margin-top:.75rem;display:none;}
+.def-panel.show{display:block;}
+.def-word{font-size:1.1rem;font-weight:700;color:var(--accent);margin-bottom:.5rem;}
+
+/* Lyrics workspace */
+.workspace{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.25rem;margin-top:1.5rem;}
+.workspace h3{font-family:'Bebas Neue',cursive;color:var(--primary);font-size:1.1rem;margin-bottom:.75rem;}
+.workspace textarea{width:100%;min-height:150px;padding:.75rem;background:var(--dark);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Courier New',monospace;font-size:.95rem;line-height:1.8;resize:vertical;}
+.workspace textarea:focus{outline:none;border-color:var(--primary);}
+.workspace-hint{font-size:.75rem;color:var(--dim);margin-top:.5rem;}
+.workspace-actions{display:flex;gap:.5rem;margin-top:.75rem;flex-wrap:wrap;}
+.ws-btn{background:rgba(124,58,237,.15);border:1px solid var(--border);color:var(--text);padding:.4rem .8rem;border-radius:8px;cursor:pointer;font-size:.8rem;font-weight:600;transition:all .15s;}
+.ws-btn:hover{background:rgba(124,58,237,.3);}
+
+/* Loading */
+.loading{text-align:center;padding:2rem;color:var(--dim);}
+.loading-dots{display:inline-flex;gap:4px;}
+.loading-dots span{width:8px;height:8px;background:var(--accent);border-radius:50%;animation:ldot 1.4s infinite;}
+.loading-dots span:nth-child(2){animation-delay:.2s;}
+.loading-dots span:nth-child(3){animation-delay:.4s;}
+@keyframes ldot{0%,60%,100%{transform:translateY(0);}30%{transform:translateY(-8px);}}
+.empty{text-align:center;padding:3rem;color:var(--dim);}
+.empty .icon{font-size:3rem;margin-bottom:.5rem;}
+
+/* Legend */
+.legend{display:flex;gap:1rem;margin-top:.75rem;flex-wrap:wrap;font-size:.75rem;}
+.legend-item{display:flex;align-items:center;gap:.3rem;}
+.legend-dot{width:10px;height:10px;border-radius:3px;}
+
+@media(max-width:600px){.search-row{flex-direction:column;}.search-btn{width:100%;}}
+</style>
+</head>
+<body>
+<div class="header">
+  <a href="owner-studio.html" style="color:var(--dim);text-decoration:none;font-weight:600;">← Studio</a>
+  <h1>📝 Rhyme AI</h1>
+  <span style="font-size:.75rem;color:var(--dim);">Songwriter's Tool</span>
+</div>
+
+<div class="container">
+  <!-- Search -->
+  <div class="search-card">
+    <div class="search-row">
+      <input type="text" class="search-input" id="wordInput" placeholder="Enter a word to rhyme..." autocomplete="off" onkeydown="if(event.key==='Enter')searchWord();">
+      <button class="search-btn" id="searchBtn" onclick="searchWord()">🔍 Find Rhymes</button>
+    </div>
+    <div class="mode-tabs">
+      <button class="mode-tab active" data-mode="all" onclick="setMode('all',this)">🎯 All</button>
+      <button class="mode-tab" data-mode="perfect" onclick="setMode('perfect',this)">✨ Perfect Rhymes</button>
+      <button class="mode-tab" data-mode="near" onclick="setMode('near',this)">🎵 Near Rhymes</button>
+      <button class="mode-tab" data-mode="multi" onclick="setMode('multi',this)">🔥 Multi-Syllable</button>
+      <button class="mode-tab" data-mode="homo" onclick="setMode('homo',this)">🔤 Homophones</button>
+      <button class="mode-tab" data-mode="define" onclick="setMode('define',this)">📖 Define</button>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:rgba(245,158,11,.5);"></div> Perfect</div>
+      <div class="legend-item"><div class="legend-dot" style="background:rgba(34,197,94,.5);"></div> Near</div>
+      <div class="legend-item"><div class="legend-dot" style="background:rgba(59,130,246,.5);"></div> Multi-syllable</div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="results">
+    <div class="empty">
+      <div class="icon">📝</div>
+      <h3>Type a word to find rhymes</h3>
+      <p style="font-size:.85rem;">Get perfect rhymes, near rhymes, multi-syllable rhymes, homophones, and definitions — all powered by AI.</p>
+    </div>
+  </div>
+
+  <!-- Definition panel -->
+  <div class="def-panel" id="defPanel">
+    <div class="def-word" id="defWord"></div>
+    <div id="defContent"></div>
+  </div>
+
+  <!-- Lyrics workspace -->
+  <div class="workspace">
+    <h3>✍️ Lyrics Workspace</h3>
+    <textarea id="lyricsArea" placeholder="Write your lyrics here... &#10;&#10;Click any rhyme word above to look up its definition.&#10;Select a word in your lyrics and click 'Rhyme Selected' to search it."></textarea>
+    <div class="workspace-hint">Tip: Select a word in your lyrics then click "Rhyme Selected Word" to find rhymes for it.</div>
+    <div class="workspace-actions">
+      <button class="ws-btn" onclick="rhymeSelected()">🎯 Rhyme Selected Word</button>
+      <button class="ws-btn" onclick="analyzeEndWords()">📊 Analyze Rhyme Scheme</button>
+      <button class="ws-btn" onclick="navigator.clipboard.writeText(document.getElementById('lyricsArea').value).then(()=>alert('Copied!'))">📋 Copy Lyrics</button>
+      <button class="ws-btn" onclick="if(confirm('Clear lyrics?'))document.getElementById('lyricsArea').value=''">🗑️ Clear</button>
+    </div>
+  </div>
+</div>
+
+<script src="scripts.js" defer></script>
+<script>
+const SUPABASE_URL='https://novbuvwpjnxwwvdekjhr.supabase.co';
+const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
+const API_URL='https://8bfr-api.vercel.app/api/openai';
+let currentMode='all';
+
+// Auth check
+(async function(){
+  const{data:{session}}=await sb.auth.getSession();
+  if(!session){location.href='login.html?return=rhyme-ai.html';return;}
+  const{data:p}=await sb.from('profiles').select('role').eq('user_id',session.user.id).single();
+  if(!p||p.role!=='owner'){alert('Owner access only for now.');location.href='index.html';}
+})();
+
+function setMode(mode,btn){
+  currentMode=mode;
+  document.querySelectorAll('.mode-tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  const word=document.getElementById('wordInput').value.trim();
+  if(word)searchWord();
+}
+
+async function searchWord(){
+  const input=document.getElementById('wordInput');
+  const word=input.value.trim();
+  if(!word)return;
+
+  const results=document.getElementById('results');
+  results.innerHTML='<div class="loading"><div class="loading-dots"><span></span><span></span><span></span></div><br>Finding rhymes for "<b>'+esc(word)+'</b>"...</div>';
+  document.getElementById('searchBtn').disabled=true;
+  document.getElementById('defPanel').classList.remove('show');
+
+  const prompt=buildPrompt(word,currentMode);
+
+  try{
+    const res=await fetch(API_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({input:prompt,tool:'general'})
+    });
+    if(!res.ok)throw new Error('API error '+res.status);
+    const data=await res.json();
+    const reply=data.response||data.result||'';
+    parseAndRender(reply,word);
+  }catch(e){
+    results.innerHTML='<div class="empty"><div class="icon">❌</div><h3>Error</h3><p>'+e.message+'</p></div>';
+  }
+
+  document.getElementById('searchBtn').disabled=false;
+}
+
+function buildPrompt(word,mode){
+  if(mode==='define'){
+    return `Give a complete dictionary entry for "${word}". Include:
+1. All parts of speech and definitions (numbered)
+2. Syllable breakdown with count
+3. Pronunciation guide
+4. 2 example sentences
+5. Common synonyms
+Format clearly with labels.`;
+  }
+
+  let focus='';
+  if(mode==='perfect')focus='Focus ONLY on perfect/exact rhymes (same ending sound). Give 25-40 words.';
+  else if(mode==='near')focus='Focus ONLY on near/slant rhymes (similar but not exact ending sounds). Give 25-40 words.';
+  else if(mode==='multi')focus='Focus ONLY on multi-syllable rhymes (2+ syllable matches). Include compound rhymes and short phrases. Give 20-30.';
+  else if(mode==='homo')focus='Focus ONLY on homophones (words that sound the same but different meaning/spelling). If no true homophones exist, list words that sound very similar.';
+
+  return `You are a professional rhyming dictionary for songwriters and rappers. For the word "${word}", provide:
+
+${mode==='all'?`PERFECT_RHYMES: (exact ending sound matches, give 15-20 words)
+NEAR_RHYMES: (slant rhymes, similar sounds, give 15-20 words)
+MULTI_SYLLABLE: (2+ syllable rhyme matches, compound rhymes, phrases that rhyme, give 10-15)
+HOMOPHONES: (words that sound identical or nearly identical but different spelling/meaning)
+SYLLABLES: (syllable count and breakdown of the original word)
+DEFINITION: (brief definition of the original word)`:`${mode.toUpperCase()}: (provide the words)
+SYLLABLES: (syllable count of the original word)
+DEFINITION: (brief definition)`}
+
+${focus}
+
+FORMAT RULES:
+- Each category label followed by colon
+- Words separated by commas
+- Include slang and rap-relevant words
+- Order from most common to least common
+- Do NOT include the original word in any list`;
+}
+
+function parseAndRender(reply,word){
+  const results=document.getElementById('results');
+  const sections={};
+  const lines=reply.split('\n');
+  let curSec=null;
+
+  for(const line of lines){
+    const t=line.trim();
+    if(!t)continue;
+    const m=t.match(/^(PERFECT_RHYMES|PERFECT|NEAR_RHYMES|NEAR|MULTI_SYLLABLE|MULTI|HOMOPHONES|HOMO|SYLLABLES|DEFINITION|SYNONYMS|PRONUNCIATION)[:\s\-]+(.*)/i);
+    if(m){
+      curSec=m[1].toUpperCase().replace(/_RHYMES|_SYLLABLE/,'');
+      if(curSec==='HOMO')curSec='HOMOPHONES';
+      const content=m[2].trim();
+      if(content)sections[curSec]=(sections[curSec]||'')+content;
+    }else if(curSec){
+      sections[curSec]=(sections[curSec]||'')+' '+t;
+    }
+  }
+
+  if(Object.keys(sections).length===0)sections['RESULTS']=reply;
+
+  let html='';
+
+  const cfgs=[
+    {key:'PERFECT',title:'✨ Perfect Rhymes',cls:'perfect'},
+    {key:'NEAR',title:'🎵 Near / Slant Rhymes',cls:'near'},
+    {key:'MULTI',title:'🔥 Multi-Syllable Rhymes',cls:'multi'},
+    {key:'HOMOPHONES',title:'🔤 Homophones',cls:''},
+    {key:'RESULTS',title:'📝 Results',cls:''}
+  ];
+
+  for(const cfg of cfgs){
+    if(!sections[cfg.key])continue;
+    const words=sections[cfg.key]
+      .split(/[,;]/)
+      .map(w=>w.trim().replace(/^[-•\d.)\s]+/,'').trim())
+      .filter(w=>w.length>0&&w.length<50&&!w.includes(':'));
+    if(words.length===0)continue;
+
+    html+=`<div class="result-section">
+      <div class="section-header">
+        <span class="section-title">${cfg.title}</span>
+        <span class="section-count">${words.length} words</span>
+      </div>
+      <div class="word-grid">
+        ${words.map(w=>`<span class="word-chip ${cfg.cls}" onclick="lookupWord('${esc(w)}')" title="Click for definition">${esc(w)}</span>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  // Info section
+  let info='';
+  if(sections['SYLLABLES'])info+=`<div style="margin-bottom:.5rem;"><b>Syllables:</b> ${esc(sections['SYLLABLES'])}</div>`;
+  if(sections['DEFINITION'])info+=`<div><b>Definition:</b> ${esc(sections['DEFINITION'])}</div>`;
+  if(sections['PRONUNCIATION'])info+=`<div><b>Pronunciation:</b> ${esc(sections['PRONUNCIATION'])}</div>`;
+
+  if(info){
+    html=`<div class="result-section" style="border-color:rgba(245,158,11,.3);">
+      <div class="section-title" style="margin-bottom:.5rem;">📖 ${esc(word)}</div>
+      <div style="font-size:.9rem;line-height:1.6;color:var(--dim);">${info}</div>
+    </div>`+html;
+  }
+
+  if(!html)html='<div class="empty"><div class="icon">🤔</div><h3>No results parsed</h3><p style="font-size:.85rem;">'+esc(reply.substring(0,300))+'</p></div>';
+  results.innerHTML=html;
+}
+
+// Click a word chip to get definition
+async function lookupWord(word){
+  const panel=document.getElementById('defPanel');
+  const wordEl=document.getElementById('defWord');
+  const content=document.getElementById('defContent');
+
+  wordEl.textContent=word;
+  content.innerHTML='<div class="loading-dots"><span></span><span></span><span></span></div>';
+  panel.classList.add('show');
+  panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+
+  try{
+    const res=await fetch(API_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        input:`Define "${word}" briefly for a songwriter. Include: part of speech, 1-2 definitions, syllable count, and 1 example sentence. Keep it under 80 words.`,
+        tool:'general'
+      })
+    });
+    const data=await res.json();
+    const reply=data.response||data.result||'No definition found.';
+    content.innerHTML='<div style="font-size:.88rem;line-height:1.6;">'+reply.replace(/\n/g,'<br>')+'</div>';
+  }catch(e){
+    content.innerHTML='<div style="color:#ef4444;">Error loading definition.</div>';
+  }
+
+  document.getElementById('wordInput').value=word;
+}
+
+// Workspace: rhyme selected word
+function rhymeSelected(){
+  const area=document.getElementById('lyricsArea');
+  const selected=area.value.substring(area.selectionStart,area.selectionEnd).trim();
+
+  if(!selected){
+    const cursorPos=area.selectionStart;
+    const textBefore=area.value.substring(0,cursorPos);
+    const lastLine=textBefore.split('\n').pop().trim();
+    const lastWord=lastLine.split(/\s+/).pop();
+    if(lastWord){
+      document.getElementById('wordInput').value=lastWord.replace(/[^a-zA-Z'-]/g,'');
+      searchWord();
+    }else{
+      alert('Select a word in your lyrics first, or place your cursor at the end of a line.');
+    }
+    return;
+  }
+
+  const word=selected.replace(/[^a-zA-Z'-]/g,'');
+  if(word){
+    document.getElementById('wordInput').value=word;
+    searchWord();
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+}
+
+// Workspace: analyze end words rhyme scheme
+async function analyzeEndWords(){
+  const lyrics=document.getElementById('lyricsArea').value.trim();
+  if(!lyrics){alert('Write some lyrics first!');return;}
+
+  const lines=lyrics.split('\n').filter(l=>l.trim());
+  const endWords=lines.map(l=>{
+    const words=l.trim().split(/\s+/);
+    return words[words.length-1].replace(/[^a-zA-Z'-]/g,'');
+  }).filter(w=>w);
+
+  if(endWords.length<2){alert('Need at least 2 lines to analyze.');return;}
+
+  const results=document.getElementById('results');
+  results.innerHTML='<div class="loading"><div class="loading-dots"><span></span><span></span><span></span></div><br>Analyzing rhyme scheme...</div>';
+
+  try{
+    const res=await fetch(API_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        input:`Analyze the rhyme scheme of these line-ending words from a song: ${endWords.join(', ')}
+
+For each pair that rhymes (perfect or near), identify them.
+Show the rhyme scheme using letters (AABB, ABAB, ABCABC, etc).
+Rate the rhyme density (how many lines rhyme with each other) on a scale of 1-10.
+Suggest 2-3 alternative end words for any lines that don't rhyme with anything.
+Be concise and practical for a songwriter/rapper.`,
+        tool:'general'
+      })
+    });
+    const data=await res.json();
+    const reply=data.response||data.result||'';
+
+    results.innerHTML=`<div class="result-section">
+      <div class="section-title">📊 Rhyme Scheme Analysis</div>
+      <div style="font-size:.9rem;line-height:1.7;margin-top:.5rem;">${reply.replace(/\n/g,'<br>')}</div>
+      <div style="margin-top:1rem;padding-top:.75rem;border-top:1px solid var(--border);">
+        <div style="font-size:.8rem;color:var(--dim);margin-bottom:.5rem;">End words found:</div>
+        <div class="word-grid">${endWords.map(w=>`<span class="word-chip" onclick="lookupWord('${esc(w)}')">${esc(w)}</span>`).join('')}</div>
+      </div>
+    </div>`;
+  }catch(e){
+    results.innerHTML='<div class="empty"><div class="icon">❌</div><p>'+e.message+'</p></div>';
+  }
+}
+
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+</script>
+</body>
+</html>
