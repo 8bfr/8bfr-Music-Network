@@ -99,18 +99,23 @@
   // Use same init pattern as owner-panel.html
   (function() {
 
-  // Debug functions (bar hidden, calls kept for safety)
+  // Debug bar - VISIBLE so we can see where it stalls
   (function() {
     var d = document.createElement('div');
     d.id = 'mobileDebug';
-    d.style.cssText = 'display:none;';
+    d.style.cssText = 'position:fixed;bottom:60px;left:0;right:0;z-index:9999;background:rgba(0,0,0,0.95);color:#0f0;font-family:monospace;font-size:11px;padding:8px;max-height:200px;overflow-y:auto;border-top:2px solid #0f0;';
     document.body.appendChild(d);
   })();
   function dbgEarly(msg) {
     var el = document.getElementById('mobileDebug');
-    if (el && el.style.display !== 'none') el.innerHTML += msg + '<br>';
+    if (el) el.innerHTML += new Date().toLocaleTimeString() + ' → ' + msg + '<br>';
+    console.log('[PROFILE DBG]', msg);
   }
   function dbg(msg) { dbgEarly(msg); }
+
+  dbgEarly('🚀 IIFE started, checking Supabase...');
+  dbgEarly('window.supabase = ' + typeof window.supabase);
+  dbgEarly('window._8bfrSupabaseClient = ' + typeof window._8bfrSupabaseClient);
 
   let db;
   if (window._8bfrSupabaseClient) {
@@ -155,22 +160,29 @@
 
   async function init() {
     try {
-    dbg('⏳ Starting...');
+    dbg('⏳ init() called');
+    dbg('⏳ window.supabase exists: ' + !!window.supabase);
+    dbg('⏳ db exists: ' + !!db);
+    dbg('⏳ db.auth exists: ' + !!(db && db.auth));
     const params = new URLSearchParams(window.location.search);
     const viewId = params.get('id');
+    dbg('⏳ viewId: ' + (viewId || '(none - own profile)'));
 
-    dbg('⏳ Checking auth...');
+    dbg('⏳ Calling getSession...');
     let user = null;
     try {
-      const { data: { session }, error: sessionErr } = await db.auth.getSession();
-      if (sessionErr) { console.error('Auth session error:', sessionErr); dbg('⚠️ Auth error: ' + sessionErr.message); }
+      const sessionResult = await db.auth.getSession();
+      dbg('⏳ getSession returned: ' + JSON.stringify(Object.keys(sessionResult || {})));
+      const session = sessionResult?.data?.session;
+      const sessionErr = sessionResult?.error;
+      if (sessionErr) { dbg('⚠️ Auth error: ' + sessionErr.message); }
       user = session?.user || null;
+      dbg(user ? '✅ User found: ' + user.email : '⚠️ No user session');
     } catch(authEx) {
       console.error('Auth exception:', authEx);
-      dbg('⚠️ Auth issue: ' + authEx.message + ' — continuing as guest');
+      dbg('❌ Auth EXCEPTION: ' + authEx.message);
     }
     currentUser = user;
-    dbg(user ? '✅ Logged in: ' + user.email : '⚠️ Not logged in (guest)');
 
     const targetId = viewId || (currentUser ? currentUser.id : null);
 
@@ -181,12 +193,15 @@
 
     dbg('⏳ Loading profile for: ' + targetId.substring(0,8) + '...');
     isOwnProfile = !viewId || (currentUser && viewId === currentUser.id);
+    dbg('⏳ isOwnProfile: ' + isOwnProfile);
 
+    dbg('⏳ Querying profiles table...');
     const { data: profile, error } = await db
       .from('profiles')
       .select('*, paypal_email, music_section_hidden')
       .eq('user_id', targetId)
       .maybeSingle();
+    dbg('⏳ Query done. error=' + (error ? error.message : 'none') + ' profile=' + (profile ? profile.username : 'null'));
 
     if (error) { dbg('❌ Profile error: ' + error.message); showError('Error loading profile: ' + error.message); return; }
     dbg(profile ? '✅ Profile found: ' + profile.username : '⚠️ No profile row found');
@@ -204,11 +219,12 @@
     document.getElementById('pageTitle').textContent = isOwnProfile ? '👤 My Profile' : '👤 ' + (profile.display_name || profile.username || 'Profile');
     document.title = (profile.display_name || profile.username || 'Profile') + ' — 8BFR Music Network';
 
-    dbg('✅ Rendering...');
+    dbg('✅ Rendering profile...');
     document.getElementById('loadingSpinner').style.display = 'none';
     document.getElementById('profileContent').style.display = 'block';
     renderProfile();
-    } catch(err) { showError('Error: ' + err.message); }
+    dbg('✅ renderProfile() done');
+    } catch(err) { dbg('❌ CATCH: ' + err.message + ' | ' + err.stack); showError('Error: ' + err.message); }
   }
 
   // ── RENDER ──────────────────────────────────────────────────────
@@ -1149,12 +1165,20 @@
   };
 
   function startInit() {
+    dbg('🟢 startInit() called — readyState: ' + document.readyState);
     init().catch(err => {
+      dbg('❌ init() CRASHED: ' + err.message);
       document.getElementById('loadingSpinner').innerHTML = '<div style="text-align:center;padding:2rem;color:#f87171;">❌ ' + err.message + '</div>';
     });
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startInit);
-  else startInit();
+  dbg('📋 readyState = ' + document.readyState);
+  if (document.readyState === 'loading') {
+    dbg('⏳ DOM still loading, waiting for DOMContentLoaded...');
+    document.addEventListener('DOMContentLoaded', startInit);
+  } else {
+    dbg('✅ DOM ready, calling startInit immediately');
+    startInit();
+  }
 
   })(); // end IIFE
   </script>
