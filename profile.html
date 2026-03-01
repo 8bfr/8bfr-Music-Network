@@ -166,7 +166,7 @@
     dbg('⏳ db.auth exists: ' + !!(db && db.auth));
     const params = new URLSearchParams(window.location.search);
     const viewId = params.get('id');
-      // =====================================================
+// =====================================================
 // DUMMY PROFILE SUPPORT — Add this in profile.html
 // Inside the init() function, RIGHT AFTER this line:
 //   const viewId = params.get('id');
@@ -175,7 +175,6 @@
 
     const dummyId = params.get('dummy');
     if (dummyId) {
-      // Loading a dummy profile — read-only, no social features
       dbg('Loading dummy profile: ' + dummyId);
       try {
         const { data: dummy, error: dErr } = await db
@@ -183,11 +182,11 @@
           .select('*')
           .eq('id', dummyId)
           .maybeSingle();
-        if (dErr || !dummy) {
-          showError('Dummy profile not found.');
-          return;
-        }
-        // Render simple read-only profile
+        if (dErr || !dummy) { showError('Dummy profile not found.'); return; }
+
+        // Check if current user is owner
+        const isOwnerViewing = currentUser && currentUser.id === 'cb556180-f032-4b21-9470-1d786f2664ab';
+
         document.getElementById('loadingSpinner').style.display = 'none';
         document.getElementById('profileContent').style.display = 'block';
         document.title = (dummy.display_name || dummy.username || 'Profile') + ' — 8BFR Music Network';
@@ -202,10 +201,86 @@
         }).join('') || '<span style="color:rgba(168,85,247,0.4);font-size:0.85rem;">No badges</span>';
         const verifiedHtml = dummy.verified_artist ? '<span style="color:#00d9ff;font-size:1.1rem;margin-left:6px;">✓</span>' : '';
 
-        document.getElementById('profileContent').innerHTML = 
+        // Role options for edit dropdown
+        const ROLE_LIST = ['fan','artist','beatmaker','producer','rapper','singer','songwriter','dj','musician','engineer','label','promoter','designer','influencer','blogger','developer','streamer','gamer','supporter'];
+        const roleOptions = ROLE_LIST.map(function(r) {
+          return '<option value="' + r + '"' + (r === dummy.role ? ' selected' : '') + '>' + r + '</option>';
+        }).join('');
+
+        // Badge checkboxes for edit
+        const ALL_BADGES = [
+          {v:'artist',l:'🎤 Artist'},{v:'beatmaker',l:'🎚️ Beatmaker'},{v:'producer',l:'🎧 Producer'},
+          {v:'rapper',l:'🎤 Rapper'},{v:'singer',l:'🎙️ Singer'},{v:'songwriter',l:'🎼 Songwriter'},
+          {v:'dj',l:'📀 DJ'},{v:'musician',l:'🎸 Musician'},{v:'engineer',l:'🎛️ Engineer'},
+          {v:'fan',l:'💎 Fan'},{v:'influencer',l:'💫 Influencer'},{v:'designer',l:'🎨 Designer'},
+          {v:'developer',l:'🧠 Developer'},{v:'blogger',l:'📰 Blogger'},{v:'streamer',l:'📡 Streamer'},
+          {v:'gamer',l:'🎮 Gamer'},{v:'supporter',l:'🤝 Supporter'},{v:'founder',l:'⚡ Founder'},
+          {v:'verified',l:'🛡️ Verified'},{v:'vip_member',l:'🎖️ VIP'}
+        ];
+        const badgeCheckboxes = ALL_BADGES.map(function(b) {
+          var checked = tags.includes(b.v) ? ' checked' : '';
+          return '<label style="display:flex;align-items:center;gap:0.4rem;padding:0.3rem 0.5rem;border-radius:6px;border:1px solid rgba(124,58,237,0.2);background:rgba(124,58,237,0.04);cursor:pointer;font-size:0.8rem;">' +
+            '<input type="checkbox" class="dummy-badge-cb" value="' + b.v + '"' + checked + ' style="accent-color:#7c3aed;"> ' + b.l + '</label>';
+        }).join('');
+
+        // Edit form (only for owner)
+        var editHtml = '';
+        if (isOwnerViewing) {
+          editHtml = '' +
+          '<div class="card">' +
+            '<h2 style="color:#a855f7;margin-bottom:1rem;font-size:1.1rem;font-weight:700;">✏️ Edit Dummy Profile</h2>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">' +
+              '<div class="form-group">' +
+                '<label>Username</label>' +
+                '<input class="form-input" type="text" id="dEditUsername" value="' + (dummy.username || '') + '">' +
+              '</div>' +
+              '<div class="form-group">' +
+                '<label>Display Name</label>' +
+                '<input class="form-input" type="text" id="dEditDisplayName" value="' + (dummy.display_name || '') + '">' +
+              '</div>' +
+            '</div>' +
+            '<div class="form-group">' +
+              '<label>Bio</label>' +
+              '<textarea class="form-input" id="dEditBio" rows="3">' + (dummy.bio || '') + '</textarea>' +
+            '</div>' +
+            '<div class="form-group">' +
+              '<label>Primary Role</label>' +
+              '<select class="form-input" id="dEditRole">' + roleOptions + '</select>' +
+            '</div>' +
+            '<div class="form-group">' +
+              '<label style="margin-bottom:0.5rem;display:block;">Profile Photo</label>' +
+              '<div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">' +
+                '<div id="dEditAvatarPreview" style="width:64px;height:64px;border-radius:50%;overflow:hidden;background:rgba(124,58,237,0.2);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">' +
+                  (dummy.avatar_url ? '<img src="' + dummy.avatar_url + '" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML=\'👤\'">' : '👤') +
+                '</div>' +
+                '<div style="flex:1;">' +
+                  '<input type="file" id="dEditAvatarFile" accept="image/*" style="font-size:0.85rem;color:#eae6ff;margin-bottom:0.5rem;display:block;">' +
+                  '<div style="font-size:0.75rem;color:rgba(168,85,247,0.5);">Or paste a direct URL:</div>' +
+                  '<input class="form-input" type="url" id="dEditAvatarUrl" value="' + (dummy.avatar_url || '') + '" placeholder="https://..." style="margin-top:0.25rem;">' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="form-group">' +
+              '<label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-weight:normal;">' +
+                '<input type="checkbox" id="dEditVerified" style="accent-color:#7c3aed;"' + (dummy.verified_artist ? ' checked' : '') + '> 🛡️ Verified' +
+              '</label>' +
+            '</div>' +
+            '<div style="margin-bottom:1rem;">' +
+              '<label style="display:block;margin-bottom:0.5rem;font-size:0.88rem;font-weight:600;color:rgba(234,230,255,0.7);">Badges</label>' +
+              '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:0.3rem;">' + badgeCheckboxes + '</div>' +
+            '</div>' +
+            '<div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">' +
+              '<button class="btn" onclick="saveDummyProfile()" id="dSaveBtn">💾 Save Changes</button>' +
+              '<button class="btn" style="background:#dc2626;" onclick="deleteDummyProfile()">🗑️ Delete Profile</button>' +
+              '<span id="dSaveNotice" style="font-size:0.85rem;"></span>' +
+            '</div>' +
+          '</div>';
+        }
+
+        document.getElementById('profileContent').innerHTML =
           '<div class="profile-header">' +
             '<div style="display:flex;gap:1.5rem;align-items:flex-start;flex-wrap:wrap;">' +
-              '<div class="avatar-ring">' + avatarHtml + '</div>' +
+              '<div class="avatar-ring" id="dAvatarDisplay">' + avatarHtml + '</div>' +
               '<div style="flex:1;min-width:280px;">' +
                 '<h2 style="font-size:1.7rem;font-weight:800;margin-bottom:0.3rem;">' + (dummy.display_name || dummy.username || 'Unknown') + verifiedHtml + '</h2>' +
                 '<div style="color:#a855f7;font-size:0.9rem;margin-bottom:0.5rem;">' + (dummy.role || 'member').toUpperCase() + '</div>' +
@@ -217,14 +292,103 @@
           '<div class="card" style="text-align:center;padding:2rem;color:rgba(168,85,247,0.5);">' +
             '<p style="font-size:1.5rem;margin-bottom:0.5rem;">🎵</p>' +
             '<p>This member hasn\'t posted any content yet.</p>' +
-          '</div>';
-        return; // Stop here — don't run rest of init()
+          '</div>' +
+          editHtml;
+
+        // ── AVATAR FILE PREVIEW ──
+        if (isOwnerViewing) {
+          var fileInput = document.getElementById('dEditAvatarFile');
+          if (fileInput) {
+            fileInput.addEventListener('change', function() {
+              var file = this.files[0]; if (!file) return;
+              var reader = new FileReader();
+              reader.onload = function(e) {
+                document.getElementById('dEditAvatarPreview').innerHTML = '<img src="' + e.target.result + '" style="width:100%;height:100%;object-fit:cover;">';
+              };
+              reader.readAsDataURL(file);
+            });
+          }
+        }
+
+        // ── SAVE DUMMY PROFILE ──
+        window.saveDummyProfile = async function() {
+          var btn = document.getElementById('dSaveBtn');
+          var notice = document.getElementById('dSaveNotice');
+          btn.disabled = true; btn.textContent = 'Saving…';
+          notice.textContent = ''; notice.style.color = '#a855f7';
+          try {
+            var username = document.getElementById('dEditUsername').value.trim();
+            var displayName = document.getElementById('dEditDisplayName').value.trim();
+            var bio = document.getElementById('dEditBio').value.trim();
+            var role = document.getElementById('dEditRole').value;
+            var verified = document.getElementById('dEditVerified').checked;
+            var badges = [];
+            document.querySelectorAll('.dummy-badge-cb:checked').forEach(function(cb) { badges.push(cb.value); });
+            var tags = [role, ...badges.filter(function(b) { return b !== role; })];
+            tags = [...new Set(tags)];
+
+            // Handle avatar
+            var avatarUrl = document.getElementById('dEditAvatarUrl').value.trim();
+            var avatarFile = document.getElementById('dEditAvatarFile').files[0];
+
+            if (avatarFile) {
+              notice.textContent = 'Uploading photo…';
+              var ext = avatarFile.name.split('.').pop();
+              var path = 'dummy/' + username.replace(/[^a-zA-Z0-9]/g,'') + '_' + Date.now() + '.' + ext;
+              var uploadResult = await db.storage.from('avatars').upload(path, avatarFile, { upsert: true, contentType: avatarFile.type });
+              if (uploadResult.error) throw new Error('Upload failed: ' + uploadResult.error.message);
+              var urlResult = db.storage.from('avatars').getPublicUrl(path);
+              avatarUrl = urlResult.data.publicUrl;
+              notice.textContent = 'Photo uploaded!';
+            }
+
+            var updateData = {
+              username: username,
+              display_name: displayName || username,
+              bio: bio || null,
+              role: role,
+              tags: tags,
+              verified_artist: verified,
+              avatar_url: avatarUrl || null
+            };
+
+            var result = await db.from('dummy_profiles').update(updateData).eq('id', dummyId);
+            if (result.error) throw result.error;
+
+            notice.textContent = '✅ Saved!';
+            notice.style.color = '#4ade80';
+            setTimeout(function() { location.reload(); }, 800);
+          } catch(err) {
+            notice.textContent = '❌ ' + err.message;
+            notice.style.color = '#ef4444';
+          }
+          btn.disabled = false; btn.textContent = '💾 Save Changes';
+        };
+
+        // ── DELETE DUMMY PROFILE ──
+        window.deleteDummyProfile = async function() {
+          if (!confirm('Delete this dummy profile? This cannot be undone.')) return;
+          try {
+            var result = await db.from('dummy_profiles').delete().eq('id', dummyId);
+            if (result.error) throw result.error;
+            alert('Dummy profile deleted.');
+            window.location.href = 'members.html';
+          } catch(err) {
+            alert('Error: ' + err.message);
+          }
+        };
+
+        return;
       } catch(e) {
         dbg('Dummy load error: ' + e.message);
         showError('Error loading profile.');
         return;
       }
     }
+
+// =====================================================
+// END OF DUMMY PATCH — rest of init() continues below
+// =====================================================
 
 // =====================================================
 // That's it! The rest of init() continues as normal
