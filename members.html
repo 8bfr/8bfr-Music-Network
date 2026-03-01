@@ -12,7 +12,8 @@
     .card { background: rgba(12,6,24,0.7); border: 1px solid rgba(124,58,237,0.3); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
     .member-card { background: rgba(0,0,0,0.3); border: 1px solid rgba(124,58,237,0.2); border-radius: 8px; padding: 1rem; margin-bottom: 1rem; display: flex; gap: 1rem; align-items: center; cursor: pointer; transition: all 0.2s; }
     .member-card:hover { border-color: rgba(124,58,237,0.5); background: rgba(124,58,237,0.1); }
-    .avatar { width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg,#7c3aed,#a855f7); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; }
+    .avatar { width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg,#7c3aed,#a855f7); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; overflow: hidden; }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
     .badge { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.7rem; font-weight: 600; margin-right: 0.25rem; margin-bottom: 0.25rem; }
     .badge-owner { background: rgba(255,0,68,0.2); color: #ff0044; }
     .badge-verified { background: rgba(0,217,255,0.2); color: #00d9ff; }
@@ -47,7 +48,14 @@
           <option value="artist">Artists</option>
           <option value="beatmaker">Beatmakers</option>
           <option value="producer">Producers</option>
+          <option value="rapper">Rappers</option>
+          <option value="singer">Singers</option>
+          <option value="songwriter">Songwriters</option>
+          <option value="dj">DJs</option>
           <option value="fan">Fans</option>
+          <option value="influencer">Influencers</option>
+          <option value="designer">Designers</option>
+          <option value="developer">Developers</option>
         </select>
         
         <select id="verifiedFilter" onchange="filterMembers()">
@@ -90,16 +98,56 @@
     let allMembers = [];
 
     try {
-      // Load all members
-      const { data: members, error } = await db
+      // Load real profiles
+      const { data: realProfiles, error: realErr } = await db
         .from('profiles')
-        .select('user_id, username, display_name, email, role, roles_ordered, verified_artist, avatar_url')
+        .select('user_id, username, display_name, email, role, badges, tags, roles_ordered, verified_artist, avatar_url')
         .order('username');
 
-      if (error) throw error;
+      if (realErr) throw realErr;
 
-      allMembers = members || [];
+      // Load dummy profiles
+      const { data: dummyProfiles, error: dummyErr } = await db
+        .from('dummy_profiles')
+        .select('id, username, display_name, role, tags, verified_artist, avatar_url')
+        .order('username');
+
+      // Normalize real profiles
+      const real = (realProfiles || []).map(p => ({
+        id: p.user_id,
+        username: p.username,
+        display_name: p.display_name,
+        email: p.email,
+        role: p.role,
+        badges: Array.isArray(p.badges) && p.badges.length ? p.badges : (Array.isArray(p.tags) ? p.tags : []),
+        roles_ordered: p.roles_ordered || [],
+        verified_artist: p.verified_artist,
+        avatar_url: p.avatar_url,
+        is_dummy: false
+      }));
+
+      // Normalize dummy profiles (same shape, flagged)
+      const dummies = (dummyProfiles || []).map(d => ({
+        id: d.id,
+        username: d.username,
+        display_name: d.display_name,
+        email: null,
+        role: d.role,
+        badges: Array.isArray(d.tags) ? d.tags : [],
+        roles_ordered: [],
+        verified_artist: d.verified_artist,
+        avatar_url: d.avatar_url,
+        is_dummy: true
+      }));
+
+      // Merge and sort by username
+      allMembers = [...real, ...dummies].sort((a, b) => 
+        (a.username || '').localeCompare(b.username || '')
+      );
+
       renderMembers(allMembers);
+
+      if (dummyErr) console.warn('Dummy profiles load warning:', dummyErr.message);
 
     } catch (err) {
       console.error('Load error:', err);
@@ -113,7 +161,6 @@
 
       let filtered = allMembers;
 
-      // Search filter
       if (searchTerm) {
         filtered = filtered.filter(m => {
           const username = (m.username || '').toLowerCase();
@@ -123,16 +170,15 @@
         });
       }
 
-      // Role filter
       if (roleFilter) {
         filtered = filtered.filter(m => {
           const roles = m.roles_ordered || [];
+          const badges = m.badges || [];
           const mainRole = m.role || '';
-          return roles.includes(roleFilter) || mainRole === roleFilter;
+          return roles.includes(roleFilter) || badges.includes(roleFilter) || mainRole === roleFilter;
         });
       }
 
-      // Verified filter
       if (verifiedFilter === 'verified') {
         filtered = filtered.filter(m => m.verified_artist);
       } else if (verifiedFilter === 'unverified') {
@@ -155,36 +201,39 @@
         const displayName = m.display_name || m.username || 'Unknown';
         const username = m.username ? '@' + m.username : '';
         const avatarContent = m.avatar_url 
-          ? `<img src="${m.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.parentNode.textContent='👤'">`
+          ? `<img src="${m.avatar_url}" onerror="this.parentNode.textContent='👤'">`
           : '👤';
+
+        // Profile link: real profiles use user_id, dummies use dummy param
+        const profileHref = m.is_dummy 
+          ? `profile.html?dummy=${m.id}` 
+          : `profile.html?id=${m.id}`;
 
         // Badges
         let badges = '';
         
-        // Owner/Admin badge
-        if (m.role === 'owner' || (m.roles_ordered && m.roles_ordered.includes('owner'))) {
+        if (m.role === 'owner' || m.badges.includes('owner')) {
           badges += '<span class="badge badge-owner">👑 OWNER</span>';
-        } else if (m.role === 'admin' || (m.roles_ordered && m.roles_ordered.includes('admin'))) {
+        } else if (m.role === 'admin' || m.badges.includes('admin')) {
           badges += '<span class="badge badge-owner">⚡ ADMIN</span>';
-        } else if (m.role === 'mod' || (m.roles_ordered && m.roles_ordered.includes('mod'))) {
+        } else if (m.role === 'mod' || m.badges.includes('mod')) {
           badges += '<span class="badge badge-owner">🛡️ MOD</span>';
         }
 
-        // Verified badge
         if (m.verified_artist) {
           badges += '<span class="badge badge-verified">✓ VERIFIED</span>';
         }
 
-        // Role badges
-        const roles = m.roles_ordered || [];
-        roles.forEach(role => {
-          if (!['owner', 'admin', 'mod'].includes(role)) {
+        // Role badges (from badges array or roles_ordered)
+        const roleTags = m.roles_ordered.length ? m.roles_ordered : m.badges;
+        roleTags.forEach(role => {
+          if (!['owner', 'admin', 'mod', 'verified', 'founder', 'g7'].includes(role)) {
             badges += `<span class="badge badge-role">${role}</span>`;
           }
         });
 
         return `
-          <div class="member-card" onclick="window.location.href='profile.html?id=${m.user_id}'">
+          <div class="member-card" onclick="window.location.href='${profileHref}'">
             <div class="avatar">${avatarContent}</div>
             <div style="flex:1;min-width:0;">
               <div style="font-weight:700;font-size:1rem;margin-bottom:0.25rem;">${displayName}</div>
