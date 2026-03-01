@@ -16,8 +16,8 @@
     .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:1.5rem; margin-bottom:1.5rem; }
     .notice { background:rgba(255,0,68,0.08); border:1px solid rgba(255,0,68,0.3); border-radius:8px; padding:1rem; margin-bottom:1.25rem; font-size:0.88rem; color:#ffb3c6; line-height:1.8; }
     .notice code { background:rgba(0,0,0,0.4); padding:0.3rem 0.5rem; border-radius:4px; font-family:monospace; font-size:0.82em; display:block; margin-top:0.5rem; word-break:break-all; }
-    .search-row { display:flex; gap:0.75rem; margin-bottom:1rem; align-items:center; }
-    .search-box { flex:1; padding:0.7rem 1rem; background:var(--dark); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:0.9rem; }
+    .search-row { display:flex; gap:0.75rem; margin-bottom:1rem; align-items:center; flex-wrap:wrap; }
+    .search-box { flex:1; min-width:180px; padding:0.7rem 1rem; background:var(--dark); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:0.9rem; }
     .btn { background:var(--primary); color:white; border:none; padding:0.55rem 1.1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.85rem; transition:opacity 0.2s; }
     .btn:hover { opacity:0.85; }
     .btn-danger { background:var(--red); }
@@ -58,14 +58,14 @@
     <a href="owner-panel.html" style="color:var(--text);text-decoration:none;font-weight:600;">← Back</a>
   </div>
   <div class="container">
-    <!-- DEBUG PANEL -->
-    <div id="debugPanel" style="display:none;background:rgba(0,0,0,0.5);border:1px solid rgba(124,58,237,0.5);border-radius:8px;padding:1rem;margin-bottom:1rem;font-size:0.85rem;line-height:1.8;color:#eae6ff;"></div>
 
     <div class="notice" id="rlsNotice">
       ⚠️ <strong>If saves aren't working</strong>, add this RLS policy in Supabase → SQL Editor:
       <code>CREATE POLICY "Owners manage profiles" ON public.profiles FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'owner' );</code>
       <button onclick="document.getElementById('rlsNotice').style.display='none'" style="background:none;border:1px solid rgba(255,0,68,0.4);color:#ffb3c6;padding:0.25rem 0.75rem;border-radius:4px;cursor:pointer;margin-top:0.75rem;display:block;">Dismiss</button>
     </div>
+
+    <!-- REAL USERS -->
     <div class="card">
       <div class="search-row">
         <input type="text" class="search-box" id="searchBox" placeholder="Search by username, role, or badges…" oninput="searchUsers()">
@@ -74,77 +74,53 @@
       </div>
       <div id="userList"><div class="spinner"></div></div>
     </div>
-  </div>
 
+    <!-- DUMMY ACCOUNTS SECTION (inside container so it gets proper padding) -->
+    <div id="dummySection" style="display:none;">
+      <div class="card" style="border-color:rgba(14,116,144,0.5);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+          <h2 style="font-family:'Bebas Neue',cursive;color:#22d3ee;font-size:1.4rem;letter-spacing:1px;">🤖 Dummy Accounts <span style="font-size:0.75rem;color:rgba(234,230,255,0.4);font-family:'Work Sans',sans-serif;font-weight:normal;">(cosmetic only — stored in Supabase dummy_profiles table, cannot log in)</span></h2>
+          <button class="btn btn-gray" onclick="hideDummySection()">✕ Close</button>
+        </div>
 
-  <!-- DUMMY ACCOUNTS SECTION -->
-  <div id="dummySection" style="display:none;">
-    <div class="card" style="border-color:rgba(14,116,144,0.5);">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
-        <h2 style="font-family:'Bebas Neue',cursive;color:#22d3ee;font-size:1.4rem;letter-spacing:1px;">🤖 Dummy Accounts <span style="font-size:0.75rem;color:rgba(234,230,255,0.4);font-family:'Work Sans',sans-serif;font-weight:normal;">(cloud — stored in Supabase)</span></h2>
-        <button class="btn btn-gray" onclick="hideDummySection()">✕ Close</button>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem;">
-        <div class="form-group" style="margin:0;">
-          <label>Username *</label>
-          <input class="form-input" type="text" id="dUsername" placeholder="e.g. beatking99">
-        </div>
-        <div class="form-group" style="margin:0;">
-          <label>Display Name</label>
-          <input class="form-input" type="text" id="dDispName" placeholder="e.g. Beat King">
-        </div>
-        <div class="form-group" style="margin:0;">
-          <label>Primary Role</label>
-          <select class="form-input" id="dRole"></select>
-        </div>
-        <div class="form-group" style="margin:0;">
-          <label>Bio</label>
-          <input class="form-input" type="text" id="dBio" placeholder="Short bio…">
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;gap:1.5rem;margin-bottom:1rem;flex-wrap:wrap;">
-        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.9rem;">
-          <input type="checkbox" id="dVerified" style="accent-color:#7c3aed;"> 🛡️ Verified
-        </label>
-        <div style="display:flex;align-items:center;gap:0.75rem;">
-          <div id="dAvatarPreview" style="width:48px;height:48px;border-radius:50%;background:rgba(14,116,144,0.3);border:2px dashed rgba(34,211,238,0.4);display:flex;align-items:center;justify-content:center;font-size:1.2rem;overflow:hidden;">🤖</div>
-          <div>
-            <label style="font-size:0.85rem;color:rgba(234,230,255,0.6);display:block;margin-bottom:0.25rem;">Avatar (optional)</label>
-            <input type="file" id="dAvatarFile" accept="image/*" onchange="previewDummyAvatar()" style="font-size:0.8rem;color:var(--text);">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem;">
+          <div class="form-group" style="margin:0;">
+            <label>Username *</label>
+            <input class="form-input" type="text" id="dUsername" placeholder="e.g. beatking99">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label>Display Name</label>
+            <input class="form-input" type="text" id="dDispName" placeholder="e.g. Beat King">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label>Primary Role</label>
+            <select class="form-input" id="dRole"></select>
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label>Bio</label>
+            <input class="form-input" type="text" id="dBio" placeholder="Short bio…">
           </div>
         </div>
-      </div>
-      <button class="btn" style="background:#0e7490;" onclick="createDummy()">+ Create Dummy</button>
-      <div id="dNotice" style="margin-top:0.5rem;font-size:0.85rem;"></div>
+        <div style="display:flex;align-items:center;gap:1.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+          <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.9rem;">
+            <input type="checkbox" id="dVerified" style="accent-color:#7c3aed;"> 🛡️ Verified
+          </label>
+          <div style="display:flex;align-items:center;gap:0.75rem;">
+            <div id="dAvatarPreview" style="width:48px;height:48px;border-radius:50%;background:rgba(14,116,144,0.3);border:2px dashed rgba(34,211,238,0.4);display:flex;align-items:center;justify-content:center;font-size:1.2rem;overflow:hidden;">🤖</div>
+            <div>
+              <label style="font-size:0.85rem;color:rgba(234,230,255,0.6);display:block;margin-bottom:0.25rem;">Avatar (optional)</label>
+              <input type="file" id="dAvatarFile" accept="image/*" onchange="previewDummyAvatar()" style="font-size:0.8rem;color:var(--text);">
+            </div>
+          </div>
+        </div>
+        <button class="btn" style="background:#0e7490;" onclick="createDummy()">+ Create Dummy</button>
+        <div id="dNotice" style="margin-top:0.5rem;font-size:0.85rem;"></div>
 
-      <div id="dummyList" style="margin-top:1.25rem;"></div>
+        <div id="dummyList" style="margin-top:1.25rem;"></div>
+      </div>
     </div>
-  </div>
 
-  <!-- CREATE MODAL -->
-  <div id="createModal" class="modal">
-    <div class="modal-box">
-      <h2>➕ Create User</h2>
-      <div class="form-group"><label>Email <span style="color:rgba(234,230,255,0.4);font-weight:normal;">(optional — auto-generated if blank)</span></label><input class="form-input" type="email" id="cEmail" placeholder="Leave blank to auto-generate"></div>
-      <div class="form-group"><label>Username *</label><input class="form-input" type="text" id="cUsername"></div>
-      <div class="form-group"><label>Display Name</label><input class="form-input" type="text" id="cDispName"></div>
-      <div class="form-group"><label>Password *</label><input class="form-input" type="password" id="cPassword"></div>
-      <div class="form-group"><label>Primary Role</label><select class="form-input" id="cRole"></select></div>
-      <div class="section-label">Badges</div>
-      <div class="badge-grid" id="cBadgeGrid"></div>
-      <div class="form-group" style="margin-top:1rem;">
-        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-weight:normal;">
-          <input type="checkbox" id="cVerified" style="accent-color:#7c3aed;"> 🛡️ Verified Artist
-        </label>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-green" onclick="createUser()">✅ Create</button>
-        <button class="btn btn-gray" onclick="closeModal('createModal')">Cancel</button>
-      </div>
-      <div class="notice-msg" id="cNotice"></div>
-    </div>
-  </div>
+  </div><!-- end .container -->
 
   <!-- EDIT MODAL -->
   <div id="editModal" class="modal">
@@ -208,10 +184,12 @@
   let allUsers = [];
 
   function buildRoleSelect(elId) {
-    document.getElementById(elId).innerHTML = ROLES.map(r => `<option value="${r.v}">${r.l}</option>`).join('');
+    const el = document.getElementById(elId);
+    if (el) el.innerHTML = ROLES.map(r => `<option value="${r.v}">${r.l}</option>`).join('');
   }
   function buildBadgeGrid(elId, items, prefix) {
-    document.getElementById(elId).innerHTML = items.map(b =>
+    const el = document.getElementById(elId);
+    if (el) el.innerHTML = items.map(b =>
       `<div class="bci"><input type="checkbox" id="${prefix}_${b.v}" value="${b.v}"><label for="${prefix}_${b.v}">${b.l}</label></div>`
     ).join('');
   }
@@ -227,19 +205,13 @@
   }
 
   async function init() {
-    buildRoleSelect('cRole');
     buildRoleSelect('eRole');
-    buildBadgeGrid('cBadgeGrid', [...MUSIC_B,...COMMUNITY_B,...SPECIAL_B], 'cb');
     buildBadgeGrid('eMusicBadges', MUSIC_B, 'eb');
     buildBadgeGrid('eCommunityBadges', COMMUNITY_B, 'eb');
     buildBadgeGrid('eSpecialBadges', SPECIAL_B, 'eb');
 
     const { data: { user } } = await db.auth.getUser();
-
-    if (!user) {
-      window.location.href = 'login.html';
-      return;
-    }
+    if (!user) { window.location.href = 'login.html'; return; }
 
     const { data: profile } = await db
       .from('profiles')
@@ -258,11 +230,18 @@
 
   async function loadUsers() {
     const { data, error } = await db.from('profiles')
-      .select('user_id, username, display_name, bio, role, tags, verified_artist, avatar_url, created_at')
+      .select('user_id, username, display_name, bio, role, badges, tags, verified_artist, avatar_url, created_at')
       .order('created_at', { ascending: false });
     if (error) { document.getElementById('userList').innerHTML = `<p style="color:#ff0044;">${error.message}</p>`; return; }
     allUsers = data || [];
     displayUsers(allUsers);
+  }
+
+  function getBadges(u) {
+    // Support both 'badges' and 'tags' column names
+    if (Array.isArray(u.badges) && u.badges.length) return u.badges;
+    if (Array.isArray(u.tags) && u.tags.length) return u.tags;
+    return [];
   }
 
   function rolePill(role) {
@@ -274,7 +253,7 @@
     const el = document.getElementById('userList');
     if (!users.length) { el.innerHTML = '<p style="text-align:center;padding:2rem;color:rgba(168,85,247,0.4);">No users found</p>'; return; }
     el.innerHTML = users.map(u => {
-      const tags = Array.isArray(u.tags) ? u.tags : [];
+      const tags = getBadges(u);
       const badgeStr = tags.length ? tags.slice(0,6).join(', ')+(tags.length>6?` +${tags.length-6}`:'') : 'None';
       return `<div class="user-item">
         <div class="user-meta">
@@ -293,60 +272,16 @@
   function searchUsers() {
     const q = document.getElementById('searchBox').value.toLowerCase().trim();
     if (!q) { displayUsers(allUsers); return; }
-    displayUsers(allUsers.filter(u =>
-      (u.username||'').toLowerCase().includes(q) ||
-      (u.display_name||'').toLowerCase().includes(q) ||
-      (u.role||'').toLowerCase().includes(q) ||
-      (Array.isArray(u.tags) && u.tags.some(t=>t.toLowerCase().includes(q)))
-    ));
+    displayUsers(allUsers.filter(u => {
+      const tags = getBadges(u);
+      return (u.username||'').toLowerCase().includes(q) ||
+        (u.display_name||'').toLowerCase().includes(q) ||
+        (u.role||'').toLowerCase().includes(q) ||
+        tags.some(t=>t.toLowerCase().includes(q));
+    }));
   }
 
-  function showCreateModal() { document.getElementById('createModal').classList.add('show'); }
   function closeModal(id) { document.getElementById(id).classList.remove('show'); }
-
-  async function createUser() {
-    const username = document.getElementById('cUsername').value.trim();
-    const dispName = document.getElementById('cDispName').value.trim();
-    const password = document.getElementById('cPassword').value;
-    const role = document.getElementById('cRole').value;
-    const verified = document.getElementById('cVerified').checked;
-    const badges = getChecked('cb');
-    const tags = [...new Set([role,...badges])];
-
-    if (!username || !password) { setNotice('cNotice','⚠️ Username and password are required.','#ef4444'); return; }
-
-    // Email is optional — auto-generate if blank
-    const rawEmail = document.getElementById('cEmail').value.trim();
-    const email = rawEmail || ('test.8bfr.music+' + username.toLowerCase().replace(/[^a-z0-9]/g,'') + '@gmail.com');
-
-    setNotice('cNotice','Creating auth account…','#a855f7');
-    try {
-      const { data:auth, error:authErr } = await db.auth.signUp({
-        email, password,
-        options:{ data:{ username, display_name:dispName } }
-      });
-      if (authErr) throw authErr;
-      if (!auth.user) throw new Error('Auth user not returned — email may already be in use.');
-
-      // Small delay to let auth.users commit before profile FK insert
-      await new Promise(r => setTimeout(r, 500));
-
-      setNotice('cNotice','Creating profile…','#a855f7');
-      const { error:profErr } = await db.from('profiles').upsert({
-        user_id: auth.user.id,
-        username,
-        display_name: dispName,
-        role,
-        tags,
-        verified_artist: verified
-      }, { onConflict: 'user_id' });
-
-      if (profErr) throw profErr;
-
-      setNotice('cNotice', rawEmail ? '✅ User created!' : `✅ Created! Auto-email: ${email}`, '#4ade80');
-      setTimeout(()=>{ closeModal('createModal'); loadUsers(); }, 1200);
-    } catch(err) { setNotice('cNotice','❌ '+err.message,'#ef4444'); }
-  }
 
   function editUser(userId) {
     const u = allUsers.find(x=>x.user_id===userId);
@@ -357,7 +292,7 @@
     document.getElementById('eBio').value = u.bio||'';
     document.getElementById('eRole').value = u.role||'fan';
     document.getElementById('eVerified').checked = !!u.verified_artist;
-    setChecked('eb', Array.isArray(u.tags)?u.tags:[]);
+    setChecked('eb', getBadges(u));
     document.getElementById('editModal').classList.add('show');
   }
 
@@ -368,25 +303,25 @@
     const bio = document.getElementById('eBio').value.trim();
     const role = document.getElementById('eRole').value;
     const verified = document.getElementById('eVerified').checked;
-    const badges = getChecked('eb');
-    const tags = [...new Set([role,...badges])];
+    const badgeList = getChecked('eb');
+    const allBadges = [...new Set([role,...badgeList])];
     if (!username) { setNotice('eNotice','⚠️ Username required.','#ef4444'); return; }
     setNotice('eNotice','Saving…','#a855f7');
     try {
       const { error } = await db.from('profiles')
-        .update({ username, display_name:dispName, bio, role, tags, verified_artist:verified })
+        .update({ username, display_name:dispName, bio, role, badges:allBadges, tags:allBadges, verified_artist:verified })
         .eq('user_id', userId);
       if (error) throw error;
       setNotice('eNotice','✅ Saved!','#4ade80');
       const idx = allUsers.findIndex(x=>x.user_id===userId);
-      if (idx>=0) allUsers[idx] = {...allUsers[idx], username, display_name:dispName, bio, role, tags, verified_artist:verified};
+      if (idx>=0) allUsers[idx] = {...allUsers[idx], username, display_name:dispName, bio, role, badges:allBadges, tags:allBadges, verified_artist:verified};
       displayUsers(allUsers);
       setTimeout(()=>closeModal('editModal'), 800);
     } catch(err) { setNotice('eNotice','❌ '+err.message+' — Check RLS policy (see notice at top).','#ef4444'); }
   }
 
   async function deleteUser(userId, username) {
-    if (!confirm(`Delete "${username}"? Cannot be undone.`)) return;
+    if (!confirm(`Delete "${username}" profile? This removes their profile but NOT their auth account. To fully delete, also remove from Supabase Auth.`)) return;
     const { error } = await db.from('profiles').delete().eq('user_id', userId);
     if (error) { alert('Error: '+error.message); return; }
     allUsers = allUsers.filter(u=>u.user_id!==userId);
@@ -394,25 +329,10 @@
   }
 
   init();
-  </script>
 
-  <!-- Avatar toggle - no MutationObserver -->
-  <script>
-  (function() {
-    const btn = document.createElement('button');
-    btn.innerHTML = '👁️';
-    btn.style.cssText = 'position:fixed;top:80px;right:20px;z-index:9999;background:rgba(124,58,237,0.9);border:2px solid rgba(124,58,237,1);color:white;width:50px;height:50px;border-radius:50%;cursor:pointer;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(124,58,237,0.5);';
-    document.body.appendChild(btn);
-    let hidden = localStorage.getItem('hideAvatarBubbles') === 'true';
-    function update() {
-      document.querySelectorAll('[id*="bubble"],[class*="bubble"]').forEach(el => { if(el) el.style.display = hidden ? 'none' : ''; });
-      btn.innerHTML = hidden ? '👁️‍🗨️' : '👁️';
-    }
-    btn.addEventListener('click', () => { hidden = !hidden; localStorage.setItem('hideAvatarBubbles', hidden); update(); });
-    update();
-  })();
-  
   // ── DUMMY ACCOUNTS (Supabase dummy_profiles table) ──────────────
+  // These are cosmetic-only profiles. They do NOT create auth accounts,
+  // cannot log in, and exist purely to make the site look fuller.
 
   function showDummySection() {
     document.getElementById('dummySection').style.display = 'block';
@@ -481,7 +401,7 @@
       }
     }
 
-    document.getElementById('dNotice').innerHTML = '<span style="color:#a855f7;">Saving profile…</span>';
+    document.getElementById('dNotice').innerHTML = '<span style="color:#a855f7;">Saving dummy profile…</span>';
     const { error } = await db.from('dummy_profiles').insert({
       username, display_name: dispName || username, role, bio, tags, verified_artist: verified, avatar_url
     });
@@ -512,7 +432,7 @@
   function renderDummies(list) {
     const el = document.getElementById('dummyList');
     if (!list.length) {
-      el.innerHTML = '<p style="color:rgba(234,230,255,0.4);font-size:0.85rem;padding:0.5rem 0;">No dummy accounts yet.</p>';
+      el.innerHTML = '<p style="color:rgba(234,230,255,0.4);font-size:0.85rem;padding:0.5rem 0;">No dummy accounts yet. Create one above!</p>';
       return;
     }
     el.innerHTML = list.map(d => `
@@ -553,7 +473,6 @@
       notice.innerHTML = `<span style="color:#f87171;">❌ ${e.message}</span>`;
     }
   }
-
-</script>
+  </script>
 </body>
 </html>
