@@ -166,6 +166,71 @@
     dbg('⏳ db.auth exists: ' + !!(db && db.auth));
     const params = new URLSearchParams(window.location.search);
     const viewId = params.get('id');
+      // =====================================================
+// DUMMY PROFILE SUPPORT — Add this in profile.html
+// Inside the init() function, RIGHT AFTER this line:
+//   const viewId = params.get('id');
+// Add the following block:
+// =====================================================
+
+    const dummyId = params.get('dummy');
+    if (dummyId) {
+      // Loading a dummy profile — read-only, no social features
+      dbg('Loading dummy profile: ' + dummyId);
+      try {
+        const { data: dummy, error: dErr } = await db
+          .from('dummy_profiles')
+          .select('*')
+          .eq('id', dummyId)
+          .maybeSingle();
+        if (dErr || !dummy) {
+          showError('Dummy profile not found.');
+          return;
+        }
+        // Render simple read-only profile
+        document.getElementById('loadingSpinner').style.display = 'none';
+        document.getElementById('profileContent').style.display = 'block';
+        document.title = (dummy.display_name || dummy.username || 'Profile') + ' — 8BFR Music Network';
+        document.getElementById('pageTitle').textContent = '👤 ' + (dummy.display_name || dummy.username || 'Profile');
+
+        const tags = Array.isArray(dummy.tags) ? dummy.tags : [];
+        const avatarHtml = dummy.avatar_url
+          ? '<img src="' + dummy.avatar_url + '" alt="avatar" onerror="this.parentNode.textContent=\'👤\'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
+          : '👤';
+        const badgesHtml = tags.map(function(t) {
+          return '<span class="badge">' + (BADGE_ICONS[t]||'🏷️') + ' ' + t + '</span>';
+        }).join('') || '<span style="color:rgba(168,85,247,0.4);font-size:0.85rem;">No badges</span>';
+        const verifiedHtml = dummy.verified_artist ? '<span style="color:#00d9ff;font-size:1.1rem;margin-left:6px;">✓</span>' : '';
+
+        document.getElementById('profileContent').innerHTML = 
+          '<div class="profile-header">' +
+            '<div style="display:flex;gap:1.5rem;align-items:flex-start;flex-wrap:wrap;">' +
+              '<div class="avatar-ring">' + avatarHtml + '</div>' +
+              '<div style="flex:1;min-width:280px;">' +
+                '<h2 style="font-size:1.7rem;font-weight:800;margin-bottom:0.3rem;">' + (dummy.display_name || dummy.username || 'Unknown') + verifiedHtml + '</h2>' +
+                '<div style="color:#a855f7;font-size:0.9rem;margin-bottom:0.5rem;">' + (dummy.role || 'member').toUpperCase() + '</div>' +
+                '<p style="color:rgba(234,230,255,0.7);font-size:0.92rem;margin-bottom:0.75rem;line-height:1.6;">' + (dummy.bio || 'No bio yet.') + '</p>' +
+                '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;">' + badgesHtml + '</div>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="card" style="text-align:center;padding:2rem;color:rgba(168,85,247,0.5);">' +
+            '<p style="font-size:1.5rem;margin-bottom:0.5rem;">🎵</p>' +
+            '<p>This member hasn\'t posted any content yet.</p>' +
+          '</div>';
+        return; // Stop here — don't run rest of init()
+      } catch(e) {
+        dbg('Dummy load error: ' + e.message);
+        showError('Error loading profile.');
+        return;
+      }
+    }
+
+// =====================================================
+// That's it! The rest of init() continues as normal
+// for real profiles with ?id= parameter.
+// =====================================================
+
     dbg('⏳ viewId: ' + (viewId || '(none - own profile)'));
 
     dbg('⏳ Calling getSession...');
