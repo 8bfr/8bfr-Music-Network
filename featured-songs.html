@@ -4,448 +4,185 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Featured Songs — 8BFR Music Network</title>
-<link rel="icon" href="assets/images/favicon.png" />
+<link rel="icon" href="assets/images/favicon.png">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-  * { box-sizing: border-box; }
-  body {
-    background: linear-gradient(#0b0014, #000);
-    color: #eae6ff;
-    font-family: system-ui, -apple-system, sans-serif;
-    margin: 0; padding: 0;
-  }
-  .header {
-    background: rgba(15, 0, 30, 0.95);
-    border-bottom: 1px solid rgba(124, 58, 237, 0.5);
-    position: sticky; top: 0; z-index: 100;
-    backdrop-filter: blur(12px);
-  }
-  .featured-badge {
-    display: inline-block;
-    background: linear-gradient(135deg, #f59e0b, #d97706);
-    color: white; padding: 0.4rem 1rem; border-radius: 20px;
-    font-size: 0.85rem; font-weight: 700; margin-bottom: 1rem;
-  }
-  .song-card {
-    background: rgba(12, 6, 24, 0.8);
-    border: 1px solid rgba(124, 58, 237, 0.35);
-    border-radius: 16px; padding: 1.25rem;
-    transition: all 0.3s; position: relative; overflow: hidden;
-  }
-  .song-card:hover {
-    border-color: rgba(168, 85, 247, 0.6);
-    box-shadow: 0 8px 32px rgba(124, 58, 237, 0.3);
-  }
-  .song-card-inner {
-    display: flex; gap: 1rem; align-items: center;
-  }
-  .song-cover {
-    width: 70px; height: 70px; border-radius: 10px;
-    background: linear-gradient(135deg, #7c3aed, #a855f7);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.8rem; flex-shrink: 0;
-    box-shadow: 0 4px 20px rgba(124, 58, 237, 0.4);
-    overflow: hidden;
-  }
-  .song-cover img { width: 100%; height: 100%; object-fit: cover; }
-  .song-info { flex: 1; min-width: 0; }
-  .song-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.3rem;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .song-artist { font-size: 0.9rem; color: #a855f7; opacity: 0.85;
-    display: flex; align-items: center; gap: 0.4rem; }
-  .badge-row {
-    position: absolute; top: 8px; left: 8px; right: 8px;
-    display: flex; justify-content: space-between; pointer-events: none;
-  }
-  .owner-pick-badge {
-    background: linear-gradient(135deg, #f59e0b, #d97706);
-    color: white; padding: 0.2rem 0.55rem; border-radius: 20px;
-    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.03em;
-  }
-  .featured-green-badge {
-    background: rgba(0,255,136,0.12); border: 1px solid #00ff88;
-    color: #00ff88; padding: 0.2rem 0.45rem; border-radius: 4px;
-    font-size: 0.68rem; font-weight: 600;
-  }
-  .remove-btn {
-    width: 100%; margin-top: 0.75rem; padding: 0.55rem;
-    border: 1px solid rgba(239,68,68,0.5);
-    border-radius: 8px; font-size: 0.85rem; font-weight: 600;
-    cursor: pointer; background: rgba(239,68,68,0.15);
-    color: #ef4444; transition: all 0.2s; display: none;
-  }
-  .remove-btn:hover { background: rgba(239,68,68,0.35); }
-
-  /* Admin panel */
-  .admin-panel {
-    display: none;
-    background: rgba(124,58,237,0.08);
-    border: 1px solid rgba(124,58,237,0.35);
-    border-radius: 14px; padding: 1.25rem 1.5rem; margin-bottom: 2rem;
-  }
-  .admin-panel h3 { margin: 0 0 1rem; font-size: 1rem; font-weight: 700; color: #a855f7; }
-  .search-input {
-    width: 100%; padding: 0.65rem 0.9rem;
-    border-radius: 9px; border: 1px solid rgba(124,58,237,0.4);
-    background: rgba(0,0,0,0.4); color: #eae6ff; font-size: 0.9rem;
-    margin-bottom: 0.75rem;
-  }
-  .search-input:focus { outline: none; border-color: #a855f7; }
-  .search-results { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.75rem; max-height: 250px; overflow-y: auto; }
-  .search-result-item {
-    background: rgba(0,0,0,0.3); border: 1px solid rgba(124,58,237,0.25);
-    border-radius: 8px; padding: 0.65rem 0.9rem; cursor: pointer;
-    display: flex; justify-content: space-between; align-items: center;
-    transition: all 0.15s;
-  }
-  .search-result-item:hover { border-color: rgba(124,58,237,0.6); background: rgba(124,58,237,0.1); }
-  .search-result-item.selected { border-color: #00ff88; background: rgba(0,255,136,0.08); }
-  .feature-btn {
-    padding: 0.6rem 1.25rem;
-    background: linear-gradient(135deg, #f59e0b, #d97706);
-    border: none; border-radius: 9px; color: white; font-weight: 700;
-    font-size: 0.9rem; cursor: pointer; transition: all 0.2s;
-  }
-  .feature-btn:hover { opacity: 0.9; }
-  .feature-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  .admin-notice { margin-top: 0.6rem; font-size: 0.82rem; min-height: 1.2em; }
-  .notice-success { color: #4ade80; }
-  .notice-warn { color: #f59e0b; }
-  .notice-info { color: rgba(168,85,247,0.7); }
-
-  .spinner {
-    width: 40px; height: 40px; border-radius: 50%;
-    border: 3px solid rgba(168,85,247,0.2); border-top-color: #a855f7;
-    animation: spin 0.7s linear infinite; margin: 3rem auto;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  @media (max-width: 640px) {
-    .song-card-inner { flex-direction: column; text-align: center; }
-    .song-artist { justify-content: center; }
-  }
+  *{box-sizing:border-box;}
+  body{background:linear-gradient(#0b0014,#000);color:#eae6ff;font-family:system-ui,sans-serif;margin:0;padding:0;padding-bottom:70px;}
+  .header{background:rgba(15,0,30,0.95);border-bottom:1px solid rgba(124,58,237,0.5);position:sticky;top:0;z-index:100;backdrop-filter:blur(12px);}
+  .featured-badge{display:inline-block;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;padding:0.4rem 1rem;border-radius:20px;font-size:0.85rem;font-weight:700;margin-bottom:1rem;}
+  .song-card{background:rgba(12,6,24,0.8);border:1px solid rgba(124,58,237,0.35);border-radius:16px;padding:1.25rem;transition:all 0.3s;position:relative;overflow:hidden;}
+  .song-card:hover{border-color:rgba(168,85,247,0.6);box-shadow:0 8px 32px rgba(124,58,237,0.3);}
+  .song-cover{width:70px;height:70px;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:1.8rem;flex-shrink:0;overflow:hidden;}
+  .song-cover img{width:100%;height:100%;object-fit:cover;}
+  .admin-panel{display:none;background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.35);border-radius:14px;padding:1.25rem 1.5rem;margin-bottom:2rem;}
+  .admin-panel h3{margin:0 0 1rem;font-size:1rem;font-weight:700;color:#a855f7;}
+  .search-input{width:100%;padding:0.65rem 0.9rem;border-radius:9px;border:1px solid rgba(124,58,237,0.4);background:rgba(0,0,0,0.4);color:#eae6ff;font-size:0.9rem;margin-bottom:0.75rem;}
+  .search-input:focus{outline:none;border-color:#a855f7;}
+  .search-results{display:flex;flex-direction:column;gap:0.5rem;margin-bottom:0.75rem;max-height:250px;overflow-y:auto;}
+  .sr-item{background:rgba(0,0,0,0.3);border:1px solid rgba(124,58,237,0.25);border-radius:8px;padding:0.65rem 0.9rem;cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:all 0.15s;}
+  .sr-item:hover{border-color:rgba(124,58,237,0.6);background:rgba(124,58,237,0.1);}
+  .sr-item.sel{border-color:#00ff88;background:rgba(0,255,136,0.08);}
+  .feature-btn{padding:0.6rem 1.25rem;background:linear-gradient(135deg,#f59e0b,#d97706);border:none;border-radius:9px;color:white;font-weight:700;font-size:0.9rem;cursor:pointer;}
+  .feature-btn:disabled{opacity:0.5;cursor:not-allowed;}
+  .remove-btn{width:100%;margin-top:0.75rem;padding:0.55rem;border:1px solid rgba(239,68,68,0.5);border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;background:rgba(239,68,68,0.15);color:#ef4444;display:none;}
+  .admin-notice{margin-top:0.6rem;font-size:0.82rem;min-height:1.2em;color:rgba(168,85,247,0.7);}
+  .spinner{width:40px;height:40px;border-radius:50%;border:3px solid rgba(168,85,247,0.2);border-top-color:#a855f7;animation:spin 0.7s linear infinite;margin:3rem auto;}
+  @keyframes spin{to{transform:rotate(360deg);}}
 </style>
 </head>
 <body>
-
 <header class="header">
   <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
     <a href="index.html" style="color:#a855f7;text-decoration:none;font-weight:600;">← Home</a>
-    <h1 style="font-size:1.25rem;font-weight:800;background:linear-gradient(135deg,#f59e0b,#d97706);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
-      🎵 Featured Songs
-    </h1>
+    <h1 style="font-size:1.25rem;font-weight:800;background:linear-gradient(135deg,#f59e0b,#d97706);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">🎵 Featured Songs</h1>
     <div style="width:80px;"></div>
   </div>
 </header>
-
 <main class="max-w-4xl mx-auto px-4 py-6">
-
   <div style="text-align:center;margin-bottom:2rem;">
     <div class="featured-badge">✨ HAND-PICKED BY 8BFR</div>
     <p style="color:#a855f7;opacity:0.8;font-size:0.95rem;">Top tracks selected by our team</p>
   </div>
-
-  <!-- ADMIN PANEL -->
   <div class="admin-panel" id="adminPanel">
     <h3>⚙️ Admin — Manage Featured Songs</h3>
-    <input type="text" class="search-input" id="songSearch" placeholder="Search songs by title or artist…" oninput="searchSongs()">
+    <input type="text" class="search-input" id="songSearch" placeholder="Search ALL songs by title or artist…" oninput="searchSongs()">
     <div class="search-results" id="searchResults" style="display:none;"></div>
     <button class="feature-btn" id="featureBtn" onclick="featureSelected()" disabled>⭐ Feature Selected Song</button>
     <div class="admin-notice" id="adminNotice"></div>
   </div>
-
   <div id="loadingSpinner"><div class="spinner"></div></div>
-
-  <div id="featuredSongsList" style="display:none;flex-direction:column;gap:1rem;"></div>
-
+  <div id="songsList" style="display:none;flex-direction:column;gap:1rem;"></div>
   <div id="emptyState" style="display:none;text-align:center;padding:4rem 2rem;color:#a855f7;opacity:0.7;">
     <div style="font-size:4rem;margin-bottom:1rem;">🎵</div>
-    <div style="font-size:1.2rem;font-weight:600;margin-bottom:0.5rem;">No featured songs yet</div>
-    <div style="font-size:0.9rem;">Check back soon for hand-picked tracks!</div>
+    <div style="font-size:1.2rem;font-weight:600;">No featured songs yet</div>
   </div>
-
-  <div id="errorState" style="display:none;text-align:center;padding:3rem 2rem;color:#ef4444;opacity:0.8;">
-    <div style="font-size:3rem;margin-bottom:1rem;">⚠️</div>
-    <div id="errorMsg" style="font-size:0.95rem;"></div>
-  </div>
-
 </main>
-
-<script src="scripts.js?v=6" defer></script>
-
+<script src="scripts.js" defer></script>
 <script>
-const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
-const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+var db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
+var adminMode=false,selectedSongId=null;
 
-let _roleCache = null;
-let selectedSongId = null;
-let adminMode = false;
+async function isAdmin(){try{var{data:{session}}=await db.auth.getSession();if(!session)return false;var{data:p}=await db.from('profiles').select('role').eq('user_id',session.user.id).maybeSingle();return['owner','admin','mod','moderator'].includes((p?.role||'').toLowerCase());}catch(e){return false;}}
 
-// ── AUTH ────────────────────────────────────────────────────────
-async function getUserRole() {
-  if (_roleCache !== null) return _roleCache;
-  try {
-    const { data: { session } } = await db.auth.getSession();
-    const user = session?.user;
-    if (!user) { _roleCache = ''; return ''; }
-    const { data: profile } = await db.from('profiles').select('role').eq('user_id', user.id).maybeSingle();
-    _roleCache = (profile?.role || '').toLowerCase().trim();
-    return _roleCache;
-  } catch(e) { _roleCache = ''; return ''; }
-}
+function showNotice(msg,type){var el=document.getElementById('adminNotice');el.textContent=msg;el.style.color=type==='success'?'#4ade80':type==='warn'?'#f59e0b':'rgba(168,85,247,0.7)';}
 
-async function isAdmin() {
-  const role = await getUserRole();
-  return ['owner', 'admin', 'mod', 'moderator'].includes(role);
-}
-
-// ── NOTICE ──────────────────────────────────────────────────────
-function showNotice(msg, type) {
-  const el = document.getElementById('adminNotice');
-  el.textContent = msg;
-  el.className = 'admin-notice notice-' + type;
-  if (type === 'success') setTimeout(() => { el.textContent = ''; }, 3000);
-}
-
-// ── SEARCH ──────────────────────────────────────────────────────
-let searchTimer = null;
-async function searchSongs() {
+var searchTimer=null;
+async function searchSongs(){
   clearTimeout(searchTimer);
-  searchTimer = setTimeout(async () => {
-    const query = document.getElementById('songSearch').value.trim();
-    const resultsEl = document.getElementById('searchResults');
-    const btn = document.getElementById('featureBtn');
+  searchTimer=setTimeout(async function(){
+    var q=document.getElementById('songSearch').value.trim();
+    var res=document.getElementById('searchResults'),btn=document.getElementById('featureBtn');
+    if(!q){res.style.display='none';selectedSongId=null;btn.disabled=true;return;}
+    res.style.display='flex';res.innerHTML='<div style="color:rgba(168,85,247,0.5);font-size:0.85rem;padding:0.5rem;">Searching…</div>';
+    try{
+      // Search ALL songs including dummy artist songs
+      var{data,error}=await db.from('songs').select('id,title,artist,dummy_id,uploaded_by,cover_art')
+        .or('title.ilike.%'+q+'%,artist.ilike.%'+q+'%').limit(20);
+      if(error)throw error;
+      if(!data||!data.length){res.innerHTML='<div style="color:rgba(168,85,247,0.5);font-size:0.85rem;padding:0.5rem;">No songs found</div>';return;}
+      
+      // Resolve dummy artist names
+      var dummyIds=[...new Set(data.filter(function(s){return s.dummy_id;}).map(function(s){return s.dummy_id;}))];
+      var dMap={};
+      if(dummyIds.length){var{data:dummies}=await db.from('dummy_profiles').select('id,display_name,username').in('id',dummyIds);(dummies||[]).forEach(function(d){dMap[d.id]=d;});}
+      
+      res.innerHTML=data.map(function(s){
+        var artistName=s.artist||'Unknown';
+        if(s.dummy_id&&dMap[s.dummy_id])artistName=(dMap[s.dummy_id].display_name||dMap[s.dummy_id].username)+' (AI)';
+        var sel=selectedSongId===s.id;
+        return'<div class="sr-item'+(sel?' sel':'')+'" onclick="selectSong(\''+s.id+'\')">'+
+          '<div><div style="font-weight:600;font-size:0.9rem;">'+(s.title||'Untitled')+'</div>'+
+          '<div style="font-size:0.78rem;color:rgba(168,85,247,0.7);">'+artistName+'</div></div>'+
+          (sel?'<span style="color:#00ff88;font-weight:700;">✓</span>':'')+
+        '</div>';
+      }).join('');
+    }catch(e){res.innerHTML='<div style="color:#ef4444;font-size:0.85rem;">Error: '+e.message+'</div>';}
+  },300);
+}
 
-    if (!query) {
-      resultsEl.style.display = 'none';
-      selectedSongId = null;
-      btn.disabled = true;
-      return;
-    }
+function selectSong(id){selectedSongId=id;document.getElementById('featureBtn').disabled=false;searchSongs();}
 
-    resultsEl.style.display = 'flex';
-    resultsEl.innerHTML = '<div style="color:rgba(168,85,247,0.5);font-size:0.85rem;padding:0.5rem;">Searching…</div>';
+async function featureSelected(){
+  if(!selectedSongId){showNotice('Select a song first.','warn');return;}
+  var btn=document.getElementById('featureBtn');btn.disabled=true;btn.textContent='Saving…';
+  try{
+    var{data:ex}=await db.from('featured_songs').select('song_id').eq('song_id',selectedSongId).maybeSingle();
+    if(ex){showNotice('Already featured!','warn');return;}
+    var{error}=await db.from('featured_songs').insert({song_id:selectedSongId,expires_at:new Date(Date.now()+365*24*60*60*1000).toISOString()});
+    if(error)throw error;
+    showNotice('⭐ Song featured!','success');
+    selectedSongId=null;document.getElementById('songSearch').value='';document.getElementById('searchResults').style.display='none';
+    await loadFeaturedSongs();
+  }catch(e){showNotice('Error: '+e.message,'warn');}
+  finally{btn.disabled=false;btn.textContent='⭐ Feature Selected Song';}
+}
 
-    try {
-      const { data, error } = await db.from('songs')
-        .select('id, title, artist')
-        .or('title.ilike.%' + query + '%,artist.ilike.%' + query + '%')
-        .limit(15);
+async function removeFeatured(songId){
+  if(!confirm('Remove from featured?'))return;
+  try{var{error}=await db.from('featured_songs').delete().eq('song_id',songId);if(error)throw error;await loadFeaturedSongs();}catch(e){alert('Error: '+e.message);}
+}
 
-      if (error) throw error;
-
-      if (!data || data.length === 0) {
-        resultsEl.innerHTML = '<div style="color:rgba(168,85,247,0.5);font-size:0.85rem;padding:0.5rem;">No songs found for "' + query + '"</div>';
-        return;
+async function loadFeaturedSongs(){
+  var spinner=document.getElementById('loadingSpinner'),list=document.getElementById('songsList'),empty=document.getElementById('emptyState');
+  spinner.style.display='block';list.style.display='none';empty.style.display='none';
+  try{
+    var{data:featured,error}=await db.from('featured_songs').select('song_id').order('created_at',{ascending:false});
+    if(error)throw error;
+    if(!featured||!featured.length){empty.style.display='block';return;}
+    var ids=featured.map(function(f){return f.song_id;}).filter(Boolean);
+    var{data:songs}=await db.from('songs').select('id,title,artist,cover_art,song_url,uploaded_by,dummy_id,price').in('id',ids);
+    if(!songs||!songs.length){empty.style.display='block';return;}
+    
+    // Resolve dummy artist names
+    var dummyIds=[...new Set(songs.filter(function(s){return s.dummy_id;}).map(function(s){return s.dummy_id;}))];
+    var dMap={};
+    if(dummyIds.length){var{data:dummies}=await db.from('dummy_profiles').select('id,display_name,username').in('id',dummyIds);(dummies||[]).forEach(function(d){dMap[d.id]=d;});}
+    
+    var sMap={};songs.forEach(function(s){sMap[s.id]=s;});
+    
+    list.innerHTML=featured.map(function(row){
+      var s=sMap[row.song_id];if(!s)return'';
+      var artistName=s.artist||'Unknown';
+      var profileLink=s.uploaded_by?'profile.html?id='+encodeURIComponent(s.uploaded_by):'#';
+      if(s.dummy_id){
+        if(dMap[s.dummy_id])artistName=(dMap[s.dummy_id].display_name||dMap[s.dummy_id].username)+' (AI)';
+        profileLink='profile.html?dummy='+encodeURIComponent(s.dummy_id);
       }
-
-      resultsEl.innerHTML = data.map(p => `
-        <div class="search-result-item ${selectedSongId === p.id ? 'selected' : ''}" onclick="selectSong('${p.id}', '${(p.title||'Untitled').replace(/'/g,"\\'")}')">
-          <div>
-            <div style="font-weight:600;font-size:0.9rem;">${p.title || 'Untitled'}</div>
-            <div style="font-size:0.78rem;color:rgba(168,85,247,0.7);">${p.artist || ''}</div>
-          </div>
-          ${selectedSongId === p.id ? '<span style="color:#00ff88;font-weight:700;">✓</span>' : ''}
-        </div>`).join('');
-    } catch (err) {
-      resultsEl.innerHTML = '<div style="color:#ef4444;font-size:0.85rem;padding:0.5rem;">Error: ' + err.message + '</div>';
-    }
-  }, 300);
-}
-
-function selectSong(id, title) {
-  selectedSongId = id;
-  document.getElementById('featureBtn').disabled = false;
-  showNotice('Selected: ' + title, 'info');
-  // re-render results to show checkmark
-  searchSongs();
-}
-
-// ── FEATURE SELECTED ────────────────────────────────────────────
-async function featureSelected() {
-  if (!selectedSongId) { showNotice('Select a song first.', 'warn'); return; }
-
-  const btn = document.getElementById('featureBtn');
-  btn.disabled = true; btn.textContent = 'Saving…';
-
-  try {
-    const { data: existing } = await db.from('featured_songs')
-      .select('song_id').eq('song_id', selectedSongId).maybeSingle();
-
-    if (existing) { showNotice('This song is already featured!', 'warn'); return; }
-
-    const expiresAt = new Date(Date.now() + 365*24*60*60*1000).toISOString();
-    const { error } = await db.from('featured_songs').insert({ song_id: selectedSongId, expires_at: expiresAt });
-    if (error) throw error;
-
-    showNotice('⭐ Song added to featured!', 'success');
-    selectedSongId = null;
-    document.getElementById('songSearch').value = '';
-    document.getElementById('searchResults').style.display = 'none';
-    await loadFeaturedSongs();
-  } catch (err) {
-    showNotice('Error: ' + err.message, 'warn');
-  } finally {
-    btn.disabled = false; btn.textContent = '⭐ Feature Selected Song';
-  }
-}
-
-// ── REMOVE ──────────────────────────────────────────────────────
-async function removeFeatured(contentId) {
-  if (!confirm('Remove this song from featured?')) return;
-  try {
-    const { error } = await db.from('featured_songs')
-      .delete().eq('song_id', contentId);
-    if (error) throw error;
-    await loadFeaturedSongs();
-  } catch (err) {
-    alert('Error removing: ' + err.message);
-  }
-}
-
-// ── LOAD FEATURED SONGS ─────────────────────────────────────────
-async function loadFeaturedSongs() {
-  const spinner  = document.getElementById('loadingSpinner');
-  const list     = document.getElementById('featuredSongsList');
-  const empty    = document.getElementById('emptyState');
-  const errEl    = document.getElementById('errorState');
-
-  spinner.style.display = 'block';
-  list.style.display = 'none';
-  empty.style.display = 'none';
-  errEl.style.display = 'none';
-
-  try {
-    const { data: featured, error: featErr } = await db
-      .from('featured_songs')
-      .select('song_id')
-      .order('created_at', { ascending: false });
-
-    if (featErr) throw featErr;
-
-    if (!featured || featured.length === 0) {
-      empty.style.display = 'block';
-      return;
-    }
-
-    const ids = [...new Set(featured.map(f => f.song_id).filter(Boolean))];
-    const { data: songs, error: songsErr } = await db
-      .from('songs')
-      .select('id, title, artist, cover_art, song_url, uploaded_by, price')
-      .in('id', ids);
-
-    if (songsErr) throw songsErr;
-
-    if (!songs || songs.length === 0) {
-      empty.style.display = 'block';
-      return;
-    }
-
-    const songMap = {};
-    (songs || []).forEach(s => { songMap[s.id] = s; });
-
-    list.innerHTML = featured.map(row => {
-      const p = songMap[row.song_id];
-      if (!p) return '';
-      const cover = p.cover_art || '';
-      const coverInner = cover
-        ? '<img src="' + cover + '" alt="' + (p.title||'Song') + '" onerror="this.parentNode.textContent=\'🎵\'">'
-        : '🎵';
-      const priceVal = parseFloat(p.price) || 0;
-      const priceTag = priceVal > 0 ? '<span style="color:#4ade80;font-weight:600;font-size:0.85rem;margin-left:0.5rem;">$' + priceVal.toFixed(2) + '</span>' : '<span style="color:#4ade80;font-size:0.8rem;margin-left:0.5rem;">Free</span>';
-      const buyHref = p.uploaded_by ? 'profile.html?id=' + encodeURIComponent(p.uploaded_by) : '#';
-      return `
-      <div class="song-card">
-        <div class="badge-row">
-          <span class="owner-pick-badge">⭐ Owner Pick</span>
-          <span class="featured-green-badge">⭐ FEATURED</span>
-        </div>
-        <div class="song-card-inner" style="margin-top:1.5rem;">
-          <div class="song-cover">${coverInner}</div>
-          <div class="song-info">
-            <div class="song-title">${p.title || 'Untitled'}${priceTag}</div>
-            <div class="song-artist">${p.artist || 'Unknown Artist'}</div>
-          </div>
-        </div>
-        ${p.song_url ? '<audio controls src="' + p.song_url + '" preload="none" style="width:100%;height:36px;margin-top:0.75rem;border-radius:8px;"></audio>' : ''}
-        <div style="display:flex;gap:0.5rem;margin-top:0.75rem;">
-          <a href="${buyHref}" style="flex:1;display:block;text-align:center;padding:0.55rem;background:linear-gradient(135deg,#7c3aed,#a855f7);color:white;border-radius:8px;font-weight:600;font-size:0.85rem;text-decoration:none;">💳 Buy / View Artist</a>
-        </div>
-        <button class="remove-btn" onclick="removeFeatured('${p.id}')">❌ Remove Featured</button>
-      </div>`;
+      var coverInner=s.cover_art?'<img src="'+s.cover_art+'" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentNode.textContent=\'🎵\'">':'🎵';
+      var price=parseFloat(s.price)||0;
+      var priceTag=price>0?'<span style="color:#4ade80;font-weight:600;font-size:0.85rem;margin-left:0.5rem;">$'+price.toFixed(2)+'</span>':'<span style="color:#4ade80;font-size:0.8rem;margin-left:0.5rem;">Free</span>';
+      
+      return'<div class="song-card">'+
+        '<div style="position:absolute;top:8px;left:8px;right:8px;display:flex;justify-content:space-between;pointer-events:none;">'+
+          '<span style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;padding:0.2rem 0.55rem;border-radius:20px;font-size:0.68rem;font-weight:700;">⭐ Owner Pick</span>'+
+          '<span style="background:rgba(0,255,136,0.12);border:1px solid #00ff88;color:#00ff88;padding:0.2rem 0.45rem;border-radius:4px;font-size:0.68rem;font-weight:600;">⭐ FEATURED</span>'+
+        '</div>'+
+        '<div style="display:flex;gap:1rem;align-items:center;margin-top:1.5rem;">'+
+          '<div class="song-cover">'+coverInner+'</div>'+
+          '<div style="flex:1;min-width:0;">'+
+            '<div style="font-size:1.05rem;font-weight:700;margin-bottom:0.3rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+(s.title||'Untitled')+priceTag+'</div>'+
+            '<div style="font-size:0.9rem;color:#a855f7;opacity:0.85;">'+artistName+'</div>'+
+          '</div>'+
+        '</div>'+
+        (s.song_url?'<audio controls src="'+s.song_url+'" preload="none" style="width:100%;height:36px;margin-top:0.75rem;border-radius:8px;"></audio>':'')+
+        '<div style="display:flex;gap:0.5rem;margin-top:0.75rem;">'+
+          '<a href="'+profileLink+'" style="flex:1;display:block;text-align:center;padding:0.55rem;background:linear-gradient(135deg,#7c3aed,#a855f7);color:white;border-radius:8px;font-weight:600;font-size:0.85rem;text-decoration:none;">👤 View Artist</a>'+
+        '</div>'+
+        (adminMode?'<button class="remove-btn" style="display:block;" onclick="removeFeatured(\''+s.id+'\')">❌ Remove Featured</button>':'')+
+      '</div>';
     }).filter(Boolean).join('');
-
-    list.style.display = 'flex';
-
-    // Show remove buttons for admins
-    if (adminMode) {
-      list.querySelectorAll('.remove-btn').forEach(btn => btn.style.display = 'block');
-    }
-
-  } catch (err) {
-    document.getElementById('errorMsg').textContent = 'Could not load featured songs: ' + err.message;
-    errEl.style.display = 'block';
-  } finally {
-    spinner.style.display = 'none';
-  }
+    
+    list.style.display='flex';
+  }catch(e){list.innerHTML='<div style="text-align:center;padding:2rem;color:#ef4444;">Error: '+e.message+'</div>';list.style.display='flex';}
+  finally{spinner.style.display='none';}
 }
 
-// ── INIT ────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded',function(){
   loadFeaturedSongs();
-
-  isAdmin().then(admin => {
-    adminMode = admin;
-    if (admin) {
-      document.getElementById('adminPanel').style.display = 'block';
-      // Show remove buttons if songs already loaded
-      document.querySelectorAll('.remove-btn').forEach(btn => btn.style.display = 'block');
-    }
-  });
-});
-
-// ── HIDE BUBBLES ────────────────────────────────────────────────
-window.addEventListener('load', function() {
-  setTimeout(function() {
-    ['bubbleStack','bubble-top-single','carrieWrap','carrieBubble','carrieToggleBar'].forEach(id => {
-      const el = document.getElementById(id); if (el) el.style.display = 'none';
-    });
-    ['.bubble-stack','.floating-bubbles','.carrie-bubble','.bubble-container'].forEach(cls => {
-      document.querySelectorAll(cls).forEach(el => el.style.display = 'none');
-    });
-    document.querySelectorAll('[data-bubble],[data-role="carrie"],[data-carrie]').forEach(el => el.style.display = 'none');
-  }, 300);
+  isAdmin().then(function(a){adminMode=a;if(a)document.getElementById('adminPanel').style.display='block';});
 });
 </script>
-
-<!-- Avatar & Bubble Toggle -->
-<script>
-(function() {
-  const toggleBtn = document.createElement('button');
-  toggleBtn.id = 'avatarToggle';
-  toggleBtn.innerHTML = '👁️';
-  toggleBtn.title = 'Toggle Avatar/Bubbles';
-  toggleBtn.style.cssText = 'position:fixed;top:80px;right:20px;z-index:9999;background:rgba(124,58,237,0.9);border:2px solid rgba(124,58,237,1);color:white;width:50px;height:50px;border-radius:50%;cursor:pointer;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(124,58,237,0.5);transition:all 0.3s ease;';
-  toggleBtn.addEventListener('mouseenter', function() { this.style.transform = 'scale(1.1)'; });
-  toggleBtn.addEventListener('mouseleave', function() { this.style.transform = 'scale(1)'; });
-  document.body.appendChild(toggleBtn);
-  let isHidden = localStorage.getItem('hideAvatarBubbles') === 'true';
-  function updateVisibility() {
-    [document.getElementById('homeAvatarSwitcher'),
-     ...document.querySelectorAll('[id*="bubble"],[class*="bubble"],[id*="avatar"][id*="switcher"]')
-    ].forEach(el => { if (el) el.style.display = isHidden ? 'none' : ''; });
-    toggleBtn.innerHTML = isHidden ? '👁️‍🗨️' : '👁️';
-    toggleBtn.title = isHidden ? 'Show Avatar/Bubbles' : 'Hide Avatar/Bubbles';
-  }
-  toggleBtn.addEventListener('click', function() {
-    isHidden = !isHidden;
-    localStorage.setItem('hideAvatarBubbles', isHidden);
-    updateVisibility();
-  });
-  updateVisibility();
-})();
-</script>
-
 </body>
 </html>
