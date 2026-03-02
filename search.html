@@ -1,360 +1,299 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Site Search</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Search — 8BFR Music Network</title>
+  <link rel="icon" href="assets/images/favicon.png"/>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    :root{
-      --bg:#040014;
-      --card:#12051c;
-      --accent:#a855f7;
-      --muted:#b7a7dc;
-      --text:#f4eeff;
-      --focus: 3px rgba(168,85,247,0.12);
-    }
-    html,body{height:100%}
-    body{
-      background:linear-gradient(180deg,#03000a,#070016);
-      color:var(--text);
-      font-family:Inter,system-ui,Arial,Helvetica,sans-serif;
-      margin:0;padding:20px;
-      -webkit-font-smoothing:antialiased;
-    }
+    body{background:linear-gradient(180deg,#03000a,#070016);color:#f4eeff;font-family:Inter,system-ui,sans-serif;margin:0;padding:20px;padding-bottom:80px;}
     .container{max-width:980px;margin:0 auto}
-    header{display:flex;flex-direction:column; gap:8px; margin-bottom:18px}
+    header{display:flex;flex-direction:column;gap:8px;margin-bottom:18px}
     h1{margin:0;font-size:1.3rem}
-    .search-row{display:flex; gap:8px; align-items:center}
-    input[type="search"]{
-      flex:1;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);
-      background:rgba(255,255,255,0.02); color:var(--text); outline:none;
-    }
-    input[type="search"]:focus{box-shadow:var(--focus); border-color: rgba(168,85,247,0.6)}
-    button{
-      padding:10px 12px;border-radius:10px;background:linear-gradient(90deg,var(--accent),#7c3aed);
-      border:none;color:#fff;cursor:pointer;
-    }
-    .filters{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
-    .chip{
-      padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.03);
-      border:1px solid rgba(168,85,247,0.06);cursor:pointer;color:var(--muted);
-      user-select:none;
-    }
-    .chip.active{
-      background:linear-gradient(90deg,var(--accent),#7c3aed);
-      color:white;border-color:transparent;
-      box-shadow:0 6px 18px rgba(124,58,237,0.18);
-    }
+    .search-row{display:flex;gap:8px;align-items:center}
+    input[type="search"]{flex:1;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02);color:#f4eeff;outline:none;font-size:0.95rem;}
+    input[type="search"]:focus{box-shadow:0 0 3px rgba(168,85,247,0.12);border-color:rgba(168,85,247,0.6)}
+    .search-btn{padding:10px 16px;border-radius:10px;background:linear-gradient(90deg,#a855f7,#7c3aed);border:none;color:#fff;cursor:pointer;font-weight:600;}
+    .filters{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+    .chip{padding:5px 10px;border-radius:999px;background:rgba(255,255,255,0.03);border:1px solid rgba(168,85,247,0.06);cursor:pointer;color:#b7a7dc;user-select:none;font-size:0.82rem;}
+    .chip.active{background:linear-gradient(90deg,#a855f7,#7c3aed);color:white;border-color:transparent;box-shadow:0 4px 12px rgba(124,58,237,0.18);}
     #searchResults{margin-top:18px}
-    .result-card{
-      background:rgba(255,255,255,0.02);border:1px solid rgba(168,85,247,0.04);
-      padding:12px;border-radius:10px;margin-bottom:10px;display:flex;justify-content:space-between;
-      gap:12px;align-items:flex-start;
-    }
-    .result-info{flex:1;margin-left:10px}
-    .result-name{font-weight:700;color:#fff}
-    .result-snippet{color:var(--muted);margin-top:6px;white-space:pre-wrap}
-    .empty-state{text-align:center;padding:36px;border:1px dashed rgba(168,85,247,0.06);
-      border-radius:12px;color:var(--muted)}
-    .meta{color:var(--muted);font-size:12px}
-    .results-count{color:var(--muted);font-size:13px;margin-bottom:8px}
-    a.result-link{color:inherit;text-decoration:none}
-    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    .result-card{background:rgba(255,255,255,0.02);border:1px solid rgba(168,85,247,0.08);padding:12px;border-radius:10px;margin-bottom:8px;display:flex;gap:12px;align-items:flex-start;transition:border-color 0.2s;}
+    .result-card:hover{border-color:rgba(168,85,247,0.3);}
+    .result-icon{font-size:1.4rem;flex-shrink:0;width:36px;text-align:center;}
+    .result-info{flex:1;min-width:0;}
+    .result-name{font-weight:700;color:#fff;}
+    .result-name a{color:inherit;text-decoration:none;}
+    .result-name a:hover{color:#a855f7;}
+    .result-badge{display:inline-block;font-size:0.65rem;font-weight:600;padding:2px 6px;border-radius:10px;margin-left:6px;vertical-align:middle;}
+    .result-snippet{color:#b7a7dc;margin-top:4px;font-size:0.88rem;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+    .result-meta{color:#b7a7dc;font-size:0.72rem;margin-top:4px;}
+    .empty-state{text-align:center;padding:36px;border:1px dashed rgba(168,85,247,0.1);border-radius:12px;color:#b7a7dc;}
+    .results-count{color:#b7a7dc;font-size:0.82rem;margin-bottom:8px;}
+    .action-bar{display:flex;gap:8px;margin-top:12px;margin-bottom:16px;flex-wrap:wrap;}
+    .action-btn{padding:8px 16px;border-radius:10px;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.4);color:#a855f7;font-weight:600;font-size:0.85rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:4px;}
+    .action-btn:hover{background:rgba(124,58,237,0.3);}
+    .spinner{width:28px;height:28px;border-radius:50%;border:3px solid rgba(168,85,247,0.2);border-top-color:#a855f7;animation:spin 0.7s linear infinite;margin:2rem auto;}
+    @keyframes spin{to{transform:rotate(360deg);}}
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
   <div class="container" role="main">
     <header>
-      <h1>Search the site</h1>
-      <div class="search-row" role="search" aria-label="Site search">
-        <input id="searchInput" type="search" placeholder="Search profiles, songs, posts, pages, content, ads, comments, coins..." aria-label="Search input" />
-        <button id="searchBtn" aria-label="Run search">Search</button>
+      <h1>🔍 Search the Network</h1>
+      <div class="search-row">
+        <input id="searchInput" type="search" placeholder="Search profiles, songs, posts, groups, pages, ads..." aria-label="Search"/>
+        <button class="search-btn" id="searchBtn">Search</button>
       </div>
-
-      <div class="filters" id="sourceFilters" aria-hidden="false" role="list">
-        <div class="chip active" data-src="all" role="listitem" tabindex="0">All</div>
-        <div class="chip" data-src="profiles" role="listitem" tabindex="0">Profiles</div>
-        <div class="chip" data-src="songs" role="listitem" tabindex="0">Songs</div>
-        <div class="chip" data-src="posts" role="listitem" tabindex="0">Posts</div>
-        <div class="chip" data-src="pages" role="listitem" tabindex="0">Pages</div>
-        <div class="chip" data-src="content" role="listitem" tabindex="0">Content</div>
-        <div class="chip" data-src="ads" role="listitem" tabindex="0">Ads</div>
-        <div class="chip" data-src="comments" role="listitem" tabindex="0">Comments</div>
-        <div class="chip" data-src="coins" role="listitem" tabindex="0">Coins</div>
+      <div class="filters" id="sourceFilters">
+        <div class="chip active" data-src="all">All</div>
+        <div class="chip" data-src="profiles">👤 Profiles</div>
+        <div class="chip" data-src="songs">🎵 Songs</div>
+        <div class="chip" data-src="posts">📝 Posts</div>
+        <div class="chip" data-src="groups">👥 Groups</div>
+        <div class="chip" data-src="pages">📄 Pages</div>
+        <div class="chip" data-src="ads">📢 Ads</div>
+        <div class="chip" data-src="comments">💬 Comments</div>
+        <div class="chip" data-src="coins">🪙 Coins</div>
       </div>
     </header>
-
+    <div id="actionBar" class="action-bar" style="display:none;"></div>
     <main>
       <div id="searchResults" aria-live="polite">
         <div class="empty-state">
           <div style="font-size:3rem">🔎</div>
-          <div style="font-weight:700;margin-top:8px">Start typing to search or click a category to browse</div>
-          <div style="margin-top:6px;color:var(--muted)">Searching profiles, songs, posts, pages, content, ads, comments and coins</div>
+          <div style="font-weight:700;margin-top:8px">Start typing to search or tap a category to browse</div>
+          <div style="margin-top:6px;">Search across profiles, songs, posts, groups, pages, ads, comments & coins</div>
         </div>
       </div>
     </main>
   </div>
 
+  <nav style="position:fixed;bottom:0;left:0;right:0;background:rgba(15,0,30,0.95);border-top:1px solid rgba(124,58,237,0.4);display:flex;justify-content:space-around;padding:0.5rem 0;z-index:200;">
+    <a href="index.html" style="text-decoration:none;text-align:center;color:rgba(234,230,255,0.6);font-size:0.7rem;">🏠<br>Home</a>
+    <a href="search.html" style="text-decoration:none;text-align:center;color:#a855f7;font-size:0.7rem;">🔍<br>Search</a>
+    <a href="feed.html" style="text-decoration:none;text-align:center;color:rgba(234,230,255,0.6);font-size:0.7rem;">📰<br>Feed</a>
+    <a href="radio.html" style="text-decoration:none;text-align:center;color:rgba(234,230,255,0.6);font-size:0.7rem;">📻<br>Radio</a>
+    <a href="profile.html" style="text-decoration:none;text-align:center;color:rgba(234,230,255,0.6);font-size:0.7rem;">👤<br>Profile</a>
+  </nav>
+
+  <script src="scripts.js"></script>
   <script>
-    const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+  (function(){
+    var SURL='https://novbuvwpjnxwwvdekjhr.supabase.co';
+    var SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+    var db=window._8bfrSupabaseClient||(window.supabase?window.supabase.createClient(SURL,SKEY):null);
+    if(!db){document.getElementById('searchResults').innerHTML='<div class="empty-state">❌ Failed to connect</div>';return;}
 
-    const { createClient } = window.supabase;
-    const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+    var input=document.getElementById('searchInput');
+    var btn=document.getElementById('searchBtn');
+    var resultsEl=document.getElementById('searchResults');
+    var actionBar=document.getElementById('actionBar');
+    var chips=Array.from(document.querySelectorAll('.chip'));
+    var activeSource='all';
+    var currentUser=null;
 
-    const input = document.getElementById('searchInput');
-    const btn = document.getElementById('searchBtn');
-    const resultsEl = document.getElementById('searchResults');
-    const chips = Array.from(document.querySelectorAll('.chip'));
-    let activeSource = 'all';
+    (async function(){try{var s=await db.auth.getSession();currentUser=s?.data?.session?.user||null;}catch(e){}})();
 
-    function escapeHtml(s) {
-      if (s == null) return '';
-      return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;')
-        .replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
-    }
+    function esc(s){if(s==null)return '';var d=document.createElement('div');d.textContent=String(s);return d.innerHTML;}
+    function ago(d){if(!d)return '';var m=Math.floor((Date.now()-new Date(d).getTime())/60000);if(m<1)return 'Just now';if(m<60)return m+'m ago';var h=Math.floor(m/60);if(h<24)return h+'h ago';var dy=Math.floor(h/24);if(dy<30)return dy+'d ago';return new Date(d).toLocaleDateString();}
 
-    function debounce(fn, wait) {
-      let t;
-      return (...args) => {
-        clearTimeout(t);
-        t = setTimeout(() => fn.apply(this, args), wait);
-      };
-    }
-
-    function normalizeQuery(q) {
-      return q.replace(/[\x00-\x1F\x7F]/g, ' ').replace(/\s+/g,' ').trim();
-    }
-
-    function validQuery(q) {
-      if (!q) return false;
-      const cleaned = normalizeQuery(q);
-      if (cleaned.length < 2) return false;
-      const tokens = cleaned.split(' ').filter(Boolean);
-      return tokens.some(t => t.length >= 2);
-    }
-
-    // CHIP INTERACTIONS - Browse category when clicked
-    chips.forEach(c => {
-      c.addEventListener('click', () => setActiveChip(c));
-      c.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveChip(c); } });
-    });
-    
-    async function setActiveChip(c) {
-      chips.forEach(x => x.classList.remove('active'));
+    // Chip clicks
+    chips.forEach(function(c){c.addEventListener('click',function(){
+      chips.forEach(function(x){x.classList.remove('active');});
       c.classList.add('active');
-      activeSource = c.dataset.src || 'all';
-      
-      // If there's a search query, re-run search with new filter
-      if (input.value && input.value.trim()) {
-        doSiteSearch(input.value.trim());
-      } else {
-        // No search query - load ALL items from this category
-        await loadAllFromCategory(activeSource);
-      }
+      activeSource=c.dataset.src||'all';
+      showActionButtons(activeSource);
+      if(input.value.trim()) doSearch(input.value.trim());
+      else loadCategory(activeSource);
+    });});
+
+    // Action buttons per category
+    function showActionButtons(src){
+      actionBar.style.display='none';actionBar.innerHTML='';
+      if(src==='groups'){actionBar.innerHTML='<a href="create-group.html" class="action-btn">➕ Create Group</a><a href="groups.html" class="action-btn">👥 Browse Groups</a>';actionBar.style.display='flex';}
+      else if(src==='pages'){actionBar.innerHTML='<a href="create-page.html" class="action-btn">➕ Create Page</a><a href="pages.html" class="action-btn">📄 Browse Pages</a>';actionBar.style.display='flex';}
+      else if(src==='coins'){actionBar.innerHTML='<a href="coinshop.html" class="action-btn">🪙 Buy Coins</a><a href="game-coin-shop.html" class="action-btn">🎮 Game Coins</a>';actionBar.style.display='flex';}
+      else if(src==='profiles'){actionBar.innerHTML='<a href="members.html" class="action-btn">👥 Browse Members</a>';actionBar.style.display='flex';}
+      else if(src==='songs'){actionBar.innerHTML='<a href="radio.html" class="action-btn">📻 Listen on Radio</a><a href="featured-songs.html" class="action-btn">⭐ Featured Songs</a>';actionBar.style.display='flex';}
     }
 
-    // LOAD ALL ITEMS FROM A CATEGORY
-    async function loadAllFromCategory(source) {
-      if (source === 'all') {
-        renderEmpty();
-        return;
-      }
+    // Search
+    var searchTimer=null;
+    function doSearch(q){
+      clearTimeout(searchTimer);
+      searchTimer=setTimeout(function(){runSearch(q);},250);
+    }
 
-      resultsEl.innerHTML = '<div class="empty-state">Loading...</div>';
+    async function runSearch(qRaw){
+      var q=(qRaw||'').replace(/\s+/g,' ').trim();
+      if(q.length<2){renderEmpty();return;}
+      resultsEl.innerHTML='<div style="text-align:center;padding:2rem;"><div class="spinner"></div></div>';
 
-      try {
-        let data = [];
-        
-        if (source === 'profiles') {
-          const { data: profiles } = await db.from('profiles').select('user_id, username, display_name, bio, created_at').order('created_at', { ascending: false }).limit(100);
-          data = (profiles || []).map(p => ({
-            id: p.user_id,
-            source: 'profiles',
-            title: p.display_name || p.username || 'Profile',
-            snippet: p.bio || '',
-            created_at: p.created_at
-          }));
-        } else if (source === 'songs') {
-          const { data: songs } = await db.from('songs').select('id, title, artist, uploaded_by, created_at').order('created_at', { ascending: false }).limit(100);
-          data = (songs || []).map(s => ({
-            id: s.id,
-            source: 'songs',
-            title: s.title,
-            snippet: s.artist || '',
-            created_at: s.created_at,
-            uploaded_by: s.uploaded_by  // Add this for linking to artist profile
-          }));
-        } else if (source === 'posts') {
-          const { data: posts } = await db.from('posts').select('id, text, created_at').order('created_at', { ascending: false }).limit(100);
-          data = (posts || []).map(p => ({
-            id: p.id,
-            source: 'posts',
-            title: (p.text || '').substring(0, 50),
-            snippet: (p.text || '').substring(0, 200),
-            created_at: p.created_at
-          }));
-        } else if (source === 'pages') {
-          const { data: pages } = await db.from('pages').select('id, name, description, created_at').order('created_at', { ascending: false }).limit(100);
-          data = (pages || []).map(p => ({
-            id: p.id,
-            source: 'pages',
-            title: p.name,
-            snippet: p.description || '',
-            created_at: p.created_at
-          }));
-        } else if (source === 'ads') {
-          const { data: ads } = await db.from('ads').select('id, title, description, created_at').order('created_at', { ascending: false }).limit(100);
-          data = (ads || []).map(a => ({
-            id: a.id,
-            source: 'ads',
-            title: a.title,
-            snippet: a.description || '',
-            created_at: a.created_at
-          }));
-        } else if (source === 'comments') {
-          const { data: comments } = await db.from('comments').select('id, content, created_at').order('created_at', { ascending: false }).limit(100);
-          data = (comments || []).map(c => ({
-            id: c.id,
-            source: 'comments',
-            title: 'Comment',
-            snippet: (c.content || '').substring(0, 200),
-            created_at: c.created_at
-          }));
-        } else if (source === 'content') {
-          const { data: content } = await db.from('content').select('id, title, content, created_at').order('created_at', { ascending: false }).limit(100);
-          data = (content || []).map(c => ({
-            id: c.id,
-            source: 'content',
-            title: c.title || 'Content',
-            snippet: (c.content || '').substring(0, 200),
-            created_at: c.created_at
-          }));
-        } else if (source === 'coins') {
-          const { data: coins } = await db.from('coins').select('id, user_id, balance, updated_at').order('updated_at', { ascending: false }).limit(100);
-          data = (coins || []).map(c => ({
-            id: c.id,
-            source: 'coins',
-            title: 'Coin Balance',
-            snippet: `Balance: ${c.balance}`,
-            created_at: c.updated_at
-          }));
+      var all=[];
+      var sources=activeSource==='all'?['profiles','songs','posts','groups','pages','ads','comments']:[activeSource];
+
+      await Promise.allSettled(sources.map(async function(src){
+        try{
+          var items=await searchTable(src,q);
+          items.forEach(function(it){it.source=src;});
+          all=all.concat(items);
+        }catch(e){}
+      }));
+
+      // Also search coins — always show shop link
+      if(activeSource==='all'||activeSource==='coins'){
+        if(q.toLowerCase().match(/coin|shop|buy|currency|credits|money|gold|gems/)){
+          all.push({source:'coins',id:'shop',title:'🪙 Coin Shop — Buy Coins',snippet:'Purchase coins for games, upgrades, and more!',href:'coinshop.html'});
+          all.push({source:'coins',id:'game-shop',title:'🎮 Game Coin Shop',snippet:'Get game coins for arcade, tournaments & leaderboards.',href:'game-coin-shop.html'});
         }
-
-        renderCombinedResults(data);
-        
-      } catch (err) {
-        console.error('Load error:', err);
-        renderError(err?.message || String(err));
       }
+
+      // Sort: exact matches first, then by date
+      all.sort(function(a,b){
+        var aExact=(a.title||'').toLowerCase().indexOf(q.toLowerCase())!==-1?1:0;
+        var bExact=(b.title||'').toLowerCase().indexOf(q.toLowerCase())!==-1?1:0;
+        if(bExact!==aExact) return bExact-aExact;
+        return (new Date(b.created_at||0))-(new Date(a.created_at||0));
+      });
+
+      renderResults(all,q);
     }
 
-    // SEARCH LOGIC
-    const doSiteSearch = debounce(async (qRaw) => {
-      const q = normalizeQuery(qRaw || '');
-      if (!validQuery(q)) {
-        renderEmpty(qRaw ? 'Please enter a longer search term.' : null);
-        return;
+    async function searchTable(src,q){
+      var like='%'+q+'%';
+      var items=[];
+      try{
+      if(src==='profiles'){
+        // Real profiles
+        var r=await db.from('profiles').select('user_id,username,display_name,bio,role,avatar_url,verified_artist,created_at').or('username.ilike.'+like+',display_name.ilike.'+like+',bio.ilike.'+like+',role.ilike.'+like).limit(50);
+        (r.data||[]).forEach(function(p){items.push({id:p.user_id,title:p.display_name||p.username||'Profile',snippet:(p.role?p.role.toUpperCase()+' · ':'')+(p.bio||''),avatar:p.avatar_url,verified:p.verified_artist,href:'profile.html?id='+p.user_id,created_at:p.created_at});});
+        // Dummy profiles
+        var d=await db.from('dummy_profiles').select('id,username,display_name,bio,role,avatar_url,verified_artist,created_at').or('username.ilike.'+like+',display_name.ilike.'+like+',bio.ilike.'+like+',role.ilike.'+like).limit(50);
+        (d.data||[]).forEach(function(p){items.push({id:p.id,title:(p.display_name||p.username||'Profile')+' (AI Artist)',snippet:(p.role?p.role.toUpperCase()+' · ':'')+(p.bio||''),avatar:p.avatar_url,verified:p.verified_artist,href:'profile.html?dummy='+p.id,created_at:p.created_at});});
       }
-
-      resultsEl.innerHTML = '<div class="empty-state">Searching…</div>';
-
-      try {
-        const { data, error } = await db.rpc('site_search', { q: q, limit_rows: 200 });
-        if (error) throw error;
-        const items = Array.isArray(data) ? data : [];
-        renderCombinedResults(items);
-      } catch (err) {
-        console.error('Search error', err);
-        renderError(err?.message || String(err));
+      else if(src==='songs'){
+        var r=await db.from('songs').select('id,title,artist,cover_art,uploaded_by,dummy_id,price,explicit,created_at').or('title.ilike.'+like+',artist.ilike.'+like).limit(50);
+        (r.data||[]).forEach(function(s){var link=s.dummy_id?'profile.html?dummy='+s.dummy_id:(s.uploaded_by?'profile.html?id='+s.uploaded_by:'#');items.push({id:s.id,title:s.title||'Untitled',snippet:(s.artist||'Unknown')+(s.explicit?' 🔞':'')+(s.price>0?' · $'+parseFloat(s.price).toFixed(2):''),avatar:s.cover_art,href:link,created_at:s.created_at});});
       }
-    }, 220);
-
-    btn.addEventListener('click', () => doSiteSearch(input.value.trim()));
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); doSiteSearch(input.value.trim()); }
-    });
-    input.addEventListener('input', (e) => doSiteSearch(e.target.value));
-
-    // RENDERERS
-    function renderEmpty(note) {
-      resultsEl.innerHTML = `
-        <div class="empty-state">
-          <div style="font-size:3rem">🔎</div>
-          <div style="font-weight:700;margin-top:8px">${ note ? escapeHtml(note) : 'Start typing to search or click a category to browse' }</div>
-          <div style="margin-top:6px;color:var(--muted)">Searching profiles, songs, posts, pages, content, ads, comments and coins</div>
-        </div>
-      `;
+      else if(src==='posts'){
+        var r=await db.from('posts').select('id,text,media_type,user_id,likes,created_at').ilike('text',like).order('created_at',{ascending:false}).limit(50);
+        (r.data||[]).forEach(function(p){items.push({id:p.id,title:'Post'+(p.media_type&&p.media_type!=='text'?' ('+p.media_type+')':''),snippet:p.text||'',href:'feed.html',created_at:p.created_at,extra:'❤️ '+(p.likes||0)});});
+      }
+      else if(src==='groups'){
+        var r=await db.from('groups').select('id,name,description,member_count,created_at').or('name.ilike.'+like+',description.ilike.'+like).limit(50);
+        (r.data||[]).forEach(function(g){items.push({id:g.id,title:g.name||'Group',snippet:(g.description||'')+(g.member_count?' · '+g.member_count+' members':''),href:'group.html?id='+g.id,created_at:g.created_at});});
+      }
+      else if(src==='pages'){
+        var r=await db.from('pages').select('id,name,description,created_at').or('name.ilike.'+like+',description.ilike.'+like).limit(50);
+        (r.data||[]).forEach(function(p){items.push({id:p.id,title:p.name||'Page',snippet:p.description||'',href:'page.html?id='+p.id,created_at:p.created_at});});
+      }
+      else if(src==='ads'){
+        var r=await db.from('ads').select('id,title,description,image_url,link_url,created_at').or('title.ilike.'+like+',description.ilike.'+like).limit(50);
+        (r.data||[]).forEach(function(a){items.push({id:a.id,title:a.title||'Ad',snippet:a.description||'',avatar:a.image_url,href:a.link_url||'all-ads.html',created_at:a.created_at});});
+      }
+      else if(src==='comments'){
+        var r=await db.from('comments').select('id,content,user_id,post_id,created_at').ilike('content',like).order('created_at',{ascending:false}).limit(50);
+        (r.data||[]).forEach(function(c){items.push({id:c.id,title:'Comment',snippet:c.content||'',href:'feed.html',created_at:c.created_at});});
+      }
+      }catch(e){/* table may not exist yet */}
+      return items;
     }
 
-    function renderError(msg) {
-      resultsEl.innerHTML = `<div class="empty-state"><div style="font-weight:700">Error</div><div style="margin-top:6px;color:var(--muted)">${escapeHtml(msg)}</div></div>`;
+    // Browse category (no query)
+    async function loadCategory(src){
+      if(src==='all'){renderEmpty();return;}
+      resultsEl.innerHTML='<div style="text-align:center;padding:2rem;"><div class="spinner"></div></div>';
+      var items=[];
+      try{
+      if(src==='profiles'){
+        var r=await db.from('profiles').select('user_id,username,display_name,bio,role,avatar_url,verified_artist,created_at').order('created_at',{ascending:false}).limit(50);
+        (r.data||[]).forEach(function(p){items.push({source:'profiles',id:p.user_id,title:p.display_name||p.username,snippet:(p.role?p.role.toUpperCase()+' · ':'')+(p.bio||''),avatar:p.avatar_url,verified:p.verified_artist,href:'profile.html?id='+p.user_id,created_at:p.created_at});});
+        var d=await db.from('dummy_profiles').select('id,username,display_name,bio,role,avatar_url,verified_artist,created_at').order('created_at',{ascending:false}).limit(50);
+        (d.data||[]).forEach(function(p){items.push({source:'profiles',id:p.id,title:(p.display_name||p.username)+' (AI Artist)',snippet:(p.role?p.role.toUpperCase()+' · ':'')+(p.bio||''),avatar:p.avatar_url,verified:p.verified_artist,href:'profile.html?dummy='+p.id,created_at:p.created_at});});
+      }
+      else if(src==='songs'){
+        var r=await db.from('songs').select('id,title,artist,cover_art,uploaded_by,dummy_id,price,explicit,created_at').order('created_at',{ascending:false}).limit(100);
+        (r.data||[]).forEach(function(s){var link=s.dummy_id?'profile.html?dummy='+s.dummy_id:(s.uploaded_by?'profile.html?id='+s.uploaded_by:'#');items.push({source:'songs',id:s.id,title:s.title||'Untitled',snippet:(s.artist||'')+(s.explicit?' 🔞':'')+(s.price>0?' · $'+parseFloat(s.price).toFixed(2):''),avatar:s.cover_art,href:link,created_at:s.created_at});});
+      }
+      else if(src==='posts'){
+        var r=await db.from('posts').select('id,text,media_type,likes,created_at').order('created_at',{ascending:false}).limit(50);
+        (r.data||[]).forEach(function(p){items.push({source:'posts',id:p.id,title:'Post'+(p.media_type&&p.media_type!=='text'?' ('+p.media_type+')':''),snippet:p.text||'(media)',href:'feed.html',created_at:p.created_at,extra:'❤️ '+(p.likes||0)});});
+      }
+      else if(src==='groups'){
+        var r=await db.from('groups').select('id,name,description,member_count,created_at').order('created_at',{ascending:false}).limit(50);
+        (r.data||[]).forEach(function(g){items.push({source:'groups',id:g.id,title:g.name||'Group',snippet:g.description||'',href:'group.html?id='+g.id,created_at:g.created_at});});
+        if(!items.length) items.push({source:'groups',id:'create',title:'No groups yet — create the first one!',snippet:'Start a community group for music, art, gaming and more.',href:'create-group.html'});
+      }
+      else if(src==='pages'){
+        var r=await db.from('pages').select('id,name,description,created_at').order('created_at',{ascending:false}).limit(50);
+        (r.data||[]).forEach(function(p){items.push({source:'pages',id:p.id,title:p.name||'Page',snippet:p.description||'',href:'page.html?id='+p.id,created_at:p.created_at});});
+        if(!items.length) items.push({source:'pages',id:'create',title:'No pages yet — create the first one!',snippet:'Create a page for your brand, project, or community.',href:'create-page.html'});
+      }
+      else if(src==='ads'){
+        var r=await db.from('ads').select('id,title,description,image_url,link_url,created_at').order('created_at',{ascending:false}).limit(50);
+        (r.data||[]).forEach(function(a){items.push({source:'ads',id:a.id,title:a.title||'Ad',snippet:a.description||'',avatar:a.image_url,href:a.link_url||'all-ads.html',created_at:a.created_at});});
+      }
+      else if(src==='comments'){
+        var r=await db.from('comments').select('id,content,created_at').order('created_at',{ascending:false}).limit(50);
+        (r.data||[]).forEach(function(c){items.push({source:'comments',id:c.id,title:'Comment',snippet:c.content||'',href:'feed.html',created_at:c.created_at});});
+        if(!items.length) resultsEl.innerHTML='<div class="empty-state">No comments yet. Comments on posts will appear here.</div>';
+      }
+      else if(src==='coins'){
+        items.push({source:'coins',id:'shop',title:'🪙 Coin Shop — Buy Coins',snippet:'Purchase coins for games, upgrades, stickers and more!',href:'coinshop.html'});
+        items.push({source:'coins',id:'game-shop',title:'🎮 Game Coin Shop',snippet:'Get game coins for arcade, pool, tournaments & leaderboards.',href:'game-coin-shop.html'});
+        items.push({source:'coins',id:'upgrades',title:'⬆️ Upgrades',snippet:'Use coins to unlock premium features and profile upgrades.',href:'upgrades.html'});
+        items.push({source:'coins',id:'pricing',title:'💰 Pricing',snippet:'View all pricing plans and coin bundles.',href:'pricing.html'});
+      }
+      }catch(e){
+        if(!items.length){
+          var fallback={groups:'No groups found. The groups feature is being set up.',pages:'No pages found. The pages feature is being set up.',comments:'No comments found. Comments will appear when users comment on posts.'};
+          resultsEl.innerHTML='<div class="empty-state">'+(fallback[src]||'No results for this category.')+'</div>';
+          return;
+        }
+      }
+      renderResults(items);
     }
 
-    function renderCombinedResults(items) {
-      if (!items || items.length === 0) {
-        resultsEl.innerHTML = '<div class="empty-state">No results</div>';
+    // Render
+    var iconMap={profiles:'👤',songs:'🎵',posts:'📝',groups:'👥',pages:'📄',ads:'📢',comments:'💬',coins:'🪙'};
+    var labelMap={profiles:'Profile',songs:'Song',posts:'Post',groups:'Group',pages:'Page',ads:'Ad',comments:'Comment',coins:'Coins'};
+
+    function renderResults(items,query){
+      if(!items||!items.length){
+        var hint=query?'No results for "'+esc(query)+'"':'No results in this category.';
+        resultsEl.innerHTML='<div class="empty-state">'+hint+'</div>';
         return;
       }
-
-      let filtered = items;
-      if (activeSource && activeSource !== 'all') {
-        filtered = items.filter(it => (it.source || '').toLowerCase() === activeSource.toLowerCase());
-      }
-
-      if (filtered.length === 0) {
-        resultsEl.innerHTML = '<div class="empty-state">No results for selected category</div>';
-        return;
-      }
-
-      const countHtml = `<div class="results-count">${filtered.length} result${filtered.length===1?'':'s'}</div>`;
-
-      const labelMap = { profiles: 'Profiles', songs: 'Songs', posts: 'Posts', pages: 'Pages', content: 'Content', ads: 'Ads', comments: 'Comments', coins: 'Coins' };
-      const iconMap = { profiles: '👤', songs: '🎵', posts: '📝', pages: '📄', content: '📚', ads: '📢', comments: '💬', coins: '🪙' };
-
-      const html = filtered.map(it => {
-        const src = (it.source || '').toLowerCase();
-        const title = escapeHtml(it.title || (src === 'profiles' ? 'Profile' : src || 'Result'));
-        const snippet = escapeHtml((it.snippet || '').toString()).replace(/\n/g, ' ');
-        const created = it.created_at ? new Date(it.created_at).toLocaleString() : '';
-        let href = '#';
-        if (src === 'profiles') href = `profile.html?id=${encodeURIComponent(it.id)}`;
-        else if (src === 'songs') href = it.uploaded_by ? `profile.html?id=${encodeURIComponent(it.uploaded_by)}` : `song.html?id=${encodeURIComponent(it.id)}`;
-        else if (src === 'posts') href = `feed.html`;
-        else if (src === 'pages') href = `#`; // No page viewer yet
-        else if (src === 'content') href = `#`; // No content viewer yet
-        else if (src === 'ads') href = `all-ads.html`;
-        else if (src === 'comments') href = `feed.html`;
-        else if (src === 'coins') href = `#`; // No coin page
-        else if (src === 'shop') href = `shop.html`;
-
-        return `
-          <div class="result-card" role="article" aria-labelledby="r-${escapeHtml(it.id)}">
-            <div style="display:flex;align-items:center;gap:12px">
-              <div style="font-size:22px">${iconMap[src] || '📌'}</div>
-              <div class="result-info">
-                <div class="result-name" id="r-${escapeHtml(it.id)}">
-                  <a class="result-link" href="${href}">${title}</a>
-                  <small style="color:var(--muted);font-weight:600;margin-left:8px">${escapeHtml(labelMap[src] || src)}</small>
-                </div>
-                <div class="result-snippet">${snippet}</div>
-              </div>
-            </div>
-            <div style="text-align:right;min-width:120px;color:var(--muted);font-size:12px">
-              <div>${escapeHtml(created)}</div>
-              ${ typeof it.rank !== 'undefined' ? `<div class="meta">score: ${Number(it.rank).toFixed(3)}</div>` : '' }
-            </div>
-          </div>
-        `;
+      var html='<div class="results-count">'+items.length+' result'+(items.length===1?'':'s')+'</div>';
+      html+=items.map(function(it){
+        var src=it.source||'';
+        var icon=iconMap[src]||'📌';
+        var label=labelMap[src]||src;
+        var avHtml='';
+        if(it.avatar) avHtml='<img src="'+esc(it.avatar)+'" style="width:40px;height:40px;border-radius:8px;object-fit:cover;flex-shrink:0;" onerror="this.style.display=\'none\'">';
+        var verBadge=it.verified?'<span style="color:#00d9ff;margin-left:4px;">✓</span>':'';
+        var extraHtml=it.extra?'<span style="margin-left:8px;font-size:0.78rem;color:#b7a7dc;">'+esc(it.extra)+'</span>':'';
+        var href=it.href||'#';
+        return '<a href="'+esc(href)+'" style="text-decoration:none;color:inherit;"><div class="result-card"><div class="result-icon">'+icon+'</div>'+(avHtml?avHtml:'')+'<div class="result-info"><div class="result-name">'+esc(it.title)+verBadge+'<span class="result-badge" style="background:rgba(124,58,237,0.15);color:#a855f7;">'+esc(label)+'</span>'+extraHtml+'</div>'+(it.snippet?'<div class="result-snippet">'+esc(it.snippet)+'</div>':'')+(it.created_at?'<div class="result-meta">'+ago(it.created_at)+'</div>':'')+'</div></div></a>';
       }).join('');
-
-      resultsEl.innerHTML = countHtml + html;
+      resultsEl.innerHTML=html;
     }
+
+    function renderEmpty(note){
+      resultsEl.innerHTML='<div class="empty-state"><div style="font-size:3rem">🔎</div><div style="font-weight:700;margin-top:8px">'+(note||'Start typing to search or tap a category')+'</div><div style="margin-top:6px;">Profiles, songs, posts, groups, pages, ads, comments & coins</div></div>';
+    }
+
+    // Events
+    btn.addEventListener('click',function(){doSearch(input.value.trim());});
+    input.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();doSearch(input.value.trim());}});
+    input.addEventListener('input',function(){doSearch(this.value.trim());});
 
     renderEmpty();
-    try { input.focus(); } catch(e){/*ignore*/}
+    try{input.focus();}catch(e){}
+  })();
   </script>
-
 </body>
 </html>
