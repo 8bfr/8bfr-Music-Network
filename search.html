@@ -195,8 +195,31 @@
         (r.data||[]).forEach(function(a){items.push({id:a.id,title:a.title||'Ad',snippet:a.description||'',avatar:a.image_url,href:a.link_url||'all-ads.html',created_at:a.created_at});});
       }
       else if(src==='comments'){
-        var r=await db.from('comments').select('id,content,user_id,post_id,created_at').ilike('content',like).order('created_at',{ascending:false}).limit(50);
-        (r.data||[]).forEach(function(c){items.push({id:c.id,title:'Comment',snippet:c.content||'',href:'feed.html',created_at:c.created_at});});
+        // Check ALL comment tables
+        var commentTables=[
+          {table:'comments',textCol:'content'},
+          {table:'comments',textCol:'text'},
+          {table:'post_comments',textCol:'content'},
+          {table:'post_comments',textCol:'text'},
+          {table:'post_comments',textCol:'comment'}
+        ];
+        for(var ti=0;ti<commentTables.length;ti++){
+          try{
+            var ct=commentTables[ti];
+            var r=await db.from(ct.table).select('*').limit(50);
+            if(r.data&&r.data.length>0){
+              r.data.forEach(function(c){
+                var txt=c.content||c.text||c.comment||c.body||c.message||'';
+                if(txt.toLowerCase().indexOf(q.toLowerCase())!==-1){
+                  // Avoid duplicates
+                  if(!items.some(function(x){return x.id===c.id;})){
+                    items.push({id:c.id,title:'Comment ('+ct.table+')',snippet:txt,href:'feed.html',created_at:c.created_at});
+                  }
+                }
+              });
+            }
+          }catch(e){/* table doesn't exist or column missing, skip */}
+        }
       }
       }catch(e){/* table may not exist yet */}
       return items;
@@ -237,9 +260,19 @@
         (r.data||[]).forEach(function(a){items.push({source:'ads',id:a.id,title:a.title||'Ad',snippet:a.description||'',avatar:a.image_url,href:a.link_url||'all-ads.html',created_at:a.created_at});});
       }
       else if(src==='comments'){
-        var r=await db.from('comments').select('id,content,created_at').order('created_at',{ascending:false}).limit(50);
-        (r.data||[]).forEach(function(c){items.push({source:'comments',id:c.id,title:'Comment',snippet:c.content||'',href:'feed.html',created_at:c.created_at});});
-        if(!items.length) resultsEl.innerHTML='<div class="empty-state">No comments yet. Comments on posts will appear here.</div>';
+        var commentTables=['comments','post_comments'];
+        for(var ti=0;ti<commentTables.length;ti++){
+          try{
+            var r=await db.from(commentTables[ti]).select('*').order('created_at',{ascending:false}).limit(50);
+            (r.data||[]).forEach(function(c){
+              var txt=c.content||c.text||c.comment||c.body||c.message||'';
+              if(txt&&!items.some(function(x){return x.id===c.id;})){
+                items.push({source:'comments',id:c.id,title:'Comment ('+commentTables[ti]+')',snippet:txt,href:'feed.html',created_at:c.created_at});
+              }
+            });
+          }catch(e){/* skip missing tables */}
+        }
+        if(!items.length) resultsEl.innerHTML='<div class="empty-state">No comments found across any comment tables.</div>';
       }
       else if(src==='coins'){
         items.push({source:'coins',id:'shop',title:'🪙 Coin Shop — Buy Coins',snippet:'Purchase coins for games, upgrades, stickers and more!',href:'coinshop.html'});
