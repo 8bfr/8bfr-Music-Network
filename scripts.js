@@ -426,7 +426,7 @@ body.menu-open #pageWrap{
   overflow-x:auto; scrollbar-width:none;
   -webkit-overflow-scrolling:touch;
 }
-body{ padding-top:52px; }
+body{ padding-top:52px !important; }
 #bubbleStack::-webkit-scrollbar{display:none;}
 .bubble-row{
   display:flex;
