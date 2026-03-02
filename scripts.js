@@ -416,27 +416,29 @@ body.menu-open #pageWrap{
 }
 
 #bubbleStack{
-  position:fixed; top:76px; right:16px;
-  z-index:9996; display:flex;
-  flex-direction:column; gap:6px;
-  transition:right .25s ease;
+  position:fixed; top:0; left:0; right:0;
+  z-index:9989; display:flex;
+  flex-direction:row; align-items:center;
+  gap:4px; padding:6px 74px 6px 12px;
+  background:rgba(10,2,26,.92);
+  border-bottom:1px solid rgba(124,58,237,.4);
+  backdrop-filter:blur(10px);
+  overflow-x:auto; scrollbar-width:none;
+  -webkit-overflow-scrolling:touch;
 }
+#bubbleStack::-webkit-scrollbar{display:none;}
 .bubble-row{
   display:flex;
   flex-direction:column;
-  align-items:flex-end;
-  gap:2px;
+  align-items:center;
+  gap:1px;
+  flex-shrink:0;
 }
 .bubble-label{
-  font-size:.7rem;
+  font-size:.58rem;
   color:#ffffff;
-  opacity:1;
-  padding:2px 6px;
-  border-radius:8px;
-  background:rgba(90,0,160,0.55);
-  backdrop-filter:blur(4px);
-  border:1px solid rgba(160,100,255,0.4);
-  text-shadow:0 0 6px rgba(0,0,0,.85);
+  opacity:.85;
+  white-space:nowrap;
 }
 
 #bubble-top-single{
@@ -444,24 +446,24 @@ body.menu-open #pageWrap{
   z-index:9996; transition:right .25s ease;
 }
 
-body.menu-open #bubbleStack,
 body.menu-open #bubble-top-single,
 body.menu-open #carrieWrap{
   right:340px;
 }
 
 .bubble{
-  width:42px; height:42px;
+  width:34px; height:34px;
   border-radius:999px;
   display:grid; place-items:center;
   background:rgba(18,3,39,.94);
   border:1px solid rgba(129,140,248,.9);
-  box-shadow:0 0 10px rgba(124,58,237,.45);
+  box-shadow:0 0 8px rgba(124,58,237,.35);
   cursor:pointer; transition:background .2s ease, transform .1s ease;
+  font-size:.85rem;
 }
 .bubble:hover{
   background:rgba(60,15,90,.95);
-  transform:translateY(-1px);
+  transform:scale(1.08);
 }
 
 #carrieWrap{
@@ -562,7 +564,6 @@ body.menu-open #carrieWrap{
 
 @media(max-width:480px){
   .global-avatar{ width:min(56vw,220px); }
-  body.menu-open #bubbleStack,
   body.menu-open #bubble-top-single,
   body.menu-open #carrieWrap{
     right:300px;
@@ -757,34 +758,32 @@ body.menu-open #carrieWrap{
   </div>
 </nav>
 
-${isIndex ? '<div id="bubbleStack">' : '<!-- bubbles hidden -->'}
+<div id="bubbleStack">
   <div class="bubble-row">
-    <span class="bubble-label">Contact</span>
     <button class="bubble" id="bubble-contact" title="Contact"><span>✉️</span></button>
+    <span class="bubble-label">Contact</span>
   </div>
   <div class="bubble-row">
-    <span class="bubble-label">Donate</span>
     <button class="bubble" id="bubble-donate" title="Donate"><span>💜</span></button>
+    <span class="bubble-label">Donate</span>
   </div>
   <div class="bubble-row">
-    <span class="bubble-label">Footer</span>
     <button class="bubble" id="bubble-footer" title="Go to footer"><span>⬇️</span></button>
+    <span class="bubble-label">Footer</span>
   </div>
   <div class="bubble-row">
-    <span class="bubble-label">Theme</span>
     <button class="bubble" id="bubble-theme" title="Light / Dark"><span>☯️</span></button>
+    <span class="bubble-label">Theme</span>
   </div>
   <div class="bubble-row">
-    <span class="bubble-label">Random</span>
     <button class="bubble" id="bubble-theme-random" title="Random theme"><span>🔀</span></button>
+    <span class="bubble-label">Random</span>
   </div>
   <div class="bubble-row">
-    <span class="bubble-label">Stream 8BFR</span>
     <button class="bubble" id="bubble-stream" title="Stream 8BFR"><span>🎧</span></button>
+    <span class="bubble-label">Stream</span>
   </div>
 </div>
-
-${isIndex ? '</div>' : ''}
 
 <button class="bubble" id="bubble-top-single">
   <span>⬆️</span>
