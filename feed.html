@@ -32,7 +32,7 @@
         <h1 class="text-xl font-bold">🗨️ Community Feed</h1>
         <p class="text-xs text-purple-300/80">See what creators are sharing</p>
       </div>
-      <button onclick="location.href='profile.html'" style="background:#7c3aed;color:white;border:none;padding:0.5rem 1rem;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85rem;">+ Post</button>
+      <div style="font-size:0.78rem;color:rgba(168,85,247,0.6);">Post from your <a href="profile.html" style="color:#a855f7;font-weight:600;">Profile</a></div>
     </div>
   </header>
 
@@ -48,7 +48,7 @@
       <div style="font-size:4rem;margin-bottom:1rem;">🗨️</div>
       <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:0.5rem;">No posts yet</h3>
       <p style="color:#a855f7;opacity:0.8;margin-bottom:1rem;">Be the first to share something!</p>
-      <a href="profile.html" style="background:#7c3aed;color:white;padding:0.6rem 1.2rem;border-radius:8px;text-decoration:none;font-weight:600;">Create a Post</a>
+      <a href="profile.html" style="background:#7c3aed;color:white;padding:0.6rem 1.2rem;border-radius:8px;text-decoration:none;font-weight:600;">Go to Profile to Post</a>
     </div>
     <button id="loadMoreBtn" style="display:none;width:100%;padding:0.75rem;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:10px;color:#a855f7;font-weight:600;cursor:pointer;margin-top:0.5rem;">Load More</button>
   </main>
@@ -60,18 +60,19 @@
         <a href="search.html" class="bottom-nav-item"><div style="font-size:1.25rem;">🔍</div><div style="font-size:0.7rem;font-weight:600;">Search</div></a>
         <a href="feed.html" class="bottom-nav-item active"><div style="font-size:1.25rem;">📰</div><div style="font-size:0.7rem;font-weight:600;">Feed</div></a>
         <a href="radio.html" class="bottom-nav-item"><div style="font-size:1.25rem;">📻</div><div style="font-size:0.7rem;font-weight:600;">Radio</div></a>
-        <a href="shop.html" class="bottom-nav-item"><div style="font-size:1.25rem;">🛒</div><div style="font-size:0.7rem;font-weight:600;">Shop</div></a>
+        <a href="profile.html" class="bottom-nav-item"><div style="font-size:1.25rem;">👤</div><div style="font-size:0.7rem;font-weight:600;">Profile</div></a>
       </div>
     </div>
   </nav>
 
-  <script src="scripts.js?v=feed2" defer></script>
+  <script src="scripts.js" defer></script>
   <script>
   (async function() {
     const db = window.supabase.createClient(
       'https://novbuvwpjnxwwvdekjhr.supabase.co',
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0'
     );
+    const OWNER_ID = 'cb556180-f032-4b21-9470-1d786f2664ab';
     let currentTab = 'trending', currentUser = null, offset = 0;
     const PAGE = 20;
 
@@ -96,11 +97,27 @@
         document.getElementById('loadMoreBtn').style.display = 'none';
       }
       try {
-        let query = db.from('posts').select('*');
+        let posts = [];
+
         if (currentTab === 'trending') {
-          query = query.order('algorithm_score', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false });
+          // Try owner-priority RPC first, fallback to direct query
+          try {
+            const { data, error } = await db.rpc('get_feed_posts', { p_limit: PAGE, p_offset: offset });
+            if (!error && data) { posts = data; }
+            else throw new Error('rpc failed');
+          } catch(e) {
+            // Fallback: manual owner-first sort
+            const { data: allPosts } = await db.from('posts').select('*').order('created_at', { ascending: false }).range(offset, offset + PAGE - 1);
+            posts = (allPosts || []).sort((a, b) => {
+              if (a.user_id === OWNER_ID && b.user_id !== OWNER_ID) return -1;
+              if (b.user_id === OWNER_ID && a.user_id !== OWNER_ID) return 1;
+              return (b.algorithm_score || 0) - (a.algorithm_score || 0);
+            });
+          }
         } else if (currentTab === 'latest') {
-          query = query.order('created_at', { ascending: false });
+          const { data, error } = await db.from('posts').select('*').order('created_at', { ascending: false }).range(offset, offset + PAGE - 1);
+          if (error) throw error;
+          posts = data || [];
         } else if (currentTab === 'following') {
           if (!currentUser) {
             document.getElementById('feedLoading').style.display = 'none';
@@ -114,15 +131,15 @@
             document.getElementById('feedList').innerHTML = '<div class="feed-card" style="text-align:center;padding:2rem;"><p style="color:#a855f7;">You\'re not following anyone yet.</p><a href="members.html" style="color:#7c3aed;font-weight:600;">Browse Members</a></div>';
             return;
           }
-          query = query.in('user_id', ids).order('created_at', { ascending: false });
+          const { data, error } = await db.from('posts').select('*').in('user_id', ids).order('created_at', { ascending: false }).range(offset, offset + PAGE - 1);
+          if (error) throw error;
+          posts = data || [];
         }
 
-        const { data: posts, error } = await query.range(offset, offset + PAGE - 1);
-        if (error) throw error;
         document.getElementById('feedLoading').style.display = 'none';
-        if ((!posts || !posts.length) && !append) { document.getElementById('feedEmpty').style.display = 'block'; return; }
+        if (!posts.length && !append) { document.getElementById('feedEmpty').style.display = 'block'; return; }
 
-        const authorIds = [...new Set((posts || []).map(p => p.user_id).filter(Boolean))];
+        const authorIds = [...new Set(posts.map(p => p.user_id).filter(Boolean))];
         let pm = {};
         if (authorIds.length) {
           const { data: profiles } = await db.from('profiles').select('user_id,username,display_name,avatar_url,verified_artist,algorithm_tier').in('user_id', authorIds);
@@ -130,8 +147,8 @@
         }
 
         const fl = document.getElementById('feedList');
-        (posts || []).forEach(post => { fl.insertAdjacentHTML('beforeend', renderPost(post, pm[post.user_id] || {})); });
-        document.getElementById('loadMoreBtn').style.display = (posts && posts.length >= PAGE) ? 'block' : 'none';
+        posts.forEach(post => { fl.insertAdjacentHTML('beforeend', renderPost(post, pm[post.user_id] || {})); });
+        document.getElementById('loadMoreBtn').style.display = posts.length >= PAGE ? 'block' : 'none';
       } catch(err) {
         console.error('Feed:', err);
         document.getElementById('feedLoading').style.display = 'none';
@@ -146,6 +163,8 @@
       const tier = pr.algorithm_tier || 'Bronze';
       const tc = {Bronze:'#cd7f32',Silver:'#c0c0c0',Gold:'#ffd700',Platinum:'#e5e4e2',Diamond:'#b9f2ff'};
       const tb = '<span style="font-size:0.7rem;color:'+(tc[tier]||'#cd7f32')+';margin-left:4px;">'+tier+'</span>';
+      const isOwner = post.user_id === OWNER_ID;
+      const ownerBadge = isOwner ? '<span style="font-size:0.65rem;background:linear-gradient(90deg,#7c3aed,#a855f7);color:white;padding:1px 6px;border-radius:10px;margin-left:4px;">OWNER</span>' : '';
       const ago = timeAgo(post.created_at);
       const sc = (post.algorithm_score||0);
       const si = sc > 100 ? '🔥' : sc > 50 ? '⭐' : '';
@@ -159,10 +178,10 @@
       }
       else if (post.media && post.media_type === 'audio') media = '<div style="margin:0.75rem 0;"><audio controls preload="none" style="width:100%;"><source src="'+post.media+'"></audio></div>';
 
-      return '<div class="feed-card" data-post-id="'+post.id+'">' +
+      return '<div class="feed-card" data-post-id="'+post.id+'"'+(isOwner?' style="border-color:rgba(124,58,237,0.6);box-shadow:0 0 12px rgba(124,58,237,0.15);"':'')+'>' +
         '<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;">' +
           '<a href="profile.html?id='+post.user_id+'" style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden;text-decoration:none;">'+av+'</a>' +
-          '<div style="flex:1;min-width:0;"><a href="profile.html?id='+post.user_id+'" style="font-weight:700;font-size:0.95rem;text-decoration:none;color:#eae6ff;">'+esc(name)+v+'</a> '+tb+'<div style="font-size:0.78rem;color:#a855f7;opacity:0.7;">'+ago+' '+si+'</div></div></div>' +
+          '<div style="flex:1;min-width:0;"><a href="profile.html?id='+post.user_id+'" style="font-weight:700;font-size:0.95rem;text-decoration:none;color:#eae6ff;">'+esc(name)+v+'</a> '+tb+ownerBadge+'<div style="font-size:0.78rem;color:#a855f7;opacity:0.7;">'+ago+' '+si+'</div></div></div>' +
         (post.text ? '<div style="margin-bottom:0.5rem;line-height:1.55;word-break:break-word;">'+esc(post.text)+'</div>' : '') +
         media +
         '<div style="display:flex;gap:0.5rem;padding-top:0.6rem;border-top:1px solid rgba(124,58,237,0.15);">' +
@@ -198,10 +217,8 @@
 
     window.commentPost = async function(id) {
       if (!currentUser) { alert('Log in to comment'); return; }
-      // Toggle comment section
       let commentSection = document.getElementById('comments-' + id);
       if (commentSection) { commentSection.style.display = commentSection.style.display === 'none' ? 'block' : 'none'; return; }
-      // Create comment section
       const postCard = document.querySelector('[data-post-id="' + id + '"]');
       if (!postCard) return;
       commentSection = document.createElement('div');
@@ -209,7 +226,6 @@
       commentSection.style.cssText = 'margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid rgba(124,58,237,0.2);';
       commentSection.innerHTML = '<div class="spinner" style="width:20px;height:20px;margin:0.5rem auto;"></div>';
       postCard.appendChild(commentSection);
-      // Load existing comments
       try {
         const { data: comments } = await db.from('post_comments').select('id, user_id, text, created_at').eq('post_id', id).order('created_at', { ascending: true }).limit(30);
         let cHtml = '';
@@ -242,7 +258,6 @@
           await db.from('posts').update({ comments: (data.comments||0)+1 }).eq('id', postId);
           try { await db.rpc('add_algorithm_points', { p_user_id: data.user_id, p_action: 'receive_comment', p_points: 5 }); } catch(e){}
         }
-        // Reload comments
         document.getElementById('comments-' + postId).remove();
         commentPost(postId);
       } catch(e) { alert('Error: ' + e.message); }
