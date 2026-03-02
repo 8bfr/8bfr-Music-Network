@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Page — 8BFR Music Network</title>
+  <link rel="icon" href="assets/images/favicon.png"/>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body{background:linear-gradient(#0b0014,#000);color:#eae6ff;font-family:system-ui,sans-serif;margin:0;padding-bottom:80px;}
+    .container{max-width:720px;margin:0 auto;padding:1rem;}
+    .card{background:rgba(12,6,24,0.7);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;}
+    .card h2{color:#a855f7;margin:0 0 1rem;font-size:1.1rem;}
+    .cover{width:100%;height:160px;border-radius:12px 12px 0 0;background:linear-gradient(135deg,rgba(124,58,237,0.3),rgba(168,85,247,0.1));overflow:hidden;}
+    .cover img{width:100%;height:100%;object-fit:cover;}
+    .form-input{width:100%;padding:0.7rem 0.9rem;background:rgba(12,0,25,0.9);border:1px solid rgba(124,58,237,0.35);border-radius:8px;color:#eae6ff;font-size:0.93rem;box-sizing:border-box;}
+    .btn{background:#7c3aed;color:white;border:none;padding:0.6rem 1.2rem;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.88rem;}
+    .btn:hover{background:#6d28d9;} .btn:disabled{opacity:0.5;}
+    .btn-sm{padding:0.4rem 0.8rem;font-size:0.8rem;}
+    .btn-red{background:#dc2626;} .btn-green{background:#059669;}
+    .badge{background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.4);color:#a855f7;padding:0.2rem 0.6rem;border-radius:20px;font-size:0.75rem;font-weight:600;}
+    .spinner{width:28px;height:28px;border-radius:50%;border:3px solid rgba(168,85,247,0.2);border-top-color:#a855f7;animation:spin 0.7s linear infinite;margin:2rem auto;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .hint{font-size:0.72rem;color:rgba(168,85,247,0.45);margin-top:0.25rem;} .hint a{color:#a855f7;}
+    header{padding:1rem;background:rgba(15,0,30,0.9);border-bottom:1px solid rgba(124,58,237,0.5);position:sticky;top:0;z-index:100;}
+    header div{max-width:720px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;}
+  </style>
+</head>
+<body>
+  <header><div><a href="search.html" style="color:#a855f7;font-weight:600;text-decoration:none;">← Search</a><h1 style="font-size:1.15rem;font-weight:800;" id="pageTitle">📄 Page</h1><div style="width:60px;"></div></div></header>
+  <div class="container">
+    <div id="loading"><div class="spinner"></div></div>
+    <div id="content" style="display:none;"></div>
+  </div>
+  <nav style="position:fixed;bottom:0;left:0;right:0;background:rgba(15,0,30,0.95);border-top:1px solid rgba(124,58,237,0.4);display:flex;justify-content:space-around;padding:0.5rem 0;z-index:200;">
+    <a href="index.html" style="text-decoration:none;text-align:center;color:rgba(234,230,255,0.6);font-size:0.7rem;">🏠<br>Home</a>
+    <a href="search.html" style="text-decoration:none;text-align:center;color:rgba(234,230,255,0.6);font-size:0.7rem;">🔍<br>Search</a>
+    <a href="feed.html" style="text-decoration:none;text-align:center;color:rgba(234,230,255,0.6);font-size:0.7rem;">📰<br>Feed</a>
+    <a href="radio.html" style="text-decoration:none;text-align:center;color:rgba(234,230,255,0.6);font-size:0.7rem;">📻<br>Radio</a>
+    <a href="profile.html" style="text-decoration:none;text-align:center;color:rgba(234,230,255,0.6);font-size:0.7rem;">👤<br>Profile</a>
+  </nav>
+  <script src="scripts.js"></script>
+  <script>
+  (async function(){
+    var db=window._8bfrSupabaseClient||(window.supabase?window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0'):null);
+    var pid=new URLSearchParams(location.search).get('id');
+    if(!pid){document.getElementById('loading').innerHTML='<div style="text-align:center;padding:3rem;color:#b7a7dc;">No page specified. <a href="search.html" style="color:#a855f7;">Browse pages</a></div>';return;}
+
+    var user=null;try{var s=await db.auth.getSession();user=s?.data?.session?.user||null;}catch(e){}
+    var OWNER_ID='cb556180-f032-4b21-9470-1d786f2664ab';
+
+    var pr=await db.from('pages').select('*').eq('id',pid).maybeSingle();
+    if(pr.error||!pr.data){document.getElementById('loading').innerHTML='<div style="text-align:center;padding:3rem;color:#ef4444;">Page not found.</div>';return;}
+    var p=pr.data;
+    var isCreator=user&&(user.id===p.created_by||user.id===OWNER_ID);
+    document.getElementById('pageTitle').textContent='📄 '+p.name;
+    document.title=p.name+' — 8BFR';
+
+    function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
+
+    // Check if following
+    var isFollowing=false;
+    if(user){var fr=await db.from('page_followers').select('id').eq('page_id',pid).eq('user_id',user.id).maybeSingle();isFollowing=!!fr.data;}
+
+    var catIcons={music:'🎵',artist:'🎤',brand:'🏷️',community:'👥',gaming:'🎮',entertainment:'🎬',education:'📚',business:'💼',general:'📌'};
+    var covH=p.cover_url?'<img src="'+p.cover_url+'" onerror="this.style.display=\'none\'">':'';
+    var followBtn='';
+    if(user&&!isCreator){followBtn=isFollowing?'<button class="btn btn-sm" onclick="unfollowPage()" style="background:#059669;">✓ Following</button>':'<button class="btn btn-sm" onclick="followPage()">➕ Follow</button>';}
+
+    var h='<div class="card" style="padding:0;"><div class="cover">'+covH+'</div><div style="padding:1.5rem;"><div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;"><h2 style="margin:0;">'+esc(p.name)+(p.verified?'<span style="color:#00d9ff;margin-left:6px;">✓</span>':'')+'</h2><div style="display:flex;gap:0.5rem;align-items:center;"><span class="badge">'+(catIcons[p.category]||'📌')+' '+(p.category||'general')+'</span><span class="badge">👥 '+(p.follower_count||0)+' followers</span>'+followBtn+'</div></div>';
+    if(p.description) h+='<p style="color:rgba(234,230,255,0.7);margin-top:0.75rem;line-height:1.6;">'+esc(p.description)+'</p>';
+    var links='';
+    if(p.website) links+='<a href="'+esc(p.website)+'" target="_blank" style="color:#a855f7;text-decoration:none;font-size:0.85rem;">🌐 '+esc(p.website)+'</a> ';
+    if(p.contact_email) links+='<a href="mailto:'+esc(p.contact_email)+'" style="color:#a855f7;text-decoration:none;font-size:0.85rem;">✉️ '+esc(p.contact_email)+'</a>';
+    if(links) h+='<div style="margin-top:0.75rem;">'+links+'</div>';
+    h+='</div></div>';
+
+    // Edit section for creator
+    if(isCreator){
+      h+='<div class="card"><h2>✏️ Edit Page</h2><div style="margin-bottom:1rem;"><label style="display:block;font-size:0.85rem;font-weight:600;color:rgba(234,230,255,0.7);margin-bottom:0.4rem;">Page Name</label><input class="form-input" id="eName" value="'+esc(p.name)+'"></div><div style="margin-bottom:1rem;"><label style="display:block;font-size:0.85rem;font-weight:600;color:rgba(234,230,255,0.7);margin-bottom:0.4rem;">Description</label><textarea class="form-input" id="eDesc" rows="3">'+esc(p.description||'')+'</textarea></div><div style="margin-bottom:1rem;"><label style="display:block;font-size:0.85rem;font-weight:600;color:rgba(234,230,255,0.7);margin-bottom:0.4rem;">Cover URL</label><input class="form-input" type="url" id="eCover" value="'+(p.cover_url||'')+'"><div class="hint">💡 Upload at <a href="https://imgbb.com" target="_blank">imgbb.com</a></div></div><div style="display:flex;gap:0.75rem;flex-wrap:wrap;"><button class="btn" onclick="savePage()">💾 Save</button><button class="btn btn-red" onclick="deletePage()">🗑️ Delete</button><span id="saveN" style="font-size:0.85rem;"></span></div></div>';
+    }
+
+    document.getElementById('loading').style.display='none';
+    var c=document.getElementById('content');c.style.display='block';c.innerHTML=h;
+
+    // Actions
+    window.followPage=async function(){if(!user)return;try{await db.from('page_followers').insert({page_id:pid,user_id:user.id});await db.from('pages').update({follower_count:(p.follower_count||0)+1}).eq('id',pid);location.reload();}catch(e){alert(e.message);}};
+    window.unfollowPage=async function(){try{await db.from('page_followers').delete().eq('page_id',pid).eq('user_id',user.id);await db.from('pages').update({follower_count:Math.max(0,(p.follower_count||0)-1)}).eq('id',pid);location.reload();}catch(e){alert(e.message);}};
+    window.savePage=async function(){var n=document.getElementById('saveN');try{var r=await db.from('pages').update({name:document.getElementById('eName').value.trim(),description:document.getElementById('eDesc').value.trim()||null,cover_url:document.getElementById('eCover').value.trim()||null}).eq('id',pid);if(r.error)throw r.error;n.innerHTML='<span style="color:#4ade80;">✅ Saved!</span>';setTimeout(function(){location.reload();},800);}catch(e){n.innerHTML='<span style="color:#ef4444;">❌ '+e.message+'</span>';}};
+    window.deletePage=async function(){if(!confirm('Delete this page permanently?'))return;try{await db.from('pages').delete().eq('id',pid);location.href='search.html';}catch(e){alert(e.message);}};
+  })();
+  </script>
+</body>
+</html>
