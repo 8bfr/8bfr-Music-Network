@@ -366,7 +366,7 @@ body.menu-open #carrieWrap{ right:340px; }
   border-width:6px 6px 0 6px; border-style:solid;
   border-color:rgba(15,23,42,.95) transparent transparent transparent;
 }
-#avatarSwitcher{ display:none; }
+#avatarSwitcher{ display:flex; gap:4px; margin-bottom:4px; }
 #avatarSwitcher button{
   padding:2px 6px; border-radius:999px; border:1px solid rgba(129,140,248,.6);
   background:rgba(15,23,42,.85); color:#e5e7eb; font-size:.65rem; cursor:pointer;
@@ -400,6 +400,12 @@ body.menu-open #carrieWrap{ right:340px; }
     document.head.appendChild(css);
 ```
 **SECTION 3 of 5 — Menu HTML**
+
+Perfect, now I have everything. The switcher needs to show all 3 characters with their style options. I'll reprint **Section 3 and Section 4 only** as replacements — Sections 1, 2, and 5 stay exactly the same.
+
+---
+
+**SECTION 3 of 5 (REPLACEMENT) — Menu HTML + Avatar HTML**
 
 ```javascript
     // ---------- HTML SHELL ----------
@@ -605,29 +611,27 @@ body.menu-open #carrieWrap{ right:340px; }
       html += `
 <div id="carrieWrap" title="Chat avatar (global)">
   <div id="avatarSwitcher">
-    <button data-avatar="carrie">Carrie</button>
-    <button data-avatar="james">James</button>
-    <button data-avatar="azreen">Azreen</button>
+    <div class="avatar-switcher-row">
+      <button class="avatar-char-btn active" data-char="carrie">Carrie</button>
+      <button class="avatar-char-btn" data-char="james">James</button>
+      <button class="avatar-char-btn" data-char="azreen">Azreen</button>
+    </div>
+    <div class="avatar-style-row">
+      <button class="avatar-style-btn active" data-style="business">Business</button>
+      <button class="avatar-style-btn" data-style="casual">Casual</button>
+      <button class="avatar-style-btn" data-style="partner">Partner</button>
+    </div>
   </div>
   <div id="carrieBubble">Chat with me</div>
-  <video
-    id="avatar-carrie"
-    class="global-avatar"
-    src="assets/videos/carrie_business_animate.webm"
-    autoplay loop muted playsinline
-  ></video>
-  <video
-    id="avatar-james"
-    class="global-avatar"
-    src="assets/videos/james_business.webm"
-    autoplay loop muted playsinline
-  ></video>
-  <video
-    id="avatar-azreen"
-    class="global-avatar"
-    src="assets/videos/azreen_business.webm"
-    autoplay loop muted playsinline
-  ></video>
+  <video id="avatar-carrie-business" class="global-avatar active" src="assets/videos/carrie_business_animate.webm" autoplay loop muted playsinline></video>
+  <video id="avatar-carrie-casual" class="global-avatar" src="assets/videos/Carrie_casual_animate_3_1.webm" autoplay loop muted playsinline></video>
+  <video id="avatar-carrie-partner" class="global-avatar" src="assets/videos/carrie_girlfriend.webm" autoplay loop muted playsinline></video>
+  <video id="avatar-james-business" class="global-avatar" src="assets/videos/james_business.webm" autoplay loop muted playsinline></video>
+  <video id="avatar-james-casual" class="global-avatar" src="assets/videos/james_casual.webm" autoplay loop muted playsinline></video>
+  <video id="avatar-james-partner" class="global-avatar" src="assets/videos/james_boyfriend.webm" autoplay loop muted playsinline></video>
+  <video id="avatar-azreen-business" class="global-avatar" src="assets/videos/azreen_business.webm" autoplay loop muted playsinline></video>
+  <video id="avatar-azreen-casual" class="global-avatar" src="assets/videos/azreen_casual.webm" autoplay loop muted playsinline></video>
+  <video id="avatar-azreen-partner" class="global-avatar" src="assets/videos/azreen_girlfriend.webm" autoplay loop muted playsinline></video>
 </div>
 `;
     }
@@ -635,6 +639,16 @@ body.menu-open #carrieWrap{ right:340px; }
     ui.innerHTML = html;
     document.body.appendChild(ui);
 ```
+
+---
+
+**Confirm you have Section 3, then I'll post the new Section 4.**
+
+
+
+  
+
+      
 **SECTION 4 of 5 — Menu Control, Avatars, Drag & Resize**
 
 ```javascript
@@ -778,6 +792,258 @@ body.menu-open #carrieWrap{ right:340px; }
       if (ev.key === "carrie_avatar") {
         currentAvatar = getStoredAvatar();
         setActiveAvatar(currentAvatar);
+      }
+    });
+
+    // ---------- DRAG / RESIZE ----------
+    let dragging = false;
+    let moved = false;
+    let sx = 0;
+    let sy = 0;
+    let ox = 0;
+    let oy = 0;
+
+    let pinchActive = false;
+    let pinchStartDist = 0;
+    let userScaleStart = 1;
+    let mouseResizeActive = false;
+    let mouseResizeStartY = 0;
+
+    function clampScale(v) { return Math.max(0.5, v); }
+
+    function getTouchDistance(e) {
+      if (!e.touches || e.touches.length < 2) return 0;
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const dx = t2.clientX - t1.clientX;
+      const dy = t2.clientY - t1.clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    function ptr(ev) {
+      const t = ev.touches ? ev.touches[0] : ev;
+      return { x: t.clientX, y: t.clientY };
+    }
+
+    if (carrieWrap) {
+      carrieWrap.addEventListener("contextmenu", (e) => { e.preventDefault(); });
+      carrieWrap.addEventListener("mousedown", startDragOrResize);
+      carrieWrap.addEventListener("touchstart", startTouch, { passive: false });
+      carrieWrap.addEventListener("click", (e) => {
+        if (e.target.closest("#avatarSwitcher")) return;
+        if (!moved && !pinchActive && !mouseResizeActive) {
+          window.location.href = "carrie-chat.html";
+        }
+      });
+      carrieWrap.addEventListener("touchend", (e) => {
+        if (e.target.closest("#avatarSwitcher")) return;
+        if (!moved && !pinchActive && !mouseResizeActive) {
+          window.location.href = "carrie-chat.html";
+        }
+      });
+    }
+
+    function startDragOrResize(e) {
+      if (e.button === 2) {
+        mouseResizeActive = true;
+        mouseResizeStartY = e.clientY;
+        userScaleStart = userScale;
+        moved = false;
+        dragging = false;
+        e.preventDefault();
+        return;
+      }
+      if (e.target.closest("#avatarSwitcher")) { return; }
+      dragging = true;
+      moved = false;
+      const p = ptr(e);
+      sx = p.x; sy = p.y;
+      const rect = carrieWrap.getBoundingClientRect();
+      ox = rect.left; oy = rect.top;
+      carrieWrap.style.right = "auto";
+      carrieWrap.style.bottom = "auto";
+    }
+
+    function startTouch(e) {
+      if (e.touches && e.touches.length >= 2) {
+        pinchActive = true;
+        dragging = false;
+        moved = false;
+        pinchStartDist = getTouchDistance(e);
+        userScaleStart = userScale;
+        e.preventDefault();
+        return;
+      }
+      if (e.target.closest("#avatarSwitcher")) { return; }
+      dragging = true;
+      moved = false;
+      const p = ptr(e);
+      sx = p.x; sy = p.y;
+      const rect = carrieWrap.getBoundingClientRect();
+      ox = rect.left; oy = rect.top;
+      carrieWrap.style.right = "auto";
+      carrieWrap.style.bottom = "auto";
+      e.preventDefault();
+    }
+
+    window.addEventListener("mousemove", onMove, { passive: false });
+    window.addEventListener("touchmove", onMove, { passive: false });
+    window.addEventListener("mouseup", endAll);
+    window.addEventListener("touchend", endAll);
+
+    function onMove(e) {
+      if (pinchActive && e.touches && e.touches.length >= 2) {
+        const dist = getTouchDistance(e);
+        if (!dist || !pinchStartDist) return;
+        userScale = clampScale(userScaleStart * (dist / pinchStartDist));
+        applyAvatarScale();
+        e.preventDefault();
+        return;
+      }
+      if (mouseResizeActive && !e.touches) {
+        const dy = e.clientY - mouseResizeStartY;
+        userScale = clampScale(userScaleStart * (1 - dy / 300));
+        applyAvatarScale();
+        e.preventDefault();
+        return;
+      }
+      if (!dragging) return;
+// ---------- MENU CONTROL ----------
+    const fab = document.getElementById("fab");
+    const menu = document.getElementById("menu");
+    const backdrop = document.getElementById("menu-backdrop");
+    let timer = null;
+
+    function openMenu() {
+      if (!menu || !backdrop) return;
+      menu.classList.add("open");
+      backdrop.classList.add("open");
+      document.body.classList.add("menu-open");
+      resetTimer();
+    }
+    function closeMenu() {
+      if (!menu || !backdrop) return;
+      menu.classList.remove("open");
+      backdrop.classList.remove("open");
+      document.body.classList.remove("menu-open");
+      clearTimeout(timer);
+      timer = null;
+    }
+    function resetTimer() {
+      clearTimeout(timer);
+      timer = setTimeout(closeMenu, 20000);
+    }
+
+    if (fab) {
+      fab.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (menu && menu.classList.contains("open")) closeMenu();
+        else openMenu();
+      });
+    }
+    if (backdrop) { backdrop.addEventListener("click", closeMenu); }
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeMenu(); });
+    if (menu) {
+      menu.addEventListener("pointermove", resetTimer);
+      menu.addEventListener("wheel", resetTimer);
+    }
+
+    const groups = menu ? menu.querySelectorAll(".menu-group") : [];
+    groups.forEach((group) => {
+      const title = group.querySelector(".menu-group-title");
+      if (!title) return;
+      title.addEventListener("click", () => {
+        const willOpen = group.classList.contains("collapsed");
+        groups.forEach((g) => g.classList.add("collapsed"));
+        if (willOpen) group.classList.remove("collapsed");
+      });
+    });
+
+    // ---------- Global Avatars (Carrie / James / Azreen) ----------
+    const carrieWrap = document.getElementById("carrieWrap");
+    const carrieBubble = document.getElementById("carrieBubble");
+    const avatarSwitcher = document.getElementById("avatarSwitcher");
+    const avatarVideos = Array.from(document.querySelectorAll(".global-avatar"));
+
+    const CHAR_KEYS = ["carrie", "james", "azreen"];
+    const STYLE_KEYS = ["business", "casual", "partner"];
+
+    function getStoredChar() {
+      try {
+        const raw = localStorage.getItem("carrie_avatar");
+        if (raw && CHAR_KEYS.includes(raw.toLowerCase())) return raw.toLowerCase();
+      } catch (e) {}
+      return "carrie";
+    }
+    function getStoredStyle() {
+      try {
+        const raw = localStorage.getItem("carrie_avatar_style");
+        if (raw && STYLE_KEYS.includes(raw.toLowerCase())) return raw.toLowerCase();
+      } catch (e) {}
+      return "business";
+    }
+    function setStoredChar(name) {
+      try { localStorage.setItem("carrie_avatar", name); } catch (e) {}
+    }
+    function setStoredStyle(style) {
+      try { localStorage.setItem("carrie_avatar_style", style); } catch (e) {}
+    }
+
+    let currentChar = getStoredChar();
+    let currentStyle = getStoredStyle();
+    let userScale = 1;
+
+    function applyAvatarScale() {
+      avatarVideos.forEach((vid) => { vid.style.transform = `scale(${userScale})`; });
+      if (carrieBubble) { carrieBubble.style.transform = `scale(${userScale})`; }
+    }
+
+    function setActiveAvatar(char, style) {
+      currentChar = CHAR_KEYS.includes(char) ? char : "carrie";
+      currentStyle = STYLE_KEYS.includes(style) ? style : "business";
+      const activeId = `avatar-${currentChar}-${currentStyle}`;
+
+      avatarVideos.forEach((vid) => {
+        if (vid.id === activeId) {
+          vid.classList.add("active");
+          try { vid.muted = true; vid.autoplay = true; vid.playsInline = true; vid.play().catch(() => {}); } catch (e) {}
+        } else {
+          vid.classList.remove("active");
+          try { vid.pause(); } catch (e) {}
+        }
+      });
+
+      if (avatarSwitcher) {
+        avatarSwitcher.querySelectorAll(".avatar-char-btn").forEach((btn) => {
+          btn.classList.toggle("active", btn.dataset.char === currentChar);
+        });
+        avatarSwitcher.querySelectorAll(".avatar-style-btn").forEach((btn) => {
+          btn.classList.toggle("active", btn.dataset.style === currentStyle);
+        });
+      }
+
+      setStoredChar(currentChar);
+      setStoredStyle(currentStyle);
+      applyAvatarScale();
+    }
+
+    if (avatarVideos.length) { setActiveAvatar(currentChar, currentStyle); }
+
+    if (avatarSwitcher) {
+      avatarSwitcher.addEventListener("click", (e) => {
+        const charBtn = e.target.closest(".avatar-char-btn");
+        const styleBtn = e.target.closest(".avatar-style-btn");
+        if (charBtn && CHAR_KEYS.includes(charBtn.dataset.char)) {
+          setActiveAvatar(charBtn.dataset.char, currentStyle);
+        } else if (styleBtn && STYLE_KEYS.includes(styleBtn.dataset.style)) {
+          setActiveAvatar(currentChar, styleBtn.dataset.style);
+        }
+      });
+    }
+
+    window.addEventListener("storage", (ev) => {
+      if (ev.key === "carrie_avatar" || ev.key === "carrie_avatar_style") {
+        setActiveAvatar(getStoredChar(), getStoredStyle());
       }
     });
 
