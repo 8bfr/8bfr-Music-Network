@@ -153,7 +153,7 @@
 
   loadFeaturedAds();
 })();
-```
+
 **SECTION 2 of 5 — Global UI, Supabase, Auth Gate, CSS**
 
 ```javascript
@@ -398,12 +398,10 @@ body.menu-open #carrieWrap{ right:340px; }
 }
 `;
     document.head.appendChild(css);
-```
+
 **SECTION 3 of 5 — Menu HTML**
 
-Perfect, now I have everything. The switcher needs to show all 3 characters with their style options. I'll reprint **Section 3 and Section 4 only** as replacements — Sections 1, 2, and 5 stay exactly the same.
 
----
 
 **SECTION 3 of 5 (REPLACEMENT) — Menu HTML + Avatar HTML**
 
@@ -638,18 +636,9 @@ Perfect, now I have everything. The switcher needs to show all 3 characters with
 
     ui.innerHTML = html;
     document.body.appendChild(ui);
-```
-
----
-
-**Confirm you have Section 3, then I'll post the new Section 4.**
 
 
 
-  
-
-      
-**SECTION 4 of 5 — Menu Control, Avatars, Drag & Resize**
 
 ```javascript
     // ---------- MENU CONTROL ----------
@@ -1184,7 +1173,7 @@ Perfect, now I have everything. The switcher needs to show all 3 characters with
         vid.play().catch(() => {});
       } catch (e) {}
     });
-```
+
 **SECTION 5 of 5 — Bubbles, Themes, Closing brackets**
 
 ```javascript
@@ -1296,4 +1285,4 @@ Perfect, now I have everything. The switcher needs to show all 3 characters with
     injectGlobalUI();
   }
 })();
-```
+
