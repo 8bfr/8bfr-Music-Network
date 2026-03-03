@@ -732,32 +732,252 @@ body.menu-open #carrieWrap{
       <a href="terms.html" class="menu-chip">Terms</a>
       <a href="tos_updates.html" class="menu-chip">TOS Updates</a>
       <a href="credits.html" class="menu-chip">Credits</a>
-      <a href="press.html" class="menu-chip">Press</a>
-      <a href="reset-password.html" class="menu-chip">Reset Password</a>
+// ═══════════════════════════════════════════════════════════════════
+// 8BFR SCRIPTS.JS — UPDATED MENU HTML BLOCK
+// Replace ONLY the  let html = `...`  section in scripts.js
+// Everything else in scripts.js stays exactly the same.
+// ═══════════════════════════════════════════════════════════════════
+
+    let html = `
+<div id="menuStripe">
+  <div id="menuStripeText">STREAM 8BFR ON SPOTIFY</div>
+</div>
+
+<button id="fab" aria-label="Open navigation">
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#00d9ff" stroke-width="2" stroke-linecap="round">
+    <path d="M4 6h16M4 12h12M4 18h8"/>
+  </svg>
+</button>
+<div id="menu-backdrop"></div>
+
+<nav id="menu" aria-hidden="true">
+  <h2>8BFR Navigation</h2>
+
+  <!-- ── HOME & CORE ─────────────────────────────────────────── -->
+  <div class="menu-group collapsed">
+    <div class="menu-group-title">Home & Core</div>
+    <div class="menu-links">
+      <a href="index.html"         class="menu-chip">🏠 Home</a>
+      <a href="search.html"        class="menu-chip menu-chip-network">
+        <span class="menu-label-main">Network</span>
+        <span class="menu-label-alt">Search</span>
+      </a>
+      <a href="feed.html"          class="menu-chip">📰 Community Feed</a>
+      <a href="radio.html"         class="menu-chip">📻 Radio</a>
+      <a href="live.html"          class="menu-chip">📡 Live</a>
+      <a href="music-lab.html"     class="menu-chip">🎛️ Music Lab</a>
+      <a href="featured.html"      class="menu-chip">⭐ Featured Artist</a>
+      <a href="featured-songs.html"class="menu-chip">🎵 Featured Songs</a>
+      <a href="fan-zone.html"      class="menu-chip">🎤 Fan Zone</a>
+      <a href="stories.html"       class="menu-chip">📖 Stories</a>
+      <a href="announcements.html" class="menu-chip">📣 Announcements</a>
+      <a href="blog.html"          class="menu-chip">✍️ Blog</a>
+      <a href="algorithm-points.html" class="menu-chip">📊 Algorithm Points</a>
+      <a href="about.html"         class="menu-chip">ℹ️ About</a>
+      <a href="contact.html"       class="menu-chip">📬 Contact</a>
     </div>
   </div>
 
+  <!-- ── MUSIC & CONTENT ────────────────────────────────────── -->
+  <div class="menu-group collapsed">
+    <div class="menu-group-title">Music & Content</div>
+    <div class="menu-links">
+      <a href="song.html"          class="menu-chip">🎵 Songs</a>
+      <a href="singles.html"       class="menu-chip">💿 Singles</a>
+      <a href="albums.html"        class="menu-chip">📀 Albums</a>
+      <a href="beats.html"         class="menu-chip">🥁 Beats</a>
+      <a href="beat-store.html"    class="menu-chip">🛒 Beat Store</a>
+      <a href="playlists.html"     class="menu-chip">▶️ Playlists</a>
+      <a href="genres.html"        class="menu-chip">🎼 Genres</a>
+      <a href="charts.html"        class="menu-chip">📈 Charts</a>
+      <a href="dedications.html"   class="menu-chip">💌 Dedications</a>
+    </div>
+  </div>
+
+  <!-- ── PRODUCER AI ────────────────────────────────────────── -->
+  <div class="menu-group collapsed">
+    <div class="menu-group-title">🤖 Producer AI</div>
+    <div class="menu-links">
+      <a href="https://8bfr.github.io/producer-ai/index.html"
+         target="_blank" rel="noopener"
+         class="menu-chip menu-chip-ai">
+        🤖 Open Producer AI
+      </a>
+      <a href="author.html"        class="menu-chip">📝 Author</a>
+      <a href="author-hub.html"    class="menu-chip">📚 Author Hub</a>
+      <a href="translate.html"     class="menu-chip">🌐 Translate</a>
+      <a href="integration.html"   class="menu-chip">🔗 Integration</a>
+      <a href="stats.html"         class="menu-chip">📊 Stats</a>
+    </div>
+  </div>
+
+  <!-- ── GAMES & TOURNAMENTS ────────────────────────────────── -->
+  <div class="menu-group collapsed">
+    <div class="menu-group-title">Games & Tournaments</div>
+    <div class="menu-links">
+      <a href="game-hub.html"          class="menu-chip">🕹️ Game Hub</a>
+      <a href="games.html"             class="menu-chip">🎮 Games</a>
+      <a href="arcade.html"            class="menu-chip">👾 Arcade</a>
+      <a href="game-music.html"        class="menu-chip">🎵 Game Music</a>
+      <a href="game-tournaments.html"  class="menu-chip">🏆 Tournaments</a>
+      <a href="game-leaderboards.html" class="menu-chip">🥇 Leaderboards</a>
+      <a href="pool-8-ball.html"       class="menu-chip">🎱 Pool 8-Ball</a>
+      <a href="pool-9-ball.html"       class="menu-chip">🎱 Pool 9-Ball</a>
+      <a href="trickshot-pool.html"    class="menu-chip">🎯 Trickshot Pool</a>
+    </div>
+  </div>
+
+  <!-- ── PROFILES & COMMUNITY ───────────────────────────────── -->
+  <div class="menu-group collapsed">
+    <div class="menu-group-title">Profiles & Community</div>
+    <div class="menu-links">
+      <a href="members.html"      class="menu-chip">👥 Browse Members</a>
+      <a href="profile.html"      class="menu-chip">👤 My Profile</a>
+      <a href="chat.html"         class="menu-chip">💬 Chat</a>
+      <a href="dm.html"           class="menu-chip">✉️ DM</a>
+      <a href="kids.html"         class="menu-chip">👶 Kids</a>
+      <a href="kids-zone.html"    class="menu-chip">🧸 Kids Zone</a>
+      <a href="kids_games.html"   class="menu-chip">🎮 Kids Games</a>
+      <a href="kids_stories.html" class="menu-chip">📖 Kids Stories</a>
+    </div>
+  </div>
+
+  <!-- ── MY ACCOUNT & PAYMENTS ──────────────────────────────── -->
+  <div class="menu-group collapsed">
+    <div class="menu-group-title">My Account & Payments</div>
+    <div class="menu-links">
+      <a href="settings.html"         class="menu-chip">⚙️ Settings</a>
+      <a href="purchases.html"        class="menu-chip">🛒 My Purchases</a>
+      <a href="artist-payouts.html"   class="menu-chip">💰 Earnings</a>
+      <a href="artist-discounts.html" class="menu-chip">🏷️ My Discounts</a>
+      <a href="notifications.html"    class="menu-chip">🔔 Notifications</a>
+      <a href="messages.html"         class="menu-chip">✉️ Messages</a>
+    </div>
+  </div>
+
+  <!-- ── SHOP & COINS ───────────────────────────────────────── -->
+  <div class="menu-group collapsed">
+    <div class="menu-group-title">Shop & Coins</div>
+    <div class="menu-links">
+      <a href="shop.html"          class="menu-chip">🛒 Shop</a>
+      <a href="shop-stickers.html" class="menu-chip">🎨 Stickers</a>
+      <a href="shop-upgrades.html" class="menu-chip">⬆️ Shop Upgrades</a>
+      <a href="coinshop.html"      class="menu-chip">🪙 Coin Shop</a>
+      <a href="game-coin-shop.html"class="menu-chip">🎮 Game Coin Shop</a>
+      <a href="upgrades.html"      class="menu-chip">🚀 Upgrades</a>
+      <a href="pricing.html"       class="menu-chip">💳 Pricing</a>
+      <a href="donate.html"        class="menu-chip">❤️ Donate</a>
+    </div>
+  </div>
+
+  <!-- ── CARRIE & FUN ───────────────────────────────────────── -->
   <div class="menu-group collapsed">
     <div class="menu-group-title">Carrie & Fun</div>
     <div class="menu-links">
-      <a href="carrie-chat.html" class="menu-chip">Carrie Chat</a>
-      <a href="carrie-closet.html" class="menu-chip">Carrie Closet</a>
-      <a href="carrie-concerts.html" class="menu-chip">Carrie Concerts</a>
-      <a href="kids-zone.html" class="menu-chip">Kids Zone</a>
-      <a href="system.html" class="menu-chip">System</a>
-      <a href="debug.html" class="menu-chip">Debug</a>
+      <a href="carrie-chat.html"     class="menu-chip">🤖 Carrie Chat</a>
+      <a href="carrie-closet.html"   class="menu-chip">👗 Carrie Closet</a>
+      <a href="carrie-concerts.html" class="menu-chip">🎤 Carrie Concerts</a>
     </div>
   </div>
 
+  <!-- ── ADMIN / MOD / OWNER ────────────────────────────────── -->
+  <div class="menu-group collapsed">
+    <div class="menu-group-title">Admin / Mod / Owner</div>
+    <div class="menu-links">
+      <a href="owner-panel.html" class="menu-chip">👑 Owner Panel</a>
+      <a href="admin-panel.html" class="menu-chip">⚙️ Admin Panel</a>
+      <a href="mod-panel.html"   class="menu-chip">🛡️ Mod Panel</a>
+    </div>
+  </div>
+
+  <!-- ── INFO & LEGAL ───────────────────────────────────────── -->
+  <div class="menu-group collapsed">
+    <div class="menu-group-title">Info & Legal</div>
+    <div class="menu-links">
+      <a href="faq.html"            class="menu-chip">❓ FAQ</a>
+      <a href="help.html"           class="menu-chip">🆘 Help</a>
+      <a href="rules.html"          class="menu-chip">📋 Rules</a>
+      <a href="privacy.html"        class="menu-chip">🔒 Privacy</a>
+      <a href="terms.html"          class="menu-chip">📄 Terms</a>
+      <a href="tos_updates.html"    class="menu-chip">🔄 TOS Updates</a>
+      <a href="credits.html"        class="menu-chip">🙏 Credits</a>
+      <a href="press.html"          class="menu-chip">📰 Press</a>
+    </div>
+  </div>
+
+  <!-- ── LOGIN & AUTH ───────────────────────────────────────── -->
   <div class="menu-group collapsed">
     <div class="menu-group-title">Login & Auth</div>
     <div class="menu-links">
-      <a href="login.html" class="menu-chip">Log in</a>
-      <a href="signup.html" class="menu-chip">Sign up</a>
-      <a href="logout.html" class="menu-chip">Log out</a>
+      <a href="login.html"          class="menu-chip">🔑 Log In</a>
+      <a href="signup.html"         class="menu-chip">✨ Sign Up</a>
+      <a href="reset-password.html" class="menu-chip">🔄 Reset Password</a>
+      <a href="logout.html"         class="menu-chip">🚪 Log Out</a>
     </div>
   </div>
+
 </nav>
+`;
+
+// ═══════════════════════════════════════════════════════════════════
+// ALSO ADD THIS to your existing CSS in scripts.js
+// (Find where .menu-chip is styled and add this new variant)
+// ═══════════════════════════════════════════════════════════════════
+
+/*  ADD TO YOUR EXISTING MENU CSS:
+
+  .menu-chip-ai {
+    background: linear-gradient(135deg, rgba(124,58,237,0.4), rgba(0,217,255,0.2)) !important;
+    border-color: rgba(0,217,255,0.6) !important;
+    color: #00d9ff !important;
+    font-weight: 700 !important;
+    position: relative;
+  }
+  .menu-chip-ai::after {
+    content: '↗';
+    margin-left: 0.4rem;
+    font-size: 0.75rem;
+    opacity: 0.7;
+  }
+  .menu-chip-ai:hover {
+    background: linear-gradient(135deg, rgba(124,58,237,0.6), rgba(0,217,255,0.35)) !important;
+    box-shadow: 0 0 12px rgba(0,217,255,0.4);
+  }
+
+*/
+
+// ═══════════════════════════════════════════════════════════════════
+// WHAT CHANGED — summary
+// ═══════════════════════════════════════════════════════════════════
+//
+// REMOVED from Studio & AI:
+//   lyrics-ai.html, lyric_ai.html, song-ai.html, album-ai.html,
+//   voice-ai.html, cover_ai.html, master_ai.html,
+//   studio-tools.html, creator-tools.html, artist-studio.html
+//
+// REPLACED WITH:
+//   🤖 Producer AI → https://8bfr.github.io/producer-ai/index.html
+//   (opens in new tab, styled with cyan glow to stand out)
+//
+// ADDED to Home & Core:
+//   📡 live.html
+//   🎛️ music-lab.html
+//
+// REMOVED from Home & Core:
+//   podcast.html
+//
+// REMOVED duplicates:
+//   system.html (was in two groups)
+//   debug.html (was in two groups)
+//   store.html (duplicate of shop.html)
+//   leaderboard.html (duplicate of game-leaderboards.html)
+//   stickers.html (duplicate of shop-stickers.html)
+//   kids-zone.html duplicate in Carrie group
+//   game_pool_8ball.html, game_pool_9ball.html, game_pool_trick.html (kept named versions)
+//   thank_you.html (internal redirect, not needed in nav)
+//
+// ═══════════════════════════════════════════════════════════════════
+
 
 <div id="bubbleStack">
   <div class="bubble-row">
