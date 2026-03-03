@@ -1,8 +1,6 @@
 
 
-**SECTION 1 of 5 — Ad Carousel (copy everything below)**
 
-```javascript
 // ========== FEATURED ADS + BUTTONS (index.html only, with swipe) ==========
 (function () {
   if (window._8bfrInlineCarousel) return;
@@ -154,9 +152,7 @@
   loadFeaturedAds();
 })();
 
-**SECTION 2 of 5 — Global UI, Supabase, Auth Gate, CSS**
 
-```javascript
 // ========== GLOBAL 8BFR UI (menu, bubbles, Avatars, auth gate, Spotify stripe) ==========
 (function () {
   const SUPABASE_URL = "https://novbuvwpjnxwwvdekjhr.supabase.co";
@@ -399,13 +395,6 @@ body.menu-open #carrieWrap{ right:340px; }
 `;
     document.head.appendChild(css);
 
-**SECTION 3 of 5 — Menu HTML**
-
-
-
-**SECTION 3 of 5 (REPLACEMENT) — Menu HTML + Avatar HTML**
-
-```javascript
     // ---------- HTML SHELL ----------
     const ui = document.createElement("div");
     let html = `
@@ -640,7 +629,7 @@ body.menu-open #carrieWrap{ right:340px; }
 
 
 
-```javascript
+
     // ---------- MENU CONTROL ----------
     const fab = document.getElementById("fab");
     const menu = document.getElementById("menu");
@@ -1176,7 +1165,7 @@ body.menu-open #carrieWrap{ right:340px; }
 
 **SECTION 5 of 5 — Bubbles, Themes, Closing brackets**
 
-```javascript
+
     // ---------- BUBBLES ----------
     const contact = document.getElementById("bubble-contact");
     const donate = document.getElementById("bubble-donate");
