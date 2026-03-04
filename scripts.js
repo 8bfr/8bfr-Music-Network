@@ -637,6 +637,73 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
 
     window.addEventListener("touchend", endAll);
 
+    // ── GLOBAL NOTIFICATION BELL BADGE ──
+    (async function() {
+      try {
+        var _db2 = window._8bfrSupabaseClient || window.supabase.createClient(
+          'https://novbuvwpjnxwwvdekjhr.supabase.co',
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0'
+        );
+        var _s2 = await _db2.auth.getSession();
+        var _uid2 = _s2?.data?.session?.user?.id;
+        if (!_uid2) return;
+
+        var _onNotifsPage = window.location.pathname.includes('notifications');
+
+        function _setBellBadge(count) {
+          document.querySelectorAll('a[href="notifications.html"]').forEach(function(link) {
+            var existing = link.querySelector('.notif-nav-badge');
+            if (count > 0) {
+              if (!existing) {
+                existing = document.createElement('span');
+                existing.className = 'notif-nav-badge';
+                existing.style.cssText = 'background:#ef4444;color:#fff;font-size:0.6rem;font-weight:700;padding:1px 5px;border-radius:50px;margin-left:3px;vertical-align:middle;display:inline-block;';
+                link.appendChild(existing);
+              }
+              existing.textContent = count > 99 ? '99+' : count;
+            } else if (existing) {
+              existing.remove();
+            }
+          });
+        }
+
+        // Initial count
+        var { count } = await _db2.from('notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', _uid2).eq('read', false);
+        _setBellBadge(count || 0);
+
+        // Realtime — increment on new notif, reset on reading
+        if (!_onNotifsPage) {
+          _db2.channel('global-notif-bell')
+            .on('postgres_changes', {
+              event: 'INSERT', schema: 'public', table: 'notifications',
+              filter: 'user_id=eq.' + _uid2
+            }, async function() {
+              var { count: c } = await _db2.from('notifications')
+                .select('*', { count: 'exact', head: true })
+                .eq('user_id', _uid2).eq('read', false);
+              _setBellBadge(c || 0);
+
+              // Show a small toast at bottom
+              var _t = document.getElementById('globalNotifToast');
+              if (!_t) {
+                _t = document.createElement('div');
+                _t.id = 'globalNotifToast';
+                _t.style.cssText = 'position:fixed;bottom:88px;right:16px;z-index:19999;background:rgba(15,0,30,0.97);border:1px solid #a855f7;border-radius:10px;padding:0.6rem 0.85rem;font-size:0.78rem;color:#eae6ff;box-shadow:0 4px 16px rgba(124,58,237,0.4);display:flex;align-items:center;gap:0.5rem;max-width:220px;';
+                _t.innerHTML = '🔔 <span id="globalNotifToastMsg">New notification</span> <a href="notifications.html" style="color:#00d9ff;text-decoration:none;margin-left:4px;font-size:0.72rem;">View</a>';
+                document.body.appendChild(_t);
+              }
+              _t.style.display = 'flex';
+              clearTimeout(window._notifToastTimer);
+              window._notifToastTimer = setTimeout(function(){ _t.style.display = 'none'; }, 5000);
+            })
+            .subscribe();
+        }
+      } catch(e) { console.warn('Notif bell:', e); }
+    })();
+
+
     function onMove(e) {
       if (pinchActive && e.touches && e.touches.length >= 2) {
         const dist = getTouchDist(e); if (!dist || !pinchStartDist) return;
