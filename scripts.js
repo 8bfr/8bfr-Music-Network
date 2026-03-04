@@ -178,7 +178,7 @@ body{ padding-top:52px !important; }
 #bubbleStack::-webkit-scrollbar{ display:none; }
 .bubble-row{ display:flex; flex-direction:column; align-items:center; gap:1px; flex-shrink:0; }
 .bubble-label{ font-size:.58rem; color:#fff; opacity:.85; white-space:nowrap; }
-#bubble-top-single{ position:fixed; right:16px; bottom:75px; z-index:9996; transition:right .25s ease; }
+#bubble-top-single{ position:fixed; right:16px; bottom:82px; z-index:9996; transition:right .25s ease; }
 body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
 .bubble{ width:34px; height:34px; border-radius:999px; display:grid; place-items:center; background:rgba(18,3,39,.94); border:1px solid rgba(129,140,248,.9); box-shadow:0 0 8px rgba(124,58,237,.35); cursor:pointer; transition:background .2s ease,transform .1s ease; font-size:.85rem; }
 .bubble:hover{ background:rgba(60,15,90,.95); transform:scale(1.08); }
