@@ -578,6 +578,63 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
     window.addEventListener("mousemove", onMove, { passive: false });
     window.addEventListener("touchmove", onMove, { passive: false });
     window.addEventListener("mouseup", endAll);
+
+    // ── GLOBAL ANNOUNCEMENT NOTIFICATIONS ──
+    (async function() {
+      try {
+        var _db = window._8bfrSupabaseClient || window.supabase.createClient(
+          'https://novbuvwpjnxwwvdekjhr.supabase.co',
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0'
+        );
+        var _sess = await _db.auth.getSession();
+        var _uid = _sess?.data?.session?.user?.id || null;
+
+        // Toast element (skip if already on announcements page)
+        var _onAnnouncementsPage = window.location.pathname.includes('announcements');
+        if (!_onAnnouncementsPage) {
+          var _toast = document.createElement('div');
+          _toast.id = 'globalAnnToast';
+          _toast.style.cssText = 'position:fixed;top:70px;left:50%;transform:translateX(-50%) translateY(-16px);z-index:19999;background:rgba(124,58,237,0.96);border:1px solid #a855f7;border-radius:12px;padding:0.85rem 1.1rem;max-width:400px;width:90%;display:none;box-shadow:0 8px 32px rgba(124,58,237,0.5);backdrop-filter:blur(8px);transition:all 0.3s ease;';
+          _toast.innerHTML = '<div style="display:flex;align-items:center;gap:0.75rem;"><span style="font-size:1.3rem;">📢</span><div style="flex:1;min-width:0;"><div id="globalAnnToastTitle" style="font-weight:700;font-size:0.88rem;color:#fff;"></div><div id="globalAnnToastBody" style="font-size:0.76rem;opacity:0.85;color:#eae6ff;margin-top:2px;"></div></div><div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;"><a id="globalAnnToastLink" href="announcements.html" style="font-size:0.7rem;color:#00d9ff;text-decoration:none;white-space:nowrap;">View →</a><button onclick="document.getElementById('globalAnnToast').style.display='none'" style="background:none;border:none;color:rgba(255,255,255,0.6);font-size:0.9rem;cursor:pointer;padding:0;">✕</button></div></div>';
+          document.body.appendChild(_toast);
+
+          _db.channel('global-ann-notify')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'announcements' }, function(payload) {
+              var ann = payload.new;
+              var ta = ann.target_audience || 'all';
+              // Only show if relevant to this user
+              var show = ta === 'all' || (_uid && ta === 'user:' + _uid);
+              if (!show) return;
+              document.getElementById('globalAnnToastTitle').textContent = ann.title || 'New Announcement';
+              document.getElementById('globalAnnToastBody').textContent = (ann.content||'').substring(0,70)+(ann.content&&ann.content.length>70?'…':'');
+              _toast.style.display = 'block';
+              setTimeout(function(){ _toast.style.transform = 'translateX(-50%) translateY(0)'; }, 10);
+              // Auto-hide after 8s
+              setTimeout(function(){ _toast.style.display = 'none'; _toast.style.transform = 'translateX(-50%) translateY(-16px)'; }, 8000);
+            })
+            .subscribe();
+        }
+
+        // Unread count badge on any nav link to announcements
+        if (_uid) {
+          var { data: deliveries } = await _db.from('announcement_deliveries')
+            .select('status').eq('user_id', _uid).eq('status', 'delivered');
+          var unreadCount = (deliveries || []).length;
+          if (unreadCount > 0) {
+            document.querySelectorAll('a[href="announcements.html"]').forEach(function(link) {
+              if (!link.querySelector('.ann-nav-badge')) {
+                var badge = document.createElement('span');
+                badge.className = 'ann-nav-badge';
+                badge.style.cssText = 'background:#ef4444;color:#fff;font-size:0.6rem;font-weight:700;padding:1px 5px;border-radius:50px;margin-left:4px;vertical-align:middle;';
+                badge.textContent = unreadCount;
+                link.appendChild(badge);
+              }
+            });
+          }
+        }
+      } catch(e) { console.warn('Ann notify:', e); }
+    })();
+
     window.addEventListener("touchend", endAll);
 
     function onMove(e) {
