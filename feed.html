@@ -11,17 +11,30 @@
     body { font-family: system-ui, -apple-system, sans-serif; background: linear-gradient(#0b0014, #000); color: #eae6ff; margin: 0; min-height: 100vh; padding-bottom: 80px; }
     .feed-card { background: rgba(12,6,24,0.85); border: 1px solid rgba(124,58,237,0.3); border-radius: 14px; padding: 1.25rem; margin-bottom: 1rem; }
     .feed-card:hover { border-color: rgba(124,58,237,0.5); }
-    .tab-bar { display: flex; gap: 0; border-bottom: 1px solid rgba(124,58,237,0.3); margin-bottom: 1.5rem; }
-    .tab-btn { flex: 1; text-align: center; padding: 0.75rem; font-weight: 600; font-size: 0.9rem; cursor: pointer; color: rgba(234,230,255,0.5); border-bottom: 2px solid transparent; background: none; border-top: none; border-left: none; border-right: none; transition: all 0.2s; }
+    .tab-bar { display: flex; gap: 0; border-bottom: 1px solid rgba(124,58,237,0.3); margin-bottom: 1.5rem; overflow-x: auto; scrollbar-width: none; }
+    .tab-bar::-webkit-scrollbar { display: none; }
+    .tab-btn { flex: 1; min-width: 80px; text-align: center; padding: 0.75rem 0.5rem; font-weight: 600; font-size: 0.85rem; cursor: pointer; color: rgba(234,230,255,0.5); border-bottom: 2px solid transparent; background: none; border-top: none; border-left: none; border-right: none; transition: all 0.2s; white-space: nowrap; }
     .tab-btn.active { color: #a855f7; border-bottom-color: #a855f7; }
     .tab-btn:hover { color: rgba(234,230,255,0.8); }
-    .action-btn { background: none; border: none; color: #a855f7; cursor: pointer; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.4rem 0.6rem; border-radius: 8px; transition: all 0.2s; }
-    .action-btn:hover { background: rgba(124,58,237,0.15); }
+    .action-btn { background: none; border: none; color: rgba(168,85,247,0.7); cursor: pointer; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.35rem 0.6rem; border-radius: 8px; transition: all 0.2s; }
+    .action-btn:hover { background: rgba(124,58,237,0.15); color: #a855f7; }
+    .action-btn.liked { color: #f472b6; }
+    .action-btn.favorited { color: #fbbf24; }
     .spinner { width: 32px; height: 32px; border-radius: 50%; border: 3px solid rgba(168,85,247,0.2); border-top-color: #a855f7; animation: spin 0.7s linear infinite; margin: 2rem auto; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .bottom-nav-item { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; padding: 0.5rem 0.75rem; text-decoration: none; color: #a855f7; transition: all 0.2s; border-radius: 0.5rem; flex: 1; max-width: 100px; }
     .bottom-nav-item:hover { background: rgba(124,58,237,0.2); }
     .bottom-nav-item.active { color: #fff; background: rgba(124,58,237,0.3); }
+    /* Comments */
+    .comment-section { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid rgba(124,58,237,0.2); }
+    .comment-item { padding: 0.5rem 0.6rem; border-radius: 8px; background: rgba(0,0,0,0.2); margin-bottom: 0.4rem; }
+    .comment-author { font-weight: 700; font-size: 0.78rem; color: #a855f7; }
+    .comment-text { font-size: 0.85rem; margin: 0.15rem 0; line-height: 1.4; }
+    .comment-meta { font-size: 0.68rem; color: rgba(168,85,247,0.4); }
+    .comment-actions { display: flex; gap: 0.5rem; margin-top: 0.25rem; }
+    .comment-action-btn { background: none; border: none; color: rgba(168,85,247,0.5); font-size: 0.7rem; cursor: pointer; padding: 0; display: inline-flex; align-items: center; gap: 0.2rem; }
+    .comment-action-btn:hover { color: #a855f7; }
+    .reply-indent { margin-left: 1rem; border-left: 2px solid rgba(124,58,237,0.2); padding-left: 0.6rem; }
   </style>
 </head>
 <body>
@@ -39,6 +52,7 @@
   <main class="max-w-2xl mx-auto px-4 mt-4">
     <div class="tab-bar">
       <button class="tab-btn active" data-tab="trending">🔥 Trending</button>
+      <button class="tab-btn" data-tab="top">🏆 Top</button>
       <button class="tab-btn" data-tab="latest">🕐 Latest</button>
       <button class="tab-btn" data-tab="following">👥 Following</button>
     </div>
@@ -100,13 +114,11 @@
         let posts = [];
 
         if (currentTab === 'trending') {
-          // Try owner-priority RPC first, fallback to direct query
           try {
             const { data, error } = await db.rpc('get_feed_posts', { p_limit: PAGE, p_offset: offset });
             if (!error && data) { posts = data; }
             else throw new Error('rpc failed');
           } catch(e) {
-            // Fallback: manual owner-first sort
             const { data: allPosts } = await db.from('posts').select('*').order('created_at', { ascending: false }).range(offset, offset + PAGE - 1);
             posts = (allPosts || []).sort((a, b) => {
               if (a.user_id === OWNER_ID && b.user_id !== OWNER_ID) return -1;
@@ -114,10 +126,25 @@
               return (b.algorithm_score || 0) - (a.algorithm_score || 0);
             });
           }
+
+        } else if (currentTab === 'top') {
+          /* Pure algorithm score sort — all posts ranked by score desc */
+          const { data, error } = await db.from('posts')
+            .select('*')
+            .order('algorithm_score', { ascending: false })
+            .range(offset, offset + PAGE - 1);
+          if (error) throw error;
+          posts = (data || []).sort((a, b) => {
+            if (a.user_id === OWNER_ID && b.user_id !== OWNER_ID) return -1;
+            if (b.user_id === OWNER_ID && a.user_id !== OWNER_ID) return 1;
+            return (b.algorithm_score || 0) - (a.algorithm_score || 0);
+          });
+
         } else if (currentTab === 'latest') {
           const { data, error } = await db.from('posts').select('*').order('created_at', { ascending: false }).range(offset, offset + PAGE - 1);
           if (error) throw error;
           posts = data || [];
+
         } else if (currentTab === 'following') {
           if (!currentUser) {
             document.getElementById('feedLoading').style.display = 'none';
@@ -146,8 +173,22 @@
           if (profiles) profiles.forEach(p => { pm[p.user_id] = p; });
         }
 
+        /* Check liked/favorited state for current user */
+        let likedSet = {}, favSet = {};
+        if (currentUser && posts.length) {
+          const ids = posts.map(p => p.id);
+          const [lkr, fvr] = await Promise.all([
+            db.from('post_likes').select('post_id').eq('user_id', currentUser.id).in('post_id', ids),
+            db.from('post_favorites').select('post_id').eq('user_id', currentUser.id).in('post_id', ids)
+          ]);
+          (lkr.data || []).forEach(x => likedSet[x.post_id] = true);
+          (fvr.data || []).forEach(x => favSet[x.post_id] = true);
+        }
+
         const fl = document.getElementById('feedList');
-        posts.forEach(post => { fl.insertAdjacentHTML('beforeend', renderPost(post, pm[post.user_id] || {})); });
+        posts.forEach(post => {
+          fl.insertAdjacentHTML('beforeend', renderPost(post, pm[post.user_id] || {}, likedSet[post.id], favSet[post.id]));
+        });
         document.getElementById('loadMoreBtn').style.display = posts.length >= PAGE ? 'block' : 'none';
       } catch(err) {
         console.error('Feed:', err);
@@ -156,7 +197,7 @@
       }
     }
 
-    function renderPost(post, pr) {
+    function renderPost(post, pr, liked, favorited) {
       const name = pr.display_name || pr.username || 'User';
       const av = pr.avatar_url ? '<img src="'+pr.avatar_url+'" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML=\'🎵\'">' : '🎵';
       const v = pr.verified_artist ? '<span style="color:#00d9ff;margin-left:4px;">✓</span>' : '';
@@ -166,29 +207,40 @@
       const isOwner = post.user_id === OWNER_ID;
       const ownerBadge = isOwner ? '<span style="font-size:0.65rem;background:linear-gradient(90deg,#7c3aed,#a855f7);color:white;padding:1px 6px;border-radius:10px;margin-left:4px;">OWNER</span>' : '';
       const ago = timeAgo(post.created_at);
-      const sc = (post.algorithm_score||0);
-      const si = sc > 100 ? '🔥' : sc > 50 ? '⭐' : '';
+      const sc = (post.algorithm_score || 0);
+      const si = sc > 100 ? ' 🔥' : sc > 50 ? ' ⭐' : '';
+      /* Score badge for Top tab */
+      const scoreBadge = currentTab === 'top' ? '<span style="font-size:0.68rem;background:rgba(124,58,237,0.2);border:1px solid rgba(124,58,237,0.4);color:#a855f7;padding:1px 7px;border-radius:10px;margin-left:6px;">score '+sc+'</span>' : '';
 
       let media = '';
-      if (post.media && (post.media_type === 'image' || post.media_type === 'photo')) media = '<div style="margin:0.75rem 0;border-radius:10px;overflow:hidden;"><img src="'+post.media+'" style="width:100%;max-height:400px;object-fit:cover;" onerror="this.style.display=\'none\'"></div>';
-      else if (post.media && post.media_type === 'video') {
+      if (post.media && (post.media_type === 'image' || post.media_type === 'photo')) {
+        media = '<div style="margin:0.75rem 0;border-radius:10px;overflow:hidden;"><img src="'+post.media+'" style="width:100%;max-height:400px;object-fit:cover;" onerror="this.style.display=\'none\'"></div>';
+      } else if (post.media && post.media_type === 'video') {
         const yt = post.media.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
         if (yt) media = '<div style="margin:0.75rem 0;position:relative;padding-bottom:56.25%;height:0;border-radius:10px;overflow:hidden;"><iframe src="https://www.youtube.com/embed/'+yt[1]+'" style="position:absolute;inset:0;width:100%;height:100%;border:none;" allowfullscreen></iframe></div>';
         else media = '<div style="margin:0.75rem 0;border-radius:10px;overflow:hidden;"><video controls preload="none" style="width:100%;max-height:400px;"><source src="'+post.media+'"></video></div>';
+      } else if (post.media && post.media_type === 'audio') {
+        media = '<div style="margin:0.75rem 0;"><audio controls preload="none" style="width:100%;"><source src="'+post.media+'"></audio></div>';
       }
-      else if (post.media && post.media_type === 'audio') media = '<div style="margin:0.75rem 0;"><audio controls preload="none" style="width:100%;"><source src="'+post.media+'"></audio></div>';
 
-      return '<div class="feed-card" data-post-id="'+post.id+'"'+(isOwner?' style="border-color:rgba(124,58,237,0.6);box-shadow:0 0 12px rgba(124,58,237,0.15);"':'')+'>' +
-        '<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;">' +
-          '<a href="profile.html?id='+post.user_id+'" style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden;text-decoration:none;">'+av+'</a>' +
-          '<div style="flex:1;min-width:0;"><a href="profile.html?id='+post.user_id+'" style="font-weight:700;font-size:0.95rem;text-decoration:none;color:#eae6ff;">'+esc(name)+v+'</a> '+tb+ownerBadge+'<div style="font-size:0.78rem;color:#a855f7;opacity:0.7;">'+ago+' '+si+'</div></div></div>' +
-        (post.text ? '<div style="margin-bottom:0.5rem;line-height:1.55;word-break:break-word;">'+esc(post.text)+'</div>' : '') +
-        media +
-        '<div style="display:flex;gap:0.5rem;padding-top:0.6rem;border-top:1px solid rgba(124,58,237,0.15);">' +
-          '<button class="action-btn" onclick="likePost(\''+post.id+'\',this)">🤍 <span>'+(post.likes||0)+'</span></button>' +
-          '<button class="action-btn" onclick="commentPost(\''+post.id+'\')">💬 <span>'+(post.comments||0)+'</span></button>' +
-          '<button class="action-btn" onclick="sharePost(\''+post.id+'\',this)">🔁 <span>'+(post.shares||0)+'</span></button>' +
-          '<button class="action-btn" onclick="favPost(\''+post.id+'\',this)">⭐ <span>'+(post.favorites||0)+'</span></button>' +
+      const likeClass = liked ? 'action-btn liked' : 'action-btn';
+      const favClass = favorited ? 'action-btn favorited' : 'action-btn';
+
+      return '<div class="feed-card" data-post-id="'+post.id+'"'+(isOwner?' style="border-color:rgba(124,58,237,0.6);box-shadow:0 0 12px rgba(124,58,237,0.15);"':'')+'>'+
+        '<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;">'+
+          '<a href="profile.html?id='+post.user_id+'" style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden;text-decoration:none;">'+av+'</a>'+
+          '<div style="flex:1;min-width:0;">'+
+            '<a href="profile.html?id='+post.user_id+'" style="font-weight:700;font-size:0.95rem;text-decoration:none;color:#eae6ff;">'+esc(name)+v+'</a>'+tb+ownerBadge+scoreBadge+
+            '<div style="font-size:0.78rem;color:#a855f7;opacity:0.7;">'+ago+si+'</div>'+
+          '</div></div>'+
+        (post.text ? '<div style="margin-bottom:0.5rem;line-height:1.55;word-break:break-word;">'+esc(post.text)+'</div>' : '')+
+        media+
+        '<div style="display:flex;gap:0.25rem;flex-wrap:wrap;padding-top:0.6rem;border-top:1px solid rgba(124,58,237,0.15);">'+
+          '<button class="'+likeClass+'" id="like-btn-'+post.id+'" onclick="likePost(\''+post.id+'\',this)">❤️ <span id="like-count-'+post.id+'">'+(post.likes||0)+'</span></button>'+
+          '<button class="action-btn" onclick="toggleComments(\''+post.id+'\')">💬 <span id="comment-count-'+post.id+'">'+(post.comments||post.comment_count||0)+'</span></button>'+
+          '<button class="action-btn" onclick="resharePost(\''+post.id+'\',this)">🔁 <span id="reshare-count-'+post.id+'">'+(post.reshares||post.shares||0)+'</span></button>'+
+          '<button class="'+favClass+'" id="fav-btn-'+post.id+'" onclick="favPost(\''+post.id+'\',this)">⭐ <span id="fav-count-'+post.id+'">'+(post.favorites||0)+'</span></button>'+
+                    '<button class="action-btn" onclick="openShareSheet(\''+post.id+'\',encodeURIComponent(post.text||\'\')" title="Share">📤 Share</button>'+
         '</div></div>';
     }
 
@@ -202,100 +254,251 @@
       return new Date(d).toLocaleDateString();
     }
 
+    /* ── LIKE ── */
     window.likePost = async function(id, btn) {
       if (!currentUser) { alert('Log in to like posts'); return; }
       try {
-        const { data } = await db.from('posts').select('likes,user_id').eq('id',id).single();
-        if (!data) return;
-        const n = (data.likes||0)+1;
-        await db.from('posts').update({likes:n}).eq('id',id);
-        btn.innerHTML = '❤️ <span>'+n+'</span>';
-        try { await db.rpc('add_algorithm_points',{p_user_id:data.user_id,p_action:'receive_like',p_points:2}); } catch(e){}
-        try { await db.rpc('recalc_post_score',{p_post_id:id}); } catch(e){}
+        const alreadyLiked = btn.classList.contains('liked');
+        if (alreadyLiked) {
+          await db.from('post_likes').delete().eq('post_id', id).eq('user_id', currentUser.id);
+          const { data } = await db.from('posts').select('likes,user_id').eq('id',id).single();
+          const n = Math.max(0,(data.likes||1)-1);
+          await db.from('posts').update({likes:n}).eq('id',id);
+          document.getElementById('like-count-'+id).textContent = n;
+          btn.classList.remove('liked');
+        } else {
+          await db.from('post_likes').upsert({post_id:id,user_id:currentUser.id});
+          const { data } = await db.from('posts').select('likes,user_id').eq('id',id).single();
+          const n = (data.likes||0)+1;
+          await db.from('posts').update({likes:n}).eq('id',id);
+          document.getElementById('like-count-'+id).textContent = n;
+          btn.classList.add('liked');
+          try { await db.rpc('add_algorithm_points',{p_user_id:data.user_id,p_action:'receive_like',p_points:2}); } catch(e){}
+          try { await db.rpc('recalc_post_score',{p_post_id:id}); } catch(e){}
+        }
       } catch(e){ console.error(e); }
     };
 
-    window.commentPost = async function(id) {
-      if (!currentUser) { alert('Log in to comment'); return; }
-      let commentSection = document.getElementById('comments-' + id);
-      if (commentSection) { commentSection.style.display = commentSection.style.display === 'none' ? 'block' : 'none'; return; }
-      const postCard = document.querySelector('[data-post-id="' + id + '"]');
+    /* ── TOGGLE COMMENTS ── */
+    window.toggleComments = async function(id) {
+      let section = document.getElementById('comments-'+id);
+      if (section) { section.style.display = section.style.display === 'none' ? 'block' : 'none'; return; }
+      const postCard = document.querySelector('[data-post-id="'+id+'"]');
       if (!postCard) return;
-      commentSection = document.createElement('div');
-      commentSection.id = 'comments-' + id;
-      commentSection.style.cssText = 'margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid rgba(124,58,237,0.2);';
-      commentSection.innerHTML = '<div class="spinner" style="width:20px;height:20px;margin:0.5rem auto;"></div>';
-      postCard.appendChild(commentSection);
+      section = document.createElement('div');
+      section.id = 'comments-'+id;
+      section.className = 'comment-section';
+      section.innerHTML = '<div class="spinner" style="width:20px;height:20px;margin:0.5rem auto;"></div>';
+      postCard.appendChild(section);
+      await renderComments(id, section);
+    };
+
+    async function renderComments(postId, section) {
       try {
-        const { data: comments } = await db.from('post_comments').select('id, user_id, text, created_at').eq('post_id', id).order('created_at', { ascending: true }).limit(30);
+        const { data: comments } = await db.from('comments')
+          .select('id,user_id,text,created_at,likes,reply_to,profiles(username,display_name,avatar_url)')
+          .eq('post_id', postId)
+          .order('created_at', { ascending: true })
+          .limit(50);
+
+        const list = (comments || []);
         let cHtml = '';
-        if (comments && comments.length > 0) {
-          const uids = [...new Set(comments.map(c => c.user_id))];
-          const { data: profs } = await db.from('profiles').select('user_id, username, display_name').in('user_id', uids);
-          const pm = {}; if (profs) profs.forEach(p => pm[p.user_id] = p);
-          cHtml = comments.map(c => {
-            const cp = pm[c.user_id] || {};
+        if (!list.length) {
+          cHtml = '<div style="text-align:center;padding:0.75rem;color:rgba(168,85,247,0.4);font-size:0.82rem;">No comments yet. Be first!</div>';
+        } else {
+          list.forEach(c => {
+            const pr = c.profiles || {};
+            const name = pr.display_name || pr.username || 'User';
             const mine = currentUser && c.user_id === currentUser.id;
-            const ago = Math.floor((Date.now() - new Date(c.created_at).getTime())/60000);
-            const timeStr = ago < 1 ? 'now' : ago < 60 ? ago+'m' : ago < 1440 ? Math.floor(ago/60)+'h' : Math.floor(ago/1440)+'d';
-            return '<div style="padding:0.4rem 0;display:flex;justify-content:space-between;"><div><span style="font-weight:600;font-size:0.8rem;color:#a855f7;">' + (cp.display_name||cp.username||'User') + '</span> <span style="font-size:0.83rem;">' + c.text.replace(/</g,'&lt;') + '</span> <span style="font-size:0.7rem;color:rgba(168,85,247,0.4);">' + timeStr + '</span></div>' +
-            (mine ? '<button onclick="delFeedComment(\''+c.id+'\',\''+id+'\')" style="background:none;border:none;color:rgba(239,68,68,0.5);cursor:pointer;font-size:0.7rem;">✕</button>' : '') + '</div>';
-          }).join('');
+            const m = Math.floor((Date.now()-new Date(c.created_at).getTime())/60000);
+            const t = m<1?'now':m<60?m+'m':m<1440?Math.floor(m/60)+'h':Math.floor(m/1440)+'d';
+            cHtml += '<div class="comment-item" id="cm-'+c.id+'">';
+            cHtml += '<div style="display:flex;justify-content:space-between;align-items:flex-start;">';
+            cHtml += '<div style="flex:1;"><span class="comment-author">'+esc(name)+'</span> <span class="comment-meta">'+t+'</span><div class="comment-text">'+esc(c.text)+'</div></div>';
+            if(mine) cHtml += '<button class="comment-action-btn" onclick="deleteComment(\''+c.id+'\',\''+postId+'\')">🗑️</button>';
+            cHtml += '</div>';
+            cHtml += '<div class="comment-actions">';
+            cHtml += '<button class="comment-action-btn" id="clk-'+c.id+'" onclick="likeComment(\''+c.id+'\')">❤️ <span id="clc-'+c.id+'">'+(c.likes||0)+'</span></button>';
+            cHtml += '<button class="comment-action-btn" onclick="replyToComment(\''+postId+'\',\''+esc(name)+'\')">↩️ Reply</button>';
+            cHtml += '</div></div>';
+          });
         }
-        commentSection.innerHTML = cHtml +
-          '<div style="display:flex;gap:0.5rem;margin-top:0.5rem;"><input id="cinput-' + id + '" type="text" placeholder="Write a comment..." style="flex:1;background:rgba(0,0,0,0.3);border:1px solid rgba(124,58,237,0.3);border-radius:6px;padding:0.4rem 0.6rem;color:#eae6ff;font-size:0.83rem;" onkeypress="if(event.key===\'Enter\')sendFeedComment(\''+id+'\')"><button onclick="sendFeedComment(\'' + id + '\')" style="background:#7c3aed;border:none;color:white;padding:0.4rem 0.75rem;border-radius:6px;cursor:pointer;font-size:0.83rem;">Send</button></div>';
-      } catch(e) { commentSection.innerHTML = '<p style="color:#ef4444;font-size:0.8rem;">Error loading comments</p>'; }
+
+        cHtml += '<div style="display:flex;gap:0.5rem;margin-top:0.6rem;">';
+        cHtml += '<input id="cinput-'+postId+'" type="text" placeholder="Write a comment…" style="flex:1;background:rgba(0,0,0,0.3);border:1px solid rgba(124,58,237,0.3);border-radius:6px;padding:0.4rem 0.7rem;color:#eae6ff;font-size:0.83rem;" onkeypress="if(event.key===\'Enter\')sendComment(\''+postId+'\')">';
+        cHtml += '<button onclick="sendComment(\''+postId+'\')" style="background:#7c3aed;border:none;color:white;padding:0.4rem 0.85rem;border-radius:6px;cursor:pointer;font-size:0.83rem;font-weight:600;">Post</button>';
+        cHtml += '</div>';
+
+        section.innerHTML = cHtml;
+      } catch(e) { section.innerHTML = '<p style="color:#ef4444;font-size:0.8rem;padding:0.5rem;">Error loading comments</p>'; }
+    }
+
+    /* ── SEND COMMENT ── */
+    window.sendComment = async function(postId) {
+      if (!currentUser) { alert('Log in to comment'); return; }
+      const input = document.getElementById('cinput-'+postId);
+      if (!input) return;
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+      try {
+        await db.from('comments').insert({ post_id: postId, user_id: currentUser.id, text: text, likes: 0 });
+        const { data } = await db.from('posts').select('comments,comment_count,user_id').eq('id', postId).single();
+        const oldCount = data ? (data.comments || data.comment_count || 0) : 0;
+        await db.from('posts').update({ comments: oldCount+1, comment_count: oldCount+1 }).eq('id', postId);
+        document.getElementById('comment-count-'+postId).textContent = oldCount+1;
+        try { await db.rpc('add_algorithm_points',{p_user_id:data.user_id,p_action:'receive_comment',p_points:5}); } catch(e){}
+        /* Re-render comments */
+        const section = document.getElementById('comments-'+postId);
+        if (section) await renderComments(postId, section);
+      } catch(e) { alert('Error: '+e.message); }
     };
 
-    window.sendFeedComment = async function(postId) {
-      const input = document.getElementById('cinput-' + postId);
-      if (!input || !input.value.trim() || !currentUser) return;
-      const text = input.value.trim(); input.value = '';
+    /* ── LIKE COMMENT ── */
+    window.likeComment = async function(id) {
+      if (!currentUser) { alert('Log in to like'); return; }
       try {
-        await db.from('post_comments').insert({ post_id: postId, user_id: currentUser.id, text: text });
-        const { data } = await db.from('posts').select('comments,user_id').eq('id', postId).single();
-        if (data) {
-          await db.from('posts').update({ comments: (data.comments||0)+1 }).eq('id', postId);
-          try { await db.rpc('add_algorithm_points', { p_user_id: data.user_id, p_action: 'receive_comment', p_points: 5 }); } catch(e){}
-        }
-        document.getElementById('comments-' + postId).remove();
-        commentPost(postId);
-      } catch(e) { alert('Error: ' + e.message); }
-    };
-
-    window.delFeedComment = async function(commentId, postId) {
-      try {
-        await db.from('post_comments').delete().eq('id', commentId).eq('user_id', currentUser.id);
-        const { data } = await db.from('posts').select('comments').eq('id', postId).single();
-        if (data) await db.from('posts').update({ comments: Math.max(0, (data.comments||1)-1) }).eq('id', postId);
-        document.getElementById('comments-' + postId).remove();
-        commentPost(postId);
+        const { data } = await db.from('comments').select('likes').eq('id',id).maybeSingle();
+        const n = ((data && data.likes)||0)+1;
+        await db.from('comments').update({likes:n}).eq('id',id);
+        const el = document.getElementById('clc-'+id);
+        if (el) el.textContent = n;
+        const btn = document.getElementById('clk-'+id);
+        if (btn) btn.style.color = '#f472b6';
       } catch(e) { console.error(e); }
     };
 
-    window.sharePost = async function(id, btn) {
-      try {
-        const { data } = await db.from('posts').select('shares,user_id,text').eq('id',id).single();
-        if (!data) return;
-        const n = (data.shares||0)+1;
-        await db.from('posts').update({shares:n}).eq('id',id);
-        btn.innerHTML = '🔁 <span>'+n+'</span>';
-        const t = 'Check out this post on 8BFR: '+(data.text||'').substring(0,100);
-        try { if (navigator.share) await navigator.share({title:'8BFR',text:t,url:location.href}); else { await navigator.clipboard.writeText(t); alert('Link copied!'); } } catch(e){}
-        if (data.user_id) { try { await db.rpc('add_algorithm_points',{p_user_id:data.user_id,p_action:'receive_share',p_points:15}); } catch(e){} }
-        try { await db.rpc('recalc_post_score',{p_post_id:id}); } catch(e){}
-      } catch(e){ console.error(e); }
+    /* ── REPLY TO COMMENT ── */
+    window.replyToComment = function(postId, name) {
+      const inp = document.getElementById('cinput-'+postId);
+      if (inp) { inp.value = '@'+name+' '; inp.focus(); }
     };
 
+    /* ── DELETE COMMENT ── */
+    window.deleteComment = async function(id, postId) {
+      if (!confirm('Delete comment?')) return;
+      try {
+        await db.from('comments').delete().eq('id',id).eq('user_id',currentUser.id);
+        const { data } = await db.from('posts').select('comments,comment_count').eq('id',postId).single();
+        const n = Math.max(0,(data ? (data.comments||data.comment_count||1) : 1)-1);
+        await db.from('posts').update({comments:n,comment_count:n}).eq('id',postId);
+        document.getElementById('comment-count-'+postId).textContent = n;
+        const section = document.getElementById('comments-'+postId);
+        if (section) await renderComments(postId, section);
+      } catch(e) { console.error(e); }
+    };
+
+    /* ── RESHARE ── */
+    window.resharePost = async function(id, btn) {
+      if (!currentUser) { alert('Log in to reshare'); return; }
+      if (!confirm('Reshare this post to your profile?')) return;
+      try {
+        const { data } = await db.from('posts').select('*').eq('id',id).single();
+        if (!data) return;
+        await db.from('posts').insert({user_id:currentUser.id,text:data.text||null,media:data.media||null,media_type:data.media_type||null,reshared_from:id,likes:0,shares:0,favorites:0,reshares:0,comments:0,comment_count:0});
+        const n = (data.reshares||data.shares||0)+1;
+        await db.from('posts').update({reshares:n,shares:n}).eq('id',id);
+        document.getElementById('reshare-count-'+id).textContent = n;
+        try { await db.rpc('add_algorithm_points',{p_user_id:data.user_id,p_action:'receive_share',p_points:15}); } catch(e){}
+        try { await db.rpc('recalc_post_score',{p_post_id:id}); } catch(e){}
+      } catch(e){ alert('❌ '+e.message); }
+    };
+
+    /* ── SHARE SHEET ── */
+    window.openShareSheet = function(id, encodedText) {
+      const existing = document.getElementById('shareSheetOverlay');
+      if (existing) existing.remove();
+      const url = window.location.origin + '/feed.html?post=' + id;
+      const text = decodeURIComponent(encodedText || '');
+      const overlay = document.createElement('div');
+      overlay.id = 'shareSheetOverlay';
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,0.7);display:flex;align-items:flex-end;justify-content:center;';
+      overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
+      overlay.innerHTML = `
+        <div style="width:100%;max-width:480px;background:rgba(12,6,24,0.98);border:1px solid rgba(124,58,237,0.5);border-radius:18px 18px 0 0;padding:1.5rem;padding-bottom:2rem;">
+          <div style="width:40px;height:4px;background:rgba(168,85,247,0.4);border-radius:2px;margin:0 auto 1.25rem;"></div>
+          <h3 style="font-size:1rem;font-weight:700;color:#a855f7;margin-bottom:1.25rem;text-align:center;">📤 Share Post</h3>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.75rem;margin-bottom:1.25rem;">
+            <button onclick="shareSheetCopyLink('${url}')" style="background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:0.85rem 0.5rem;color:#eae6ff;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.4rem;font-size:0.72rem;">
+              <span style="font-size:1.5rem;">🔗</span>Copy Link
+            </button>
+            <button onclick="shareSheetToStory('${id}','${encodeURIComponent(text)}')" style="background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:0.85rem 0.5rem;color:#eae6ff;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.4rem;font-size:0.72rem;">
+              <span style="font-size:1.5rem;">📖</span>Your Story
+            </button>
+            <button onclick="shareSheetDM('${id}')" style="background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:0.85rem 0.5rem;color:#eae6ff;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.4rem;font-size:0.72rem;">
+              <span style="font-size:1.5rem;">💬</span>Send DM
+            </button>
+            <button onclick="shareSheetNative('${url}','${encodeURIComponent(text)}')" style="background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:0.85rem 0.5rem;color:#eae6ff;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.4rem;font-size:0.72rem;">
+              <span style="font-size:1.5rem;">↗️</span>More
+            </button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;">
+            <a href="https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent((text||'').substring(0,100))}" target="_blank" rel="noopener" style="background:rgba(29,161,242,0.15);border:1px solid rgba(29,161,242,0.3);border-radius:10px;padding:0.65rem 0.5rem;color:#eae6ff;text-decoration:none;display:flex;flex-direction:column;align-items:center;gap:0.3rem;font-size:0.7rem;">
+              <span style="font-size:1.2rem;">𝕏</span>Twitter / X
+            </a>
+            <a href="https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}" target="_blank" rel="noopener" style="background:rgba(24,119,242,0.15);border:1px solid rgba(24,119,242,0.3);border-radius:10px;padding:0.65rem 0.5rem;color:#eae6ff;text-decoration:none;display:flex;flex-direction:column;align-items:center;gap:0.3rem;font-size:0.7rem;">
+              <span style="font-size:1.2rem;">📘</span>Facebook
+            </a>
+            <a href="https://wa.me/?text=${encodeURIComponent((text||'').substring(0,80)+' '+url)}" target="_blank" rel="noopener" style="background:rgba(37,211,102,0.15);border:1px solid rgba(37,211,102,0.3);border-radius:10px;padding:0.65rem 0.5rem;color:#eae6ff;text-decoration:none;display:flex;flex-direction:column;align-items:center;gap:0.3rem;font-size:0.7rem;">
+              <span style="font-size:1.2rem;">💚</span>WhatsApp
+            </a>
+          </div>
+          <button onclick="document.getElementById('shareSheetOverlay').remove()" style="width:100%;margin-top:1rem;padding:0.7rem;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:10px;color:#a855f7;cursor:pointer;font-weight:600;">Cancel</button>
+        </div>`;
+      document.body.appendChild(overlay);
+    };
+
+    window.shareSheetCopyLink = function(url) {
+      navigator.clipboard.writeText(url).then(function(){ 
+        alert('✅ Link copied!'); 
+        var o=document.getElementById('shareSheetOverlay'); if(o)o.remove();
+      }).catch(function(){ alert(url); });
+    };
+
+    window.shareSheetToStory = async function(postId, encodedText) {
+      if (!currentUser) { alert('Sign in first'); return; }
+      var o=document.getElementById('shareSheetOverlay'); if(o)o.remove();
+      try {
+        var { data: p } = await db.from('posts').select('text,media,media_type').eq('id',postId).single();
+        await db.from('stories').insert({user_id:currentUser.id,text:p&&p.text?p.text.substring(0,200):null,media_url:p&&p.media?p.media:null,media_type:p&&p.media?'image':null,background_color:'#7c3aed',views:0,expires_at:new Date(Date.now()+24*3600000).toISOString()});
+        alert('✅ Added to your story!');
+      } catch(e){ alert('❌ '+e.message); }
+    };
+
+    window.shareSheetDM = function(postId) {
+      var o=document.getElementById('shareSheetOverlay'); if(o)o.remove();
+      window.location.href = 'dm.html?share_post=' + postId;
+    };
+
+    window.shareSheetNative = function(url, encodedText) {
+      var text = decodeURIComponent(encodedText||'');
+      if (navigator.share) {
+        navigator.share({title:'8BFR Post',text:text.substring(0,100),url:url}).catch(function(){});
+      } else {
+        alert('Use the other share options above, or copy the link.');
+      }
+    };
+
+    /* ── FAVORITE ── */
     window.favPost = async function(id, btn) {
       if (!currentUser) { alert('Log in to favorite'); return; }
       try {
-        const { data } = await db.from('posts').select('favorites').eq('id',id).single();
-        if (!data) return;
-        const n = (data.favorites||0)+1;
-        await db.from('posts').update({favorites:n}).eq('id',id);
-        btn.innerHTML = '⭐ <span>'+n+'</span>';
-        try { await db.from('favorites').insert({user_id:currentUser.id,target_type:'post',target_id:id}); } catch(e){}
+        const alreadyFav = btn.classList.contains('favorited');
+        if (alreadyFav) {
+          await db.from('post_favorites').delete().eq('post_id',id).eq('user_id',currentUser.id);
+          const { data } = await db.from('posts').select('favorites').eq('id',id).single();
+          const n = Math.max(0,(data.favorites||1)-1);
+          await db.from('posts').update({favorites:n}).eq('id',id);
+          document.getElementById('fav-count-'+id).textContent = n;
+          btn.classList.remove('favorited');
+        } else {
+          await db.from('post_favorites').upsert({post_id:id,user_id:currentUser.id});
+          const { data } = await db.from('posts').select('favorites').eq('id',id).single();
+          const n = (data.favorites||0)+1;
+          await db.from('posts').update({favorites:n}).eq('id',id);
+          document.getElementById('fav-count-'+id).textContent = n;
+          btn.classList.add('favorited');
+        }
       } catch(e){ console.error(e); }
     };
 
