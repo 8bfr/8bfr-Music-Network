@@ -187,7 +187,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
 .global-avatar.active{ display:block; }
 #carrieBubble{ position:absolute; bottom:100%; right:40px; margin-bottom:4px; padding:3px 10px; border-radius:999px; font-size:.72rem; background:rgba(15,23,42,.95); color:#e5e7eb; border:1px solid rgba(129,140,248,.9); white-space:nowrap; }
 #carrieBubble::after{ content:""; position:absolute; top:100%; right:16px; border-width:6px 6px 0 6px; border-style:solid; border-color:rgba(15,23,42,.95) transparent transparent transparent; }
-#avatarSwitcher{ display:flex; flex-direction:column; gap:4px; margin-bottom:6px; }
+#avatarSwitcher{ display:none; flex-direction:column; gap:4px; margin-bottom:6px; } #carrieWrap.switcher-open #avatarSwitcher{ display:flex; }
 .avatar-switcher-row{ display:flex; gap:3px; flex-wrap:wrap; }
 .avatar-char-btn,.avatar-style-btn{ padding:2px 8px; border-radius:999px; border:1px solid rgba(129,140,248,.6); background:rgba(15,23,42,.85); color:#e5e7eb; font-size:.62rem; cursor:pointer; white-space:nowrap; }
 .avatar-char-btn.active,.avatar-style-btn.active{ border-color:#a855f7; background:rgba(88,28,135,0.95); color:#fff; }
@@ -374,6 +374,9 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
       <button class="avatar-style-btn" data-style="casual">Casual</button>
       <button class="avatar-style-btn" data-style="partner">Partner</button>
     </div>
+    <div class="avatar-switcher-row" style="margin-top:2px;">
+      <button id="avatarChatBtn" style="width:100%;padding:4px 8px;border-radius:999px;border:1px solid #a855f7;background:rgba(124,58,237,0.5);color:#fff;font-size:.68rem;font-weight:700;cursor:pointer;white-space:nowrap;">💬 Chat</button>
+    </div>
   </div>
   <div id="carrieBubble">Chat with me</div>
   <video id="avatar-carrie-business" class="global-avatar active" src="assets/videos/carrie_business_animate.webm" autoplay loop muted playsinline></video>
@@ -505,7 +508,26 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
       carrieWrap.addEventListener("mousedown", startDragOrResize);
       carrieWrap.addEventListener("touchstart", startTouch, { passive: false });
       carrieWrap.addEventListener("click", (e) => {
+        // Chat button inside switcher
+        if (e.target.closest("#avatarChatBtn")) {
+          window.location.href = "carrie-chat.html";
+          return;
+        }
         if (e.target.closest("#avatarSwitcher")) return;
+        // Tap avatar: toggle switcher open/closed
+        if (!carrieWrap.classList.contains("switcher-open")) {
+          carrieWrap.classList.add("switcher-open");
+          setTimeout(function() {
+            document.addEventListener("click", function closeSwitcher(ev) {
+              if (!carrieWrap.contains(ev.target)) {
+                carrieWrap.classList.remove("switcher-open");
+                document.removeEventListener("click", closeSwitcher);
+              }
+            });
+          }, 50);
+          return;
+        }
+        carrieWrap.classList.remove("switcher-open");
         if (!moved && !pinchActive && !mouseResizeActive) window.location.href = "carrie-chat.html";
       });
       carrieWrap.addEventListener("touchend", (e) => {
