@@ -457,34 +457,76 @@
       }
     } catch(e) { console.error('Home radio:', e); }
 
-    // ── COMMUNITY FEED PREVIEW ──
-    try {
-      var fRes = await sb.from('posts').select('id,user_id,text,media,media_type,likes,comments,shares,created_at').order('created_at',{ascending:false}).limit(3);
-      var posts = fRes.data || [];
-      var feedEl = document.getElementById('homeFeedList');
-      if (!feedEl) return;
-      if (posts.length === 0) {
-        feedEl.innerHTML = '<div style="text-align:center;padding:2rem;color:#a855f7;opacity:0.7;">No posts yet — be the first!</div>';
-      } else {
-        var authorIds = posts.map(function(p){return p.user_id}).filter(Boolean);
-        authorIds = authorIds.filter(function(v,i,a){return a.indexOf(v)===i});
-        var apm = {};
-        if (authorIds.length > 0) {
-          var apRes = await sb.from('profiles').select('user_id,username,display_name,avatar_url,verified_artist').in('user_id', authorIds);
-          if (apRes.data) apRes.data.forEach(function(p){ apm[p.user_id] = p; });
-        }
-        feedEl.innerHTML = posts.map(function(p){
-          var pr = apm[p.user_id] || {};
-          var name = pr.display_name || pr.username || 'User';
-          var av = pr.avatar_url ? '<img src="'+pr.avatar_url+'" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.textContent=\'🎵\'">' : '🎵';
-          var v = pr.verified_artist ? ' <span style="color:#00d9ff;">✓</span>' : '';
-          var ago = timeAgo(p.created_at);
-          var mediaHtml = '';
-          if (p.media && (p.media_type==='photo'||p.media_type==='image')) mediaHtml = '<div style="margin:0.5rem 0;border-radius:8px;overflow:hidden;"><img src="'+p.media+'" style="width:100%;max-height:200px;object-fit:cover;" onerror="this.style.display=\'none\'"></div>';
-          return '<div style="background:rgba(15,0,30,0.6);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:1rem;"><div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;"><div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:1.1rem;overflow:hidden;">'+av+'</div><div><div style="font-weight:700;font-size:0.95rem;">'+name+v+'</div><div style="font-size:0.8rem;color:#a855f7;opacity:0.7;">'+ago+'</div></div></div>'+(p.text?'<div style="margin-bottom:0.5rem;line-height:1.5;">'+p.text.substring(0,200)+'</div>':'')+mediaHtml+'<div style="display:flex;gap:1rem;padding-top:0.5rem;border-top:1px solid rgba(124,58,237,0.2);font-size:0.85rem;color:#a855f7;"><span>🤍 '+(p.likes||0)+'</span><span>💬 '+(p.comments||0)+'</span><span>🔁 '+(p.shares||0)+'</span></div></div>';
-        }).join('');
-      }
-    } catch(e) { console.error('Home feed:', e); }
+    <!-- PATCHED: Community Feed Preview - drop this script in index.html replacing the feed section in the inline script -->
+<script>
+// ── COMMUNITY FEED PREVIEW (patched - posts clickable, buttons work) ──
+(async function(){
+  if (!window.supabase) return;
+  var sb = window.supabase.createClient(
+    'https://novbuvwpjnxwwvdekjhr.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0'
+  );
+
+  function timeAgo(d) {
+    if (!d) return '';
+    var m = Math.floor((Date.now() - new Date(d).getTime()) / 60000);
+    if (m < 1) return 'Just now'; if (m < 60) return m+'m ago';
+    var h = Math.floor(m/60); if (h < 24) return h+'h ago';
+    var dy = Math.floor(h/24); if (dy < 7) return dy+'d ago';
+    return new Date(d).toLocaleDateString();
+  }
+
+  try {
+    var fRes = await sb.from('posts')
+      .select('id,user_id,text,media,media_type,likes,comments,comment_count,reshares,shares,created_at')
+      .order('created_at', { ascending: false })
+      .limit(3);
+    var posts = fRes.data || [];
+    var feedEl = document.getElementById('homeFeedList');
+    if (!feedEl) return;
+
+    if (!posts.length) {
+      feedEl.innerHTML = '<div style="text-align:center;padding:2rem;color:#a855f7;opacity:0.7;">No posts yet — be the first!</div>';
+      return;
+    }
+
+    var authorIds = posts.map(function(p){ return p.user_id; }).filter(function(v,i,a){ return v && a.indexOf(v)===i; });
+    var apm = {};
+    if (authorIds.length) {
+      var apRes = await sb.from('profiles').select('user_id,username,display_name,avatar_url,verified_artist').in('user_id', authorIds);
+      if (apRes.data) apRes.data.forEach(function(p){ apm[p.user_id] = p; });
+    }
+
+    feedEl.innerHTML = posts.map(function(p){
+      var pr = apm[p.user_id] || {};
+      var name = pr.display_name || pr.username || 'User';
+      var av = pr.avatar_url ? '<img src="'+pr.avatar_url+'" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.textContent='🎵'">' : '🎵';
+      var v = pr.verified_artist ? ' <span style="color:#00d9ff;">✓</span>' : '';
+      var ago = timeAgo(p.created_at);
+      var mediaHtml = '';
+      if (p.media && (p.media_type==='photo'||p.media_type==='image'))
+        mediaHtml = '<a href="feed.html?post='+p.id+'" style="display:block;margin:0.5rem 0;border-radius:8px;overflow:hidden;text-decoration:none;"><img src="'+p.media+'" style="width:100%;max-height:200px;object-fit:cover;" onerror="this.style.display='none'"></a>';
+      var textHtml = p.text ? '<a href="feed.html?post='+p.id+'" style="display:block;margin-bottom:0.5rem;line-height:1.5;color:#eae6ff;text-decoration:none;">'+p.text.substring(0,200)+(p.text.length>200?'&hellip;':'')+'</a>' : '';
+      return '<div style="background:rgba(15,0,30,0.6);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:1rem;">'+
+        '<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;">'+
+          '<a href="profile.html?id='+p.user_id+'" style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:1.1rem;overflow:hidden;text-decoration:none;flex-shrink:0;">'+av+'</a>'+
+          '<div style="flex:1;min-width:0;">'+
+            '<a href="profile.html?id='+p.user_id+'" style="font-weight:700;font-size:0.95rem;text-decoration:none;color:#eae6ff;">'+name+v+'</a>'+
+            '<div style="font-size:0.8rem;color:#a855f7;opacity:0.7;">'+ago+'</div>'+
+          '</div>'+
+          '<a href="feed.html?post='+p.id+'" style="font-size:0.72rem;color:#a855f7;text-decoration:none;padding:3px 8px;border:1px solid rgba(124,58,237,0.3);border-radius:10px;white-space:nowrap;">View &rarr;</a>'+
+        '</div>'+
+        textHtml+mediaHtml+
+        '<div style="display:flex;gap:0.5rem;padding-top:0.5rem;border-top:1px solid rgba(124,58,237,0.2);">'+
+          '<a href="feed.html?post='+p.id+'" style="display:inline-flex;align-items:center;gap:0.3rem;background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.25);color:#a855f7;border-radius:16px;padding:0.3rem 0.7rem;font-size:0.8rem;text-decoration:none;">&hearts; '+(p.likes||0)+'</a>'+
+          '<a href="feed.html?post='+p.id+'" style="display:inline-flex;align-items:center;gap:0.3rem;background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.25);color:#a855f7;border-radius:16px;padding:0.3rem 0.7rem;font-size:0.8rem;text-decoration:none;">&#128172; '+(p.comments||p.comment_count||0)+'</a>'+
+          '<a href="feed.html?post='+p.id+'" style="display:inline-flex;align-items:center;gap:0.3rem;background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.25);color:#a855f7;border-radius:16px;padding:0.3rem 0.7rem;font-size:0.8rem;text-decoration:none;">&#128260; '+(p.reshares||p.shares||0)+'</a>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+  } catch(e) { console.error('Home feed:', e); }
+})();
+</script>
 
     // ── FOUNDER SPOTS COUNTER ──
     try {
