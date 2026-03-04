@@ -11,10 +11,8 @@ body { background: linear-gradient(#0b0014, #000); color: #eae6ff; font-family: 
 .card { border: 1px solid rgba(124,58,237,0.4); background: rgba(12,6,24,0.8); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; }
 .story-card { position: relative; border-radius: 16px; overflow: hidden; cursor: pointer; aspect-ratio: 9/16; border: 2px solid transparent; transition: all 0.2s; }
 .story-card:hover { border-color: #a855f7; transform: scale(1.02); box-shadow: 0 8px 30px rgba(124,58,237,0.4); }
+.story-card.highlighted { border-color: #00d9ff; box-shadow: 0 0 20px rgba(0,217,255,0.4); }
 .story-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.7)); padding: 1rem; display: flex; flex-direction: column; justify-content: space-between; }
-.story-avatar { width: 40px; height: 40px; border-radius: 50%; border: 2px solid #fff; object-fit: cover; }
-.story-username { font-weight: 600; font-size: 0.9rem; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
-.story-time { font-size: 0.75rem; opacity: 0.9; color: #fff; }
 .spinner { width: 32px; height: 32px; border-radius: 50%; border: 3px solid rgba(168,85,247,0.2); border-top-color: #a855f7; animation: spin 0.7s linear infinite; margin: 2rem auto; }
 @keyframes spin { to { transform: rotate(360deg); } }
 header { padding: 1rem; background: rgba(15,0,30,0.95); border-bottom: 1px solid rgba(124,58,237,0.5); position: sticky; top: 0; z-index: 50; }
@@ -22,7 +20,6 @@ header div { max-width: 1000px; margin: 0 auto; display: flex; align-items: cent
 </style>
 </head>
 <body>
-
 <header>
   <div>
     <a href="index.html" style="color:#a855f7;font-weight:600;text-decoration:none;padding:0.5rem 1rem;border:1px solid rgba(124,58,237,0.6);border-radius:0.75rem;">← Home</a>
@@ -39,13 +36,11 @@ header div { max-width: 1000px; margin: 0 auto; display: flex; align-items: cent
   </div>
 
   <div id="storiesLoading"><div class="spinner"></div></div>
-
-  <div id="storiesGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1rem;margin-bottom:2rem;"></div>
-
+  <div id="storiesGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;margin-bottom:2rem;"></div>
   <div id="emptyState" style="display:none;text-align:center;padding:4rem 2rem;">
     <div style="font-size:4rem;margin-bottom:1rem;opacity:0.5;">📭</div>
     <h3 style="font-size:1.3rem;font-weight:bold;margin-bottom:0.75rem;">No Stories Yet</h3>
-    <p style="opacity:0.8;margin-bottom:1rem;">Be the first to share! Create a story from your <a href="profile.html" style="color:#a855f7;">Profile page</a>.</p>
+    <p style="opacity:0.8;margin-bottom:1rem;">Be the first! Create a story from your <a href="profile.html" style="color:#a855f7;">Profile page</a>.</p>
   </div>
 
   <div class="card" style="background:rgba(0,217,255,0.05);border-color:rgba(0,217,255,0.3);">
@@ -79,6 +74,11 @@ header div { max-width: 1000px; margin: 0 auto; display: flex; align-items: cent
   var loading = document.getElementById('storiesLoading');
   var empty = document.getElementById('emptyState');
 
+  // Check if we came from a profile with a specific story id
+  var params = new URLSearchParams(location.search);
+  var targetStoryId = params.get('id');  // ?id=STORY_UUID from profile page click
+  var targetUserId = params.get('user'); // ?user=USER_UUID alternate param
+
   function ago(d){
     if(!d) return '';
     var m=Math.floor((Date.now()-new Date(d).getTime())/60000);
@@ -88,53 +88,88 @@ header div { max-width: 1000px; margin: 0 auto; display: flex; align-items: cent
   }
 
   try {
-    // Load stories from Supabase (not expired)
-    var { data: stories, error } = await db.from('stories').select('id,user_id,text,background_color,media_url,media_type,created_at,expires_at')
+    var { data: stories, error } = await db.from('stories')
+      .select('id,user_id,text,background_color,media_url,media_type,created_at,expires_at,views')
       .or('expires_at.is.null,expires_at.gt.' + new Date().toISOString())
-      .order('created_at', { ascending: false }).limit(100);
+      .order('created_at', { ascending: false })
+      .limit(100);
 
     loading.style.display = 'none';
-
     if (error) throw error;
     if (!stories || !stories.length) { empty.style.display = 'block'; return; }
 
+    // If we have a target story id, find its user and redirect to viewer
+    if (targetStoryId) {
+      var target = stories.find(function(s){ return s.id === targetStoryId; });
+      if (target) {
+        // Find the index of this story among the user's stories
+        var userStories = stories.filter(function(s){ return s.user_id === target.user_id; })
+          .sort(function(a,b){ return new Date(a.created_at)-new Date(b.created_at); });
+        var storyIndex = userStories.findIndex(function(s){ return s.id === targetStoryId; });
+        window.location.href = 'story-viewer.html?user=' + target.user_id + '&index=' + Math.max(0, storyIndex);
+        return;
+      }
+    }
+
+    // If we have a target user, redirect to their stories
+    if (targetUserId) {
+      window.location.href = 'story-viewer.html?user=' + targetUserId + '&index=0';
+      return;
+    }
+
     // Get unique user IDs and fetch profiles
-    var uids = [...new Set(stories.map(s => s.user_id).filter(Boolean))];
+    var uids = stories.map(function(s){ return s.user_id; }).filter(function(v,i,a){ return v && a.indexOf(v)===i; });
     var pMap = {};
     if (uids.length) {
       var { data: profiles } = await db.from('profiles').select('user_id,username,display_name,avatar_url').in('user_id', uids);
       (profiles || []).forEach(function(p) { pMap[p.user_id] = p; });
     }
 
-    // Group stories by user
+    // Group stories by user (most recent first per user)
     var grouped = {};
+    var userOrder = [];
     stories.forEach(function(s) {
-      if (!grouped[s.user_id]) grouped[s.user_id] = { user_id: s.user_id, stories: [] };
+      if (!grouped[s.user_id]) { grouped[s.user_id] = { user_id: s.user_id, stories: [] }; userOrder.push(s.user_id); }
       grouped[s.user_id].stories.push(s);
     });
+    // dedupe userOrder
+    userOrder = userOrder.filter(function(v,i,a){ return a.indexOf(v)===i; });
 
-    var users = Object.values(grouped);
-    if (!users.length) { empty.style.display = 'block'; return; }
+    if (!userOrder.length) { empty.style.display = 'block'; return; }
 
-    users.forEach(function(u) {
+    userOrder.forEach(function(uid) {
+      var u = grouped[uid];
       var p = pMap[u.user_id] || {};
-      var latest = u.stories[0]; // already sorted desc
+      var latest = u.stories[0];
+      var totalViews = u.stories.reduce(function(a,s){ return a+(s.views||0); }, 0);
+
       var bgStyle = '';
       if (latest.media_url) bgStyle = 'background-image:url('+latest.media_url+');background-size:cover;background-position:center;';
       else bgStyle = 'background:'+(latest.background_color ? 'linear-gradient(135deg,'+latest.background_color+',rgba(168,85,247,0.5))' : 'linear-gradient(135deg,#7c3aed,#a855f7)')+';';
 
-      var avImg = p.avatar_url ? '<img src="'+p.avatar_url+'" style="width:40px;height:40px;border-radius:50%;border:2px solid #fff;object-fit:cover;" onerror="this.src=\'assets/images/default_user_32_40.png\'">' : '<div style="width:40px;height:40px;border-radius:50%;border:2px solid #fff;background:rgba(124,58,237,0.5);display:flex;align-items:center;justify-content:center;">👤</div>';
+      var avImg = p.avatar_url
+        ? '<img src="'+p.avatar_url+'" style="width:40px;height:40px;border-radius:50%;border:2px solid #fff;object-fit:cover;" onerror="this.src=\'assets/images/default_user_32_40.png\'">'
+        : '<div style="width:40px;height:40px;border-radius:50%;border:2px solid #fff;background:rgba(124,58,237,0.5);display:flex;align-items:center;justify-content:center;">👤</div>';
 
-      grid.innerHTML += '<div class="story-card" style="'+bgStyle+'" onclick="location.href=\'story-viewer.html?user='+u.user_id+'&index=0\'">' +
+      // Link goes to story-viewer with user id
+      var link = 'story-viewer.html?user='+u.user_id+'&index=0';
+
+      grid.innerHTML += '<div class="story-card" style="'+bgStyle+'" onclick="location.href=\''+link+'\'">' +
         '<div class="story-overlay">' +
-          '<div style="display:flex;align-items:center;gap:0.5rem;">'+avImg+'<div><div class="story-username">'+(p.display_name||p.username||'User')+'</div><div class="story-time">'+ago(latest.created_at)+'</div></div></div>' +
-          (latest.text && !latest.media_url ? '<div style="text-align:center;font-size:1rem;font-weight:600;color:#fff;text-shadow:0 2px 4px rgba(0,0,0,0.5);padding:1rem;">'+latest.text.substring(0,80)+'</div>' : '') +
-          '<div style="font-size:0.75rem;color:#fff;opacity:0.9;">'+u.stories.length+' '+(u.stories.length===1?'story':'stories')+'</div>' +
+          '<div style="display:flex;align-items:center;gap:0.5rem;">'+avImg+
+            '<div><div style="font-weight:600;font-size:0.9rem;color:#fff;text-shadow:0 2px 4px rgba(0,0,0,0.5);">'+(p.display_name||p.username||'User')+'</div>' +
+            '<div style="font-size:0.72rem;color:rgba(255,255,255,0.85);">'+ago(latest.created_at)+'</div></div></div>' +
+          (latest.text && !latest.media_url ? '<div style="text-align:center;font-size:0.95rem;font-weight:600;color:#fff;text-shadow:0 2px 4px rgba(0,0,0,0.5);padding:0.5rem;">'+latest.text.substring(0,80)+'</div>' : '') +
+          '<div style="display:flex;justify-content:space-between;font-size:0.72rem;color:rgba(255,255,255,0.85);">' +
+            '<span>'+u.stories.length+' '+(u.stories.length===1?'story':'stories')+'</span>' +
+            '<span>👁️ '+totalViews+'</span>' +
+          '</div>' +
         '</div></div>';
     });
+
   } catch(e) {
     loading.style.display = 'none';
-    grid.innerHTML = '<div style="text-align:center;padding:2rem;color:#ef4444;">Error loading stories: '+e.message+'</div>';
+    grid.innerHTML = '<div style="text-align:center;padding:2rem;color:#ef4444;">Error: '+e.message+'</div>';
   }
 })();
 </script>
