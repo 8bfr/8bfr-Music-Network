@@ -16,125 +16,211 @@ body{background:#000;color:#fff;font-family:system-ui,sans-serif;overflow:hidden
 .progress-bar{flex:1;height:2px;background:rgba(255,255,255,0.3);border-radius:2px;overflow:hidden;}
 .progress-fill{height:100%;background:#fff;width:0%;transition:width 0.1s linear;}
 .story-user-info{display:flex;align-items:center;gap:0.75rem;}
-.story-avatar{width:32px;height:32px;border-radius:50%;border:2px solid #fff;object-fit:cover;}
-.close-btn{position:absolute;top:1rem;right:1rem;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,0.5);border:none;color:#fff;font-size:1.25rem;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:20;}
-.story-body{flex:1;display:flex;align-items:center;justify-content:center;padding:2rem;position:relative;}
+.story-avatar{width:36px;height:36px;border-radius:50%;border:2px solid #fff;object-fit:cover;}
+.close-btn{position:absolute;top:1rem;right:1rem;width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,0.5);border:none;color:#fff;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:20;}
+.story-body{flex:1;display:flex;align-items:center;justify-content:center;padding:2rem;position:relative;overflow:hidden;}
 .story-text{font-size:1.5rem;font-weight:600;text-align:center;line-height:1.4;text-shadow:0 2px 8px rgba(0,0,0,0.3);max-width:90%;}
 .story-image{width:100%;height:100%;object-fit:contain;background:#000;}
-.story-footer{position:absolute;bottom:0;left:0;right:0;padding:1.5rem;background:linear-gradient(to top,rgba(0,0,0,0.5),transparent);z-index:10;}
+.story-footer{position:absolute;bottom:0;left:0;right:0;padding:1.25rem 1rem;background:linear-gradient(to top,rgba(0,0,0,0.6),transparent);z-index:10;}
 .reply-input{display:flex;gap:0.5rem;}
-.reply-input input{flex:1;padding:0.75rem 1rem;border-radius:50px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.1);color:#fff;font-size:0.9rem;}
-.reply-btn{padding:0.75rem 1.25rem;border-radius:50px;border:none;background:#7c3aed;color:#fff;font-weight:600;cursor:pointer;}
+.reply-input input{flex:1;padding:0.65rem 1rem;border-radius:50px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.1);color:#fff;font-size:0.9rem;}
+.reply-input input::placeholder{color:rgba(255,255,255,0.6);}
+.reply-btn{padding:0.65rem 1.25rem;border-radius:50px;border:none;background:#7c3aed;color:#fff;font-weight:600;cursor:pointer;}
 .nav-area{position:absolute;top:0;bottom:0;width:35%;z-index:5;cursor:pointer;user-select:none;}
 .nav-area.left{left:0;} .nav-area.right{right:0;}
+#viewsDisplay{font-size:0.8rem;color:rgba(255,255,255,0.8);margin-bottom:0.75rem;display:flex;align-items:center;gap:0.4rem;}
 </style>
 </head>
 <body>
 <div id="storyContainer">
   <div id="storyContent">
-    <button class="close-btn" onclick="closeViewer()">✕</button>
+    <button class="close-btn" onclick="SV.close()">✕</button>
     <div class="story-header">
       <div class="progress-bars" id="progressBars"></div>
       <div class="story-user-info">
-        <img id="userAvatar" class="story-avatar" src="" alt="">
-        <div style="flex:1;"><div style="font-weight:600;font-size:0.9rem;" id="username"></div><div style="font-size:0.75rem;opacity:0.8;" id="storyTime"></div></div>
+        <img id="userAvatar" class="story-avatar" src="assets/images/default_user_32_40.png" alt="">
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:0.9rem;" id="username"></div>
+          <div style="font-size:0.72rem;opacity:0.8;" id="storyTime"></div>
+        </div>
+        <a id="profileLink" href="profile.html" style="font-size:0.72rem;color:rgba(255,255,255,0.7);text-decoration:none;border:1px solid rgba(255,255,255,0.3);padding:2px 8px;border-radius:12px;">Profile</a>
       </div>
     </div>
     <div class="story-body" id="storyBody"><div style="font-size:2rem;">⏳</div></div>
     <div class="story-footer">
-      <div id="storyViews" style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;font-size:0.85rem;"></div>
+      <div id="viewsDisplay"></div>
       <div class="reply-input">
         <input type="text" id="replyInput" placeholder="Reply to story...">
         <button class="reply-btn" onclick="sendReply()">Send</button>
       </div>
     </div>
-    <div class="nav-area left" onclick="prevStory()"></div>
-    <div class="nav-area right" onclick="nextStory()"></div>
+    <div class="nav-area left" onclick="SV.prev()"></div>
+    <div class="nav-area right" onclick="SV.next()"></div>
   </div>
 </div>
+
 <script>
 var db = window.supabase.createClient(
   'https://novbuvwpjnxwwvdekjhr.supabase.co',
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0'
 );
+
 var SV = {
   userId: null, idx: 0, stories: [], profile: {}, interval: null, dur: 5000,
+  currentUser: null,
+
   async init() {
     var p = new URLSearchParams(location.search);
     this.userId = p.get('user');
     this.idx = parseInt(p.get('index') || '0');
     if (!this.userId) { this.close(); return; }
-    // Load stories for this user from Supabase
-    var { data } = await db.from('stories').select('*')
-      .eq('user_id', this.userId)
-      .or('expires_at.is.null,expires_at.gt.' + new Date().toISOString())
-      .order('created_at');
-    this.stories = data || [];
-    if (!this.stories.length) { this.close(); return; }
-    // Load profile
-    var { data: pr } = await db.from('profiles').select('username,display_name,avatar_url').eq('user_id', this.userId).maybeSingle();
-    this.profile = pr || {};
-    this.show();
-    // Record view
+
+    // Get current user for view tracking
     try {
       var sess = await db.auth.getSession();
-      var uid = sess?.data?.session?.user?.id;
-      if (uid) await db.from('story_views').upsert({ story_id: this.stories[this.idx].id, viewer_id: uid }, { onConflict: 'story_id,viewer_id' });
-    } catch(e){}
-    // Keys
-    document.addEventListener('keydown', function(e) {
-      if (e.key==='ArrowLeft') SV.prev(); if (e.key==='ArrowRight') SV.next(); if (e.key==='Escape') SV.close();
-    });
-  },
-  show() {
-    if (this.idx >= this.stories.length) { this.close(); return; }
-    var s = this.stories[this.idx];
+      this.currentUser = sess?.data?.session?.user || null;
+    } catch(e) {}
+
+    // Load all stories for this user
+    var { data } = await db.from('stories')
+      .select('id,user_id,text,background_color,media_url,media_type,created_at,expires_at,views')
+      .eq('user_id', this.userId)
+      .or('expires_at.is.null,expires_at.gt.' + new Date().toISOString())
+      .order('created_at', { ascending: true });
+
+    this.stories = data || [];
+    if (!this.stories.length) { this.close(); return; }
+
+    // Clamp idx
+    this.idx = Math.min(this.idx, this.stories.length - 1);
+
+    // Load profile
+    var { data: pr } = await db.from('profiles')
+      .select('username,display_name,avatar_url')
+      .eq('user_id', this.userId).maybeSingle();
+    this.profile = pr || {};
+
     document.getElementById('username').textContent = this.profile.display_name || this.profile.username || 'User';
     document.getElementById('userAvatar').src = this.profile.avatar_url || 'assets/images/default_user_32_40.png';
-    function ago(d){ var m=Math.floor((Date.now()-new Date(d).getTime())/60000); if(m<1)return 'Just now'; if(m<60)return m+'m'; var h=Math.floor(m/60); return h<24?h+'h':Math.floor(h/24)+'d'; }
+    document.getElementById('profileLink').href = 'profile.html?id=' + this.userId;
+
+    this.show();
+
+    // Keyboard nav
+    document.addEventListener('keydown', function(e) {
+      if (e.key==='ArrowLeft') SV.prev();
+      else if (e.key==='ArrowRight') SV.next();
+      else if (e.key==='Escape') SV.close();
+    });
+  },
+
+  async recordView(storyId) {
+    try {
+      // Get current view count
+      var { data: story } = await db.from('stories').select('views').eq('id', storyId).maybeSingle();
+      var currentViews = (story && story.views) || 0;
+
+      if (this.currentUser) {
+        // Logged in: upsert to story_views table AND increment views count
+        var { data: existing } = await db.from('story_views')
+          .select('id').eq('story_id', storyId).eq('viewer_id', this.currentUser.id).maybeSingle();
+        if (!existing) {
+          await db.from('story_views').insert({ story_id: storyId, viewer_id: this.currentUser.id });
+          // Increment views count
+          await db.from('stories').update({ views: currentViews + 1 }).eq('id', storyId);
+          // Update local story object
+          var s = this.stories.find(function(x){ return x.id === storyId; });
+          if (s) s.views = currentViews + 1;
+        }
+      } else {
+        // Guest: just increment (no dedup for guests)
+        await db.from('stories').update({ views: currentViews + 1 }).eq('id', storyId);
+        var s = this.stories.find(function(x){ return x.id === storyId; });
+        if (s) s.views = currentViews + 1;
+      }
+    } catch(e) { console.warn('View tracking error:', e); }
+  },
+
+  show() {
+    if (this.idx < 0 || this.idx >= this.stories.length) { this.close(); return; }
+    var s = this.stories[this.idx];
+
+    // Time
+    function ago(d){ var m=Math.floor((Date.now()-new Date(d).getTime())/60000); if(m<1)return 'Just now'; if(m<60)return m+'m ago'; var h=Math.floor(m/60); return h<24?h+'h ago':Math.floor(h/24)+'d ago'; }
     document.getElementById('storyTime').textContent = ago(s.created_at);
+
     // Progress bars
     var pb = document.getElementById('progressBars'); pb.innerHTML = '';
     this.stories.forEach(function(st, i) {
       var bar = document.createElement('div'); bar.className = 'progress-bar';
       var fill = document.createElement('div'); fill.className = 'progress-fill';
       if (i < SV.idx) fill.style.width = '100%';
-      else if (i === SV.idx) fill.id = 'currentProgress';
+      else if (i === SV.idx) { fill.id = 'currentProgress'; fill.style.width = '0%'; }
       bar.appendChild(fill); pb.appendChild(bar);
     });
+
     // Content
     var body = document.getElementById('storyBody');
     if (s.media_url) {
       body.style.background = '#000';
-      body.innerHTML = '<img src="'+s.media_url+'" class="story-image" onerror="this.parentElement.innerHTML=\'Image failed to load\'">';
+      body.style.padding = '0';
+      body.innerHTML = '<img src="'+s.media_url+'" class="story-image" onerror="this.parentElement.innerHTML=\'<div style=padding:2rem;text-align:center;>Image failed to load</div>\'">';
     } else {
-      var bg = s.background_color ? 'linear-gradient(135deg,'+s.background_color+',rgba(168,85,247,0.5))' : 'linear-gradient(135deg,#7c3aed,#a855f7)';
+      var bg = s.background_color
+        ? 'linear-gradient(135deg,'+s.background_color+',rgba(168,85,247,0.5))'
+        : 'linear-gradient(135deg,#7c3aed,#a855f7)';
       body.style.background = bg;
+      body.style.padding = '2rem';
       body.innerHTML = '<div class="story-text">'+(s.text||'')+'</div>';
     }
-    document.getElementById('storyViews').innerHTML = '👁️ views';
+
+    // Views display
+    document.getElementById('viewsDisplay').innerHTML = '👁️ '+(s.views||0)+' view'+(( (s.views||0) )===1?'':'s');
+
+    // Record view
+    this.recordView(s.id);
+
+    // Start progress timer
     this.startProgress();
   },
+
   startProgress() {
     this.stopProgress();
     var bar = document.getElementById('currentProgress'); if (!bar) return;
     var progress = 0, inc = 100 / (this.dur / 100);
     this.interval = setInterval(function() {
-      progress += inc; bar.style.width = Math.min(progress,100)+'%';
+      progress += inc;
+      bar.style.width = Math.min(progress, 100) + '%';
       if (progress >= 100) { SV.stopProgress(); SV.next(); }
     }, 100);
   },
+
   stopProgress() { if (this.interval) { clearInterval(this.interval); this.interval = null; } },
   prev() { this.stopProgress(); if (this.idx > 0) { this.idx--; this.show(); } },
   next() { this.stopProgress(); if (this.idx < this.stories.length - 1) { this.idx++; this.show(); } else this.close(); },
-  close() { this.stopProgress(); location.href = 'stories.html'; }
+  close() { this.stopProgress(); window.location.href = 'stories.html'; }
 };
-function prevStory(){SV.prev();} function nextStory(){SV.next();} function closeViewer(){SV.close();}
-function sendReply(){ var i=document.getElementById('replyInput'); if(i.value.trim()){alert('Reply sent: "'+i.value.trim()+'"');i.value='';} }
-// Touch/swipe
-var tx=0;
-document.addEventListener('touchstart',function(e){if(!e.target.closest('.reply-input,.close-btn'))tx=e.changedTouches[0].screenX;},{passive:true});
-document.addEventListener('touchend',function(e){if(e.target.closest('.reply-input,.close-btn'))return;var dx=e.changedTouches[0].screenX-tx;if(dx>50)SV.prev();else if(dx<-50)SV.next();},{passive:true});
+
+function sendReply() {
+  var inp = document.getElementById('replyInput');
+  var text = inp ? inp.value.trim() : '';
+  if (!text) return;
+  // In future: send DM or notification to story owner
+  alert('Reply sent! (DM integration coming soon)');
+  inp.value = '';
+}
+
+// Touch / swipe
+var tx = 0;
+document.addEventListener('touchstart', function(e) {
+  if (!e.target.closest('.reply-input, .close-btn')) tx = e.changedTouches[0].screenX;
+}, { passive: true });
+document.addEventListener('touchend', function(e) {
+  if (e.target.closest('.reply-input, .close-btn')) return;
+  var dx = e.changedTouches[0].screenX - tx;
+  if (dx > 50) SV.prev(); else if (dx < -50) SV.next();
+}, { passive: true });
+
 SV.init();
 </script>
 </body>
