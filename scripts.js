@@ -578,12 +578,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
     window.addEventListener("mousemove", onMove, { passive: false });
     window.addEventListener("touchmove", onMove, { passive: false });
     window.addEventListener("mouseup", endAll);
-
     window.addEventListener("touchend", endAll);
-
-
-
-
 
     function onMove(e) {
       if (pinchActive && e.touches && e.touches.length >= 2) {
@@ -635,130 +630,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
     if (themeRandomBtn) { themeRandomBtn.addEventListener("click", () => { const cur = getCurrentTheme(); const pool = themes.map((t)=>t.name).filter((n)=>n!==cur); applyTheme(pool[Math.floor(Math.random()*pool.length)]); }); }
     if (streamBtn) { streamBtn.addEventListener("click", () => { window.open("https://open.spotify.com/artist/127tw52iDXr7BvgB0IGG2x?si=Ja3kOaL5S36QWOUS6yvnsA","_blank","noopener"); }); }
 
-
-    // ── GLOBAL ANNOUNCEMENT NOTIFICATIONS ──
-    (async function() {
-      try {
-        var _db = window._8bfrSupabaseClient || window.supabase.createClient(
-          'https://novbuvwpjnxwwvdekjhr.supabase.co',
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0'
-        );
-        var _sess = await _db.auth.getSession();
-        var _uid = _sess?.data?.session?.user?.id || null;
-
-        // Toast element (skip if already on announcements page)
-        var _onAnnouncementsPage = window.location.pathname.includes('announcements');
-        if (!_onAnnouncementsPage) {
-          var _toast = document.createElement('div');
-          _toast.id = 'globalAnnToast';
-          _toast.style.cssText = 'position:fixed;top:70px;left:50%;transform:translateX(-50%) translateY(-16px);z-index:19999;background:rgba(124,58,237,0.96);border:1px solid #a855f7;border-radius:12px;padding:0.85rem 1.1rem;max-width:400px;width:90%;display:none;box-shadow:0 8px 32px rgba(124,58,237,0.5);backdrop-filter:blur(8px);transition:all 0.3s ease;';
-          _toast.innerHTML = '<div style="display:flex;align-items:center;gap:0.75rem;"><span style="font-size:1.3rem;">📢</span><div style="flex:1;min-width:0;"><div id="globalAnnToastTitle" style="font-weight:700;font-size:0.88rem;color:#fff;"></div><div id="globalAnnToastBody" style="font-size:0.76rem;opacity:0.85;color:#eae6ff;margin-top:2px;"></div></div><div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;"><a id="globalAnnToastLink" href="announcements.html" style="font-size:0.7rem;color:#00d9ff;text-decoration:none;white-space:nowrap;">View →</a><button onclick="document.getElementById('globalAnnToast').style.display='none'" style="background:none;border:none;color:rgba(255,255,255,0.6);font-size:0.9rem;cursor:pointer;padding:0;">✕</button></div></div>';
-          document.body.appendChild(_toast);
-
-          _db.channel('global-ann-notify')
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'announcements' }, function(payload) {
-              var ann = payload.new;
-              var ta = ann.target_audience || 'all';
-              // Only show if relevant to this user
-              var show = ta === 'all' || (_uid && ta === 'user:' + _uid);
-              if (!show) return;
-              document.getElementById('globalAnnToastTitle').textContent = ann.title || 'New Announcement';
-              document.getElementById('globalAnnToastBody').textContent = (ann.content||'').substring(0,70)+(ann.content&&ann.content.length>70?'…':'');
-              _toast.style.display = 'block';
-              setTimeout(function(){ _toast.style.transform = 'translateX(-50%) translateY(0)'; }, 10);
-              // Auto-hide after 8s
-              setTimeout(function(){ _toast.style.display = 'none'; _toast.style.transform = 'translateX(-50%) translateY(-16px)'; }, 8000);
-            })
-            .subscribe();
-        }
-
-        // Unread count badge on any nav link to announcements
-        if (_uid) {
-          var { data: deliveries } = await _db.from('announcement_deliveries')
-            .select('status').eq('user_id', _uid).eq('status', 'delivered');
-          var unreadCount = (deliveries || []).length;
-          if (unreadCount > 0) {
-            document.querySelectorAll('a[href="announcements.html"]').forEach(function(link) {
-              if (!link.querySelector('.ann-nav-badge')) {
-                var badge = document.createElement('span');
-                badge.className = 'ann-nav-badge';
-                badge.style.cssText = 'background:#ef4444;color:#fff;font-size:0.6rem;font-weight:700;padding:1px 5px;border-radius:50px;margin-left:4px;vertical-align:middle;';
-                badge.textContent = unreadCount;
-                link.appendChild(badge);
-              }
-            });
-          }
-        }
-      } catch(e) { console.warn('Ann notify:', e); }
-    })();
-
-    // ── GLOBAL NOTIFICATION BELL BADGE ──
-    (async function() {
-      try {
-        var _db2 = window._8bfrSupabaseClient || window.supabase.createClient(
-          'https://novbuvwpjnxwwvdekjhr.supabase.co',
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0'
-        );
-        var _s2 = await _db2.auth.getSession();
-        var _uid2 = _s2?.data?.session?.user?.id;
-        if (!_uid2) return;
-
-        var _onNotifsPage = window.location.pathname.includes('notifications');
-
-        function _setBellBadge(count) {
-          document.querySelectorAll('a[href="notifications.html"]').forEach(function(link) {
-            var existing = link.querySelector('.notif-nav-badge');
-            if (count > 0) {
-              if (!existing) {
-                existing = document.createElement('span');
-                existing.className = 'notif-nav-badge';
-                existing.style.cssText = 'background:#ef4444;color:#fff;font-size:0.6rem;font-weight:700;padding:1px 5px;border-radius:50px;margin-left:3px;vertical-align:middle;display:inline-block;';
-                link.appendChild(existing);
-              }
-              existing.textContent = count > 99 ? '99+' : count;
-            } else if (existing) {
-              existing.remove();
-            }
-          });
-        }
-
-        // Initial count
-        var { count } = await _db2.from('notifications')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', _uid2).eq('read', false);
-        _setBellBadge(count || 0);
-
-        // Realtime — increment on new notif, reset on reading
-        if (!_onNotifsPage) {
-          _db2.channel('global-notif-bell')
-            .on('postgres_changes', {
-              event: 'INSERT', schema: 'public', table: 'notifications',
-              filter: 'user_id=eq.' + _uid2
-            }, async function() {
-              var { count: c } = await _db2.from('notifications')
-                .select('*', { count: 'exact', head: true })
-                .eq('user_id', _uid2).eq('read', false);
-              _setBellBadge(c || 0);
-
-              // Show a small toast at bottom
-              var _t = document.getElementById('globalNotifToast');
-              if (!_t) {
-                _t = document.createElement('div');
-                _t.id = 'globalNotifToast';
-                _t.style.cssText = 'position:fixed;bottom:88px;right:16px;z-index:19999;background:rgba(15,0,30,0.97);border:1px solid #a855f7;border-radius:10px;padding:0.6rem 0.85rem;font-size:0.78rem;color:#eae6ff;box-shadow:0 4px 16px rgba(124,58,237,0.4);display:flex;align-items:center;gap:0.5rem;max-width:220px;';
-                _t.innerHTML = '🔔 <span id="globalNotifToastMsg">New notification</span> <a href="notifications.html" style="color:#00d9ff;text-decoration:none;margin-left:4px;font-size:0.72rem;">View</a>';
-                document.body.appendChild(_t);
-              }
-              _t.style.display = 'flex';
-              clearTimeout(window._notifToastTimer);
-              window._notifToastTimer = setTimeout(function(){ _t.style.display = 'none'; }, 5000);
-            })
-            .subscribe();
-        }
-      } catch(e) { console.warn('Notif bell:', e); }
-    })();
-
-        enforceAuthGate();
+    enforceAuthGate();
   }
 
   if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", injectGlobalUI); }
