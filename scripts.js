@@ -692,9 +692,6 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
       } catch(e) { console.warn('Ann notify:', e); }
     })();
 
-    
-);
-
     // ── GLOBAL NOTIFICATION BELL BADGE ──
     (async function() {
       try {
