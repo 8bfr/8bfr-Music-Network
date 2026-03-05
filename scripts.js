@@ -579,6 +579,63 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
     window.addEventListener("touchmove", onMove, { passive: false });
     window.addEventListener("mouseup", endAll);
 
+    window.addEventListener("touchend", endAll);
+
+
+
+
+
+    function onMove(e) {
+      if (pinchActive && e.touches && e.touches.length >= 2) {
+        const dist = getTouchDist(e); if (!dist || !pinchStartDist) return;
+        userScale = clampScale(userScaleStart * (dist / pinchStartDist)); applyAvatarScale(); e.preventDefault(); return;
+      }
+      if (mouseResizeActive && !e.touches) {
+        userScale = clampScale(userScaleStart * (1 - (e.clientY - mouseResizeStartY) / 300));
+        applyAvatarScale(); e.preventDefault(); return;
+      }
+      if (!dragging) return;
+      const p = ptr(e); const dx = p.x - sx; const dy = p.y - sy;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+      carrieWrap.style.left = (ox + dx) + "px"; carrieWrap.style.top = (oy + dy) + "px";
+      e.preventDefault();
+    }
+
+    function endAll(e) { if (e && e.touches && e.touches.length > 0) return; dragging = false; pinchActive = false; mouseResizeActive = false; }
+
+    avatarVideos.forEach((v) => { try { v.muted = true; v.autoplay = true; v.playsInline = true; v.play().catch(()=>{}); } catch(e){} });
+
+    // ---------- BUBBLES ----------
+    const contact = document.getElementById("bubble-contact");
+    const donate = document.getElementById("bubble-donate");
+    const footerBtn = document.getElementById("bubble-footer");
+    const topBtn = document.getElementById("bubble-top-single");
+    const themeBtn = document.getElementById("bubble-theme");
+    const themeRandomBtn = document.getElementById("bubble-theme-random");
+    const streamBtn = document.getElementById("bubble-stream");
+
+    if (contact) { contact.addEventListener("click", () => { window.location.href = "contact.html"; }); }
+    if (donate) { donate.addEventListener("click", () => { const d = document.getElementById("donate"); if (d) d.scrollIntoView({behavior:"smooth"}); else window.location.href = "donate.html"; }); }
+    if (footerBtn) { footerBtn.addEventListener("click", () => { window.scrollTo({top:document.body.scrollHeight,behavior:"smooth"}); }); }
+    if (topBtn) { topBtn.addEventListener("click", () => { window.scrollTo({top:0,behavior:"smooth"}); }); }
+
+    const themes = [
+      { name:"dark", bg:"linear-gradient(#0b0014,#000000)", color:"#eae6ff" },
+      { name:"light", bg:"#f5f5ff", color:"#111827" },
+      { name:"neon", bg:"radial-gradient(circle at 0% 0%, #00f5ff 0, #12001e 40%, #000 100%)", color:"#e0f2fe" },
+      { name:"sunset", bg:"linear-gradient(135deg,#ff7a18,#af002d 60%,#000 100%)", color:"#fff7ed" },
+      { name:"ocean", bg:"linear-gradient(135deg,#0f172a,#0369a1,#0b0014)", color:"#e0f2fe" },
+    ];
+
+    function applyTheme(name) { const t = themes.find((x) => x.name === name); if (!t) return; document.body.style.background = t.bg; document.body.style.color = t.color; try { localStorage.setItem("8bfr-theme", name); } catch {} }
+    function getCurrentTheme() { try { return localStorage.getItem("8bfr-theme") || "dark"; } catch { return "dark"; } }
+    applyTheme(getCurrentTheme());
+
+    if (themeBtn) { themeBtn.addEventListener("click", () => { applyTheme(getCurrentTheme() === "light" ? "dark" : "light"); }); }
+    if (themeRandomBtn) { themeRandomBtn.addEventListener("click", () => { const cur = getCurrentTheme(); const pool = themes.map((t)=>t.name).filter((n)=>n!==cur); applyTheme(pool[Math.floor(Math.random()*pool.length)]); }); }
+    if (streamBtn) { streamBtn.addEventListener("click", () => { window.open("https://open.spotify.com/artist/127tw52iDXr7BvgB0IGG2x?si=Ja3kOaL5S36QWOUS6yvnsA","_blank","noopener"); }); }
+
+
     // ── GLOBAL ANNOUNCEMENT NOTIFICATIONS ──
     (async function() {
       try {
@@ -635,7 +692,8 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
       } catch(e) { console.warn('Ann notify:', e); }
     })();
 
-    window.addEventListener("touchend", endAll);
+    
+);
 
     // ── GLOBAL NOTIFICATION BELL BADGE ──
     (async function() {
@@ -703,58 +761,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
       } catch(e) { console.warn('Notif bell:', e); }
     })();
 
-
-    function onMove(e) {
-      if (pinchActive && e.touches && e.touches.length >= 2) {
-        const dist = getTouchDist(e); if (!dist || !pinchStartDist) return;
-        userScale = clampScale(userScaleStart * (dist / pinchStartDist)); applyAvatarScale(); e.preventDefault(); return;
-      }
-      if (mouseResizeActive && !e.touches) {
-        userScale = clampScale(userScaleStart * (1 - (e.clientY - mouseResizeStartY) / 300));
-        applyAvatarScale(); e.preventDefault(); return;
-      }
-      if (!dragging) return;
-      const p = ptr(e); const dx = p.x - sx; const dy = p.y - sy;
-      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
-      carrieWrap.style.left = (ox + dx) + "px"; carrieWrap.style.top = (oy + dy) + "px";
-      e.preventDefault();
-    }
-
-    function endAll(e) { if (e && e.touches && e.touches.length > 0) return; dragging = false; pinchActive = false; mouseResizeActive = false; }
-
-    avatarVideos.forEach((v) => { try { v.muted = true; v.autoplay = true; v.playsInline = true; v.play().catch(()=>{}); } catch(e){} });
-
-    // ---------- BUBBLES ----------
-    const contact = document.getElementById("bubble-contact");
-    const donate = document.getElementById("bubble-donate");
-    const footerBtn = document.getElementById("bubble-footer");
-    const topBtn = document.getElementById("bubble-top-single");
-    const themeBtn = document.getElementById("bubble-theme");
-    const themeRandomBtn = document.getElementById("bubble-theme-random");
-    const streamBtn = document.getElementById("bubble-stream");
-
-    if (contact) { contact.addEventListener("click", () => { window.location.href = "contact.html"; }); }
-    if (donate) { donate.addEventListener("click", () => { const d = document.getElementById("donate"); if (d) d.scrollIntoView({behavior:"smooth"}); else window.location.href = "donate.html"; }); }
-    if (footerBtn) { footerBtn.addEventListener("click", () => { window.scrollTo({top:document.body.scrollHeight,behavior:"smooth"}); }); }
-    if (topBtn) { topBtn.addEventListener("click", () => { window.scrollTo({top:0,behavior:"smooth"}); }); }
-
-    const themes = [
-      { name:"dark", bg:"linear-gradient(#0b0014,#000000)", color:"#eae6ff" },
-      { name:"light", bg:"#f5f5ff", color:"#111827" },
-      { name:"neon", bg:"radial-gradient(circle at 0% 0%, #00f5ff 0, #12001e 40%, #000 100%)", color:"#e0f2fe" },
-      { name:"sunset", bg:"linear-gradient(135deg,#ff7a18,#af002d 60%,#000 100%)", color:"#fff7ed" },
-      { name:"ocean", bg:"linear-gradient(135deg,#0f172a,#0369a1,#0b0014)", color:"#e0f2fe" },
-    ];
-
-    function applyTheme(name) { const t = themes.find((x) => x.name === name); if (!t) return; document.body.style.background = t.bg; document.body.style.color = t.color; try { localStorage.setItem("8bfr-theme", name); } catch {} }
-    function getCurrentTheme() { try { return localStorage.getItem("8bfr-theme") || "dark"; } catch { return "dark"; } }
-    applyTheme(getCurrentTheme());
-
-    if (themeBtn) { themeBtn.addEventListener("click", () => { applyTheme(getCurrentTheme() === "light" ? "dark" : "light"); }); }
-    if (themeRandomBtn) { themeRandomBtn.addEventListener("click", () => { const cur = getCurrentTheme(); const pool = themes.map((t)=>t.name).filter((n)=>n!==cur); applyTheme(pool[Math.floor(Math.random()*pool.length)]); }); }
-    if (streamBtn) { streamBtn.addEventListener("click", () => { window.open("https://open.spotify.com/artist/127tw52iDXr7BvgB0IGG2x?si=Ja3kOaL5S36QWOUS6yvnsA","_blank","noopener"); }); }
-
-    enforceAuthGate();
+        enforceAuthGate();
   }
 
   if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", injectGlobalUI); }
