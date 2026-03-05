@@ -140,7 +140,6 @@
     const noCarrie = document.body && document.body.dataset.noGlobalCarrie === "true";
     let currentPage = window.location.pathname.split("/").pop() || "index.html";
 
-    // ---------- CSS ----------
     const css = document.createElement("style");
     css.textContent = `
 :root{ --ring:rgba(124,58,237,.65); --glass:rgba(12,6,24,.88); --chip-bg:rgba(18,3,39,.96); --chip-hover:rgba(55,9,90,1); }
@@ -202,7 +201,6 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
 `;
     document.head.appendChild(css);
 
-    // ---------- HTML ----------
     const ui = document.createElement("div");
     let html = `
 <div id="menuStripe"><div id="menuStripeText">STREAM 8BFR ON SPOTIFY</div></div>
@@ -395,7 +393,6 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
     ui.innerHTML = html;
     document.body.appendChild(ui);
 
-    // ---------- MENU CONTROL ----------
     const fab = document.getElementById("fab");
     const menu = document.getElementById("menu");
     const backdrop = document.getElementById("menu-backdrop");
@@ -429,7 +426,6 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
       });
     });
 
-    // ---------- AVATARS ----------
     const carrieWrap = document.getElementById("carrieWrap");
     const carrieBubble = document.getElementById("carrieBubble");
     const avatarSwitcher = document.getElementById("avatarSwitcher");
@@ -489,7 +485,6 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
       }
     });
 
-    // ---------- DRAG / PINCH RESIZE ----------
     let dragging = false; let moved = false; let sx = 0; let sy = 0; let ox = 0; let oy = 0;
     let pinchActive = false; let pinchStartDist = 0; let userScaleStart = 1;
     let mouseResizeActive = false; let mouseResizeStartY = 0;
@@ -508,21 +503,13 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
       carrieWrap.addEventListener("mousedown", startDragOrResize);
       carrieWrap.addEventListener("touchstart", startTouch, { passive: false });
       carrieWrap.addEventListener("click", (e) => {
-        // Chat button inside switcher
-        if (e.target.closest("#avatarChatBtn")) {
-          window.location.href = "carrie-chat.html";
-          return;
-        }
+        if (e.target.closest("#avatarChatBtn")) { window.location.href = "carrie-chat.html"; return; }
         if (e.target.closest("#avatarSwitcher")) return;
-        // Tap avatar: toggle switcher open/closed
         if (!carrieWrap.classList.contains("switcher-open")) {
           carrieWrap.classList.add("switcher-open");
           setTimeout(function() {
             document.addEventListener("click", function closeSwitcher(ev) {
-              if (!carrieWrap.contains(ev.target)) {
-                carrieWrap.classList.remove("switcher-open");
-                document.removeEventListener("click", closeSwitcher);
-              }
+              if (!carrieWrap.contains(ev.target)) { carrieWrap.classList.remove("switcher-open"); document.removeEventListener("click", closeSwitcher); }
             });
           }, 50);
           return;
@@ -580,7 +567,6 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
 
     avatarVideos.forEach((v) => { try { v.muted = true; v.autoplay = true; v.playsInline = true; v.play().catch(()=>{}); } catch(e){} });
 
-    // ---------- BUBBLES ----------
     const contact = document.getElementById("bubble-contact");
     const donate = document.getElementById("bubble-donate");
     const footerBtn = document.getElementById("bubble-footer");
@@ -609,6 +595,47 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
     if (themeBtn) { themeBtn.addEventListener("click", () => { applyTheme(getCurrentTheme() === "light" ? "dark" : "light"); }); }
     if (themeRandomBtn) { themeRandomBtn.addEventListener("click", () => { const cur = getCurrentTheme(); const pool = themes.map((t)=>t.name).filter((n)=>n!==cur); applyTheme(pool[Math.floor(Math.random()*pool.length)]); }); }
     if (streamBtn) { streamBtn.addEventListener("click", () => { window.open("https://open.spotify.com/artist/127tw52iDXr7BvgB0IGG2x?si=Ja3kOaL5S36QWOUS6yvnsA","_blank","noopener"); }); }
+
+    // ── NOTIFICATION BELL BADGE (global, all pages) ──
+    (async function() {
+      try {
+        var _db = window._8bfrSupabaseClient;
+        if (!_db && window.supabase && window.supabase.createClient) {
+          _db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        }
+        if (!_db) return;
+        var _s = await _db.auth.getSession();
+        var _uid = _s && _s.data && _s.data.session ? _s.data.session.user.id : null;
+        if (!_uid) return;
+
+        function setBellBadge(count) {
+          document.querySelectorAll('a[href="notifications.html"]').forEach(function(link) {
+            var ex = link.querySelector('.notif-nav-badge');
+            if (count > 0) {
+              if (!ex) {
+                ex = document.createElement('span');
+                ex.className = 'notif-nav-badge';
+                ex.style.cssText = 'background:#ef4444;color:#fff;font-size:0.6rem;font-weight:700;padding:1px 5px;border-radius:50px;margin-left:3px;vertical-align:middle;display:inline-block;';
+                link.appendChild(ex);
+              }
+              ex.textContent = count > 99 ? '99+' : count;
+            } else if (ex) { ex.remove(); }
+          });
+        }
+
+        var res = await _db.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', _uid).eq('read', false);
+        setBellBadge(res.count || 0);
+
+        if (!window.location.pathname.includes('notifications')) {
+          _db.channel('global-notif-bell').on('postgres_changes', {
+            event: 'INSERT', schema: 'public', table: 'notifications', filter: 'user_id=eq.' + _uid
+          }, async function() {
+            var r2 = await _db.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', _uid).eq('read', false);
+            setBellBadge(r2.count || 0);
+          }).subscribe();
+        }
+      } catch(e) { console.warn('Notif bell:', e); }
+    })();
 
     enforceAuthGate();
   }
