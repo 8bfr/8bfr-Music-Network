@@ -351,10 +351,14 @@
     return closetState.ownedItems.includes(itemId);
   }
 
-  function saveOwnedItems() {
+  function saveOwnedItems(newItemId, newItemName, coinsPaid) {
     try {
       localStorage.setItem(OWNERSHIP_KEY, JSON.stringify(closetState.ownedItems));
     } catch(e) {}
+    // Sync new purchase to Supabase
+    if (newItemId && window.CARRIE_SYNC && window.CARRIE_SYNC.isLoggedIn()) {
+      window.CARRIE_SYNC.pushOwnedItem(newItemId, newItemName || newItemId, coinsPaid || 0);
+    }
   }
 
   function loadOwnedItems() {
@@ -368,6 +372,10 @@
     try {
       localStorage.setItem(COINS_KEY, closetState.coins.toString());
     } catch(e) {}
+    // Sync to Supabase
+    if (window.CARRIE_SYNC && window.CARRIE_SYNC.isLoggedIn()) {
+      window.CARRIE_SYNC.pushCoins(closetState.coins);
+    }
   }
 
   function loadCoins() {
@@ -686,10 +694,7 @@
           closetState.ownedItems.push(item.id);
           saveCloset();
           saveCoins();
-          saveOwnedItems();
-          updateCoinDisplay();
-          renderOwnedItems();
-          renderShopItems();
+          saveOwnedItems(item.id, item.name, item.coins);
         }
       });
       
