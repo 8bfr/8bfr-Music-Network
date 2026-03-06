@@ -505,6 +505,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
       carrieWrap.addEventListener("click", (e) => {
         if (e.target.closest("#avatarChatBtn")) { window.location.href = "carrie-chat.html"; return; }
         if (e.target.closest("#avatarSwitcher")) return;
+        if (moved || pinchActive || mouseResizeActive) return;
         if (!carrieWrap.classList.contains("switcher-open")) {
           carrieWrap.classList.add("switcher-open");
           setTimeout(function() {
@@ -512,14 +513,25 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
               if (!carrieWrap.contains(ev.target)) { carrieWrap.classList.remove("switcher-open"); document.removeEventListener("click", closeSwitcher); }
             });
           }, 50);
-          return;
+        } else {
+          carrieWrap.classList.remove("switcher-open");
         }
-        carrieWrap.classList.remove("switcher-open");
-        if (!moved && !pinchActive && !mouseResizeActive) window.location.href = "carrie-chat.html";
       });
       carrieWrap.addEventListener("touchend", (e) => {
+        if (e.target.closest("#avatarChatBtn")) { window.location.href = "carrie-chat.html"; return; }
         if (e.target.closest("#avatarSwitcher")) return;
-        if (!moved && !pinchActive && !mouseResizeActive) window.location.href = "carrie-chat.html";
+        if (moved || pinchActive) return;
+        e.preventDefault();
+        if (!carrieWrap.classList.contains("switcher-open")) {
+          carrieWrap.classList.add("switcher-open");
+          setTimeout(function() {
+            document.addEventListener("touchend", function closeSwitcher(ev) {
+              if (!carrieWrap.contains(ev.target)) { carrieWrap.classList.remove("switcher-open"); document.removeEventListener("touchend", closeSwitcher); }
+            });
+          }, 50);
+        } else {
+          carrieWrap.classList.remove("switcher-open");
+        }
       });
     }
 
