@@ -152,12 +152,12 @@ body.menu-open #pageWrap{ margin-right:280px; }
 #fab svg{ display:block; }
 #menu-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.25); backdrop-filter:blur(2px); z-index:9990; opacity:0; pointer-events:none; transition:opacity .2s ease; }
 #menu-backdrop.open{ opacity:1; pointer-events:auto; }
-#menu{ position:fixed; top:72px; right:14px; width:min(92vw,280px); max-height:calc(100vh - 88px); overflow-y:auto; z-index:9998; transform:translateX(115%); transition:transform .25s ease; backdrop-filter:blur(12px); background:var(--glass); border:1px solid var(--ring); border-radius:14px; box-shadow:0 14px 32px rgba(0,0,0,.6); padding:8px 7px 10px; }
+#menu{ position:fixed; top:72px; right:0; width:min(92vw,280px); max-height:calc(100vh - 88px); overflow-y:auto; overflow-x:hidden; z-index:9998; transform:translateX(115%); transition:transform .25s ease; backdrop-filter:blur(12px); background:var(--glass); border:1px solid var(--ring); border-radius:14px 0 0 14px; box-shadow:0 14px 32px rgba(0,0,0,.6); padding:8px 7px 10px; }
 #menu.open{ transform:translateX(0); }
 #menu h2{ font-size:.85rem; text-transform:uppercase; letter-spacing:.12em; opacity:.9; margin:2px 6px 4px; }
 .menu-group{ margin:4px 0 6px; padding:4px 4px 6px; border-radius:10px; border:1px solid rgba(139,92,246,.48); background:rgba(10,2,26,.85); }
 .menu-group-title{ font-size:.78rem; font-weight:600; opacity:.9; margin-bottom:3px; cursor:pointer; display:flex; align-items:center; }
-.menu-group-title::after{ content:"▾"; font-size:.65rem; opacity:.7; margin-left:auto; transition:transform .2s ease; }
+.menu-group-title::after{ content:"▾"; font-size:.65rem; opacity:.7; margin-left:6px; flex-shrink:0; transition:transform .2s ease; }
 .menu-group.collapsed .menu-group-title::after{ transform:rotate(-90deg); }
 .menu-links{ display:flex; flex-wrap:wrap; gap:4px; }
 .menu-group.collapsed .menu-links{ display:none; }
@@ -402,11 +402,21 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
       if (!menu || !backdrop) return;
       menu.classList.add("open"); backdrop.classList.add("open");
       document.body.classList.add("menu-open"); resetMenuTimer();
+      // Force avatar slide even if drag has set inline styles
+      const cw = document.getElementById("carrieWrap");
+      const bs = document.getElementById("bubble-top-single");
+      if (cw) { cw.style.right = (window.innerWidth <= 480 ? "300px" : "340px"); cw.style.left = ""; cw.style.top = ""; cw.style.bottom = ""; }
+      if (bs) { bs.style.right = (window.innerWidth <= 480 ? "300px" : "340px"); }
     }
     function closeMenu() {
       if (!menu || !backdrop) return;
       menu.classList.remove("open"); backdrop.classList.remove("open");
       document.body.classList.remove("menu-open"); clearTimeout(menuTimer); menuTimer = null;
+      // Restore avatar to default position
+      const cw = document.getElementById("carrieWrap");
+      const bs = document.getElementById("bubble-top-single");
+      if (cw) { cw.style.right = "16px"; cw.style.left = ""; cw.style.top = ""; cw.style.bottom = ""; }
+      if (bs) { bs.style.right = "16px"; }
     }
     function resetMenuTimer() { clearTimeout(menuTimer); menuTimer = setTimeout(closeMenu, 20000); }
 
