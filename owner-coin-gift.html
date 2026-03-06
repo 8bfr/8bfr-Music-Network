@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>🪙 Coin Gifting — Owner Panel</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body{
+      font-family:system-ui,-apple-system,sans-serif;
+      background:radial-gradient(900px 400px at 10% -10%,rgba(124,58,237,.3),transparent 60%),
+                 linear-gradient(#0b0014,#000);
+      color:#eae6ff; min-height:100vh; margin:0; padding:1rem 1rem 5rem;
+    }
+    .card{ background:rgba(12,6,24,.9); border:1px solid rgba(124,58,237,.4); border-radius:14px; padding:1.25rem; }
+    .input{ width:100%; background:rgba(18,3,39,.8); border:1px solid rgba(124,58,237,.5); border-radius:8px;
+            color:#eae6ff; padding:.55rem .75rem; font-size:.9rem; outline:none; box-sizing:border-box; }
+    .input:focus{ border-color:#a855f7; }
+    .btn{ display:inline-flex; align-items:center; gap:.4rem; padding:.55rem 1rem; border-radius:8px;
+          font-size:.85rem; font-weight:600; cursor:pointer; border:none; transition:filter .15s; }
+    .btn:hover{ filter:brightness(1.1); }
+    .btn-purple{ background:#7c3aed; color:#fff; }
+    .btn-gold{ background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; }
+    .btn-sm{ padding:.35rem .75rem; font-size:.78rem; }
+    .btn-red{ background:rgba(239,68,68,.8); color:#fff; }
+    .tag{ display:inline-block; padding:.2rem .6rem; border-radius:20px; font-size:.72rem; font-weight:700; }
+    .tag-gold{ background:rgba(245,158,11,.2); color:#fbbf24; border:1px solid rgba(245,158,11,.4); }
+    .tag-green{ background:rgba(34,197,94,.15); color:#86efac; border:1px solid rgba(34,197,94,.3); }
+    .tag-red{ background:rgba(239,68,68,.15); color:#fca5a5; border:1px solid rgba(239,68,68,.3); }
+    .amount-btn{ padding:.4rem .8rem; border-radius:8px; border:1px solid rgba(124,58,237,.5);
+                 background:rgba(18,3,39,.8); color:#eae6ff; font-size:.85rem; cursor:pointer;
+                 transition:all .15s; font-weight:600; }
+    .amount-btn:hover,.amount-btn.selected{ background:#7c3aed; border-color:#7c3aed; color:#fff; }
+    #toast{ position:fixed; top:1rem; right:1rem; z-index:9999; padding:.6rem 1.1rem; border-radius:10px;
+            font-size:.85rem; font-weight:600; display:none; }
+    #toast.success{ background:rgba(34,197,94,.9); color:#fff; }
+    #toast.error{ background:rgba(239,68,68,.9); color:#fff; }
+    .history-row{ display:flex; align-items:center; gap:.75rem; padding:.6rem .75rem;
+                  background:rgba(10,2,26,.6); border-radius:8px; border:1px solid rgba(124,58,237,.2); }
+    .avatar-circle{ width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,#7c3aed,#a855f7);
+                    display:flex; align-items:center; justify-content:center; font-size:.9rem; flex-shrink:0;
+                    overflow:hidden; }
+    .section-label{ font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; color:#a855f7; opacity:.8;
+                    font-weight:700; margin-bottom:.5rem; }
+    select.input{ cursor:pointer; }
+  </style>
+</head>
+<body>
+
+<div id="authBlock" style="display:none;" class="max-w-md mx-auto mt-20 card text-center">
+  <div style="font-size:3rem;margin-bottom:.75rem;">🔒</div>
+  <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:.5rem;">Owner Access Only</h2>
+  <p style="font-size:.85rem;opacity:.75;margin-bottom:1rem;">This tool is restricted to the platform owner.</p>
+  <a href="index.html" class="btn btn-purple">← Back to Home</a>
+</div>
+
+<div id="mainContent" style="display:none;" class="max-w-2xl mx-auto">
+
+  <!-- Header -->
+  <div class="flex items-center gap-3 mb-5">
+    <a href="owner-panel.html" style="color:#a855f7;font-size:.85rem;text-decoration:none;">← Owner Panel</a>
+    <span style="color:#a855f7;opacity:.4;">|</span>
+    <h1 style="font-size:1.3rem;font-weight:800;">🪙 Coin Gifting Tool</h1>
+  </div>
+
+  <!-- Stats strip -->
+  <div class="grid grid-cols-3 gap-3 mb-5">
+    <div class="card text-center" style="padding:.75rem;">
+      <div style="font-size:1.4rem;font-weight:800;color:#fbbf24;" id="statTotal">—</div>
+      <div style="font-size:.7rem;opacity:.65;margin-top:.15rem;">Coins Gifted Today</div>
+    </div>
+    <div class="card text-center" style="padding:.75rem;">
+      <div style="font-size:1.4rem;font-weight:800;color:#a855f7;" id="statTotalAll">—</div>
+      <div style="font-size:.7rem;opacity:.65;margin-top:.15rem;">Total Ever Gifted</div>
+    </div>
+    <div class="card text-center" style="padding:.75rem;">
+      <div style="font-size:1.4rem;font-weight:800;color:#86efac;" id="statRecipients">—</div>
+      <div style="font-size:.7rem;opacity:.65;margin-top:.15rem;">Unique Recipients</div>
+    </div>
+  </div>
+
+  <!-- Gift Form -->
+  <div class="card mb-5">
+    <h2 style="font-size:1rem;font-weight:700;margin-bottom:1rem;">🎁 Gift Coins to a User</h2>
+
+    <!-- Step 1: Find user -->
+    <div class="mb-4">
+      <div class="section-label">Step 1 — Find User</div>
+      <div class="flex gap-2">
+        <input id="searchInput" class="input" placeholder="Email or username..." style="flex:1;"/>
+        <button class="btn btn-purple" onclick="searchUser()">🔍 Search</button>
+      </div>
+      <div id="searchResult" class="mt-2"></div>
+    </div>
+
+    <!-- Step 2: Selected user display -->
+    <div id="selectedUserBlock" style="display:none;" class="mb-4">
+      <div class="section-label">Step 2 — Selected Recipient</div>
+      <div class="history-row">
+        <div class="avatar-circle" id="selAvatar">👤</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:700;font-size:.95rem;" id="selName">—</div>
+          <div style="font-size:.78rem;color:#a855f7;opacity:.8;" id="selEmail">—</div>
+        </div>
+        <div>
+          <span class="tag tag-gold">🪙 <span id="selCoins">0</span> coins</span>
+        </div>
+        <button class="btn btn-sm" style="background:rgba(124,58,237,.2);border:1px solid rgba(124,58,237,.4);color:#a855f7;" onclick="clearUser()">✕</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Amount -->
+    <div id="amountBlock" style="display:none;" class="mb-4">
+      <div class="section-label">Step 3 — Amount to Gift</div>
+      <div class="flex flex-wrap gap-2 mb-3">
+        <button class="amount-btn" onclick="selectAmount(50)">50</button>
+        <button class="amount-btn" onclick="selectAmount(100)">100</button>
+        <button class="amount-btn" onclick="selectAmount(250)">250</button>
+        <button class="amount-btn" onclick="selectAmount(500)">500</button>
+        <button class="amount-btn" onclick="selectAmount(1000)">1,000</button>
+        <button class="amount-btn" onclick="selectAmount(5000)">5,000</button>
+      </div>
+      <div class="flex gap-2 items-center">
+        <span style="font-size:.85rem;color:#a855f7;white-space:nowrap;">Custom:</span>
+        <input id="amountInput" type="number" class="input" placeholder="Enter custom amount..." min="1" max="999999" style="max-width:180px;"/>
+      </div>
+    </div>
+
+    <!-- Step 4: Note + Action -->
+    <div id="actionBlock" style="display:none;">
+      <div class="section-label">Step 4 — Optional Note</div>
+      <input id="noteInput" class="input mb-3" placeholder="e.g. Welcome bonus, contest winner, thank you..." maxlength="200"/>
+
+      <div class="flex gap-3 items-center flex-wrap">
+        <button class="btn btn-gold" onclick="giftCoins(false)" style="font-size:.9rem;padding:.6rem 1.25rem;">
+          🪙 Gift Coins
+        </button>
+        <button class="btn btn-red btn-sm" onclick="giftCoins(true)">
+          ➖ Deduct Coins
+        </button>
+        <span style="font-size:.8rem;color:#a855f7;opacity:.7;">Deduct subtracts from user balance</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bulk Gift -->
+  <div class="card mb-5">
+    <h2 style="font-size:1rem;font-weight:700;margin-bottom:.75rem;">🌐 Bulk Gift — All Users</h2>
+    <p style="font-size:.82rem;color:#a855f7;opacity:.8;margin-bottom:.75rem;">
+      Gift a small amount to every user at once (e.g. platform milestone celebration, holiday bonus).
+    </p>
+    <div class="flex gap-3 flex-wrap items-end">
+      <div style="flex:1;min-width:120px;">
+        <div class="section-label">Coins per user</div>
+        <input id="bulkAmount" type="number" class="input" placeholder="e.g. 25" min="1" max="10000"/>
+      </div>
+      <div style="flex:2;min-width:180px;">
+        <div class="section-label">Note</div>
+        <input id="bulkNote" class="input" placeholder="e.g. 🎉 Platform milestone bonus!"/>
+      </div>
+      <button class="btn btn-purple" onclick="bulkGift()" style="white-space:nowrap;">🌐 Gift to All</button>
+    </div>
+    <div id="bulkStatus" class="mt-2" style="font-size:.82rem;"></div>
+  </div>
+
+  <!-- Recent Gift History -->
+  <div class="card">
+    <div class="flex items-center justify-between mb-3">
+      <h2 style="font-size:1rem;font-weight:700;">📋 Recent Gift History</h2>
+      <button class="btn btn-sm btn-purple" onclick="loadHistory()">↻ Refresh</button>
+    </div>
+    <div id="historyList">
+      <div style="text-align:center;padding:1.5rem;color:#a855f7;opacity:.6;">Loading history...</div>
+    </div>
+  </div>
+
+</div><!-- /mainContent -->
+
+<div id="toast">✓ Done</div>
+
+<script src="scripts.js?v=6" defer></script>
+<script>
+(async function() {
+  const OWNER_ID = 'cb556180-f032-4b21-9470-1d786f2664ab';
+  const SB_URL   = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+  const SB_KEY   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+
+  // Wait for supabase CDN
+  let attempts = 0;
+  while (!window.supabase && attempts++ < 30) await new Promise(r => setTimeout(r,100));
+  if (!window.supabase) { document.getElementById('authBlock').style.display='block'; return; }
+
+  const sb = window.supabase.createClient(SB_URL, SB_KEY);
+  window._sb = sb;
+
+  // Auth check
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session || session.user.id !== OWNER_ID) {
+    document.getElementById('authBlock').style.display = 'block';
+    return;
+  }
+
+  document.getElementById('mainContent').style.display = 'block';
+  loadStats();
+  loadHistory();
+
+  // ── SEARCH USER ──────────────────────────────────────────────────
+  window.searchUser = async function() {
+    const q = document.getElementById('searchInput').value.trim();
+    if (!q) return;
+    const el = document.getElementById('searchResult');
+    el.innerHTML = '<span style="color:#a855f7;font-size:.82rem;">Searching...</span>';
+
+    // Try email first, then username
+    let { data } = await sb.from('profiles')
+      .select('user_id,username,display_name,avatar_url,coins')
+      .or(`username.ilike.%${q}%`)
+      .limit(5);
+
+    // Also search by auth email via a separate query
+    let emailMatches = [];
+    try {
+      const { data: authData } = await sb.rpc('search_users_by_email', { search_email: q });
+      if (authData && authData.length) emailMatches = authData;
+    } catch(e) {}
+
+    const results = data || [];
+
+    if (!results.length && !emailMatches.length) {
+      el.innerHTML = '<span style="color:#fca5a5;font-size:.82rem;">No users found. Try exact username.</span>';
+      return;
+    }
+
+    el.innerHTML = [...results, ...emailMatches].slice(0,5).map(u => {
+      const name = u.display_name || u.username || 'Unknown';
+      const coins = u.coins || 0;
+      return `<div onclick="selectUser('${u.user_id}','${escHtml(name)}','${escHtml(u.username||'')}','${coins}','${escHtml(u.avatar_url||'')}')"
+        style="display:flex;align-items:center;gap:.75rem;padding:.5rem .6rem;background:rgba(124,58,237,.08);
+               border:1px solid rgba(124,58,237,.25);border-radius:8px;margin-top:.35rem;cursor:pointer;transition:background .15s;"
+        onmouseover="this.style.background='rgba(124,58,237,.2)'" onmouseout="this.style.background='rgba(124,58,237,.08)'">
+        <div class="avatar-circle" style="width:30px;height:30px;font-size:.8rem;">
+          ${u.avatar_url ? `<img src="${escHtml(u.avatar_url)}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.textContent='👤'">` : '👤'}
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:700;font-size:.88rem;">${escHtml(name)}</div>
+          <div style="font-size:.73rem;color:#a855f7;opacity:.8;">@${escHtml(u.username||'')}</div>
+        </div>
+        <span class="tag tag-gold">🪙 ${coins.toLocaleString()}</span>
+      </div>`;
+    }).join('');
+  };
+
+  window.selectUser = function(id, name, username, coins, avatar) {
+    window._selectedUser = { id, name, username, coins: parseInt(coins)||0, avatar };
+    document.getElementById('searchResult').innerHTML = '';
+    document.getElementById('searchInput').value = '';
+
+    const sb2 = document.getElementById('selAvatar');
+    sb2.innerHTML = avatar ? `<img src="${escHtml(avatar)}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.textContent='👤'">` : '👤';
+    document.getElementById('selName').textContent = name;
+    document.getElementById('selEmail').textContent = '@' + username;
+    document.getElementById('selCoins').textContent = (parseInt(coins)||0).toLocaleString();
+
+    document.getElementById('selectedUserBlock').style.display = 'block';
+    document.getElementById('amountBlock').style.display = 'block';
+    document.getElementById('actionBlock').style.display = 'block';
+  };
+
+  window.clearUser = function() {
+    window._selectedUser = null;
+    document.getElementById('selectedUserBlock').style.display = 'none';
+    document.getElementById('amountBlock').style.display = 'none';
+    document.getElementById('actionBlock').style.display = 'none';
+    document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('selected'));
+    document.getElementById('amountInput').value = '';
+  };
+
+  window.selectAmount = function(n) {
+    document.querySelectorAll('.amount-btn').forEach(b => {
+      b.classList.toggle('selected', parseInt(b.textContent.replace(',','')) === n);
+    });
+    document.getElementById('amountInput').value = n;
+  };
+
+  // ── GIFT COINS ───────────────────────────────────────────────────
+  window.giftCoins = async function(deduct) {
+    const user = window._selectedUser;
+    if (!user) return showToast('Select a user first', 'error');
+
+    const rawAmt = parseInt(document.getElementById('amountInput').value);
+    if (!rawAmt || rawAmt < 1) return showToast('Enter an amount', 'error');
+
+    const note = document.getElementById('noteInput').value.trim() || (deduct ? 'Coin deduction by owner' : 'Gift from 8BFR owner');
+    const delta = deduct ? -rawAmt : rawAmt;
+
+    try {
+      // Update profile coins
+      const newCoins = Math.max(0, (user.coins || 0) + delta);
+      const { error: updateErr } = await sb.from('profiles')
+        .update({ coins: newCoins })
+        .eq('user_id', user.id);
+      if (updateErr) throw updateErr;
+
+      // Log transaction
+      await sb.from('coin_transactions').insert({
+        user_id: user.id,
+        amount: delta,
+        type: deduct ? 'deduction' : 'gift',
+        description: note,
+        reference_id: 'owner_gift_' + Date.now()
+      });
+
+      // Send notification to user
+      await sb.from('notifications').insert({
+        user_id: user.id,
+        type: 'coin_gift',
+        title: deduct ? '💸 Coins Deducted' : '🪙 Coins Received!',
+        message: deduct
+          ? `${rawAmt.toLocaleString()} coins were deducted from your balance. ${note}`
+          : `You received ${rawAmt.toLocaleString()} coins! ${note}`,
+        read: false
+      });
+
+      showToast(deduct ? `Deducted ${rawAmt} coins from ${user.name}` : `Gifted ${rawAmt} coins to ${user.name}!`, 'success');
+
+      // Update displayed balance
+      window._selectedUser.coins = newCoins;
+      document.getElementById('selCoins').textContent = newCoins.toLocaleString();
+      document.getElementById('amountInput').value = '';
+      document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('selected'));
+
+      loadStats();
+      loadHistory();
+    } catch(e) {
+      console.error(e);
+      showToast('Error: ' + (e.message || 'Unknown error'), 'error');
+    }
+  };
+
+  // ── BULK GIFT ─────────────────────────────────────────────────────
+  window.bulkGift = async function() {
+    const amount = parseInt(document.getElementById('bulkAmount').value);
+    const note   = document.getElementById('bulkNote').value.trim() || '🎁 Bonus coins from 8BFR!';
+    if (!amount || amount < 1) return showToast('Enter an amount', 'error');
+    if (!confirm(`Gift ${amount} coins to ALL users? This cannot be undone.`)) return;
+
+    const statusEl = document.getElementById('bulkStatus');
+    statusEl.style.color = '#a855f7';
+    statusEl.textContent = 'Loading users...';
+
+    try {
+      const { data: profiles, error } = await sb.from('profiles').select('user_id,coins');
+      if (error) throw error;
+      if (!profiles || !profiles.length) { statusEl.textContent = 'No users found.'; return; }
+
+      statusEl.textContent = `Gifting to ${profiles.length} users...`;
+      let done = 0;
+
+      // Process in batches of 20
+      for (let i = 0; i < profiles.length; i += 20) {
+        const batch = profiles.slice(i, i+20);
+        await Promise.all(batch.map(async (p) => {
+          const newCoins = (p.coins || 0) + amount;
+          await sb.from('profiles').update({ coins: newCoins }).eq('user_id', p.user_id);
+          await sb.from('coin_transactions').insert({
+            user_id: p.user_id, amount, type: 'bulk_gift',
+            description: note, reference_id: 'bulk_' + Date.now()
+          });
+          done++;
+        }));
+        statusEl.textContent = `Gifted to ${done}/${profiles.length} users...`;
+      }
+
+      statusEl.style.color = '#86efac';
+      statusEl.textContent = `✓ Gifted ${amount} coins to ${done} users!`;
+      document.getElementById('bulkAmount').value = '';
+      document.getElementById('bulkNote').value = '';
+      loadStats();
+      loadHistory();
+    } catch(e) {
+      statusEl.style.color = '#fca5a5';
+      statusEl.textContent = 'Error: ' + (e.message || 'Unknown');
+    }
+  };
+
+  // ── LOAD STATS ───────────────────────────────────────────────────
+  async function loadStats() {
+    try {
+      const today = new Date(); today.setHours(0,0,0,0);
+      const { data: todayData } = await sb.from('coin_transactions')
+        .select('amount')
+        .in('type', ['gift','bulk_gift'])
+        .gte('created_at', today.toISOString());
+
+      const todayTotal = (todayData || []).filter(r => r.amount > 0).reduce((s,r) => s + r.amount, 0);
+      document.getElementById('statTotal').textContent = todayTotal.toLocaleString();
+
+      const { data: allData } = await sb.from('coin_transactions')
+        .select('amount,user_id')
+        .in('type', ['gift','bulk_gift']);
+
+      const allTotal = (allData || []).filter(r => r.amount > 0).reduce((s,r) => s + r.amount, 0);
+      const uniqueRecipients = new Set((allData || []).map(r => r.user_id)).size;
+      document.getElementById('statTotalAll').textContent = allTotal.toLocaleString();
+      document.getElementById('statRecipients').textContent = uniqueRecipients.toLocaleString();
+    } catch(e) { console.warn('Stats error:', e); }
+  }
+
+  // ── LOAD HISTORY ─────────────────────────────────────────────────
+  window.loadHistory = async function() {
+    const el = document.getElementById('historyList');
+    el.innerHTML = '<div style="text-align:center;padding:1rem;color:#a855f7;opacity:.6;">Loading...</div>';
+
+    try {
+      const { data: txns, error } = await sb.from('coin_transactions')
+        .select('user_id,amount,type,description,created_at')
+        .in('type', ['gift','deduction','bulk_gift'])
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+      if (!txns || !txns.length) {
+        el.innerHTML = '<div style="text-align:center;padding:1.5rem;color:#a855f7;opacity:.6;">No gift history yet.</div>';
+        return;
+      }
+
+      // Fetch profiles for these users
+      const uids = [...new Set(txns.map(t => t.user_id))].filter(Boolean);
+      const pm = {};
+      if (uids.length) {
+        const { data: profs } = await sb.from('profiles')
+          .select('user_id,username,display_name,avatar_url')
+          .in('user_id', uids);
+        if (profs) profs.forEach(p => pm[p.user_id] = p);
+      }
+
+      el.innerHTML = txns.map(t => {
+        const p = pm[t.user_id] || {};
+        const name = p.display_name || p.username || 'Unknown';
+        const ago = timeAgo(t.created_at);
+        const isDeduct = t.amount < 0;
+        const isBulk = t.type === 'bulk_gift';
+        const tagClass = isDeduct ? 'tag-red' : 'tag-green';
+        const sign = isDeduct ? '' : '+';
+        return `<div class="history-row">
+          <div class="avatar-circle">
+            ${p.avatar_url ? `<img src="${escHtml(p.avatar_url)}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.textContent='👤'">` : '👤'}
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:700;font-size:.88rem;">${escHtml(name)} ${isBulk ? '<span style="font-size:.7rem;color:#a855f7;opacity:.7;">(bulk)</span>' : ''}</div>
+            <div style="font-size:.75rem;color:#a855f7;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(t.description||'')}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;">
+            <span class="tag ${tagClass}">${sign}${Math.abs(t.amount).toLocaleString()} 🪙</span>
+            <div style="font-size:.7rem;color:#a855f7;opacity:.6;margin-top:.15rem;">${ago}</div>
+          </div>
+        </div>`;
+      }).join('');
+    } catch(e) {
+      el.innerHTML = `<div style="color:#fca5a5;font-size:.82rem;padding:.5rem;">Error loading history: ${e.message}</div>`;
+    }
+  };
+
+  // ── HELPERS ───────────────────────────────────────────────────────
+  function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = (type === 'success' ? '✓ ' : '✕ ') + msg;
+    t.className = type;
+    t.style.display = 'block';
+    clearTimeout(window._toastTimer);
+    window._toastTimer = setTimeout(() => { t.style.display='none'; }, 3500);
+  }
+  window.showToast = showToast;
+
+  function timeAgo(d) {
+    if (!d) return '';
+    const m = Math.floor((Date.now() - new Date(d).getTime()) / 60000);
+    if (m < 1) return 'Just now'; if (m < 60) return m+'m ago';
+    const h = Math.floor(m/60); if (h < 24) return h+'h ago';
+    const dy = Math.floor(h/24); if (dy < 7) return dy+'d ago';
+    return new Date(d).toLocaleDateString();
+  }
+
+  function escHtml(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  // Also allow pressing Enter in search
+  document.getElementById('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') searchUser(); });
+
+})();
+</script>
+
+</body>
+</html>
