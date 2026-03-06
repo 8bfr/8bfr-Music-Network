@@ -3,516 +3,379 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>8BFR Shop — Buy with Coins</title>
-  <link rel="icon" href="assets/images/favicon.png?v=15">
-  <script src="https://cdn.tailwindcss.com"></script>
+  <title>8BFR Shop</title>
+  <link rel="icon" href="assets/images/favicon.png">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="carrie-closet-data.js?v=3"></script>
+  <script src="carrie-supabase-sync.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap');
+
+    :root { --gold:#f5c842; --purple:#7c3aed; --cyan:#00d9ff; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+
     body {
-      font-family: system-ui, -apple-system, sans-serif;
+      font-family:'DM Sans',system-ui,sans-serif;
       background:
-        radial-gradient(1200px 600px at 10% -10%, rgba(124,58,237,.30), transparent 60%),
-        radial-gradient(900px 400px at 110% 10%, rgba(0,217,255,.22), transparent 60%),
-        linear-gradient(#050011,#000);
-      color: #eae6ff;
-      margin: 0;
-      min-height: 100vh;
+        radial-gradient(900px 500px at 15% -5%,rgba(124,58,237,.28),transparent 60%),
+        radial-gradient(700px 400px at 90% 10%,rgba(0,217,255,.15),transparent 60%),
+        linear-gradient(180deg,#050011 0%,#000 100%);
+      color:#eae6ff; min-height:100vh; padding-bottom:80px;
     }
-    
+
     header {
-      background: rgba(10,0,25,.96);
-      border-bottom: 1px solid rgba(124,58,237,.5);
-      box-shadow: 0 18px 40px rgba(0,0,0,.7);
+      background:rgba(8,0,20,.95);
+      border-bottom:1px solid rgba(124,58,237,.4);
+      padding:1rem 1.5rem; position:sticky; top:0; z-index:100;
     }
-    
-    .main-tab {
-      font-size: 13px;
-      padding: 8px 16px;
-      border-radius: 999px;
-      border: 1px solid rgba(148,163,255,.35);
-      background: rgba(15,23,42,.8);
-      cursor: pointer;
-      color: #e5e7eb;
-      transition: all .15s ease;
-      white-space: nowrap;
-      font-weight: 600;
+    .hdr-inner {
+      max-width:1100px; margin:0 auto;
+      display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;
     }
-    
-    .main-tab.active {
-      border-color: #a855f7;
-      background: linear-gradient(135deg, #7c3aed, #a855f7);
-      color: white;
-      box-shadow: 0 0 20px rgba(168,85,247,.4);
+    .logo-area { display:flex; align-items:center; gap:.75rem; }
+    .logo-area img { height:36px; width:auto; }
+    .page-title { font-family:'Syne',sans-serif; font-size:1.3rem; font-weight:800; }
+    .page-title span { color:var(--gold); }
+
+    .balance-pill {
+      display:flex; align-items:center; gap:.4rem;
+      background:rgba(245,200,66,.1); border:1px solid rgba(245,200,66,.35);
+      border-radius:999px; padding:.35rem .85rem;
+      font-size:.85rem; font-weight:600; color:var(--gold);
     }
-    
-    .tab-btn {
-      font-size: 11px;
-      padding: 4px 10px;
-      border-radius: 999px;
-      border: 1px solid rgba(148,163,255,.35);
-      background: rgba(15,23,42,.8);
-      cursor: pointer;
-      color: #e5e7eb;
-      transition: all .12s ease;
-      white-space: nowrap;
+
+    main { max-width:1100px; margin:0 auto; padding:1.5rem 1rem 3rem; }
+
+    .cat-tabs { display:flex; flex-wrap:wrap; gap:.5rem; margin-bottom:1.25rem; }
+    .cat-tab {
+      padding:.45rem .9rem; border-radius:999px;
+      border:1px solid rgba(124,58,237,.4); background:rgba(15,23,42,.8);
+      color:#e5e7eb; font-size:.82rem; font-weight:600; cursor:pointer;
+      transition:all .15s; font-family:'DM Sans',sans-serif;
     }
-    
-    .tab-btn.active {
-      border-color: #38bdf8;
-      background: radial-gradient(circle at 0 0, #38bdf8, #6366f1);
-      color: #0f172a;
+    .cat-tab.active {
+      border-color:#a855f7;
+      background:linear-gradient(135deg,var(--purple),#a855f7);
+      color:#fff; box-shadow:0 0 16px rgba(124,58,237,.4);
     }
-    
+
+    .items-grid {
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(145px,1fr));
+      gap:1rem;
+    }
+
     .item-card {
-      background: rgba(15,23,42,.96);
-      border: 1px solid rgba(124,58,237,.4);
-      border-radius: 12px;
-      padding: 1rem;
-      transition: all 0.15s ease;
-      cursor: pointer;
+      background:rgba(12,3,28,.9);
+      border:1px solid rgba(124,58,237,.35);
+      border-radius:14px; padding:1rem;
+      text-align:center; position:relative; transition:all .15s;
     }
-    
-    .item-card:hover {
-      transform: translateY(-2px);
-      border-color: #a855f7;
-      box-shadow: 0 0 0 1px rgba(129,140,248,.85), 0 0 20px rgba(124,58,237,.6);
+    .item-card:not(.owned) { cursor:pointer; }
+    .item-card:hover:not(.owned) {
+      border-color:#a855f7; transform:translateY(-2px);
+      box-shadow:0 0 20px rgba(124,58,237,.5);
     }
-    
-    .item-card.owned {
-      border-color: #22c55e;
-      opacity: 0.6;
-      cursor: default;
+    .item-card.owned { border-color:rgba(34,197,94,.5); }
+
+    .item-thumb {
+      width:100%; aspect-ratio:1; border-radius:8px;
+      background:rgba(5,0,17,.6);
+      display:flex; align-items:center; justify-content:center;
+      overflow:hidden; margin-bottom:.6rem;
     }
-    
-    .item-card.coming-soon {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-    
-    .item-img {
-      width: 100%;
-      aspect-ratio: 1;
-      border-radius: 8px;
-      background: #020617;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-      margin-bottom: 0.75rem;
-      position: relative;
-    }
-    
-    .item-img img {
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
-    }
-    
+    .item-thumb img { max-width:80%; max-height:80%; object-fit:contain; }
+
+    .item-name { font-size:.78rem; font-weight:600; color:#eae6ff; margin-bottom:.3rem; line-height:1.3; }
+    .item-label { font-size:.7rem; color:rgba(168,85,247,.65); margin-bottom:.5rem; }
+
     .price-tag {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.25rem;
-      background: rgba(168,85,247,.2);
-      border: 1px solid rgba(168,85,247,.5);
-      border-radius: 999px;
-      padding: 0.25rem 0.5rem;
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: #a855f7;
+      display:inline-flex; align-items:center; gap:.25rem;
+      font-size:.78rem; font-weight:700; padding:.2rem .5rem; border-radius:999px;
     }
-    
-    .owned-badge {
-      background: rgba(34,197,94,.2);
-      border: 1px solid rgba(34,197,94,.6);
-      color: #22c55e;
+    .price-tag.cost      { background:rgba(124,58,237,.2); border:1px solid rgba(124,58,237,.4); color:#a855f7; }
+    .price-tag.owned-tag { background:rgba(34,197,94,.15); border:1px solid rgba(34,197,94,.4); color:#4ade80; }
+    .price-tag.free-tag  { background:rgba(245,200,66,.15); border:1px solid rgba(245,200,66,.4); color:var(--gold); }
+
+    .buy-btn {
+      width:100%; margin-top:.6rem; padding:.4rem; border-radius:8px; border:none;
+      background:linear-gradient(135deg,var(--purple),#a855f7);
+      color:#fff; font-weight:700; font-size:.78rem; cursor:pointer;
+      font-family:'DM Sans',sans-serif; transition:all .15s;
     }
-    
-    .coming-soon-badge {
-      background: rgba(234,179,8,.2);
-      border: 1px solid rgba(234,179,8,.6);
-      color: #eab308;
+    .buy-btn:hover { box-shadow:0 0 14px rgba(124,58,237,.6); }
+    .buy-btn:disabled { opacity:.4; cursor:default; }
+    .buy-btn.cant-afford { background:rgba(71,85,105,.4); color:#94a3b8; cursor:default; }
+
+    .alert {
+      padding:.75rem 1rem; border-radius:10px;
+      font-size:.88rem; font-weight:600; margin-bottom:1rem;
     }
+    .alert.success { background:rgba(34,197,94,.15); border:1px solid rgba(34,197,94,.4); color:#4ade80; }
+    .alert.error   { background:rgba(239,68,68,.15);  border:1px solid rgba(239,68,68,.4);  color:#f87171; }
+
+    .spinner {
+      width:32px; height:32px;
+      border:3px solid rgba(124,58,237,.2); border-top-color:#a855f7;
+      border-radius:50%; animation:spin .7s linear infinite; margin:2rem auto;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    .empty-msg {
+      grid-column:1/-1; text-align:center;
+      padding:2rem; color:rgba(168,85,247,.5); font-size:.9rem;
+    }
+
+    @media(max-width:480px){ .items-grid { grid-template-columns:repeat(2,1fr); } }
   </style>
 </head>
 <body>
-  <header class="px-4 py-4">
-    <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
-      <div class="flex items-center gap-3">
-        <img src="assets/images/logo_8bfr.svg?v=15"
-             alt="8BFR logo"
-             class="h-9 w-auto"
-             onerror="this.onerror=null;this.src='assets/images/8bfr.png?v=15'">
-        <div>
-          <h1 class="text-xl sm:text-2xl font-extrabold">
-            <span class="text-[#a855f7]">8BFR Shop</span>
-          </h1>
-          <p class="text-[11px] text-purple-300/80 -mt-0.5">
-            Browse and buy items with your 8BFR coins
-          </p>
-        </div>
-      </div>
-      <div class="flex flex-col items-end gap-1">
-        <a href="https://8bfr.github.io/8bfr-Music-Network/index.html"
-           class="text-[#00d9ff] text-[11px] sm:text-xs underline/50 hover:underline">
-          ⬅ Back to Home
-        </a>
-        <div style="font-size:11px; color:#a855f7;">
-          Balance: <span id="coinBalance" style="font-weight:700;">0</span> <img src="assets/images/icon_8bfr_coin.png" style="width:1em; height:1em; display:inline-block; vertical-align:middle;">
-        </div>
-      </div>
+
+<header>
+  <div class="hdr-inner">
+    <div class="logo-area">
+      <img src="assets/images/logo_8bfr.svg" alt="8BFR"
+           onerror="this.onerror=null;this.src='assets/images/8bfr.png'">
+      <div class="page-title">8BFR <span>Shop</span></div>
     </div>
-  </header>
-
-  <main class="max-w-6xl mx-auto px-4 pb-10 pt-6">
-    <!-- Main Category Tabs -->
-    <div class="flex flex-wrap gap-3 mb-6">
-      <button type="button" class="main-tab active" data-main-cat="accessories">👗 Avatar Accessories</button>
-      <button type="button" class="main-tab" data-main-cat="stickers">🎨 Stickers</button>
-      <button type="button" class="main-tab" data-main-cat="game-items">🎮 Game Items</button>
-      <button type="button" class="main-tab" data-main-cat="upgrades">⚡ Upgrades</button>
+    <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
+      <div class="balance-pill">🪙 <span id="balanceDisplay">—</span> coins</div>
+      <a href="coinshop.html"    style="color:var(--cyan);font-size:.82rem;text-decoration:none;">+ Buy Coins</a>
+      <a href="carrie-chat.html" style="color:rgba(168,85,247,.7);font-size:.82rem;text-decoration:none;">💬 Carrie</a>
+      <a href="index.html"       style="color:rgba(168,85,247,.7);font-size:.82rem;text-decoration:none;">← Home</a>
     </div>
+  </div>
+</header>
 
-    <!-- Accessories Sub-categories -->
-    <div id="accessoriesFilters" class="mb-6">
-      <div class="flex flex-wrap gap-2 mb-3">
-        <button type="button" class="tab-btn active" data-cat="all">All Items</button>
-        <button type="button" class="tab-btn" data-cat="hair">Hair</button>
-        <button type="button" class="tab-btn" data-cat="top">Tops</button>
-        <button type="button" class="tab-btn" data-cat="bottom">Bottoms</button>
-        <button type="button" class="tab-btn" data-cat="jewelry">Jewelry</button>
-        <button type="button" class="tab-btn" data-cat="eyes">Eyes</button>
-        <button type="button" class="tab-btn" data-cat="shoes">Shoes</button>
-      </div>
+<main>
+  <div id="alertBox" style="display:none;" class="alert"></div>
+  <div id="loadingSpinner"><div class="spinner"></div></div>
 
-      <!-- Gender Filter -->
-      <div class="flex gap-2">
-        <button type="button" class="tab-btn active" data-gender="all">All</button>
-        <button type="button" class="tab-btn" data-gender="female">Female</button>
-        <button type="button" class="tab-btn" data-gender="male">Male</button>
-        <button type="button" class="tab-btn" data-gender="unisex">Unisex</button>
-      </div>
+  <div id="shopContent" style="display:none;">
+    <div class="cat-tabs" id="catTabs">
+      <button class="cat-tab active" data-cat="all">All Items</button>
+      <button class="cat-tab" data-cat="hair">Hair</button>
+      <button class="cat-tab" data-cat="top">Tops</button>
+      <button class="cat-tab" data-cat="bottom">Bottoms</button>
+      <button class="cat-tab" data-cat="jewelry">Jewelry</button>
+      <button class="cat-tab" data-cat="eyes">Eyes</button>
+      <button class="cat-tab" data-cat="shoes">Shoes</button>
     </div>
+    <div class="items-grid" id="itemsGrid"></div>
+  </div>
+</main>
 
-    <!-- Stickers Filters -->
-    <div id="stickersFilters" class="mb-6" style="display:none;">
-      <div class="flex flex-wrap gap-2">
-        <button type="button" class="tab-btn active" data-sticker-cat="all">All Stickers</button>
-        <button type="button" class="tab-btn" data-sticker-cat="emojis">Emojis</button>
-        <button type="button" class="tab-btn" data-sticker-cat="reactions">Reactions</button>
-        <button type="button" class="tab-btn" data-sticker-cat="custom">Custom</button>
-      </div>
-    </div>
-
-    <!-- Game Items Filters -->
-    <div id="gameItemsFilters" class="mb-6" style="display:none;">
-      <div class="flex flex-wrap gap-2">
-        <button type="button" class="tab-btn active" data-game-cat="all">All Items</button>
-        <button type="button" class="tab-btn" data-game-cat="powerups">Power-Ups</button>
-        <button type="button" class="tab-btn" data-game-cat="boosters">Boosters</button>
-        <button type="button" class="tab-btn" data-game-cat="tools">Tools</button>
-      </div>
-    </div>
-
-    <!-- Upgrades Filters -->
-    <div id="upgradesFilters" class="mb-6" style="display:none;">
-      <div class="flex flex-wrap gap-2">
-        <button type="button" class="tab-btn active" data-upgrade-cat="all">All Upgrades</button>
-        <button type="button" class="tab-btn" data-upgrade-cat="chat">Chat Features</button>
-        <button type="button" class="tab-btn" data-upgrade-cat="profile">Profile</button>
-        <button type="button" class="tab-btn" data-upgrade-cat="badges">Badges</button>
-      </div>
-    </div>
-
-    <!-- Items Grid -->
-    <div id="itemsGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-      <!-- Populated by JavaScript -->
-    </div>
-
-    <!-- Coming Soon Notice -->
-    <div id="comingSoonNotice" class="mt-8 text-center text-purple-300/60 text-sm" style="display:none;">
-      💡 More items coming soon! Check back later.
-    </div>
-
-    <!-- Links -->
-    <div class="mt-10 flex flex-wrap justify-center gap-4">
-      <a href="coinshop.html" class="text-[#00d9ff] text-sm underline hover:opacity-80">
-        <img src="assets/images/icon_8bfr_coin.png" style="width:1em; height:1em; display:inline-block; vertical-align:middle;"> Buy More Coins
-      </a>
-      <a href="carrie-chat.html" class="text-[#00d9ff] text-sm underline hover:opacity-80">
-        💬 Back to Chat
-      </a>
-    </div>
-  </main>
-
-  <script>
-    let currentMainCategory = "accessories";
-    let currentCategory = "all";
-    let currentGender = "all";
-    let currentStickerCat = "all";
-    let currentGameCat = "all";
-    let currentUpgradeCat = "all";
-    
-    let coins = parseInt(localStorage.getItem("carrieCoins_v1") || "0");
-    let ownedItems = JSON.parse(localStorage.getItem("carrieOwnedItems_v1") || "[]");
-
-    function updateCoinDisplay() {
-      document.getElementById("coinBalance").textContent = coins.toLocaleString();
-    }
-
-    function showFilters(category) {
-      // Hide all filter sections
-      document.getElementById("accessoriesFilters").style.display = "none";
-      document.getElementById("stickersFilters").style.display = "none";
-      document.getElementById("gameItemsFilters").style.display = "none";
-      document.getElementById("upgradesFilters").style.display = "none";
-      
-      // Show relevant filters
-      if (category === "accessories") {
-        document.getElementById("accessoriesFilters").style.display = "block";
-      } else if (category === "stickers") {
-        document.getElementById("stickersFilters").style.display = "block";
-      } else if (category === "game-items") {
-        document.getElementById("gameItemsFilters").style.display = "block";
-      } else if (category === "upgrades") {
-        document.getElementById("upgradesFilters").style.display = "block";
-      }
-    }
-
-    function filterItems() {
-      const items = window.CARRIE_CLOSET_ITEMS || [];
-      
-      if (currentMainCategory === "accessories") {
-        return items.filter(item => {
-          // Category filter
-          const categoryToSlot = {
-            "hair": "hair",
-            "top": "top",
-            "bottom": "bottom",
-            "jewelry": ["necklace", "ears", "belly"],
-            "eyes": "eyes",
-            "shoes": "shoes"
-          };
-          
-          let categoryMatch = true;
-          if (currentCategory !== "all") {
-            const slots = categoryToSlot[currentCategory];
-            if (Array.isArray(slots)) {
-              categoryMatch = slots.includes(item.slot);
-            } else {
-              categoryMatch = item.slot === slots;
-            }
-          }
-          
-          // Gender filter
-          let genderMatch = true;
-          if (currentGender !== "all") {
-            genderMatch = item.gender === currentGender;
-          }
-          
-          return categoryMatch && genderMatch;
-        });
-      } else {
-        // Other categories return empty for now (coming soon)
-        return [];
-      }
-    }
-
-    function renderItems() {
-      const grid = document.getElementById("itemsGrid");
-      const comingSoon = document.getElementById("comingSoonNotice");
-      const filtered = filterItems();
-      
-      grid.innerHTML = "";
-      
-      if (currentMainCategory !== "accessories") {
-        // Show coming soon for non-accessories
-        comingSoon.style.display = "block";
-        grid.innerHTML = `
-          <div style="grid-column:1/-1; text-align:center; padding:3rem;">
-            <div style="font-size:3rem; margin-bottom:1rem;">🚧</div>
-            <div style="font-size:1.2rem; color:#a855f7; font-weight:600; margin-bottom:0.5rem;">
-              ${currentMainCategory === "stickers" ? "Stickers" : 
-                currentMainCategory === "game-items" ? "Game Items" : 
-                "Upgrades"} Coming Soon!
-            </div>
-            <div style="font-size:0.9rem; color:#e5e7eb; opacity:0.7;">
-              We're working hard to bring you ${currentMainCategory === "stickers" ? "awesome stickers" : 
-                currentMainCategory === "game-items" ? "exciting game items" : 
-                "powerful upgrades"}
-            </div>
-          </div>
-        `;
-        return;
-      }
-      
-      comingSoon.style.display = "none";
-      
-      if (filtered.length === 0) {
-        grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:3rem; color:#a855f7; opacity:.7;">No items found in this category</div>';
-        return;
-      }
-      
-      filtered.forEach(item => {
-        const owned = ownedItems.includes(item.id);
-        const card = document.createElement("div");
-        card.className = "item-card" + (owned ? " owned" : "");
-        
-        card.innerHTML = `
-          <div class="item-img">
-            <img src="${item.img}" alt="${item.name}">
-          </div>
-          <div style="font-size:0.85rem; font-weight:600; margin-bottom:0.5rem; color:#e5e7eb;">${item.name}</div>
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            ${owned 
-              ? '<span class="price-tag owned-badge">✅ Owned</span>'
-              : `<span class="price-tag">${item.price} <img src="assets/images/icon_8bfr_coin.png" style="width:1em; height:1em; display:inline-block; vertical-align:middle;"></span>`
-            }
-          </div>
-        `;
-        
-        if (!owned) {
-          card.addEventListener("click", () => purchaseItem(item));
-        }
-        
-        grid.appendChild(card);
-      });
-    }
-
-    function purchaseItem(item) {
-      if (ownedItems.includes(item.id)) {
-        alert("You already own this item!");
-        return;
-      }
-      
-      if (coins < item.price) {
-        if (confirm(`Not enough coins! You need ${item.price} coins but only have ${coins}. Buy more coins?`)) {
-          window.location.href = "coinshop.html";
-        }
-        return;
-      }
-      
-      if (confirm(`Purchase ${item.name} for ${item.price} coins?`)) {
-        coins -= item.price;
-        ownedItems.push(item.id);
-        
-        localStorage.setItem("carrieCoins_v1", coins.toString());
-        localStorage.setItem("carrieOwnedItems_v1", JSON.stringify(ownedItems));
-        
-        updateCoinDisplay();
-        renderItems();
-        
-        alert(`✅ Successfully purchased ${item.name}!`);
-      }
-    }
-
-    // Main category tabs
-    document.querySelectorAll('[data-main-cat]').forEach(btn => {
-      btn.addEventListener('click', function() {
-        document.querySelectorAll('[data-main-cat]').forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
-        currentMainCategory = this.dataset.mainCat;
-        showFilters(currentMainCategory);
-        renderItems();
-      });
-    });
-
-    // Accessories category tabs
-    document.querySelectorAll('[data-cat]').forEach(btn => {
-      btn.addEventListener('click', function() {
-        document.querySelectorAll('[data-cat]').forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
-        currentCategory = this.dataset.cat;
-        renderItems();
-      });
-    });
-
-    // Accessories gender tabs
-    document.querySelectorAll('[data-gender]').forEach(btn => {
-      btn.addEventListener('click', function() {
-        document.querySelectorAll('[data-gender]').forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
-        currentGender = this.dataset.gender;
-        renderItems();
-      });
-    });
-
-    // Initialize
-    updateCoinDisplay();
-    showFilters(currentMainCategory);
-    renderItems();
-  </script>
-  <!-- ADD THIS SCRIPT TO EVERY PAGE (except index.html where you want it always shown) -->
-<!-- Place it right before the closing </body> tag -->
-
+<script src="scripts.js" defer></script>
 <script>
-// Avatar & Bubble Toggle System
-(function() {
-    // Create toggle button
-    const toggleBtn = document.createElement('button');
-    toggleBtn.id = 'avatarToggle';
-    toggleBtn.innerHTML = '👁️';
-    toggleBtn.title = 'Toggle Avatar/Bubbles';
-    toggleBtn.style.cssText = `
-        position: fixed;
-        top: 80px;
-        right: 20px;
-        z-index: 9999;
-        background: rgba(124, 58, 237, 0.9);
-        border: 2px solid rgba(124, 58, 237, 1);
-        color: white;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.5);
-        transition: all 0.3s ease;
-    `;
-    
-    toggleBtn.addEventListener('mouseenter', function() {
-        this.style.transform = 'scale(1.1)';
+(function () {
+  var COINS_KEY     = 'carrieCoins_v1';
+  var OWNERSHIP_KEY = 'carrieOwnedItems_v1';
+  var OWNER_EMAIL   = '8bfr.music@gmail.com';
+  var OWNER_PASS    = '197594773839*Ab4444';
+  var USER_EMAIL_K  = 'carrieUserEmail_v1';
+  var USER_PASS_K   = 'carrieUserPassword_v1';
+
+  var coins      = 0;
+  var ownedItems = [];
+  var currentCat = 'all';
+
+  var balanceEl  = document.getElementById('balanceDisplay');
+  var gridEl     = document.getElementById('itemsGrid');
+  var alertEl    = document.getElementById('alertBox');
+  var spinner    = document.getElementById('loadingSpinner');
+  var content    = document.getElementById('shopContent');
+
+  function isOwnerLS() {
+    return localStorage.getItem(USER_EMAIL_K) === OWNER_EMAIL &&
+           localStorage.getItem(USER_PASS_K)  === OWNER_PASS;
+  }
+
+  function isOwner() {
+    if (window.CARRIE_SYNC) return window.CARRIE_SYNC.isOwner;
+    return isOwnerLS();
+  }
+
+  function showAlert(msg, type) {
+    alertEl.textContent   = msg;
+    alertEl.className     = 'alert ' + type;
+    alertEl.style.display = 'block';
+    clearTimeout(alertEl._t);
+    alertEl._t = setTimeout(function () { alertEl.style.display = 'none'; }, 5000);
+  }
+
+  function updateBalance() {
+    balanceEl.textContent = isOwner() ? '∞' : coins.toLocaleString();
+  }
+
+  function getItems() {
+    return Array.isArray(window.CARRIE_CLOSET_ITEMS) ? window.CARRIE_CLOSET_ITEMS : [];
+  }
+
+  function filterItems() {
+    var items = getItems();
+    if (currentCat === 'all') return items;
+    return items.filter(function (it) {
+      return it.category === currentCat || it.cat === currentCat;
     });
-    
-    toggleBtn.addEventListener('mouseleave', function() {
-        this.style.transform = 'scale(1)';
-    });
-    
-    document.body.appendChild(toggleBtn);
-    
-    // Load saved preference
-    let isHidden = localStorage.getItem('hideAvatarBubbles') === 'true';
-    
-    function updateVisibility() {
-        const elementsToToggle = [
-            document.getElementById('homeAvatarSwitcher'),
-            ...document.querySelectorAll('[id*="bubble"]'),
-            ...document.querySelectorAll('[class*="bubble"]'),
-            ...document.querySelectorAll('[id*="avatar"][id*="switcher"]')
-        ];
-        
-        elementsToToggle.forEach(el => {
-            if (el) {
-                el.style.display = isHidden ? 'none' : '';
-            }
-        });
-        
-        toggleBtn.innerHTML = isHidden ? '👁️‍🗨️' : '👁️';
-        toggleBtn.title = isHidden ? 'Show Avatar/Bubbles' : 'Hide Avatar/Bubbles';
+  }
+
+  // ── Buy ──────────────────────────────────────────────────────
+  async function buyItem(item) {
+    if (ownedItems.indexOf(item.id) > -1) return;
+
+    if (isOwner()) {
+      ownedItems.push(item.id);
+      localStorage.setItem(OWNERSHIP_KEY, JSON.stringify(ownedItems));
+      render();
+      showAlert('✅ ' + item.name + ' unlocked!', 'success');
+      return;
     }
-    
-    toggleBtn.addEventListener('click', function() {
-        isHidden = !isHidden;
-        localStorage.setItem('hideAvatarBubbles', isHidden);
-        updateVisibility();
+
+    if (coins < (item.coins || 0)) {
+      showAlert('Not enough coins — you need ' + (item.coins || 0) + ' 🪙', 'error');
+      return;
+    }
+
+    if (!confirm('Buy ' + item.name + ' for ' + item.coins + ' coins?')) return;
+
+    // Deduct locally first for instant feedback
+    coins -= item.coins;
+    ownedItems.push(item.id);
+    localStorage.setItem(COINS_KEY, coins.toString());
+    localStorage.setItem(OWNERSHIP_KEY, JSON.stringify(ownedItems));
+    updateBalance();
+    render();
+    showAlert('✅ ' + item.name + ' purchased! Equip it in Carrie Chat or the Closet.', 'success');
+
+    // Push to Supabase in background
+    if (window.CARRIE_SYNC && window.CARRIE_SYNC.isLoggedIn()) {
+      window.CARRIE_SYNC.pushCoins(coins);
+      window.CARRIE_SYNC.pushOwnedItem(item.id, item.name, item.coins);
+    }
+  }
+
+  // ── Render ──────────────────────────────────────────────────
+  function render() {
+    var list = filterItems();
+    gridEl.innerHTML = '';
+
+    if (!list.length) {
+      gridEl.innerHTML = '<div class="empty-msg">No items in this category yet.</div>';
+      return;
+    }
+
+    list.forEach(function (item) {
+      var owned     = ownedItems.indexOf(item.id) > -1;
+      var canAfford = isOwner() || coins >= (item.coins || 0);
+
+      var card  = document.createElement('div');
+      card.className = 'item-card' + (owned ? ' owned' : '');
+
+      var thumb = document.createElement('div');
+      thumb.className = 'item-thumb';
+      var img = document.createElement('img');
+      img.src = item.img; img.alt = item.name;
+      img.onerror = function () { this.style.opacity = '.3'; };
+      thumb.appendChild(img);
+
+      var name = document.createElement('div');
+      name.className = 'item-name';
+      name.textContent = item.name;
+
+      var lbl = document.createElement('div');
+      lbl.className = 'item-label';
+      lbl.textContent = item.label || item.category;
+
+      var tag = document.createElement('div');
+      if (isOwner()) {
+        tag.className   = 'price-tag free-tag';
+        tag.textContent = '👑 Free';
+      } else if (owned) {
+        tag.className   = 'price-tag owned-tag';
+        tag.textContent = '✅ Owned';
+      } else {
+        tag.className   = 'price-tag cost';
+        tag.textContent = '🪙 ' + (item.coins || 0);
+      }
+
+      card.appendChild(thumb);
+      card.appendChild(name);
+      card.appendChild(lbl);
+      card.appendChild(tag);
+
+      if (!owned) {
+        var btn = document.createElement('button');
+        btn.className   = 'buy-btn' + (!canAfford ? ' cant-afford' : '');
+        btn.textContent = canAfford ? 'Buy Now' : 'Need More Coins';
+        if (canAfford) {
+          btn.addEventListener('click', (function (i) {
+            return function () { buyItem(i); };
+          })(item));
+        }
+        card.appendChild(btn);
+      }
+
+      gridEl.appendChild(card);
     });
-    
-    // Apply on load
-    updateVisibility();
-    
-    
+  }
+
+  // ── Category tabs ─────────────────────────────────────────────
+  document.getElementById('catTabs').addEventListener('click', function (e) {
+    var btn = e.target.closest('.cat-tab');
+    if (!btn) return;
+    document.querySelectorAll('.cat-tab').forEach(function (b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    currentCat = btn.dataset.cat;
+    render();
+  });
+
+  // ── Init ─────────────────────────────────────────────────────
+  function loadFromLocal() {
+    try { ownedItems = JSON.parse(localStorage.getItem(OWNERSHIP_KEY) || '[]'); } catch (e) { ownedItems = []; }
+    try { coins = parseInt(localStorage.getItem(COINS_KEY) || '0', 10) || 0; } catch (e) { coins = 0; }
+    if (isOwnerLS()) {
+      coins = 999999;
+      ownedItems = getItems().map(function (i) { return i.id; });
+      localStorage.setItem(COINS_KEY, coins.toString());
+      localStorage.setItem(OWNERSHIP_KEY, JSON.stringify(ownedItems));
+    }
+  }
+
+  function showShop() {
+    spinner.style.display = 'none';
+    content.style.display = 'block';
+    updateBalance();
+    render();
+  }
+
+  function init() {
+    // Wait for closet data
+    if (!window.CARRIE_CLOSET_ITEMS) { setTimeout(init, 100); return; }
+
+    loadFromLocal();
+
+    // carrie-supabase-sync.js runs async — give it up to 3s to finish
+    // then show the shop either way (localStorage is the fallback)
+    var waited = 0;
+    var syncWait = setInterval(function () {
+      waited += 200;
+      var syncDone = window.CARRIE_SYNC !== undefined;
+      if (syncDone || waited >= 3000) {
+        clearInterval(syncWait);
+        // Re-read localStorage in case sync updated it
+        loadFromLocal();
+        showShop();
+      }
+    }, 200);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
 </script>
 
 </body>
