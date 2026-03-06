@@ -157,7 +157,7 @@ body.menu-open #pageWrap{ margin-right:280px; }
 #menu h2{ font-size:.85rem; text-transform:uppercase; letter-spacing:.12em; opacity:.9; margin:2px 6px 4px; }
 .menu-group{ margin:4px 0 6px; padding:4px 4px 6px; border-radius:10px; border:1px solid rgba(139,92,246,.48); background:rgba(10,2,26,.85); }
 .menu-group-title{ font-size:.78rem; font-weight:600; opacity:.9; margin-bottom:3px; cursor:pointer; display:flex; align-items:center; }
-.menu-group-title::after{ content:"&#9662;"; font-size:.65rem; opacity:.7; margin-left:auto; transition:transform .2s ease; }
+.menu-group-title::after{ content:"▾"; font-size:.65rem; opacity:.7; margin-left:auto; transition:transform .2s ease; }
 .menu-group.collapsed .menu-group-title::after{ transform:rotate(-90deg); }
 .menu-links{ display:flex; flex-wrap:wrap; gap:4px; }
 .menu-group.collapsed .menu-links{ display:none; }
