@@ -527,6 +527,7 @@
       h+='<div style="display:flex;gap:0.5rem;margin-top:1rem;flex-wrap:wrap;">';
       h+='<button class="btn" id="followBtn" onclick="toggleFollow()">Follow</button>';
       h+='<button class="btn btn-ghost" id="friendBtn" onclick="sendFR()">🤝 Add Friend</button>';
+      h+='<button class="btn btn-ghost" onclick="openTipModal(\''+profileData.user_id+'\',\''+esc(profileData.display_name||profileData.username||'this artist')+'\')">🪙 Tip</button>';
       h+='</div>';
     }
     h+='</div></div>';
@@ -870,5 +871,130 @@
   else init();
   })();
   </script>
+
+<!-- ── TIP MODAL ── -->
+<div id="tipModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.75);backdrop-filter:blur(5px);align-items:center;justify-content:center;">
+  <div style="background:rgba(12,4,26,.98);border:1px solid rgba(124,58,237,.55);border-radius:18px;padding:1.5rem;width:min(92vw,360px);text-align:center;">
+    <div style="font-size:2.5rem;margin-bottom:.5rem;">🪙</div>
+    <h3 style="font-size:1.05rem;font-weight:800;margin-bottom:.25rem;">Tip <span id="tipRecipientName">this artist</span></h3>
+    <p style="font-size:.8rem;color:#a855f7;opacity:.8;margin-bottom:1rem;">Coins go directly to their balance</p>
+    <!-- Quick amounts -->
+    <div style="display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap;margin-bottom:.85rem;">
+      <button class="tip-quick" onclick="setTipAmount(50)">50</button>
+      <button class="tip-quick" onclick="setTipAmount(100)">100</button>
+      <button class="tip-quick" onclick="setTipAmount(250)">250</button>
+      <button class="tip-quick" onclick="setTipAmount(500)">500</button>
+    </div>
+    <input id="tipAmount" type="number" min="1" max="99999" placeholder="Custom amount..."
+      style="width:100%;background:rgba(18,3,39,.8);border:1px solid rgba(124,58,237,.45);border-radius:8px;color:#eae6ff;padding:.5rem .75rem;font-size:.95rem;text-align:center;margin-bottom:.5rem;box-sizing:border-box;outline:none;"/>
+    <div style="font-size:.78rem;color:#a855f7;opacity:.7;margin-bottom:.75rem;">Your balance: 🪙 <span id="tipBalanceDisplay">...</span></div>
+    <input id="tipNote" type="text" maxlength="120" placeholder="Add a note (optional)..."
+      style="width:100%;background:rgba(18,3,39,.8);border:1px solid rgba(124,58,237,.3);border-radius:8px;color:#eae6ff;padding:.45rem .75rem;font-size:.82rem;margin-bottom:1rem;box-sizing:border-box;outline:none;"/>
+    <div style="display:flex;gap:.75rem;justify-content:center;">
+      <button onclick="closeTipModal()" style="padding:.5rem 1.1rem;border-radius:10px;background:rgba(255,255,255,.07);border:none;color:#eae6ff;font-size:.88rem;font-weight:700;cursor:pointer;">Cancel</button>
+      <button id="tipConfirmBtn" onclick="sendTip()" style="padding:.5rem 1.25rem;border-radius:10px;background:#7c3aed;border:none;color:#fff;font-size:.88rem;font-weight:700;cursor:pointer;">Send Tip 🪙</button>
+    </div>
+    <div id="tipStatus" style="margin-top:.65rem;font-size:.82rem;min-height:1.2em;"></div>
+  </div>
+</div>
+
+<style>
+.tip-quick{padding:.35rem .75rem;border-radius:999px;border:1px solid rgba(124,58,237,.45);background:rgba(18,3,39,.8);color:#eae6ff;font-size:.82rem;font-weight:700;cursor:pointer;transition:all .15s;}
+.tip-quick:hover,.tip-quick.selected{background:#7c3aed;border-color:#7c3aed;color:#fff;}
+</style>
+
+<script>
+(function(){
+  var _tipToId = null;
+
+  window.openTipModal = async function(toId, toName) {
+    _tipToId = toId;
+    document.getElementById('tipRecipientName').textContent = toName;
+    document.getElementById('tipAmount').value = '';
+    document.getElementById('tipNote').value = '';
+    document.getElementById('tipStatus').textContent = '';
+    document.querySelectorAll('.tip-quick').forEach(function(b){ b.classList.remove('selected'); });
+    document.getElementById('tipModal').style.display = 'flex';
+
+    // Show current balance
+    var bal = '—';
+    try {
+      var db = window._8bfrSupabaseClient || (window.supabase && window.supabase.createClient
+        ? window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0')
+        : null);
+      if(db){
+        var sess = await db.auth.getSession();
+        if(sess.data.session){
+          var res = await db.from('profiles').select('coins').eq('user_id', sess.data.session.user.id).single();
+          if(res.data) bal = (res.data.coins||0).toLocaleString();
+        }
+      }
+    } catch(e){}
+    document.getElementById('tipBalanceDisplay').textContent = bal;
+  };
+
+  window.closeTipModal = function() {
+    document.getElementById('tipModal').style.display = 'none';
+    _tipToId = null;
+  };
+
+  window.setTipAmount = function(n) {
+    document.getElementById('tipAmount').value = n;
+    document.querySelectorAll('.tip-quick').forEach(function(b){
+      b.classList.toggle('selected', parseInt(b.textContent) === n);
+    });
+  };
+
+  window.sendTip = async function() {
+    var amount = parseInt(document.getElementById('tipAmount').value);
+    var note   = document.getElementById('tipNote').value.trim() || 'Coin tip';
+    var status = document.getElementById('tipStatus');
+    var btn    = document.getElementById('tipConfirmBtn');
+
+    if(!amount || amount < 1){ status.style.color='#fca5a5'; status.textContent='Enter an amount.'; return; }
+    if(!_tipToId){ return; }
+
+    btn.disabled = true; btn.textContent = 'Sending...';
+    status.textContent = '';
+
+    try {
+      var db = window._8bfrSupabaseClient || window.supabase.createClient(
+        'https://novbuvwpjnxwwvdekjhr.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0'
+      );
+      var sess = await db.auth.getSession();
+      if(!sess.data.session){ status.style.color='#fca5a5'; status.textContent='Log in to tip.'; btn.disabled=false; btn.textContent='Send Tip 🪙'; return; }
+
+      var fromId = sess.data.session.user.id;
+      var res = await db.rpc('transfer_coins', {
+        p_from_id: fromId,
+        p_to_id:   _tipToId,
+        p_amount:  amount,
+        p_note:    note
+      });
+
+      if(res.error) throw new Error(res.error.message);
+      var result = res.data;
+      if(!result.success){ status.style.color='#fca5a5'; status.textContent='✕ ' + result.error; btn.disabled=false; btn.textContent='Send Tip 🪙'; return; }
+
+      status.style.color='#86efac';
+      status.textContent='✓ Tip sent! Your new balance: 🪙 ' + (result.new_balance||0).toLocaleString();
+      document.getElementById('tipBalanceDisplay').textContent = (result.new_balance||0).toLocaleString();
+      btn.textContent = '✓ Sent!';
+      setTimeout(function(){ closeTipModal(); btn.disabled=false; btn.textContent='Send Tip 🪙'; }, 1800);
+
+    } catch(e) {
+      status.style.color='#fca5a5';
+      status.textContent='✕ ' + (e.message||'Unknown error');
+      btn.disabled=false; btn.textContent='Send Tip 🪙';
+    }
+  };
+
+  // Close on backdrop click
+  document.getElementById('tipModal').addEventListener('click', function(e){
+    if(e.target === this) closeTipModal();
+  });
+})();
+</script>
 </body>
   </html>
