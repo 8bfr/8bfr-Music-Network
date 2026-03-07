@@ -12,7 +12,27 @@
     .cover-banner{width:100%;height:140px;background:linear-gradient(135deg,rgba(124,58,237,0.3),rgba(168,85,247,0.1));overflow:hidden;}
     .cover-banner img{width:100%;height:100%;object-fit:cover;}
     .profile-header-inner{padding:0 2rem 2rem 2rem;margin-top:-55px;position:relative;z-index:1;}
-    .avatar-ring{width:110px;height:110px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:2.8rem;flex-shrink:0;overflow:hidden;border:4px solid #0b0014;}
+    .avatar-ring{width:110px;height:110px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:2.8rem;flex-shrink:0;overflow:hidden;border:4px solid #0b0014;position:relative;z-index:1;}
+    /* ── OWNED FRAMES ── */
+    .avatar-frame-wrap{position:relative;width:118px;height:118px;flex-shrink:0;}
+    .avatar-frame-wrap .avatar-ring{position:absolute;top:4px;left:4px;width:110px;height:110px;}
+    .frame-overlay{position:absolute;inset:0;border-radius:50%;pointer-events:none;z-index:2;}
+    @keyframes spin-frame{to{transform:rotate(360deg);}}
+    @keyframes pulse-frame{0%,100%{opacity:1;}50%{opacity:.6;}}
+    .frame-animated-purple .frame-overlay{background:conic-gradient(#7c3aed,#a855f7,#00d9ff,#7c3aed);animation:spin-frame 3s linear infinite;border-radius:50%;padding:3px;-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#fff calc(100% - 4px));mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#fff calc(100% - 4px));}
+    .frame-animated-gold .frame-overlay{background:conic-gradient(#f59e0b,#fbbf24,#d97706,#f59e0b);animation:spin-frame 2.5s linear infinite;border-radius:50%;padding:3px;-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#fff calc(100% - 4px));mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#fff calc(100% - 4px));}
+    .frame-glow .frame-overlay{box-shadow:0 0 18px 4px rgba(124,58,237,.8),inset 0 0 10px rgba(124,58,237,.3);border:3px solid rgba(168,85,247,.9);animation:pulse-frame 2s ease-in-out infinite;}
+    .frame-music .frame-overlay{border:3px solid rgba(0,217,255,.8);box-shadow:0 0 14px 3px rgba(0,217,255,.6);animation:pulse-frame 1.5s ease-in-out infinite;}
+    .frame-fire .frame-overlay{border:3px solid rgba(245,158,11,.9);box-shadow:0 0 16px 4px rgba(245,91,11,.7);}
+    .frame-gold .frame-overlay{border:4px solid #fbbf24;box-shadow:0 0 12px 2px rgba(251,191,36,.5);}
+    .frame-8bfr .frame-overlay{background:conic-gradient(#7c3aed,#00d9ff,#a855f7,#7c3aed);animation:spin-frame 4s linear infinite;border-radius:50%;-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#fff calc(100% - 4px));mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#fff calc(100% - 4px));}
+    /* ── OWNED BG THEMES ── */
+    .cover-banner.bg-neon-purple{background:linear-gradient(135deg,#4c1d95,#7c3aed,#a855f7)!important;}
+    .cover-banner.bg-midnight-blue{background:linear-gradient(135deg,#0c1445,#1e3a8a,#0369a1)!important;}
+    .cover-banner.bg-gold-flame{background:linear-gradient(135deg,#78350f,#d97706,#fbbf24)!important;}
+    .cover-banner.bg-galaxy{background:radial-gradient(ellipse at 30% 40%,#312e81,#0f172a,#000)!important;}
+    /* ── ARTIST PRO BADGE ── */
+    .badge-artist-pro{background:linear-gradient(135deg,rgba(124,58,237,.2),rgba(0,217,255,.1));border:1px solid rgba(0,217,255,.5);color:#00d9ff;padding:0.3rem 0.75rem;border-radius:20px;font-size:0.78rem;font-weight:700;display:inline-block;margin:0.2rem;}
     .avatar-ring img{width:100%;height:100%;object-fit:cover;}
     .badge{background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.4);color:#a855f7;padding:0.3rem 0.75rem;border-radius:20px;font-size:0.78rem;font-weight:600;display:inline-block;margin:0.2rem;}
     .badge.verified{border-color:#00d9ff;color:#00d9ff;background:rgba(0,217,255,0.08);}
@@ -462,6 +482,8 @@
       document.title=(profileData.display_name||profileData.username)+' — 8BFR';
       document.getElementById('loadingSpinner').style.display='none';
       document.getElementById('profileContent').style.display='block';
+      // Load owned items for frame/bg display
+      await loadOwnedItems(targetId);
       renderProfile();
     }catch(e){showError('Error: '+e.message);}
   }
@@ -574,6 +596,87 @@
     loadPosts(profileData.user_id);
     loadStats(profileData.user_id);
     if(!isOwnProfile&&currentUser) checkRel(profileData.user_id);
+    // Apply owned frames, backgrounds, badges after DOM is set
+    setTimeout(applyOwnedUpgrades, 50);
+  }
+
+  /* ── OWNED UPGRADES (frames, backgrounds, badges) ── */
+  var ownedUpgrades = [];
+  async function loadOwnedItems(uid){
+    try{
+      var r = await db.from('user_owned_items').select('item_id,item_type,expires_at').eq('user_id',uid);
+      if(r.error) throw r.error;
+      var now = Date.now();
+      ownedUpgrades = (r.data||[]).filter(function(i){
+        return !i.expires_at || new Date(i.expires_at).getTime() > now;
+      });
+    }catch(e){ ownedUpgrades=[]; console.warn('Owned items:', e); }
+  }
+
+  function applyOwnedUpgrades(){
+    // ── AVATAR FRAME ──
+    var frameOrder = ['frame_animated_purple','frame_animated_gold','frame_8bfr','frame_gold','frame_fire','frame_music','frame_glow'];
+    var frameMap = {
+      'frame_animated_purple':'frame-animated-purple',
+      'frame_animated_gold':'frame-animated-gold',
+      'frame_8bfr':'frame-8bfr',
+      'frame_gold':'frame-gold',
+      'frame_fire':'frame-fire',
+      'frame_music':'frame-music',
+      'frame_glow':'frame-glow'
+    };
+    var activeFrame = null;
+    for(var fi=0;fi<frameOrder.length;fi++){
+      if(ownedUpgrades.find(function(o){return o.item_id===frameOrder[fi];})){
+        activeFrame = frameMap[frameOrder[fi]]; break;
+      }
+    }
+    var avatarEl = document.getElementById('avatarDisplay');
+    if(avatarEl && activeFrame){
+      var wrap = document.createElement('div');
+      wrap.className = 'avatar-frame-wrap ' + activeFrame;
+      avatarEl.parentNode.insertBefore(wrap, avatarEl);
+      wrap.appendChild(avatarEl);
+      var overlay = document.createElement('div');
+      overlay.className = 'frame-overlay';
+      wrap.appendChild(overlay);
+    }
+
+    // ── PROFILE BACKGROUND ──
+    var bgMap = {
+      'bg_neon_purple':'bg-neon-purple',
+      'bg_midnight_blue':'bg-midnight-blue',
+      'bg_gold_flame':'bg-gold-flame',
+      'bg_galaxy':'bg-galaxy'
+    };
+    // Also check profiles.profile_bg column as fallback
+    var bgId = profileData.profile_bg || null;
+    if(!bgId){
+      var bgKeys = Object.keys(bgMap);
+      for(var bi=0;bi<bgKeys.length;bi++){
+        if(ownedUpgrades.find(function(o){return o.item_id===bgKeys[bi];})){
+          bgId=bgKeys[bi]; break;
+        }
+      }
+    }
+    var bannerEl = document.getElementById('coverBanner');
+    if(bannerEl && bgId && bgMap[bgId] && !bannerEl.querySelector('img')){
+      bannerEl.classList.add(bgMap[bgId]);
+    }
+
+    // ── ARTIST PRO BADGE in badges row ──
+    var hasPro = ownedUpgrades.find(function(o){return o.item_id==='badge_artist_pro';})
+               || profileData.artist_pro;
+    if(hasPro){
+      var badgeRows = document.querySelectorAll('.badge');
+      if(badgeRows.length){
+        var firstBadge = badgeRows[0];
+        var proBadge = document.createElement('span');
+        proBadge.className = 'badge-artist-pro';
+        proBadge.textContent = '⚡ Artist Pro';
+        firstBadge.parentNode.insertBefore(proBadge, firstBadge);
+      }
+    }
   }
 
   /* ── PREVIEW URL ── */
@@ -768,4 +871,4 @@
   })();
   </script>
 </body>
-</html>
+  </html>
