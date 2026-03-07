@@ -93,10 +93,11 @@
         <div class="card">
             <h2>&#x1F4CB; Content Management</h2>
             <div class="content-tabs">
-                <button class="content-tab active" onclick="switchTab('posts')">&#x1F4DD; Posts</button>
-                <button class="content-tab" onclick="switchTab('stories')">&#x1F4D6; Stories</button>
-                <button class="content-tab" onclick="switchTab('songs')">&#x1F3B5; Songs</button>
-                <button class="content-tab" onclick="switchTab('profiles')">&#x1F464; Profiles</button>
+                <button class="content-tab active" onclick="switchTab('posts',this)">📝 Posts</button>
+                <button class="content-tab" onclick="switchTab('stories',this)">📖 Stories</button>
+                <button class="content-tab" onclick="switchTab('songs',this)">🎵 Songs</button>
+                <button class="content-tab" onclick="switchTab('profiles',this)">👤 Profiles</button>
+                <button class="content-tab" onclick="switchTab('admin_actions',this)">🛡️ Admin Actions <span id="actionsBadge" style="background:#f59e0b;color:#000;border-radius:999px;padding:0.05rem 0.4rem;font-size:0.7rem;font-weight:800;margin-left:2px;"></span></button>
             </div>
             <div style="display:flex;justify-content:flex-end;gap:0.5rem;margin-bottom:0.75rem;flex-wrap:wrap;" id="contentActions"></div>
             <div id="contentList"><div class="spinner"></div></div>
@@ -130,6 +131,271 @@
     <script>
         var s=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
         var currentTab='posts';
+
+        async function init(){
+            var el=document.getElementById('contentList');
+            var al=document.getElementById('activityLog');
+            try{
+                var res=await s.auth.getSession();
+                var session=res?.data?.session;
+                if(!session){location.href='login.html?return=owner-panel.html';return;}
+                var pr=await s.from('profiles').select('*').eq('user_id',session.user.id).single();
+                var profile=pr.data;
+                if(!profile||profile.role!=='owner'){alert('Owner access only.');location.href='index.html';return;}
+                document.getElementById('userName').textContent='👑 '+(profile.display_name||profile.username||'Owner');
+                // Run in parallel but don't let one failure block others
+                loadStats().catch(function(e){console.warn('Stats error:',e);});
+                loadContent().catch(function(e){if(el)el.innerHTML='<p style="color:#ef4444;">Error loading content: '+e.message+'</p>';});
+                loadActivity().catch(function(e){if(al)al.innerHTML='<p style="color:var(--text-dim);">Activity unavailable.</p>';});
+                loadAdminActions().catch(function(e){console.warn('Admin actions:',e);});
+            }catch(e){
+                console.error(e);
+                document.getElementById('userName').textContent='Error';
+                if(el)el.innerHTML='<p style="color:#ef4444;">Init error: '+e.message+'</p>';
+            }
+        }
+
+        async function loadStats(){
+            var stats=[
+                {id:'statUsers',   q:s.from('profiles').select('*',{count:'exact',head:true})},
+                {id:'statSongs',   q:s.from('songs').select('*',{count:'exact',head:true})},
+                {id:'statPosts',   q:s.from('posts').select('*',{count:'exact',head:true})},
+                {id:'statStories', q:s.from('stories').select('*',{count:'exact',head:true})},
+                {id:'statDummies', q:s.from('dummy_profiles').select('*',{count:'exact',head:true})},
+                {id:'statSales',   q:s.from('song_purchases').select('*',{count:'exact',head:true})}
+            ];
+            await Promise.allSettled(stats.map(async function(st){
+                var r=await st.q; var el=document.getElementById(st.id);
+                if(el) el.textContent=r.count??0;
+            }));
+            // Role counts
+            try{var r=await s.from('profiles').select('role');var d=r.data||[];
+                var artists=d.filter(function(p){return ['artist','rapper','singer','musician'].includes(p.role);}).length;
+                var beats=d.filter(function(p){return ['beatmaker','producer','dj'].includes(p.role);}).length;
+                var fans=d.filter(function(p){return p.role==='fan';}).length;
+                var el1=document.getElementById('statArtists'); if(el1) el1.textContent=artists;
+                var el2=document.getElementById('statBeatmakers'); if(el2) el2.textContent=beats;
+                var el3=document.getElementById('statFans'); if(el3) el3.textContent=fans;
+            }catch(e){}
+            // Revenue
+            try{var rv=await s.from('artist_payouts').select('platform_amount');var t=0;
+                (rv.data||[]).forEach(function(r){t+=parseFloat(r.platform_amount)||0;});
+                var el4=document.getElementById('statRevenue'); if(el4) el4.textContent='$'+t.toFixed(2);
+            }catch(e){}
+        }
+
+        function switchTab(tab, btn){
+            currentTab=tab;
+            document.querySelectorAll('.content-tab').forEach(function(t){t.classList.remove('active');});
+            if(btn) btn.classList.add('active');
+            loadContent();
+        }
+
+        async function loadContent(){
+            var el=document.getElementById('contentList');
+            var actions=document.getElementById('contentActions');
+            if(!el) return;
+            el.innerHTML='<div class="spinner"></div>';
+            if(actions) actions.innerHTML='';
+            try{
+                if(currentTab==='posts'){
+                    if(actions) actions.innerHTML='<button class="danger-btn" style="padding:0.3rem 0.8rem;font-size:0.8rem;" onclick="bulkDelete(\'posts\')">🗑️ Delete All Posts</button>';
+                    var r=await s.from('posts').select('id,user_id,text,media_type,likes,hidden,created_at').order('created_at',{ascending:false}).limit(50);
+                    if(r.error)throw r.error;
+                    if(!r.data||!r.data.length){el.innerHTML='<p style="color:var(--text-dim);text-align:center;padding:1rem;">No posts.</p>';return;}
+                    var uids=[...new Set(r.data.map(function(p){return p.user_id;}).filter(Boolean))];
+                    var pm={};
+                    if(uids.length){var pr2=await s.from('profiles').select('user_id,username,display_name').in('user_id',uids);(pr2.data||[]).forEach(function(p){pm[p.user_id]=p;});}
+                    el.innerHTML=r.data.map(function(p){
+                        var prof=pm[p.user_id]||{};var name=prof.display_name||prof.username||'Unknown';
+                        var preview=(p.text||'['+( p.media_type||'media')+']').substring(0,60);
+                        var hiddenBadge=p.hidden?'<span style="color:#f59e0b;font-size:0.7rem;margin-left:4px;">HIDDEN</span>':'';
+                        return '<div class="content-row">'+
+                            '<div style="flex:1;min-width:0;">'+
+                                '<div style="font-weight:600;font-size:0.85rem;">'+esc(name)+hiddenBadge+'</div>'+
+                                '<div style="font-size:0.78rem;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(preview)+'</div>'+
+                                '<div style="font-size:0.7rem;color:rgba(168,85,247,0.5);">'+ago(p.created_at)+' · ❤️ '+(p.likes||0)+'</div>'+
+                            '</div>'+
+                            '<a href="profile.html?id='+p.user_id+'" class="btn-sm btn-view" style="text-decoration:none;">View</a>'+
+                            '<button class="btn-sm btn-hide" onclick="ownerHide(\'posts\',\''+p.id+'\','+(p.hidden?'false':'true')+')">'+( p.hidden?'Unhide':'Hide')+'</button>'+
+                            '<button class="btn-sm btn-del" onclick="delItem(\'posts\',\''+p.id+'\')">Delete</button>'+
+                        '</div>';
+                    }).join('');
+                }else if(currentTab==='stories'){
+                    if(actions) actions.innerHTML='<button class="danger-btn" style="padding:0.3rem 0.8rem;font-size:0.8rem;" onclick="bulkDelete(\'stories\')">🗑️ Delete All</button><button class="danger-btn" style="padding:0.3rem 0.8rem;font-size:0.8rem;" onclick="cleanExpired()">🧹 Clean Expired</button>';
+                    var r=await s.from('stories').select('id,user_id,text,media_url,background_color,created_at,expires_at').order('created_at',{ascending:false}).limit(50);
+                    if(r.error)throw r.error;
+                    if(!r.data||!r.data.length){el.innerHTML='<p style="color:var(--text-dim);text-align:center;padding:1rem;">No stories.</p>';return;}
+                    var uids=[...new Set(r.data.map(function(st){return st.user_id;}).filter(Boolean))];
+                    var pm={};if(uids.length){var pr2=await s.from('profiles').select('user_id,username,display_name').in('user_id',uids);(pr2.data||[]).forEach(function(p){pm[p.user_id]=p;});}
+                    el.innerHTML=r.data.map(function(st){
+                        var prof=pm[st.user_id]||{};var name=prof.display_name||prof.username||'Unknown';
+                        var preview=st.text?st.text.substring(0,50):(st.media_url?'📸 Photo':'—');
+                        var expired=st.expires_at&&new Date(st.expires_at)<new Date();
+                        return '<div class="content-row">'+
+                            '<div style="min-width:12px;height:12px;border-radius:50%;background:'+(st.background_color||'#7c3aed')+';flex-shrink:0;"></div>'+
+                            '<div style="flex:1;min-width:0;">'+
+                                '<div style="font-weight:600;font-size:0.85rem;">'+esc(name)+(expired?' <span style="color:#ef4444;font-size:0.7rem;">EXPIRED</span>':'')+'</div>'+
+                                '<div style="font-size:0.78rem;color:var(--text-dim);">'+esc(preview)+'</div>'+
+                                '<div style="font-size:0.7rem;color:rgba(168,85,247,0.5);">'+ago(st.created_at)+'</div>'+
+                            '</div>'+
+                            '<button class="btn-sm btn-del" onclick="delItem(\'stories\',\''+st.id+'\')">Delete</button>'+
+                        '</div>';
+                    }).join('');
+                }else if(currentTab==='songs'){
+                    var r=await s.from('songs').select('id,title,artist,dummy_id,uploaded_by,hidden,downloads_enabled,created_at').order('created_at',{ascending:false}).limit(50);
+                    if(r.error)throw r.error;
+                    if(!r.data||!r.data.length){el.innerHTML='<p style="color:var(--text-dim);text-align:center;padding:1rem;">No songs.</p>';return;}
+                    el.innerHTML=r.data.map(function(song){
+                        var isDummy=!!song.dummy_id;
+                        var hiddenBadge=song.hidden?'<span style="color:#f59e0b;font-size:0.7rem;margin-left:4px;">HIDDEN</span>':'';
+                        var dlBadge=song.downloads_enabled===false?'<span style="color:#ef4444;font-size:0.7rem;margin-left:4px;">DL OFF</span>':'';
+                        return '<div class="content-row">'+
+                            '<div style="flex:1;min-width:0;">'+
+                                '<div style="font-weight:600;font-size:0.85rem;">🎵 '+esc(song.title||'Untitled')+(isDummy?' <span style="color:#00d9ff;font-size:0.7rem;">AI</span>':'')+hiddenBadge+dlBadge+'</div>'+
+                                '<div style="font-size:0.78rem;color:var(--text-dim);">'+esc(song.artist||'Unknown')+'</div>'+
+                                '<div style="font-size:0.7rem;color:rgba(168,85,247,0.5);">'+ago(song.created_at)+'</div>'+
+                            '</div>'+
+                            '<button class="btn-sm btn-hide" onclick="ownerHide(\'songs\',\''+song.id+'\','+(song.hidden?'false':'true')+')">'+( song.hidden?'Unhide':'Hide')+'</button>'+
+                            '<button class="btn-sm" style="background:rgba(239,68,68,0.1);color:#f87171;border:1px solid rgba(239,68,68,0.3);font-size:0.72rem;font-weight:600;cursor:pointer;border-radius:4px;padding:0.25rem 0.5rem;" onclick="toggleDownloads(\''+song.id+'\','+(song.downloads_enabled===false?'true':'false')+')">'+( song.downloads_enabled===false?'Re-enable DL':'Disable DL')+'</button>'+
+                            '<button class="btn-sm btn-del" onclick="delItem(\'songs\',\''+song.id+'\')">Delete</button>'+
+                        '</div>';
+                    }).join('');
+                }else if(currentTab==='profiles'){
+                    var r=await s.from('profiles').select('user_id,username,display_name,role,avatar_url,hidden,banned,created_at').order('created_at',{ascending:false}).limit(50);
+                    if(r.error)throw r.error;
+                    if(!r.data||!r.data.length){el.innerHTML='<p style="color:var(--text-dim);text-align:center;padding:1rem;">No profiles.</p>';return;}
+                    el.innerHTML=r.data.map(function(p){
+                        var name=p.display_name||p.username||'Unknown';
+                        var hiddenBadge=p.hidden?'<span style="color:#f59e0b;font-size:0.7rem;">HIDDEN</span>':'';
+                        var bannedBadge=p.banned?'<span style="color:#ef4444;font-size:0.7rem;">BANNED</span>':'';
+                        return '<div class="content-row">'+
+                            '<div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:0.7rem;">'+(p.avatar_url?'<img src="'+p.avatar_url+'" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentNode.textContent=\'👤\'">':'👤')+'</div>'+
+                            '<div style="flex:1;min-width:0;">'+
+                                '<div style="font-weight:600;font-size:0.85rem;">'+esc(name)+' '+hiddenBadge+bannedBadge+'</div>'+
+                                '<div style="font-size:0.78rem;color:var(--text-dim);">'+(p.role||'fan')+' · '+ago(p.created_at)+'</div>'+
+                            '</div>'+
+                            '<a href="profile.html?id='+p.user_id+'" class="btn-sm btn-view" style="text-decoration:none;">View</a>'+
+                            '<button class="btn-sm btn-hide" onclick="ownerHide(\'profiles\',\''+p.user_id+'\','+(p.hidden?'false':'true')+',\'user_id\')">'+( p.hidden?'Unhide':'Hide')+'</button>'+
+                            '<button class="btn-sm btn-del" style="background:rgba(239,68,68,0.2);" onclick="banUser(\''+p.user_id+'\',\''+esc(name)+'\')">Ban</button>'+
+                        '</div>';
+                    }).join('');
+                }else if(currentTab==='admin_actions'){
+                    await loadAdminActions();
+                    return;
+                }
+            }catch(e){el.innerHTML='<p style="color:#ef4444;padding:1rem;">Error: '+e.message+'</p>';}
+        }
+
+        async function loadAdminActions(){
+            var el=document.getElementById('contentList');
+            try{
+                var r=await s.from('admin_actions').select('*,profiles(username,display_name)').order('created_at',{ascending:false}).limit(50);
+                if(r.error)throw r.error;
+                if(!r.data||!r.data.length){
+                    if(currentTab==='admin_actions') el.innerHTML='<p style="color:var(--text-dim);text-align:center;padding:1rem;">No admin actions yet.</p>';
+                    // Update badge
+                    var badge=document.getElementById('actionsBadge');
+                    if(badge) badge.textContent='';
+                    return;
+                }
+                var unreviewed=r.data.filter(function(a){return !a.reviewed_by_owner;}).length;
+                var badge=document.getElementById('actionsBadge');
+                if(badge) badge.textContent=unreviewed?unreviewed:'';
+                if(currentTab!=='admin_actions') return;
+                el.innerHTML=r.data.map(function(a){
+                    var by=a.profiles?( a.profiles.display_name||a.profiles.username||'Staff'):'Staff';
+                    var badge2=!a.reviewed_by_owner?'<span style="background:rgba(245,158,11,0.2);color:#f59e0b;border:1px solid rgba(245,158,11,0.4);border-radius:4px;padding:0.1rem 0.4rem;font-size:0.65rem;font-weight:700;">NEW</span>':'';
+                    var typeColor={hide_post:'#f59e0b',hide_profile:'#f59e0b',mute_chat:'#60a5fa',kick_chat:'#f97316',ban_chat:'#ef4444',promote_mod:'#34d399',demote_mod:'#f87171',flag_content:'#c084fc'};
+                    var c=typeColor[a.action_type]||'#a855f7';
+                    return '<div class="content-row" style="background:rgba(0,0,0,0.2);border-radius:8px;margin-bottom:0.4rem;border-bottom:none;">'+
+                        '<div style="flex:1;min-width:0;">'+
+                            '<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">'+
+                                '<span style="background:rgba(124,58,237,0.15);border:1px solid '+c+';color:'+c+';border-radius:4px;padding:0.1rem 0.5rem;font-size:0.72rem;font-weight:700;">'+a.action_type+'</span>'+
+                                '<span style="font-size:0.82rem;font-weight:600;">'+esc(by)+'</span>'+badge2+
+                            '</div>'+
+                            '<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.2rem;">Target: '+esc(a.target_type||'')+' · '+esc(a.reason||'No reason')+'</div>'+
+                            '<div style="font-size:0.7rem;color:rgba(168,85,247,0.5);">'+ago(a.created_at)+'</div>'+
+                        '</div>'+
+                        (!a.reviewed_by_owner?'<button class="btn-sm btn-view" onclick="markReviewed(\''+a.id+'\')">✓ Reviewed</button>':'')+
+                    '</div>';
+                }).join('');
+            }catch(e){if(currentTab==='admin_actions'&&el) el.innerHTML='<p style="color:#ef4444;padding:1rem;">Error: '+e.message+'</p>';}
+        }
+
+        window.markReviewed=async function(id){
+            try{await s.from('admin_actions').update({reviewed_by_owner:true}).eq('id',id);loadAdminActions();}catch(e){alert('Error: '+e.message);}
+        };
+
+        window.ownerHide=async function(table,id,hidden,col){
+            col=col||'id';
+            try{var{error}=await s.from(table).update({hidden:hidden}).eq(col,id);if(error)throw error;loadContent();}catch(e){alert('Error: '+e.message);}
+        };
+
+        window.toggleDownloads=async function(id,enabled){
+            try{var{error}=await s.from('songs').update({downloads_enabled:enabled}).eq('id',id);if(error)throw error;loadContent();}catch(e){alert('Error: '+e.message);}
+        };
+
+        window.banUser=async function(userId, name){
+            var dur=prompt('Ban "'+name+'" for how long?\n\n1d, 7d, 30d, 90d, or "forever"\nLeave blank to cancel.');
+            if(!dur) return;
+            var reason=prompt('Reason for ban:');
+            if(!reason) return;
+            var expires=null;
+            if(dur!=='forever'){var d=parseInt(dur);if(!isNaN(d)){expires=new Date(Date.now()+d*86400000).toISOString();}}
+            try{
+                await s.from('site_bans').insert({user_id:userId,banned_by:(await s.auth.getSession()).data.session.user.id,reason:reason,expires_at:expires});
+                await s.from('profiles').update({banned:true}).eq('user_id',userId);
+                alert('✅ User banned.');loadContent();
+            }catch(e){alert('Error: '+e.message);}
+        };
+
+        window.delItem=async function(table,id){
+            if(!confirm('Delete this '+table.slice(0,-1)+'?'))return;
+            try{var{error}=await s.from(table).delete().eq('id',id);if(error)throw error;loadContent();loadStats();}catch(e){alert('Error: '+e.message);}
+        };
+        window.bulkDelete=async function(table){
+            if(!confirm('⚠️ DELETE ALL from '+table+'?'))return;
+            if(!confirm('Really sure? This cannot be undone.'))return;
+            try{var{error}=await s.from(table).delete().not('id','is',null);if(error)throw error;alert('✅ All '+table+' deleted.');loadContent();loadStats();}catch(e){alert('Error: '+e.message);}
+        };
+        window.cleanExpired=async function(){
+            if(!confirm('Delete all expired stories?'))return;
+            try{var{error}=await s.from('stories').delete().lt('expires_at',new Date().toISOString());if(error)throw error;alert('✅ Done.');loadContent();loadStats();}catch(e){alert('Error: '+e.message);}
+        };
+
+        async function loadActivity(){
+            var el=document.getElementById('activityLog');
+            if(!el)return;
+            try{
+                var[posts,stories,newProfiles]=await Promise.all([
+                    s.from('posts').select('id,user_id,text,created_at').order('created_at',{ascending:false}).limit(5),
+                    s.from('stories').select('id,user_id,text,created_at').order('created_at',{ascending:false}).limit(5),
+                    s.from('profiles').select('user_id,username,display_name,created_at').order('created_at',{ascending:false}).limit(5)
+                ]);
+                var items=[];
+                if(posts.data)posts.data.forEach(function(p){items.push({type:'📝 Post',text:(p.text||'').substring(0,40)||'[media]',time:p.created_at,link:'profile.html?id='+p.user_id});});
+                if(stories.data)stories.data.forEach(function(st){items.push({type:'📖 Story',text:(st.text||'Photo').substring(0,40),time:st.created_at,link:'profile.html?id='+st.user_id});});
+                if(newProfiles.data)newProfiles.data.forEach(function(p){items.push({type:'👤 Signup',text:p.display_name||p.username||'',time:p.created_at,link:'profile.html?id='+p.user_id});});
+                items.sort(function(a,b){return new Date(b.time)-new Date(a.time);});
+                items=items.slice(0,15);
+                if(!items.length){el.innerHTML='<p style="color:var(--text-dim);text-align:center;">No activity yet.</p>';return;}
+                el.innerHTML=items.map(function(item){
+                    return '<a href="'+item.link+'" class="act-row">'+
+                        '<span style="flex-shrink:0;">'+item.type+'</span>'+
+                        '<span style="flex:1;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(item.text)+'</span>'+
+                        '<span style="color:rgba(168,85,247,0.5);flex-shrink:0;font-size:0.75rem;">'+ago(item.time)+'</span>'+
+                    '</a>';
+                }).join('');
+            }catch(e){el.innerHTML='<p style="color:var(--text-dim);">Activity unavailable.</p>';}
+        }
+
+        function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):'';} 
+        function toggleFeature(f){var t=document.getElementById(f+'Toggle');if(t)t.classList.toggle('active');}
+        function ago(d){if(!d)return'';var m=Math.floor((Date.now()-new Date(d).getTime())/60000);if(m<1)return'now';if(m<60)return m+'m';var h=Math.floor(m/60);if(h<24)return h+'h';var dy=Math.floor(h/24);return dy<30?dy+'d':new Date(d).toLocaleDateString();}
+        async function logout(){await s.auth.signOut();location.href='login.html';}
+        if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+    </script>
 
         async function init(){
             try{
@@ -253,4 +519,4 @@
         if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
     </script>
 </body>
-</html>
+        </html>
