@@ -1,105 +1,517 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PAGE TITLE — 8BFR</title>
-<link rel="icon" href="assets/images/favicon.png">
-<script src="https://cdn.tailwindcss.com"></script>
-<style>
-body{background:linear-gradient(#0b0014,#000);color:#eae6ff;font-family:system-ui;margin:0}
-.card{border:1px solid rgba(124,58,237,.35);background:#0c0618;border-radius:14px;box-shadow:0 0 20px rgba(124,58,237,.18);padding:16px}
-.btn{display:inline-block;background:#120327;border:1px solid rgba(124,58,237,.6);color:#eae6ff;padding:.4rem .7rem;border-radius:.6rem;text-decoration:none}
-.btn:hover{background:#190536}
-</style>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>8BFR Shop — Stickers, Hats & Frames</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700;800&display=swap');
+
+    :root{
+      --gold:#f59e0b; --purple:#7c3aed; --cyan:#00d9ff;
+      --bg: #080010; --card:rgba(14,4,30,.92);
+      --border:rgba(124,58,237,.35);
+    }
+    *{ box-sizing:border-box; }
+    html,body{ scroll-behavior:smooth; }
+    body{
+      font-family:'Space Grotesk',system-ui,sans-serif;
+      background:
+        radial-gradient(800px 500px at 15% -5%, rgba(124,58,237,.25), transparent 55%),
+        radial-gradient(600px 400px at 90% 15%, rgba(0,217,255,.12), transparent 55%),
+        linear-gradient(180deg,#080010 0%,#000 100%);
+      color:#eae6ff; min-height:100vh; margin:0; padding-bottom:80px;
+      overflow-x:hidden;
+    }
+
+    /* ── HEADER ── */
+    .page-header{
+      background:rgba(8,0,16,.9); border-bottom:1px solid var(--border);
+      padding:1rem 1.25rem; position:sticky; top:0; z-index:100;
+      backdrop-filter:blur(12px);
+    }
+    .coin-pill{
+      display:inline-flex; align-items:center; gap:.4rem;
+      background:rgba(245,158,11,.12); border:1px solid rgba(245,158,11,.4);
+      border-radius:999px; padding:.3rem .75rem; font-size:.85rem; font-weight:700; color:#fbbf24;
+    }
+
+    /* ── TABS ── */
+    .tab-bar{
+      display:flex; gap:.35rem; overflow-x:auto; padding:.75rem 1rem .5rem;
+      scrollbar-width:none; border-bottom:1px solid var(--border);
+      background:rgba(8,0,16,.7); position:sticky; top:57px; z-index:99;
+      backdrop-filter:blur(10px);
+    }
+    .tab-bar::-webkit-scrollbar{ display:none; }
+    .tab-btn{
+      flex-shrink:0; padding:.35rem .85rem; border-radius:999px;
+      font-size:.8rem; font-weight:700; cursor:pointer; border:1px solid var(--border);
+      background:rgba(18,3,39,.8); color:#a855f7; transition:all .18s; white-space:nowrap;
+    }
+    .tab-btn.active{ background:var(--purple); border-color:var(--purple); color:#fff; }
+    .tab-btn:hover:not(.active){ background:rgba(124,58,237,.2); }
+
+    /* ── GRID ── */
+    .shop-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fill, minmax(160px, 1fr));
+      gap:1rem; padding:1.25rem;
+    }
+
+    /* ── ITEM CARD ── */
+    .item-card{
+      background:var(--card); border:1px solid var(--border);
+      border-radius:14px; overflow:hidden; position:relative;
+      display:flex; flex-direction:column; align-items:center;
+      padding:1rem .75rem .85rem; transition:all .2s ease;
+      cursor:pointer;
+    }
+    .item-card:hover{ transform:translateY(-3px); border-color:rgba(124,58,237,.65); box-shadow:0 8px 24px rgba(124,58,237,.25); }
+    .item-card.owned{ border-color:rgba(245,158,11,.5); background:rgba(245,158,11,.05); }
+    .item-card.exclusive{ border-color:rgba(0,217,255,.5); background:rgba(0,217,255,.04); }
+
+    .item-icon{
+      width:72px; height:72px; border-radius:12px;
+      display:flex; align-items:center; justify-content:center;
+      font-size:2.5rem; margin-bottom:.75rem; position:relative;
+      background:rgba(124,58,237,.12); border:1px solid rgba(124,58,237,.2);
+    }
+    .item-card.owned .item-icon{ background:rgba(245,158,11,.1); border-color:rgba(245,158,11,.3); }
+
+    .item-name{ font-size:.88rem; font-weight:700; text-align:center; margin-bottom:.25rem; line-height:1.3; }
+    .item-desc{ font-size:.72rem; color:#a855f7; opacity:.75; text-align:center; margin-bottom:.75rem; line-height:1.4; }
+
+    .item-price{
+      display:inline-flex; align-items:center; gap:.3rem;
+      font-size:.82rem; font-weight:800; color:#fbbf24; margin-bottom:.5rem;
+    }
+    .item-price.free{ color:#86efac; }
+    .item-price.exclusive{ color:#00d9ff; }
+
+    .buy-btn{
+      width:100%; padding:.45rem; border-radius:8px; border:none;
+      font-size:.78rem; font-weight:700; cursor:pointer; transition:all .15s;
+    }
+    .buy-btn.can-buy{ background:var(--purple); color:#fff; }
+    .buy-btn.can-buy:hover{ background:#6d28d9; }
+    .buy-btn.owned-btn{ background:rgba(245,158,11,.15); color:#fbbf24; border:1px solid rgba(245,158,11,.3); cursor:default; }
+    .buy-btn.exclusive-btn{ background:rgba(0,217,255,.1); color:#00d9ff; border:1px solid rgba(0,217,255,.3); cursor:default; font-size:.72rem; }
+    .buy-btn.no-coins{ background:rgba(100,100,100,.2); color:#666; cursor:not-allowed; }
+
+    /* ── BADGE OVERLAYS ── */
+    .badge-exclusive{
+      position:absolute; top:6px; right:6px;
+      background:linear-gradient(135deg,#00d9ff,#7c3aed);
+      color:#fff; font-size:.6rem; font-weight:800; padding:2px 7px;
+      border-radius:999px; letter-spacing:.04em; text-transform:uppercase;
+    }
+    .badge-owned{
+      position:absolute; top:6px; left:6px;
+      background:rgba(245,158,11,.2); border:1px solid rgba(245,158,11,.5);
+      color:#fbbf24; font-size:.62rem; font-weight:800; padding:2px 7px; border-radius:999px;
+    }
+    .badge-hot{
+      position:absolute; top:6px; right:6px;
+      background:linear-gradient(135deg,#ef4444,#f97316);
+      color:#fff; font-size:.6rem; font-weight:800; padding:2px 7px;
+      border-radius:999px; letter-spacing:.04em;
+    }
+
+    /* ── SECTION HEADINGS ── */
+    .section-head{
+      display:flex; align-items:center; gap:.6rem;
+      padding:1rem 1.25rem .25rem; font-size:.72rem; font-weight:800;
+      text-transform:uppercase; letter-spacing:.1em; color:#a855f7; opacity:.85;
+    }
+    .section-head::after{
+      content:''; flex:1; height:1px; background:var(--border);
+    }
+
+    /* ── TOAST ── */
+    #toast{
+      position:fixed; bottom:5rem; left:50%; transform:translateX(-50%);
+      padding:.55rem 1.25rem; border-radius:999px; font-size:.85rem; font-weight:700;
+      z-index:9999; display:none; white-space:nowrap; pointer-events:none;
+    }
+    #toast.success{ background:rgba(34,197,94,.9); color:#fff; }
+    #toast.error{ background:rgba(239,68,68,.9); color:#fff; }
+    #toast.info{ background:rgba(124,58,237,.9); color:#fff; }
+
+    /* ── PURCHASE MODAL ── */
+    #purchaseModal{
+      position:fixed; inset:0; z-index:9998; display:none;
+      background:rgba(0,0,0,.75); backdrop-filter:blur(4px);
+      align-items:center; justify-content:center;
+    }
+    #purchaseModal.open{ display:flex; }
+    .modal-card{
+      background:rgba(14,4,30,.98); border:1px solid rgba(124,58,237,.6);
+      border-radius:18px; padding:1.5rem; width:min(90vw,360px);
+      text-align:center;
+    }
+    .modal-icon{ font-size:3.5rem; margin-bottom:.75rem; }
+    .modal-title{ font-size:1.05rem; font-weight:800; margin-bottom:.35rem; }
+    .modal-desc{ font-size:.82rem; color:#a855f7; opacity:.85; margin-bottom:1rem; }
+    .modal-price{ font-size:1.3rem; font-weight:800; color:#fbbf24; margin-bottom:1.25rem; }
+    .modal-btns{ display:flex; gap:.75rem; justify-content:center; }
+    .modal-btn{ padding:.55rem 1.25rem; border-radius:10px; font-size:.88rem; font-weight:700; cursor:pointer; border:none; }
+    .modal-confirm{ background:var(--purple); color:#fff; }
+    .modal-confirm:hover{ background:#6d28d9; }
+    .modal-cancel{ background:rgba(255,255,255,.08); color:#eae6ff; }
+    .modal-cancel:hover{ background:rgba(255,255,255,.14); }
+
+    /* ── EMPTY STATE ── */
+    .empty{ text-align:center; padding:3rem 1rem; color:#a855f7; opacity:.65; }
+    .empty-icon{ font-size:3rem; margin-bottom:.5rem; }
+
+    /* ── LOADING ── */
+    .skeleton{ background:linear-gradient(90deg,rgba(124,58,237,.1) 25%,rgba(124,58,237,.2) 50%,rgba(124,58,237,.1) 75%); background-size:200% 100%; animation:shimmer 1.5s infinite; border-radius:8px; }
+    @keyframes shimmer{ 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+    @media(max-width:480px){
+      .shop-grid{ grid-template-columns:repeat(2,1fr); gap:.75rem; padding:.75rem; }
+      .item-icon{ width:60px; height:60px; font-size:2rem; }
+    }
+  </style>
 </head>
 <body>
-<header class="px-4 py-4 bg-[rgba(15,0,30,.9)] border-b border-purple-500/40">
-  <div class="max-w-4xl mx-auto flex items-center justify-between">
-    <a href="index.html" class="btn">← Home</a>
-    <h1 class="text-lg font-bold">PAGE TITLE</h1>
-    <span></span>
-  </div>
-</header>
 
-<main class="max-w-4xl mx-auto px-4 py-6">
-  <div class="card">
-    <p>This is a placeholder for <b>PAGE TITLE</b>. You can design this later.</p>
+<!-- Header -->
+<div class="page-header">
+  <div class="max-w-2xl mx-auto flex items-center justify-between gap-3">
+    <div class="flex items-center gap-3">
+      <a href="index.html" style="color:#a855f7;font-size:.85rem;text-decoration:none;">← Home</a>
+      <h1 style="font-size:1.05rem;font-weight:800;">🎨 Item Shop</h1>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="coin-pill">🪙 <span id="coinBalance">...</span></div>
+      <a href="coinshop.html" style="font-size:.75rem;color:#a855f7;text-decoration:none;border:1px solid rgba(124,58,237,.4);padding:.25rem .6rem;border-radius:6px;">+ Get Coins</a>
+    </div>
   </div>
-</main>
+</div>
+
+<!-- Tabs -->
+<div class="tab-bar max-w-2xl mx-auto">
+  <button class="tab-btn active" onclick="setTab('all')">🛒 All</button>
+  <button class="tab-btn" onclick="setTab('hats')">🎩 Hats</button>
+  <button class="tab-btn" onclick="setTab('frames')">🖼️ Frames</button>
+  <button class="tab-btn" onclick="setTab('stickers')">✨ Stickers</button>
+  <button class="tab-btn" onclick="setTab('bundles')">📦 Bundles</button>
+  <button class="tab-btn" onclick="setTab('owned')">✅ My Items</button>
+</div>
+
+<!-- Main content -->
+<div class="max-w-2xl mx-auto" id="shopContent">
+  <div style="text-align:center;padding:3rem;color:#a855f7;opacity:.6;">Loading shop...</div>
+</div>
+
+<!-- Toast -->
+<div id="toast">Done</div>
+
+<!-- Purchase Modal -->
+<div id="purchaseModal">
+  <div class="modal-card">
+    <div class="modal-icon" id="mIcon">🛒</div>
+    <div class="modal-title" id="mTitle">Confirm Purchase</div>
+    <div class="modal-desc" id="mDesc">Are you sure?</div>
+    <div class="modal-price" id="mPrice">🪙 0</div>
+    <div class="modal-btns">
+      <button class="modal-btn modal-cancel" onclick="closeModal()">Cancel</button>
+      <button class="modal-btn modal-confirm" id="mConfirm" onclick="confirmPurchase()">Buy Now</button>
+    </div>
+  </div>
+</div>
 
 <script src="scripts.js?v=6" defer></script>
-  <!-- ADD THIS SCRIPT TO EVERY PAGE (except index.html where you want it always shown) -->
-<!-- Place it right before the closing </body> tag -->
-
 <script>
-// Avatar & Bubble Toggle System
-(function() {
-    // Create toggle button
-    const toggleBtn = document.createElement('button');
-    toggleBtn.id = 'avatarToggle';
-    toggleBtn.innerHTML = '👁️';
-    toggleBtn.title = 'Toggle Avatar/Bubbles';
-    toggleBtn.style.cssText = `
-        position: fixed;
-        top: 80px;
-        right: 20px;
-        z-index: 9999;
-        background: rgba(124, 58, 237, 0.9);
-        border: 2px solid rgba(124, 58, 237, 1);
-        color: white;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.5);
-        transition: all 0.3s ease;
-    `;
-    
-    toggleBtn.addEventListener('mouseenter', function() {
-        this.style.transform = 'scale(1.1)';
+(async function() {
+  const OWNER_ID = 'cb556180-f032-4b21-9470-1d786f2664ab';
+  const SB_URL   = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+  const SB_KEY   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+
+  let sb, currentUser = null, userCoins = 0, ownedIds = new Set(), isOwner = false;
+  let currentTab = 'all', pendingItem = null;
+
+  // ── CATALOG ──────────────────────────────────────────────────────
+  const CATALOG = [
+    // HATS
+    { id:'hat_rapper',    category:'hats',     name:'Rapper Cap',       icon:'🧢', desc:'Street style fitted cap', coins:400, hot:true },
+    { id:'hat_cowboy',    category:'hats',     name:'Cowboy Hat',       icon:'🤠', desc:'Country vibes all day',   coins:400 },
+    { id:'hat_crown',     category:'hats',     name:'Owner Crown',      icon:'👑', desc:'For the platform owner only', coins:0, exclusive:true },
+    { id:'hat_tophat',    category:'hats',     name:'Top Hat',          icon:'🎩', desc:'Old money elegance',      coins:350 },
+    { id:'hat_beret',     category:'hats',     name:'Artist Beret',     icon:'🎨', desc:'For the creative souls',  coins:300 },
+    { id:'hat_headphones',category:'hats',     name:'DJ Headphones',    icon:'🎧', desc:'Born in the booth',       coins:500, hot:true },
+
+    // FRAMES
+    { id:'frame_glow',    category:'frames',   name:'Glow Frame',       icon:'✨', desc:'Neon glow border effect', coins:300 },
+    { id:'frame_music',   category:'frames',   name:'Music Frame',      icon:'🎵', desc:'Animated music notes',    coins:500, hot:true },
+    { id:'frame_fire',    category:'frames',   name:'Fire Frame',       icon:'🔥', desc:'Blaze around your avatar',coins:450 },
+    { id:'frame_gold',    category:'frames',   name:'Gold Frame',       icon:'🥇', desc:'Premium gold border',     coins:800 },
+    { id:'frame_8bfr',    category:'frames',   name:'8BFR Official',    icon:'💜', desc:'Official platform frame', coins:0, exclusive:true },
+
+    // STICKERS
+    { id:'sticker_fire',  category:'stickers', name:'Fire React',       icon:'🔥', desc:'React to posts with fire',coins:100 },
+    { id:'sticker_phones',category:'stickers', name:'Headphones React', icon:'🎧', desc:'Drop a headphones react', coins:150 },
+    { id:'sticker_crown', category:'stickers', name:'Crown React',      icon:'👑', desc:'Crown your favorite posts',coins:200 },
+    { id:'sticker_8bfr',  category:'stickers', name:'8BFR Gold',        icon:'⭐', desc:'8BFR Gold exclusive sticker', coins:0, exclusive:true },
+    { id:'sticker_wave',  category:'stickers', name:'Wave React',       icon:'👋', desc:'Show some love',          coins:75 },
+    { id:'sticker_mic',   category:'stickers', name:'Mic Drop',         icon:'🎤', desc:'When they said that',     coins:125, hot:true },
+    { id:'sticker_dj',    category:'stickers', name:'DJ Turntable',     icon:'🎚️', desc:'For the beat makers',     coins:175 },
+    { id:'sticker_note',  category:'stickers', name:'Music Note',       icon:'🎼', desc:'A classic for music fans',coins:80 },
+
+    // BUNDLES
+    { id:'bundle_beatking',  category:'bundles', name:'BeatKing Bundle',  icon:'🎛️', desc:'Hat + Frame + 3 Stickers — 25% off', coins:1200, hot:true,
+      contains:['hat_headphones','frame_music','sticker_fire','sticker_phones','sticker_dj'] },
+    { id:'bundle_soundqueen',category:'bundles', name:'SoundQueen Pack',  icon:'🎤', desc:'Hat + Frame + 2 Stickers — 20% off', coins:850,
+      contains:['hat_beret','frame_glow','sticker_mic','sticker_note'] },
+    { id:'bundle_starter',   category:'bundles', name:'Starter Pack',     icon:'🌟', desc:'3 stickers to get you started',      coins:200,
+      contains:['sticker_fire','sticker_wave','sticker_music'] },
+  ];
+
+  // Wait for Supabase
+  let attempts = 0;
+  while (!window.supabase && attempts++ < 30) await new Promise(r => setTimeout(r,100));
+
+  if (window.supabase) {
+    sb = window.supabase.createClient(SB_URL, SB_KEY);
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      if (session) {
+        currentUser = session.user;
+        isOwner = currentUser.id === OWNER_ID;
+        await loadUserData();
+      }
+    } catch(e) { console.warn('Auth error:', e); }
+  }
+
+  renderShop();
+
+  async function loadUserData() {
+    try {
+      const { data: profile } = await sb.from('profiles')
+        .select('coins').eq('user_id', currentUser.id).single();
+      userCoins = isOwner ? 999999999 : (profile?.coins || 0);
+      document.getElementById('coinBalance').textContent = isOwner ? '∞' : userCoins.toLocaleString();
+
+      // Load owned items
+      const { data: owned } = await sb.from('user_owned_items')
+        .select('item_id').eq('user_id', currentUser.id);
+      if (owned) owned.forEach(r => ownedIds.add(r.item_id));
+
+      // Owner owns everything exclusive
+      if (isOwner) CATALOG.forEach(i => ownedIds.add(i.id));
+    } catch(e) { console.warn('User data error:', e); }
+  }
+
+  // ── RENDER ────────────────────────────────────────────────────────
+  window.setTab = function(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      b.classList.toggle('active', b.textContent.toLowerCase().includes(
+        tab === 'all' ? 'all' : tab === 'owned' ? 'my' : tab
+      ));
     });
-    
-    toggleBtn.addEventListener('mouseleave', function() {
-        this.style.transform = 'scale(1)';
-    });
-    
-    document.body.appendChild(toggleBtn);
-    
-    // Load saved preference
-    let isHidden = localStorage.getItem('hideAvatarBubbles') === 'true';
-    
-    function updateVisibility() {
-        const elementsToToggle = [
-            document.getElementById('homeAvatarSwitcher'),
-            ...document.querySelectorAll('[id*="bubble"]'),
-            ...document.querySelectorAll('[class*="bubble"]'),
-            ...document.querySelectorAll('[id*="avatar"][id*="switcher"]')
-        ];
-        
-        elementsToToggle.forEach(el => {
-            if (el) {
-                el.style.display = isHidden ? 'none' : '';
-            }
-        });
-        
-        toggleBtn.innerHTML = isHidden ? '👁️‍🗨️' : '👁️';
-        toggleBtn.title = isHidden ? 'Show Avatar/Bubbles' : 'Hide Avatar/Bubbles';
+    renderShop();
+  };
+
+  function renderShop() {
+    const content = document.getElementById('shopContent');
+    let items = CATALOG;
+
+    if (currentTab === 'owned') {
+      items = CATALOG.filter(i => ownedIds.has(i.id) && !i.exclusive);
+      if (!items.length) {
+        content.innerHTML = `<div class="empty"><div class="empty-icon">🛍️</div><div style="font-weight:700;margin-bottom:.25rem;">No items yet</div><div style="font-size:.82rem;">Purchase items to see them here!</div></div>`;
+        return;
+      }
+    } else if (currentTab !== 'all') {
+      items = CATALOG.filter(i => i.category === currentTab);
     }
-    
-    toggleBtn.addEventListener('click', function() {
-        isHidden = !isHidden;
-        localStorage.setItem('hideAvatarBubbles', isHidden);
-        updateVisibility();
-    });
-    
-    // Apply on load
-    updateVisibility();
-    
+
+    if (!items.length) {
+      content.innerHTML = `<div class="empty"><div class="empty-icon">📦</div><div>Nothing here yet</div></div>`;
+      return;
+    }
+
+    // Group by category when showing all
+    if (currentTab === 'all') {
+      const cats = [
+        { key:'hats',    label:'🎩 Hats' },
+        { key:'frames',  label:'🖼️ Frames' },
+        { key:'stickers',label:'✨ Stickers' },
+        { key:'bundles', label:'📦 Bundles' },
+      ];
+      let html = '';
+      cats.forEach(cat => {
+        const catItems = items.filter(i => i.category === cat.key);
+        if (!catItems.length) return;
+        html += `<div class="section-head">${cat.label}</div>`;
+        html += `<div class="shop-grid">${catItems.map(renderCard).join('')}</div>`;
+      });
+      content.innerHTML = html;
+    } else {
+      content.innerHTML = `<div class="shop-grid">${items.map(renderCard).join('')}</div>`;
+    }
+  }
+
+  function renderCard(item) {
+    const owned = ownedIds.has(item.id);
+    const canAfford = isOwner || userCoins >= item.coins;
+    const cardClass = owned ? 'owned' : item.exclusive ? 'exclusive' : '';
+
+    let badge = '';
+    if (owned && !item.exclusive) badge = `<div class="badge-owned">✓ Owned</div>`;
+    else if (item.exclusive) badge = `<div class="badge-exclusive">✦ Exclusive</div>`;
+    else if (item.hot) badge = `<div class="badge-hot">🔥 Hot</div>`;
+
+    let priceHtml = '';
+    if (item.exclusive) priceHtml = `<div class="item-price exclusive">✦ Exclusive</div>`;
+    else if (item.coins === 0) priceHtml = `<div class="item-price free">Free</div>`;
+    else priceHtml = `<div class="item-price">🪙 ${item.coins.toLocaleString()}</div>`;
+
+    let btnHtml = '';
+    if (owned) btnHtml = `<button class="buy-btn owned-btn">✓ Owned</button>`;
+    else if (item.exclusive && !isOwner) btnHtml = `<button class="buy-btn exclusive-btn">Owner Only</button>`;
+    else if (!canAfford) btnHtml = `<button class="buy-btn no-coins" title="Not enough coins">Need ${(item.coins - userCoins).toLocaleString()} more 🪙</button>`;
+    else if (item.coins === 0) btnHtml = `<button class="buy-btn can-buy" onclick="openModal('${item.id}')">Get Free</button>`;
+    else btnHtml = `<button class="buy-btn can-buy" onclick="openModal('${item.id}')">Buy Now</button>`;
+
+    if (item.contains) {
+      const containsStr = item.contains.map(id => CATALOG.find(c=>c.id===id)?.icon||'').join(' ');
+      priceHtml = `<div style="font-size:.7rem;color:#a855f7;opacity:.8;text-align:center;margin-bottom:.2rem;">${containsStr}</div>` + priceHtml;
+    }
+
+    return `<div class="item-card ${cardClass}">
+      ${badge}
+      <div class="item-icon">${item.icon}</div>
+      <div class="item-name">${item.name}</div>
+      <div class="item-desc">${item.desc}</div>
+      ${priceHtml}
+      ${btnHtml}
+    </div>`;
+  }
+
+  // ── MODAL ─────────────────────────────────────────────────────────
+  window.openModal = function(itemId) {
+    if (!currentUser) { showToast('Log in to purchase items', 'info'); return; }
+    const item = CATALOG.find(i => i.id === itemId);
+    if (!item) return;
+    pendingItem = item;
+
+    document.getElementById('mIcon').textContent = item.icon;
+    document.getElementById('mTitle').textContent = item.name;
+    document.getElementById('mDesc').textContent = item.desc;
+    document.getElementById('mPrice').textContent = item.coins > 0 ? `🪙 ${item.coins.toLocaleString()} coins` : 'Free!';
+    document.getElementById('purchaseModal').classList.add('open');
+  };
+
+  window.closeModal = function() {
+    document.getElementById('purchaseModal').classList.remove('open');
+    pendingItem = null;
+  };
+
+  window.confirmPurchase = async function() {
+    if (!pendingItem || !currentUser) return;
+    const item = pendingItem;
+    closeModal();
+
+    if (isOwner) {
+      // Owner gets everything free
+      await recordOwnership(item, 0);
+      return;
+    }
+
+    if (userCoins < item.coins && item.coins > 0) {
+      showToast('Not enough coins!', 'error'); return;
+    }
+
+    try {
+      // For bundles — check if any sub-items are already owned
+      if (item.contains) {
+        const alreadyOwned = item.contains.filter(id => ownedIds.has(id));
+        if (alreadyOwned.length === item.contains.length) {
+          showToast('You already own everything in this bundle!', 'error'); return;
+        }
+      }
+
+      // Deduct coins
+      if (item.coins > 0) {
+        const newCoins = userCoins - item.coins;
+        const { error: deductErr } = await sb.from('profiles')
+          .update({ coins: newCoins }).eq('user_id', currentUser.id);
+        if (deductErr) throw deductErr;
+        userCoins = newCoins;
+        document.getElementById('coinBalance').textContent = userCoins.toLocaleString();
+      }
+
+      await recordOwnership(item, item.coins);
+
+    } catch(e) {
+      console.error(e);
+      showToast('Purchase failed: ' + (e.message || 'Unknown error'), 'error');
+    }
+  };
+
+  async function recordOwnership(item, coinsPaid) {
+    try {
+      // For bundles, record each sub-item + the bundle itself
+      const itemsToRecord = item.contains
+        ? [...item.contains.map(id => ({ id, name: CATALOG.find(c=>c.id===id)?.name || id })), { id: item.id, name: item.name }]
+        : [{ id: item.id, name: item.name }];
+
+      for (const it of itemsToRecord) {
+        if (ownedIds.has(it.id)) continue; // skip already-owned
+        await sb.from('user_owned_items').upsert({
+          user_id: currentUser.id,
+          item_id: it.id,
+          item_type: item.category,
+          item_name: it.name,
+          coins_paid: it.id === item.id ? coinsPaid : 0,
+        }, { onConflict: 'user_id,item_id' });
+        ownedIds.add(it.id);
+      }
+
+      // Log transaction
+      if (coinsPaid > 0) {
+        await sb.from('coin_transactions').insert({
+          user_id: currentUser.id,
+          amount: -coinsPaid,
+          type: 'purchase',
+          description: `Purchased: ${item.name}`,
+          reference_id: item.id
+        });
+      }
+
+      showToast(`✓ ${item.name} added to your collection!`, 'success');
+      renderShop();
+
+    } catch(e) {
+      console.error('Record ownership error:', e);
+      showToast('Item saved locally — sync when reconnected.', 'info');
+      ownedIds.add(item.id);
+      renderShop();
+    }
+  }
+
+  // ── HELPERS ───────────────────────────────────────────────────────
+  function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = type;
+    t.style.display = 'block';
+    clearTimeout(window._toastTimer);
+    window._toastTimer = setTimeout(() => { t.style.display='none'; }, 3000);
+  }
+
+  // Initial coin display
+  if (!currentUser) {
+    document.getElementById('coinBalance').textContent = '—';
+  }
+
+})();
 </script>
 
 </body>
