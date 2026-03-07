@@ -35,6 +35,24 @@
     .comment-action-btn { background: none; border: none; color: rgba(168,85,247,0.5); font-size: 0.7rem; cursor: pointer; padding: 0; display: inline-flex; align-items: center; gap: 0.2rem; }
     .comment-action-btn:hover { color: #a855f7; }
     .reply-indent { margin-left: 1rem; border-left: 2px solid rgba(124,58,237,0.2); padding-left: 0.6rem; }
+    /* ── STICKER REACTIONS ── */
+    .sticker-row { display:flex; flex-wrap:wrap; gap:0.3rem; margin-top:0.4rem; min-height:0; }
+    .sticker-bubble { display:inline-flex; align-items:center; gap:0.25rem; padding:0.2rem 0.55rem; border-radius:999px; font-size:0.82rem; background:rgba(124,58,237,0.12); border:1px solid rgba(124,58,237,0.3); cursor:pointer; transition:all .15s; user-select:none; }
+    .sticker-bubble:hover { background:rgba(124,58,237,0.25); border-color:rgba(124,58,237,0.6); }
+    .sticker-bubble.mine { background:rgba(124,58,237,0.25); border-color:rgba(168,85,247,0.7); }
+    .sticker-bubble .s-count { font-size:0.72rem; color:#a855f7; font-weight:700; }
+    .sticker-picker { display:none; position:absolute; z-index:200; bottom:calc(100% + 6px); left:0;
+      background:rgba(14,4,30,.98); border:1px solid rgba(124,58,237,.5);
+      border-radius:12px; padding:0.6rem; box-shadow:0 8px 24px rgba(0,0,0,.7);
+      max-width:240px; }
+    .sticker-picker.open { display:block; }
+    .sticker-picker-inner { display:flex; flex-wrap:wrap; gap:0.35rem; }
+    .sticker-pick-btn { font-size:1.3rem; padding:0.3rem; border-radius:8px; cursor:pointer;
+      background:rgba(124,58,237,.1); border:1px solid rgba(124,58,237,.25);
+      transition:all .15s; line-height:1; }
+    .sticker-pick-btn:hover { background:rgba(124,58,237,.35); transform:scale(1.15); }
+    .sticker-pick-btn.no-stickers { font-size:.75rem; color:#a855f7; opacity:.7; padding:.4rem .6rem; background:none; border:none; cursor:default; white-space:nowrap; }
+    .sticker-wrap { position:relative; display:inline-block; }
   </style>
 </head>
 <body>
@@ -91,6 +109,10 @@
     const PAGE = 20;
 
     try { const { data: { session } } = await db.auth.getSession(); if (session) currentUser = session.user; } catch(e) {}
+    window._db = db;
+    window._currentUser = currentUser; // may be null if not logged in, updated below
+    // re-expose after auth resolves
+    Object.defineProperty(window, '_currentUser', { get: () => currentUser, configurable: true });
 
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', function() {
@@ -189,6 +211,12 @@
         posts.forEach(post => {
           fl.insertAdjacentHTML('beforeend', renderPost(post, pm[post.user_id] || {}, likedSet[post.id], favSet[post.id]));
         });
+
+        // Load sticker reactions for this batch
+        if (posts.length) {
+          const ids2 = posts.map(p => p.id);
+          loadBatchStickerReactions(ids2);
+        }
         document.getElementById('loadMoreBtn').style.display = posts.length >= PAGE ? 'block' : 'none';
       } catch(err) {
         console.error('Feed:', err);
@@ -241,7 +269,11 @@
           '<button class="action-btn" onclick="resharePost(\''+post.id+'\',this)">🔁 <span id="reshare-count-'+post.id+'">'+(post.reshares||post.shares||0)+'</span></button>'+
           '<button class="'+favClass+'" id="fav-btn-'+post.id+'" onclick="favPost(\''+post.id+'\',this)">⭐ <span id="fav-count-'+post.id+'">'+(post.favorites||0)+'</span></button>'+
                     '<button class="action-btn" onclick="openShareSheet(\''+post.id+'\',encodeURIComponent(post.text||\'\')" title="Share">📤 Share</button>'+
-        '</div></div>';
+          '<div class="sticker-wrap"><button class="action-btn" title="React with sticker" onclick="toggleStickerPicker(\''+post.id+'\',event)">🎭</button>'+
+          '<div class="sticker-picker" id="spicker-'+post.id+'"></div></div>'+
+        '</div>'+
+        '<div class="sticker-row" id="sticker-row-'+post.id+'"></div>'+
+        '</div>';
     }
 
     function esc(s) { return s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
@@ -504,6 +536,152 @@
 
     await loadFeed();
   })();
+
+  // ── STICKER REACTION SYSTEM ────────────────────────────────────
+  // Sticker catalog (matches shop-stickers.html ids)
+  var STICKERS = [
+    {id:'sticker_fire',   icon:'🔥', name:'Fire'},
+    {id:'sticker_phones', icon:'🎧', name:'Headphones'},
+    {id:'sticker_crown',  icon:'👑', name:'Crown'},
+    {id:'sticker_wave',   icon:'👋', name:'Wave'},
+    {id:'sticker_mic',    icon:'🎤', name:'Mic Drop'},
+    {id:'sticker_dj',     icon:'🎚️', name:'DJ'},
+    {id:'sticker_note',   icon:'🎼', name:'Music Note'},
+    {id:'sticker_8bfr',   icon:'⭐', name:'8BFR Gold'},
+  ];
+
+  // Load owned stickers for current user (cached)
+  var _ownedStickers = null;
+  async function getOwnedStickers() {
+    if (!window._db || !window._currentUser) return [];
+    if (_ownedStickers !== null) return _ownedStickers;
+    try {
+      const OWNER_ID = 'cb556180-f032-4b21-9470-1d786f2664ab';
+      if (window._currentUser.id === OWNER_ID) {
+        _ownedStickers = STICKERS.map(s => s.id);
+        return _ownedStickers;
+      }
+      const { data } = await window._db.from('user_owned_items')
+        .select('item_id').eq('user_id', window._currentUser.id)
+        .in('item_id', STICKERS.map(s => s.id));
+      _ownedStickers = (data || []).map(r => r.item_id);
+      return _ownedStickers;
+    } catch(e) { return []; }
+  }
+
+  // Fetch reactions for a batch of post ids and render them
+  async function loadBatchStickerReactions(postIds) {
+    if (!window._db || !postIds.length) return;
+    try {
+      const { data } = await window._db.from('post_reactions')
+        .select('post_id,sticker_id,user_id')
+        .in('post_id', postIds);
+      if (!data) return;
+      // Group by post_id
+      const byPost = {};
+      data.forEach(r => {
+        if (!byPost[r.post_id]) byPost[r.post_id] = [];
+        byPost[r.post_id].push(r);
+      });
+      postIds.forEach(pid => renderStickerRow(pid, byPost[pid] || []));
+    } catch(e) { console.warn('Sticker load:', e); }
+  }
+
+  function renderStickerRow(postId, reactions) {
+    const row = document.getElementById('sticker-row-' + postId);
+    if (!row) return;
+    if (!reactions.length) { row.innerHTML = ''; return; }
+    // Tally by sticker_id
+    const tally = {};
+    reactions.forEach(r => {
+      if (!tally[r.sticker_id]) tally[r.sticker_id] = { count:0, users:[] };
+      tally[r.sticker_id].count++;
+      tally[r.sticker_id].users.push(r.user_id);
+    });
+    const uid = window._currentUser ? window._currentUser.id : null;
+    let html = '';
+    Object.keys(tally).forEach(sid => {
+      const s = STICKERS.find(x => x.id === sid);
+      if (!s) return;
+      const mine = uid && tally[sid].users.includes(uid);
+      html += `<button class="sticker-bubble${mine?' mine':''}" onclick="toggleStickerReact('${postId}','${sid}')" title="${s.name}">
+        ${s.icon} <span class="s-count">${tally[sid].count}</span>
+      </button>`;
+    });
+    row.innerHTML = html;
+  }
+
+  // Toggle sticker picker open/close
+  window.toggleStickerPicker = async function(postId, e) {
+    e.stopPropagation();
+    const picker = document.getElementById('spicker-' + postId);
+    if (!picker) return;
+    const isOpen = picker.classList.contains('open');
+    // Close all other pickers
+    document.querySelectorAll('.sticker-picker.open').forEach(p => p.classList.remove('open'));
+    if (isOpen) return;
+
+    if (!window._currentUser) {
+      picker.innerHTML = '<div class="sticker-pick-btn no-stickers">Log in to react</div>';
+      picker.classList.add('open');
+      setTimeout(() => picker.classList.remove('open'), 2000);
+      return;
+    }
+
+    const owned = await getOwnedStickers();
+    const available = STICKERS.filter(s => owned.includes(s.id));
+
+    if (!available.length) {
+      picker.innerHTML = '<div class="sticker-pick-btn no-stickers">No stickers — <a href="shop-stickers.html" style="color:#a855f7;">Shop</a></div>';
+    } else {
+      picker.innerHTML = '<div class="sticker-picker-inner">' +
+        available.map(s => `<button class="sticker-pick-btn" title="${s.name}" onclick="reactWithSticker('${postId}','${s.id}',event)">${s.icon}</button>`).join('') +
+        '</div>';
+    }
+    picker.classList.add('open');
+    // Close on outside click
+    setTimeout(() => {
+      document.addEventListener('click', function closePicker(ev) {
+        if (!picker.contains(ev.target)) {
+          picker.classList.remove('open');
+          document.removeEventListener('click', closePicker);
+        }
+      });
+    }, 50);
+  };
+
+  // React/unreact with a specific sticker from the picker
+  window.reactWithSticker = async function(postId, stickerId, e) {
+    e.stopPropagation();
+    document.getElementById('spicker-' + postId).classList.remove('open');
+    await toggleStickerReact(postId, stickerId);
+  };
+
+  // Toggle reaction on/off (also called from sticker bubbles directly)
+  window.toggleStickerReact = async function(postId, stickerId) {
+    if (!window._currentUser || !window._db) {
+      alert('Log in to react'); return;
+    }
+    const uid = window._currentUser.id;
+    try {
+      // Check if already reacted with this sticker
+      const { data: existing } = await window._db.from('post_reactions')
+        .select('id').eq('post_id', postId).eq('user_id', uid).eq('sticker_id', stickerId).maybeSingle();
+
+      if (existing) {
+        await window._db.from('post_reactions').delete()
+          .eq('post_id', postId).eq('user_id', uid).eq('sticker_id', stickerId);
+      } else {
+        await window._db.from('post_reactions').upsert({
+          post_id: postId, user_id: uid, sticker_id: stickerId
+        }, { onConflict: 'post_id,user_id,sticker_id' });
+      }
+      // Reload reactions for this post
+      const { data } = await window._db.from('post_reactions')
+        .select('post_id,sticker_id,user_id').eq('post_id', postId);
+      renderStickerRow(postId, data || []);
+    } catch(e) { console.error('Sticker react:', e); }
+  };
   </script>
 </body>
 </html>
