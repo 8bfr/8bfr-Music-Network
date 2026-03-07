@@ -220,7 +220,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
       <a href="feed.html" class="menu-chip">&#x1F4F0; Community Feed</a>
       <a href="radio.html" class="menu-chip">&#x1F4FB; Radio</a>
       <a href="live.html" class="menu-chip">&#x1F4E1; Live</a>
-      <a href="music-lab.html" class="menu-chip">&#x1F39B;&#xFE0F; Music Lab</a>
+      <a href="ai-tools.html" class="menu-chip">🤖 AI Tools</a>
       <a href="featured.html" class="menu-chip">&#x2B50; Featured Artist</a>
       <a href="featured-songs.html" class="menu-chip">&#x1F3B5; Featured Songs</a>
       <a href="fan-zone.html" class="menu-chip">&#x1F3A4; Fan Zone</a>
@@ -258,17 +258,10 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
     </div>
   </div>
   <div class="menu-group collapsed">
-    <div class="menu-group-title">Games &amp; Tournaments</div>
+    <div class="menu-group-title">🎮 Games</div>
     <div class="menu-links">
-      <a href="game-hub.html" class="menu-chip">&#x1F579;&#xFE0F; Game Hub</a>
-      <a href="games.html" class="menu-chip">&#x1F3AE; Games</a>
-      <a href="arcade.html" class="menu-chip">&#x1F47E; Arcade</a>
-      <a href="game-music.html" class="menu-chip">&#x1F3B5; Game Music</a>
-      <a href="game-tournaments.html" class="menu-chip">&#x1F3C6; Tournaments</a>
-      <a href="game-leaderboards.html" class="menu-chip">&#x1F947; Leaderboards</a>
-      <a href="pool-8-ball.html" class="menu-chip">&#x1F3B1; Pool 8-Ball</a>
-      <a href="pool-9-ball.html" class="menu-chip">&#x1F3B1; Pool 9-Ball</a>
-      <a href="trickshot-pool.html" class="menu-chip">&#x1F3AF; Trickshot Pool</a>
+      <a href="games.html" class="menu-chip">🎮 Play Games</a>
+      <a href="coinshop.html" class="menu-chip">🪙 Spend Coins</a>
     </div>
   </div>
   <div class="menu-group collapsed">
