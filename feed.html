@@ -114,6 +114,22 @@
     // re-expose after auth resolves
     Object.defineProperty(window, '_currentUser', { get: () => currentUser, configurable: true });
 
+    // Realtime: refresh sticker row when any reaction changes on a visible post
+    db.channel('feed-reactions')
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'post_reactions'
+      }, async (payload) => {
+        const postId = (payload.new && payload.new.post_id) || (payload.old && payload.old.post_id);
+        if (!postId) return;
+        if (!document.getElementById('sticker-row-' + postId)) return;
+        try {
+          const { data } = await db.from('post_reactions')
+            .select('post_id,sticker_id,user_id').eq('post_id', postId);
+          renderStickerRow(postId, data || []);
+        } catch(e) {}
+      })
+      .subscribe();
+
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', function() {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
