@@ -1,107 +1,663 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PAGE TITLE — 8BFR</title>
-<link rel="icon" href="assets/images/favicon.png">
-<script src="https://cdn.tailwindcss.com"></script>
-<style>
-body{background:linear-gradient(#0b0014,#000);color:#eae6ff;font-family:system-ui;margin:0}
-.card{border:1px solid rgba(124,58,237,.35);background:#0c0618;border-radius:14px;box-shadow:0 0 20px rgba(124,58,237,.18);padding:16px}
-.btn{display:inline-block;background:#120327;border:1px solid rgba(124,58,237,.6);color:#eae6ff;padding:.4rem .7rem;border-radius:.6rem;text-decoration:none}
-.btn:hover{background:#190536}
-</style>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>8BFR Upgrades Shop</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&display=swap');
+
+    :root{
+      --gold:#f59e0b; --purple:#7c3aed; --cyan:#00d9ff;
+      --green:#10b981; --red:#ef4444;
+    }
+    *{ box-sizing:border-box; margin:0; padding:0; }
+    body{
+      font-family:'Syne',system-ui,sans-serif;
+      background:
+        radial-gradient(ellipse 900px 500px at 80% -10%, rgba(0,217,255,.12), transparent 55%),
+        radial-gradient(ellipse 700px 400px at -10% 30%, rgba(124,58,237,.2), transparent 55%),
+        linear-gradient(170deg,#060010 0%,#00020a 100%);
+      color:#eae6ff; min-height:100vh; overflow-x:hidden; padding-bottom:90px;
+    }
+
+    /* HEADER */
+    .top-bar{
+      background:rgba(6,0,16,.92); border-bottom:1px solid rgba(124,58,237,.3);
+      padding:.85rem 1.25rem; backdrop-filter:blur(14px);
+      position:sticky; top:0; z-index:100;
+      display:flex; align-items:center; justify-content:space-between; gap:1rem;
+    }
+    .coin-pill{
+      display:inline-flex; align-items:center; gap:.4rem;
+      background:rgba(245,158,11,.1); border:1px solid rgba(245,158,11,.35);
+      border-radius:999px; padding:.28rem .7rem; font-size:.82rem; font-weight:700; color:#fbbf24;
+    }
+
+    /* HERO STRIP */
+    .hero-strip{
+      background:linear-gradient(135deg,rgba(124,58,237,.18),rgba(0,217,255,.08));
+      border-bottom:1px solid rgba(124,58,237,.2);
+      padding:1.25rem 1.25rem 1rem; text-align:center;
+    }
+    .hero-strip h2{ font-size:1.35rem; font-weight:800; margin-bottom:.3rem; }
+    .hero-strip p{ font-size:.82rem; color:#a855f7; opacity:.85; }
+
+    /* TABS */
+    .tab-bar{
+      display:flex; gap:.35rem; overflow-x:auto; padding:.65rem 1rem;
+      scrollbar-width:none; border-bottom:1px solid rgba(124,58,237,.2);
+      background:rgba(6,0,16,.7); backdrop-filter:blur(10px);
+      position:sticky; top:57px; z-index:99;
+    }
+    .tab-bar::-webkit-scrollbar{ display:none; }
+    .tab-btn{
+      flex-shrink:0; padding:.32rem .8rem; border-radius:999px;
+      font-size:.78rem; font-weight:700; cursor:pointer;
+      border:1px solid rgba(124,58,237,.3); background:rgba(14,4,28,.8);
+      color:#a855f7; transition:all .15s; white-space:nowrap;
+    }
+    .tab-btn.active{ background:var(--purple); border-color:var(--purple); color:#fff; }
+
+    /* UPGRADE CARDS */
+    .upgrade-grid{
+      display:grid; grid-template-columns:1fr;
+      gap:1rem; padding:1.25rem; max-width:700px; margin:0 auto;
+    }
+    .upgrade-card{
+      background:rgba(12,4,26,.92); border:1px solid rgba(124,58,237,.3);
+      border-radius:16px; overflow:hidden; transition:all .2s;
+      position:relative;
+    }
+    .upgrade-card:hover{ border-color:rgba(124,58,237,.6); box-shadow:0 6px 24px rgba(124,58,237,.2); }
+    .upgrade-card.featured{ border-color:rgba(245,158,11,.45); background:rgba(245,158,11,.04); }
+    .upgrade-card.owned-card{ border-color:rgba(16,185,129,.35); background:rgba(16,185,129,.04); }
+
+    .card-inner{ display:flex; align-items:flex-start; gap:1rem; padding:1.1rem 1rem; }
+    .card-icon{
+      width:58px; height:58px; border-radius:12px; flex-shrink:0;
+      display:flex; align-items:center; justify-content:center;
+      font-size:1.8rem; border:1px solid rgba(124,58,237,.25);
+      background:rgba(124,58,237,.1);
+    }
+    .upgrade-card.featured .card-icon{ background:rgba(245,158,11,.12); border-color:rgba(245,158,11,.3); }
+    .upgrade-card.owned-card .card-icon{ background:rgba(16,185,129,.1); border-color:rgba(16,185,129,.25); }
+
+    .card-body{ flex:1; min-width:0; }
+    .card-title{ font-size:1rem; font-weight:800; margin-bottom:.2rem; display:flex; align-items:center; gap:.5rem; }
+    .card-desc{ font-size:.8rem; color:#a855f7; opacity:.82; line-height:1.5; margin-bottom:.65rem; }
+    .card-perks{ display:flex; flex-wrap:wrap; gap:.35rem; margin-bottom:.8rem; }
+    .perk-tag{
+      font-size:.68rem; font-weight:700; padding:.2rem .55rem; border-radius:6px;
+      background:rgba(124,58,237,.15); border:1px solid rgba(124,58,237,.3); color:#c4b5fd;
+    }
+
+    /* PRICE + BUY ROW */
+    .card-footer{
+      border-top:1px solid rgba(124,58,237,.15);
+      padding:.75rem 1rem;
+      display:flex; align-items:center; justify-content:space-between; gap:.75rem; flex-wrap:wrap;
+    }
+    .price-block{ display:flex; flex-direction:column; gap:.15rem; }
+    .price-coins{ font-size:1.1rem; font-weight:800; color:#fbbf24; display:flex; align-items:center; gap:.3rem; }
+    .price-sub{ font-size:.7rem; color:#a855f7; opacity:.7; }
+    .price-sub.strike{ text-decoration:line-through; opacity:.45; }
+
+    .buy-btn{
+      padding:.5rem 1.2rem; border-radius:10px; border:none;
+      font-size:.85rem; font-weight:700; cursor:pointer; transition:all .15s;
+      white-space:nowrap;
+    }
+    .buy-purple{ background:var(--purple); color:#fff; }
+    .buy-purple:hover{ background:#6d28d9; }
+    .buy-gold{ background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; }
+    .buy-gold:hover{ filter:brightness(1.08); }
+    .buy-green{ background:var(--green); color:#fff; }
+    .buy-owned{ background:rgba(16,185,129,.12); color:#86efac; border:1px solid rgba(16,185,129,.3); cursor:default; }
+    .buy-nocoins{ background:rgba(100,100,100,.15); color:#666; cursor:not-allowed; }
+    .buy-sub{ background:rgba(0,217,255,.1); color:#00d9ff; border:1px solid rgba(0,217,255,.3); }
+    .buy-sub:hover{ background:rgba(0,217,255,.2); }
+
+    /* BADGE LABELS */
+    .badge-feat{
+      position:absolute; top:10px; right:10px;
+      background:linear-gradient(135deg,#f59e0b,#d97706);
+      color:#fff; font-size:.6rem; font-weight:800;
+      padding:2px 8px; border-radius:999px; letter-spacing:.05em;
+    }
+    .badge-new{
+      position:absolute; top:10px; right:10px;
+      background:linear-gradient(135deg,#10b981,#059669);
+      color:#fff; font-size:.6rem; font-weight:800;
+      padding:2px 8px; border-radius:999px;
+    }
+
+    /* BOOST TIMER */
+    .boost-active{
+      background:rgba(16,185,129,.08); border:1px solid rgba(16,185,129,.3);
+      border-radius:8px; padding:.5rem .75rem; font-size:.78rem; color:#86efac;
+      display:inline-flex; align-items:center; gap:.4rem; margin-top:.35rem;
+    }
+
+    /* COLOR SWATCHES */
+    .swatch-row{ display:flex; gap:.4rem; flex-wrap:wrap; margin:.5rem 0; }
+    .swatch{
+      width:28px; height:28px; border-radius:6px; cursor:pointer;
+      border:2px solid transparent; transition:all .15s;
+    }
+    .swatch:hover,.swatch.selected{ border-color:#fff; transform:scale(1.15); }
+
+    /* BG PREVIEW */
+    .bg-preview{
+      height:48px; border-radius:8px; margin:.5rem 0;
+      display:flex; align-items:center; justify-content:center;
+      font-size:.72rem; color:#fff; font-weight:600;
+    }
+
+    /* SECTION DIVIDER */
+    .section-divider{
+      display:flex; align-items:center; gap:.6rem;
+      padding:.75rem 1.25rem .25rem; max-width:700px; margin:0 auto;
+      font-size:.68rem; font-weight:800; text-transform:uppercase;
+      letter-spacing:.1em; color:#a855f7; opacity:.7;
+    }
+    .section-divider::after{ content:''; flex:1; height:1px; background:rgba(124,58,237,.25); }
+
+    /* MODAL */
+    #upgradeModal{
+      position:fixed; inset:0; z-index:9999;
+      background:rgba(0,0,0,.8); backdrop-filter:blur(6px);
+      display:none; align-items:center; justify-content:center;
+    }
+    #upgradeModal.open{ display:flex; }
+    .modal-box{
+      background:rgba(12,4,26,.99); border:1px solid rgba(124,58,237,.5);
+      border-radius:18px; padding:1.5rem 1.5rem 1.25rem;
+      width:min(92vw,380px); text-align:center;
+    }
+    .modal-icon{ font-size:3.2rem; margin-bottom:.65rem; }
+    .modal-title{ font-size:1.05rem; font-weight:800; margin-bottom:.35rem; }
+    .modal-cost{ font-size:1.25rem; font-weight:800; color:#fbbf24; margin:.6rem 0; }
+    .modal-note{ font-size:.78rem; color:#a855f7; opacity:.8; margin-bottom:1.1rem; line-height:1.5; }
+    .modal-row{ display:flex; gap:.75rem; justify-content:center; }
+    .m-btn{ padding:.5rem 1.2rem; border-radius:10px; border:none; font-size:.88rem; font-weight:700; cursor:pointer; }
+    .m-confirm{ background:var(--purple); color:#fff; }
+    .m-confirm:hover{ background:#6d28d9; }
+    .m-cancel{ background:rgba(255,255,255,.08); color:#eae6ff; }
+
+    /* TOAST */
+    #toast{
+      position:fixed; bottom:5.5rem; left:50%; transform:translateX(-50%);
+      padding:.5rem 1.2rem; border-radius:999px; font-size:.84rem; font-weight:700;
+      z-index:10000; display:none; white-space:nowrap; pointer-events:none;
+    }
+    #toast.s{ background:rgba(16,185,129,.92); color:#fff; }
+    #toast.e{ background:rgba(239,68,68,.92); color:#fff; }
+    #toast.i{ background:rgba(124,58,237,.92); color:#fff; }
+
+    @media(min-width:560px){
+      .upgrade-grid{ grid-template-columns:1fr 1fr; }
+      .upgrade-card.wide{ grid-column:span 2; }
+    }
+  </style>
 </head>
 <body>
-<header class="px-4 py-4 bg-[rgba(15,0,30,.9)] border-b border-purple-500/40">
-  <div class="max-w-4xl mx-auto flex items-center justify-between">
-    <a href="index.html" class="btn">← Home</a>
-    <h1 class="text-lg font-bold">PAGE TITLE</h1>
-    <span></span>
-  </div>
-</header>
 
-<main class="max-w-4xl mx-auto px-4 py-6">
-  <div class="card">
-    <p>This is a placeholder for <b>PAGE TITLE</b>. You can design this later.</p>
+<!-- Top bar -->
+<div class="top-bar">
+  <div style="display:flex;align-items:center;gap:.75rem;">
+    <a href="index.html" style="color:#a855f7;font-size:.82rem;text-decoration:none;">← Home</a>
+    <span style="font-size:1rem;font-weight:800;">⚡ Upgrades</span>
   </div>
-</main>
+  <div style="display:flex;align-items:center;gap:.6rem;">
+    <div class="coin-pill">🪙 <span id="coinBal">...</span></div>
+    <a href="coinshop.html" style="font-size:.72rem;color:#a855f7;text-decoration:none;border:1px solid rgba(124,58,237,.35);padding:.22rem .55rem;border-radius:6px;">+ Coins</a>
+  </div>
+</div>
+
+<!-- Hero -->
+<div class="hero-strip">
+  <h2>⚡ Level Up Your Profile</h2>
+  <p>Badges · Backgrounds · Boosts · Themes — stand out on 8BFR</p>
+</div>
+
+<!-- Tabs -->
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="setTab('all')">All Upgrades</button>
+  <button class="tab-btn" onclick="setTab('badges')">🏅 Badges</button>
+  <button class="tab-btn" onclick="setTab('profiles')">🎨 Profile</button>
+  <button class="tab-btn" onclick="setTab('boosts')">🚀 Boosts</button>
+  <button class="tab-btn" onclick="setTab('themes')">🌈 Themes</button>
+  <button class="tab-btn" onclick="setTab('owned')">✅ Active</button>
+</div>
+
+<!-- Content -->
+<div id="shopContent"></div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Modal -->
+<div id="upgradeModal">
+  <div class="modal-box">
+    <div class="modal-icon" id="mIcon">⚡</div>
+    <div class="modal-title" id="mTitle">Confirm Upgrade</div>
+    <div class="modal-cost" id="mCost"></div>
+    <div class="modal-note" id="mNote"></div>
+    <div class="modal-row">
+      <button class="m-btn m-cancel" onclick="closeModal()">Cancel</button>
+      <button class="m-btn m-confirm" onclick="confirmPurchase()">Confirm</button>
+    </div>
+  </div>
+</div>
 
 <script src="scripts.js?v=6" defer></script>
-  <!-- ADD THIS SCRIPT TO EVERY PAGE (except index.html where you want it always shown) -->
-<!-- Place it right before the closing </body> tag -->
-
 <script>
-// Avatar & Bubble Toggle System
-(function() {
-    // Create toggle button
-    const toggleBtn = document.createElement('button');
-    toggleBtn.id = 'avatarToggle';
-    toggleBtn.innerHTML = '👁️';
-    toggleBtn.title = 'Toggle Avatar/Bubbles';
-    toggleBtn.style.cssText = `
-        position: fixed;
-        top: 80px;
-        right: 20px;
-        z-index: 9999;
-        background: rgba(124, 58, 237, 0.9);
-        border: 2px solid rgba(124, 58, 237, 1);
-        color: white;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.5);
-        transition: all 0.3s ease;
-    `;
-    
-    toggleBtn.addEventListener('mouseenter', function() {
-        this.style.transform = 'scale(1.1)';
-    });
-    
-    toggleBtn.addEventListener('mouseleave', function() {
-        this.style.transform = 'scale(1)';
-    });
-    
-    document.body.appendChild(toggleBtn);
-    
-    // Load saved preference
-    let isHidden = localStorage.getItem('hideAvatarBubbles') === 'true';
-    
-    function updateVisibility() {
-        const elementsToToggle = [
-            document.getElementById('homeAvatarSwitcher'),
-            ...document.querySelectorAll('[id*="bubble"]'),
-            ...document.querySelectorAll('[class*="bubble"]'),
-            ...document.querySelectorAll('[id*="avatar"][id*="switcher"]')
-        ];
-        
-        elementsToToggle.forEach(el => {
-            if (el) {
-                el.style.display = isHidden ? 'none' : '';
-            }
-        });
-        
-        toggleBtn.innerHTML = isHidden ? '👁️‍🗨️' : '👁️';
-        toggleBtn.title = isHidden ? 'Show Avatar/Bubbles' : 'Hide Avatar/Bubbles';
-    }
-    
-    toggleBtn.addEventListener('click', function() {
-        isHidden = !isHidden;
-        localStorage.setItem('hideAvatarBubbles', isHidden);
-        updateVisibility();
-    });
-    
-    // Apply on load
-    updateVisibility();
-    
-    
-</script>
+(async function(){
+  const OWNER_ID = 'cb556180-f032-4b21-9470-1d786f2664ab';
+  const SB_URL   = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+  const SB_KEY   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
 
+  let sb, currentUser=null, userCoins=0, ownedIds=new Set(), isOwner=false;
+  let currentTab='all', pendingItem=null;
+
+  // ── CATALOG ────────────────────────────────────────────────────
+  const UPGRADES = [
+    // BADGES
+    {
+      id:'badge_artist_pro', category:'badges', wide:true, featured:true,
+      icon:'🎤', name:'Artist Pro Badge',
+      desc:'Get the verified Artist Pro checkmark on your profile, posts, and comments. Unlocks priority support, early feature access, and your name in the Pro directory.',
+      perks:['✓ Pro badge on profile','✓ Priority feed placement','✓ Early feature access','✓ Pro member directory'],
+      coins:5000, coinLabel:'5,000 coins/month', subOption:true,
+      subLabel:'$12.99/mo via PayPal', subUrl:'https://www.paypal.com/subscribe?business=8bfr.music@gmail.com&item_name=Artist+Pro+Badge&amount=12.99&currency_code=USD',
+      duration:30, itemType:'badge'
+    },
+    {
+      id:'badge_verified', category:'badges',
+      icon:'✅', name:'Verified Artist',
+      desc:'Blue checkmark badge — applied manually by the owner after review. Submit via contact form.',
+      perks:['✓ Blue checkmark','✓ Trust signal to fans','✓ Featured in search'],
+      coins:0, coinLabel:'Apply via Contact', applyOnly:true, itemType:'badge'
+    },
+    {
+      id:'badge_beatmaker_pro', category:'badges',
+      icon:'🎛️', name:'Producer Pro Badge',
+      desc:'Beatmaker Pro badge for producers. Shows the 🎛️ verified producer icon next to your name.',
+      perks:['✓ Producer badge','✓ Beat Store priority','✓ Beatmaker directory'],
+      coins:3500, coinLabel:'3,500 coins/month', duration:30, itemType:'badge'
+    },
+
+    // PROFILE
+    {
+      id:'bg_neon_purple', category:'profiles',
+      icon:'💜', name:'Neon Purple BG',
+      desc:'Vivid neon purple gradient background for your profile page.',
+      perks:['✓ Custom profile background','✓ Stands out in feed'],
+      preview:'linear-gradient(135deg,#4c1d95,#7c3aed,#a855f7)',
+      coins:800, itemType:'profile_bg'
+    },
+    {
+      id:'bg_midnight_blue', category:'profiles',
+      icon:'🌊', name:'Midnight Ocean BG',
+      desc:'Deep ocean midnight blue background with subtle wave effect.',
+      perks:['✓ Custom profile background'],
+      preview:'linear-gradient(135deg,#0c1445,#1e3a8a,#0369a1)',
+      coins:800, itemType:'profile_bg'
+    },
+    {
+      id:'bg_gold_flame', category:'profiles', newItem:true,
+      icon:'🔥', name:'Gold Flame BG',
+      desc:'Fiery gold and amber gradient — for the artists who run hot.',
+      perks:['✓ Custom profile background'],
+      preview:'linear-gradient(135deg,#78350f,#d97706,#fbbf24)',
+      coins:1000, itemType:'profile_bg'
+    },
+    {
+      id:'bg_galaxy', category:'profiles',
+      icon:'🌌', name:'Galaxy BG',
+      desc:'Deep space star-field galaxy background.',
+      perks:['✓ Custom profile background','✓ Animated star particles'],
+      preview:'radial-gradient(ellipse at 30% 40%,#312e81,#0f172a,#000)',
+      coins:1200, itemType:'profile_bg'
+    },
+    {
+      id:'frame_animated_purple', category:'profiles', newItem:true,
+      icon:'🌀', name:'Animated Purple Frame',
+      desc:'Rotating gradient frame around your profile avatar.',
+      perks:['✓ Animated avatar border','✓ Eye-catching in feed'],
+      coins:1500, itemType:'profile_frame'
+    },
+    {
+      id:'frame_animated_gold', category:'profiles',
+      icon:'✨', name:'Animated Gold Frame',
+      desc:'Pulsing gold frame — flex your status.',
+      perks:['✓ Animated avatar border','✓ Gold color scheme'],
+      coins:2000, itemType:'profile_frame'
+    },
+
+    // BOOSTS
+    {
+      id:'boost_feed_24h', category:'boosts',
+      icon:'🚀', name:'Feed Boost — 24h',
+      desc:'Your next 3 posts are pushed to the top of the community feed for 24 hours.',
+      perks:['✓ Top of feed for 24h','✓ 3 posts covered','✓ More eyes on your music'],
+      coins:300, duration:1, itemType:'boost', consumable:true
+    },
+    {
+      id:'boost_feed_7d', category:'boosts', featured:true,
+      icon:'🚀', name:'Feed Boost — 7 Days',
+      desc:'7 days of priority placement in the community feed. Every post you make floats to the top.',
+      perks:['✓ Top of feed for 7 days','✓ Unlimited posts covered','✓ Max visibility'],
+      coins:1500, duration:7, itemType:'boost', consumable:true
+    },
+    {
+      id:'boost_profile_featured', category:'boosts',
+      icon:'⭐', name:'Profile Feature Slot',
+      desc:'Get featured on the homepage Featured Artists section for 48 hours (subject to owner approval).',
+      perks:['✓ Homepage featured slot','✓ 48-hour placement','✓ Owner reviewed'],
+      coins:2500, duration:2, itemType:'boost', consumable:true
+    },
+    {
+      id:'boost_search_top', category:'boosts', newItem:true,
+      icon:'🔍', name:'Search Top Placement',
+      desc:'Your profile appears at the top of search results for your genre keywords for 72 hours.',
+      perks:['✓ Search priority 72h','✓ Genre-based targeting'],
+      coins:800, duration:3, itemType:'boost', consumable:true
+    },
+
+    // THEMES
+    {
+      id:'theme_dark_gold', category:'themes',
+      icon:'🌑', name:'Dark Gold Theme',
+      desc:'Rich dark background with gold accents across your profile UI.',
+      perks:['✓ Gold accent colors','✓ Dark card backgrounds'],
+      colors:['#f59e0b','#d97706','#92400e','#1c1a10'],
+      coins:600, itemType:'theme'
+    },
+    {
+      id:'theme_cyber_cyan', category:'themes', newItem:true,
+      icon:'💎', name:'Cyber Cyan Theme',
+      desc:'Cyberpunk-inspired cyan and electric blue UI theme.',
+      perks:['✓ Cyan accent system','✓ Electric borders'],
+      colors:['#00d9ff','#0284c7','#0c4a6e','#020b14'],
+      coins:600, itemType:'theme'
+    },
+    {
+      id:'theme_neon_pink', category:'themes',
+      icon:'🌸', name:'Neon Pink Theme',
+      desc:'Hot pink neon UI — for the artists who stay vibrant.',
+      perks:['✓ Pink accent system','✓ Neon glow effects'],
+      colors:['#ec4899','#be185d','#831843','#16060d'],
+      coins:600, itemType:'theme'
+    },
+    {
+      id:'theme_forest', category:'themes',
+      icon:'🌿', name:'Forest Green Theme',
+      desc:'Calm dark green theme with earthy tones.',
+      perks:['✓ Green accent system','✓ Earthy palette'],
+      colors:['#10b981','#059669','#064e3b','#011a10'],
+      coins:500, itemType:'theme'
+    },
+  ];
+
+  // Boot
+  let attempts=0;
+  while (!window.supabase && attempts++<30) await new Promise(r=>setTimeout(r,100));
+
+  if (window.supabase) {
+    sb = window.supabase.createClient(SB_URL, SB_KEY);
+    try {
+      const {data:{session}} = await sb.auth.getSession();
+      if (session) {
+        currentUser = session.user;
+        isOwner = currentUser.id === OWNER_ID;
+        await loadUserData();
+      }
+    } catch(e){ console.warn(e); }
+  }
+
+  renderShop();
+
+  async function loadUserData(){
+    const {data:p} = await sb.from('profiles').select('coins').eq('user_id',currentUser.id).single();
+    userCoins = isOwner ? 999999999 : (p?.coins||0);
+    document.getElementById('coinBal').textContent = isOwner ? '∞' : userCoins.toLocaleString();
+    const {data:owned} = await sb.from('user_owned_items').select('item_id').eq('user_id',currentUser.id);
+    if (owned) owned.forEach(r=>ownedIds.add(r.item_id));
+    if (isOwner) UPGRADES.forEach(u=>ownedIds.add(u.id));
+  }
+
+  // ── RENDER ──────────────────────────────────────────────────────
+  window.setTab = function(tab){
+    currentTab=tab;
+    document.querySelectorAll('.tab-btn').forEach(b=>{
+      const txt=b.textContent.toLowerCase();
+      b.classList.toggle('active',
+        tab==='all'?txt.includes('all'):
+        tab==='owned'?txt.includes('active'):
+        txt.includes(tab.replace('profiles','profile').replace('boosts','boost').replace('themes','theme').replace('badges','badge'))
+      );
+    });
+    renderShop();
+  };
+
+  function renderShop(){
+    const wrap=document.getElementById('shopContent');
+    let items=UPGRADES;
+    if(currentTab==='owned'){
+      items=UPGRADES.filter(u=>ownedIds.has(u.id));
+      if(!items.length){
+        wrap.innerHTML=`<div style="text-align:center;padding:3rem;color:#a855f7;opacity:.6;"><div style="font-size:3rem;margin-bottom:.5rem;">⚡</div><div style="font-weight:700;">No active upgrades</div><div style="font-size:.82rem;margin-top:.25rem;">Purchase upgrades to see them here</div></div>`;
+        return;
+      }
+    } else if(currentTab!=='all'){
+      items=UPGRADES.filter(u=>u.category===currentTab);
+    }
+
+    if(currentTab==='all'){
+      const sections=[
+        {key:'badges',   label:'🏅 Badges & Verification'},
+        {key:'profiles', label:'🎨 Profile Customization'},
+        {key:'boosts',   label:'🚀 Feed & Visibility Boosts'},
+        {key:'themes',   label:'🌈 UI Themes'},
+      ];
+      let html='';
+      sections.forEach(s=>{
+        const si=items.filter(u=>u.category===s.key);
+        if(!si.length) return;
+        html+=`<div class="section-divider">${s.label}</div>`;
+        html+=`<div class="upgrade-grid">${si.map(renderCard).join('')}</div>`;
+      });
+      wrap.innerHTML=html;
+    } else {
+      wrap.innerHTML=`<div class="upgrade-grid">${items.map(renderCard).join('')}</div>`;
+    }
+  }
+
+  function renderCard(u){
+    const owned=ownedIds.has(u.id);
+    const canAfford=isOwner||userCoins>=u.coins;
+    const wideClass=u.wide?'wide':'';
+    const featClass=u.featured?'featured':'';
+    const ownClass=owned?'owned-card':'';
+
+    // Badge overlays
+    let badge='';
+    if(u.featured&&!owned) badge=`<div class="badge-feat">⭐ Popular</div>`;
+    else if(u.newItem&&!owned) badge=`<div class="badge-new">✦ New</div>`;
+
+    // Perks
+    const perksHtml=u.perks.map(p=>`<span class="perk-tag">${p}</span>`).join('');
+
+    // Color swatches (themes)
+    let extraHtml='';
+    if(u.colors){
+      extraHtml=`<div class="swatch-row">${u.colors.map(c=>`<div class="swatch" style="background:${c};"></div>`).join('')}</div>`;
+    }
+    if(u.preview){
+      extraHtml=`<div class="bg-preview" style="background:${u.preview};">Preview</div>`;
+    }
+
+    // Price block
+    let priceHtml='';
+    if(u.applyOnly){
+      priceHtml=`<div class="price-block"><div class="price-coins" style="color:#00d9ff;">📬 Apply</div><div class="price-sub">Contact the owner</div></div>`;
+    } else if(u.subOption){
+      priceHtml=`<div class="price-block">
+        <div class="price-coins">🪙 ${u.coinLabel}</div>
+        <div class="price-sub">or ${u.subLabel}</div>
+      </div>`;
+    } else {
+      priceHtml=`<div class="price-block">
+        <div class="price-coins">🪙 ${u.coins.toLocaleString()}</div>
+        ${u.duration?`<div class="price-sub">${u.consumable?'One-time use':'Lasts '+u.duration+' day'+(u.duration>1?'s':'')}</div>`:'<div class="price-sub">Permanent</div>'}
+      </div>`;
+    }
+
+    // Button
+    let btnHtml='';
+    if(owned){
+      btnHtml=`<button class="buy-btn buy-owned">✓ Active</button>`;
+    } else if(u.applyOnly){
+      btnHtml=`<a href="contact.html?subject=Verified+Artist+Request" class="buy-btn buy-sub" style="text-decoration:none;display:inline-block;">Apply →</a>`;
+    } else if(u.subOption){
+      btnHtml=`<div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+        <button class="buy-btn buy-purple" onclick="openModal('${u.id}','coins')"${!canAfford&&!isOwner?' disabled style="opacity:.4;cursor:not-allowed;"':''}>🪙 Buy</button>
+        <a href="${u.subUrl}" target="_blank" rel="noopener" class="buy-btn buy-sub" style="text-decoration:none;display:inline-block;">💳 Subscribe</a>
+      </div>`;
+    } else if(!canAfford){
+      btnHtml=`<button class="buy-btn buy-nocoins">Need ${(u.coins-userCoins).toLocaleString()} more 🪙</button>`;
+    } else {
+      btnHtml=`<button class="buy-btn buy-gold" onclick="openModal('${u.id}','coins')">Buy Now ⚡</button>`;
+    }
+
+    return `<div class="upgrade-card ${wideClass} ${featClass} ${ownClass}" style="position:relative;">
+      ${badge}
+      <div class="card-inner">
+        <div class="card-icon">${u.icon}</div>
+        <div class="card-body">
+          <div class="card-title">${u.name}</div>
+          <div class="card-desc">${u.desc}</div>
+          <div class="card-perks">${perksHtml}</div>
+          ${extraHtml}
+        </div>
+      </div>
+      <div class="card-footer">
+        ${priceHtml}
+        ${btnHtml}
+      </div>
+    </div>`;
+  }
+
+  // ── MODAL ─────────────────────────────────────────────────────
+  window.openModal=function(id, method){
+    if(!currentUser){ showToast('Log in to purchase upgrades','i'); return; }
+    const u=UPGRADES.find(x=>x.id===id);
+    if(!u) return;
+    pendingItem=u;
+    document.getElementById('mIcon').textContent=u.icon;
+    document.getElementById('mTitle').textContent=u.name;
+    document.getElementById('mCost').textContent=`🪙 ${u.coins.toLocaleString()} coins`;
+    document.getElementById('mNote').textContent=
+      u.consumable
+        ? `One-time use — activates immediately after purchase.`
+        : u.duration
+          ? `Active for ${u.duration} day${u.duration>1?'s':''} from purchase.`
+          : `Permanent upgrade on your profile.`;
+    document.getElementById('upgradeModal').classList.add('open');
+  };
+
+  window.closeModal=function(){
+    document.getElementById('upgradeModal').classList.remove('open');
+    pendingItem=null;
+  };
+
+  window.confirmPurchase=async function(){
+    if(!pendingItem||!currentUser) return;
+    const u=pendingItem;
+    closeModal();
+
+    if(!isOwner && userCoins<u.coins){
+      showToast('Not enough coins!','e'); return;
+    }
+
+    try {
+      // Deduct coins
+      if(!isOwner && u.coins>0){
+        const newCoins=userCoins-u.coins;
+        const {error}=await sb.from('profiles').update({coins:newCoins}).eq('user_id',currentUser.id);
+        if(error) throw error;
+        userCoins=newCoins;
+        document.getElementById('coinBal').textContent=userCoins.toLocaleString();
+      }
+
+      // Calc expiry
+      let expiresAt=null;
+      if(u.duration){
+        const exp=new Date();
+        exp.setDate(exp.getDate()+u.duration);
+        expiresAt=exp.toISOString();
+      }
+
+      // Record ownership
+      await sb.from('user_owned_items').upsert({
+        user_id:currentUser.id,
+        item_id:u.id,
+        item_type:u.itemType,
+        item_name:u.name,
+        coins_paid:isOwner?0:u.coins,
+        expires_at:expiresAt
+      },{onConflict:'user_id,item_id'});
+
+      // Also update profiles table for key items
+      if(u.id==='badge_artist_pro'){
+        await sb.from('profiles').update({
+          artist_pro:true,
+          artist_pro_expires:expiresAt
+        }).eq('user_id',currentUser.id);
+      }
+      if(u.itemType==='profile_bg'){
+        await sb.from('profiles').update({profile_bg:u.id}).eq('user_id',currentUser.id);
+      }
+      if(u.itemType==='theme'){
+        await sb.from('profiles').update({ui_theme:u.id}).eq('user_id',currentUser.id);
+      }
+
+      // Log transaction
+      if(!isOwner && u.coins>0){
+        await sb.from('coin_transactions').insert({
+          user_id:currentUser.id,
+          amount:-u.coins,
+          type:'upgrade_purchase',
+          description:`Upgrade: ${u.name}`,
+          reference_id:u.id
+        });
+      }
+
+      ownedIds.add(u.id);
+      showToast(`✓ ${u.name} activated!`,'s');
+      renderShop();
+
+    } catch(e){
+      console.error(e);
+      showToast('Error: '+(e.message||'Unknown'),'e');
+    }
+  };
+
+  // ── HELPERS ──────────────────────────────────────────────────
+  function showToast(msg,type){
+    const t=document.getElementById('toast');
+    t.textContent=msg; t.className=type; t.style.display='block';
+    clearTimeout(window._tt);
+    window._tt=setTimeout(()=>{ t.style.display='none'; },3000);
+  }
+
+  if(!currentUser) document.getElementById('coinBal').textContent='—';
+
+})();
+</script>
 </body>
 </html>
