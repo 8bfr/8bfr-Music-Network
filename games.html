@@ -1,110 +1,662 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PAGE TITLE — 8BFR</title>
-<link rel="icon" href="assets/images/favicon.png">
-<script src="https://cdn.tailwindcss.com"></script>
-<style>
-body{background:linear-gradient(#0b0014,#000);color:#eae6ff;font-family:system-ui;margin:0}
-.card{border:1px solid rgba(124,58,237,.35);background:#0c0618;border-radius:14px;box-shadow:0 0 20px rgba(124,58,237,.18);padding:16px}
-.btn{display:inline-block;background:#120327;border:1px solid rgba(124,58,237,.6);color:#eae6ff;padding:.4rem .7rem;border-radius:.6rem;text-decoration:none}
-.btn:hover{background:#190536}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Games — 8BFR Music Network</title>
+  <link rel="icon" href="assets/images/favicon.png">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:system-ui,-apple-system,sans-serif;background:linear-gradient(#0b0014,#000);color:#eae6ff;min-height:100vh;padding-bottom:80px;}
+    .header{background:rgba(12,4,26,.95);border-bottom:1px solid rgba(124,58,237,.4);padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
+    .header h1{font-size:1.15rem;font-weight:800;}
+    .coin-display{font-size:.82rem;font-weight:700;color:#f59e0b;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:999px;padding:.3rem .8rem;}
+    .container{max-width:900px;margin:0 auto;padding:1.25rem 1rem;}
+    .hero{text-align:center;padding:1.25rem 0 .5rem;}
+    .hero h2{font-size:1.5rem;font-weight:900;background:linear-gradient(135deg,#f59e0b,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+    .hero p{color:rgba(168,85,247,.8);font-size:.85rem;margin-top:.3rem;}
+    .daily-banner{background:linear-gradient(135deg,rgba(245,158,11,.15),rgba(239,68,68,.1));border:1px solid rgba(245,158,11,.3);border-radius:12px;padding:.85rem 1rem;margin:1rem 0;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;}
+    .daily-text{font-size:.82rem;color:#fcd34d;}
+    .cat-label{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:rgba(168,85,247,.55);margin:1.25rem 0 .6rem;}
+    .games-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.85rem;}
+    .game-card{background:rgba(12,6,24,.9);border:1px solid rgba(124,58,237,.28);border-radius:14px;overflow:hidden;cursor:pointer;transition:all .2s;position:relative;}
+    .game-card:hover{border-color:rgba(124,58,237,.6);transform:translateY(-2px);}
+    .game-thumb{height:110px;display:flex;align-items:center;justify-content:center;font-size:3rem;background:linear-gradient(135deg,rgba(124,58,237,.2),rgba(168,85,247,.1));}
+    .game-info{padding:.7rem .85rem;}
+    .game-name{font-size:.9rem;font-weight:800;margin-bottom:.2rem;}
+    .game-desc{font-size:.73rem;color:rgba(168,85,247,.7);line-height:1.4;}
+    .coin-reward{position:absolute;top:.5rem;right:.5rem;background:rgba(245,158,11,.2);border:1px solid rgba(245,158,11,.4);color:#f59e0b;border-radius:999px;font-size:.65rem;font-weight:800;padding:.15rem .45rem;}
+    .new-badge{position:absolute;top:.5rem;left:.5rem;background:rgba(52,211,153,.2);border:1px solid rgba(52,211,153,.4);color:#34d399;border-radius:4px;font-size:.62rem;font-weight:800;padding:.1rem .35rem;}
+    /* Game Modal */
+    #gameModal{display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.9);backdrop-filter:blur(8px);align-items:center;justify-content:center;}
+    .game-modal-box{background:rgba(10,2,22,.99);border:1px solid rgba(124,58,237,.5);border-radius:18px;width:min(96vw,520px);max-height:92vh;overflow-y:auto;}
+    .game-modal-head{padding:1rem 1.1rem .75rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(124,58,237,.2);position:sticky;top:0;background:rgba(10,2,22,.99);z-index:1;}
+    .game-modal-head h3{font-size:1rem;font-weight:800;}
+    .close-btn{background:none;border:none;color:rgba(168,85,247,.6);font-size:1.3rem;cursor:pointer;}
+    .game-area{padding:1rem;}
+    /* Score & coin feedback */
+    .score-bar{display:flex;gap:.75rem;justify-content:center;margin-bottom:1rem;flex-wrap:wrap;}
+    .score-chip{background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.3);border-radius:999px;padding:.3rem .85rem;font-size:.82rem;font-weight:700;}
+    .result-pop{text-align:center;padding:1rem;animation:pop .3s ease;}
+    @keyframes pop{from{transform:scale(.8);opacity:0;}to{transform:scale(1);opacity:1;}}
+    /* Word game */
+    .word-display{font-size:2rem;font-weight:900;letter-spacing:.3em;text-align:center;margin:1rem 0;color:#a855f7;}
+    .letter-grid{display:flex;flex-wrap:wrap;gap:.4rem;justify-content:center;margin:1rem 0;}
+    .letter-btn{width:38px;height:38px;border-radius:8px;border:1px solid rgba(124,58,237,.4);background:rgba(124,58,237,.1);color:#eae6ff;font-size:.95rem;font-weight:800;cursor:pointer;transition:all .15s;}
+    .letter-btn:hover:not(:disabled){background:rgba(124,58,237,.3);border-color:#a855f7;}
+    .letter-btn:disabled{opacity:.25;cursor:not-allowed;}
+    .letter-btn.wrong{background:rgba(239,68,68,.2);border-color:#ef4444;color:#ef4444;}
+    .letter-btn.correct{background:rgba(52,211,153,.2);border-color:#34d399;color:#34d399;}
+    /* Beat tap */
+    .beat-target{width:90px;height:90px;border-radius:50%;border:3px solid rgba(124,58,237,.5);display:flex;align-items:center;justify-content:center;font-size:2.5rem;cursor:pointer;transition:all .1s;margin:0 auto;user-select:none;}
+    .beat-target.pulse{animation:beatPulse .4s ease;}
+    .beat-target.hit{background:rgba(52,211,153,.3);border-color:#34d399;}
+    .beat-target.miss{background:rgba(239,68,68,.2);border-color:#ef4444;}
+    @keyframes beatPulse{0%{transform:scale(1);}50%{transform:scale(1.2);border-color:#a855f7;}100%{transform:scale(1);}}
+    /* Memory grid */
+    .mem-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;max-width:280px;margin:0 auto;}
+    .mem-card{aspect-ratio:1;border-radius:10px;border:1px solid rgba(124,58,237,.3);background:rgba(124,58,237,.1);display:flex;align-items:center;justify-content:center;font-size:1.5rem;cursor:pointer;transition:all .2s;user-select:none;}
+    .mem-card.flipped{background:rgba(124,58,237,.3);border-color:#a855f7;}
+    .mem-card.matched{background:rgba(52,211,153,.2);border-color:#34d399;cursor:default;}
+    .mem-card.hidden-face{font-size:0;}
+    /* Trivia */
+    .trivia-q{font-size:.95rem;font-weight:700;text-align:center;margin-bottom:1rem;line-height:1.5;}
+    .trivia-opts{display:flex;flex-direction:column;gap:.5rem;}
+    .trivia-opt{background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.3);border-radius:10px;padding:.65rem .9rem;cursor:pointer;font-size:.88rem;transition:all .2s;text-align:left;}
+    .trivia-opt:hover:not(:disabled){background:rgba(124,58,237,.25);border-color:#a855f7;}
+    .trivia-opt.correct{background:rgba(52,211,153,.2);border-color:#34d399;color:#34d399;}
+    .trivia-opt.wrong{background:rgba(239,68,68,.15);border-color:#ef4444;color:#ef4444;}
+    /* Common */
+    .play-btn{background:linear-gradient(135deg,#7c3aed,#a855f7);border:none;color:#fff;padding:.6rem 1.5rem;border-radius:10px;font-size:.95rem;font-weight:800;cursor:pointer;display:block;margin:.75rem auto 0;transition:all .2s;}
+    .play-btn:hover{transform:scale(1.04);}
+    .hint-text{text-align:center;font-size:.78rem;color:rgba(168,85,247,.55);margin-top:.5rem;}
+  </style>
 </head>
 <body>
-<header class="px-4 py-4 bg-[rgba(15,0,30,.9)] border-b border-purple-500/40">
-  <div class="max-w-4xl mx-auto flex items-center justify-between">
-    <a href="index.html" class="btn">← Home</a>
-    <h1 class="text-lg font-bold">PAGE TITLE</h1>
-    <span></span>
-  </div>
-</header>
 
-<main class="max-w-4xl mx-auto px-4 py-6">
-  <div class="card">
-    <p>This is a placeholder for <b>PAGE TITLE</b>. You can design this later.</p>
-  </div>
-</main>
+<div class="header">
+  <h1>🎮 Games</h1>
+  <div class="coin-display">🪙 <span id="coinBalance">—</span></div>
+</div>
 
-<script src="scripts.js?v=6" defer></script>
-  <!-- ADD THIS SCRIPT TO EVERY PAGE (except index.html where you want it always shown) -->
-<!-- Place it right before the closing </body> tag -->
+<div class="container">
+  <div class="hero">
+    <h2>Play & Earn Coins</h2>
+    <p>Win coins by playing — spend them in the Shop</p>
+  </div>
+
+  <div class="daily-banner">
+    <div class="daily-text">🎯 Daily Bonus: Play any game to earn up to <strong>50 coins</strong> per day</div>
+    <div style="font-size:.75rem;color:rgba(245,211,0,.6);" id="dailyStatus">Loading...</div>
+  </div>
+
+  <div class="cat-label">🔥 Most Addicting</div>
+  <div class="games-grid">
+    <div class="game-card" onclick="launchGame('beatTap')">
+      <span class="coin-reward">+1–5 🪙</span>
+      <span class="new-badge">HOT</span>
+      <div class="game-thumb">🥁</div>
+      <div class="game-info">
+        <div class="game-name">Beat Tap</div>
+        <div class="game-desc">Tap the beat at the right moment. Chain combos for bonus coins.</div>
+      </div>
+    </div>
+    <div class="game-card" onclick="launchGame('musicMemory')">
+      <span class="coin-reward">+2–8 🪙</span>
+      <div class="game-thumb">🃏</div>
+      <div class="game-info">
+        <div class="game-name">Music Memory</div>
+        <div class="game-desc">Match emoji pairs before time runs out. Faster = more coins.</div>
+      </div>
+    </div>
+    <div class="game-card" onclick="launchGame('musicTrivia')">
+      <span class="coin-reward">+2–10 🪙</span>
+      <span class="new-badge">DAILY</span>
+      <div class="game-thumb">🧠</div>
+      <div class="game-info">
+        <div class="game-name">Music Trivia</div>
+        <div class="game-desc">Hip-hop, R&B and production knowledge. New questions daily.</div>
+      </div>
+    </div>
+    <div class="game-card" onclick="launchGame('wordUnscramble')">
+      <span class="coin-reward">+1–6 🪙</span>
+      <div class="game-thumb">🔤</div>
+      <div class="game-info">
+        <div class="game-name">Word Scramble</div>
+        <div class="game-desc">Unscramble music industry words before the timer hits zero.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cat-label">🎵 Music Knowledge</div>
+  <div class="games-grid">
+    <div class="game-card" onclick="launchGame('guessGenre')">
+      <span class="coin-reward">+1–5 🪙</span>
+      <div class="game-thumb">🎧</div>
+      <div class="game-info">
+        <div class="game-name">Guess the Genre</div>
+        <div class="game-desc">Read lyric clues and guess the genre. 3 wrong = game over.</div>
+      </div>
+    </div>
+    <div class="game-card" onclick="launchGame('bpmChallenge')">
+      <span class="coin-reward">+1–4 🪙</span>
+      <div class="game-thumb">⏱️</div>
+      <div class="game-info">
+        <div class="game-name">BPM Guesser</div>
+        <div class="game-desc">Tap along to the beat and guess the BPM. Get within 5 = perfect score.</div>
+      </div>
+    </div>
+    <div class="game-card" onclick="launchGame('lyricsFinish')">
+      <span class="coin-reward">+2–6 🪙</span>
+      <div class="game-thumb">✍️</div>
+      <div class="game-info">
+        <div class="game-name">Finish the Lyric</div>
+        <div class="game-desc">Complete famous lyrics from hip-hop classics. How many do you know?</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cat-label">💡 Brain Games</div>
+  <div class="games-grid">
+    <div class="game-card" onclick="launchGame('numberRush')">
+      <span class="coin-reward">+1–5 🪙</span>
+      <div class="game-thumb">🔢</div>
+      <div class="game-info">
+        <div class="game-name">Number Rush</div>
+        <div class="game-desc">Tap numbers 1–16 in order as fast as you can. Beat your best time.</div>
+      </div>
+    </div>
+    <div class="game-card" onclick="launchGame('colorMatch')">
+      <span class="coin-reward">+1–4 🪙</span>
+      <div class="game-thumb">🎨</div>
+      <div class="game-info">
+        <div class="game-name">Color Match</div>
+        <div class="game-desc">Match colors before they change. Tests your reaction speed.</div>
+      </div>
+    </div>
+  </div>
+
+  <p style="text-align:center;font-size:.75rem;color:rgba(168,85,247,.35);margin-top:2rem;">
+    More games dropping soon 🎮 · Coin earnings reset daily
+  </p>
+</div>
+
+<!-- GAME MODAL -->
+<div id="gameModal">
+  <div class="game-modal-box">
+    <div class="game-modal-head">
+      <h3 id="gameTitle">Game</h3>
+      <button class="close-btn" onclick="closeGame()">✕</button>
+    </div>
+    <div class="game-area" id="gameArea"></div>
+  </div>
+</div>
 
 <script>
-// Avatar & Bubble Toggle System
-(function() {
-    // Create toggle button
-    const toggleBtn = document.createElement('button');
-    toggleBtn.id = 'avatarToggle';
-    toggleBtn.innerHTML = '👁️';
-    toggleBtn.title = 'Toggle Avatar/Bubbles';
-    toggleBtn.style.cssText = `
-        position: fixed;
-        top: 80px;
-        right: 20px;
-        z-index: 9999;
-        background: rgba(124, 58, 237, 0.9);
-        border: 2px solid rgba(124, 58, 237, 1);
-        color: white;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.5);
-        transition: all 0.3s ease;
-    `;
-    
-    toggleBtn.addEventListener('mouseenter', function() {
-        this.style.transform = 'scale(1.1)';
-    });
-    
-    toggleBtn.addEventListener('mouseleave', function() {
-        this.style.transform = 'scale(1)';
-    });
-    
-    document.body.appendChild(toggleBtn);
-    
-    // Load saved preference
-    let isHidden = localStorage.getItem('hideAvatarBubbles') === 'true';
-    
-    function updateVisibility() {
-        const elementsToToggle = [
-            document.getElementById('homeAvatarSwitcher'),
-            ...document.querySelectorAll('[id*="bubble"]'),
-            ...document.querySelectorAll('[class*="bubble"]'),
-            ...document.querySelectorAll('[id*="avatar"][id*="switcher"]')
-        ];
-        
-        elementsToToggle.forEach(el => {
-            if (el) {
-                el.style.display = isHidden ? 'none' : '';
-            }
-        });
-        
-        toggleBtn.innerHTML = isHidden ? '👁️‍🗨️' : '👁️';
-        toggleBtn.title = isHidden ? 'Show Avatar/Bubbles' : 'Hide Avatar/Bubbles';
-    }
-    
-    toggleBtn.addEventListener('click', function() {
-        isHidden = !isHidden;
-        localStorage.setItem('hideAvatarBubbles', isHidden);
-        updateVisibility();
-    });
-    
-    // Apply on load
-    updateVisibility();
-    
-    // Watch for dynamically added elements
-    const observer = new MutationObserver(updateVisibility);
-    observer.observe(document.body, { childList: true, subtree: true });
-})();
-</script>
+const SB = window.supabase.createClient(
+  'https://novbuvwpjnxwwvdekjhr.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0'
+);
+let currentUser = null, currentProfile = null;
+let gameTimers = [];
+const todayKey = 'game_coins_' + new Date().toDateString();
+let coinsEarnedToday = parseInt(localStorage.getItem(todayKey) || '0');
 
+async function init() {
+  const { data: { session } } = await SB.auth.getSession().catch(() => ({ data:{} }));
+  if (session?.user) {
+    currentUser = session.user;
+    const { data: p } = await SB.from('profiles').select('username,display_name,coins,role').eq('user_id', session.user.id).single();
+    currentProfile = p;
+    if (p) document.getElementById('coinBalance').textContent = (p.coins || 0).toLocaleString();
+  } else {
+    document.getElementById('coinBalance').textContent = 'Login';
+  }
+  const max = 50;
+  document.getElementById('dailyStatus').textContent = coinsEarnedToday + '/' + max + ' coins earned today';
+}
+
+async function awardCoins(amount) {
+  if (!currentUser) return;
+  const max = 50;
+  const canEarn = Math.min(amount, max - coinsEarnedToday);
+  if (canEarn <= 0) { showToast('Daily coin limit reached! Come back tomorrow 🎉'); return; }
+
+  try {
+    await SB.from('profiles').update({ coins: (currentProfile?.coins||0) + canEarn }).eq('user_id', currentUser.id);
+    await SB.from('coin_transactions').insert({ user_id:currentUser.id, amount:canEarn, type:'game_reward', description:'Game win reward', created_at:new Date().toISOString() });
+    if (currentProfile) currentProfile.coins = (currentProfile.coins||0) + canEarn;
+    coinsEarnedToday += canEarn;
+    localStorage.setItem(todayKey, coinsEarnedToday);
+    document.getElementById('coinBalance').textContent = (currentProfile?.coins||0).toLocaleString();
+    document.getElementById('dailyStatus').textContent = coinsEarnedToday + '/50 coins earned today';
+    showToast('+' + canEarn + ' 🪙 coins added!');
+  } catch(e) { console.warn('Coin award failed:', e); }
+}
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(124,58,237,.95);color:#fff;padding:.5rem 1.25rem;border-radius:999px;font-size:.85rem;font-weight:700;z-index:99999;pointer-events:none;animation:fadeIn .3s ease;';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2200);
+}
+
+function clearGameTimers() { gameTimers.forEach(clearTimeout); gameTimers.forEach(clearInterval); gameTimers = []; }
+
+function launchGame(gameId) {
+  if (!currentUser) { if (confirm('Log in to play and earn coins!')) location.href='login.html?return=games.html'; return; }
+  clearGameTimers();
+  document.getElementById('gameModal').style.display = 'flex';
+  const games = {
+    beatTap:       { title:'🥁 Beat Tap', fn: initBeatTap },
+    musicMemory:   { title:'🃏 Music Memory', fn: initMemory },
+    musicTrivia:   { title:'🧠 Music Trivia', fn: initTrivia },
+    wordUnscramble:{ title:'🔤 Word Scramble', fn: initWordScramble },
+    guessGenre:    { title:'🎧 Guess the Genre', fn: initGuessGenre },
+    bpmChallenge:  { title:'⏱️ BPM Guesser', fn: initBPM },
+    lyricsFinish:  { title:'✍️ Finish the Lyric', fn: initLyrics },
+    numberRush:    { title:'🔢 Number Rush', fn: initNumberRush },
+    colorMatch:    { title:'🎨 Color Match', fn: initColorMatch },
+  };
+  const g = games[gameId];
+  if (!g) return;
+  document.getElementById('gameTitle').textContent = g.title;
+  g.fn();
+}
+
+function closeGame() {
+  clearGameTimers();
+  document.getElementById('gameModal').style.display = 'none';
+}
+
+// ── BEAT TAP ───────────────────────────────────────────────────────────
+function initBeatTap() {
+  let score = 0, combo = 0, misses = 0, round = 0, total = 10;
+  const bpms = [80,90,100,110,120];
+  const bpm = bpms[Math.floor(Math.random()*bpms.length)];
+  const interval = 60000/bpm;
+  document.getElementById('gameArea').innerHTML = `
+    <div style="text-align:center;">
+      <div class="score-bar">
+        <span class="score-chip">Score: <b id="btScore">0</b></span>
+        <span class="score-chip">Combo: <b id="btCombo">0x</b></span>
+        <span class="score-chip">BPM: ${bpm}</span>
+      </div>
+      <div class="hint-text">Tap the circle on the beat!</div>
+      <div style="margin:1.5rem auto;"><div class="beat-target" id="beatTarget">🥁</div></div>
+      <div style="font-size:.78rem;color:rgba(168,85,247,.4);">Round <span id="btRound">0</span>/${total}</div>
+    </div>`;
+  
+  let active = false, canTap = false;
+  const target = document.getElementById('beatTarget');
+
+  function nextBeat() {
+    if (round >= total) { endBeatTap(score); return; }
+    canTap = false;
+    target.style.background = '';
+    target.style.borderColor = '';
+    // Pulse on beat
+    setTimeout(() => {
+      if (round >= total) return;
+      canTap = true;
+      target.classList.add('pulse');
+      target.style.borderColor = '#a855f7';
+      setTimeout(() => {
+        target.classList.remove('pulse');
+        if (canTap) { // missed
+          canTap = false; misses++; combo = 0;
+          target.classList.add('miss');
+          document.getElementById('btCombo').textContent = '0x';
+          setTimeout(() => target.classList.remove('miss'), 300);
+          round++; document.getElementById('btRound').textContent = round;
+          gameTimers.push(setTimeout(nextBeat, interval * .5));
+        }
+      }, interval * .55);
+    }, 200);
+  }
+
+  target.onclick = () => {
+    if (!canTap) return;
+    canTap = false; round++;
+    combo++; score += combo;
+    document.getElementById('btScore').textContent = score;
+    document.getElementById('btCombo').textContent = combo + 'x';
+    document.getElementById('btRound').textContent = round;
+    target.classList.add('hit');
+    setTimeout(() => target.classList.remove('hit'), 200);
+    gameTimers.push(setTimeout(nextBeat, interval * .5));
+  };
+
+  gameTimers.push(setTimeout(nextBeat, 800));
+}
+
+function endBeatTap(score) {
+  const coins = Math.min(5, Math.max(1, Math.floor(score/3)));
+  document.getElementById('gameArea').innerHTML = `<div class="result-pop">
+    <div style="font-size:3rem;">🥁</div>
+    <div style="font-size:1.5rem;font-weight:900;margin:.5rem 0;">Score: ${score}</div>
+    <div style="color:#f59e0b;font-weight:700;">+${coins} 🪙 coins earned!</div>
+    <button class="play-btn" onclick="launchGame('beatTap')">Play Again</button>
+  </div>`;
+  awardCoins(coins);
+}
+
+// ── MEMORY GAME ────────────────────────────────────────────────────────
+function initMemory() {
+  const emojis = ['🎤','🎸','🎹','🥁','🎺','🎻','🎧','🎚️'];
+  const cards = [...emojis,...emojis].sort(() => Math.random()-.5);
+  let flipped=[], matched=0, moves=0, startTime=Date.now();
+
+  document.getElementById('gameArea').innerHTML = `
+    <div class="score-bar">
+      <span class="score-chip">Moves: <b id="memMoves">0</b></span>
+      <span class="score-chip">Pairs: <b id="memPairs">0</b>/8</span>
+    </div>
+    <div class="mem-grid" id="memGrid"></div>`;
+
+  const grid = document.getElementById('memGrid');
+  cards.forEach((emoji, i) => {
+    const card = document.createElement('div');
+    card.className = 'mem-card hidden-face';
+    card.dataset.emoji = emoji;
+    card.dataset.i = i;
+    card.onclick = () => flipCard(card);
+    card.innerHTML = emoji;
+    grid.appendChild(card);
+  });
+
+  function flipCard(card) {
+    if (card.classList.contains('matched') || card.classList.contains('flipped') || flipped.length >= 2) return;
+    card.classList.add('flipped');
+    card.classList.remove('hidden-face');
+    flipped.push(card);
+    if (flipped.length === 2) {
+      moves++;
+      document.getElementById('memMoves').textContent = moves;
+      if (flipped[0].dataset.emoji === flipped[1].dataset.emoji) {
+        flipped.forEach(c => c.classList.add('matched'));
+        matched++; flipped = [];
+        document.getElementById('memPairs').textContent = matched;
+        if (matched === 8) endMemory(moves, Date.now()-startTime);
+      } else {
+        gameTimers.push(setTimeout(() => {
+          flipped.forEach(c => { c.classList.remove('flipped'); c.classList.add('hidden-face'); });
+          flipped = [];
+        }, 800));
+      }
+    }
+  }
+}
+
+function endMemory(moves, ms) {
+  const secs = Math.floor(ms/1000);
+  const coins = secs < 30 ? 8 : secs < 60 ? 5 : secs < 90 ? 3 : 2;
+  document.getElementById('gameArea').innerHTML = `<div class="result-pop">
+    <div style="font-size:3rem;">🎉</div>
+    <div style="font-size:1.3rem;font-weight:900;">Solved in ${secs}s · ${moves} moves</div>
+    <div style="color:#f59e0b;font-weight:700;margin:.5rem 0;">+${coins} 🪙 coins!</div>
+    <button class="play-btn" onclick="launchGame('musicMemory')">Play Again</button>
+  </div>`;
+  awardCoins(coins);
+}
+
+// ── TRIVIA ─────────────────────────────────────────────────────────────
+const triviaQs = [
+  { q:"What does BPM stand for?", opts:["Beats Per Minute","Bass Per Mix","Beat Pattern Mode","Bars Per Measure"], a:0 },
+  { q:"Which DAW is FL Studio primarily associated with?", opts:["Apple","Native Instruments","Image-Line","Ableton"], a:2 },
+  { q:"A trap beat typically uses how many hi-hat patterns?", opts:["Simple 4/4","Rapid 16ths and triplets","Straight 8ths","Waltz pattern"], a:1 },
+  { q:"What is a 'sample' in music production?", opts:["A free download","A piece of existing audio used in a new track","A type of microphone","A drum pattern"], a:1 },
+  { q:"Who popularized the 'double time' rap flow technique?", opts:["Eminem","Twista","Tech N9ne","Busta Rhymes"], a:1 },
+  { q:"What is 'sidechain compression' used for?", opts:["Making vocals louder","Making kick drum pop through the mix","Adding reverb","Creating harmonies"], a:1 },
+  { q:"Which scale is most commonly used in hip-hop production?", opts:["Major scale","Pentatonic minor","Chromatic","Whole tone"], a:1 },
+  { q:"What does 808 refer to?", opts:["A radio station","The Roland TR-808 drum machine","A music venue","A record label"], a:1 },
+  { q:"What is a 'hook' in a song?", opts:["The intro","The most memorable, repeated section","The bridge","The outro"], a:1 },
+  { q:"Which rapper is known for 'Stillmatic'?", opts:["Jay-Z","Nas","Rakim","KRS-One"], a:1 },
+  { q:"What is 'gain staging'?", opts:["Setting stage lighting","Managing audio levels throughout signal chain","Tuning instruments","Booking shows"], a:1 },
+  { q:"How many beats are in a standard bar?", opts:["2","3","4","8"], a:2 },
+];
+
+function initTrivia() {
+  const shuffled = [...triviaQs].sort(() => Math.random()-.5).slice(0,8);
+  let qi = 0, score = 0;
+
+  function showQ() {
+    if (qi >= shuffled.length) { endTrivia(score, shuffled.length); return; }
+    const q = shuffled[qi];
+    document.getElementById('gameArea').innerHTML = `
+      <div class="score-bar">
+        <span class="score-chip">Q${qi+1}/${shuffled.length}</span>
+        <span class="score-chip">Score: <b>${score}</b></span>
+      </div>
+      <div class="trivia-q">${q.q}</div>
+      <div class="trivia-opts">
+        ${q.opts.map((o,i) => `<button class="trivia-opt" onclick="answerTrivia(${i})">${o}</button>`).join('')}
+      </div>`;
+    window.answerTrivia = (idx) => {
+      const opts = document.querySelectorAll('.trivia-opt');
+      opts.forEach(o => o.disabled = true);
+      opts[idx].classList.add(idx===q.a?'correct':'wrong');
+      if (idx !== q.a) opts[q.a].classList.add('correct');
+      if (idx === q.a) score++;
+      gameTimers.push(setTimeout(() => { qi++; showQ(); }, 1000));
+    };
+  }
+  showQ();
+}
+
+function endTrivia(score, total) {
+  const pct = score/total;
+  const coins = pct>=.9?10:pct>=.7?7:pct>=.5?4:2;
+  const msg = pct>=.9?'🏆 Perfect!':pct>=.7?'🔥 Great!':pct>=.5?'👍 Good':' Keep studying!';
+  document.getElementById('gameArea').innerHTML = `<div class="result-pop">
+    <div style="font-size:2.5rem;">${msg.split(' ')[0]}</div>
+    <div style="font-size:1.2rem;font-weight:900;margin:.5rem 0;">${score}/${total} correct</div>
+    <div style="color:#f59e0b;font-weight:700;">+${coins} 🪙 coins!</div>
+    <button class="play-btn" onclick="launchGame('musicTrivia')">Play Again</button>
+  </div>`;
+  awardCoins(coins);
+}
+
+// ── WORD SCRAMBLE ─────────────────────────────────────────────────────
+const musicWords = ['BEATMAKER','PRODUCER','FREESTYLE','TURNTABLE','BASSLINE','REVERB','MASTERING','SAMPLING','VOCALIST','HARMONY','MELODY','CHORUS','LYRICS'];
+function initWordScramble() {
+  const words = [...musicWords].sort(() => Math.random()-.5).slice(0,5);
+  let wi=0, score=0;
+  function showWord() {
+    if (wi>=words.length) { endWordScramble(score,words.length); return; }
+    const word = words[wi];
+    const scrambled = word.split('').sort(() => Math.random()-.5).join('');
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+    document.getElementById('gameArea').innerHTML = `
+      <div class="score-bar">
+        <span class="score-chip">Word ${wi+1}/${words.length}</span>
+        <span class="score-chip">Score: <b>${score}</b></span>
+      </div>
+      <div class="hint-text">Unscramble this music word:</div>
+      <div class="word-display">${scrambled}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:.4rem;justify-content:center;max-width:300px;margin:0 auto 1rem;">
+        ${word.split('').map(()=>'<div style="width:32px;height:32px;border-bottom:2px solid #a855f7;text-align:center;font-size:1.1rem;font-weight:900;"></div>').join('')}
+      </div>
+      <div id="typedWord" style="display:none;">${word}</div>
+      <input type="text" id="wordInput" maxlength="${word.length}" placeholder="Type your answer..." 
+        style="display:block;width:100%;max-width:260px;margin:.5rem auto;background:rgba(18,3,39,.8);border:1px solid rgba(124,58,237,.4);border-radius:10px;color:#eae6ff;padding:.6rem .85rem;font-size:1rem;text-align:center;outline:none;text-transform:uppercase;font-weight:800;"
+        onkeydown="if(event.key==='Enter'){checkScramble('${word}')}">
+      <button class="play-btn" onclick="checkScramble('${word}')">Submit</button>
+      <div class="hint-text">Hint: It's a music term with ${word.length} letters</div>`;
+    document.getElementById('wordInput').focus();
+  }
+  window.checkScramble = (word) => {
+    const ans = (document.getElementById('wordInput')?.value||'').toUpperCase().trim();
+    if (ans === word) { score++; showToast('✓ Correct!'); } else { showToast('✗ It was: ' + word); }
+    wi++;
+    gameTimers.push(setTimeout(showWord, 700));
+  };
+  showWord();
+}
+function endWordScramble(score,total) {
+  const coins = Math.max(1, Math.floor(score*1.2));
+  document.getElementById('gameArea').innerHTML = `<div class="result-pop">
+    <div style="font-size:2.5rem;">🔤</div>
+    <div style="font-size:1.2rem;font-weight:900;">${score}/${total} correct!</div>
+    <div style="color:#f59e0b;font-weight:700;">+${coins} 🪙</div>
+    <button class="play-btn" onclick="launchGame('wordUnscramble')">Play Again</button>
+  </div>`;
+  awardCoins(coins);
+}
+
+// ── GENRE GUESSER ────────────────────────────────────────────────────
+const genreClues = [
+  {clue:"Heavy 808s, ad-libs, melodic hooks, Atlanta origins",answer:"Trap",opts:["Trap","Boom Bap","Drill","R&B"]},
+  {clue:"Sample-heavy, breakbeats, lyrical focus, NYC 90s",answer:"Boom Bap",opts:["Drill","Boom Bap","Crunk","Gangsta Rap"]},
+  {clue:"Dark, sliding bass, Chicago streets, drill snares",answer:"Drill",opts:["Trap","Boom Bap","Drill","UK Grime"]},
+  {clue:"Smooth vocals, soul samples, love themes, slow BPM",answer:"R&B",opts:["R&B","Neo Soul","Pop","Gospel"]},
+  {clue:"Positive vibes, Jamaica roots, NYC, Marcus Garvey themes",answer:"Reggae Rap",opts:["Dancehall","Reggae Rap","Afrobeats","Calypso"]},
+];
+function initGuessGenre() {
+  let qi=0,score=0,lives=3;
+  function showClue() {
+    if (qi>=genreClues.length||lives<=0) { endGuessGenre(score); return; }
+    const q=genreClues[qi];
+    document.getElementById('gameArea').innerHTML=`
+      <div class="score-bar">
+        <span class="score-chip">Score: <b>${score}</b></span>
+        <span class="score-chip">Lives: ${'❤️'.repeat(lives)}</span>
+      </div>
+      <div style="background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.25);border-radius:12px;padding:1rem;margin:.75rem 0;text-align:center;font-size:.9rem;line-height:1.6;">${q.clue}</div>
+      <div class="trivia-opts">${q.opts.map(o=>`<button class="trivia-opt" onclick="guessGenreAns('${o}','${q.answer}')">${o}</button>`).join('')}</div>`;
+    window.guessGenreAns=(guess,correct)=>{
+      const opts=document.querySelectorAll('.trivia-opt');
+      opts.forEach(o=>{o.disabled=true;if(o.textContent===correct)o.classList.add('correct');});
+      if(guess!==correct){lives--;document.querySelectorAll('.trivia-opt').forEach(o=>{if(o.textContent===guess)o.classList.add('wrong');});}
+      else score++;
+      qi++;
+      gameTimers.push(setTimeout(showClue,900));
+    };
+  }
+  showClue();
+}
+function endGuessGenre(score) {
+  const coins=Math.max(1,score);
+  document.getElementById('gameArea').innerHTML=`<div class="result-pop">
+    <div style="font-size:2.5rem;">🎧</div>
+    <div style="font-size:1.2rem;font-weight:900;">${score}/${genreClues.length} correct!</div>
+    <div style="color:#f59e0b;font-weight:700;">+${coins} 🪙</div>
+    <button class="play-btn" onclick="launchGame('guessGenre')">Play Again</button>
+  </div>`;
+  awardCoins(coins);
+}
+
+// ── NUMBER RUSH ────────────────────────────────────────────────────────
+function initNumberRush() {
+  const nums=Array.from({length:16},(_,i)=>i+1).sort(()=>Math.random()-.5);
+  let next=1,start=Date.now(),found=0;
+  document.getElementById('gameArea').innerHTML=`
+    <div class="score-bar"><span class="score-chip">Next: <b id="nextNum">1</b></span><span class="score-chip" id="nrTimer">0.0s</span></div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;max-width:260px;margin:0 auto;" id="nrGrid"></div>`;
+  const grid=document.getElementById('nrGrid');
+  const btnMap={};
+  nums.forEach(n=>{
+    const b=document.createElement('button');
+    b.textContent=n;b.dataset.n=n;
+    b.style.cssText='padding:.65rem;border-radius:8px;border:1px solid rgba(124,58,237,.4);background:rgba(124,58,237,.1);color:#eae6ff;font-size:1rem;font-weight:800;cursor:pointer;';
+    b.onclick=()=>{
+      if(parseInt(b.dataset.n)===next){b.style.background='rgba(52,211,153,.3)';b.style.borderColor='#34d399';b.disabled=true;next++;found++;
+        document.getElementById('nextNum').textContent=next;
+        if(found===16){const ms=Date.now()-start;endNumberRush(ms);}
+      } else {b.style.background='rgba(239,68,68,.2)';setTimeout(()=>b.style.background='rgba(124,58,237,.1)',300);}
+    };
+    grid.appendChild(b);btnMap[n]=b;
+  });
+  const ti=setInterval(()=>{const el=document.getElementById('nrTimer');if(el)el.textContent=((Date.now()-start)/1000).toFixed(1)+'s';},100);
+  gameTimers.push(ti);
+}
+function endNumberRush(ms) {
+  clearGameTimers();
+  const s=(ms/1000).toFixed(2);
+  const coins=ms<10000?5:ms<15000?4:ms<20000?3:2;
+  document.getElementById('gameArea').innerHTML=`<div class="result-pop">
+    <div style="font-size:2.5rem;">🔢</div>
+    <div style="font-size:1.3rem;font-weight:900;">Finished in ${s}s!</div>
+    <div style="color:#f59e0b;font-weight:700;">+${coins} 🪙</div>
+    <button class="play-btn" onclick="launchGame('numberRush')">Play Again</button>
+  </div>`;
+  awardCoins(coins);
+}
+
+// ── PLACEHOLDER GAMES ──────────────────────────────────────────────────
+function initBPM() {
+  document.getElementById('gameArea').innerHTML=`<div style="text-align:center;padding:1.5rem;">
+    <div style="font-size:3rem;margin-bottom:.5rem;">⏱️</div>
+    <div style="font-weight:800;margin-bottom:.5rem;">BPM Guesser</div>
+    <div style="color:#a855f7;font-size:.85rem;">Tap the button 8 times in rhythm with a song you're thinking of.</div>
+    <div id="bpmTaps" style="margin:1rem 0;font-size:.8rem;color:rgba(168,85,247,.5);">Waiting for taps...</div>
+    <button class="play-btn" id="tapBtn" onclick="tapBPM()">TAP</button>
+    <div id="bpmResult" style="margin-top:1rem;font-size:1.5rem;font-weight:900;color:#f59e0b;"></div>
+  </div>`;
+  let taps=[],tapCount=0;
+  window.tapBPM=()=>{
+    taps.push(Date.now());tapCount++;
+    document.getElementById('bpmTaps').textContent='Taps: '+tapCount+'/8';
+    if(taps.length>1){const avg=(taps[taps.length-1]-taps[0])/(taps.length-1);const bpm=Math.round(60000/avg);document.getElementById('bpmResult').textContent=bpm+' BPM';}
+    if(tapCount>=8){const avg=(taps[taps.length-1]-taps[0])/(taps.length-1);const bpm=Math.round(60000/avg);
+      document.getElementById('bpmResult').innerHTML=`<span style="color:#34d399;">Final: ${bpm} BPM</span>`;
+      document.getElementById('tapBtn').textContent='Reset';window.tapBPM=()=>initBPM();
+      awardCoins(2);
+    }
+  };
+}
+
+function initLyrics() {
+  const qs=[
+    {lyric:"Started from the bottom now we ___",answer:"here",opts:["there","here","up","free"]},
+    {lyric:"Cash rules everything around me, ___ ___",answer:"dollar dollar",opts:["money money","dollar dollar","cream cream","bills bills"]},
+    {lyric:"I'm not afraid to take a stand, ___ come take my ___",answer:"everybody hand",opts:["somebody hand","everybody hand","nobody land","baby sand"]},
+  ];
+  let qi=0,score=0;
+  function showLyric(){
+    if(qi>=qs.length){awardCoins(Math.max(1,score*2));document.getElementById('gameArea').innerHTML=`<div class="result-pop"><div style="font-size:2.5rem;">✍️</div><div style="font-size:1.2rem;font-weight:900;">${score}/${qs.length} correct!</div><div style="color:#f59e0b;">+${Math.max(1,score*2)} 🪙</div><button class="play-btn" onclick="launchGame('lyricsFinish')">Play Again</button></div>`;return;}
+    const q=qs[qi];
+    document.getElementById('gameArea').innerHTML=`<div class="score-bar"><span class="score-chip">Q${qi+1}/${qs.length}</span><span class="score-chip">Score: ${score}</span></div>
+    <div style="background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.25);border-radius:12px;padding:1rem;text-align:center;font-size:.95rem;line-height:1.8;font-style:italic;margin:.75rem 0;">"${q.lyric}"</div>
+    <div class="trivia-opts">${q.opts.map(o=>`<button class="trivia-opt" onclick="ansLyric('${o}','${q.answer}')">${o}</button>`).join('')}</div>`;
+    window.ansLyric=(ans,correct)=>{
+      document.querySelectorAll('.trivia-opt').forEach(b=>{b.disabled=true;if(b.textContent===correct)b.classList.add('correct');});
+      if(ans!==correct)document.querySelectorAll('.trivia-opt').forEach(b=>{if(b.textContent===ans)b.classList.add('wrong');});
+      else score++;
+      qi++;gameTimers.push(setTimeout(showLyric,900));
+    };
+  }
+  showLyric();
+}
+
+function initColorMatch() {
+  const colors=['#ef4444','#f59e0b','#34d399','#60a5fa','#a855f7','#f472b6'];
+  const names=['RED','ORANGE','GREEN','BLUE','PURPLE','PINK'];
+  let score=0,lives=3,qi=0;
+  function nextQ(){
+    if(lives<=0||qi>=12){awardCoins(Math.max(1,Math.floor(score/2)));
+      document.getElementById('gameArea').innerHTML=`<div class="result-pop"><div style="font-size:2.5rem;">🎨</div><div style="font-size:1.2rem;font-weight:900;">Score: ${score}</div><div style="color:#f59e0b;">+${Math.max(1,Math.floor(score/2))} 🪙</div><button class="play-btn" onclick="launchGame('colorMatch')">Play Again</button></div>`;return;}
+    const correctI=Math.floor(Math.random()*colors.length);
+    const displayI=Math.floor(Math.random()*colors.length);
+    const opts=[correctI,...Array.from({length:3},()=>Math.floor(Math.random()*colors.length))].sort(()=>Math.random()-.5).slice(0,4);
+    document.getElementById('gameArea').innerHTML=`<div class="score-bar"><span class="score-chip">Score: <b>${score}</b></span><span class="score-chip">Lives: ${'❤️'.repeat(lives)}</span></div>
+    <div style="text-align:center;margin:1rem 0;font-size:1.8rem;font-weight:900;color:${colors[displayI]};">${names[correctI]}</div>
+    <div style="font-size:.8rem;color:rgba(168,85,247,.6);text-align:center;margin-bottom:.75rem;">Tap the MEANING (not the color of the text)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">
+      ${opts.map(i=>`<button onclick="ansColor(${i},${correctI})" style="padding:.7rem;border-radius:10px;border:1px solid ${colors[i]};background:${colors[i]}22;color:${colors[i]};font-weight:800;font-size:.85rem;cursor:pointer;">${names[i]}</button>`).join('')}
+    </div>`;
+    window.ansColor=(ans,correct)=>{
+      if(ans===correct)score++;else lives--;
+      qi++;gameTimers.push(setTimeout(nextQ,500));
+    };
+  }
+  nextQ();
+}
+
+init();
+</script>
+<script src="scripts.js" defer onerror="console.warn('scripts.js not found')"></script>
 </body>
 </html>
