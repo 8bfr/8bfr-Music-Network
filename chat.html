@@ -1,411 +1,394 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Community Chat — 8BFR</title>
-<link rel="icon" href="assets/images/favicon.png">
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<style>
-:root{--primary:#7c3aed;--dark:#0b0014;--card:#0c0618;--text:#eae6ff;--dim:#a855f7;--border:rgba(124,58,237,.35);--danger:#ef4444;--success:#22c55e;--warn:#f59e0b;}
-*{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Work Sans',sans-serif;background:linear-gradient(#0b0014,#000);color:var(--text);min-height:100vh;display:flex;flex-direction:column;}
-.header{background:rgba(15,0,30,.95);border-bottom:2px solid var(--primary);padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;flex-wrap:wrap;gap:.5rem;}
-.header h1{font-family:'Bebas Neue',cursive;font-size:1.5rem;color:var(--primary);}
-.container{flex:1;max-width:900px;width:100%;margin:0 auto;display:flex;flex-direction:column;height:calc(100vh - 60px);}
-.online-bar{padding:.5rem 1rem;background:rgba(124,58,237,.08);border-bottom:1px solid var(--border);font-size:.8rem;color:var(--dim);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;}
-.messages{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.5rem;}
-.msg{display:flex;gap:.6rem;align-items:flex-start;padding:.5rem .75rem;border-radius:10px;transition:background .15s;position:relative;}
-.msg:hover{background:rgba(124,58,237,.06);}
-.msg.hidden-msg{opacity:.4;border-left:3px solid var(--warn);}
-.msg-avatar{width:36px;height:36px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;overflow:hidden;}
-.msg-avatar img{width:100%;height:100%;object-fit:cover;}
-.msg-body{flex:1;min-width:0;}
-.msg-header{display:flex;align-items:center;gap:.5rem;margin-bottom:.15rem;}
-.msg-name{font-weight:600;font-size:.85rem;color:var(--primary);}
-.msg-name.owner-name{color:#00d9ff;}
-.msg-name.anon-name{color:#666;font-style:italic;}
-.msg-time{font-size:.65rem;color:rgba(234,230,255,.35);}
-.msg-text{font-size:.9rem;line-height:1.5;word-wrap:break-word;}
-.msg-actions{display:none;position:absolute;right:8px;top:8px;gap:.3rem;}
-.msg:hover .msg-actions{display:flex;}
-.msg-action-btn{background:rgba(124,58,237,.2);border:1px solid var(--border);color:var(--text);padding:.15rem .4rem;border-radius:4px;cursor:pointer;font-size:.65rem;transition:all .15s;}
-.msg-action-btn:hover{background:rgba(124,58,237,.4);}
-.msg-action-btn.danger{border-color:rgba(239,68,68,.4);color:var(--danger);}
-.msg-action-btn.danger:hover{background:rgba(239,68,68,.2);}
-.input-area{padding:1rem;background:rgba(15,0,30,.95);border-top:1px solid var(--border);}
-.input-row{display:flex;gap:.5rem;max-width:900px;margin:0 auto;}
-.input-row input{flex:1;padding:.7rem 1rem;background:var(--dark);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:inherit;font-size:.95rem;}
-.input-row input:focus{outline:none;border-color:var(--primary);}
-.send-btn{background:var(--primary);color:#fff;border:none;padding:0 1.25rem;border-radius:12px;cursor:pointer;font-size:1.1rem;font-weight:700;transition:all .2s;flex-shrink:0;}
-.send-btn:hover{background:#6d28d9;}
-.send-btn:disabled{opacity:.5;cursor:not-allowed;}
-.banned-bar{padding:1rem;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);text-align:center;color:var(--danger);font-weight:600;}
-.mod-panel{background:rgba(15,0,30,.95);border-bottom:1px solid var(--border);padding:.5rem 1rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;font-size:.75rem;}
-.mod-btn{background:rgba(124,58,237,.15);border:1px solid var(--border);color:var(--dim);padding:.3rem .6rem;border-radius:6px;cursor:pointer;font-size:.7rem;transition:all .15s;}
-.mod-btn:hover{background:rgba(124,58,237,.3);}
-.mod-btn.active{background:var(--primary);color:#fff;border-color:var(--primary);}
-.system-msg{text-align:center;padding:.4rem;font-size:.8rem;color:var(--dim);font-style:italic;}
-.report-modal{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;}
-.report-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:1.5rem;max-width:450px;width:100%;}
-.report-box h3{color:var(--primary);font-family:'Bebas Neue',cursive;font-size:1.3rem;margin-bottom:.75rem;}
-.report-box textarea{width:100%;min-height:80px;padding:.6rem;background:var(--dark);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:.9rem;resize:vertical;margin:.5rem 0;}
-.report-box .quote{background:rgba(124,58,237,.08);border-left:3px solid var(--primary);padding:.5rem .75rem;border-radius:0 8px 8px 0;margin-bottom:.75rem;font-size:.85rem;color:var(--dim);}
-.btn-sm{padding:.4rem .8rem;border-radius:8px;border:none;cursor:pointer;font-size:.85rem;font-weight:600;transition:all .15s;}
-.btn-primary{background:var(--primary);color:#fff;}.btn-primary:hover{background:#6d28d9;}
-.btn-outline{background:rgba(124,58,237,.1);border:1px solid var(--border);color:var(--text);}.btn-outline:hover{background:rgba(124,58,237,.2);}
-.btn-danger{background:rgba(239,68,68,.8);color:#fff;}.btn-danger:hover{background:rgba(239,68,68,1);}
-@media(max-width:600px){.msg-actions{display:flex !important;position:static;margin-top:.3rem;}}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Community Chat — 8BFR Music Network</title>
+  <link rel="icon" href="assets/images/favicon.png">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:system-ui,-apple-system,sans-serif;background:linear-gradient(#0b0014,#000);color:#eae6ff;min-height:100vh;display:flex;flex-direction:column;padding-bottom:72px;}
+    .header{background:rgba(12,4,26,.95);border-bottom:1px solid rgba(124,58,237,.4);padding:.9rem 1rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
+    .header h1{font-size:1.1rem;font-weight:800;color:#eae6ff;}
+    .online-count{font-size:.75rem;color:#34d399;font-weight:600;}
+    .room-tabs{display:flex;gap:0;border-bottom:1px solid rgba(124,58,237,.3);background:rgba(12,4,26,.8);overflow-x:auto;scrollbar-width:none;flex-shrink:0;}
+    .room-tabs::-webkit-scrollbar{display:none;}
+    .room-tab{padding:.55rem .9rem;font-size:.8rem;font-weight:600;color:rgba(234,230,255,.5);border-bottom:2px solid transparent;background:none;border-top:none;border-left:none;border-right:none;cursor:pointer;white-space:nowrap;transition:all .2s;}
+    .room-tab.active{color:#a855f7;border-bottom-color:#a855f7;}
+    .chat-wrap{flex:1;display:flex;flex-direction:column;max-width:800px;width:100%;margin:0 auto;padding:0;}
+    .messages{flex:1;overflow-y:auto;padding:.75rem 1rem;display:flex;flex-direction:column;gap:.4rem;min-height:0;}
+    .msg{display:flex;gap:.55rem;align-items:flex-start;animation:fadeIn .2s ease;}
+    .msg.own{flex-direction:row-reverse;}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+    .msg-avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0;overflow:hidden;}
+    .msg-avatar img{width:100%;height:100%;object-fit:cover;}
+    .msg-body{max-width:72%;display:flex;flex-direction:column;gap:.15rem;}
+    .msg.own .msg-body{align-items:flex-end;}
+    .msg-name{font-size:.68rem;color:#a855f7;font-weight:700;}
+    .msg-name .role-badge{font-size:.6rem;padding:.05rem .3rem;border-radius:3px;font-weight:800;margin-left:.25rem;}
+    .rb-owner{background:rgba(245,158,11,.2);color:#f59e0b;border:1px solid rgba(245,158,11,.4);}
+    .rb-cofounder{background:rgba(192,132,252,.2);color:#c084fc;border:1px solid rgba(192,132,252,.4);}
+    .rb-admin{background:rgba(124,58,237,.2);color:#a855f7;border:1px solid rgba(124,58,237,.4);}
+    .rb-mod{background:rgba(52,211,153,.15);color:#34d399;border:1px solid rgba(52,211,153,.3);}
+    .msg-bubble{padding:.45rem .75rem;border-radius:16px;border-top-left-radius:4px;font-size:.88rem;line-height:1.45;word-break:break-word;background:rgba(124,58,237,.12);border:1px solid rgba(124,58,237,.2);}
+    .msg.own .msg-bubble{background:rgba(124,58,237,.3);border-color:rgba(124,58,237,.5);border-top-left-radius:16px;border-top-right-radius:4px;}
+    .msg-time{font-size:.62rem;color:rgba(168,85,247,.4);}
+    .msg.hidden-msg .msg-bubble{opacity:.35;font-style:italic;}
+    .msg.hidden-msg .msg-bubble::before{content:'[hidden] ';}
+    .system-msg{text-align:center;font-size:.72rem;color:rgba(168,85,247,.45);padding:.25rem 0;}
+    .muted-notice{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:.65rem 1rem;margin:.5rem 1rem;font-size:.82rem;color:#fca5a5;text-align:center;}
+    .input-bar{background:rgba(12,4,26,.97);border-top:1px solid rgba(124,58,237,.3);padding:.65rem 1rem;display:flex;gap:.5rem;align-items:flex-end;}
+    .input-bar textarea{flex:1;background:rgba(18,3,39,.8);border:1px solid rgba(124,58,237,.35);border-radius:12px;color:#eae6ff;padding:.5rem .8rem;font-size:.9rem;resize:none;outline:none;font-family:inherit;line-height:1.4;max-height:100px;min-height:38px;}
+    .input-bar textarea:focus{border-color:#a855f7;}
+    .send-btn{background:#7c3aed;border:none;color:#fff;padding:.5rem .9rem;border-radius:12px;cursor:pointer;font-size:1rem;flex-shrink:0;transition:all .2s;}
+    .send-btn:hover{background:#6d28d9;}
+    .send-btn:disabled{opacity:.4;cursor:not-allowed;}
+    .login-gate{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;text-align:center;gap:1rem;}
+    .login-gate h2{font-size:1.2rem;font-weight:800;}
+    .login-gate p{font-size:.9rem;color:#a855f7;opacity:.8;}
+    .login-gate a{display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:.6rem 1.5rem;border-radius:10px;font-weight:700;margin-top:.5rem;}
+    .spinner{width:28px;height:28px;border:3px solid rgba(124,58,237,.2);border-top-color:#a855f7;border-radius:50%;animation:spin .7s linear infinite;margin:2rem auto;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .scroll-bottom{position:fixed;bottom:130px;right:1.25rem;background:#7c3aed;border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:1rem;cursor:pointer;display:none;box-shadow:0 4px 12px rgba(0,0,0,.5);z-index:10;}
+    /* Context menu */
+    .ctx-menu{position:fixed;z-index:9999;background:rgba(14,4,30,.98);border:1px solid rgba(124,58,237,.5);border-radius:10px;padding:.4rem 0;min-width:150px;box-shadow:0 8px 24px rgba(0,0,0,.7);display:none;}
+    .ctx-item{padding:.45rem .9rem;font-size:.82rem;cursor:pointer;color:#eae6ff;transition:background .15s;}
+    .ctx-item:hover{background:rgba(124,58,237,.2);}
+    .ctx-item.danger{color:#f87171;}
+  </style>
 </head>
 <body>
+
 <div class="header">
-  <a href="index.html" style="color:var(--dim);text-decoration:none;font-weight:600;">← Home</a>
   <h1>💬 Community Chat</h1>
-  <div style="display:flex;gap:.5rem;align-items:center;">
-    <span id="userCount" style="font-size:.75rem;color:var(--dim);">0 online</span>
+  <span class="online-count" id="onlineCount">🟢 Loading...</span>
+</div>
+
+<div class="room-tabs">
+  <button class="room-tab active" onclick="switchRoom('general',this)">🌐 General</button>
+  <button class="room-tab" onclick="switchRoom('music',this)">🎵 Music Talk</button>
+  <button class="room-tab" onclick="switchRoom('beats',this)">🎚️ Beat Lab</button>
+  <button class="room-tab" onclick="switchRoom('collab',this)">🤝 Collab</button>
+  <button class="room-tab" onclick="switchRoom('hype',this)">🔥 Hype</button>
+</div>
+
+<div class="chat-wrap">
+  <div id="loadingDiv" style="flex:1;"><div class="spinner"></div></div>
+  <div id="loginGate" class="login-gate" style="display:none;">
+    <div style="font-size:3rem;">💬</div>
+    <h2>Join the Conversation</h2>
+    <p>Log in to chat with the 8BFR community</p>
+    <a href="login.html?return=chat.html">Log In</a>
+    <a href="signup.html" style="background:transparent;border:1px solid rgba(124,58,237,.5);color:#a855f7;margin-top:.25rem;">Sign Up Free</a>
+  </div>
+  <div id="mutedNotice" class="muted-notice" style="display:none;">🔇 You are currently muted in chat.</div>
+  <div id="messages" class="messages" style="display:none;"></div>
+  <div id="inputArea" class="input-bar" style="display:none;">
+    <textarea id="msgInput" placeholder="Say something…" rows="1" maxlength="500"
+      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}"
+      oninput="autoResize(this)"></textarea>
+    <button class="send-btn" id="sendBtn" onclick="sendMsg()">➤</button>
   </div>
 </div>
 
-<!-- Owner Mod Panel -->
-<div class="mod-panel" id="modPanel" style="display:none;">
-  <span style="color:var(--primary);font-weight:700;">🛡️ MOD:</span>
-  <button class="mod-btn" id="toggleAnon" onclick="toggleAnonymous()">👻 Anonymous</button>
-  <button class="mod-btn" id="toggleHidden" onclick="toggleShowHidden()">👁️ Show Hidden</button>
-  <button class="mod-btn" onclick="openBanList()">🚫 Ban List</button>
-  <button class="mod-btn danger" style="border-color:rgba(239,68,68,.4);color:var(--danger);" onclick="clearAllMessages()">🗑️ Clear All</button>
+<button class="scroll-bottom" id="scrollBtn" onclick="scrollToBottom(true)" title="Scroll to latest">↓</button>
+
+<!-- Context Menu (staff only) -->
+<div class="ctx-menu" id="ctxMenu">
+  <div class="ctx-item danger" id="ctxHide" onclick="ctxAction('hide')">🙈 Hide Message</div>
+  <div class="ctx-item danger" id="ctxMute" onclick="ctxAction('mute')">🔇 Mute User</div>
+  <div class="ctx-item danger" id="ctxKick" onclick="ctxAction('kick')">👢 Kick from Chat</div>
+  <div class="ctx-item" onclick="closeCtx()">Cancel</div>
 </div>
 
-<!-- Banned notice -->
-<div class="banned-bar" id="bannedBar" style="display:none;">
-  🚫 You have been banned from the community chat.
-</div>
-
-<div class="container">
-  <div class="messages" id="messages">
-    <div class="system-msg">Welcome to the 8BFR Community Chat! Be respectful and have fun. 💜</div>
-  </div>
-  <div class="input-area" id="inputArea">
-    <div class="input-row">
-      <input type="text" id="chatInput" placeholder="Type a message..." maxlength="1000" autocomplete="off" onkeydown="if(event.key==='Enter')sendMessage();">
-      <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
-    </div>
-  </div>
-</div>
-
-<!-- Report Modal -->
-<div class="report-modal" id="reportModal" style="display:none;">
-  <div class="report-box">
-    <h3>🚩 Report Message</h3>
-    <div class="quote" id="reportQuote"></div>
-    <label style="font-size:.8rem;color:var(--dim);">Why are you reporting this?</label>
-    <textarea id="reportReason" placeholder="Describe the issue..."></textarea>
-    <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.5rem;">
-      <button class="btn-sm btn-outline" onclick="closeReport()">Cancel</button>
-      <button class="btn-sm btn-danger" onclick="submitReport()">Submit Report</button>
-    </div>
-  </div>
-</div>
-
-<!-- Ban List Modal -->
-<div class="report-modal" id="banListModal" style="display:none;">
-  <div class="report-box" style="max-width:550px;">
-    <h3>🚫 Banned Users</h3>
-    <div id="banListContent" style="max-height:400px;overflow-y:auto;"></div>
-    <div style="margin-top:1rem;text-align:right;">
-      <button class="btn-sm btn-outline" onclick="closeBanList()">Close</button>
-    </div>
-  </div>
-</div>
-
-<script src="scripts.js" defer></script>
 <script>
-const SUPABASE_URL='https://novbuvwpjnxwwvdekjhr.supabase.co';
-const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
-const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
-const OWNER_ID='cb556180-f032-4b21-9470-1d786f2664ab';
+const SB = window.supabase.createClient(
+  'https://novbuvwpjnxwwvdekjhr.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0'
+);
 
-let currentUser=null;
-let currentProfile=null;
-let isOwner=false;
-let isAnonymous=false;
-let showHidden=false;
-let isBanned=false;
-let reportTarget=null;
+let currentUser = null, currentProfile = null, currentRoom = 'general';
+let channel = null, presenceChannel = null;
+let isStaff = false, isMuted = false;
+let ctxTarget = null; // { msgId, userId, name }
 
-// INIT
-async function init(){
-  const{data:{session}}=await db.auth.getSession();
-  if(!session){location.href='login.html?return=chatroom.html';return;}
-  currentUser=session.user;
-  isOwner=currentUser.id===OWNER_ID;
+const ROLE_BADGES = {
+  owner:      '<span class="role-badge rb-owner">👑 Owner</span>',
+  cofounder:  '<span class="role-badge rb-cofounder">🎖️ Co-Founder</span>',
+  admin:      '<span class="role-badge rb-admin">🛡️ Admin</span>',
+  mod:        '<span class="role-badge rb-mod">🟢 Mod</span>',
+};
 
-  const{data:profile}=await db.from('profiles').select('username,display_name,avatar_url,role').eq('user_id',currentUser.id).single();
-  currentProfile=profile||{username:'user',display_name:'User'};
-  if(profile&&profile.role==='owner')isOwner=true;
+async function init() {
+  try {
+    const { data: { session } } = await SB.auth.getSession();
+    document.getElementById('loadingDiv').style.display = 'none';
 
-  // Check ban
-  const{data:ban}=await db.from('chatroom_bans').select('*').eq('user_id',currentUser.id).order('created_at',{ascending:false}).limit(1).single();
-  if(ban){
-    if(ban.ban_type==='permanent'||(ban.ban_type==='kick'&&new Date(ban.expires_at)>new Date())){
-      isBanned=true;
-      document.getElementById('bannedBar').style.display='block';
-      document.getElementById('inputArea').style.display='none';
-      if(ban.ban_type==='kick'){
-        const mins=Math.ceil((new Date(ban.expires_at)-new Date())/60000);
-        document.getElementById('bannedBar').textContent='⏳ You have been kicked. You can chat again in '+mins+' minute(s).';
+    if (!session) {
+      document.getElementById('loginGate').style.display = 'flex';
+      return;
+    }
+
+    currentUser = session.user;
+    const { data: profile } = await SB.from('profiles').select('*').eq('user_id', currentUser.id).single();
+    currentProfile = profile || { username: currentUser.email?.split('@')[0] || 'User', role: 'fan' };
+    isStaff = ['owner','cofounder','admin','mod'].includes(currentProfile.role);
+
+    // Check mute
+    const { data: mute } = await SB.from('chat_mutes').select('expires_at').eq('user_id', currentUser.id).maybeSingle();
+    isMuted = !!mute && (!mute.expires_at || new Date(mute.expires_at) > new Date());
+    if (isMuted) document.getElementById('mutedNotice').style.display = 'block';
+
+    document.getElementById('messages').style.display = 'flex';
+    document.getElementById('inputArea').style.display = isMuted ? 'none' : 'flex';
+
+    await loadMessages();
+    subscribeToRoom();
+    setupPresence();
+  } catch(e) {
+    document.getElementById('loadingDiv').innerHTML = '<p style="color:#ef4444;text-align:center;padding:2rem;">Error: ' + e.message + '</p>';
+  }
+}
+
+async function loadMessages() {
+  const el = document.getElementById('messages');
+  try {
+    const { data: msgs, error } = await SB.from('chat_messages')
+      .select('id,user_id,message,created_at,hidden,profiles(username,display_name,avatar_url,role)')
+      .eq('room', currentRoom)
+      .order('created_at', { ascending: true })
+      .limit(80);
+    if (error) throw error;
+    el.innerHTML = '';
+    (msgs || []).forEach(m => {
+      if (m.hidden && !isStaff) return;
+      el.appendChild(buildMsg(m));
+    });
+    scrollToBottom(false);
+  } catch(e) {
+    el.innerHTML = '<p style="color:#ef4444;padding:1rem;text-align:center;">Error loading messages: ' + e.message + '</p>';
+  }
+}
+
+function buildMsg(m) {
+  const isOwn = currentUser && m.user_id === currentUser.id;
+  const p = m.profiles || {};
+  const name = esc(p.display_name || p.username || 'User');
+  const roleBadge = ROLE_BADGES[p.role] || '';
+  const avatarHtml = p.avatar_url
+    ? `<img src="${p.avatar_url}" onerror="this.parentNode.textContent='👤'">`
+    : (name.charAt(0) || '?');
+
+  const div = document.createElement('div');
+  div.className = 'msg' + (isOwn ? ' own' : '') + (m.hidden ? ' hidden-msg' : '');
+  div.dataset.id = m.id;
+  div.dataset.uid = m.user_id;
+  div.dataset.name = name;
+  div.innerHTML = `
+    <div class="msg-avatar">${avatarHtml}</div>
+    <div class="msg-body">
+      ${!isOwn ? `<div class="msg-name"><a href="profile.html?id=${m.user_id}" style="color:inherit;text-decoration:none;">${name}</a>${roleBadge}</div>` : ''}
+      <div class="msg-bubble">${esc(m.message)}</div>
+      <div class="msg-time">${ago(m.created_at)}</div>
+    </div>`;
+
+  // Long-press / right-click for staff
+  if (isStaff && !isOwn) {
+    div.addEventListener('contextmenu', e => { e.preventDefault(); openCtx(e, m.id, m.user_id, name); });
+    div.addEventListener('pointerdown', e => {
+      const t = setTimeout(() => openCtx(e, m.id, m.user_id, name), 600);
+      div.addEventListener('pointerup', () => clearTimeout(t), { once:true });
+      div.addEventListener('pointermove', () => clearTimeout(t), { once:true });
+    });
+  }
+  return div;
+}
+
+function subscribeToRoom() {
+  if (channel) SB.removeChannel(channel);
+  channel = SB.channel('chat-room-' + currentRoom)
+    .on('postgres_changes', {
+      event: 'INSERT', schema: 'public', table: 'chat_messages',
+      filter: `room=eq.${currentRoom}`
+    }, async (payload) => {
+      const m = payload.new;
+      if (m.hidden && !isStaff) return;
+      // Fetch profile for new message
+      const { data: p } = await SB.from('profiles').select('username,display_name,avatar_url,role').eq('user_id', m.user_id).single();
+      m.profiles = p || {};
+      const el = document.getElementById('messages');
+      el.appendChild(buildMsg(m));
+      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+      if (atBottom) scrollToBottom(false);
+      else document.getElementById('scrollBtn').style.display = 'block';
+    })
+    .on('postgres_changes', {
+      event: 'UPDATE', schema: 'public', table: 'chat_messages',
+      filter: `room=eq.${currentRoom}`
+    }, (payload) => {
+      const existing = document.querySelector(`.msg[data-id="${payload.new.id}"]`);
+      if (existing) {
+        if (payload.new.hidden && !isStaff) existing.remove();
+        else existing.classList.toggle('hidden-msg', !!payload.new.hidden);
       }
-    }
-  }
-
-  if(isOwner)document.getElementById('modPanel').style.display='flex';
-
-  await loadMessages();
-  subscribeRealtime();
-}
-
-// LOAD MESSAGES
-async function loadMessages(){
-  let q=db.from('chatroom_messages').select('*').order('created_at',{ascending:true}).limit(200);
-  if(!showHidden&&!isOwner)q=q.eq('is_hidden',false);
-  const{data,error}=await q;
-  if(error){console.error('Load error:',error);return;}
-  const box=document.getElementById('messages');
-  box.innerHTML='<div class="system-msg">Welcome to the 8BFR Community Chat! Be respectful and have fun. 💜</div>';
-  if(data)data.forEach(m=>renderMessage(m));
-  box.scrollTop=box.scrollHeight;
-}
-
-// RENDER MESSAGE
-function renderMessage(m){
-  if(m.is_hidden&&!isOwner&&!showHidden)return;
-  const box=document.getElementById('messages');
-  const div=document.createElement('div');
-  div.className='msg'+(m.is_hidden?' hidden-msg':'');
-  div.id='msg-'+m.id;
-  div.dataset.userId=m.user_id;
-  div.dataset.msgId=m.id;
-
-  const isMe=currentUser&&m.user_id===currentUser.id;
-  const isMsgOwner=m.user_id===OWNER_ID;
-  const initial=(m.display_name||m.username||'?')[0].toUpperCase();
-  const avatarHtml=m.avatar_url?'<img src="'+m.avatar_url+'" alt="">':initial;
-  const nameClass=isMsgOwner?'msg-name owner-name':'msg-name';
-  const ownerBadge=isMsgOwner?' <span style="font-size:.6rem;background:rgba(0,217,255,.2);color:#00d9ff;padding:.1rem .3rem;border-radius:3px;">OWNER</span>':'';
-  const hiddenBadge=m.is_hidden?' <span style="font-size:.6rem;background:rgba(245,158,11,.2);color:#f59e0b;padding:.1rem .3rem;border-radius:3px;">HIDDEN</span>':'';
-
-  const time=new Date(m.created_at);
-  const timeStr=time.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
-
-  // Actions
-  let actions='';
-  if(!isMe){
-    actions+='<button class="msg-action-btn" onclick="openReport(\''+m.id+'\',\''+escHtml(m.username)+'\',\''+escHtml(m.message.substring(0,200))+'\',\''+m.user_id+'\')">🚩</button>';
-  }
-  if(isOwner){
-    if(!m.is_hidden)actions+='<button class="msg-action-btn" onclick="hideMessage(\''+m.id+'\')">🙈 Hide</button>';
-    else actions+='<button class="msg-action-btn" onclick="unhideMessage(\''+m.id+'\')">👁️ Show</button>';
-    actions+='<button class="msg-action-btn danger" onclick="deleteMessage(\''+m.id+'\')">🗑️</button>';
-    if(!isMsgOwner){
-      actions+='<button class="msg-action-btn" onclick="kickUser(\''+m.user_id+'\',\''+escHtml(m.username)+'\')">👢 Kick</button>';
-      actions+='<button class="msg-action-btn danger" onclick="banUser(\''+m.user_id+'\',\''+escHtml(m.username)+'\')">🚫 Ban</button>';
-    }
-  }
-
-  div.innerHTML=
-    '<div class="msg-avatar" style="background:hsl('+(hashStr(m.user_id)*137%360)+',55%,45%);">'+avatarHtml+'</div>'+
-    '<div class="msg-body">'+
-      '<div class="msg-header">'+
-        '<span class="'+nameClass+'">'+(m.display_name||m.username)+ownerBadge+hiddenBadge+'</span>'+
-        '<span class="msg-time">'+timeStr+'</span>'+
-      '</div>'+
-      '<div class="msg-text">'+escHtml(m.message)+'</div>'+
-    '</div>'+
-    '<div class="msg-actions">'+actions+'</div>';
-
-  box.appendChild(div);
-}
-
-// SEND MESSAGE
-async function sendMessage(){
-  if(isBanned)return;
-  const input=document.getElementById('chatInput');
-  const text=input.value.trim();
-  if(!text)return;
-  input.value='';
-  document.getElementById('sendBtn').disabled=true;
-
-  const displayName=isAnonymous?'Moderator':((currentProfile.display_name||currentProfile.username));
-  const username=isAnonymous?'mod':(currentProfile.username||'user');
-
-  const{error}=await db.from('chatroom_messages').insert({
-    user_id:currentUser.id,
-    username:username,
-    display_name:displayName,
-    avatar_url:isAnonymous?null:(currentProfile.avatar_url||null),
-    message:text
-  });
-
-  if(error)console.error('Send error:',error);
-  document.getElementById('sendBtn').disabled=false;
-  input.focus();
-}
-
-// REALTIME SUBSCRIPTION
-function subscribeRealtime(){
-  db.channel('chatroom')
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'chatroom_messages'},payload=>{
-      renderMessage(payload.new);
-      const box=document.getElementById('messages');
-      box.scrollTop=box.scrollHeight;
-    })
-    .on('postgres_changes',{event:'DELETE',schema:'public',table:'chatroom_messages'},payload=>{
-      const el=document.getElementById('msg-'+payload.old.id);
-      if(el)el.remove();
-    })
-    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'chatroom_messages'},payload=>{
-      const el=document.getElementById('msg-'+payload.old.id);
-      if(el)el.remove();
-      if(!payload.new.is_hidden||isOwner)renderMessage(payload.new);
     })
     .subscribe();
 }
 
-// === OWNER MODERATION ===
-
-function toggleAnonymous(){
-  isAnonymous=!isAnonymous;
-  const btn=document.getElementById('toggleAnon');
-  btn.classList.toggle('active',isAnonymous);
-  btn.textContent=isAnonymous?'👻 Anon ON':'👻 Anonymous';
+function setupPresence() {
+  presenceChannel = SB.channel('chat-presence-' + currentRoom);
+  presenceChannel
+    .on('presence', { event: 'sync' }, () => {
+      const state = presenceChannel.presenceState();
+      const count = Object.keys(state).length;
+      document.getElementById('onlineCount').textContent = '🟢 ' + count + ' online';
+    })
+    .subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await presenceChannel.track({ user_id: currentUser.id });
+      }
+    });
 }
 
-function toggleShowHidden(){
-  showHidden=!showHidden;
-  const btn=document.getElementById('toggleHidden');
-  btn.classList.toggle('active',showHidden);
+async function sendMsg() {
+  if (isMuted) return;
+  const input = document.getElementById('msgInput');
+  const text = input.value.trim();
+  if (!text || !currentUser) return;
+
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = true;
+  input.value = '';
+  autoResize(input);
+
+  try {
+    const { error } = await SB.from('chat_messages').insert({
+      user_id:    currentUser.id,
+      room:       currentRoom,
+      message:    text,
+      hidden:     false,
+      created_at: new Date().toISOString()
+    });
+    if (error) throw error;
+  } catch(e) {
+    // Re-populate input on failure
+    input.value = text;
+    autoResize(input);
+    alert('Could not send message: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    input.focus();
+  }
+}
+
+window.switchRoom = function(room, btn) {
+  currentRoom = room;
+  document.querySelectorAll('.room-tab').forEach(t => t.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  document.getElementById('messages').innerHTML = '';
   loadMessages();
+  subscribeToRoom();
+  if (presenceChannel) { SB.removeChannel(presenceChannel); setupPresence(); }
+};
+
+// ── STAFF CONTEXT MENU ────────────────────────────────────────────
+function openCtx(e, msgId, userId, name) {
+  ctxTarget = { msgId, userId, name };
+  const menu = document.getElementById('ctxMenu');
+  menu.style.display = 'block';
+  menu.style.left = Math.min(e.clientX, window.innerWidth - 170) + 'px';
+  menu.style.top  = Math.min(e.clientY, window.innerHeight - 150) + 'px';
+  document.addEventListener('click', closeCtx, { once:true });
 }
 
-async function hideMessage(msgId){
-  await db.from('chatroom_messages').update({is_hidden:true,hidden_by:currentUser.id}).eq('id',msgId);
+function closeCtx() {
+  document.getElementById('ctxMenu').style.display = 'none';
+  ctxTarget = null;
 }
 
-async function unhideMessage(msgId){
-  await db.from('chatroom_messages').update({is_hidden:false}).eq('id',msgId);
+window.ctxAction = async function(action) {
+  if (!ctxTarget) return;
+  const { msgId, userId, name } = ctxTarget;
+  closeCtx();
+
+  if (action === 'hide') {
+    const reason = prompt('Reason for hiding this message:');
+    if (!reason) return;
+    await SB.from('chat_messages').update({ hidden: true }).eq('id', msgId);
+    await logAdminAction('hide_chat_message','chat_message',msgId,userId,reason);
+  } else if (action === 'mute') {
+    const reason = prompt('Reason for muting "' + name + '":');
+    if (!reason) return;
+    const hours = prompt('Mute duration in hours (0 = permanent):') || '0';
+    const h = parseInt(hours) || 0;
+    const expires = h > 0 ? new Date(Date.now() + h*3600000).toISOString() : null;
+    await SB.from('chat_mutes').upsert({ user_id:userId, muted_by:currentUser.id, reason, expires_at:expires }, { onConflict:'user_id' });
+    await logAdminAction('mute_chat','user',userId,userId,reason);
+    alert('✓ ' + name + ' muted.');
+  } else if (action === 'kick') {
+    const reason = prompt('Reason for kicking "' + name + '":');
+    if (!reason) return;
+    try { await SB.from('chat_kicks').insert({ user_id:userId, kicked_by:currentUser.id, reason }); } catch(e) {}
+    await logAdminAction('kick_chat','user',userId,userId,reason);
+    // Broadcast kick signal via realtime
+    await SB.channel('chat-moderation').send({ type:'broadcast', event:'kick', payload:{ user_id:userId } });
+    alert('✓ Kick logged for ' + name + '.');
+  }
+};
+
+async function logAdminAction(actionType, targetType, targetId, targetUserId, reason) {
+  try {
+    await SB.from('admin_actions').insert({
+      performed_by: currentUser.id,
+      performed_by_role: currentProfile?.role || 'admin',
+      action_type: actionType,
+      target_type: targetType,
+      target_id: String(targetId),
+      target_user_id: targetUserId || null,
+      reason,
+      reviewed_by_owner: false
+    });
+  } catch(e) { console.warn('Log action failed:', e); }
 }
 
-async function deleteMessage(msgId){
-  if(!confirm('Delete this message permanently?'))return;
-  await db.from('chatroom_messages').delete().eq('id',msgId);
+// Listen for kick broadcast (if you get kicked)
+SB.channel('chat-moderation')
+  .on('broadcast', { event: 'kick' }, (payload) => {
+    if (currentUser && payload.payload?.user_id === currentUser.id) {
+      alert('You have been kicked from the chat.');
+      location.href = 'index.html';
+    }
+  }).subscribe();
+
+// ── UI HELPERS ────────────────────────────────────────────────────
+function scrollToBottom(smooth) {
+  const el = document.getElementById('messages');
+  el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'instant' });
+  document.getElementById('scrollBtn').style.display = 'none';
 }
 
-async function clearAllMessages(){
-  if(!confirm('Delete ALL chat messages? This cannot be undone.'))return;
-  if(!confirm('Are you really sure? This removes everything.'))return;
-  const{error}=await db.from('chatroom_messages').delete().neq('id','00000000-0000-0000-0000-000000000000');
-  if(!error)loadMessages();
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 100) + 'px';
 }
 
-async function kickUser(userId,username){
-  const mins=prompt('Kick '+username+' for how many minutes?','15');
-  if(!mins)return;
-  const expires=new Date(Date.now()+parseInt(mins)*60000).toISOString();
-  await db.from('chatroom_bans').insert({user_id:userId,banned_by:currentUser.id,reason:'Kicked by owner',ban_type:'kick',expires_at:expires});
-  alert(username+' kicked for '+mins+' minutes.');
-}
-
-async function banUser(userId,username){
-  if(!confirm('Permanently ban '+username+'? They will not be able to chat.'))return;
-  const reason=prompt('Ban reason (optional):','');
-  await db.from('chatroom_bans').insert({user_id:userId,banned_by:currentUser.id,reason:reason||'Banned by owner',ban_type:'permanent'});
-  alert(username+' has been permanently banned.');
-}
-
-async function openBanList(){
-  document.getElementById('banListModal').style.display='flex';
-  const{data}=await db.from('chatroom_bans').select('*').order('created_at',{ascending:false});
-  const box=document.getElementById('banListContent');
-  if(!data||data.length===0){box.innerHTML='<p style="color:var(--dim);text-align:center;padding:1rem;">No banned users.</p>';return;}
-
-  // Get usernames
-  const userIds=[...new Set(data.map(b=>b.user_id))];
-  const{data:profiles}=await db.from('profiles').select('user_id,username,display_name').in('user_id',userIds);
-  const pMap={};
-  if(profiles)profiles.forEach(p=>pMap[p.user_id]=p);
-
-  box.innerHTML=data.map(b=>{
-    const p=pMap[b.user_id]||{username:'unknown'};
-    const type=b.ban_type==='kick'?'👢 Kick':'🚫 Ban';
-    const expires=b.expires_at?new Date(b.expires_at).toLocaleString():'Never';
-    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:.6rem;border-bottom:1px solid var(--border);">'+
-      '<div><strong style="color:var(--primary);">'+(p.display_name||p.username)+'</strong> <span style="font-size:.7rem;color:var(--dim);">'+type+'</span>'+
-      '<br><span style="font-size:.75rem;color:var(--dim);">'+b.reason+'</span>'+
-      (b.ban_type==='kick'?'<br><span style="font-size:.7rem;">Expires: '+expires+'</span>':'')+
-      '</div>'+
-      '<button class="btn-sm btn-outline" onclick="unban(\''+b.id+'\')">Unban</button></div>';
-  }).join('');
-}
-
-async function unban(banId){
-  await db.from('chatroom_bans').delete().eq('id',banId);
-  openBanList();
-}
-
-function closeBanList(){document.getElementById('banListModal').style.display='none';}
-
-// === REPORT SYSTEM ===
-
-function openReport(msgId,username,text,userId){
-  reportTarget={msgId,username,text,userId};
-  document.getElementById('reportQuote').textContent=username+': '+text;
-  document.getElementById('reportReason').value='';
-  document.getElementById('reportModal').style.display='flex';
-}
-
-function closeReport(){
-  document.getElementById('reportModal').style.display='none';
-  reportTarget=null;
-}
-
-async function submitReport(){
-  if(!reportTarget)return;
-  const reason=document.getElementById('reportReason').value.trim();
-  const{error}=await db.from('message_reports').insert({
-    reporter_id:currentUser.id,
-    reported_user_id:reportTarget.userId,
-    message_text:reportTarget.text,
-    message_source:'chatroom',
-    source_message_id:reportTarget.msgId,
-    reason:reason
-  });
-  if(error){alert('Error submitting report.');console.error(error);}
-  else alert('✅ Report submitted. The owner will review it.');
-  closeReport();
-}
-
-// HELPERS
-function escHtml(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
-function hashStr(s){let h=0;for(let i=0;i<s.length;i++)h=((h<<5)-h)+s.charCodeAt(i);return Math.abs(h);}
-
-// SCROLL DETECTION
-document.addEventListener('DOMContentLoaded',()=>{
-  const box=document.getElementById('messages');
-  let autoScroll=true;
-  box.addEventListener('scroll',()=>{
-    autoScroll=box.scrollTop+box.clientHeight>=box.scrollHeight-100;
-  });
-  const orig=renderMessage;
-  // Auto-scroll on new messages
+document.getElementById('messages')?.addEventListener('scroll', function() {
+  const atBottom = this.scrollHeight - this.scrollTop - this.clientHeight < 80;
+  document.getElementById('scrollBtn').style.display = atBottom ? 'none' : 'block';
 });
 
-init();
-</script>
+function esc(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
+function ago(d) {
+  if (!d) return '';
+  const m = Math.floor((Date.now() - new Date(d).getTime()) / 60000);
+  if (m < 1) return 'now'; if (m < 60) return m + 'm ago';
+  const h = Math.floor(m/60); if (h < 24) return h + 'h ago';
+  return new Date(d).toLocaleDateString();
+}
 
-<!-- Safe avatar toggle -->
-<script>
-(function(){var b=document.createElement('button');b.innerHTML='👁️';b.style.cssText='position:fixed;top:80px;right:20px;z-index:9999;background:rgba(124,58,237,0.9);border:2px solid rgba(124,58,237,1);color:white;width:50px;height:50px;border-radius:50%;cursor:pointer;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(124,58,237,0.5);';document.body.appendChild(b);var h=localStorage.getItem('hideAvatarBubbles')==='true';function u(){document.querySelectorAll('[id*="bubble"],[class*="bubble"],[id*="avatar"][id*="switcher"]').forEach(function(el){if(el)el.style.display=h?'none':'';});b.innerHTML=h?'👁️‍🗨️':'👁️';}b.addEventListener('click',function(){h=!h;localStorage.setItem('hideAvatarBubbles',h);u();});u();})();
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 </script>
+<script src="scripts.js" defer onerror="console.warn('scripts.js not found')"></script>
 </body>
 </html>
