@@ -84,6 +84,7 @@
   </div>
   <div id="mutedNotice" class="muted-notice" style="display:none;">🔇 You are currently muted in chat.</div>
   <div id="messages" class="messages" style="display:none;"></div>
+  <div id="errorBar" style="display:none;background:rgba(239,68,68,.15);border-top:1px solid rgba(239,68,68,.3);padding:.45rem 1rem;font-size:.8rem;color:#fca5a5;text-align:center;"></div>
   <div id="inputArea" class="input-bar" style="display:none;">
     <textarea id="msgInput" placeholder="Say something…" rows="1" maxlength="500"
       onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}"
@@ -97,6 +98,7 @@
 <!-- Context Menu (staff only) -->
 <div class="ctx-menu" id="ctxMenu">
   <div class="ctx-item danger" id="ctxHide" onclick="ctxAction('hide')">🙈 Hide Message</div>
+  <div class="ctx-item" id="ctxUnhide" onclick="ctxAction('unhide')" style="display:none;">👁️ Unhide Message</div>
   <div class="ctx-item danger" id="ctxMute" onclick="ctxAction('mute')">🔇 Mute User</div>
   <div class="ctx-item danger" id="ctxKick" onclick="ctxAction('kick')">👢 Kick from Chat</div>
   <div class="ctx-item" onclick="closeCtx()">Cancel</div>
@@ -195,9 +197,9 @@ function buildMsg(m) {
 
   // Long-press / right-click for staff
   if (isStaff && !isOwn) {
-    div.addEventListener('contextmenu', e => { e.preventDefault(); openCtx(e, m.id, m.user_id, name); });
+    div.addEventListener('contextmenu', e => { e.preventDefault(); openCtx(e, m.id, m.user_id, name, !!m.hidden); });
     div.addEventListener('pointerdown', e => {
-      const t = setTimeout(() => openCtx(e, m.id, m.user_id, name), 600);
+      const t = setTimeout(() => openCtx(e, m.id, m.user_id, name, !!m.hidden), 600);
       div.addEventListener('pointerup', () => clearTimeout(t), { once:true });
       div.addEventListener('pointermove', () => clearTimeout(t), { once:true });
     });
@@ -207,33 +209,65 @@ function buildMsg(m) {
 
 function subscribeToRoom() {
   if (channel) SB.removeChannel(channel);
-  channel = SB.channel('chat-room-' + currentRoom)
+
+  // Listen on the broadcast channel the DB trigger writes to: 'chat:{room}'
+  // Falls back to postgres_changes for environments where the trigger
+  // isn't deployed yet — both listeners can coexist safely.
+  channel = SB.channel('chat:' + currentRoom)
+    // Broadcast path — fired by trg_broadcast_chat trigger
+    .on('broadcast', { event: 'INSERT' }, async (payload) => {
+      const m = payload.payload;
+      if (!m) return;
+      if (m.hidden && !isStaff) return;
+      // Fetch sender profile (not included in broadcast payload)
+      const { data: p } = await SB.from('profiles')
+        .select('username,display_name,avatar_url,role')
+        .eq('user_id', m.user_id)
+        .single();
+      m.profiles = p || {};
+      appendMessage(m);
+    })
+    .on('broadcast', { event: 'UPDATE' }, (payload) => {
+      const m = payload.payload;
+      if (!m) return;
+      const existing = document.querySelector(`.msg[data-id="${m.id}"]`);
+      if (!existing) return;
+      if (m.hidden && !isStaff) existing.remove();
+      else existing.classList.toggle('hidden-msg', !!m.hidden);
+    })
+    // Postgres-changes fallback (covers direct DB inserts / pre-trigger deploy)
     .on('postgres_changes', {
       event: 'INSERT', schema: 'public', table: 'chat_messages',
       filter: `room=eq.${currentRoom}`
     }, async (payload) => {
       const m = payload.new;
       if (m.hidden && !isStaff) return;
-      // Fetch profile for new message
-      const { data: p } = await SB.from('profiles').select('username,display_name,avatar_url,role').eq('user_id', m.user_id).single();
+      const { data: p } = await SB.from('profiles')
+        .select('username,display_name,avatar_url,role')
+        .eq('user_id', m.user_id)
+        .single();
       m.profiles = p || {};
-      const el = document.getElementById('messages');
-      el.appendChild(buildMsg(m));
-      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
-      if (atBottom) scrollToBottom(false);
-      else document.getElementById('scrollBtn').style.display = 'block';
+      appendMessage(m);
     })
     .on('postgres_changes', {
       event: 'UPDATE', schema: 'public', table: 'chat_messages',
       filter: `room=eq.${currentRoom}`
     }, (payload) => {
       const existing = document.querySelector(`.msg[data-id="${payload.new.id}"]`);
-      if (existing) {
-        if (payload.new.hidden && !isStaff) existing.remove();
-        else existing.classList.toggle('hidden-msg', !!payload.new.hidden);
-      }
+      if (!existing) return;
+      if (payload.new.hidden && !isStaff) existing.remove();
+      else existing.classList.toggle('hidden-msg', !!payload.new.hidden);
     })
     .subscribe();
+}
+
+function appendMessage(m) {
+  const el = document.getElementById('messages');
+  if (!el) return;
+  el.appendChild(buildMsg(m));
+  const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+  if (atBottom) scrollToBottom(false);
+  else document.getElementById('scrollBtn').style.display = 'block';
 }
 
 function setupPresence() {
@@ -251,34 +285,87 @@ function setupPresence() {
     });
 }
 
+// Edge Function URL — update project ref if needed
+const EDGE_BASE = 'https://novbuvwpjnxwwvdekjhr.supabase.co/functions/v1';
+
 async function sendMsg() {
   if (isMuted) return;
   const input = document.getElementById('msgInput');
-  const text = input.value.trim();
+  const text  = input.value.trim();
   if (!text || !currentUser) return;
 
   const btn = document.getElementById('sendBtn');
   btn.disabled = true;
-  input.value = '';
+  input.value  = '';
   autoResize(input);
 
   try {
-    const { error } = await SB.from('chat_messages').insert({
-      user_id:    currentUser.id,
-      room:       currentRoom,
-      message:    text,
-      hidden:     false,
-      created_at: new Date().toISOString()
+    // Get the current session token to pass to the Edge Function
+    const { data: { session } } = await SB.auth.getSession();
+    if (!session) throw new Error('Not logged in');
+
+    const res = await fetch(`${EDGE_BASE}/chat-send`, {
+      method:  'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey':        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0',
+      },
+      body: JSON.stringify({ room: currentRoom, message: text }),
     });
-    if (error) throw error;
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      // 429 = rate limited — show inline feedback instead of alert
+      if (res.status === 429) {
+        input.value = text;   // restore so they don't lose message
+        autoResize(input);
+        showRateLimit(data.retry_after_ms ?? 3000);
+        return;
+      }
+      throw new Error(data.error || `HTTP ${res.status}`);
+    }
+    // Success — realtime subscription will render the message.
+    // No need to manually append here; the broadcast trigger handles it.
+
   } catch(e) {
-    // Re-populate input on failure
     input.value = text;
     autoResize(input);
-    alert('Could not send message: ' + e.message);
+    showSendError(e.message);
   } finally {
     btn.disabled = false;
     input.focus();
+  }
+}
+
+// Show a brief rate-limit countdown on the send button
+let _rlTimer = null;
+function showRateLimit(ms) {
+  const btn = document.getElementById('sendBtn');
+  const end = Date.now() + ms;
+  if (_rlTimer) clearInterval(_rlTimer);
+  _rlTimer = setInterval(() => {
+    const left = Math.ceil((end - Date.now()) / 1000);
+    if (left <= 0) {
+      clearInterval(_rlTimer);
+      btn.textContent = '➤';
+      btn.disabled    = false;
+    } else {
+      btn.textContent = `${left}s`;
+      btn.disabled    = true;
+    }
+  }, 100);
+}
+
+function showSendError(msg) {
+  const bar = document.getElementById('errorBar');
+  if (bar) {
+    bar.textContent = '⚠️ ' + msg;
+    bar.style.display = 'block';
+    setTimeout(() => bar.style.display = 'none', 4000);
+  } else {
+    console.warn('Send error:', msg);
   }
 }
 
@@ -293,13 +380,15 @@ window.switchRoom = function(room, btn) {
 };
 
 // ── STAFF CONTEXT MENU ────────────────────────────────────────────
-function openCtx(e, msgId, userId, name) {
-  ctxTarget = { msgId, userId, name };
+function openCtx(e, msgId, userId, name, isHidden) {
+  ctxTarget = { msgId, userId, name, isHidden };
   const menu = document.getElementById('ctxMenu');
+  document.getElementById('ctxHide').style.display   = isHidden ? 'none'  : 'block';
+  document.getElementById('ctxUnhide').style.display = isHidden ? 'block' : 'none';
   menu.style.display = 'block';
-  menu.style.left = Math.min(e.clientX, window.innerWidth - 170) + 'px';
-  menu.style.top  = Math.min(e.clientY, window.innerHeight - 150) + 'px';
-  document.addEventListener('click', closeCtx, { once:true });
+  menu.style.left = Math.min(e.clientX, window.innerWidth  - 170) + 'px';
+  menu.style.top  = Math.min(e.clientY, window.innerHeight - 160) + 'px';
+  document.addEventListener('click', closeCtx, { once: true });
 }
 
 function closeCtx() {
@@ -309,47 +398,73 @@ function closeCtx() {
 
 window.ctxAction = async function(action) {
   if (!ctxTarget) return;
-  const { msgId, userId, name } = ctxTarget;
+  const { msgId, userId, name, isHidden } = ctxTarget;
   closeCtx();
 
   if (action === 'hide') {
     const reason = prompt('Reason for hiding this message:');
     if (!reason) return;
     await SB.from('chat_messages').update({ hidden: true }).eq('id', msgId);
-    await logAdminAction('hide_chat_message','chat_message',msgId,userId,reason);
+    await logChatAction('hide_msg', userId, msgId, reason, null);
+
+  } else if (action === 'unhide') {
+    await SB.from('chat_messages').update({ hidden: false }).eq('id', msgId);
+    await logChatAction('unhide_msg', userId, msgId, 'Staff unhid message', null);
+
   } else if (action === 'mute') {
     const reason = prompt('Reason for muting "' + name + '":');
     if (!reason) return;
-    const hours = prompt('Mute duration in hours (0 = permanent):') || '0';
-    const h = parseInt(hours) || 0;
-    const expires = h > 0 ? new Date(Date.now() + h*3600000).toISOString() : null;
-    await SB.from('chat_mutes').upsert({ user_id:userId, muted_by:currentUser.id, reason, expires_at:expires }, { onConflict:'user_id' });
-    await logAdminAction('mute_chat','user',userId,userId,reason);
-    alert('✓ ' + name + ' muted.');
+    const h = parseInt(prompt('Mute duration in hours (0 = permanent):') || '0') || 0;
+    const expires = h > 0 ? new Date(Date.now() + h * 3600000).toISOString() : null;
+    await SB.from('chat_mutes').upsert(
+      { user_id: userId, muted_by: currentUser.id, reason, expires_at: expires },
+      { onConflict: 'user_id' }
+    );
+    await logChatAction('mute', userId, null, reason, h || null);
+    showSendError('✓ ' + name + ' muted' + (h ? ' for ' + h + 'h' : ' permanently') + '.');
+
   } else if (action === 'kick') {
     const reason = prompt('Reason for kicking "' + name + '":');
     if (!reason) return;
-    try { await SB.from('chat_kicks').insert({ user_id:userId, kicked_by:currentUser.id, reason }); } catch(e) {}
-    await logAdminAction('kick_chat','user',userId,userId,reason);
-    // Broadcast kick signal via realtime
-    await SB.channel('chat-moderation').send({ type:'broadcast', event:'kick', payload:{ user_id:userId } });
-    alert('✓ Kick logged for ' + name + '.');
+    try { await SB.from('chat_kicks').insert({ user_id: userId, kicked_by: currentUser.id, reason }); } catch(e) {}
+    await logChatAction('kick', userId, null, reason, null);
+    await SB.channel('chat-moderation').send({ type: 'broadcast', event: 'kick', payload: { user_id: userId } });
+    showSendError('✓ Kick logged for ' + name + '.');
   }
 };
 
-async function logAdminAction(actionType, targetType, targetId, targetUserId, reason) {
-  try {
-    await SB.from('admin_actions').insert({
-      performed_by: currentUser.id,
-      performed_by_role: currentProfile?.role || 'admin',
-      action_type: actionType,
-      target_type: targetType,
-      target_id: String(targetId),
-      target_user_id: targetUserId || null,
+// Dual-write: chat_moderation_log (chat audit trail) + admin_actions (owner panel badge)
+async function logChatAction(action, targetUserId, messageId, reason, durationHours) {
+  const role    = currentProfile?.role || 'mod';
+  const expires = durationHours
+    ? new Date(Date.now() + durationHours * 3600000).toISOString()
+    : null;
+
+  await Promise.allSettled([
+    // ① Chat-specific audit log — queryable by room, action, user
+    SB.from('chat_moderation_log').insert({
+      performed_by:   currentUser.id,
+      performed_role: role,
+      action,
+      target_user_id: targetUserId  || null,
+      message_id:     messageId     || null,
+      room:           currentRoom,
       reason,
-      reviewed_by_owner: false
-    });
-  } catch(e) { console.warn('Log action failed:', e); }
+      duration_hours: durationHours || null,
+      expires_at:     expires,
+    }),
+    // ② Platform-wide admin_actions — lights up NEW badge in owner panel
+    SB.from('admin_actions').insert({
+      performed_by:      currentUser.id,
+      performed_by_role: role,
+      action_type:       'chat_' + action,
+      target_type:       messageId ? 'chat_message' : 'user',
+      target_id:         String(messageId || targetUserId || ''),
+      target_user_id:    targetUserId || null,
+      reason,
+      reviewed_by_owner: false,
+    }),
+  ]);
 }
 
 // Listen for kick broadcast (if you get kicked)
