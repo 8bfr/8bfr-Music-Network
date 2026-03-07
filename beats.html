@@ -1,20 +1,259 @@
-<!DOCTYPE html><html lang="en"><head>
-<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>8BFR | Beats</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
-<script src="https://cdn.tailwindcss.com"></script>
-<script defer src="assets/js/site-shell.js"></script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Beatmakers — 8BFR Music Network</title>
+  <link rel="icon" href="assets/images/favicon.png">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:system-ui,-apple-system,sans-serif;background:linear-gradient(#0b0014,#000);color:#eae6ff;min-height:100vh;padding-bottom:80px;}
+    .header{background:rgba(12,4,26,.95);border-bottom:1px solid rgba(124,58,237,.4);padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
+    .header h1{font-size:1.15rem;font-weight:800;}
+    .container{max-width:900px;margin:0 auto;padding:1.25rem 1rem;}
+    .hero{background:linear-gradient(135deg,rgba(124,58,237,.2),rgba(0,217,255,.08));border:1px solid rgba(124,58,237,.3);border-radius:18px;padding:1.5rem;text-align:center;margin-bottom:1.5rem;}
+    .hero h2{font-size:1.5rem;font-weight:900;background:linear-gradient(135deg,#a855f7,#00d9ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+    .hero p{color:rgba(168,85,247,.8);font-size:.85rem;margin:.4rem 0 .85rem;}
+    .filter-bar{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.25rem;align-items:center;}
+    .filter-chip{background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.3);color:rgba(234,230,255,.6);padding:.3rem .75rem;border-radius:999px;font-size:.78rem;font-weight:600;cursor:pointer;transition:all .2s;}
+    .filter-chip.active, .filter-chip:hover{background:rgba(124,58,237,.3);border-color:#a855f7;color:#eae6ff;}
+    .search-wrap{flex:1;min-width:160px;position:relative;}
+    .search-wrap input{width:100%;background:rgba(18,3,39,.8);border:1px solid rgba(124,58,237,.35);border-radius:999px;color:#eae6ff;padding:.35rem .85rem .35rem 2rem;font-size:.82rem;outline:none;}
+    .search-wrap input:focus{border-color:#a855f7;}
+    .search-wrap::before{content:'🔍';position:absolute;left:.65rem;top:50%;transform:translateY(-50%);font-size:.75rem;}
+    .section-title{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:rgba(168,85,247,.55);margin:.1rem 0 .6rem;}
+    .beatmakers-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.85rem;margin-bottom:1.5rem;}
+    .bm-card{background:rgba(12,6,24,.9);border:1px solid rgba(124,58,237,.25);border-radius:14px;padding:1.1rem;text-decoration:none;color:inherit;display:block;transition:all .2s;}
+    .bm-card:hover{border-color:rgba(124,58,237,.6);transform:translateY(-2px);}
+    .bm-avatar{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:1.4rem;margin:0 auto .65rem;overflow:hidden;}
+    .bm-avatar img{width:100%;height:100%;object-fit:cover;}
+    .bm-name{font-size:.9rem;font-weight:800;text-align:center;margin-bottom:.2rem;}
+    .bm-tags{display:flex;gap:.3rem;flex-wrap:wrap;justify-content:center;margin-bottom:.5rem;}
+    .tag{font-size:.65rem;background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.3);border-radius:4px;padding:.1rem .4rem;color:#a855f7;}
+    .bm-stats{display:flex;gap:.75rem;justify-content:center;font-size:.7rem;color:rgba(168,85,247,.6);}
+    .verified-mark{color:#00d9ff;font-size:.75rem;}
+    /* Beats list */
+    .beat-row{background:rgba(12,6,24,.85);border:1px solid rgba(124,58,237,.2);border-radius:12px;padding:.85rem 1rem;margin-bottom:.55rem;display:flex;align-items:center;gap:.75rem;transition:all .2s;}
+    .beat-row:hover{border-color:rgba(124,58,237,.45);}
+    .beat-cover{width:46px;height:46px;border-radius:8px;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden;}
+    .beat-cover img{width:100%;height:100%;object-fit:cover;}
+    .beat-info{flex:1;min-width:0;}
+    .beat-title{font-size:.9rem;font-weight:700;}
+    .beat-meta{font-size:.72rem;color:rgba(168,85,247,.65);margin-top:.15rem;}
+    .play-btn{background:rgba(124,58,237,.25);border:1px solid rgba(124,58,237,.5);color:#a855f7;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-size:.9rem;transition:all .2s;}
+    .play-btn:hover{background:rgba(124,58,237,.5);}
+    .beat-price{font-size:.78rem;font-weight:800;color:#f59e0b;flex-shrink:0;}
+    .buy-btn{background:#7c3aed;border:none;color:#fff;padding:.3rem .75rem;border-radius:8px;font-size:.75rem;font-weight:700;cursor:pointer;flex-shrink:0;transition:all .2s;}
+    .buy-btn:hover{background:#6d28d9;}
+    .spinner{width:24px;height:24px;border:3px solid rgba(124,58,237,.2);border-top-color:#a855f7;border-radius:50%;animation:spin .7s linear infinite;margin:2rem auto;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .empty{text-align:center;color:rgba(168,85,247,.4);padding:2rem;font-size:.9rem;}
+    audio{display:none;}
+    .cta-bar{background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.3);border-radius:12px;padding:1rem;text-align:center;margin-bottom:1.5rem;}
+    .cta-bar p{font-size:.85rem;color:#a855f7;margin-bottom:.65rem;}
+    .cta-btn{background:#7c3aed;border:none;color:#fff;padding:.5rem 1.25rem;border-radius:10px;font-weight:700;font-size:.88rem;cursor:pointer;text-decoration:none;display:inline-block;}
+  </style>
 </head>
-<body class="min-h-screen bg-[radial-gradient(ellipse_at_top,_#1a0022,_#000)] text-white font-[Poppins]">
-<div id="site-header"></div>
-<main class="max-w-6xl mx-auto px-4 py-10">
-<section class="rounded-2xl p-6 bg-black/50 border border-purple-700/40 shadow-xl">
-  <h2 class="text-2xl font-bold mb-2">Beats</h2>
-  <p class="text-purple-200">Glassy neon starter • Supabase-ready stub.</p>
-</section>
-</main>
-<div id="site-footer"></div>
-<script defer src="assets/js/carousel.js"></script>
-<script defer src="assets/js/supabase.js"></script>
-</body></html>
+<body>
+
+<div class="header">
+  <h1>🎚️ Beatmakers</h1>
+  <a href="profile.html" style="color:#a855f7;text-decoration:none;font-size:.82rem;">My Profile</a>
+</div>
+
+<div class="container">
+
+  <div class="hero">
+    <h2>🎚️ Beatmaker Hub</h2>
+    <p>Connect with producers, discover fire beats, and sell your sound to artists worldwide.</p>
+    <div style="display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;">
+      <a href="profile.html" class="cta-btn">Upload My Beats</a>
+      <a href="members.html?role=beatmaker" class="cta-btn" style="background:transparent;border:1px solid rgba(124,58,237,.5);color:#a855f7;">Browse All Producers</a>
+    </div>
+  </div>
+
+  <!-- SELL YOUR BEATS CTA -->
+  <div class="cta-bar" id="sellCta" style="display:none;">
+    <p>🔥 Are you a beatmaker? Upload your beats directly from your profile and start selling today.</p>
+    <a href="profile.html" class="cta-btn">Go to My Profile → Upload Beats</a>
+  </div>
+
+  <!-- FILTER BAR -->
+  <div class="filter-bar">
+    <div class="search-wrap">
+      <input type="text" id="searchInput" placeholder="Search beatmakers or beats..." oninput="filterContent()">
+    </div>
+    <button class="filter-chip active" onclick="setGenreFilter('all',this)">All</button>
+    <button class="filter-chip" onclick="setGenreFilter('trap',this)">Trap</button>
+    <button class="filter-chip" onclick="setGenreFilter('drill',this)">Drill</button>
+    <button class="filter-chip" onclick="setGenreFilter('boom bap',this)">Boom Bap</button>
+    <button class="filter-chip" onclick="setGenreFilter('rnb',this)">R&B</button>
+    <button class="filter-chip" onclick="setGenreFilter('pop',this)">Pop</button>
+  </div>
+
+  <!-- FEATURED BEATMAKERS -->
+  <div class="section-title">🌟 Featured Producers</div>
+  <div class="beatmakers-grid" id="beatmakersGrid"><div class="spinner"></div></div>
+
+  <!-- RECENT BEATS -->
+  <div class="section-title">🎵 Latest Beats</div>
+  <div id="beatsList"><div class="spinner"></div></div>
+
+</div>
+
+<audio id="audioPlayer"></audio>
+
+<script>
+const SB = window.supabase.createClient(
+  'https://novbuvwpjnxwwvdekjhr.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0'
+);
+let currentUser = null, allBeats = [], allBeatmakers = [];
+let activeGenre = 'all', currentlyPlaying = null;
+
+async function init() {
+  const { data: { session } } = await SB.auth.getSession().catch(() => ({ data:{} }));
+  if (session?.user) {
+    currentUser = session.user;
+    const { data: p } = await SB.from('profiles').select('role').eq('user_id', session.user.id).single();
+    if (p && ['beatmaker','producer','dj','owner','cofounder'].includes(p.role)) {
+      document.getElementById('sellCta').style.display = 'block';
+    }
+  }
+  await Promise.all([loadBeatmakers(), loadBeats()]);
+}
+
+async function loadBeatmakers() {
+  const el = document.getElementById('beatmakersGrid');
+  try {
+    const { data, error } = await SB.from('profiles')
+      .select('user_id,username,display_name,avatar_url,role,bio,verified_artist,badges,tags')
+      .in('role', ['beatmaker','producer','dj'])
+      .order('created_at', { ascending: false })
+      .limit(12);
+    if (error) throw error;
+    allBeatmakers = data || [];
+    renderBeatmakers(allBeatmakers);
+  } catch(e) {
+    el.innerHTML = `<p class="empty">Could not load beatmakers: ${e.message}</p>`;
+  }
+}
+
+function renderBeatmakers(list) {
+  const el = document.getElementById('beatmakersGrid');
+  if (!list.length) { el.innerHTML = '<p class="empty" style="grid-column:1/-1;">No beatmakers yet. Be the first!</p>'; return; }
+  el.innerHTML = list.map(p => {
+    const name = esc(p.display_name || p.username || 'Producer');
+    const tags = Array.isArray(p.badges) ? p.badges : (Array.isArray(p.tags) ? p.tags : []);
+    const tagHtml = tags.slice(0,3).map(t => `<span class="tag">${esc(t)}</span>`).join('');
+    const verMark = p.verified_artist ? '<span class="verified-mark">✓ Verified</span>' : '';
+    return `<a href="profile.html?id=${p.user_id}" class="bm-card">
+      <div class="bm-avatar">${p.avatar_url ? `<img src="${p.avatar_url}" onerror="this.parentNode.textContent='🎚️'">` : '🎚️'}</div>
+      <div class="bm-name">${name} ${verMark}</div>
+      <div class="bm-tags">${tagHtml || `<span class="tag">${esc(p.role)}</span>`}</div>
+      <div class="bm-stats"><span>🎵 View Beats</span></div>
+    </a>`;
+  }).join('');
+}
+
+async function loadBeats() {
+  const el = document.getElementById('beatsList');
+  try {
+    const { data, error } = await SB.from('songs')
+      .select('id,title,artist,cover_art,song_url,price,genre,uploaded_by,bpm,created_at,hidden,downloads_enabled')
+      .eq('hidden', false)
+      .not('song_url', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(40);
+    if (error) throw error;
+    allBeats = data || [];
+    // Get uploader profiles
+    const uids = [...new Set(allBeats.map(b => b.uploaded_by).filter(Boolean))];
+    const pm = {};
+    if (uids.length) {
+      const { data: profiles } = await SB.from('profiles').select('user_id,username,display_name,role').in('user_id', uids);
+      (profiles || []).forEach(p => pm[p.user_id] = p);
+    }
+    allBeats.forEach(b => b._producer = pm[b.uploaded_by]);
+    // Filter to only beatmaker uploads
+    allBeats = allBeats.filter(b => b._producer && ['beatmaker','producer','dj','owner','cofounder'].includes(b._producer.role));
+    renderBeats(allBeats);
+  } catch(e) {
+    el.innerHTML = `<p class="empty">Could not load beats: ${e.message}</p>`;
+  }
+}
+
+function renderBeats(list) {
+  const el = document.getElementById('beatsList');
+  if (!list.length) { el.innerHTML = '<p class="empty">No beats uploaded yet. Beatmakers — go to your profile to upload!</p>'; return; }
+  el.innerHTML = list.map(b => {
+    const producer = esc(b._producer?.display_name || b._producer?.username || b.artist || 'Unknown');
+    const price = b.price > 0 ? '$' + parseFloat(b.price).toFixed(2) : 'Free';
+    const bpmTag = b.bpm ? `${b.bpm} BPM · ` : '';
+    const genreTag = b.genre ? `${esc(b.genre)} · ` : '';
+    const dlDisabled = b.downloads_enabled === false;
+    return `<div class="beat-row" data-genre="${esc((b.genre||'').toLowerCase())}">
+      <div class="beat-cover">${b.cover_art ? `<img src="${b.cover_art}" onerror="this.parentNode.textContent='🎵'">` : '🎵'}</div>
+      <div class="beat-info">
+        <div class="beat-title">${esc(b.title||'Untitled')}</div>
+        <div class="beat-meta">${bpmTag}${genreTag}<a href="profile.html?id=${b.uploaded_by}" style="color:#a855f7;text-decoration:none;">${producer}</a></div>
+      </div>
+      ${b.song_url ? `<button class="play-btn" onclick="togglePlay('${b.id}','${esc(b.song_url)}',this)" title="Preview">▶</button>` : ''}
+      ${!dlDisabled && b.price > 0 ? `<span class="beat-price">${price}</span><button class="buy-btn" onclick="buyBeat('${b.id}','${esc(b.title||'Beat')}',${b.price})">Buy</button>` : ''}
+      ${!dlDisabled && b.price === 0 ? `<span class="beat-price">Free</span>` : ''}
+      ${dlDisabled ? `<span style="font-size:.7rem;color:rgba(168,85,247,.35);">N/A</span>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function togglePlay(id, url, btn) {
+  const audio = document.getElementById('audioPlayer');
+  if (currentlyPlaying === id) {
+    audio.pause(); currentlyPlaying = null;
+    document.querySelectorAll('.play-btn').forEach(b => b.textContent = '▶');
+  } else {
+    audio.src = url; audio.play().catch(() => {});
+    currentlyPlaying = id;
+    document.querySelectorAll('.play-btn').forEach(b => b.textContent = '▶');
+    btn.textContent = '⏸';
+  }
+  audio.onended = () => { currentlyPlaying = null; btn.textContent = '▶'; };
+}
+
+function buyBeat(id, title, price) {
+  if (!currentUser) { if (confirm('Log in to purchase beats.')) location.href='login.html'; return; }
+  alert('💳 Beat purchase coming soon!\n\n"' + title + '" — $' + price + '\n\nPayPal integration will be enabled shortly.');
+}
+
+let activeGenreFilter = 'all';
+function setGenreFilter(genre, btn) {
+  activeGenreFilter = genre;
+  document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  filterContent();
+}
+
+function filterContent() {
+  const q = (document.getElementById('searchInput')?.value || '').toLowerCase();
+  const filtered = allBeats.filter(b => {
+    const matchGenre = activeGenreFilter === 'all' || (b.genre||'').toLowerCase().includes(activeGenreFilter);
+    const name = (b.title||'') + ' ' + (b.artist||'') + ' ' + (b._producer?.display_name||'') + ' ' + (b._producer?.username||'');
+    const matchQ = !q || name.toLowerCase().includes(q);
+    return matchGenre && matchQ;
+  });
+  renderBeats(filtered);
+
+  const bmFiltered = allBeatmakers.filter(p => {
+    const name = (p.display_name||'') + ' ' + (p.username||'');
+    return !q || name.toLowerCase().includes(q);
+  });
+  renderBeatmakers(bmFiltered);
+}
+
+function esc(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
+init();
+</script>
+<script src="scripts.js" defer onerror="console.warn('scripts.js not found')"></script>
+</body>
+</html>
