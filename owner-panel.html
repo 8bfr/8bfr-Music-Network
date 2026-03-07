@@ -76,6 +76,11 @@
             <h2>Owner Tools</h2>
             <div class="nav-grid">
                 <a href="owner-users.html" class="nav-card"><h3>&#x1F465; User Management</h3><p>Manage roles, badges, verifications</p></a>
+                <div class="nav-card" onclick="checkOrphans()" style="cursor:pointer;">
+                  <h3>🔍 Orphan Check <span id="orphanBadge" style="display:none;background:#ef4444;color:#fff;border-radius:999px;padding:.05rem .4rem;font-size:.7rem;font-weight:800;margin-left:4px;"></span></h3>
+                  <p>Users with no profile row — trigger failures</p>
+                  <div id="orphanResult" style="font-size:.75rem;margin-top:.5rem;color:rgba(52,211,153,.8);"></div>
+                </div>
                 <a href="owner-studio.html" class="nav-card"><h3>&#x1F3A8; Owner Studio</h3><p>AI tools</p></a>
                 <a href="owner-picks.html" class="nav-card"><h3>&#x2B50; Owner Picks</h3><p>Feature artists, tracks, videos</p></a>
                 <a href="owner-ads.html" class="nav-card"><h3>&#x1F4E2; Ads Manager</h3><p>Approve &amp; manage ads</p></a>
@@ -391,6 +396,51 @@
         }
 
         function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):'';} 
+
+        window.checkOrphans = async function(){
+            var el=document.getElementById('orphanResult');
+            var badge=document.getElementById('orphanBadge');
+            el.textContent='Checking…';el.style.color='rgba(168,85,247,.7)';
+            try{
+                var{data,error}=await s.from('orphaned_users').select('*');
+                if(error)throw error;
+                var count=(data||[]).length;
+                if(count===0){
+                    el.textContent='✓ All users have profiles';el.style.color='rgba(52,211,153,.8)';
+                    badge.style.display='none';
+                } else {
+                    el.innerHTML='⚠️ '+count+' orphaned user'+(count>1?'s':'')+
+                        ' — <button onclick="repairOrphans()" style="background:#ef4444;border:none;color:#fff;padding:.2rem .6rem;border-radius:5px;font-size:.72rem;font-weight:700;cursor:pointer;">Auto-Repair</button>';
+                    el.style.color='#fca5a5';
+                    badge.textContent=count;badge.style.display='inline';
+                }
+            }catch(e){el.textContent='Error: '+e.message;el.style.color='#ef4444';}
+        };
+
+        window.repairOrphans = async function(){
+            var el=document.getElementById('orphanResult');
+            el.textContent='Repairing…';el.style.color='rgba(168,85,247,.7)';
+            try{
+                var{data,error}=await s.rpc('repair_orphaned_profiles');
+                if(error)throw error;
+                var count=(data||[]).length;
+                el.textContent='✓ Repaired '+count+' profile'+(count!==1?'s':'')+'. Reload to confirm.';
+                el.style.color='rgba(52,211,153,.8)';
+                document.getElementById('orphanBadge').style.display='none';
+                loadStats();
+            }catch(e){el.textContent='Repair error: '+e.message;el.style.color='#ef4444';}
+        };
+
+        // Run orphan check silently on load — badge lights up if needed
+        setTimeout(function(){
+            s.from('orphaned_users').select('user_id',{count:'exact',head:true})
+            .then(function(r){
+                var n=r.count||0;
+                var badge=document.getElementById('orphanBadge');
+                if(n>0&&badge){badge.textContent=n;badge.style.display='inline';}
+            }).catch(function(){});
+        }, 2000);
+
         function toggleFeature(f){var t=document.getElementById(f+'Toggle');if(t)t.classList.toggle('active');}
         function ago(d){if(!d)return'';var m=Math.floor((Date.now()-new Date(d).getTime())/60000);if(m<1)return'now';if(m<60)return m+'m';var h=Math.floor(m/60);if(h<24)return h+'h';var dy=Math.floor(h/24);return dy<30?dy+'d':new Date(d).toLocaleDateString();}
         async function logout(){await s.auth.signOut();location.href='login.html';}
@@ -519,4 +569,4 @@
         if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
     </script>
 </body>
-        </html>
+                                                                                                                                                                                                                             </html>
