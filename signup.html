@@ -280,6 +280,7 @@
   <div id="formSection">
     <h1>Create Your Account</h1>
     <p class="subtitle">Join artists, beatmakers & fans worldwide</p>
+    <div style="font-size:0.6rem;color:rgba(168,85,247,0.3);text-align:center;margin-bottom:0.5rem;">v3.1</div>
 
     <!-- Step dots -->
     <div class="steps">
@@ -665,7 +666,10 @@
 
       const badges = [...selectedRoles];
       if (isFounder) badges.push('founder');
-      const primaryRole = selectedRoles.find(r => r !== 'fan') || 'fan';
+      const BLOCKED_ROLES = ['owner','admin','co-owner','mod','g7'];
+      const primaryRole = selectedRoles.find(r => r !== 'fan' && !BLOCKED_ROLES.includes(r)) || 'fan';
+      // Safety: strip any blocked roles from badges
+      const safeBadges = badges.filter(r => !BLOCKED_ROLES.includes(r));
       needsArtistVerify = selectedRoles.includes('artist') || selectedRoles.includes('beatmaker');
 
       // Sign up (Supabase email confirmation is OFF — we handle it ourselves)
@@ -674,7 +678,8 @@
         email,
         password,
         options: {
-          data: { username, role: primaryRole, display_name: displayName || username }
+          data: { username, role: primaryRole, display_name: displayName || username },
+          // NOTE: Supabase email confirm is OFF — we verify via EmailJS
         }
       });
 
@@ -695,13 +700,16 @@
 
         // Create profile row
         try {
+          console.log('=== SIGNUP v3.1 ===');
+          console.log('primaryRole:', primaryRole);
+
           const profileData = {
             user_id: signupUserId,
             email: email,
             username: username,
             display_name: displayName || username,
             role: primaryRole,
-            badges: badges,
+            badges: safeBadges,
             verified_artist: false,
             verify_url: spotifyUrl || null,
             email_verified: false,
@@ -716,6 +724,12 @@
               await db.from('profiles').insert({ user_id: signupUserId, username: username, role: primaryRole });
             }
           }
+
+          // NUCLEAR SAFEGUARD: Force role to correct value after insert
+          // This overrides anything that might change it (triggers, defaults, etc.)
+          await db.from('profiles').update({ role: primaryRole }).eq('user_id', signupUserId);
+          console.log('=== ROLE FORCED TO:', primaryRole, '===');
+
         } catch(e) { console.warn('Profile:', e.message); }
 
         // Submit artist verification request
