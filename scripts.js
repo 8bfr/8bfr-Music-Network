@@ -325,7 +325,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
       <a href="rules.html" class="menu-chip">&#x1F4CB; Rules</a>
       <a href="privacy.html" class="menu-chip">&#x1F512; Privacy</a>
       <a href="terms.html" class="menu-chip">&#x1F4C4; Terms</a>
-      <a href="tos_updates.html" class="menu-chip">&#x1F504; TOS Updates</a>
+      
       <a href="credits.html" class="menu-chip">&#x1F64F; Credits</a>
       <a href="press.html" class="menu-chip">&#x1F4F0; Press</a>
       <a href="reset-password.html" class="menu-chip">&#x1F511; Reset Password</a>
