@@ -156,8 +156,18 @@
       color: rgba(196,181,253,.65); line-height: 1.5;
     }
     .terms-row input[type=checkbox] {
-      width: 16px; height: 16px; min-width: 16px;
+      width: 20px; height: 20px; min-width: 20px;
       margin-top: 1px; padding: 0; accent-color: #a855f7; cursor: pointer;
+      -webkit-appearance: none; appearance: none;
+      background: rgba(0,0,0,.4); border: 2px solid rgba(168,85,247,.5);
+      border-radius: 5px; position: relative; transition: all .2s;
+    }
+    .terms-row input[type=checkbox]:checked {
+      background: #a855f7; border-color: #a855f7;
+    }
+    .terms-row input[type=checkbox]:checked::after {
+      content: '✓'; position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%); color: #fff; font-size: 14px; font-weight: 900;
     }
     .terms-row a { color: #a855f7; text-decoration: none; }
     .terms-row a:hover { text-decoration: underline; }
@@ -315,7 +325,31 @@
           <span class="role-icon">🏫</span>Educator
         </button>
         <button type="button" class="role-btn" data-role="influencer" onclick="toggleRole(this)">
-          <span class="role-icon">⭐</span>Influencer
+          <span class="role-icon">💫</span>Influencer
+        </button>
+        <button type="button" class="role-btn" data-role="designer" onclick="toggleRole(this)">
+          <span class="role-icon">🎨</span>Designer
+        </button>
+        <button type="button" class="role-btn" data-role="author" onclick="toggleRole(this)">
+          <span class="role-icon">📖</span>Author
+        </button>
+        <button type="button" class="role-btn" data-role="blogger" onclick="toggleRole(this)">
+          <span class="role-icon">📰</span>Blogger
+        </button>
+        <button type="button" class="role-btn" data-role="community_leader" onclick="toggleRole(this)">
+          <span class="role-icon">👥</span>Community Leader
+        </button>
+        <button type="button" class="role-btn" data-role="mentor" onclick="toggleRole(this)">
+          <span class="role-icon">🧭</span>Mentor
+        </button>
+        <button type="button" class="role-btn" data-role="developer" onclick="toggleRole(this)">
+          <span class="role-icon">🧠</span>Developer
+        </button>
+        <button type="button" class="role-btn" data-role="streamer" onclick="toggleRole(this)">
+          <span class="role-icon">📡</span>Streamer
+        </button>
+        <button type="button" class="role-btn" data-role="gamer" onclick="toggleRole(this)">
+          <span class="role-icon">🎮</span>Gamer
         </button>
       </div>
 
@@ -592,46 +626,64 @@
 
       // Create profile row
       if (data && data.user) {
-        try {
-          const profileData = {
-            user_id: data.user.id,
-            email: email,
-            username: username,
-            display_name: displayName || username,
-            role: primaryRole,
-            badges: badges,
-            verified_artist: false,
-            verify_url: spotifyUrl || null,
-            is_verified: false,
-            algorithm_points: isFounder ? 100 : 0,
-            algorithm_tier: 'Bronze',
-            coins: 50
-          };
+        let profileSaved = false;
+        const userId = data.user.id;
 
-          // Try insert first, fall back to upsert
-          const { error: insertErr } = await db.from('profiles').insert(profileData);
-          if (insertErr) {
-            console.warn('Insert failed, trying upsert:', insertErr.message);
-            // Try upsert as fallback
-            await db.from('profiles').upsert(profileData, { onConflict: 'user_id' });
+        // Full profile data
+        const profileData = {
+          user_id: userId,
+          email: email,
+          username: username,
+          display_name: displayName || username,
+          role: primaryRole,
+          badges: badges,
+          verified_artist: false,
+          verify_url: spotifyUrl || null,
+          coins: 50
+        };
+
+        // Attempt 1: Full insert
+        try {
+          const { error: err1 } = await db.from('profiles').insert(profileData);
+          if (!err1) { profileSaved = true; }
+          else {
+            console.warn('Full insert failed:', err1.message);
+            // Attempt 2: Upsert
+            const { error: err2 } = await db.from('profiles').upsert(profileData, { onConflict: 'user_id' });
+            if (!err2) { profileSaved = true; }
+            else {
+              console.warn('Upsert failed:', err2.message);
+              // Attempt 3: Minimal insert (fewest columns possible)
+              const { error: err3 } = await db.from('profiles').insert({
+                user_id: userId,
+                username: username,
+                role: primaryRole
+              });
+              if (!err3) { profileSaved = true; }
+              else {
+                console.error('All profile inserts failed:', err3.message);
+                // Show error but DON'T block — auth account was created
+                showMsg('⚠️ Account created but profile setup had an issue: ' + err3.message + '. You can still log in and the owner can fix your profile.', 'error');
+              }
+            }
           }
         } catch(e) {
-          console.warn('Profile creation note:', e.message);
-          // Not fatal — Supabase trigger may handle this
+          console.error('Profile creation error:', e);
+          showMsg('⚠️ Account created but profile had an error: ' + (e.message || 'unknown') + '. Try logging in — the owner can fix this.', 'error');
         }
 
         // If artist/beatmaker, submit verification request
         if (needsVerify && spotifyUrl) {
           try {
             await db.from('verification_requests').insert({
-              user_id: data.user.id,
+              user_id: userId,
               spotify_url: spotifyUrl,
               roles: selectedRoles.filter(r => r === 'artist' || r === 'beatmaker'),
               status: 'pending'
             });
           } catch(e) {
-            // Table may not exist yet — verification still noted in profile verify_url
             console.warn('Verification request note:', e.message);
+            // Not fatal — verify_url saved in profile
           }
         }
       }
