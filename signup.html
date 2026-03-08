@@ -822,27 +822,26 @@
     btn.innerHTML = '<span class="spinner"></span>Verifying…';
 
     if (entered === verificationCode) {
-      // SUCCESS
+      // SUCCESS — show it immediately, don't wait for DB
       inputs.forEach(inp => inp.classList.add('correct'));
+      btn.innerHTML = '✅ Verified!';
 
-      // Mark email as verified in profile
-      try {
-        await db.from('profiles').update({ email_verified: true }).eq('user_id', signupUserId);
-      } catch(e) { console.warn('Mark verified:', e.message); }
+      // Fire-and-forget: mark verified in DB (don't await/block)
+      db.from('profiles').update({ email_verified: true }).eq('user_id', signupUserId)
+        .then(r => { if (r.error) console.warn('Mark verified:', r.error.message); })
+        .catch(e => console.warn('Mark verified:', e));
 
-      // Clean up verification record
-      try {
-        await db.from('email_verifications').delete().eq('user_id', signupUserId);
-      } catch(e) {}
+      db.from('email_verifications').delete().eq('user_id', signupUserId)
+        .then(() => {}).catch(() => {});
 
-      // Show success
+      // Show success screen immediately
       setTimeout(() => {
         document.getElementById('formSection').style.display = 'none';
         if (needsArtistVerify) {
           document.getElementById('pendingNote').style.display = 'block';
         }
         document.getElementById('successSection').classList.add('show');
-      }, 600);
+      }, 500);
 
     } else {
       // WRONG CODE
@@ -850,7 +849,6 @@
       showVerifyMsg('⚠️ Incorrect code. Please try again.', 'error');
       btn.disabled = false;
       btn.innerHTML = '✅ Verify My Email';
-      // Clear wrong state after a moment
       setTimeout(() => {
         inputs.forEach(inp => { inp.classList.remove('wrong'); inp.value = ''; });
         inputs[0].focus();
