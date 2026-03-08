@@ -108,13 +108,26 @@
     let currentTab = 'trending', currentUser = null, offset = 0;
     const PAGE = 20;
 
+    // ── DETECT COMMENT TABLE NAME (post_comments vs comments) ──
+    let COMMENT_TABLE = 'post_comments'; // default — set up in earlier sessions
+    try {
+      const test = await db.from('post_comments').select('id').limit(1);
+      if (test.error && test.error.message && test.error.message.includes('does not exist')) {
+        COMMENT_TABLE = 'comments';
+      }
+    } catch(e) {
+      // try 'comments' as fallback
+      COMMENT_TABLE = 'comments';
+    }
+    console.log('Using comment table:', COMMENT_TABLE);
+
     try { const { data: { session } } = await db.auth.getSession(); if (session) currentUser = session.user; } catch(e) {}
     window._db = db;
-    window._currentUser = currentUser; // may be null if not logged in, updated below
-    // re-expose after auth resolves
+    window._currentUser = currentUser;
+    window._COMMENT_TABLE = COMMENT_TABLE;
     Object.defineProperty(window, '_currentUser', { get: () => currentUser, configurable: true });
 
-    // Realtime: refresh sticker row when any reaction changes on a visible post
+    // Realtime sticker reactions
     db.channel('feed-reactions')
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'post_reactions'
@@ -164,9 +177,7 @@
               return (b.algorithm_score || 0) - (a.algorithm_score || 0);
             });
           }
-
         } else if (currentTab === 'top') {
-          /* Pure algorithm score sort — all posts ranked by score desc */
           const { data, error } = await db.from('posts')
             .select('*')
             .order('algorithm_score', { ascending: false })
@@ -177,12 +188,10 @@
             if (b.user_id === OWNER_ID && a.user_id !== OWNER_ID) return 1;
             return (b.algorithm_score || 0) - (a.algorithm_score || 0);
           });
-
         } else if (currentTab === 'latest') {
           const { data, error } = await db.from('posts').select('*').order('created_at', { ascending: false }).range(offset, offset + PAGE - 1);
           if (error) throw error;
           posts = data || [];
-
         } else if (currentTab === 'following') {
           if (!currentUser) {
             document.getElementById('feedLoading').style.display = 'none';
@@ -211,7 +220,6 @@
           if (profiles) profiles.forEach(p => { pm[p.user_id] = p; });
         }
 
-        /* Check liked/favorited state for current user */
         let likedSet = {}, favSet = {};
         if (currentUser && posts.length) {
           const ids = posts.map(p => p.id);
@@ -228,16 +236,14 @@
           fl.insertAdjacentHTML('beforeend', renderPost(post, pm[post.user_id] || {}, likedSet[post.id], favSet[post.id]));
         });
 
-        // Load sticker reactions for this batch
         if (posts.length) {
-          const ids2 = posts.map(p => p.id);
-          loadBatchStickerReactions(ids2);
+          loadBatchStickerReactions(posts.map(p => p.id));
         }
         document.getElementById('loadMoreBtn').style.display = posts.length >= PAGE ? 'block' : 'none';
       } catch(err) {
         console.error('Feed:', err);
         document.getElementById('feedLoading').style.display = 'none';
-        document.getElementById('feedList').innerHTML = '<div class="feed-card" style="text-align:center;padding:2rem;color:#ef4444;">Error loading feed.</div>';
+        document.getElementById('feedList').innerHTML = '<div class="feed-card" style="text-align:center;padding:2rem;color:#ef4444;">Error loading feed. Check console for details.</div>';
       }
     }
 
@@ -253,7 +259,6 @@
       const ago = timeAgo(post.created_at);
       const sc = (post.algorithm_score || 0);
       const si = sc > 100 ? ' 🔥' : sc > 50 ? ' ⭐' : '';
-      /* Score badge for Top tab */
       const scoreBadge = currentTab === 'top' ? '<span style="font-size:0.68rem;background:rgba(124,58,237,0.2);border:1px solid rgba(124,58,237,0.4);color:#a855f7;padding:1px 7px;border-radius:10px;margin-left:6px;">score '+sc+'</span>' : '';
 
       let media = '';
@@ -269,6 +274,7 @@
 
       const likeClass = liked ? 'action-btn liked' : 'action-btn';
       const favClass = favorited ? 'action-btn favorited' : 'action-btn';
+      const postTextSafe = esc(post.text || '');
 
       return '<div class="feed-card" data-post-id="'+post.id+'"'+(isOwner?' style="border-color:rgba(124,58,237,0.6);box-shadow:0 0 12px rgba(124,58,237,0.15);"':'')+'>'+
         '<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;">'+
@@ -277,15 +283,15 @@
             '<a href="profile.html?id='+post.user_id+'" style="font-weight:700;font-size:0.95rem;text-decoration:none;color:#eae6ff;">'+esc(name)+v+'</a>'+tb+ownerBadge+scoreBadge+
             '<div style="font-size:0.78rem;color:#a855f7;opacity:0.7;">'+ago+si+'</div>'+
           '</div></div>'+
-        (post.text ? '<div style="margin-bottom:0.5rem;line-height:1.55;word-break:break-word;">'+esc(post.text)+'</div>' : '')+
+        (post.text ? '<div style="margin-bottom:0.5rem;line-height:1.55;word-break:break-word;">'+postTextSafe+'</div>' : '')+
         media+
         '<div style="display:flex;gap:0.25rem;flex-wrap:wrap;padding-top:0.6rem;border-top:1px solid rgba(124,58,237,0.15);">'+
           '<button class="'+likeClass+'" id="like-btn-'+post.id+'" onclick="likePost(\''+post.id+'\',this)">❤️ <span id="like-count-'+post.id+'">'+(post.likes||0)+'</span></button>'+
           '<button class="action-btn" onclick="toggleComments(\''+post.id+'\')">💬 <span id="comment-count-'+post.id+'">'+(post.comments||post.comment_count||0)+'</span></button>'+
           '<button class="action-btn" onclick="resharePost(\''+post.id+'\',this)">🔁 <span id="reshare-count-'+post.id+'">'+(post.reshares||post.shares||0)+'</span></button>'+
           '<button class="'+favClass+'" id="fav-btn-'+post.id+'" onclick="favPost(\''+post.id+'\',this)">⭐ <span id="fav-count-'+post.id+'">'+(post.favorites||0)+'</span></button>'+
-                    '<button class="action-btn" onclick="openShareSheet(\''+post.id+'\',encodeURIComponent(post.text||\'\')" title="Share">📤 Share</button>'+
-          (post.user_id !== (window._currentUser && window._currentUser.id) ? '<button class="action-btn" onclick="openFeedTip(\''+post.user_id+'\',\''+esc(pr.display_name||pr.username||'this artist')+'\')" title="Tip coins">🪙</button>' : '')+
+          '<button class="action-btn" onclick="openShareSheet(\''+post.id+'\',\''+encodeURIComponent(post.text||'')+'\')" title="Share">📤 Share</button>'+
+          (post.user_id !== (window._currentUser && window._currentUser.id) ? '<button class="action-btn" onclick="openFeedTip(\''+post.user_id+'\',\''+esc(name).replace(/'/g,"\\'")+'\')" title="Tip coins">🪙</button>' : '')+
           '<div class="sticker-wrap"><button class="action-btn" title="React with sticker" onclick="toggleStickerPicker(\''+post.id+'\',event)">🎭</button>'+
           '<div class="sticker-picker" id="spicker-'+post.id+'"></div></div>'+
         '</div>'+
@@ -293,7 +299,7 @@
         '</div>';
     }
 
-    function esc(s) { return s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
+    function esc(s) { return s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : ''; }
     function timeAgo(d) {
       if (!d) return '';
       const m = Math.floor((Date.now() - new Date(d).getTime()) / 60000);
@@ -328,7 +334,9 @@
       } catch(e){ console.error(e); }
     };
 
-    /* ── TOGGLE COMMENTS ── */
+    /* ══════════════════════════════════════════════════════════════
+       ── COMMENTS (FIXED: auto-detect table, fetch profiles separately)
+       ══════════════════════════════════════════════════════════════ */
     window.toggleComments = async function(id) {
       let section = document.getElementById('comments-'+id);
       if (section) { section.style.display = section.style.display === 'none' ? 'block' : 'none'; return; }
@@ -344,42 +352,94 @@
 
     async function renderComments(postId, section) {
       try {
-        const { data: comments } = await db.from('comments')
-          .select('id,user_id,text,created_at,likes,reply_to,profiles(username,display_name,avatar_url)')
+        // Fetch comments — NO FK join, we fetch profiles separately for reliability
+        const { data: rawComments, error: cmErr } = await db.from(COMMENT_TABLE)
+          .select('*')
           .eq('post_id', postId)
           .order('created_at', { ascending: true })
           .limit(50);
 
-        const list = (comments || []);
+        if (cmErr) {
+          console.error('Comment fetch error:', cmErr);
+          section.innerHTML = '<p style="color:#ef4444;font-size:0.8rem;padding:0.5rem;">Error loading comments: ' + cmErr.message + '</p>';
+          return;
+        }
+
+        const list = rawComments || [];
+
+        // Fetch profiles for all comment authors separately
+        const authorIds = [...new Set(list.map(c => c.user_id).filter(Boolean))];
+        let profileMap = {};
+        if (authorIds.length) {
+          const { data: profiles } = await db.from('profiles')
+            .select('user_id,username,display_name,avatar_url')
+            .in('user_id', authorIds);
+          if (profiles) profiles.forEach(p => { profileMap[p.user_id] = p; });
+        }
+
+        // Separate top-level comments and replies
+        // Handle both 'parent_id' and 'reply_to' column names
+        const topLevel = [];
+        const replies = {};
+        list.forEach(c => {
+          const parentId = c.parent_id || c.reply_to || null;
+          if (parentId) {
+            if (!replies[parentId]) replies[parentId] = [];
+            replies[parentId].push(c);
+          } else {
+            topLevel.push(c);
+          }
+        });
+
         let cHtml = '';
         if (!list.length) {
           cHtml = '<div style="text-align:center;padding:0.75rem;color:rgba(168,85,247,0.4);font-size:0.82rem;">No comments yet. Be first!</div>';
         } else {
-          list.forEach(c => {
-            const pr = c.profiles || {};
-            const name = pr.display_name || pr.username || 'User';
-            const mine = currentUser && c.user_id === currentUser.id;
-            const m = Math.floor((Date.now()-new Date(c.created_at).getTime())/60000);
-            const t = m<1?'now':m<60?m+'m':m<1440?Math.floor(m/60)+'h':Math.floor(m/1440)+'d';
-            cHtml += '<div class="comment-item" id="cm-'+c.id+'">';
-            cHtml += '<div style="display:flex;justify-content:space-between;align-items:flex-start;">';
-            cHtml += '<div style="flex:1;"><span class="comment-author">'+esc(name)+'</span> <span class="comment-meta">'+t+'</span><div class="comment-text">'+esc(c.text)+'</div></div>';
-            if(mine) cHtml += '<button class="comment-action-btn" onclick="deleteComment(\''+c.id+'\',\''+postId+'\')">🗑️</button>';
-            cHtml += '</div>';
-            cHtml += '<div class="comment-actions">';
-            cHtml += '<button class="comment-action-btn" id="clk-'+c.id+'" onclick="likeComment(\''+c.id+'\')">❤️ <span id="clc-'+c.id+'">'+(c.likes||0)+'</span></button>';
-            cHtml += '<button class="comment-action-btn" onclick="replyToComment(\''+postId+'\',\''+esc(name)+'\')">↩️ Reply</button>';
-            cHtml += '</div></div>';
+          topLevel.forEach(c => {
+            cHtml += renderSingleComment(c, profileMap, postId);
+            // Render replies indented
+            if (replies[c.id]) {
+              cHtml += '<div class="reply-indent">';
+              replies[c.id].forEach(r => {
+                cHtml += renderSingleComment(r, profileMap, postId);
+              });
+              cHtml += '</div>';
+            }
           });
         }
 
+        // Comment input
         cHtml += '<div style="display:flex;gap:0.5rem;margin-top:0.6rem;">';
-        cHtml += '<input id="cinput-'+postId+'" type="text" placeholder="Write a comment…" style="flex:1;background:rgba(0,0,0,0.3);border:1px solid rgba(124,58,237,0.3);border-radius:6px;padding:0.4rem 0.7rem;color:#eae6ff;font-size:0.83rem;" onkeypress="if(event.key===\'Enter\')sendComment(\''+postId+'\')">';
+        cHtml += '<input id="cinput-'+postId+'" type="text" placeholder="Write a comment…" style="flex:1;background:rgba(0,0,0,0.3);border:1px solid rgba(124,58,237,0.3);border-radius:6px;padding:0.4rem 0.7rem;color:#eae6ff;font-size:0.83rem;outline:none;" onkeypress="if(event.key===\'Enter\')sendComment(\''+postId+'\')">';
         cHtml += '<button onclick="sendComment(\''+postId+'\')" style="background:#7c3aed;border:none;color:white;padding:0.4rem 0.85rem;border-radius:6px;cursor:pointer;font-size:0.83rem;font-weight:600;">Post</button>';
         cHtml += '</div>';
 
         section.innerHTML = cHtml;
-      } catch(e) { section.innerHTML = '<p style="color:#ef4444;font-size:0.8rem;padding:0.5rem;">Error loading comments</p>'; }
+      } catch(e) {
+        console.error('Comment render error:', e);
+        section.innerHTML = '<p style="color:#ef4444;font-size:0.8rem;padding:0.5rem;">Error loading comments: ' + (e.message || 'unknown') + '</p>';
+      }
+    }
+
+    function renderSingleComment(c, profileMap, postId) {
+      const pr = profileMap[c.user_id] || {};
+      const name = pr.display_name || pr.username || 'User';
+      const mine = currentUser && c.user_id === currentUser.id;
+      const m = Math.floor((Date.now()-new Date(c.created_at).getTime())/60000);
+      const t = m<1?'now':m<60?m+'m':m<1440?Math.floor(m/60)+'h':Math.floor(m/1440)+'d';
+      // Use 'text' or 'content' column
+      const commentText = c.text || c.content || '';
+
+      let html = '<div class="comment-item" id="cm-'+c.id+'">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;">';
+      html += '<div style="flex:1;"><a href="profile.html?id='+c.user_id+'" class="comment-author" style="text-decoration:none;">'+esc(name)+'</a> <span class="comment-meta">'+t+'</span><div class="comment-text">'+esc(commentText)+'</div></div>';
+      if(mine) html += '<button class="comment-action-btn" onclick="deleteComment(\''+c.id+'\',\''+postId+'\')">🗑️</button>';
+      html += '</div>';
+      html += '<div class="comment-actions">';
+      html += '<button class="comment-action-btn" id="clk-'+c.id+'" onclick="likeComment(\''+c.id+'\')">❤️ <span id="clc-'+c.id+'">'+(c.likes||0)+'</span></button>';
+      html += '<button class="comment-action-btn" onclick="replyToComment(\''+postId+'\',\''+esc(name).replace(/'/g,"\\'")+'\')">\u21a9\ufe0f Reply</button>';
+      html += '</div></div>';
+      return html;
     }
 
     /* ── SEND COMMENT ── */
@@ -391,25 +451,36 @@
       if (!text) return;
       input.value = '';
       try {
-        await db.from('comments').insert({ post_id: postId, user_id: currentUser.id, text: text, likes: 0 });
+        const insertData = { post_id: postId, user_id: currentUser.id, text: text, likes: 0 };
+
+        // If text starts with @name, try to make it a reply
+        // (simple approach — could be enhanced)
+        const { error: insertErr } = await db.from(COMMENT_TABLE).insert(insertData);
+        if (insertErr) throw insertErr;
+
+        // Update post comment count
         const { data } = await db.from('posts').select('comments,comment_count,user_id').eq('id', postId).single();
         const oldCount = data ? (data.comments || data.comment_count || 0) : 0;
         await db.from('posts').update({ comments: oldCount+1, comment_count: oldCount+1 }).eq('id', postId);
         document.getElementById('comment-count-'+postId).textContent = oldCount+1;
         try { await db.rpc('add_algorithm_points',{p_user_id:data.user_id,p_action:'receive_comment',p_points:5}); } catch(e){}
-        /* Re-render comments */
+
+        // Re-render comments
         const section = document.getElementById('comments-'+postId);
         if (section) await renderComments(postId, section);
-      } catch(e) { alert('Error: '+e.message); }
+      } catch(e) {
+        console.error('Send comment error:', e);
+        alert('Error posting comment: ' + (e.message || 'unknown'));
+      }
     };
 
     /* ── LIKE COMMENT ── */
     window.likeComment = async function(id) {
       if (!currentUser) { alert('Log in to like'); return; }
       try {
-        const { data } = await db.from('comments').select('likes').eq('id',id).maybeSingle();
+        const { data } = await db.from(COMMENT_TABLE).select('likes').eq('id',id).maybeSingle();
         const n = ((data && data.likes)||0)+1;
-        await db.from('comments').update({likes:n}).eq('id',id);
+        await db.from(COMMENT_TABLE).update({likes:n}).eq('id',id);
         const el = document.getElementById('clc-'+id);
         if (el) el.textContent = n;
         const btn = document.getElementById('clk-'+id);
@@ -427,7 +498,7 @@
     window.deleteComment = async function(id, postId) {
       if (!confirm('Delete comment?')) return;
       try {
-        await db.from('comments').delete().eq('id',id).eq('user_id',currentUser.id);
+        await db.from(COMMENT_TABLE).delete().eq('id',id).eq('user_id',currentUser.id);
         const { data } = await db.from('posts').select('comments,comment_count').eq('id',postId).single();
         const n = Math.max(0,(data ? (data.comments||data.comment_count||1) : 1)-1);
         await db.from('posts').update({comments:n,comment_count:n}).eq('id',postId);
@@ -450,7 +521,7 @@
         document.getElementById('reshare-count-'+id).textContent = n;
         try { await db.rpc('add_algorithm_points',{p_user_id:data.user_id,p_action:'receive_share',p_points:15}); } catch(e){}
         try { await db.rpc('recalc_post_score',{p_post_id:id}); } catch(e){}
-      } catch(e){ alert('❌ '+e.message); }
+      } catch(e){ alert('Error: '+e.message); }
     };
 
     /* ── SHARE SHEET ── */
@@ -463,55 +534,41 @@
       overlay.id = 'shareSheetOverlay';
       overlay.style.cssText = 'position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,0.7);display:flex;align-items:flex-end;justify-content:center;';
       overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
-      overlay.innerHTML = `
-        <div style="width:100%;max-width:480px;background:rgba(12,6,24,0.98);border:1px solid rgba(124,58,237,0.5);border-radius:18px 18px 0 0;padding:1.5rem;padding-bottom:2rem;">
-          <div style="width:40px;height:4px;background:rgba(168,85,247,0.4);border-radius:2px;margin:0 auto 1.25rem;"></div>
-          <h3 style="font-size:1rem;font-weight:700;color:#a855f7;margin-bottom:1.25rem;text-align:center;">📤 Share Post</h3>
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.75rem;margin-bottom:1.25rem;">
-            <button onclick="shareSheetCopyLink('${url}')" style="background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:0.85rem 0.5rem;color:#eae6ff;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.4rem;font-size:0.72rem;">
-              <span style="font-size:1.5rem;">🔗</span>Copy Link
-            </button>
-            <button onclick="shareSheetToStory('${id}','${encodeURIComponent(text)}')" style="background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:0.85rem 0.5rem;color:#eae6ff;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.4rem;font-size:0.72rem;">
-              <span style="font-size:1.5rem;">📖</span>Your Story
-            </button>
-            <button onclick="shareSheetDM('${id}')" style="background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:0.85rem 0.5rem;color:#eae6ff;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.4rem;font-size:0.72rem;">
-              <span style="font-size:1.5rem;">💬</span>Send DM
-            </button>
-            <button onclick="shareSheetNative('${url}','${encodeURIComponent(text)}')" style="background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:0.85rem 0.5rem;color:#eae6ff;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.4rem;font-size:0.72rem;">
-              <span style="font-size:1.5rem;">↗️</span>More
-            </button>
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;">
-            <a href="https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent((text||'').substring(0,100))}" target="_blank" rel="noopener" style="background:rgba(29,161,242,0.15);border:1px solid rgba(29,161,242,0.3);border-radius:10px;padding:0.65rem 0.5rem;color:#eae6ff;text-decoration:none;display:flex;flex-direction:column;align-items:center;gap:0.3rem;font-size:0.7rem;">
-              <span style="font-size:1.2rem;">𝕏</span>Twitter / X
-            </a>
-            <a href="https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}" target="_blank" rel="noopener" style="background:rgba(24,119,242,0.15);border:1px solid rgba(24,119,242,0.3);border-radius:10px;padding:0.65rem 0.5rem;color:#eae6ff;text-decoration:none;display:flex;flex-direction:column;align-items:center;gap:0.3rem;font-size:0.7rem;">
-              <span style="font-size:1.2rem;">📘</span>Facebook
-            </a>
-            <a href="https://wa.me/?text=${encodeURIComponent((text||'').substring(0,80)+' '+url)}" target="_blank" rel="noopener" style="background:rgba(37,211,102,0.15);border:1px solid rgba(37,211,102,0.3);border-radius:10px;padding:0.65rem 0.5rem;color:#eae6ff;text-decoration:none;display:flex;flex-direction:column;align-items:center;gap:0.3rem;font-size:0.7rem;">
-              <span style="font-size:1.2rem;">💚</span>WhatsApp
-            </a>
-          </div>
-          <button onclick="document.getElementById('shareSheetOverlay').remove()" style="width:100%;margin-top:1rem;padding:0.7rem;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:10px;color:#a855f7;cursor:pointer;font-weight:600;">Cancel</button>
-        </div>`;
+      overlay.innerHTML =
+        '<div style="width:100%;max-width:480px;background:rgba(12,6,24,0.98);border:1px solid rgba(124,58,237,0.5);border-radius:18px 18px 0 0;padding:1.5rem;padding-bottom:2rem;">'+
+          '<div style="width:40px;height:4px;background:rgba(168,85,247,0.4);border-radius:2px;margin:0 auto 1.25rem;"></div>'+
+          '<h3 style="font-size:1rem;font-weight:700;color:#a855f7;margin-bottom:1.25rem;text-align:center;">📤 Share Post</h3>'+
+          '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.75rem;margin-bottom:1.25rem;">'+
+            '<button onclick="shareSheetCopyLink(\''+url+'\')" style="background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:0.85rem 0.5rem;color:#eae6ff;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.4rem;font-size:0.72rem;"><span style="font-size:1.5rem;">🔗</span>Copy Link</button>'+
+            '<button onclick="shareSheetToStory(\''+id+'\')" style="background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:0.85rem 0.5rem;color:#eae6ff;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.4rem;font-size:0.72rem;"><span style="font-size:1.5rem;">📖</span>Your Story</button>'+
+            '<button onclick="shareSheetDM(\''+id+'\')" style="background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:0.85rem 0.5rem;color:#eae6ff;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.4rem;font-size:0.72rem;"><span style="font-size:1.5rem;">💬</span>Send DM</button>'+
+            '<button onclick="shareSheetNative(\''+url+'\',\''+encodeURIComponent(text)+'\')" style="background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:0.85rem 0.5rem;color:#eae6ff;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.4rem;font-size:0.72rem;"><span style="font-size:1.5rem;">↗️</span>More</button>'+
+          '</div>'+
+          '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;">'+
+            '<a href="https://twitter.com/intent/tweet?url='+encodeURIComponent(url)+'&text='+encodeURIComponent((text||'').substring(0,100))+'" target="_blank" rel="noopener" style="background:rgba(29,161,242,0.15);border:1px solid rgba(29,161,242,0.3);border-radius:10px;padding:0.65rem 0.5rem;color:#eae6ff;text-decoration:none;display:flex;flex-direction:column;align-items:center;gap:0.3rem;font-size:0.7rem;"><span style="font-size:1.2rem;">𝕏</span>Twitter / X</a>'+
+            '<a href="https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(url)+'" target="_blank" rel="noopener" style="background:rgba(24,119,242,0.15);border:1px solid rgba(24,119,242,0.3);border-radius:10px;padding:0.65rem 0.5rem;color:#eae6ff;text-decoration:none;display:flex;flex-direction:column;align-items:center;gap:0.3rem;font-size:0.7rem;"><span style="font-size:1.2rem;">📘</span>Facebook</a>'+
+            '<a href="https://wa.me/?text='+encodeURIComponent((text||'').substring(0,80)+' '+url)+'" target="_blank" rel="noopener" style="background:rgba(37,211,102,0.15);border:1px solid rgba(37,211,102,0.3);border-radius:10px;padding:0.65rem 0.5rem;color:#eae6ff;text-decoration:none;display:flex;flex-direction:column;align-items:center;gap:0.3rem;font-size:0.7rem;"><span style="font-size:1.2rem;">💚</span>WhatsApp</a>'+
+          '</div>'+
+          '<button onclick="document.getElementById(\'shareSheetOverlay\').remove()" style="width:100%;margin-top:1rem;padding:0.7rem;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:10px;color:#a855f7;cursor:pointer;font-weight:600;">Cancel</button>'+
+        '</div>';
       document.body.appendChild(overlay);
     };
 
     window.shareSheetCopyLink = function(url) {
-      navigator.clipboard.writeText(url).then(function(){ 
-        alert('✅ Link copied!'); 
+      navigator.clipboard.writeText(url).then(function(){
+        alert('✅ Link copied!');
         var o=document.getElementById('shareSheetOverlay'); if(o)o.remove();
       }).catch(function(){ alert(url); });
     };
 
-    window.shareSheetToStory = async function(postId, encodedText) {
+    window.shareSheetToStory = async function(postId) {
       if (!currentUser) { alert('Sign in first'); return; }
       var o=document.getElementById('shareSheetOverlay'); if(o)o.remove();
       try {
         var { data: p } = await db.from('posts').select('text,media,media_type').eq('id',postId).single();
         await db.from('stories').insert({user_id:currentUser.id,text:p&&p.text?p.text.substring(0,200):null,media_url:p&&p.media?p.media:null,media_type:p&&p.media?'image':null,background_color:'#7c3aed',views:0,expires_at:new Date(Date.now()+24*3600000).toISOString()});
         alert('✅ Added to your story!');
-      } catch(e){ alert('❌ '+e.message); }
+      } catch(e){ alert('Error: '+e.message); }
     };
 
     window.shareSheetDM = function(postId) {
@@ -555,7 +612,6 @@
   })();
 
   // ── STICKER REACTION SYSTEM ────────────────────────────────────
-  // Sticker catalog (matches shop-stickers.html ids)
   var STICKERS = [
     {id:'sticker_fire',   icon:'🔥', name:'Fire'},
     {id:'sticker_phones', icon:'🎧', name:'Headphones'},
@@ -567,7 +623,6 @@
     {id:'sticker_8bfr',   icon:'⭐', name:'8BFR Gold'},
   ];
 
-  // Load owned stickers for current user (cached)
   var _ownedStickers = null;
   async function getOwnedStickers() {
     if (!window._db || !window._currentUser) return [];
@@ -586,7 +641,6 @@
     } catch(e) { return []; }
   }
 
-  // Fetch reactions for a batch of post ids and render them
   async function loadBatchStickerReactions(postIds) {
     if (!window._db || !postIds.length) return;
     try {
@@ -594,7 +648,6 @@
         .select('post_id,sticker_id,user_id')
         .in('post_id', postIds);
       if (!data) return;
-      // Group by post_id
       const byPost = {};
       data.forEach(r => {
         if (!byPost[r.post_id]) byPost[r.post_id] = [];
@@ -608,7 +661,6 @@
     const row = document.getElementById('sticker-row-' + postId);
     if (!row) return;
     if (!reactions.length) { row.innerHTML = ''; return; }
-    // Tally by sticker_id
     const tally = {};
     reactions.forEach(r => {
       if (!tally[r.sticker_id]) tally[r.sticker_id] = { count:0, users:[] };
@@ -621,42 +673,34 @@
       const s = STICKERS.find(x => x.id === sid);
       if (!s) return;
       const mine = uid && tally[sid].users.includes(uid);
-      html += `<button class="sticker-bubble${mine?' mine':''}" onclick="toggleStickerReact('${postId}','${sid}')" title="${s.name}">
-        ${s.icon} <span class="s-count">${tally[sid].count}</span>
-      </button>`;
+      html += '<button class="sticker-bubble'+(mine?' mine':'')+'" onclick="toggleStickerReact(\''+postId+'\',\''+sid+'\')" title="'+s.name+'">'+s.icon+' <span class="s-count">'+tally[sid].count+'</span></button>';
     });
     row.innerHTML = html;
   }
 
-  // Toggle sticker picker open/close
   window.toggleStickerPicker = async function(postId, e) {
     e.stopPropagation();
     const picker = document.getElementById('spicker-' + postId);
     if (!picker) return;
     const isOpen = picker.classList.contains('open');
-    // Close all other pickers
     document.querySelectorAll('.sticker-picker.open').forEach(p => p.classList.remove('open'));
     if (isOpen) return;
-
     if (!window._currentUser) {
       picker.innerHTML = '<div class="sticker-pick-btn no-stickers">Log in to react</div>';
       picker.classList.add('open');
       setTimeout(() => picker.classList.remove('open'), 2000);
       return;
     }
-
     const owned = await getOwnedStickers();
     const available = STICKERS.filter(s => owned.includes(s.id));
-
     if (!available.length) {
       picker.innerHTML = '<div class="sticker-pick-btn no-stickers">No stickers — <a href="shop-stickers.html" style="color:#a855f7;">Shop</a></div>';
     } else {
       picker.innerHTML = '<div class="sticker-picker-inner">' +
-        available.map(s => `<button class="sticker-pick-btn" title="${s.name}" onclick="reactWithSticker('${postId}','${s.id}',event)">${s.icon}</button>`).join('') +
+        available.map(s => '<button class="sticker-pick-btn" title="'+s.name+'" onclick="reactWithSticker(\''+postId+'\',\''+s.id+'\',event)">'+s.icon+'</button>').join('') +
         '</div>';
     }
     picker.classList.add('open');
-    // Close on outside click
     setTimeout(() => {
       document.addEventListener('click', function closePicker(ev) {
         if (!picker.contains(ev.target)) {
@@ -667,24 +711,18 @@
     }, 50);
   };
 
-  // React/unreact with a specific sticker from the picker
   window.reactWithSticker = async function(postId, stickerId, e) {
     e.stopPropagation();
     document.getElementById('spicker-' + postId).classList.remove('open');
     await toggleStickerReact(postId, stickerId);
   };
 
-  // Toggle reaction on/off (also called from sticker bubbles directly)
   window.toggleStickerReact = async function(postId, stickerId) {
-    if (!window._currentUser || !window._db) {
-      alert('Log in to react'); return;
-    }
+    if (!window._currentUser || !window._db) { alert('Log in to react'); return; }
     const uid = window._currentUser.id;
     try {
-      // Check if already reacted with this sticker
       const { data: existing } = await window._db.from('post_reactions')
         .select('id').eq('post_id', postId).eq('user_id', uid).eq('sticker_id', stickerId).maybeSingle();
-
       if (existing) {
         await window._db.from('post_reactions').delete()
           .eq('post_id', postId).eq('user_id', uid).eq('sticker_id', stickerId);
@@ -693,7 +731,6 @@
           post_id: postId, user_id: uid, sticker_id: stickerId
         }, { onConflict: 'post_id,user_id,sticker_id' });
       }
-      // Reload reactions for this post
       const { data } = await window._db.from('post_reactions')
         .select('post_id,sticker_id,user_id').eq('post_id', postId);
       renderStickerRow(postId, data || []);
@@ -732,7 +769,6 @@
 <script>
 (function(){
   var _fTipToId = null;
-
   window.openFeedTip = async function(toId, toName) {
     _fTipToId = toId;
     document.getElementById('ftipName').textContent = toName;
@@ -750,17 +786,14 @@
       }
     } catch(e){ document.getElementById('ftipBal').textContent = '—'; }
   };
-
   window.closeFeedTip = function() {
     document.getElementById('feedTipModal').style.display = 'none';
     _fTipToId = null;
   };
-
   window.setFTip = function(n) {
     document.getElementById('ftipAmount').value = n;
     document.querySelectorAll('.ftip-quick').forEach(b => b.classList.toggle('sel', parseInt(b.textContent) === n));
   };
-
   window.submitFeedTip = async function() {
     var amount = parseInt(document.getElementById('ftipAmount').value);
     var note   = document.getElementById('ftipNote').value.trim() || 'Coin tip from feed';
@@ -791,7 +824,6 @@
       btn.disabled=false; btn.textContent='Send 🪙';
     }
   };
-
   document.getElementById('feedTipModal').addEventListener('click', function(e){ if(e.target===this) closeFeedTip(); });
 })();
 </script>
