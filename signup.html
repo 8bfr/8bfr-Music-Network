@@ -6,6 +6,7 @@
   <title>Join 8BFR Music Network</title>
   <link rel="icon" href="assets/images/favicon.png">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -230,6 +231,29 @@
     .step-panel { display: none; }
     .step-panel.active { display: block; }
 
+    /* ── VERIFICATION CODE INPUT ── */
+    .code-inputs {
+      display: flex; gap: .5rem; justify-content: center; margin: 1.25rem 0;
+    }
+    .code-inputs input {
+      width: 48px; height: 56px; text-align: center;
+      font-size: 1.5rem; font-weight: 900; letter-spacing: 0;
+      background: rgba(0,0,0,.4); border: 2px solid rgba(168,85,247,.3);
+      border-radius: 12px; color: #fff; outline: none; transition: all .2s;
+      padding: 0;
+    }
+    .code-inputs input:focus {
+      border-color: #a855f7; box-shadow: 0 0 12px rgba(168,85,247,.4);
+    }
+    .code-inputs input.correct { border-color: #22c55e; background: rgba(34,197,94,.1); }
+    .code-inputs input.wrong { border-color: #ef4444; background: rgba(239,68,68,.1); }
+    .resend-link {
+      color: rgba(196,181,253,.5); font-size: .78rem; cursor: pointer;
+      text-decoration: none; transition: color .2s;
+    }
+    .resend-link:hover { color: #a855f7; }
+    .resend-link.disabled { pointer-events: none; opacity: .4; }
+
     @keyframes spin { to { transform: rotate(360deg); } }
     .spinner {
       display: inline-block; width: 16px; height: 16px;
@@ -423,19 +447,51 @@
     </div>
   </div>
 
+  <!-- ═══════════════ STEP 3: VERIFY EMAIL CODE ═══════════════ -->
+  <div class="step-panel" id="step3">
+    <div style="text-align:center;margin-bottom:1rem;">
+      <div style="font-size:2.5rem;margin-bottom:.5rem;">📧</div>
+      <h2 style="font-size:1.15rem;font-weight:800;margin-bottom:.3rem;">Check Your Email</h2>
+      <p style="font-size:.82rem;color:rgba(196,181,253,.65);line-height:1.5;">We sent a 6-digit code to:</p>
+      <div style="background:rgba(124,58,237,.15);border:1px solid rgba(168,85,247,.3);border-radius:8px;padding:.4rem .8rem;display:inline-block;font-weight:700;color:#c4b5fd;font-size:.88rem;margin:.4rem 0;" id="verifyEmailDisplay"></div>
+      <p style="font-size:.75rem;color:rgba(196,181,253,.45);margin-top:.3rem;">Check spam/junk if you don't see it</p>
+    </div>
+
+    <div class="code-inputs" id="codeInputs">
+      <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+      <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+      <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+      <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+      <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+      <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+    </div>
+
+    <div id="verifyMsg" class="msg"></div>
+
+    <button class="submit-btn" id="verifyBtn" onclick="verifyCode()">
+      ✅ Verify My Email
+    </button>
+
+    <div style="text-align:center;margin-top:1rem;">
+      <span class="resend-link" id="resendLink" onclick="resendCode()">Didn't get it? Resend code</span>
+      <div id="resendTimer" style="font-size:.72rem;color:rgba(196,181,253,.4);margin-top:.3rem;"></div>
+    </div>
+
+    <div style="text-align:center;margin-top:.8rem;">
+      <a href="index.html" class="back-home">← Back to Home</a>
+    </div>
+  </div>
+
   <!-- ═══════════════ SUCCESS SCREEN ═══════════════ -->
   <div class="success-screen" id="successSection">
     <div class="success-icon">🎉</div>
-    <h2>You're Almost In!</h2>
-    <p>We sent a confirmation link to:</p>
-    <div class="email-highlight" id="confirmedEmail"></div>
-    <p>Click the link in your email to activate your account.<br>
-       Check your spam folder if you don't see it within a few minutes.</p>
+    <h2>Welcome to 8BFR!</h2>
+    <p>Your email is verified and your account is ready.</p>
     <div id="pendingNote" style="display:none;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.25);border-radius:10px;padding:.7rem;font-size:.8rem;color:#fcd34d;margin-bottom:1rem;">
       🟡 Your <strong>Artist / Beatmaker</strong> verification is pending owner review. You'll get full upload access once approved.
     </div>
     <a href="login.html" class="submit-btn" style="display:block;text-decoration:none;margin-top:.5rem;text-align:center;">
-      Go to Login
+      🚀 Log In Now
     </a>
     <a href="index.html" class="back-home">← Back to Home</a>
   </div>
@@ -446,20 +502,34 @@
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
   const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+  // EmailJS config
+  const EMAILJS_PUBLIC_KEY = 'xGcw1bDESG7obtHJh';
+  const EMAILJS_SERVICE_ID = 'service_or00bc8';
+  const EMAILJS_TEMPLATE_ID = 'template_appp21r';
+  emailjs.init(EMAILJS_PUBLIC_KEY);
+
   let selectedRoles = ['fan'];
   let currentStep = 1;
+  let verificationCode = '';
+  let signupEmail = '';
+  let signupUserId = '';
+  let needsArtistVerify = false;
+  let resendCooldown = 0;
 
   // If already logged in, redirect
   db.auth.getSession().then(({data:{session}}) => {
     if (session) window.location.href = 'feed.html';
   });
 
+  /* ── GENERATE 6-DIGIT CODE ── */
+  function generateCode() {
+    return String(Math.floor(100000 + Math.random() * 900000));
+  }
+
   /* ── MULTI-SELECT ROLE TOGGLE ── */
   function toggleRole(btn) {
     const role = btn.dataset.role;
-
     if (btn.classList.contains('selected')) {
-      // Don't allow deselecting if it's the last role
       if (selectedRoles.length <= 1) return;
       btn.classList.remove('selected');
       selectedRoles = selectedRoles.filter(r => r !== role);
@@ -467,8 +537,6 @@
       btn.classList.add('selected');
       if (!selectedRoles.includes(role)) selectedRoles.push(role);
     }
-
-    // Show/hide Spotify verification box
     const needsVerify = selectedRoles.includes('artist') || selectedRoles.includes('beatmaker');
     document.getElementById('verifyBox').classList.toggle('show', needsVerify);
   }
@@ -476,12 +544,9 @@
   /* ── STEP NAVIGATION ── */
   function goStep(n) {
     clearMsg();
-
-    // Validate step 1 → 2
     if (n === 2 && currentStep === 1) {
       const needsVerify = selectedRoles.includes('artist') || selectedRoles.includes('beatmaker');
       const spotifyUrl = document.getElementById('spotifyUrl').value.trim();
-
       if (needsVerify && !spotifyUrl) {
         return showMsg('⚠️ Please enter your Spotify artist page link for verification.', 'error');
       }
@@ -489,12 +554,9 @@
         return showMsg('⚠️ Please enter a valid Spotify artist URL (e.g. https://open.spotify.com/artist/...)', 'error');
       }
     }
-
     currentStep = n;
     document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
     document.getElementById('step' + n).classList.add('active');
-
-    // Update dots
     for (let i = 1; i <= 3; i++) {
       const dot = document.getElementById('dot' + i);
       dot.classList.remove('active', 'done');
@@ -513,7 +575,7 @@
     const bar = document.getElementById('strengthBar');
     const hint = document.getElementById('strengthHint');
     let score = 0;
-    if (val.length >= 8)  score++;
+    if (val.length >= 8) score++;
     if (val.length >= 12) score++;
     if (/[A-Z]/.test(val)) score++;
     if (/[0-9]/.test(val)) score++;
@@ -538,7 +600,31 @@
     box.className = 'msg';
     box.textContent = '';
   }
+  function showVerifyMsg(text, type) {
+    const box = document.getElementById('verifyMsg');
+    box.innerHTML = text;
+    box.className = 'msg ' + type;
+  }
 
+  /* ── SEND VERIFICATION CODE VIA EMAILJS ── */
+  async function sendVerificationEmail(email, name, code) {
+    try {
+      const result = await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+        to_email: email,
+        to_name: name || 'Music Creator',
+        verification_code: code
+      });
+      console.log('EmailJS sent:', result.status);
+      return true;
+    } catch(e) {
+      console.error('EmailJS error:', e);
+      return false;
+    }
+  }
+
+  /* ══════════════════════════════════════════
+     ── MAIN SIGNUP FLOW
+     ══════════════════════════════════════════ */
   async function doSignup() {
     clearMsg();
     const displayName = document.getElementById('displayName').value.trim();
@@ -549,7 +635,6 @@
     const agreed   = document.getElementById('agreeTerms').checked;
     const spotifyUrl = document.getElementById('spotifyUrl').value.trim();
 
-    // Validation
     if (!username) return showMsg('⚠️ Please choose a username.', 'error');
     if (username.length < 3) return showMsg('⚠️ Username must be at least 3 characters.', 'error');
     if (!/^[a-zA-Z0-9_.\-]+$/.test(username)) return showMsg('⚠️ Username can only contain letters, numbers, underscores, dots, and hyphens.', 'error');
@@ -563,48 +648,33 @@
     btn.innerHTML = '<span class="spinner"></span>Creating account…';
 
     try {
-      // Check username not taken
-      const { data: existing } = await db
-        .from('profiles')
-        .select('id')
-        .ilike('username', username)
-        .maybeSingle();
-
+      // Check username
+      const { data: existing } = await db.from('profiles').select('id').ilike('username', username).maybeSingle();
       if (existing) {
-        showMsg('⚠️ That username is already taken. Please choose another.', 'error');
-        btn.disabled = false;
-        btn.innerHTML = '🎵 Create My Account';
+        showMsg('⚠️ That username is already taken.', 'error');
+        btn.disabled = false; btn.innerHTML = '🎵 Create My Account';
         return;
       }
 
-      // Check founder eligibility
+      // Check founder
       let isFounder = false;
       try {
         const { count } = await db.from('profiles').select('user_id', { count: 'exact', head: true });
         isFounder = (count || 0) < 1000;
       } catch(e) {}
 
-      // Build badges array — only role badges, NO supporter/verified/owner/admin/founder
       const badges = [...selectedRoles];
       if (isFounder) badges.push('founder');
-
-      // Primary role (first selected role that isn't 'fan', or 'fan')
       const primaryRole = selectedRoles.find(r => r !== 'fan') || 'fan';
+      needsArtistVerify = selectedRoles.includes('artist') || selectedRoles.includes('beatmaker');
 
-      // Needs artist/beatmaker verification?
-      const needsVerify = selectedRoles.includes('artist') || selectedRoles.includes('beatmaker');
-
-      // Sign up via Supabase Auth
+      // Sign up (Supabase email confirmation is OFF — we handle it ourselves)
+      btn.innerHTML = '<span class="spinner"></span>Setting up account…';
       const { data, error } = await db.auth.signUp({
         email,
         password,
         options: {
-          data: {
-            username,
-            role: primaryRole,
-            display_name: displayName || username,
-          },
-          emailRedirectTo: window.location.origin + '/login.html'
+          data: { username, role: primaryRole, display_name: displayName || username }
         }
       });
 
@@ -612,99 +682,230 @@
         let msg = error.message;
         if (msg.includes('already registered') || msg.includes('already been registered')) {
           showMsg('⚠️ This email is already registered. <a href="login.html" style="color:#a855f7;">Log in instead?</a>', 'error');
-        } else if (msg.includes('invalid email')) {
-          showMsg('⚠️ Please enter a valid email address.', 'error');
-        } else if (msg.includes('Password should')) {
-          showMsg('⚠️ ' + msg, 'error');
         } else {
           showMsg('⚠️ ' + msg, 'error');
         }
-        btn.disabled = false;
-        btn.innerHTML = '🎵 Create My Account';
+        btn.disabled = false; btn.innerHTML = '🎵 Create My Account';
         return;
       }
 
-      // Create profile row
       if (data && data.user) {
-        let profileSaved = false;
-        const userId = data.user.id;
+        signupUserId = data.user.id;
+        signupEmail = email;
 
-        // Full profile data
-        const profileData = {
-          user_id: userId,
-          email: email,
-          username: username,
-          display_name: displayName || username,
-          role: primaryRole,
-          badges: badges,
-          verified_artist: false,
-          verify_url: spotifyUrl || null,
-          coins: 50
-        };
-
-        // Attempt 1: Full insert
+        // Create profile row
         try {
+          const profileData = {
+            user_id: signupUserId,
+            email: email,
+            username: username,
+            display_name: displayName || username,
+            role: primaryRole,
+            badges: badges,
+            verified_artist: false,
+            verify_url: spotifyUrl || null,
+            email_verified: false,
+            coins: 50
+          };
           const { error: err1 } = await db.from('profiles').insert(profileData);
-          if (!err1) { profileSaved = true; }
-          else {
+          if (err1) {
             console.warn('Full insert failed:', err1.message);
-            // Attempt 2: Upsert
             const { error: err2 } = await db.from('profiles').upsert(profileData, { onConflict: 'user_id' });
-            if (!err2) { profileSaved = true; }
-            else {
+            if (err2) {
               console.warn('Upsert failed:', err2.message);
-              // Attempt 3: Minimal insert (fewest columns possible)
-              const { error: err3 } = await db.from('profiles').insert({
-                user_id: userId,
-                username: username,
-                role: primaryRole
-              });
-              if (!err3) { profileSaved = true; }
-              else {
-                console.error('All profile inserts failed:', err3.message);
-                // Show error but DON'T block — auth account was created
-                showMsg('⚠️ Account created but profile setup had an issue: ' + err3.message + '. You can still log in and the owner can fix your profile.', 'error');
-              }
+              await db.from('profiles').insert({ user_id: signupUserId, username: username, role: primaryRole });
             }
           }
-        } catch(e) {
-          console.error('Profile creation error:', e);
-          showMsg('⚠️ Account created but profile had an error: ' + (e.message || 'unknown') + '. Try logging in — the owner can fix this.', 'error');
-        }
+        } catch(e) { console.warn('Profile:', e.message); }
 
-        // If artist/beatmaker, submit verification request
-        if (needsVerify && spotifyUrl) {
+        // Submit artist verification request
+        if (needsArtistVerify && spotifyUrl) {
           try {
             await db.from('verification_requests').insert({
-              user_id: userId,
+              user_id: signupUserId,
               spotify_url: spotifyUrl,
               roles: selectedRoles.filter(r => r === 'artist' || r === 'beatmaker'),
               status: 'pending'
             });
-          } catch(e) {
-            console.warn('Verification request note:', e.message);
-            // Not fatal — verify_url saved in profile
-          }
+          } catch(e) { console.warn('Verify request:', e.message); }
         }
-      }
 
-      // Show success screen
-      document.getElementById('formSection').style.display = 'none';
-      document.getElementById('confirmedEmail').textContent = email;
-      if (needsVerify) {
-        document.getElementById('pendingNote').style.display = 'block';
+        // Generate and send verification code
+        btn.innerHTML = '<span class="spinner"></span>Sending verification email…';
+        verificationCode = generateCode();
+
+        // Save code to DB for server-side check (optional but good)
+        try {
+          await db.from('email_verifications').upsert({
+            user_id: signupUserId,
+            email: email,
+            code: verificationCode,
+            expires_at: new Date(Date.now() + 15 * 60000).toISOString()
+          }, { onConflict: 'user_id' });
+        } catch(e) {
+          // Table may not exist — code still stored in memory
+          console.warn('Verification table:', e.message);
+        }
+
+        const sent = await sendVerificationEmail(email, displayName || username, verificationCode);
+        if (!sent) {
+          showMsg('⚠️ Could not send verification email. Please check your email address and try again.', 'error');
+          btn.disabled = false; btn.innerHTML = '🎵 Create My Account';
+          return;
+        }
+
+        // Show step 3: enter code
+        document.getElementById('verifyEmailDisplay').textContent = email;
+        goStep(3);
+        setupCodeInputs();
+        startResendCooldown();
       }
-      document.getElementById('successSection').classList.add('show');
 
     } catch(e) {
       console.error('Signup error:', e);
-      showMsg('⚠️ Something went wrong. Please try again.', 'error');
-      btn.disabled = false;
-      btn.innerHTML = '🎵 Create My Account';
+      showMsg('⚠️ Something went wrong: ' + (e.message || 'unknown'), 'error');
+      btn.disabled = false; btn.innerHTML = '🎵 Create My Account';
     }
   }
 
-  // Allow Enter key to submit on step 2
+  /* ── CODE INPUT UX (auto-advance, paste support) ── */
+  function setupCodeInputs() {
+    const inputs = document.querySelectorAll('#codeInputs input');
+    inputs.forEach((inp, i) => {
+      inp.value = '';
+      inp.classList.remove('correct', 'wrong');
+
+      inp.addEventListener('input', function() {
+        this.value = this.value.replace(/[^0-9]/g, '');
+        if (this.value && i < inputs.length - 1) {
+          inputs[i + 1].focus();
+        }
+      });
+
+      inp.addEventListener('keydown', function(e) {
+        if (e.key === 'Backspace' && !this.value && i > 0) {
+          inputs[i - 1].focus();
+        }
+        if (e.key === 'Enter') {
+          verifyCode();
+        }
+      });
+
+      // Handle paste of full code
+      inp.addEventListener('paste', function(e) {
+        e.preventDefault();
+        const paste = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '');
+        if (paste.length >= 6) {
+          for (let j = 0; j < 6; j++) {
+            inputs[j].value = paste[j] || '';
+          }
+          inputs[5].focus();
+        }
+      });
+    });
+    inputs[0].focus();
+  }
+
+  /* ── VERIFY THE CODE ── */
+  async function verifyCode() {
+    const inputs = document.querySelectorAll('#codeInputs input');
+    let entered = '';
+    inputs.forEach(inp => { entered += inp.value; });
+
+    if (entered.length < 6) {
+      showVerifyMsg('⚠️ Please enter all 6 digits.', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('verifyBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Verifying…';
+
+    if (entered === verificationCode) {
+      // SUCCESS
+      inputs.forEach(inp => inp.classList.add('correct'));
+
+      // Mark email as verified in profile
+      try {
+        await db.from('profiles').update({ email_verified: true }).eq('user_id', signupUserId);
+      } catch(e) { console.warn('Mark verified:', e.message); }
+
+      // Clean up verification record
+      try {
+        await db.from('email_verifications').delete().eq('user_id', signupUserId);
+      } catch(e) {}
+
+      // Show success
+      setTimeout(() => {
+        document.getElementById('formSection').style.display = 'none';
+        if (needsArtistVerify) {
+          document.getElementById('pendingNote').style.display = 'block';
+        }
+        document.getElementById('successSection').classList.add('show');
+      }, 600);
+
+    } else {
+      // WRONG CODE
+      inputs.forEach(inp => inp.classList.add('wrong'));
+      showVerifyMsg('⚠️ Incorrect code. Please try again.', 'error');
+      btn.disabled = false;
+      btn.innerHTML = '✅ Verify My Email';
+      // Clear wrong state after a moment
+      setTimeout(() => {
+        inputs.forEach(inp => { inp.classList.remove('wrong'); inp.value = ''; });
+        inputs[0].focus();
+      }, 1200);
+    }
+  }
+
+  /* ── RESEND CODE WITH COOLDOWN ── */
+  function startResendCooldown() {
+    resendCooldown = 60;
+    const link = document.getElementById('resendLink');
+    const timer = document.getElementById('resendTimer');
+    link.classList.add('disabled');
+
+    const interval = setInterval(() => {
+      resendCooldown--;
+      if (resendCooldown <= 0) {
+        clearInterval(interval);
+        link.classList.remove('disabled');
+        timer.textContent = '';
+      } else {
+        timer.textContent = 'Wait ' + resendCooldown + 's before resending';
+      }
+    }, 1000);
+  }
+
+  async function resendCode() {
+    if (resendCooldown > 0) return;
+    const link = document.getElementById('resendLink');
+    link.textContent = 'Sending…';
+
+    verificationCode = generateCode();
+
+    // Update in DB
+    try {
+      await db.from('email_verifications').upsert({
+        user_id: signupUserId,
+        email: signupEmail,
+        code: verificationCode,
+        expires_at: new Date(Date.now() + 15 * 60000).toISOString()
+      }, { onConflict: 'user_id' });
+    } catch(e) {}
+
+    const sent = await sendVerificationEmail(signupEmail, '', verificationCode);
+    if (sent) {
+      showVerifyMsg('✅ New code sent! Check your email.', 'success');
+    } else {
+      showVerifyMsg('⚠️ Failed to resend. Try again in a moment.', 'error');
+    }
+
+    link.textContent = "Didn't get it? Resend code";
+    startResendCooldown();
+  }
+
+  // Enter key on step 2
   document.addEventListener('keydown', e => {
     if (e.key === 'Enter' && currentStep === 2 && !document.getElementById('submitBtn').disabled) doSignup();
   });
