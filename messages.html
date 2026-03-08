@@ -33,10 +33,10 @@ body{font-family:'Work Sans',sans-serif;background:linear-gradient(#0b0014,#000)
 .btn-success{background:rgba(34,197,94,.8);color:#fff;}.btn-success:hover{background:rgba(34,197,94,1);}
 .btn-danger{background:rgba(239,68,68,.8);color:#fff;}.btn-danger:hover{background:rgba(239,68,68,1);}
 .status-badge{display:inline-block;font-size:.65rem;padding:.15rem .4rem;border-radius:4px;font-weight:600;text-transform:uppercase;}
-.status-pending{background:rgba(245,158,11,.2);color:#f59e0b;border:1px solid rgba(245,158,11,.4);}
-.status-reviewed{background:rgba(59,130,246,.2);color:#3b82f6;border:1px solid rgba(59,130,246,.4);}
-.status-action{background:rgba(239,68,68,.2);color:#ef4444;border:1px solid rgba(239,68,68,.4);}
-.status-dismissed{background:rgba(107,114,128,.2);color:#6b7280;border:1px solid rgba(107,114,128,.4);}
+.status-pending{background:rgba(245,158,11,.2);color:#f59e0b;}
+.status-reviewed{background:rgba(59,130,246,.2);color:#3b82f6;}
+.status-action_taken{background:rgba(239,68,68,.2);color:#ef4444;}
+.status-dismissed{background:rgba(107,114,128,.2);color:#6b7280;}
 .empty{text-align:center;padding:3rem;color:var(--dim);}
 .empty div{font-size:3rem;margin-bottom:.75rem;}
 .links-row{display:flex;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap;}
@@ -54,203 +54,169 @@ body{font-family:'Work Sans',sans-serif;background:linear-gradient(#0b0014,#000)
 </div>
 
 <div class="container">
-  <!-- Quick links -->
   <div class="links-row">
     <a href="dm.html" class="link-card">
       <div class="icon">✉️</div>
       <div class="label">Direct Messages</div>
     </a>
-    <a href="chatroom.html" class="link-card">
+    <a href="chat.html" class="link-card">
       <div class="icon">💬</div>
       <div class="label">Community Chat</div>
     </a>
   </div>
 
-  <!-- Tabs (owner sees Reports, everyone sees Notifications) -->
   <div class="tabs" id="tabs"></div>
-
-  <!-- Content -->
   <div id="content"></div>
 </div>
 
 <script src="scripts.js" defer></script>
 <script>
-const SUPABASE_URL='https://novbuvwpjnxwwvdekjhr.supabase.co';
-const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
-const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
-const OWNER_ID='cb556180-f032-4b21-9470-1d786f2664ab';
-
-let currentUser=null;
-let isOwner=false;
-let activeTab='notifications';
-let reports=[];
-let pendingCount=0;
+var db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
+var OWNER_ID='cb556180-f032-4b21-9470-1d786f2664ab';
+var currentUser=null,isOwner=false,activeTab='notifications';
 
 async function init(){
-  const{data:{session}}=await db.auth.getSession();
-  if(!session){location.href='login.html?return=messages.html';return;}
-  currentUser=session.user;
-  isOwner=currentUser.id===OWNER_ID;
-
-  // Check profile role too
-  const{data:profile}=await db.from('profiles').select('role').eq('user_id',currentUser.id).single();
-  if(profile&&profile.role==='owner')isOwner=true;
-
-  buildTabs();
-  loadTab(activeTab);
+  try{
+    var s=await db.auth.getSession();
+    if(!s.data.session){location.href='login.html?return=messages.html';return;}
+    currentUser=s.data.session.user;
+    isOwner=currentUser.id===OWNER_ID;
+    var pr=await db.from('profiles').select('role').eq('user_id',currentUser.id).single();
+    if(pr.data&&(pr.data.role==='owner'||pr.data.role==='co-owner'))isOwner=true;
+    buildTabs();loadTab(activeTab);
+  }catch(e){document.getElementById('content').innerHTML='<div class="empty"><div>⚠️</div><p>'+e.message+'</p></div>';}
 }
 
 function buildTabs(){
-  const tabs=document.getElementById('tabs');
-  let html='<div class="tab active" data-tab="notifications" onclick="loadTab(\'notifications\')">🔔 Notifications</div>';
-  html+='<div class="tab" data-tab="dms" onclick="loadTab(\'dms\')">✉️ Recent DMs</div>';
-  if(isOwner){
-    html+='<div class="tab" data-tab="reports" onclick="loadTab(\'reports\')">🚩 Reports <span class="badge" id="reportBadge" style="display:none;">0</span></div>';
-  }
-  tabs.innerHTML=html;
-
-  // Load report count
+  var t=document.getElementById('tabs');
+  var h='<div class="tab active" data-tab="notifications" onclick="loadTab(\'notifications\')">🔔 Notifications</div>';
+  h+='<div class="tab" data-tab="dms" onclick="loadTab(\'dms\')">✉️ Recent DMs</div>';
+  if(isOwner) h+='<div class="tab" data-tab="reports" onclick="loadTab(\'reports\')">🚩 Reports <span class="badge" id="reportBadge" style="display:none;">0</span></div>';
+  t.innerHTML=h;
   if(isOwner)loadReportCount();
 }
 
 async function loadReportCount(){
-  const{count}=await db.from('message_reports').select('*',{count:'exact',head:true}).eq('status','pending');
-  pendingCount=count||0;
-  const badge=document.getElementById('reportBadge');
-  if(badge){
-    if(pendingCount>0){badge.style.display='inline';badge.textContent=pendingCount;}
-    else badge.style.display='none';
-  }
+  try{var r=await db.from('message_reports').select('*',{count:'exact',head:true}).eq('status','pending');
+  var b=document.getElementById('reportBadge');
+  if(b&&(r.count||0)>0){b.style.display='inline';b.textContent=r.count;}
+  }catch(e){}
 }
 
 function loadTab(tab){
   activeTab=tab;
-  document.querySelectorAll('.tab').forEach(t=>{
-    t.classList.toggle('active',t.dataset.tab===tab);
-  });
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('active',t.dataset.tab===tab);});
   if(tab==='notifications')loadNotifications();
   else if(tab==='dms')loadRecentDMs();
   else if(tab==='reports')loadReports();
 }
 
-// NOTIFICATIONS (placeholder for now - could be follow notifications, purchase alerts, etc.)
-function loadNotifications(){
-  const box=document.getElementById('content');
-  box.innerHTML='<div class="empty"><div>🔔</div><h3>No notifications yet</h3><p style="font-size:.85rem;color:var(--dim);">You\'ll see follow alerts, purchase notifications, and system messages here.</p></div>';
-}
-
-// RECENT DMs summary
-async function loadRecentDMs(){
-  const box=document.getElementById('content');
+async function loadNotifications(){
+  var box=document.getElementById('content');
   box.innerHTML='<div style="text-align:center;padding:2rem;color:var(--dim);">Loading...</div>';
-
-  const{data}=await db.from('direct_messages')
-    .select('id,sender_id,receiver_id,message,is_read,created_at')
-    .or('sender_id.eq.'+currentUser.id+',receiver_id.eq.'+currentUser.id)
-    .order('created_at',{ascending:false})
-    .limit(50);
-
-  if(!data||data.length===0){
-    box.innerHTML='<div class="empty"><div>✉️</div><h3>No messages yet</h3><p style="font-size:.85rem;">Start a conversation in <a href="dm.html" style="color:var(--primary);">Direct Messages</a></p></div>';
-    return;
-  }
-
-  // Group by partner, show latest
-  const seen={};
-  const recent=[];
-  data.forEach(dm=>{
-    const pid=dm.sender_id===currentUser.id?dm.receiver_id:dm.sender_id;
-    if(!seen[pid]){seen[pid]=true;recent.push({...dm,partnerId:pid});}
-  });
-
-  // Get profiles
-  const pids=recent.map(r=>r.partnerId);
-  const{data:profiles}=await db.from('profiles').select('user_id,username,display_name,avatar_url').in('user_id',pids);
-  const pMap={};
-  if(profiles)profiles.forEach(p=>pMap[p.user_id]=p);
-
-  box.innerHTML=recent.slice(0,20).map(r=>{
-    const p=pMap[r.partnerId]||{username:'user',display_name:'User'};
-    const isSent=r.sender_id===currentUser.id;
-    const unread=!isSent&&!r.is_read?' <span style="color:var(--primary);font-weight:700;">● NEW</span>':'';
-    return '<div class="card" style="cursor:pointer;" onclick="location.href=\'dm.html?user='+r.partnerId+'\'">'+
-      '<div class="card-header"><div class="card-title">'+(p.display_name||p.username)+unread+'</div><div class="card-time">'+timeAgo(r.created_at)+'</div></div>'+
-      '<div class="card-body">'+(isSent?'You: ':'')+esc(r.message.substring(0,100))+'</div></div>';
-  }).join('');
-}
-
-// REPORTS (owner only)
-async function loadReports(){
-  const box=document.getElementById('content');
-  box.innerHTML='<div style="text-align:center;padding:2rem;color:var(--dim);">Loading reports...</div>';
-
-  const{data,error}=await db.from('message_reports').select('*').order('created_at',{ascending:false}).limit(50);
-  if(error){box.innerHTML='<div class="card">Error loading reports.</div>';return;}
-  if(!data||data.length===0){
-    box.innerHTML='<div class="empty"><div>✅</div><h3>No reports</h3><p style="font-size:.85rem;color:var(--dim);">All clear! No messages have been reported.</p></div>';
-    return;
-  }
-  reports=data;
-
-  // Get reporter + reported profiles
-  const userIds=[...new Set(data.flatMap(r=>[r.reporter_id,r.reported_user_id]))];
-  const{data:profiles}=await db.from('profiles').select('user_id,username,display_name').in('user_id',userIds);
-  const pMap={};
-  if(profiles)profiles.forEach(p=>pMap[p.user_id]=p);
-
-  box.innerHTML=data.map(r=>{
-    const reporter=pMap[r.reporter_id]||{username:'unknown'};
-    const reported=pMap[r.reported_user_id]||{username:'unknown'};
-    const statusClass='status-'+r.status;
-    const source=r.message_source==='dm'?'DM':'Chat Room';
-
-    let actions='';
-    if(r.status==='pending'){
-      actions='<button class="btn-sm btn-success" onclick="updateReport(\''+r.id+'\',\'reviewed\')">✅ Mark Reviewed</button>'+
-        '<button class="btn-sm btn-danger" onclick="updateReport(\''+r.id+'\',\'action_taken\')">⚡ Action Taken</button>'+
-        '<button class="btn-sm btn-outline" onclick="updateReport(\''+r.id+'\',\'dismissed\')">Dismiss</button>';
+  try{
+    var r=await db.from('notifications').select('*').eq('user_id',currentUser.id).order('created_at',{ascending:false}).limit(30);
+    if(r.error)throw r.error;
+    var data=r.data||[];
+    if(!data.length){
+      box.innerHTML='<div class="empty"><div>🔔</div><h3>No notifications yet</h3><p style="font-size:.85rem;color:var(--dim);">Follow alerts, tips, purchases, and system messages will appear here.</p></div>';
+      return;
     }
-
-    return '<div class="card">'+
-      '<div class="card-header">'+
-        '<div class="card-title">🚩 Report — '+esc(reported.display_name||reported.username)+'</div>'+
-        '<div><span class="status-badge '+statusClass+'">'+r.status+'</span></div>'+
-      '</div>'+
-      '<div class="card-body">'+
-        '<div style="font-size:.78rem;color:rgba(234,230,255,.4);margin-bottom:.5rem;">'+
-          'Reported by: <strong>'+(reporter.display_name||reporter.username)+'</strong> • Source: '+source+' • '+timeAgo(r.created_at)+
-        '</div>'+
-        '<div class="card-quote">"'+esc(r.message_text)+'"</div>'+
-        (r.reason?'<div style="margin-top:.4rem;"><strong>Reason:</strong> '+esc(r.reason)+'</div>':'')+
-      '</div>'+
-      '<div class="card-actions">'+actions+
-        '<button class="btn-sm btn-outline" onclick="location.href=\'dm.html?user='+r.reported_user_id+'\'">Message User</button>'+
-        '<button class="btn-sm btn-danger" onclick="banFromReport(\''+r.reported_user_id+'\',\''+(reported.display_name||reported.username)+'\')">🚫 Ban User</button>'+
-      '</div></div>';
-  }).join('');
+    var icons={follow:'👤',like:'❤️',comment:'💬',purchase:'🛒',system:'📢',tip:'🪙',reshare:'🔁',friend_request:'🤝',verification:'✅'};
+    box.innerHTML=data.map(function(n){
+      var icon=icons[n.type]||'🔔';
+      var unread=!n.is_read?' style="border-left:3px solid var(--primary);"':'';
+      return '<div class="card"'+unread+' onclick="markRead(\''+n.id+'\')">'+
+        '<div class="card-header"><div class="card-title">'+icon+' '+esc(n.title||n.type||'Notification')+'</div><div class="card-time">'+timeAgo(n.created_at)+'</div></div>'+
+        '<div class="card-body">'+esc(n.message||n.body||'')+'</div>'+
+        (n.link?'<div style="margin-top:.5rem;"><a href="'+n.link+'" style="color:var(--primary);font-size:.82rem;">View →</a></div>':'')+
+        '</div>';
+    }).join('');
+  }catch(e){
+    box.innerHTML='<div class="empty"><div>🔔</div><h3>No notifications yet</h3><p style="font-size:.85rem;color:var(--dim);">Follow alerts, tips, purchases, and system messages will appear here.</p></div>';
+  }
 }
 
-async function updateReport(reportId,status){
-  await db.from('message_reports').update({status:status,reviewed_by:currentUser.id,reviewed_at:new Date().toISOString()}).eq('id',reportId);
-  loadReports();
-  loadReportCount();
+window.markRead=async function(id){try{await db.from('notifications').update({is_read:true}).eq('id',id);}catch(e){}};
+
+async function loadRecentDMs(){
+  var box=document.getElementById('content');
+  box.innerHTML='<div style="text-align:center;padding:2rem;color:var(--dim);">Loading...</div>';
+  try{
+    var r=await db.from('direct_messages').select('id,sender_id,receiver_id,message,is_read,created_at')
+      .or('sender_id.eq.'+currentUser.id+',receiver_id.eq.'+currentUser.id)
+      .order('created_at',{ascending:false}).limit(50);
+    var data=r.data||[];
+    if(!data.length){
+      box.innerHTML='<div class="empty"><div>✉️</div><h3>No messages yet</h3><p style="font-size:.85rem;">Start a conversation in <a href="dm.html" style="color:var(--primary);">Direct Messages</a></p></div>';
+      return;
+    }
+    var seen={},recent=[];
+    data.forEach(function(dm){var pid=dm.sender_id===currentUser.id?dm.receiver_id:dm.sender_id;if(!seen[pid]){seen[pid]=true;recent.push({dm:dm,partnerId:pid});}});
+    var pids=recent.map(function(r){return r.partnerId;});
+    var pr=await db.from('profiles').select('user_id,username,display_name,avatar_url').in('user_id',pids);
+    var pMap={};if(pr.data)pr.data.forEach(function(p){pMap[p.user_id]=p;});
+    box.innerHTML=recent.slice(0,20).map(function(r){
+      var p=pMap[r.partnerId]||{username:'user',display_name:'User'};
+      var isSent=r.dm.sender_id===currentUser.id;
+      var unread=!isSent&&!r.dm.is_read?' <span style="color:var(--primary);font-weight:700;">● NEW</span>':'';
+      return '<div class="card" style="cursor:pointer;" onclick="location.href=\'dm.html?user='+r.partnerId+'\'">'+
+        '<div class="card-header"><div class="card-title">'+(p.display_name||p.username)+unread+'</div><div class="card-time">'+timeAgo(r.dm.created_at)+'</div></div>'+
+        '<div class="card-body">'+(isSent?'You: ':'')+esc((r.dm.message||'').substring(0,100))+'</div></div>';
+    }).join('');
+  }catch(e){
+    box.innerHTML='<div class="empty"><div>✉️</div><h3>No messages yet</h3><p style="font-size:.85rem;">Start a conversation in <a href="dm.html" style="color:var(--primary);">Direct Messages</a></p></div>';
+  }
 }
 
-async function banFromReport(userId,username){
-  if(!confirm('Ban '+username+' from community chat?'))return;
-  await db.from('chatroom_bans').insert({user_id:userId,banned_by:currentUser.id,reason:'Banned after report review',ban_type:'permanent'});
-  alert(username+' has been banned.');
+async function loadReports(){
+  var box=document.getElementById('content');
+  box.innerHTML='<div style="text-align:center;padding:2rem;color:var(--dim);">Loading...</div>';
+  try{
+    var r=await db.from('message_reports').select('*').order('created_at',{ascending:false}).limit(50);
+    if(r.error)throw r.error;
+    var data=r.data||[];
+    if(!data.length){box.innerHTML='<div class="empty"><div>✅</div><h3>No reports</h3><p style="font-size:.85rem;color:var(--dim);">All clear!</p></div>';return;}
+    var uids=[];data.forEach(function(rp){if(rp.reporter_id)uids.push(rp.reporter_id);if(rp.reported_user_id)uids.push(rp.reported_user_id);});
+    uids=[...new Set(uids)];
+    var pr=await db.from('profiles').select('user_id,username,display_name').in('user_id',uids);
+    var pMap={};if(pr.data)pr.data.forEach(function(p){pMap[p.user_id]=p;});
+    box.innerHTML=data.map(function(rp){
+      var reporter=pMap[rp.reporter_id]||{username:'unknown'};
+      var reported=pMap[rp.reported_user_id]||{username:'unknown'};
+      var src=rp.message_source==='dm'?'DM':'Chat';
+      var acts='';
+      if(rp.status==='pending'){
+        acts='<button class="btn-sm btn-success" onclick="updateReport(\''+rp.id+'\',\'reviewed\')">✅ Reviewed</button>'+
+          '<button class="btn-sm btn-danger" onclick="updateReport(\''+rp.id+'\',\'action_taken\')">⚡ Action</button>'+
+          '<button class="btn-sm btn-outline" onclick="updateReport(\''+rp.id+'\',\'dismissed\')">Dismiss</button>';
+      }
+      return '<div class="card">'+
+        '<div class="card-header"><div class="card-title">🚩 '+esc(reported.display_name||reported.username)+'</div><span class="status-badge status-'+rp.status+'">'+rp.status+'</span></div>'+
+        '<div class="card-body"><div style="font-size:.78rem;color:rgba(234,230,255,.4);margin-bottom:.5rem;">By: '+(reporter.display_name||reporter.username)+' • '+src+' • '+timeAgo(rp.created_at)+'</div>'+
+        '<div class="card-quote">"'+esc(rp.message_text||'')+'"</div>'+
+        (rp.reason?'<div style="margin-top:.4rem;font-size:.85rem;"><strong>Reason:</strong> '+esc(rp.reason)+'</div>':'')+
+        '</div><div class="card-actions">'+acts+
+        '<button class="btn-sm btn-outline" onclick="location.href=\'dm.html?user='+rp.reported_user_id+'\'">Message</button>'+
+        '<button class="btn-sm btn-danger" onclick="banUser(\''+rp.reported_user_id+'\',\''+esc(reported.display_name||reported.username)+'\')">🚫 Ban</button></div></div>';
+    }).join('');
+  }catch(e){box.innerHTML='<div class="card">Error: '+e.message+'</div>';}
 }
 
-function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
-function timeAgo(d){const s=Math.floor((Date.now()-new Date(d))/1000);if(s<60)return'just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';}
+window.updateReport=async function(id,status){
+  await db.from('message_reports').update({status:status,reviewed_by:currentUser.id,reviewed_at:new Date().toISOString()}).eq('id',id);
+  loadReports();loadReportCount();
+};
+
+window.banUser=async function(userId,name){
+  if(!confirm('Ban '+name+' from chat?'))return;
+  try{await db.from('chatroom_bans').insert({user_id:userId,banned_by:currentUser.id,reason:'Banned after report',ban_type:'permanent'});alert(name+' banned.');}catch(e){alert('Error: '+e.message);}
+};
+
+function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
+function timeAgo(d){var s=Math.floor((Date.now()-new Date(d))/1000);if(s<60)return'just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';}
 
 init();
-</script>
-
-<!-- Safe avatar toggle -->
-<script>
-(function(){var b=document.createElement('button');b.innerHTML='👁️';b.style.cssText='position:fixed;top:80px;right:20px;z-index:9999;background:rgba(124,58,237,0.9);border:2px solid rgba(124,58,237,1);color:white;width:50px;height:50px;border-radius:50%;cursor:pointer;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(124,58,237,0.5);';document.body.appendChild(b);var h=localStorage.getItem('hideAvatarBubbles')==='true';function u(){document.querySelectorAll('[id*="bubble"],[class*="bubble"],[id*="avatar"][id*="switcher"]').forEach(function(el){if(el)el.style.display=h?'none':'';});b.innerHTML=h?'👁️‍🗨️':'👁️';}b.addEventListener('click',function(){h=!h;localStorage.setItem('hideAvatarBubbles',h);u();});u();})();
 </script>
 </body>
 </html>
