@@ -1,3 +1,75 @@
+// ═══════════════════════════════════════════════════════
+// 8BFR GLOBAL PERKS CHECK
+// Add this to the TOP of scripts.js
+// All pages can then use:
+//   window._8bfr.hasPerks     → true if owner or co-owner (free items, unlimited, boost)
+//   window._8bfr.isOwner      → true if owner ONLY (admin panel, bans, delete, payouts)
+//   window._8bfr.isAdmin      → true if owner, co-owner, or admin (moderation)
+//   window._8bfr.isCoOwner    → true if co-owner
+//   window._8bfr.role         → user's primary role string
+//   window._8bfr.badges       → user's badges array
+//   window._8bfr.userId       → user's UUID
+//   window._8bfr.ready        → promise that resolves when check is done
+// ═══════════════════════════════════════════════════════
+(function(){
+  var OWNER_ID = 'cb556180-f032-4b21-9470-1d786f2664ab';
+  var PERK_ROLES = ['owner','co-owner'];
+  var ADMIN_ROLES = ['owner','co-owner','admin'];
+
+  window._8bfr = {
+    hasPerks: false,
+    isOwner: false,
+    isCoOwner: false,
+    isAdmin: false,
+    role: null,
+    badges: [],
+    userId: null,
+    user: null,
+    ready: null
+  };
+
+  window._8bfr.ready = new Promise(function(resolve){
+    function check(){
+      if(!window.supabase || !window.supabase.createClient){
+        resolve(); return;
+      }
+      var db = window.supabase.createClient(
+        'https://novbuvwpjnxwwvdekjhr.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0'
+      );
+      db.auth.getSession().then(function(res){
+        var session = res.data && res.data.session;
+        if(!session || !session.user){ resolve(); return; }
+        window._8bfr.user = session.user;
+        window._8bfr.userId = session.user.id;
+
+        db.from('profiles').select('role,badges').eq('user_id', session.user.id).single()
+          .then(function(pr){
+            if(pr.data){
+              var role = pr.data.role || 'fan';
+              var badges = pr.data.badges || [];
+              window._8bfr.role = role;
+              window._8bfr.badges = badges;
+              window._8bfr.isOwner = (role === 'owner' || session.user.id === OWNER_ID);
+              window._8bfr.isCoOwner = (role === 'co-owner');
+              window._8bfr.hasPerks = (PERK_ROLES.indexOf(role) !== -1 || session.user.id === OWNER_ID);
+              window._8bfr.isAdmin = (ADMIN_ROLES.indexOf(role) !== -1 || session.user.id === OWNER_ID);
+            }
+            resolve();
+          }).catch(function(){ resolve(); });
+      }).catch(function(){ resolve(); });
+    }
+
+    if(document.readyState === 'loading'){
+      document.addEventListener('DOMContentLoaded', check);
+    } else {
+      check();
+    }
+  });
+})();
+
+
+
 // ========== FEATURED ADS + BUTTONS (index.html only, with swipe) ==========
 (function () {
   if (window._8bfrInlineCarousel) return;
