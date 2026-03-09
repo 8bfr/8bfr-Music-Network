@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>8BFR Products — 8BFR Music Network</title>
+<link rel="icon" href="assets/images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--primary:#7c3aed;--card:#0c0618;--text:#eae6ff;--dim:#a855f7;--border:rgba(124,58,237,.35);}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Work Sans',sans-serif;background:linear-gradient(#0b0014,#000);color:var(--text);min-height:100vh;padding-bottom:2rem;}
+.header{background:rgba(15,0,30,.95);border-bottom:2px solid var(--primary);padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;}
+.header h1{font-family:'Bebas Neue',cursive;font-size:1.5rem;color:var(--primary);}
+.container{max-width:900px;margin:0 auto;padding:1.5rem;}
+/* Category tabs */
+.cat-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:1.5rem;}
+.cat-tab{flex:1;text-align:center;padding:.7rem;font-weight:600;font-size:.85rem;cursor:pointer;color:rgba(234,230,255,.5);border:none;border-bottom:2px solid transparent;background:none;transition:all .2s;}
+.cat-tab.active{color:var(--primary);border-bottom-color:var(--primary);}
+/* Product grid */
+.product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;margin-bottom:2rem;}
+.product-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:all .2s;text-decoration:none;color:var(--text);display:block;}
+.product-card:hover{border-color:var(--primary);transform:translateY(-3px);box-shadow:0 8px 24px rgba(124,58,237,.2);}
+.product-img{width:100%;height:180px;background:rgba(124,58,237,.08);display:flex;align-items:center;justify-content:center;font-size:3.5rem;overflow:hidden;}
+.product-img img{width:100%;height:100%;object-fit:cover;}
+.product-body{padding:1rem;}
+.product-name{font-weight:700;font-size:.95rem;margin-bottom:.3rem;}
+.product-desc{font-size:.8rem;color:var(--dim);line-height:1.5;margin-bottom:.4rem;}
+.product-price{font-size:.88rem;font-weight:700;color:#4ade80;}
+.product-badge{display:inline-block;font-size:.65rem;padding:.15rem .5rem;border-radius:999px;font-weight:700;margin-top:.4rem;}
+.badge-amazon{background:rgba(255,153,0,.15);color:#ff9900;border:1px solid rgba(255,153,0,.3);}
+.badge-merch{background:rgba(124,58,237,.15);color:var(--dim);border:1px solid var(--border);}
+.badge-tiktok{background:rgba(105,201,208,.1);color:#69C9D0;border:1px solid rgba(105,201,208,.3);}
+/* Admin */
+.admin-section{background:rgba(124,58,237,.06);border:1px solid var(--border);border-radius:14px;padding:1.5rem;margin-bottom:2rem;}
+.admin-section h3{font-size:1rem;font-weight:700;color:var(--primary);margin-bottom:1rem;}
+.form-row{display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:.75rem;}.form-group{flex:1;min-width:180px;}
+.form-group label{display:block;font-size:.78rem;font-weight:600;color:var(--dim);margin-bottom:.3rem;}
+.form-input,.form-select{width:100%;padding:.55rem .8rem;background:rgba(0,0,0,.35);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.88rem;outline:none;box-sizing:border-box;}
+.form-select option{background:#1a0a2e;}
+.btn{background:var(--primary);color:#fff;border:none;padding:.6rem 1.2rem;border-radius:8px;cursor:pointer;font-weight:600;font-size:.85rem;}
+.btn-del{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3);padding:.3rem .6rem;font-size:.72rem;border-radius:6px;cursor:pointer;}
+.empty{text-align:center;padding:3rem;color:var(--dim);}
+.spinner{width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;margin:2rem auto;}
+@keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+<div class="header"><a href="index.html" style="color:var(--dim);text-decoration:none;font-weight:600;">← Home</a><h1>🛍️ 8BFR Products</h1><span></span></div>
+<div class="container">
+  <div style="text-align:center;margin-bottom:1.5rem;">
+    <p style="font-size:.9rem;color:var(--dim);line-height:1.7;">Official 8BFR merchandise, our Amazon shop, and featured TikTok products.</p>
+  </div>
+
+  <div class="cat-tabs">
+    <button class="cat-tab active" data-cat="all" onclick="switchCat('all',this)">🛍️ All</button>
+    <button class="cat-tab" data-cat="amazon" onclick="switchCat('amazon',this)">📦 Amazon Shop</button>
+    <button class="cat-tab" data-cat="merch" onclick="switchCat('merch',this)">👕 8BFR Merch</button>
+    <button class="cat-tab" data-cat="tiktok" onclick="switchCat('tiktok',this)">🎵 TikTok</button>
+  </div>
+
+  <div id="adminSection" style="display:none;"></div>
+  <div id="productList"><div class="spinner"></div></div>
+</div>
+<script src="scripts.js" defer></script>
+<script>
+var db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
+var isOwner=false,activeCat='all',allProducts=[];
+
+async function init(){
+  try{var s=await db.auth.getSession();if(s.data.session){var pr=await db.from('profiles').select('role').eq('user_id',s.data.session.user.id).single();if(pr.data&&(pr.data.role==='owner'||pr.data.role==='co-owner'))isOwner=true;}}catch(e){}
+  if(isOwner)showAdmin();loadProducts();
+}
+
+function showAdmin(){
+  var sec=document.getElementById('adminSection');sec.style.display='block';
+  sec.innerHTML='<div class="admin-section"><h3>➕ Add Product</h3>'
+    +'<div class="form-row"><div class="form-group"><label>Product Name *</label><input class="form-input" id="pName" placeholder="Product name"></div>'
+    +'<div class="form-group"><label>Category *</label><select class="form-input form-select" id="pCat"><option value="amazon">📦 Amazon Shop</option><option value="merch">👕 8BFR Merch</option><option value="tiktok">🎵 TikTok Showcase</option></select></div></div>'
+    +'<div class="form-row"><div class="form-group" style="flex:2;"><label>Product URL *</label><input class="form-input" id="pUrl" placeholder="https://amazon.com/..."></div></div>'
+    +'<div class="form-row"><div class="form-group" style="flex:2;"><label>Description</label><input class="form-input" id="pDesc" placeholder="Short description"></div></div>'
+    +'<div class="form-row"><div class="form-group"><label>Image URL</label><input class="form-input" id="pImg" placeholder="https://..."></div>'
+    +'<div class="form-group"><label>Price</label><input class="form-input" id="pPrice" placeholder="$19.99 or Free"></div></div>'
+    +'<button class="btn" onclick="addProduct()">Add Product</button> <span id="pNotice" style="font-size:.82rem;margin-left:.5rem;"></span>'
+    +'</div>';
+}
+
+window.addProduct=async function(){
+  var n=document.getElementById('pNotice');
+  var name=document.getElementById('pName').value.trim(),url=document.getElementById('pUrl').value.trim(),cat=document.getElementById('pCat').value;
+  if(!name||!url){n.textContent='Name+URL required';n.style.color='#ef4444';return;}
+  try{await db.from('products').insert({name:name,url:url,category:cat,description:document.getElementById('pDesc').value.trim()||null,image_url:document.getElementById('pImg').value.trim()||null,price:document.getElementById('pPrice').value.trim()||null});
+  n.textContent='Added!';n.style.color='#4ade80';document.getElementById('pName').value='';document.getElementById('pUrl').value='';document.getElementById('pDesc').value='';document.getElementById('pImg').value='';document.getElementById('pPrice').value='';loadProducts();}catch(e){n.textContent=e.message;n.style.color='#ef4444';}
+};
+
+window.deleteProduct=async function(id){if(!confirm('Delete?'))return;try{await db.from('products').delete().eq('id',id);loadProducts();}catch(e){alert(e.message);}};
+
+function switchCat(cat,btn){
+  activeCat=cat;
+  document.querySelectorAll('.cat-tab').forEach(function(t){t.classList.remove('active');});
+  if(btn)btn.classList.add('active');
+  renderProducts();
+}
+
+async function loadProducts(){
+  var el=document.getElementById('productList');
+  try{var r=await db.from('products').select('*').eq('active',true).order('sort_order');if(r.error)throw r.error;allProducts=r.data||[];renderProducts();}
+  catch(e){el.innerHTML='<div class="empty"><div style="font-size:3rem;margin-bottom:.75rem;">🛍️</div><p>Products coming soon!</p></div>';}
+}
+
+function renderProducts(){
+  var el=document.getElementById('productList');
+  var filtered=activeCat==='all'?allProducts:allProducts.filter(function(p){return p.category===activeCat;});
+  if(!filtered.length){
+    var msgs={all:'No products yet. Check back soon!',amazon:'No Amazon products yet.',merch:'No 8BFR merch yet.',tiktok:'No TikTok products yet.'};
+    el.innerHTML='<div class="empty"><div style="font-size:3rem;margin-bottom:.75rem;">🛍️</div><p>'+(msgs[activeCat]||'Nothing here yet.')+'</p></div>';return;
+  }
+  var badgeMap={amazon:'badge-amazon',merch:'badge-merch',tiktok:'badge-tiktok'};
+  var catLabel={amazon:'Amazon',merch:'8BFR Merch',tiktok:'TikTok'};
+  el.innerHTML='<div class="product-grid">'+filtered.map(function(p){
+    var img=p.image_url?'<img src="'+esc(p.image_url)+'" onerror="this.parentNode.innerHTML=\'🛍️\'">':'🛍️';
+    var badge='<span class="product-badge '+(badgeMap[p.category]||'badge-merch')+'">'+(catLabel[p.category]||p.category)+'</span>';
+    var del=isOwner?'<button class="btn-del" onclick="event.preventDefault();deleteProduct(\''+p.id+'\')">🗑️</button>':'';
+    return '<a href="'+esc(p.url)+'" target="_blank" rel="noopener" class="product-card">'
+      +'<div class="product-img">'+img+'</div>'
+      +'<div class="product-body"><div class="product-name">'+esc(p.name)+'</div>'
+      +'<div class="product-desc">'+esc(p.description||'')+'</div>'
+      +(p.price?'<div class="product-price">'+esc(p.price)+'</div>':'')+badge+' '+del
+      +'</div></a>';
+  }).join('')+'</div>';
+}
+
+function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
+init();
+</script>
+</body>
+</html>
