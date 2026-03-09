@@ -1,97 +1,194 @@
-<!DOCTYPE html><html lang="en"><head>
-<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>8BFR | Notifications</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
-<script src="https://cdn.tailwindcss.com"></script>
-<script defer src="assets/js/site-shell.js"></script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Notifications — 8BFR</title>
+<link rel="icon" href="assets/images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--primary:#7c3aed;--card:#0c0618;--text:#eae6ff;--dim:#a855f7;--border:rgba(124,58,237,.35);}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Work Sans',sans-serif;background:linear-gradient(#0b0014,#000);color:var(--text);min-height:100vh;padding-bottom:80px;}
+.header{background:rgba(15,0,30,.95);border-bottom:2px solid var(--primary);padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;}
+.header h1{font-family:'Bebas Neue',cursive;font-size:1.5rem;color:var(--primary);}
+.container{max-width:600px;margin:0 auto;padding:1.5rem;}
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:1.25rem;}
+.tab{flex:1;text-align:center;padding:.65rem;font-weight:600;font-size:.85rem;cursor:pointer;color:rgba(234,230,255,.5);border:none;border-bottom:2px solid transparent;background:none;transition:all .2s;}
+.tab.active{color:var(--primary);border-bottom-color:var(--primary);}
+.notif{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1rem 1.1rem;margin-bottom:.6rem;display:flex;gap:.85rem;align-items:flex-start;transition:all .15s;cursor:pointer;text-decoration:none;color:var(--text);}
+.notif:hover{border-color:var(--primary);background:rgba(124,58,237,.06);}
+.notif.unread{border-left:3px solid var(--primary);}
+.notif-icon{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;}
+.notif-body{flex:1;min-width:0;}
+.notif-title{font-weight:700;font-size:.88rem;margin-bottom:.15rem;}
+.notif-msg{font-size:.82rem;color:var(--dim);line-height:1.5;overflow:hidden;text-overflow:ellipsis;}
+.notif-time{font-size:.68rem;color:rgba(168,85,247,.4);margin-top:.25rem;}
+.empty{text-align:center;padding:3rem;color:var(--dim);}
+.empty-icon{font-size:3.5rem;margin-bottom:.75rem;}
+.mark-all{background:rgba(124,58,237,.12);border:1px solid var(--border);color:var(--dim);padding:.4rem .85rem;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer;transition:all .15s;}
+.mark-all:hover{background:rgba(124,58,237,.25);color:#eae6ff;}
+.count-badge{background:rgba(239,68,68,.8);color:#fff;font-size:.65rem;padding:.1rem .4rem;border-radius:10px;margin-left:.3rem;}
+.spinner{width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;margin:2rem auto;}
+@keyframes spin{to{transform:rotate(360deg);}}
+</style>
 </head>
-<body class="min-h-screen bg-[radial-gradient(ellipse_at_top,_#1a0022,_#000)] text-white font-[Poppins]">
-<div id="site-header"></div>
-<main class="max-w-6xl mx-auto px-4 py-10">
-<section class="rounded-2xl p-6 bg-black/50 border border-purple-700/40 shadow-xl">
-  <h2 class="text-2xl font-bold mb-2">Notifications</h2>
-  <p class="text-purple-200">Glassy neon starter • Supabase-ready stub.</p>
-</section>
-</main>
-<div id="site-footer"></div>
-<script defer src="assets/js/carousel.js"></script>
-<script defer src="assets/js/supabase.js"></script>
-  <!-- ADD THIS SCRIPT TO EVERY PAGE (except index.html where you want it always shown) -->
-<!-- Place it right before the closing </body> tag -->
+<body>
+<div class="header">
+  <a href="index.html" style="color:var(--dim);text-decoration:none;font-weight:600;">← Home</a>
+  <h1>🔔 Notifications</h1>
+  <span></span>
+</div>
 
+<div class="container">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+    <div class="tabs" style="flex:1;margin-bottom:0;">
+      <button class="tab active" data-tab="all" onclick="switchTab('all',this)">All <span id="allBadge" class="count-badge" style="display:none;"></span></button>
+      <button class="tab" data-tab="unread" onclick="switchTab('unread',this)">Unread</button>
+    </div>
+    <button class="mark-all" onclick="markAllRead()">✓ Mark all read</button>
+  </div>
+  <div id="notifList"><div class="spinner"></div></div>
+</div>
+
+<nav style="position:fixed;bottom:0;left:0;right:0;background:rgba(15,0,30,0.95);border-top:1px solid rgba(124,58,237,0.4);display:flex;justify-content:space-around;padding:0.5rem 0;z-index:200;">
+  <a href="index.html" style="text-decoration:none;text-align:center;color:rgba(234,230,255,0.6);font-size:0.7rem;">🏠<br>Home</a>
+  <a href="search.html" style="text-decoration:none;text-align:center;color:rgba(234,230,255,0.6);font-size:0.7rem;">🔍<br>Search</a>
+  <a href="feed.html" style="text-decoration:none;text-align:center;color:rgba(234,230,255,0.6);font-size:0.7rem;">📰<br>Feed</a>
+  <a href="radio.html" style="text-decoration:none;text-align:center;color:rgba(234,230,255,0.6);font-size:0.7rem;">📻<br>Radio</a>
+  <a href="profile.html" style="text-decoration:none;text-align:center;color:rgba(234,230,255,0.6);font-size:0.7rem;">👤<br>Profile</a>
+</nav>
+
+<script src="scripts.js" defer></script>
 <script>
-// Avatar & Bubble Toggle System
-(function() {
-    // Create toggle button
-    const toggleBtn = document.createElement('button');
-    toggleBtn.id = 'avatarToggle';
-    toggleBtn.innerHTML = '👁️';
-    toggleBtn.title = 'Toggle Avatar/Bubbles';
-    toggleBtn.style.cssText = `
-        position: fixed;
-        top: 80px;
-        right: 20px;
-        z-index: 9999;
-        background: rgba(124, 58, 237, 0.9);
-        border: 2px solid rgba(124, 58, 237, 1);
-        color: white;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.5);
-        transition: all 0.3s ease;
-    `;
-    
-    toggleBtn.addEventListener('mouseenter', function() {
-        this.style.transform = 'scale(1.1)';
-    });
-    
-    toggleBtn.addEventListener('mouseleave', function() {
-        this.style.transform = 'scale(1)';
-    });
-    
-    document.body.appendChild(toggleBtn);
-    
-    // Load saved preference
-    let isHidden = localStorage.getItem('hideAvatarBubbles') === 'true';
-    
-    function updateVisibility() {
-        const elementsToToggle = [
-            document.getElementById('homeAvatarSwitcher'),
-            ...document.querySelectorAll('[id*="bubble"]'),
-            ...document.querySelectorAll('[class*="bubble"]'),
-            ...document.querySelectorAll('[id*="avatar"][id*="switcher"]')
-        ];
-        
-        elementsToToggle.forEach(el => {
-            if (el) {
-                el.style.display = isHidden ? 'none' : '';
-            }
-        });
-        
-        toggleBtn.innerHTML = isHidden ? '👁️‍🗨️' : '👁️';
-        toggleBtn.title = isHidden ? 'Show Avatar/Bubbles' : 'Hide Avatar/Bubbles';
-    }
-    
-    toggleBtn.addEventListener('click', function() {
-        isHidden = !isHidden;
-        localStorage.setItem('hideAvatarBubbles', isHidden);
-        updateVisibility();
-    });
-    
-    // Apply on load
-    updateVisibility();
-    
-    // Watch for dynamically added elements
-    const observer = new MutationObserver(updateVisibility);
-    observer.observe(document.body, { childList: true, subtree: true });
-})();
-</script>
+var db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
+var currentUser=null,activeTab='all',allNotifs=[];
 
-</body></html>
+var ICONS={
+  follow:{icon:'👤',bg:'rgba(124,58,237,.15)'},
+  like:{icon:'❤️',bg:'rgba(244,114,182,.12)'},
+  comment:{icon:'💬',bg:'rgba(124,58,237,.15)'},
+  reshare:{icon:'🔁',bg:'rgba(34,197,94,.12)'},
+  tip:{icon:'🪙',bg:'rgba(251,191,36,.12)'},
+  purchase:{icon:'🛒',bg:'rgba(34,197,94,.15)'},
+  friend_request:{icon:'🤝',bg:'rgba(124,58,237,.15)'},
+  friend_accepted:{icon:'🎉',bg:'rgba(34,197,94,.12)'},
+  verification:{icon:'✅',bg:'rgba(0,217,255,.12)'},
+  system:{icon:'📢',bg:'rgba(124,58,237,.15)'},
+  badge:{icon:'🏅',bg:'rgba(251,191,36,.12)'},
+  mention:{icon:'@',bg:'rgba(124,58,237,.15)'},
+  story_view:{icon:'👁️',bg:'rgba(168,85,247,.12)'}
+};
+
+async function init(){
+  try{
+    var s=await db.auth.getSession();
+    if(!s.data.session){location.href='login.html?return=notifications.html';return;}
+    currentUser=s.data.session.user;
+    loadNotifications();
+
+    // Realtime: auto-refresh on new notifications
+    db.channel('notif-live')
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications',filter:'user_id=eq.'+currentUser.id},function(){
+        loadNotifications();
+      }).subscribe();
+  }catch(e){
+    document.getElementById('notifList').innerHTML='<div class="empty"><div class="empty-icon">⚠️</div><p>'+e.message+'</p></div>';
+  }
+}
+
+function switchTab(tab,btn){
+  activeTab=tab;
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+  if(btn)btn.classList.add('active');
+  renderList();
+}
+
+async function loadNotifications(){
+  var el=document.getElementById('notifList');
+  try{
+    var r=await db.from('notifications')
+      .select('*')
+      .eq('user_id',currentUser.id)
+      .order('created_at',{ascending:false})
+      .limit(50);
+
+    if(r.error)throw r.error;
+    allNotifs=r.data||[];
+
+    // Update unread badge
+    var unreadCount=allNotifs.filter(function(n){return !n.is_read;}).length;
+    var badge=document.getElementById('allBadge');
+    if(badge){
+      if(unreadCount>0){badge.textContent=unreadCount;badge.style.display='inline';}
+      else badge.style.display='none';
+    }
+
+    renderList();
+  }catch(e){
+    // Table may not exist — show setup message
+    el.innerHTML='<div class="empty"><div class="empty-icon">🔔</div><h3 style="font-size:1.1rem;font-weight:700;margin-bottom:.5rem;">No notifications yet</h3><p style="font-size:.85rem;">When someone follows you, likes your posts, sends you a tip, or other activity happens — you\'ll see it here.</p></div>';
+  }
+}
+
+function renderList(){
+  var el=document.getElementById('notifList');
+  var list=activeTab==='unread'?allNotifs.filter(function(n){return !n.is_read;}):allNotifs;
+
+  if(!list.length){
+    var msg=activeTab==='unread'?'All caught up! No unread notifications.':'No notifications yet. Activity will show up here.';
+    el.innerHTML='<div class="empty"><div class="empty-icon">'+(activeTab==='unread'?'✅':'🔔')+'</div><p style="font-size:.88rem;">'+msg+'</p></div>';
+    return;
+  }
+
+  el.innerHTML=list.map(function(n){
+    var cfg=ICONS[n.type]||ICONS.system;
+    var unreadClass=!n.is_read?'notif unread':'notif';
+    var link=n.link||'#';
+    var title=n.title||formatType(n.type);
+    var msg=n.message||n.body||'';
+    var time=timeAgo(n.created_at);
+
+    return '<a href="'+link+'" class="'+unreadClass+'" onclick="markRead(\''+n.id+'\')">'
+      +'<div class="notif-icon" style="background:'+cfg.bg+';">'+cfg.icon+'</div>'
+      +'<div class="notif-body">'
+        +'<div class="notif-title">'+esc(title)+'</div>'
+        +'<div class="notif-msg">'+esc(msg)+'</div>'
+        +'<div class="notif-time">'+time+'</div>'
+      +'</div>'
+    +'</a>';
+  }).join('');
+}
+
+function formatType(t){
+  var m={follow:'New Follower',like:'Post Liked',comment:'New Comment',reshare:'Post Reshared',tip:'Coin Tip Received',purchase:'New Purchase',friend_request:'Friend Request',friend_accepted:'Friend Accepted',verification:'Verification Update',system:'System',badge:'New Badge',mention:'You were mentioned',story_view:'Story Viewed'};
+  return m[t]||'Notification';
+}
+
+window.markRead=async function(id){
+  try{await db.from('notifications').update({is_read:true}).eq('id',id);}catch(e){}
+  // Update locally
+  allNotifs.forEach(function(n){if(n.id===id)n.is_read=true;});
+  var unread=allNotifs.filter(function(n){return !n.is_read;}).length;
+  var badge=document.getElementById('allBadge');
+  if(badge){if(unread>0){badge.textContent=unread;badge.style.display='inline';}else badge.style.display='none';}
+};
+
+window.markAllRead=async function(){
+  try{
+    await db.from('notifications').update({is_read:true}).eq('user_id',currentUser.id).eq('is_read',false);
+    allNotifs.forEach(function(n){n.is_read=true;});
+    var badge=document.getElementById('allBadge');
+    if(badge)badge.style.display='none';
+    renderList();
+  }catch(e){alert('Error: '+e.message);}
+};
+
+function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
+function timeAgo(d){var s=Math.floor((Date.now()-new Date(d))/1000);if(s<60)return'just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';}
+
+init();
+</script>
+</body>
+</html>
