@@ -115,7 +115,7 @@ async function loadNotifications(){
   var box=document.getElementById('content');
   box.innerHTML='<div style="text-align:center;padding:2rem;color:var(--dim);">Loading...</div>';
   try{
-    var r=await db.from('notifications').select('*').eq('user_id',currentUser.id).order('created_at',{ascending:false}).limit(30);
+    var r=await db.from('notifications').select('*').eq('recipient_id',currentUser.id).order('created_at',{ascending:false}).limit(30);
     if(r.error)throw r.error;
     var data=r.data||[];
     if(!data.length){
@@ -124,12 +124,12 @@ async function loadNotifications(){
     }
     var icons={follow:'👤',like:'❤️',comment:'💬',purchase:'🛒',system:'📢',tip:'🪙',reshare:'🔁',friend_request:'🤝',verification:'✅'};
     box.innerHTML=data.map(function(n){
-      var icon=icons[n.type]||'🔔';
+      var icon=icons[n.notif_type]||'🔔';
       var unread=!n.is_read?' style="border-left:3px solid var(--primary);"':'';
       return '<div class="card"'+unread+' onclick="markRead(\''+n.id+'\')">'+
-        '<div class="card-header"><div class="card-title">'+icon+' '+esc(n.title||n.type||'Notification')+'</div><div class="card-time">'+timeAgo(n.created_at)+'</div></div>'+
-        '<div class="card-body">'+esc(n.message||n.body||'')+'</div>'+
-        (n.link?'<div style="margin-top:.5rem;"><a href="'+n.link+'" style="color:var(--primary);font-size:.82rem;">View →</a></div>':'')+
+        '<div class="card-header"><div class="card-title">'+icon+' '+esc(n.notif_type||'Notification')+'</div><div class="card-time">'+timeAgo(n.created_at)+'</div></div>'+
+        '<div class="card-body">'+esc((n.metadata&&n.metadata.message)||'')+'</div>'+
+        ((n.metadata&&n.metadata.link)?'<div style="margin-top:.5rem;"><a href="'+(n.metadata.link)+'" style="color:var(--primary);font-size:.82rem;">View →</a></div>':'')+
         '</div>';
     }).join('');
   }catch(e){
@@ -137,7 +137,7 @@ async function loadNotifications(){
   }
 }
 
-window.markRead=async function(id){try{await db.from('notifications').update({is_read:true}).eq('id',id);}catch(e){}};
+window.markRead=async function(id){try{await db.from('notifications').update({is_read:true}).eq('id',id).eq('recipient_id',currentUser.id);}catch(e){}};
 
 async function loadRecentDMs(){
   var box=document.getElementById('content');
