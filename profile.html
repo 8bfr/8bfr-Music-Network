@@ -884,9 +884,61 @@
   }
 
   /* ── SOCIAL ── */
-  async function checkRel(tid){if(!currentUser)return;try{var sr=await db.from('follows').select('id').eq('follower_id',currentUser.id).eq('following_id',tid).limit(1);var btn=document.getElementById('followBtn');if(btn&&sr.data&&sr.data.length>0){btn.textContent='✓ Following';btn.style.background='#059669';}}catch(e){}}
-  window.toggleFollow=async function(){if(!currentUser||!profileData)return;var btn=document.getElementById('followBtn'),tid=profileData.user_id;try{var sr=await db.from('follows').select('id').eq('follower_id',currentUser.id).eq('following_id',tid).limit(1);if(sr.data&&sr.data.length>0){await db.from('follows').delete().eq('id',sr.data[0].id);btn.textContent='Follow';btn.style.background='#7c3aed';}else{await db.from('follows').insert({follower_id:currentUser.id,following_id:tid});btn.textContent='✓ Following';btn.style.background='#059669';}loadStats(tid);}catch(e){alert(e.message);}};
-  window.sendFR=async function(){if(!currentUser||!profileData)return;var btn=document.getElementById('friendBtn');try{var sr=await db.from('friends').select('id,status').or('and(user_id.eq.'+currentUser.id+',friend_id.eq.'+profileData.user_id+'),and(user_id.eq.'+profileData.user_id+',friend_id.eq.'+currentUser.id+')').limit(1);if(sr.data&&sr.data.length>0){btn.textContent=sr.data[0].status==='accepted'?'🤝 Friends':'⏳ Pending';return;}await db.from('friends').insert({user_id:currentUser.id,friend_id:profileData.user_id,status:'pending'});btn.textContent='⏳ Sent';}catch(e){alert(e.message);}};
+  async function checkRel(tid){
+    if(!currentUser)return;
+    // Check follow status
+    try{
+      var sr=await db.from('follows').select('id').eq('follower_id',currentUser.id).eq('following_id',tid).limit(1);
+      var btn=document.getElementById('followBtn');
+      if(btn){
+        if(sr.data&&sr.data.length>0){btn.textContent='✓ Following';btn.style.background='#059669';}
+        else{btn.textContent='Follow';btn.style.background='#7c3aed';}
+      }
+      if(sr.error)console.warn('Follow check error:',sr.error.message);
+    }catch(e){console.warn('Follow check:',e);}
+    // Check friend status
+    try{
+      var fr=await db.from('friends').select('id,status').or('and(user_id.eq.'+currentUser.id+',friend_id.eq.'+tid+'),and(user_id.eq.'+tid+',friend_id.eq.'+currentUser.id+')').limit(1);
+      var fbtn=document.getElementById('friendBtn');
+      if(fbtn&&fr.data&&fr.data.length>0){
+        if(fr.data[0].status==='accepted')fbtn.textContent='🤝 Friends';
+        else fbtn.textContent='⏳ Pending';
+      }
+      if(fr.error)console.warn('Friend check error:',fr.error.message);
+    }catch(e){console.warn('Friend check:',e);}
+  }
+  window.toggleFollow=async function(){
+    if(!currentUser||!profileData)return;
+    var btn=document.getElementById('followBtn'),tid=profileData.user_id;
+    try{
+      var sr=await db.from('follows').select('id').eq('follower_id',currentUser.id).eq('following_id',tid).limit(1);
+      if(sr.error){console.error('Follow read:',sr.error);alert('Error: '+sr.error.message);return;}
+      if(sr.data&&sr.data.length>0){
+        var dr=await db.from('follows').delete().eq('id',sr.data[0].id);
+        if(dr.error){console.error('Unfollow:',dr.error);alert('Error: '+dr.error.message);return;}
+        btn.textContent='Follow';btn.style.background='#7c3aed';
+      }else{
+        var ir=await db.from('follows').insert({follower_id:currentUser.id,following_id:tid});
+        if(ir.error){console.error('Follow:',ir.error);alert('Error: '+ir.error.message);return;}
+        btn.textContent='\u2713 Following';btn.style.background='#059669';
+      }
+      loadStats(tid);
+    }catch(e){console.error('Follow:',e);alert(e.message);}
+  };
+  window.sendFR=async function(){
+    if(!currentUser||!profileData)return;
+    var btn=document.getElementById('friendBtn');
+    try{
+      var sr=await db.from('friends').select('id,status').or('and(user_id.eq.'+currentUser.id+',friend_id.eq.'+profileData.user_id+'),and(user_id.eq.'+profileData.user_id+',friend_id.eq.'+currentUser.id+')').limit(1);
+      if(sr.error){console.error('Friend check:',sr.error);alert('Error: '+sr.error.message);return;}
+      if(sr.data&&sr.data.length>0){
+        btn.textContent=sr.data[0].status==='accepted'?'\ud83e\udd1d Friends':'\u23f3 Pending';return;
+      }
+      var ir=await db.from('friends').insert({user_id:currentUser.id,friend_id:profileData.user_id,status:'pending'});
+      if(ir.error){console.error('Friend req:',ir.error);alert('Error: '+ir.error.message);return;}
+      btn.textContent='\u23f3 Sent';
+    }catch(e){console.error('Friend:',e);alert(e.message);}
+  };
 
   /* ── SONG UPLOAD ── */
   window.toggleUF=function(){var f=document.getElementById('uploadForm');f.style.display=f.style.display==='none'?'block':'none';};
