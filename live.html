@@ -4,230 +4,88 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>8BFR Live — 8BFR Music Network</title>
-  <meta name="description" content="Watch artists and creators go live on 8BFR Music Network">
   <link rel="icon" href="assets/images/favicon.png">
-  <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- ══════════════════════════════════════════════
-       SUPABASE CONFIG
-       Paste your real values here:
-       Supabase Dashboard → Settings → API
-  ══════════════════════════════════════════════ -->
-  <script>
-    const SUPABASE_URL      =  "https://novbuvwpjnxwwvdekjhr.supabase.co";
-    const SUPABASE_ANON_KEY = '"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0";';
-  </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
   <style>
-    :root {
-      --purple: #7c3aed;
-      --purple-light: #a855f7;
-      --purple-dark: #5b21b6;
-      --cyan: #00d9ff;
-      --red-live: #ff3b3b;
-    }
-    * { box-sizing: border-box; }
-    body {
-      font-family: system-ui, -apple-system, sans-serif;
-      background: linear-gradient(#0b0014, #000);
-      color: #eae6ff; margin: 0; padding: 0;
-      min-height: 100vh; padding-bottom: 80px;
-    }
-
-    /* ── AUTH GATE SCREEN ── */
-    /* Shows while checking auth — prevents any flash of content */
-    #authGate {
-      position: fixed; inset: 0; z-index: 99999;
-      background: linear-gradient(135deg, #0b0014, #000);
-      display: flex; align-items: center; justify-content: center;
-      flex-direction: column; gap: 1rem;
-    }
-    .gate-spinner {
-      width: 48px; height: 48px;
-      border: 3px solid rgba(124,58,237,0.3);
-      border-top-color: #a855f7;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .gate-text { color: #a855f7; font-size: 0.9rem; }
-
-    /* ── MAIN PAGE (hidden until auth confirmed) ── */
-    #pageContent { display: none; }
-
-    .page-header {
-      background: rgba(15,0,30,0.95); border-bottom: 1px solid rgba(124,58,237,0.5);
-      padding: 1rem; position: sticky; top: 0; z-index: 200;
-      backdrop-filter: blur(12px);
-    }
-    .header-inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
-
-    .live-badge {
-      display: inline-flex; align-items: center; gap: 0.4rem;
-      background: var(--red-live); color: white;
-      font-size: 0.7rem; font-weight: 800; letter-spacing: 0.1em;
-      padding: 0.2rem 0.6rem; border-radius: 4px; text-transform: uppercase;
-      animation: pulse-badge 2s infinite;
-    }
-    .live-dot { width: 7px; height: 7px; background: white; border-radius: 50%; animation: blink 1.2s infinite; }
-    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
-    @keyframes pulse-badge { 0%,100%{box-shadow:0 0 0 0 rgba(255,59,59,0.5)} 50%{box-shadow:0 0 0 6px rgba(255,59,59,0)} }
-
-    .user-chip {
-      display: flex; align-items: center; gap: 0.5rem;
-      background: rgba(124,58,237,0.15); border: 1px solid rgba(124,58,237,0.4);
-      border-radius: 20px; padding: 0.3rem 0.75rem 0.3rem 0.4rem;
-      font-size: 0.8rem;
-    }
-    .user-avatar {
-      width: 26px; height: 26px; border-radius: 50%;
-      background: linear-gradient(135deg, #7c3aed, #a855f7);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 0.75rem; font-weight: 700; color: white; flex-shrink: 0;
-    }
-    .btn-signout {
-      padding: 0.35rem 0.75rem; background: rgba(239,68,68,0.15);
-      color: #f87171; border: 1px solid rgba(239,68,68,0.3);
-      border-radius: 6px; font-size: 0.78rem; font-weight: 600;
-      cursor: pointer; transition: all 0.15s;
-    }
-    .btn-signout:hover { background: rgba(239,68,68,0.25); }
-
-    .go-live-section {
-      background: linear-gradient(135deg, rgba(124,58,237,0.15), rgba(0,217,255,0.05));
-      border-bottom: 1px solid rgba(124,58,237,0.3);
-      padding: 2rem 1rem;
-    }
-    .go-live-inner { max-width: 700px; margin: 0 auto; text-align: center; }
-    .go-live-title {
-      font-size: 1.6rem; font-weight: 800; margin-bottom: 0.5rem;
-      background: linear-gradient(135deg, #e879f9, #00d9ff);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-    }
-
-    .submit-form {
-      background: rgba(12,6,24,0.9); border: 1px solid rgba(124,58,237,0.4);
-      border-radius: 16px; padding: 1.5rem; text-align: left;
-    }
-    .form-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
-    .form-group { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 0.35rem; }
-    .form-label { font-size: 0.8rem; font-weight: 600; color: #a855f7; text-transform: uppercase; letter-spacing: 0.05em; }
-    .form-input {
-      background: rgba(5,0,15,0.8); border: 1px solid rgba(124,58,237,0.4);
-      border-radius: 8px; padding: 0.65rem 0.9rem; color: #eae6ff;
-      font-size: 0.95rem; outline: none; transition: border-color 0.2s; width: 100%;
-    }
-    .form-input:focus { border-color: var(--purple-light); }
-    .form-input::placeholder { color: rgba(168,85,247,0.4); }
-
-    .platform-selector { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
-    .platform-chip {
-      padding: 0.4rem 0.8rem; border-radius: 20px;
-      border: 1px solid rgba(124,58,237,0.4); background: rgba(124,58,237,0.1);
-      color: #c4b5fd; font-size: 0.8rem; cursor: pointer; transition: all 0.15s; user-select: none;
-    }
-    .platform-chip:hover, .platform-chip.active { background: rgba(124,58,237,0.35); border-color: var(--purple-light); color: white; }
-
-    .btn-go-live {
-      width: 100%; padding: 0.85rem;
-      background: linear-gradient(135deg, #7c3aed, #a855f7);
-      color: white; border: none; border-radius: 10px;
-      font-size: 1rem; font-weight: 700; cursor: pointer; transition: all 0.2s;
-      display: flex; align-items: center; justify-content: center; gap: 0.5rem;
-    }
-    .btn-go-live:hover { background: linear-gradient(135deg,#6d28d9,#9333ea); transform: translateY(-1px); box-shadow: 0 4px 20px rgba(124,58,237,0.5); }
-    .btn-go-live:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-
-    .main-container { max-width: 1100px; margin: 0 auto; padding: 2rem 1rem; }
-    .section-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem; }
-    .streams-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px,1fr)); gap: 1.25rem; }
-
-    .stream-card {
-      background: rgba(12,6,24,0.85); border: 1px solid rgba(124,58,237,0.35);
-      border-radius: 14px; overflow: hidden; transition: all 0.2s;
-    }
-    .stream-card:hover { border-color: rgba(124,58,237,0.6); box-shadow: 0 0 24px rgba(124,58,237,0.2); transform: translateY(-2px); }
-    .stream-card.featured { grid-column: 1 / -1; }
-    .stream-embed-wrap { position: relative; width: 100%; padding-top: 56.25%; background: #000; }
-    .stream-embed-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; }
-    .stream-thumb {
-      position: absolute; inset: 0; display: flex; flex-direction: column;
-      align-items: center; justify-content: center; gap: 0.75rem;
-      text-decoration: none; color: white;
-      background: linear-gradient(135deg, rgba(20,0,40,0.95), rgba(0,0,20,0.95));
-    }
-    .stream-thumb:hover { background: linear-gradient(135deg, rgba(60,0,120,0.95), rgba(0,20,60,0.95)); }
-    .stream-thumb-icon { font-size: 3rem; }
-    .stream-thumb-platform { font-size: 1rem; font-weight: 700; color: #c4b5fd; }
-    .stream-thumb-cta { padding: 0.5rem 1.5rem; background: var(--purple); border-radius: 8px; font-size: 0.9rem; font-weight: 600; }
-
-    .stream-info { padding: 1rem 1.1rem; }
-    .stream-meta { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
-    .streamer-name { font-weight: 700; font-size: 1rem; }
-    .stream-platform-badge { font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 4px; font-weight: 600; text-transform: uppercase; }
-    .badge-youtube  { background: #ff0000; color: white; }
-    .badge-twitch   { background: #9146ff; color: white; }
-    .badge-facebook { background: #1877f2; color: white; }
-    .badge-tiktok   { background: #010101; color: #ff2d55; border: 1px solid #ff2d55; }
-    .badge-instagram { background: linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888); color: white; }
-    .badge-ps5      { background: #003791; color: white; }
-    .badge-other    { background: #374151; color: white; }
-    .stream-title { font-size: 0.9rem; color: #c4b5fd; margin-bottom: 0.35rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .stream-time  { font-size: 0.78rem; color: #6b7280; }
-    .stream-actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap; }
-    .btn-sm { padding: 0.4rem 0.85rem; border-radius: 6px; font-size: 0.82rem; font-weight: 600; cursor: pointer; text-decoration: none; border: none; transition: all 0.15s; }
-    .btn-watch  { background: var(--purple); color: white; }
-    .btn-watch:hover  { background: var(--purple-dark); }
-    .btn-remove { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
-    .btn-remove:hover { background: rgba(239,68,68,0.25); }
-
-    .empty-state { text-align: center; padding: 4rem 1rem; color: #4b5563; }
-    .platform-info { background: rgba(0,217,255,0.05); border: 1px solid rgba(0,217,255,0.2); border-radius: 12px; padding: 1.25rem; margin-top: 2rem; }
-    .platform-info h3 { font-size: 1rem; font-weight: 700; color: var(--cyan); margin-bottom: 1rem; }
-    .platform-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px,1fr)); gap: 0.6rem; }
-    .platform-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; }
-    .platform-status { font-size: 0.75rem; padding: 0.15rem 0.4rem; border-radius: 4px; }
-    .status-embed { background: rgba(34,197,94,0.2); color: #4ade80; }
-    .status-link  { background: rgba(234,179,8,0.2); color: #facc15; }
-
-    .spinner { display: inline-block; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
-    .toast {
-      position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px);
-      background: rgba(124,58,237,0.95); color: white; padding: 0.75rem 1.5rem;
-      border-radius: 10px; font-size: 0.9rem; font-weight: 600; z-index: 9999;
-      opacity: 0; transition: all 0.3s; pointer-events: none;
-      border: 1px solid rgba(168,85,247,0.6); white-space: nowrap;
-    }
-    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-    .bottom-nav-item {
-      display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
-      padding: 0.5rem 0.75rem; text-decoration: none; color: #a855f7;
-      transition: all 0.2s; border-radius: 0.5rem; flex: 1; max-width: 100px;
-    }
-    .bottom-nav-item:hover  { background: rgba(124,58,237,0.2); color: #c084fc; }
-    .bottom-nav-item.active { color: #fff; background: rgba(124,58,237,0.3); }
-    .bottom-nav-icon  { font-size: 1.25rem; line-height: 1; }
-    .bottom-nav-label { font-size: 0.7rem; font-weight: 600; text-align: center; }
-
-    @media(max-width:600px) {
-      .streams-grid { grid-template-columns: 1fr; }
-      .stream-card.featured { grid-column: auto; }
-    }
+    :root{--purple:#7c3aed;--purple-light:#a855f7;--purple-dark:#5b21b6;--cyan:#00d9ff;--red-live:#ff3b3b;}
+    *{box-sizing:border-box;}
+    body{font-family:system-ui,-apple-system,sans-serif;background:linear-gradient(#0b0014,#000);color:#eae6ff;margin:0;padding:0;min-height:100vh;padding-bottom:80px;}
+    #authGate{position:fixed;inset:0;z-index:99999;background:linear-gradient(135deg,#0b0014,#000);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem;}
+    .gate-spinner{width:48px;height:48px;border:3px solid rgba(124,58,237,0.3);border-top-color:#a855f7;border-radius:50%;animation:spin 0.8s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .gate-text{color:#a855f7;font-size:0.9rem;}
+    #pageContent{display:none;}
+    .page-header{background:rgba(15,0,30,0.95);border-bottom:1px solid rgba(124,58,237,0.5);padding:1rem;position:sticky;top:0;z-index:200;backdrop-filter:blur(12px);}
+    .header-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;}
+    .live-badge{display:inline-flex;align-items:center;gap:0.4rem;background:var(--red-live);color:white;font-size:0.7rem;font-weight:800;letter-spacing:0.1em;padding:0.2rem 0.6rem;border-radius:4px;text-transform:uppercase;animation:pulse-badge 2s infinite;}
+    .live-dot{width:7px;height:7px;background:white;border-radius:50%;animation:blink 1.2s infinite;}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
+    @keyframes pulse-badge{0%,100%{box-shadow:0 0 0 0 rgba(255,59,59,0.5)}50%{box-shadow:0 0 0 6px rgba(255,59,59,0)}}
+    .user-chip{display:flex;align-items:center;gap:0.5rem;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.4);border-radius:20px;padding:0.3rem 0.75rem 0.3rem 0.4rem;font-size:0.8rem;}
+    .user-avatar{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:white;flex-shrink:0;}
+    .btn-signout{padding:0.35rem 0.75rem;background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.3);border-radius:6px;font-size:0.78rem;font-weight:600;cursor:pointer;}
+    .go-live-section{background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(0,217,255,0.05));border-bottom:1px solid rgba(124,58,237,0.3);padding:2rem 1rem;}
+    .go-live-inner{max-width:700px;margin:0 auto;text-align:center;}
+    .go-live-title{font-size:1.6rem;font-weight:800;margin-bottom:0.5rem;background:linear-gradient(135deg,#e879f9,#00d9ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+    .submit-form{background:rgba(12,6,24,0.9);border:1px solid rgba(124,58,237,0.4);border-radius:16px;padding:1.5rem;text-align:left;}
+    .form-row{display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.75rem;}
+    .form-group{flex:1;min-width:200px;display:flex;flex-direction:column;gap:0.35rem;}
+    .form-label{font-size:0.8rem;font-weight:600;color:#a855f7;text-transform:uppercase;letter-spacing:0.05em;}
+    .form-input{background:rgba(5,0,15,0.8);border:1px solid rgba(124,58,237,0.4);border-radius:8px;padding:0.65rem 0.9rem;color:#eae6ff;font-size:0.95rem;outline:none;width:100%;}
+    .form-input:focus{border-color:var(--purple-light);}
+    .form-input::placeholder{color:rgba(168,85,247,0.4);}
+    .platform-selector{display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;}
+    .platform-chip{padding:0.4rem 0.8rem;border-radius:20px;border:1px solid rgba(124,58,237,0.4);background:rgba(124,58,237,0.1);color:#c4b5fd;font-size:0.8rem;cursor:pointer;transition:all 0.15s;user-select:none;}
+    .platform-chip:hover,.platform-chip.active{background:rgba(124,58,237,0.35);border-color:var(--purple-light);color:white;}
+    .btn-go-live{width:100%;padding:0.85rem;background:linear-gradient(135deg,#7c3aed,#a855f7);color:white;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;transition:all 0.2s;}
+    .btn-go-live:hover{background:linear-gradient(135deg,#6d28d9,#9333ea);transform:translateY(-1px);}
+    .btn-go-live:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
+    .main-container{max-width:1100px;margin:0 auto;padding:2rem 1rem;}
+    .section-title{font-size:1.25rem;font-weight:700;margin-bottom:1.25rem;display:flex;align-items:center;gap:0.5rem;}
+    .streams-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1.25rem;}
+    .stream-card{background:rgba(12,6,24,0.85);border:1px solid rgba(124,58,237,0.35);border-radius:14px;overflow:hidden;transition:all 0.2s;}
+    .stream-card:hover{border-color:rgba(124,58,237,0.6);box-shadow:0 0 24px rgba(124,58,237,0.2);transform:translateY(-2px);}
+    .stream-card.featured{grid-column:1/-1;}
+    .stream-embed-wrap{position:relative;width:100%;padding-top:56.25%;background:#000;}
+    .stream-embed-wrap iframe{position:absolute;inset:0;width:100%;height:100%;border:none;}
+    .stream-thumb{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.75rem;text-decoration:none;color:white;background:linear-gradient(135deg,rgba(20,0,40,0.95),rgba(0,0,20,0.95));}
+    .stream-thumb:hover{background:linear-gradient(135deg,rgba(60,0,120,0.95),rgba(0,20,60,0.95));}
+    .stream-thumb-icon{font-size:3rem;}
+    .stream-thumb-platform{font-size:1rem;font-weight:700;color:#c4b5fd;}
+    .stream-thumb-cta{padding:0.5rem 1.5rem;background:var(--purple);border-radius:8px;font-size:0.9rem;font-weight:600;}
+    .stream-info{padding:1rem 1.1rem;}
+    .stream-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;}
+    .streamer-name{font-weight:700;font-size:1rem;}
+    .stream-platform-badge{font-size:0.75rem;padding:0.2rem 0.6rem;border-radius:4px;font-weight:600;text-transform:uppercase;}
+    .badge-youtube{background:#ff0000;color:white;}.badge-twitch{background:#9146ff;color:white;}.badge-facebook{background:#1877f2;color:white;}.badge-tiktok{background:#010101;color:#ff2d55;border:1px solid #ff2d55;}.badge-instagram{background:linear-gradient(45deg,#f09433,#dc2743,#bc1888);color:white;}.badge-ps5{background:#003791;color:white;}.badge-other{background:#374151;color:white;}
+    .stream-title{font-size:0.9rem;color:#c4b5fd;margin-bottom:0.35rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .stream-time{font-size:0.78rem;color:#6b7280;}
+    .stream-profile-link{display:inline-flex;align-items:center;gap:0.3rem;margin-top:0.4rem;padding:0.25rem 0.65rem;border-radius:20px;background:rgba(0,217,255,0.08);border:1px solid rgba(0,217,255,0.25);color:var(--cyan);font-size:0.75rem;font-weight:600;text-decoration:none;transition:all .15s;}
+    .stream-profile-link:hover{background:rgba(0,217,255,0.18);}
+    .stream-actions{display:flex;gap:0.5rem;margin-top:0.75rem;flex-wrap:wrap;}
+    .btn-sm{padding:0.4rem 0.85rem;border-radius:6px;font-size:0.82rem;font-weight:600;cursor:pointer;text-decoration:none;border:none;transition:all 0.15s;}
+    .btn-watch{background:var(--purple);color:white;}.btn-watch:hover{background:var(--purple-dark);}
+    .btn-remove{background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.3);}.btn-remove:hover{background:rgba(239,68,68,0.25);}
+    .empty-state{text-align:center;padding:4rem 1rem;color:#4b5563;}
+    .platform-info{background:rgba(0,217,255,0.05);border:1px solid rgba(0,217,255,0.2);border-radius:12px;padding:1.25rem;margin-top:2rem;}
+    .platform-info h3{font-size:1rem;font-weight:700;color:var(--cyan);margin-bottom:1rem;}
+    .platform-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.6rem;}
+    .platform-item{display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;}
+    .platform-status{font-size:0.75rem;padding:0.15rem 0.4rem;border-radius:4px;}
+    .status-embed{background:rgba(34,197,94,0.2);color:#4ade80;}
+    .status-link{background:rgba(234,179,8,0.2);color:#facc15;}
+    .spinner{display:inline-block;border:2px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:spin 0.7s linear infinite;}
+    .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:rgba(124,58,237,0.95);color:white;padding:0.75rem 1.5rem;border-radius:10px;font-size:0.9rem;font-weight:600;z-index:9999;opacity:0;transition:all 0.3s;pointer-events:none;border:1px solid rgba(168,85,247,0.6);}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+    .hint{font-size:0.8rem;color:#6b7280;margin-bottom:0.75rem;padding:0.5rem 0.75rem;background:rgba(0,0,0,0.3);border-radius:6px;border-left:3px solid var(--purple);}
+    @media(max-width:600px){.streams-grid{grid-template-columns:1fr;}.stream-card.featured{grid-column:auto;}}
   </style>
 </head>
 <body>
 
-  <!-- ══ AUTH GATE — shown while checking session ══ -->
-  <div id="authGate">
-    <div class="gate-spinner"></div>
-    <div class="gate-text">Checking membership...</div>
-  </div>
+  <div id="authGate"><div class="gate-spinner"></div><div class="gate-text">Checking membership...</div></div>
 
-  <!-- ══ MAIN PAGE — hidden until auth confirmed ══ -->
   <div id="pageContent">
-
     <header class="page-header">
       <div class="header-inner">
         <div>
@@ -238,16 +96,9 @@
           <p style="font-size:0.8rem;color:#a855f7;margin:0;">Watch creators go live across every platform</p>
         </div>
         <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
-          <!-- Logged-in user chip -->
-          <div class="user-chip">
-            <div class="user-avatar" id="userAvatar">?</div>
-            <span id="userEmail" style="color:#c4b5fd;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
-          </div>
+          <div class="user-chip"><div class="user-avatar" id="userAvatar">?</div><span id="userEmail" style="color:#c4b5fd;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span></div>
           <button class="btn-signout" onclick="signOut()">Sign Out</button>
-          <button onclick="document.getElementById('goLiveSection').scrollIntoView({behavior:'smooth'})"
-            style="padding:0.5rem 1rem;background:var(--red-live);color:white;border:none;border-radius:8px;font-size:0.85rem;font-weight:700;cursor:pointer;">
-            🔴 Go Live
-          </button>
+          <button onclick="document.getElementById('goLiveSection').scrollIntoView({behavior:'smooth'})" style="padding:0.5rem 1rem;background:var(--red-live);color:white;border:none;border-radius:8px;font-size:0.85rem;font-weight:700;cursor:pointer;">🔴 Go Live</button>
           <a href="index.html" style="padding:0.5rem 0.85rem;background:rgba(18,3,39,0.8);color:#eae6ff;border:1px solid rgba(124,58,237,0.5);border-radius:8px;font-size:0.85rem;font-weight:600;text-decoration:none;">← Home</a>
         </div>
       </div>
@@ -259,14 +110,8 @@
         <p style="font-size:0.95rem;color:#a855f7;margin-bottom:1.5rem;">Post your stream link — we'll show it on 8BFR for all members to watch</p>
         <div class="submit-form">
           <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Your Name / Artist Tag</label>
-              <input class="form-input" id="streamerName" type="text" placeholder="e.g. DJ Phantom">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Stream Title</label>
-              <input class="form-input" id="streamTitle" type="text" placeholder="e.g. New beats session 🔥">
-            </div>
+            <div class="form-group"><label class="form-label">Your Name / Artist Tag</label><input class="form-input" id="streamerName" type="text" placeholder="e.g. DJ Phantom"></div>
+            <div class="form-group"><label class="form-label">Stream Title</label><input class="form-input" id="streamTitle" type="text" placeholder="e.g. New beats session 🔥"></div>
           </div>
           <div style="margin-bottom:0.75rem;">
             <div class="form-label" style="margin-bottom:0.4rem;">Platform</div>
@@ -281,14 +126,17 @@
             </div>
           </div>
           <div class="form-row">
+            <div class="form-group" style="flex:2;"><label class="form-label">Your Live Stream URL</label><input class="form-input" id="streamUrl" type="url" placeholder="Paste your live stream link here..."></div>
+          </div>
+          <!-- NEW: Streaming Profile Link -->
+          <div class="form-row">
             <div class="form-group" style="flex:2;">
-              <label class="form-label">Your Live Stream URL</label>
-              <input class="form-input" id="streamUrl" type="url" placeholder="Paste your live stream link here...">
+              <label class="form-label">Your Profile on This App <span style="font-size:.65rem;opacity:.5;text-transform:none;">(optional)</span></label>
+              <input class="form-input" id="profileUrl" type="url" placeholder="Link to your profile on the streaming platform">
+              <div style="font-size:.72rem;color:rgba(168,85,247,.4);margin-top:.25rem;">Viewers can follow you directly on the platform you're streaming from</div>
             </div>
           </div>
-          <div id="urlHint" style="font-size:0.8rem;color:#6b7280;margin-bottom:0.75rem;padding:0.5rem 0.75rem;background:rgba(0,0,0,0.3);border-radius:6px;border-left:3px solid var(--purple);">
-            💡 YouTube: Copy the URL from your live stream or YouTube Studio → Share
-          </div>
+          <div id="urlHint" class="hint">💡 YouTube: Copy the URL from your live stream or YouTube Studio → Share</div>
           <button class="btn-go-live" id="submitBtn" onclick="submitStream()">🔴 Post My Live Stream</button>
         </div>
       </div>
@@ -301,19 +149,13 @@
           <span id="liveCount" style="font-size:0.9rem;color:#6b7280;font-weight:400;"></span>
           <button onclick="loadStreams()" style="margin-left:auto;padding:0.3rem 0.75rem;background:rgba(124,58,237,0.2);color:#a855f7;border:1px solid rgba(124,58,237,0.4);border-radius:6px;font-size:0.8rem;cursor:pointer;">↻ Refresh</button>
         </div>
-        <div id="loadingState" style="text-align:center;padding:3rem;">
-          <div class="spinner" style="width:32px;height:32px;margin:0 auto 1rem;"></div>
-          <p style="color:#6b7280;font-size:0.9rem;">Loading streams...</p>
-        </div>
+        <div id="loadingState" style="text-align:center;padding:3rem;"><div class="spinner" style="width:32px;height:32px;margin:0 auto 1rem;"></div><p style="color:#6b7280;">Loading streams...</p></div>
         <div class="streams-grid" id="liveGrid"></div>
         <div class="empty-state" id="emptyState" style="display:none;">
           <div style="font-size:4rem;margin-bottom:1rem;">📡</div>
           <div style="font-size:1.2rem;font-weight:600;color:#6b7280;margin-bottom:0.5rem;">No Live Streams Right Now</div>
           <p style="font-size:0.9rem;">Be the first to go live on 8BFR today!</p>
-          <button onclick="document.getElementById('goLiveSection').scrollIntoView({behavior:'smooth'})"
-            style="margin-top:1rem;padding:0.65rem 1.5rem;background:var(--purple);color:white;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;">
-            🔴 Post a Stream
-          </button>
+          <button onclick="document.getElementById('goLiveSection').scrollIntoView({behavior:'smooth'})" style="margin-top:1rem;padding:0.65rem 1.5rem;background:var(--purple);color:white;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;">🔴 Post a Stream</button>
         </div>
       </div>
 
@@ -321,254 +163,174 @@
         <h3>📋 Supported Platforms</h3>
         <div class="platform-list">
           <div class="platform-item">▶️ <strong>YouTube Live</strong> <span class="platform-status status-embed">Embedded</span></div>
-          <div class="platform-item">💜 <strong>Twitch</strong>       <span class="platform-status status-embed">Embedded</span></div>
+          <div class="platform-item">💜 <strong>Twitch</strong> <span class="platform-status status-embed">Embedded</span></div>
           <div class="platform-item">📘 <strong>Facebook Live</strong> <span class="platform-status status-embed">Embedded</span></div>
-          <div class="platform-item">🎵 <strong>TikTok Live</strong>   <span class="platform-status status-link">Link Card</span></div>
-          <div class="platform-item">📸 <strong>Instagram Live</strong><span class="platform-status status-link">Link Card</span></div>
-          <div class="platform-item">🎮 <strong>PlayStation</strong>   <span class="platform-status status-link">Link Card</span></div>
+          <div class="platform-item">🎵 <strong>TikTok Live</strong> <span class="platform-status status-link">Link Card</span></div>
+          <div class="platform-item">📸 <strong>Instagram Live</strong> <span class="platform-status status-link">Link Card</span></div>
+          <div class="platform-item">🎮 <strong>PlayStation</strong> <span class="platform-status status-link">Link Card</span></div>
         </div>
-        <p style="font-size:0.8rem;color:#6b7280;margin-top:1rem;margin-bottom:0;">
-          <strong style="color:#4ade80;">Embedded</strong> = plays right here on 8BFR.
-          <strong style="color:#facc15;">Link Card</strong> = click-through (TikTok & Instagram block external embedding).
-          PlayStation users: stream to YouTube/Twitch first, then paste that link.
-        </p>
+        <p style="font-size:0.8rem;color:#6b7280;margin-top:1rem;margin-bottom:0;"><strong style="color:#4ade80;">Embedded</strong> = plays here. <strong style="color:#facc15;">Link Card</strong> = click-through. PS users: stream to YouTube/Twitch first, then paste that link.</p>
       </div>
     </div>
-
-  </div><!-- end #pageContent -->
+  </div>
 
   <div class="toast" id="toast"></div>
 
-  <nav class="fixed bottom-0 left-0 right-0 z-50" style="background:rgba(15,0,30,0.95);backdrop-filter:blur(12px);border-top:1px solid rgba(124,58,237,0.4);">
-    <div style="max-width:900px;margin:0 auto;padding:0.5rem;">
-      <div style="display:flex;align-items:center;justify-content:space-around;">
-        <a href="index.html"  class="bottom-nav-item"><div class="bottom-nav-icon">🏠</div><div class="bottom-nav-label">Home</div></a>
-        <a href="search.html" class="bottom-nav-item"><div class="bottom-nav-icon">🔍</div><div class="bottom-nav-label">Search</div></a>
-        <a href="feed.html"   class="bottom-nav-item"><div class="bottom-nav-icon">📰</div><div class="bottom-nav-label">Feed</div></a>
-        <a href="live.html"   class="bottom-nav-item active"><div class="bottom-nav-icon">📡</div><div class="bottom-nav-label">Live</div></a>
-        <a href="radio.html"  class="bottom-nav-item"><div class="bottom-nav-icon">📻</div><div class="bottom-nav-label">Radio</div></a>
-        <a href="shop.html"   class="bottom-nav-item"><div class="bottom-nav-icon">🛒</div><div class="bottom-nav-label">Shop</div></a>
-      </div>
+  <nav style="position:fixed;bottom:0;left:0;right:0;z-index:50;background:rgba(15,0,30,0.95);backdrop-filter:blur(12px);border-top:1px solid rgba(124,58,237,0.4);">
+    <div style="max-width:900px;margin:0 auto;padding:0.5rem;display:flex;align-items:center;justify-content:space-around;">
+      <a href="index.html" style="text-decoration:none;text-align:center;color:rgba(234,230,255,0.6);font-size:0.7rem;">🏠<br>Home</a>
+      <a href="search.html" style="text-decoration:none;text-align:center;color:rgba(234,230,255,0.6);font-size:0.7rem;">🔍<br>Search</a>
+      <a href="feed.html" style="text-decoration:none;text-align:center;color:rgba(234,230,255,0.6);font-size:0.7rem;">📰<br>Feed</a>
+      <a href="live.html" style="text-decoration:none;text-align:center;color:#a855f7;font-size:0.7rem;">📡<br>Live</a>
+      <a href="radio.html" style="text-decoration:none;text-align:center;color:rgba(234,230,255,0.6);font-size:0.7rem;">📻<br>Radio</a>
+      <a href="profile.html" style="text-decoration:none;text-align:center;color:rgba(234,230,255,0.6);font-size:0.7rem;">👤<br>Profile</a>
     </div>
   </nav>
 
   <script src="scripts.js" defer></script>
   <script>
-  // ════════════════════════════════════════════════════════════════
-  // 8BFR LIVE — Auth-Gated + Supabase
-  // ════════════════════════════════════════════════════════════════
+  var sb=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
+  var currentUser=null;
+  var selectedPlatform='youtube';
 
-  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  let currentUser = null;
-  let selectedPlatform = 'youtube';
-
-  // ── AUTH GATE ─────────────────────────────────────────────────
-  // Runs immediately on page load. No content shows until confirmed.
-  (async function checkAuth() {
-    try {
-      const { data: { session } } = await sb.auth.getSession();
-
-      if (!session || !session.user) {
-        // Not logged in → send to sign in
-        window.location.href = 'signin.html?redirect=live.html';
-        return;
-      }
-
-      currentUser = session.user;
-
-      // Show their email/initial in header
-      const email = currentUser.email || '';
-      const initial = email.charAt(0).toUpperCase() || '?';
-      document.getElementById('userAvatar').textContent = initial;
-      document.getElementById('userEmail').textContent  = email;
-
-      // Hide gate, show page
-      document.getElementById('authGate').style.display   = 'none';
-      document.getElementById('pageContent').style.display = 'block';
-
-      // Now safe to load data
+  // ── AUTH GATE ──
+  (async function(){
+    try{
+      var s=await sb.auth.getSession();
+      if(!s.data.session){location.href='login.html?return=live.html';return;}
+      currentUser=s.data.session.user;
+      var email=currentUser.email||'';
+      document.getElementById('userAvatar').textContent=email.charAt(0).toUpperCase()||'?';
+      document.getElementById('userEmail').textContent=email;
+      document.getElementById('authGate').style.display='none';
+      document.getElementById('pageContent').style.display='block';
+      // Pre-fill name from profile
+      try{var pr=await sb.from('profiles').select('display_name,username').eq('user_id',currentUser.id).single();if(pr.data)document.getElementById('streamerName').value=pr.data.display_name||pr.data.username||'';}catch(e){}
       loadStreams();
-
-    } catch(err) {
-      console.error('Auth check failed:', err);
-      window.location.href = 'signin.html?redirect=live.html';
-    }
+    }catch(e){location.href='login.html?return=live.html';}
   })();
 
-  // Also listen for session changes (e.g. token expiry)
-  sb.auth.onAuthStateChange((event, session) => {
-    if (event === 'SIGNED_OUT' || !session) {
-      window.location.href = 'signin.html?redirect=live.html';
-    }
-  });
+  sb.auth.onAuthStateChange(function(event,session){if(event==='SIGNED_OUT'||!session)location.href='login.html';});
 
-  // ── SIGN OUT ──────────────────────────────────────────────────
-  async function signOut() {
-    await sb.auth.signOut();
-    window.location.href = 'signin.html';
-  }
+  async function signOut(){await sb.auth.signOut();location.href='login.html';}
 
-  // ── PLATFORM CHIPS ───────────────────────────────────────────
-  document.querySelectorAll('.platform-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      document.querySelectorAll('.platform-chip').forEach(c => c.classList.remove('active'));
+  // ── PLATFORM CHIPS ──
+  document.querySelectorAll('.platform-chip').forEach(function(chip){
+    chip.addEventListener('click',function(){
+      document.querySelectorAll('.platform-chip').forEach(function(c){c.classList.remove('active');});
       chip.classList.add('active');
-      selectedPlatform = chip.dataset.platform;
+      selectedPlatform=chip.dataset.platform;
       updateHint();
     });
   });
 
-  const hints = {
-    youtube:   '💡 YouTube: Copy your live stream URL from YouTube Studio → Share',
-    twitch:    '💡 Twitch: e.g. https://twitch.tv/yourchannel',
-    facebook:  '💡 Facebook: Copy the URL of your live video post',
-    tiktok:    '💡 TikTok: Share your TikTok Live link — shows as a click-through card',
-    instagram: '💡 Instagram: Share your IG Live link — shows as a click-through card',
-    ps5:       '💡 PlayStation: Stream to YouTube or Twitch first, then paste that link',
-    other:     '💡 Paste any public live stream URL',
-  };
-  function updateHint() { document.getElementById('urlHint').textContent = hints[selectedPlatform] || hints.other; }
+  var hints={youtube:'💡 YouTube: Copy your live stream URL from YouTube Studio → Share',twitch:'💡 Twitch: e.g. https://twitch.tv/yourchannel',facebook:'💡 Facebook: Copy the URL of your live video post',tiktok:'💡 TikTok: Share your TikTok Live link',instagram:'💡 Instagram: Share your IG Live link',ps5:'💡 PlayStation: Stream to YouTube or Twitch first, then paste that link',other:'💡 Paste any public live stream URL'};
+  function updateHint(){document.getElementById('urlHint').textContent=hints[selectedPlatform]||hints.other;}
 
-  function detectPlatform(url) {
-    const u = url.toLowerCase();
-    if (u.includes('youtube.com') || u.includes('youtu.be')) return 'youtube';
-    if (u.includes('twitch.tv'))   return 'twitch';
-    if (u.includes('facebook.com') || u.includes('fb.watch')) return 'facebook';
-    if (u.includes('tiktok.com'))  return 'tiktok';
-    if (u.includes('instagram.com')) return 'instagram';
-    return selectedPlatform;
+  function detectPlatform(url){var u=url.toLowerCase();if(u.includes('youtube.com')||u.includes('youtu.be'))return'youtube';if(u.includes('twitch.tv'))return'twitch';if(u.includes('facebook.com')||u.includes('fb.watch'))return'facebook';if(u.includes('tiktok.com'))return'tiktok';if(u.includes('instagram.com'))return'instagram';return selectedPlatform;}
+
+  function getEmbed(platform,url){
+    try{
+      if(platform==='youtube'){for(var i=0;i<3;i++){var patterns=[/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/,/\/live\/([a-zA-Z0-9_-]{11})/,/\/embed\/([a-zA-Z0-9_-]{11})/];var m=url.match(patterns[i]);if(m)return{type:'embed',url:'https://www.youtube.com/embed/'+m[1]+'?autoplay=1'};}}
+      if(platform==='twitch'){var m=url.match(/twitch\.tv\/([a-zA-Z0-9_]+)/);if(m)return{type:'embed',url:'https://player.twitch.tv/?channel='+m[1]+'&parent='+(location.hostname||'localhost')+'&autoplay=true'};}
+      if(platform==='facebook')return{type:'embed',url:'https://www.facebook.com/plugins/video.php?href='+encodeURIComponent(url)+'&show_text=false&autoplay=true'};
+    }catch(e){}
+    return{type:'link',url:url};
   }
 
-  function getEmbed(platform, url) {
-    try {
-      if (platform === 'youtube') {
-        for (const p of [/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/, /\/live\/([a-zA-Z0-9_-]{11})/, /\/embed\/([a-zA-Z0-9_-]{11})/]) {
-          const m = url.match(p);
-          if (m) return { type: 'embed', url: `https://www.youtube.com/embed/${m[1]}?autoplay=1` };
-        }
-      }
-      if (platform === 'twitch') {
-        const m = url.match(/twitch\.tv\/([a-zA-Z0-9_]+)/);
-        if (m) return { type: 'embed', url: `https://player.twitch.tv/?channel=${m[1]}&parent=${window.location.hostname||'localhost'}&autoplay=true` };
-      }
-      if (platform === 'facebook') {
-        return { type: 'embed', url: `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=false&autoplay=true` };
-      }
-    } catch(e) {}
-    return { type: 'link', url };
-  }
+  var platMeta={youtube:{badge:'badge-youtube',label:'YouTube',icon:'▶️'},twitch:{badge:'badge-twitch',label:'Twitch',icon:'💜'},facebook:{badge:'badge-facebook',label:'Facebook',icon:'📘'},tiktok:{badge:'badge-tiktok',label:'TikTok',icon:'🎵'},instagram:{badge:'badge-instagram',label:'Instagram',icon:'📸'},ps5:{badge:'badge-ps5',label:'PS Live',icon:'🎮'},other:{badge:'badge-other',label:'Live',icon:'📡'}};
 
-  const platMeta = {
-    youtube:   { badge:'badge-youtube',  label:'YouTube',   icon:'▶️' },
-    twitch:    { badge:'badge-twitch',   label:'Twitch',    icon:'💜' },
-    facebook:  { badge:'badge-facebook', label:'Facebook',  icon:'📘' },
-    tiktok:    { badge:'badge-tiktok',   label:'TikTok',    icon:'🎵' },
-    instagram: { badge:'badge-instagram',label:'Instagram', icon:'📸' },
-    ps5:       { badge:'badge-ps5',      label:'PS Live',   icon:'🎮' },
-    other:     { badge:'badge-other',    label:'Live',      icon:'📡' },
-  };
+  function renderCard(s,featured){
+    var embed=getEmbed(s.platform,s.url);
+    var meta=platMeta[s.platform]||platMeta.other;
+    var isOwner=currentUser&&s.user_id===currentUser.id;
+    var embedHtml=embed.type==='embed'
+      ?'<iframe src="'+embed.url+'" allow="autoplay; fullscreen" allowfullscreen loading="lazy"></iframe>'
+      :'<a href="'+s.url+'" target="_blank" rel="noopener" class="stream-thumb"><div class="stream-thumb-icon">'+meta.icon+'</div><div class="stream-thumb-platform">'+meta.label+'</div><div class="stream-thumb-cta">▶ Watch on '+meta.label+'</div></a>';
 
-  function renderCard(s, featured) {
-    const embed = getEmbed(s.platform, s.url);
-    const meta  = platMeta[s.platform] || platMeta.other;
-    const isOwner = currentUser && s.user_id === currentUser.id;
-    const embedHtml = embed.type === 'embed'
-      ? `<iframe src="${embed.url}" allow="autoplay; fullscreen" allowfullscreen loading="lazy"></iframe>`
-      : `<a href="${s.url}" target="_blank" rel="noopener" class="stream-thumb">
-           <div class="stream-thumb-icon">${meta.icon}</div>
-           <div class="stream-thumb-platform">${meta.label}</div>
-           <div class="stream-thumb-cta">▶ Watch on ${meta.label}</div>
-         </a>`;
-    return `
-      <div class="stream-card${featured?' featured':''}">
-        <div class="stream-embed-wrap">${embedHtml}</div>
-        <div class="stream-info">
-          <div class="stream-meta">
-            <span class="streamer-name">${esc(s.streamer_name)}</span>
-            <span class="stream-platform-badge ${meta.badge}">${meta.label}</span>
-          </div>
-          <div class="stream-title">${esc(s.title||'Live Stream')}</div>
-          <div class="stream-time">🕐 Started ${timeAgo(s.created_at)}</div>
-          <div class="stream-actions">
-            <a href="${s.url}" target="_blank" rel="noopener" class="btn-sm btn-watch">
-              ${embed.type==='embed'?'🔗 Open Original':`▶ Watch on ${meta.label}`}
-            </a>
-            ${isOwner ? `<button class="btn-sm btn-remove" onclick="removeStream('${s.id}')">✕ Remove</button>` : ''}
-          </div>
-        </div>
-      </div>`;
-  }
-
-  function renderStreams(data) {
-    document.getElementById('loadingState').style.display = 'none';
-    const grid  = document.getElementById('liveGrid');
-    const empty = document.getElementById('emptyState');
-    const count = document.getElementById('liveCount');
-    if (!data || !data.length) {
-      grid.innerHTML = ''; empty.style.display = 'block'; count.textContent = ''; return;
+    // Streaming profile link
+    var profileLink='';
+    if(s.profile_url){
+      profileLink='<a href="'+esc(s.profile_url)+'" target="_blank" rel="noopener" class="stream-profile-link">👤 Follow on '+meta.label+'</a>';
     }
-    empty.style.display = 'none';
-    count.textContent = `${data.length} stream${data.length!==1?'s':''}`;
-    grid.innerHTML = data.map((s,i) => renderCard(s, i===0)).join('');
+
+    return '<div class="stream-card'+(featured?' featured':'')+'">'
+      +'<div class="stream-embed-wrap">'+embedHtml+'</div>'
+      +'<div class="stream-info">'
+        +'<div class="stream-meta"><span class="streamer-name">'+esc(s.streamer_name)+'</span><span class="stream-platform-badge '+meta.badge+'">'+meta.label+'</span></div>'
+        +'<div class="stream-title">'+esc(s.title||'Live Stream')+'</div>'
+        +'<div class="stream-time">🕐 Started '+timeAgo(s.created_at)+'</div>'
+        +profileLink
+        +'<div class="stream-actions">'
+          +'<a href="'+s.url+'" target="_blank" rel="noopener" class="btn-sm btn-watch">'+(embed.type==='embed'?'🔗 Open Original':'▶ Watch on '+meta.label)+'</a>'
+          +(isOwner?'<button class="btn-sm btn-remove" onclick="removeStream(\''+s.id+'\')">✕ Remove</button>':'')
+        +'</div>'
+      +'</div></div>';
   }
 
-  async function loadStreams() {
-    document.getElementById('loadingState').style.display = 'block';
-    document.getElementById('liveGrid').innerHTML = '';
-    document.getElementById('emptyState').style.display = 'none';
-    const cutoff = new Date(Date.now() - 8*3600000).toISOString();
-    await sb.from('live_streams').delete().lt('created_at', cutoff);
-    const { data, error } = await sb.from('live_streams').select('*').order('created_at', { ascending: false });
-    if (error) { console.error(error); showToast('⚠️ Could not load streams'); document.getElementById('loadingState').style.display='none'; return; }
-    renderStreams(data);
+  function renderStreams(data){
+    document.getElementById('loadingState').style.display='none';
+    var grid=document.getElementById('liveGrid');
+    var empty=document.getElementById('emptyState');
+    var count=document.getElementById('liveCount');
+    if(!data||!data.length){grid.innerHTML='';empty.style.display='block';count.textContent='';return;}
+    empty.style.display='none';
+    count.textContent=data.length+' stream'+(data.length!==1?'s':'');
+    grid.innerHTML=data.map(function(s,i){return renderCard(s,i===0);}).join('');
   }
 
-  async function submitStream() {
-    const name  = document.getElementById('streamerName').value.trim();
-    const title = document.getElementById('streamTitle').value.trim();
-    const url   = document.getElementById('streamUrl').value.trim();
-    if (!name) { showToast('⚠️ Please enter your name or artist tag'); return; }
-    if (!url)  { showToast('⚠️ Please paste your stream link'); return; }
-    let validUrl = url.startsWith('http') ? url : 'https://'+url;
-    try { new URL(validUrl); } catch { showToast('⚠️ Invalid URL'); return; }
-    const platform = detectPlatform(validUrl);
-    const btn = document.getElementById('submitBtn');
-    btn.disabled = true; btn.innerHTML = '<div class="spinner" style="width:18px;height:18px;"></div> Posting...';
-    const { error } = await sb.from('live_streams').insert([{
-      streamer_name: name, title: title||'Live Stream',
-      platform, url: validUrl, user_id: currentUser.id
-    }]);
-    btn.disabled = false; btn.innerHTML = '🔴 Post My Live Stream';
-    if (error) { console.error(error); showToast('⚠️ Error posting. Check console.'); return; }
-    document.getElementById('streamTitle').value = '';
-    document.getElementById('streamUrl').value   = '';
+  async function loadStreams(){
+    document.getElementById('loadingState').style.display='block';
+    document.getElementById('liveGrid').innerHTML='';
+    document.getElementById('emptyState').style.display='none';
+    // Auto-clean streams older than 8 hours
+    var cutoff=new Date(Date.now()-8*3600000).toISOString();
+    try{await sb.from('live_streams').delete().lt('created_at',cutoff);}catch(e){}
+    var r=await sb.from('live_streams').select('*').order('created_at',{ascending:false});
+    if(r.error){showToast('Could not load streams');document.getElementById('loadingState').style.display='none';return;}
+    renderStreams(r.data);
+  }
+
+  async function submitStream(){
+    var name=document.getElementById('streamerName').value.trim();
+    var title=document.getElementById('streamTitle').value.trim();
+    var url=document.getElementById('streamUrl').value.trim();
+    var profileUrl=document.getElementById('profileUrl').value.trim();
+    if(!name){showToast('Enter your name or artist tag');return;}
+    if(!url){showToast('Paste your stream link');return;}
+    var validUrl=url.startsWith('http')?url:'https://'+url;
+    try{new URL(validUrl);}catch(e){showToast('Invalid URL');return;}
+    // Validate profile URL if provided
+    if(profileUrl&&!profileUrl.startsWith('http'))profileUrl='https://'+profileUrl;
+    var platform=detectPlatform(validUrl);
+    var btn=document.getElementById('submitBtn');
+    btn.disabled=true;btn.innerHTML='<div class="spinner" style="width:18px;height:18px;"></div> Posting...';
+    var insertData={streamer_name:name,title:title||'Live Stream',platform:platform,url:validUrl,user_id:currentUser.id};
+    if(profileUrl)insertData.profile_url=profileUrl;
+    var r=await sb.from('live_streams').insert([insertData]);
+    btn.disabled=false;btn.innerHTML='🔴 Post My Live Stream';
+    if(r.error){showToast('Error posting. Check console.');console.error(r.error);return;}
+    document.getElementById('streamTitle').value='';
+    document.getElementById('streamUrl').value='';
+    document.getElementById('profileUrl').value='';
     showToast('🔴 Your stream is now live on 8BFR!');
     await loadStreams();
-    setTimeout(() => document.getElementById('liveGrid').scrollIntoView({behavior:'smooth'}), 400);
+    setTimeout(function(){document.getElementById('liveGrid').scrollIntoView({behavior:'smooth'});},400);
   }
 
-  async function removeStream(id) {
-    if (!confirm('Remove this stream from 8BFR?')) return;
-    const { error } = await sb.from('live_streams').delete().eq('id', id);
-    if (error) { showToast('⚠️ Could not remove'); return; }
+  window.removeStream=async function(id){
+    if(!confirm('Remove this stream?'))return;
+    var r=await sb.from('live_streams').delete().eq('id',id);
+    if(r.error){showToast('Could not remove');return;}
     showToast('Stream removed');
     await loadStreams();
-  }
+  };
 
-  function esc(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
-  function timeAgo(ts) {
-    const m = Math.floor((Date.now()-new Date(ts).getTime())/60000);
-    if (m<1) return 'just now';
-    if (m<60) return `${m}m ago`;
-    return `${Math.floor(m/60)}h ago`;
-  }
-  function showToast(msg) {
-    const t = document.getElementById('toast');
-    t.textContent = msg; t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 3200);
-  }
+  function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
+  function timeAgo(ts){var m=Math.floor((Date.now()-new Date(ts).getTime())/60000);if(m<1)return'just now';if(m<60)return m+'m ago';return Math.floor(m/60)+'h ago';}
+  function showToast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},3200);}
 
-  setInterval(loadStreams, 60000);
+  setInterval(loadStreams,60000);
   </script>
 </body>
 </html>
