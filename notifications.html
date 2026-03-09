@@ -90,7 +90,7 @@ async function init(){
 
     // Realtime: auto-refresh on new notifications
     db.channel('notif-live')
-      .on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications',filter:'user_id=eq.'+currentUser.id},function(){
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications',filter:'recipient_id=eq.'+currentUser.id},function(){
         loadNotifications();
       }).subscribe();
   }catch(e){
@@ -110,7 +110,7 @@ async function loadNotifications(){
   try{
     var r=await db.from('notifications')
       .select('*')
-      .eq('user_id',currentUser.id)
+      .eq('recipient_id',currentUser.id)
       .order('created_at',{ascending:false})
       .limit(50);
 
@@ -143,11 +143,11 @@ function renderList(){
   }
 
   el.innerHTML=list.map(function(n){
-    var cfg=ICONS[n.type]||ICONS.system;
+    var cfg=ICONS[n.notif_type]||ICONS.system;
     var unreadClass=!n.is_read?'notif unread':'notif';
-    var link=n.link||'#';
-    var title=n.title||formatType(n.type);
-    var msg=n.message||n.body||'';
+    var link=(n.metadata&&n.metadata.link)||'#';
+    var title=n.title||formatType(n.notif_type);
+    var msg=(n.metadata&&n.metadata.message)||'';
     var time=timeAgo(n.created_at);
 
     return '<a href="'+link+'" class="'+unreadClass+'" onclick="markRead(\''+n.id+'\')">'
@@ -167,7 +167,7 @@ function formatType(t){
 }
 
 window.markRead=async function(id){
-  try{await db.from('notifications').update({is_read:true}).eq('id',id);}catch(e){}
+  try{await db.from('notifications').update({is_read:true}).eq('id',id).eq('recipient_id',currentUser.id);}catch(e){}
   // Update locally
   allNotifs.forEach(function(n){if(n.id===id)n.is_read=true;});
   var unread=allNotifs.filter(function(n){return !n.is_read;}).length;
@@ -177,7 +177,7 @@ window.markRead=async function(id){
 
 window.markAllRead=async function(){
   try{
-    await db.from('notifications').update({is_read:true}).eq('user_id',currentUser.id).eq('is_read',false);
+    await db.from('notifications').update({is_read:true}).eq('recipient_id',currentUser.id).eq('is_read',false);
     allNotifs.forEach(function(n){n.is_read=true;});
     var badge=document.getElementById('allBadge');
     if(badge)badge.style.display='none';
