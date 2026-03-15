@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Producer AI — AI Tools for Music Creators</title>
+<meta name="description" content="AI-powered tools for music artists, beatmakers, and producers.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>🎵</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+.protected{-webkit-user-select:none;-moz-user-select:none;user-select:none;}
+.output-lock{-webkit-user-select:none;user-select:none;position:relative;}
+body.blurred .output-lock{filter:blur(12px);transition:filter .15s;}
+.watermark{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-25deg);font-size:2rem;color:rgba(255,255,255,.06);font-weight:800;pointer-events:none;white-space:nowrap;z-index:10;}
+:root{--bg:#050208;--bg2:#0a0612;--card:#0f0a1a;--card2:#130e22;--gold:#d4a017;--gold-l:#f5c842;--gold-d:rgba(212,160,23,.15);--gold-b:rgba(212,160,23,.25);--purple:#8b5cf6;--purple-d:rgba(139,92,246,.12);--purple-b:rgba(139,92,246,.25);--text:#f0edf5;--t2:#b8b0c8;--t3:#766d8a;--danger:#ef4444;--success:#22c55e;--r:14px;--rl:20px;}
+*{margin:0;padding:0;box-sizing:border-box;}html{scroll-behavior:smooth;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;line-height:1.6;}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 30% 20%,rgba(212,160,23,.06),transparent 50%),radial-gradient(ellipse at 70% 80%,rgba(139,92,246,.04),transparent 50%);pointer-events:none;z-index:0;}
+.nav{position:fixed;top:0;left:0;right:0;z-index:500;padding:.75rem 1.5rem;display:flex;justify-content:space-between;align-items:center;background:rgba(5,2,8,.85);backdrop-filter:blur(20px);border-bottom:1px solid rgba(212,160,23,.06);transition:padding .3s;}
+.nav.scrolled{padding:.5rem 1.5rem;background:rgba(5,2,8,.95);}
+.nav-brand{font-family:'Syne',sans-serif;font-size:1.35rem;font-weight:800;color:var(--gold);letter-spacing:-.02em;}
+.nav-links{display:flex;gap:1rem;align-items:center;flex-wrap:wrap;}
+.nav-link{color:var(--t2);text-decoration:none;font-size:.85rem;font-weight:500;transition:color .2s;}.nav-link:hover{color:var(--gold);}
+.bn{padding:.45rem 1rem;border-radius:8px;font-size:.82rem;font-weight:700;cursor:pointer;transition:all .2s;border:none;}.bn:hover{transform:translateY(-1px);}
+.bn-gold{background:var(--gold);color:#000;}.bn-ghost{background:transparent;color:var(--gold);border:1px solid var(--gold-b)!important;}
+.nav-user{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;}
+.nav-tier{font-size:.58rem;padding:.2rem .5rem;border-radius:8px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;}
+.t-free{background:rgba(120,120,120,.15);color:#999;border:1px solid rgba(120,120,120,.2);}
+.t-starter{background:var(--purple-d);color:#a78bfa;border:1px solid var(--purple-b);}
+.t-pro{background:var(--gold-d);color:var(--gold-l);border:1px solid var(--gold-b);}
+.t-granted{background:rgba(34,197,94,.12);color:#4ade80;border:1px solid rgba(34,197,94,.25);}
+.nb{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.06);color:var(--t2);padding:.35rem .6rem;border-radius:8px;cursor:pointer;font-size:.75rem;transition:all .15s;}.nb:hover{background:rgba(255,255,255,.1);}
+.nav-email{font-size:.75rem;color:var(--t3);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+@media(max-width:768px){.nav-links.ll{display:none;}}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(8px);z-index:1000;display:none;align-items:center;justify-content:center;padding:1rem;}.overlay.show{display:flex;}
+.amodal{background:var(--card2);border:1px solid rgba(255,255,255,.06);border-radius:var(--rl);padding:2.5rem;max-width:420px;width:100%;position:relative;}
+.amodal-close{position:absolute;top:1rem;right:1rem;background:none;border:none;color:var(--t3);font-size:1.2rem;cursor:pointer;}
+.amodal h2{font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;margin-bottom:.25rem;}
+.amodal .sub{color:var(--t2);font-size:.88rem;margin-bottom:1.5rem;}
+.af{margin-bottom:1rem;}.af label{display:block;font-size:.72rem;color:var(--t3);font-weight:600;margin-bottom:.35rem;letter-spacing:.04em;text-transform:uppercase;}
+.af input{width:100%;padding:.7rem 1rem;background:var(--bg);border:1px solid rgba(255,255,255,.06);border-radius:10px;color:var(--text);font-family:inherit;font-size:.9rem;}.af input:focus{outline:none;border-color:var(--gold-b);}
+.a-submit{width:100%;padding:.75rem;background:var(--gold);color:#000;border:none;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;transition:all .2s;}.a-submit:hover{background:var(--gold-l);}.a-submit:disabled{opacity:.5;}
+.a-toggle{text-align:center;margin-top:1rem;font-size:.82rem;color:var(--t3);}.a-toggle a{color:var(--gold);text-decoration:none;cursor:pointer;font-weight:600;}
+.a-err{color:var(--danger);font-size:.8rem;margin-top:.5rem;display:none;text-align:center;}
+.promo-field{margin-top:.5rem;margin-bottom:1rem;}.promo-field input{width:100%;padding:.55rem .8rem;background:rgba(212,160,23,.04);border:1px dashed var(--gold-b);border-radius:8px;color:var(--gold-l);font-family:inherit;font-size:.85rem;text-align:center;letter-spacing:.1em;text-transform:uppercase;}.promo-field input::placeholder{color:var(--t3);letter-spacing:normal;text-transform:none;}.promo-field input:focus{outline:none;border-color:var(--gold);border-style:solid;}
+.landing{display:block;}
+.hero{min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:7rem 2rem 4rem;position:relative;overflow:hidden;}
+.hero::before{content:'';position:absolute;top:-20%;left:-10%;width:120%;height:140%;background:radial-gradient(ellipse at 30% 20%,rgba(212,160,23,.07),transparent 50%),radial-gradient(ellipse at 70% 80%,rgba(139,92,246,.05),transparent 50%);pointer-events:none;}
+.hc{position:relative;z-index:1;max-width:680px;}
+.hero-badge{display:inline-flex;align-items:center;gap:.4rem;background:var(--gold-d);border:1px solid var(--gold-b);padding:.3rem .8rem;border-radius:20px;font-size:.72rem;font-weight:600;color:var(--gold-l);margin-bottom:1.5rem;}
+.hero h1{font-family:'Syne',sans-serif;font-size:clamp(2.4rem,5.5vw,4rem);font-weight:800;line-height:1.08;margin-bottom:1.2rem;letter-spacing:-.03em;}.hero h1 .g{color:var(--gold);}
+.hero p{font-size:1.1rem;color:var(--t2);max-width:500px;margin:0 auto 2.5rem;line-height:1.7;}
+.hero-btns{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;}
+.bh{padding:.8rem 1.8rem;border-radius:10px;font-size:.95rem;font-weight:700;text-decoration:none;cursor:pointer;transition:all .25s;border:none;}
+.bh-gold{background:var(--gold);color:#000;}.bh-gold:hover{background:var(--gold-l);transform:translateY(-2px);box-shadow:0 8px 30px rgba(212,160,23,.2);}
+.bh-ghost{background:rgba(255,255,255,.04);color:var(--text);border:1px solid rgba(255,255,255,.08);}.bh-ghost:hover{background:rgba(255,255,255,.07);}
+.hero-stats{display:flex;gap:3rem;justify-content:center;margin-top:3.5rem;flex-wrap:wrap;}
+.st{text-align:center;}.st-n{font-family:'Syne',sans-serif;font-size:1.7rem;font-weight:800;color:var(--gold);}.st-l{font-size:.75rem;color:var(--t3);}
+.features{padding:5rem 2rem;max-width:1100px;margin:0 auto;}
+.stag{display:inline-flex;background:var(--purple-d);border:1px solid var(--purple-b);padding:.25rem .6rem;border-radius:12px;font-size:.65rem;font-weight:600;color:var(--purple);margin-bottom:.75rem;letter-spacing:.05em;text-transform:uppercase;}
+.stitle{font-family:'Syne',sans-serif;font-size:clamp(1.7rem,3.5vw,2.5rem);font-weight:800;margin-bottom:.6rem;letter-spacing:-.02em;}
+.ssub{color:var(--t2);font-size:1rem;max-width:520px;margin-bottom:2.5rem;}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:1.1rem;}
+.fc{background:var(--card);border:1px solid rgba(255,255,255,.03);border-radius:var(--rl);padding:1.6rem;transition:all .3s;position:relative;overflow:hidden;}
+.fc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:0;transition:opacity .3s;}
+.fc:hover{border-color:var(--gold-b);transform:translateY(-3px);box-shadow:0 12px 40px rgba(0,0,0,.3);}.fc:hover::before{opacity:1;}
+.fc-i{font-size:2rem;margin-bottom:.75rem;}.fc-n{font-family:'Syne',sans-serif;font-weight:700;font-size:1.05rem;margin-bottom:.35rem;}.fc-d{font-size:.84rem;color:var(--t2);line-height:1.55;}
+.psec{padding:5rem 2rem;max-width:1100px;margin:0 auto;}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:1.25rem;margin-top:.5rem;}
+.pc{background:var(--card);border:1px solid rgba(255,255,255,.03);border-radius:var(--rl);padding:1.75rem;text-align:center;transition:all .3s;position:relative;}.pc:hover{border-color:rgba(255,255,255,.08);}
+.pc.feat{border-color:var(--gold-b);background:linear-gradient(180deg,rgba(212,160,23,.03),var(--card));}
+.pc.feat::before{content:'MOST POPULAR';position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--gold);color:#000;font-size:.58rem;font-weight:800;padding:.3rem .8rem;border-radius:8px;}
+.pc-name{font-family:'Syne',sans-serif;font-weight:700;font-size:1.1rem;}.pc-amt{font-family:'Syne',sans-serif;font-size:2.5rem;font-weight:800;margin:.6rem 0;}.pc-amt span{font-size:.8rem;font-weight:400;color:var(--t3);}
+.pc-list{text-align:left;margin:1.25rem 0;font-size:.84rem;line-height:2.1;}.pc-list div{display:flex;align-items:center;gap:.4rem;}.chk{color:var(--gold);}.lck{color:var(--t3);}
+.pc-btn{width:100%;padding:.7rem;border-radius:10px;border:none;font-size:.9rem;font-weight:700;cursor:pointer;transition:all .2s;}.pc-btn:hover:not(:disabled){transform:translateY(-2px);}.pc-btn:disabled{opacity:.4;cursor:default;}
+.cta-f{background:rgba(255,255,255,.05);color:var(--text);border:1px solid rgba(255,255,255,.06);}.cta-s{background:var(--purple);color:#fff;}.cta-p{background:var(--gold);color:#000;}
+.footer{padding:2.5rem 2rem;text-align:center;border-top:1px solid rgba(255,255,255,.03);margin-top:3rem;}.footer p{font-size:.78rem;color:var(--t3);}.footer a{color:var(--gold);text-decoration:none;}
+.app{display:none;padding-top:4.5rem;}.dash{max-width:1100px;margin:0 auto;padding:1.5rem 2rem;}.dh{margin-bottom:1.5rem;}.dh h2{font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:700;}.dh p{color:var(--t3);font-size:.85rem;margin-top:.2rem;}
+.ubar{background:var(--card);border:1px solid rgba(255,255,255,.03);border-radius:var(--r);padding:.85rem 1.1rem;margin-bottom:1.5rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;}
+.ubar-l{font-size:.85rem;color:var(--t2);}.ubar-l b{color:var(--gold);}
+.ubar-track{width:170px;height:4px;background:rgba(255,255,255,.05);border-radius:2px;overflow:hidden;}.ubar-fill{height:100%;background:linear-gradient(90deg,var(--purple),var(--gold));border-radius:2px;transition:width .4s;}
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:1rem;margin-bottom:1.5rem;}
+.tc{background:var(--card);border:1px solid rgba(255,255,255,.03);border-radius:var(--rl);padding:1.4rem;cursor:pointer;transition:all .25s;position:relative;overflow:hidden;}
+.tc::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gold),var(--purple));opacity:0;transition:opacity .3s;}
+.tc:hover{border-color:var(--gold-b);transform:translateY(-3px);box-shadow:0 10px 30px rgba(0,0,0,.2);}.tc:hover::after{opacity:1;}
+.tc-i{font-size:1.7rem;margin-bottom:.6rem;}.tc-n{font-family:'Syne',sans-serif;font-weight:700;font-size:.95rem;margin-bottom:.2rem;}.tc-d{font-size:.78rem;color:var(--t3);line-height:1.45;}
+.ws{display:none;background:var(--card);border:1px solid rgba(255,255,255,.03);border-radius:var(--rl);padding:1.75rem;margin-bottom:1.5rem;}.ws.open{display:block;}
+.ws-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;flex-wrap:wrap;gap:.5rem;}
+.ws-t{font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:700;color:var(--gold);}
+.ws-x{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.05);color:var(--t2);padding:.35rem .7rem;border-radius:8px;cursor:pointer;font-size:.78rem;}.ws-x:hover{background:rgba(255,255,255,.1);}
+.wf{display:flex;flex-direction:column;gap:.85rem;}.wl{font-size:.72rem;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.25rem;}
+.wi,.wta,.wse{width:100%;padding:.65rem .9rem;background:var(--bg);border:1px solid rgba(255,255,255,.05);border-radius:10px;color:var(--text);font-family:inherit;font-size:.88rem;}.wta{min-height:75px;resize:vertical;}.wi:focus,.wta:focus,.wse:focus{outline:none;border-color:var(--gold-b);}
+.wr{display:grid;grid-template-columns:1fr 1fr;gap:.85rem;}
+@media(max-width:600px){.wr{grid-template-columns:1fr;}.tgrid{grid-template-columns:1fr;}.fgrid{grid-template-columns:1fr;}.pgrid{grid-template-columns:1fr;}}
+.wgo{background:linear-gradient(135deg,var(--gold),#b8860b);color:#000;border:none;padding:.8rem 1.5rem;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;transition:all .2s;}.wgo:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(212,160,23,.2);}.wgo:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+.wo{margin-top:1.25rem;padding:1.25rem;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.03);border-radius:var(--r);min-height:60px;position:relative;overflow:hidden;display:none;}.wo.show{display:block;}.wo pre{white-space:pre-wrap;font-family:'DM Sans',sans-serif;font-size:.88rem;line-height:1.75;}.wo img{max-width:100%;border-radius:var(--r);}
+.cpbtn{position:absolute;top:.6rem;right:.6rem;background:var(--gold);color:#000;border:none;padding:.3rem .6rem;border-radius:6px;font-size:.7rem;font-weight:700;cursor:pointer;opacity:0;transition:opacity .2s;}.wo:hover .cpbtn{opacity:1;}
+.dots{display:inline-flex;gap:4px;}.dots span{width:6px;height:6px;background:var(--gold);border-radius:50%;animation:dt 1.4s infinite;}.dots span:nth-child(2){animation-delay:.2s;}.dots span:nth-child(3){animation-delay:.4s;}@keyframes dt{0%,60%,100%{transform:translateY(0);}30%{transform:translateY(-5px);}}
+.admin{background:var(--card);border:1px solid rgba(255,255,255,.03);border-radius:var(--rl);padding:1.75rem;margin-bottom:1.5rem;}
+.admin-title{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:700;color:var(--gold);margin-bottom:1rem;}
+.admin-tabs{display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap;}
+.admin-tab{padding:.4rem .8rem;border-radius:8px;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.03);color:var(--t2);cursor:pointer;font-size:.8rem;font-weight:600;transition:all .15s;}.admin-tab:hover{background:rgba(255,255,255,.06);}.admin-tab.active{background:var(--gold-d);color:var(--gold-l);border-color:var(--gold-b);}
+.admin-panel{display:none;}.admin-panel.active{display:block;}
+.admin-form{display:flex;flex-direction:column;gap:.75rem;margin-bottom:1rem;}
+.admin-row{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;}@media(max-width:600px){.admin-row{grid-template-columns:1fr;}}
+.abtn{padding:.5rem 1rem;border-radius:8px;border:none;font-size:.82rem;font-weight:700;cursor:pointer;transition:all .15s;}
+.abtn-gold{background:var(--gold);color:#000;}.abtn-gold:hover{background:var(--gold-l);}
+.abtn-red{background:rgba(239,68,68,.15);color:var(--danger);border:1px solid rgba(239,68,68,.2);}.abtn-red:hover{background:rgba(239,68,68,.25);}
+.abtn-ghost{background:rgba(255,255,255,.05);color:var(--text);border:1px solid rgba(255,255,255,.06);}.abtn-ghost:hover{background:rgba(255,255,255,.08);}
+.code-list{max-height:300px;overflow-y:auto;}.code-item{display:flex;justify-content:space-between;align-items:center;padding:.6rem .75rem;border-bottom:1px solid rgba(255,255,255,.03);gap:.5rem;flex-wrap:wrap;}
+.code-label{font-weight:600;color:var(--gold-l);font-family:monospace;font-size:.9rem;letter-spacing:.05em;}.code-meta{font-size:.72rem;color:var(--t3);}
+.grant-item{display:flex;justify-content:space-between;align-items:center;padding:.6rem .75rem;border-bottom:1px solid rgba(255,255,255,.03);flex-wrap:wrap;gap:.5rem;}
+.grant-email{font-weight:600;font-size:.88rem;}.grant-tier{font-size:.65rem;padding:.15rem .4rem;border-radius:5px;font-weight:700;text-transform:uppercase;}
+.grant-active{background:rgba(34,197,94,.12);color:#4ade80;}.grant-revoked{background:rgba(239,68,68,.12);color:#f87171;}
+.po-section{background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.04);border-radius:12px;padding:1.25rem;margin-bottom:.75rem;position:relative;overflow:hidden;}
+.po-section::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.po-section.verse::before{background:linear-gradient(90deg,var(--purple),transparent);}
+.po-section.chorus::before{background:linear-gradient(90deg,var(--gold),transparent);}
+.po-section.bridge::before{background:linear-gradient(90deg,var(--success),transparent);}
+.po-section.intro::before,.po-section.outro::before{background:linear-gradient(90deg,#ec4899,transparent);}
+.po-head{font-family:'Syne',sans-serif;font-size:.85rem;font-weight:700;margin-bottom:.6rem;display:flex;align-items:center;gap:.4rem;}
+.po-head.v{color:#a78bfa;}.po-head.c{color:var(--gold-l);}.po-head.b{color:#4ade80;}.po-head.i{color:#f472b6;}
+.po-lines{font-size:.88rem;line-height:1.9;color:var(--text);}
+.po-lines .delivery{color:var(--gold);font-size:.72rem;font-weight:600;opacity:.7;font-style:italic;}
+.po-lines .adlib{color:#f472b6;font-size:.78rem;font-style:italic;}
+.rhy-sec{background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.04);border-radius:12px;padding:1rem;margin-bottom:.75rem;}
+.rhy-title{font-family:'Syne',sans-serif;font-size:.85rem;font-weight:700;color:var(--gold-l);margin-bottom:.5rem;display:flex;justify-content:space-between;align-items:center;}
+.rhy-count{font-size:.65rem;background:rgba(255,255,255,.06);padding:.15rem .4rem;border-radius:6px;color:var(--t3);}
+.rhy-grid{display:flex;flex-wrap:wrap;gap:.3rem;}
+.rhy-chip{padding:.3rem .6rem;border-radius:7px;font-size:.82rem;cursor:pointer;transition:all .15s;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.03);}
+.rhy-chip:hover{transform:translateY(-1px);background:rgba(212,160,23,.1);border-color:var(--gold-b);}
+.rhy-chip.perf{border-color:rgba(212,160,23,.3);background:rgba(212,160,23,.06);}
+.rhy-chip.near{border-color:rgba(34,197,94,.3);background:rgba(34,197,94,.05);}
+.rhy-chip.multi{border-color:rgba(139,92,246,.3);background:rgba(139,92,246,.06);}
+.rhy-def{background:rgba(0,0,0,.3);border:1px solid var(--gold-b);border-radius:10px;padding:1rem;margin-top:.75rem;display:none;}
+.rhy-def.show{display:block;}
+.rhy-def-word{font-family:'Syne',sans-serif;color:var(--gold-l);font-weight:700;margin-bottom:.3rem;}
+.post-card{background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.04);border-radius:12px;padding:1.25rem;margin-bottom:.75rem;position:relative;}
+.post-num{font-family:'Syne',sans-serif;font-size:.8rem;font-weight:700;color:var(--purple);margin-bottom:.5rem;}
+.post-body{font-size:.88rem;line-height:1.7;white-space:pre-wrap;}
+.post-copy{position:absolute;top:.75rem;right:.75rem;background:var(--gold);color:#000;border:none;padding:.25rem .5rem;border-radius:5px;font-size:.68rem;font-weight:700;cursor:pointer;opacity:0;transition:opacity .2s;}
+.post-card:hover .post-copy{opacity:1;}
+.bp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.75rem;margin-bottom:.75rem;}
+.bp-card{background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.04);border-radius:10px;padding:1rem;}
+.bp-label{font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--t3);font-weight:600;margin-bottom:.3rem;}
+.bp-value{font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;color:var(--gold-l);}
+.bp-detail{font-size:.84rem;line-height:1.7;margin-top:.5rem;color:var(--t2);}
+.vid-scene{background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.04);border-radius:12px;padding:1.25rem;margin-bottom:.75rem;position:relative;padding-left:3rem;}
+.vid-num{position:absolute;left:1rem;top:1.25rem;font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:800;color:var(--gold);opacity:.4;}
+.vid-label{font-family:'Syne',sans-serif;font-size:.82rem;font-weight:700;color:var(--purple);margin-bottom:.3rem;}
+.vid-text{font-size:.86rem;line-height:1.7;color:var(--t2);}
+.cover-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:.5rem;}
+@media(max-width:600px){.cover-grid{grid-template-columns:1fr;}}
+.cover-img{border-radius:12px;overflow:hidden;position:relative;aspect-ratio:1;background:var(--bg);}
+.cover-img img{width:100%;height:100%;object-fit:cover;}
+.cover-img .cover-dl{position:absolute;bottom:.5rem;right:.5rem;background:var(--gold);color:#000;border:none;padding:.35rem .7rem;border-radius:6px;font-size:.72rem;font-weight:700;cursor:pointer;opacity:0;transition:opacity .2s;text-decoration:none;}
+.cover-img:hover .cover-dl{opacity:1;}
+.cover-loading{display:flex;align-items:center;justify-content:center;min-height:300px;}
+.cover-retry{margin-top:.75rem;text-align:center;}
+.cover-retry button{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.06);color:var(--text);padding:.4rem .8rem;border-radius:8px;cursor:pointer;font-size:.82rem;}
+</style>
+</head>
+<body class="protected">
+<nav class="nav" id="nav"><div class="nav-brand">🎵 Producer AI</div><div class="nav-links ll" id="navL"><a class="nav-link" href="#features">Tools</a><a class="nav-link" href="#pricing">Pricing</a><button class="bn bn-ghost" onclick="openAuth()">Log In</button><button class="bn bn-gold" onclick="goSignup()">Sign Up Free</button></div><div class="nav-user" id="navA" style="display:none;"><span class="nav-tier t-free" id="nTier">FREE</span><span class="nav-email" id="nEmail"></span><button class="nb" id="adminToggle" style="display:none;" onclick="toggleAdmin()">🛡️ Admin</button><button class="nb" onclick="goProfile()">👤 Profile</button><button class="nb" onclick="window.open('https://8bfr.github.io/8bfr-Music-Network/upgrades.html?from=producer-ai','_blank')">⬆️ Upgrade</button><button class="nb" onclick="doLogout()">Sign Out</button></div></nav>
+
+<div class="overlay" id="authOv"><div class="amodal"><button class="amodal-close" onclick="closeAuth()">✕</button><h2 id="aTitle">Welcome back</h2><p class="sub" id="aSub">Log in to your account</p><div class="af"><label>Email</label><input type="email" id="aEmail" placeholder="you@email.com"></div><div class="af"><label>Password</label><input type="password" id="aPass" placeholder="Your password" onkeydown="if(event.key==='Enter')doAuth();"></div><button class="a-submit" id="aBtn" onclick="doAuth()">Log In</button><div class="a-err" id="aErr"></div><div class="a-toggle" id="aSwitch">Need an account? <a onclick="goSignup()">Sign Up Free</a></div></div></div>
+
+<div id="loadScreen" style="position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999;"><div style="text-align:center;"><div class="nav-brand" style="font-size:2rem;margin-bottom:1rem;">🎵 Producer AI</div><div class="dots"><span></span><span></span><span></span></div></div></div>
+<div class="landing" id="landing" style="display:none;">
+<section class="hero"><div class="hc"><div class="hero-badge">⚡ AI-Powered Music Tools</div><h1>Create Music <span class="g">Faster</span> Than Ever</h1><p>Professional AI tools for artists, producers, and beatmakers. Lyrics, covers, beats, rhymes — in seconds.</p><div class="hero-btns"><button class="bh bh-gold" onclick="goSignup()">Get Started Free →</button><a class="bh bh-ghost" href="#features">See All Tools</a></div><div class="hero-stats"><div class="st"><div class="st-n">7</div><div class="st-l">AI Tools</div></div><div class="st"><div class="st-n">Free</div><div class="st-l">To Start</div></div><div class="st"><div class="st-n">∞</div><div class="st-l">Creativity</div></div></div></div></section>
+
+<section class="features" id="features"><div class="stag">🛠️ Tools</div><h2 class="stitle">Everything You Need to Create</h2><p class="ssub">Seven powerful AI tools designed for music creators.</p><div class="fgrid"><div class="fc"><div class="fc-i">✍️</div><div class="fc-n">Lyrics Generator</div><div class="fc-d">Complete song lyrics with verses, chorus, bridge, and complex rhyme schemes.</div></div><div class="fc"><div class="fc-i">🎨</div><div class="fc-n">Album Cover Creator</div><div class="fc-d">Generate unique album artwork from text descriptions.</div></div><div class="fc"><div class="fc-i">🎤</div><div class="fc-n">Song Creator</div><div class="fc-d">Full songs with lyrics, flow patterns, tempo, and delivery notes.</div></div><div class="fc"><div class="fc-i">🥁</div><div class="fc-n">Beat Blueprint</div><div class="fc-d">Production blueprints with BPM, key, drums, instruments, arrangement.</div></div><div class="fc"><div class="fc-i">📖</div><div class="fc-n">Rhyme Finder</div><div class="fc-d">Perfect, near, multi-syllable rhymes, homophones, and definitions.</div></div><div class="fc"><div class="fc-i">📝</div><div class="fc-n">Post Generator</div><div class="fc-d">Social media posts and promo copy for all platforms.</div></div><div class="fc"><div class="fc-i">🎬</div><div class="fc-n">Video Concepts</div><div class="fc-d">Music video storyboards, shot lists, and creative direction.</div></div></div></section>
+
+<section class="psec" id="pricing"><div class="stag">💰 Pricing</div><h2 class="stitle">Simple, Transparent Pricing</h2><p class="ssub">Start free. Upgrade when ready.</p><div class="pgrid"><div class="pc"><div class="pc-name">Free</div><div class="pc-amt">$0<span> /forever</span></div><div class="pc-list"><div><span class="chk">✓</span> 3 generations per day</div><div><span class="chk">✓</span> All 7 AI tools</div><div><span class="lck">✗</span> Watermarked outputs</div><div><span class="lck">✗</span> No copy or download</div></div><button class="pc-btn cta-f" onclick="goSignup()">Get Started Free</button></div><div class="pc feat"><div class="pc-name">Starter</div><div class="pc-amt">$5.99<span> /month</span></div><div class="pc-list"><div><span class="chk">✓</span> 30 generations per day</div><div><span class="chk">✓</span> All 7 AI tools</div><div><span class="chk">✓</span> No watermarks</div><div><span class="chk">✓</span> Copy & download</div><div><span class="chk">✓</span> Higher quality</div></div><button class="pc-btn cta-s" onclick="goSignup()">Get Starter</button></div><div class="pc"><div class="pc-name">Pro</div><div class="pc-amt">$12.99<span> /month</span></div><div class="pc-list"><div><span class="chk">✓</span> Unlimited generations</div><div><span class="chk">✓</span> All 7 AI tools</div><div><span class="chk">✓</span> No watermarks</div><div><span class="chk">✓</span> Copy & download</div><div><span class="chk">✓</span> Priority processing</div><div><span class="chk">✓</span> Commercial license</div></div><button class="pc-btn cta-p" onclick="goSignup()">Get Pro</button></div></div></section>
+<div class="footer"><p>© 2025 Producer AI — Built by <a href="https://8bfr.github.io" target="_blank">8BFR Music Network</a> · <a href="mailto:8bfr.music@gmail.com">Contact</a></p></div></div>
+
+<div class="app" id="appW"><div class="dash">
+<div class="dh"><h2 id="dGreet">Welcome back 🎵</h2><p>Your AI music toolkit is ready.</p></div>
+<div class="ubar"><div class="ubar-l">Today: <b id="uC">0</b> / <span id="uL">3</span> generations</div><div class="ubar-track"><div class="ubar-fill" id="uF" style="width:0%"></div></div></div>
+
+<div class="admin" id="adminPanel" style="display:none;"><div class="admin-title">🛡️ Admin Panel</div><div class="admin-tabs"><button class="admin-tab active" onclick="showAdminTab('codes',this)">🏷️ Promo Codes</button><button class="admin-tab" onclick="showAdminTab('grants',this)">🎁 Free Access</button><button class="admin-tab" onclick="showAdminTab('stats',this)">📊 Stats</button></div>
+<div class="admin-panel active" id="ap-codes"><div class="admin-form"><div class="admin-row"><div><div class="wl">Code</div><input class="wi" id="pc-code" placeholder="e.g. SUMMER2025" style="text-transform:uppercase;letter-spacing:.1em;"></div><div><div class="wl">Type</div><select class="wse" id="pc-type"><option value="free_month">Free Month (buy X get Y)</option><option value="discount_amount">$ Off</option><option value="discount_percent">% Off</option><option value="trial_extension">Free Trial (days)</option></select></div></div><div class="admin-row"><div><div class="wl">Value</div><input class="wi" id="pc-value" type="number" placeholder="Amount/percent/days"></div><div><div class="wl">Applies To</div><select class="wse" id="pc-applies"><option value="all">All Plans</option><option value="starter">Starter</option><option value="pro">Pro</option></select></div></div><div class="admin-row"><div><div class="wl">Max Uses (blank=unlimited)</div><input class="wi" id="pc-max" type="number" placeholder=""></div><div><div class="wl">Expires (blank=never)</div><input class="wi" id="pc-exp" type="date"></div></div><div><div class="wl">Description</div><input class="wi" id="pc-desc" placeholder="e.g. Get 1 month free!"></div><button class="abtn abtn-gold" onclick="createPromo()">✨ Create Promo Code</button></div><div class="code-list" id="codeList"><div style="text-align:center;padding:1rem;color:var(--t3);">Loading...</div></div></div>
+<div class="admin-panel" id="ap-grants"><div class="admin-form"><div class="admin-row"><div><div class="wl">User Email</div><input class="wi" id="fg-email" type="email" placeholder="user@email.com"></div><div><div class="wl">Tier</div><select class="wse" id="fg-tier"><option value="pro">Pro</option><option value="starter">Starter</option></select></div></div><div><div class="wl">Reason (optional)</div><input class="wi" id="fg-reason" placeholder="Beta tester, contest winner..."></div><button class="abtn abtn-gold" onclick="grantAccess()">🎁 Grant Free Access</button></div><div class="code-list" id="grantList"><div style="text-align:center;padding:1rem;color:var(--t3);">Loading...</div></div></div>
+<div class="admin-panel" id="ap-stats"><div id="statsContent" style="padding:1rem;color:var(--t2);font-size:.88rem;">Loading...</div></div></div>
+
+<div id="tGrid" class="tgrid"><div class="tc" onclick="openTool('lyrics')"><div class="tc-i">✍️</div><div class="tc-n">Lyrics Generator</div><div class="tc-d">Song lyrics with verse, chorus, bridge.</div></div><div class="tc" onclick="openTool('cover')"><div class="tc-i">🎨</div><div class="tc-n">Album Cover Creator</div><div class="tc-d">Album artwork from descriptions.</div></div><div class="tc" onclick="openTool('song')"><div class="tc-i">🎤</div><div class="tc-n">Song Creator</div><div class="tc-d">Complete song with flow and delivery.</div></div><div class="tc" onclick="openTool('beat')"><div class="tc-i">🥁</div><div class="tc-n">Beat Blueprint</div><div class="tc-d">Production blueprints with BPM.</div></div><div class="tc" onclick="openTool('rhyme')"><div class="tc-i">📖</div><div class="tc-n">Rhyme Finder</div><div class="tc-d">Perfect, near, multi-syllable rhymes.</div></div><div class="tc" onclick="openTool('post')"><div class="tc-i">📝</div><div class="tc-n">Post Generator</div><div class="tc-d">Social media posts and promo copy.</div></div><div class="tc" onclick="openTool('video')"><div class="tc-i">🎬</div><div class="tc-n">Video Concepts</div><div class="tc-d">Music video storyboards.</div></div></div>
+
+<div class="ws" id="ws-lyrics"><div class="ws-top"><span class="ws-t">✍️ Lyrics Generator</span><button class="ws-x" onclick="closeTool()">← Back</button></div><div class="wf"><div class="wr"><div><div class="wl">Genre</div><input class="wi" id="lyr-g" placeholder="hip-hop, R&B, pop..."></div><div><div class="wl">Mood</div><input class="wi" id="lyr-m" placeholder="dark, uplifting..."></div></div><div><div class="wl">Topic</div><input class="wi" id="lyr-t" placeholder="struggle, love, hustle..."></div><div><div class="wl">Details (optional)</div><textarea class="wta" id="lyr-x" placeholder="Rhyme scheme, inspiration..."></textarea></div><button class="wgo" onclick="gen('lyrics')">🎵 Generate Lyrics</button></div><div class="wo output-lock" id="out-lyrics"></div></div>
+<div class="ws" id="ws-cover"><div class="ws-top"><span class="ws-t">🎨 Album Cover</span><button class="ws-x" onclick="closeTool()">← Back</button></div><div class="wf"><div><div class="wl">Describe Your Vision</div><textarea class="wta" id="cov-d" placeholder="Colors, style, mood..."></textarea><button style="margin-top:.4rem;background:rgba(139,92,246,.15);border:1px solid rgba(139,92,246,.25);color:#a78bfa;padding:.35rem .7rem;border-radius:8px;cursor:pointer;font-size:.78rem;font-weight:600;" onclick="enhanceCoverPrompt()">✨ Enhance My Prompt</button></div><div class="wr"><div><div class="wl">Album Title (top, large)</div><input class="wi" id="cov-title" placeholder="e.g. Killa Bees"></div><div><div class="wl">Artist Name (middle)</div><input class="wi" id="cov-artist" placeholder="e.g. 8BFR"></div></div><div><div class="wl">Featuring (bottom, smaller)</div><input class="wi" id="cov-feat" placeholder="e.g. Featuring Methodman and Redman"></div><button class="wgo" onclick="gen('cover')">🎨 Generate Cover</button></div><div class="wo output-lock" id="out-cover"></div></div>
+<div class="ws" id="ws-song"><div class="ws-top"><span class="ws-t">🎤 Song Creator</span><button class="ws-x" onclick="closeTool()">← Back</button></div><div class="wf"><div class="wr"><div><div class="wl">Genre</div><input class="wi" id="sng-g" placeholder="trap, boom-bap..."></div><div><div class="wl">BPM</div><input class="wi" id="sng-b" placeholder="140, slow..."></div></div><div><div class="wl">Topic</div><input class="wi" id="sng-t" placeholder="making it out..."></div><div><div class="wl">Flow</div><input class="wi" id="sng-f" placeholder="triplet, melodic..."></div><button class="wgo" onclick="gen('song')">🎤 Create Song</button></div><div class="wo output-lock" id="out-song"></div></div>
+<div class="ws" id="ws-beat"><div class="ws-top"><span class="ws-t">🥁 Beat Blueprint</span><button class="ws-x" onclick="closeTool()">← Back</button></div><div class="wf"><div class="wr"><div><div class="wl">Style</div><input class="wi" id="bt-s" placeholder="dark trap, lo-fi..."></div><div><div class="wl">Mood</div><input class="wi" id="bt-m" placeholder="aggressive, dreamy..."></div></div><div><div class="wl">Reference Artists</div><input class="wi" id="bt-r" placeholder="Metro Boomin, J Dilla..."></div><button class="wgo" onclick="gen('beat')">🥁 Generate Blueprint</button></div><div class="wo output-lock" id="out-beat"></div></div>
+<div class="ws" id="ws-rhyme"><div class="ws-top"><span class="ws-t">📖 Rhyme Finder</span><button class="ws-x" onclick="closeTool()">← Back</button></div><div class="wf"><div><div class="wl">Word</div><input class="wi" id="rhy-w" placeholder="Enter a word..." onkeydown="if(event.key==='Enter')gen('rhyme');"></div><div style="display:flex;gap:.7rem;flex-wrap:wrap;"><label style="font-size:.8rem;color:var(--t3);cursor:pointer;"><input type="checkbox" id="rhy-p" checked> Perfect</label><label style="font-size:.8rem;color:var(--t3);cursor:pointer;"><input type="checkbox" id="rhy-n" checked> Near</label><label style="font-size:.8rem;color:var(--t3);cursor:pointer;"><input type="checkbox" id="rhy-m" checked> Multi</label><label style="font-size:.8rem;color:var(--t3);cursor:pointer;"><input type="checkbox" id="rhy-h"> Homophones</label><label style="font-size:.8rem;color:var(--t3);cursor:pointer;"><input type="checkbox" id="rhy-d" checked> Define</label></div><button class="wgo" onclick="gen('rhyme')">📖 Find Rhymes</button></div><div class="wo" id="out-rhyme"></div></div>
+<div class="ws" id="ws-post"><div class="ws-top"><span class="ws-t">📝 Post Generator</span><button class="ws-x" onclick="closeTool()">← Back</button></div><div class="wf"><div class="wr"><div><div class="wl">Platform</div><select class="wse" id="pst-p"><option>Instagram</option><option>Twitter/X</option><option>TikTok</option><option>Facebook</option><option>YouTube</option></select></div><div><div class="wl">Tone</div><input class="wi" id="pst-t" placeholder="hype, chill..."></div></div><div><div class="wl">Promoting</div><input class="wi" id="pst-w" placeholder="new single, show..."></div><button class="wgo" onclick="gen('post')">📝 Generate Posts</button></div><div class="wo output-lock" id="out-post"></div></div>
+<div class="ws" id="ws-video"><div class="ws-top"><span class="ws-t">🎬 Video Concepts</span><button class="ws-x" onclick="closeTool()">← Back</button></div><div class="wf"><div class="wr"><div><div class="wl">Genre</div><input class="wi" id="vid-g" placeholder="hip-hop, R&B..."></div><div><div class="wl">Mood</div><input class="wi" id="vid-m" placeholder="dark, cinematic..."></div></div><div><div class="wl">Song Description</div><textarea class="wta" id="vid-d" placeholder="What's it about?"></textarea></div><div><div class="wl">Budget</div><select class="wse" id="vid-b"><option>Low (phone, 1-2 locations)</option><option>Medium (small crew)</option><option>High (full production)</option></select></div><button class="wgo" onclick="gen('video')">🎬 Generate Concept</button></div><div class="wo output-lock" id="out-video"></div></div>
+
+<div id="mSec"><div class="stag" style="margin-top:1.5rem;">💰 Plans</div><h2 class="stitle" style="font-size:1.4rem;">Upgrade Your Plan</h2><div style="margin:1rem 0;display:flex;gap:.5rem;max-width:400px;flex-wrap:wrap;"><input class="wi" id="appPromo" placeholder="Enter promo code" style="flex:1;text-transform:uppercase;letter-spacing:.05em;"><button class="abtn abtn-gold" onclick="applyPromo()">Apply</button></div><div id="promoMsg" style="font-size:.82rem;margin-bottom:.5rem;display:none;"></div><div class="pgrid" style="margin-top:.5rem;"><div class="pc"><div class="pc-name">Free</div><div class="pc-amt" style="font-size:1.8rem;">$0<span>/forever</span></div><div class="pc-list"><div><span class="chk">✓</span> 3/day</div><div><span class="chk">✓</span> All tools</div><div><span class="lck">✗</span> Watermarks</div></div><button class="pc-btn cta-f" id="aBtnF" disabled>Current</button></div><div class="pc feat"><div class="pc-name">Starter</div><div class="pc-amt" style="font-size:1.8rem;">$5.99<span>/mo</span></div><div class="pc-list"><div><span class="chk">✓</span> 30/day</div><div><span class="chk">✓</span> No watermarks</div><div><span class="chk">✓</span> Copy & download</div></div><button class="pc-btn cta-s" id="aBtnS" onclick="subscribe('starter')">Get Starter</button></div><div class="pc"><div class="pc-name">Pro</div><div class="pc-amt" style="font-size:1.8rem;">$12.99<span>/mo</span></div><div class="pc-list"><div><span class="chk">✓</span> Unlimited</div><div><span class="chk">✓</span> Commercial license</div><div><span class="chk">✓</span> Priority</div></div><button class="pc-btn cta-p" id="aBtnP" onclick="subscribe('pro')">Get Pro</button></div></div></div>
+<div class="footer"><p>© 2025 Producer AI — Built by <a href="https://8bfr.github.io" target="_blank">8BFR</a></p></div></div></div>
+
+<script>
+const SB_URL='https://novbuvwpjnxwwvdekjhr.supabase.co',SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0',API='https://8bfr-api.vercel.app/api/openai',OWNER_ID='cb556180-f032-4b21-9470-1d786f2664ab',PAYPAL_PLANS={starter:'YOUR_STARTER_PLAN_ID',pro:'YOUR_PRO_PLAN_ID'},LIM={free:3,starter:30,pro:999999};
+const db=window.supabase.createClient(SB_URL,SB_KEY);let user=null,tier='free',used=0,isOwner=false,hasGrant=false,hasProfile=false;
+document.addEventListener('contextmenu',e=>{if(tier==='free'&&!isOwner&&e.target.closest('.output-lock'))e.preventDefault();});
+document.addEventListener('keydown',e=>{if(tier!=='free'||isOwner)return;if((e.ctrlKey||e.metaKey)&&['c','a','s','p'].includes(e.key.toLowerCase())&&document.querySelector('.wo.show'))e.preventDefault();});
+document.addEventListener('visibilitychange',()=>{if(tier==='free'&&!isOwner)document.body.classList.toggle('blurred',document.hidden);});
+window.addEventListener('blur',()=>{if(tier==='free'&&!isOwner)document.body.classList.add('blurred');});
+window.addEventListener('focus',()=>document.body.classList.remove('blurred'));
+window.addEventListener('scroll',()=>document.getElementById('nav').classList.toggle('scrolled',window.scrollY>40));
+const NETWORK_BASE='https://8bfr.github.io/8bfr-Music-Network/';
+function goSignup(){window.open(NETWORK_BASE+'signup.html?from=producer-ai','_blank');}
+async function goProfile(){if(!user){openAuth();return;}if(!hasProfile){window.open(NETWORK_BASE+'create-profile.html','_blank');return;}window.open(NETWORK_BASE+'profile.html','_blank');}
+function openAuth(){document.getElementById('authOv').classList.add('show');}
+function closeAuth(){document.getElementById('authOv').classList.remove('show');document.getElementById('aErr').style.display='none';}
+async function doAuth(){const email=document.getElementById('aEmail').value.trim(),pass=document.getElementById('aPass').value,err=document.getElementById('aErr'),btn=document.getElementById('aBtn');if(!email||!pass){err.textContent='Fill in all fields.';err.style.display='block';return;}err.style.display='none';btn.disabled=true;btn.textContent='Loading...';try{const r=await db.auth.signInWithPassword({email,password:pass});if(r.error)throw r.error;user=r.data.user;await loadUser();enterApp();closeAuth();}catch(e){err.textContent=e.message||'Login failed';err.style.display='block';}btn.disabled=false;btn.textContent='Log In';}
+async function doLogout(){await db.auth.signOut();user=null;tier='free';isOwner=false;hasGrant=false;hasProfile=false;document.getElementById('adminPanel').style.display='none';document.getElementById('adminToggle').style.display='none';document.getElementById('appW').style.display='none';document.getElementById('landing').style.display='block';document.getElementById('navA').style.display='none';document.getElementById('navL').style.display='flex';}
+
+/* ====== FIX 1: loadUser — proper grant checking with error handling ====== */
+async function loadUser(){
+  if(!user) return;
+  // Reset state cleanly FIRST — prevents stale owner state
+  isOwner = false;
+  hasGrant = false;
+  tier = 'free';
+
+  // Check owner status
+  isOwner = (user.id === OWNER_ID);
+  console.log('[Producer AI] User:', user.email, '| ID:', user.id, '| isOwner:', isOwner);
+
+  // Check for free access grant
+  try {
+    const { data: grant, error: grantErr } = await db
+      .from('free_access_grants')
+      .select('*')
+      .eq('user_email', user.email)
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle();
+
+    if (grantErr) {
+      console.warn('[Producer AI] Grant query error:', grantErr.message);
+      // RLS might block email lookup — try by user_id
+      const { data: grant2 } = await db
+        .from('free_access_grants')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle();
+      if (grant2) {
+        tier = grant2.granted_tier || 'pro';
+        hasGrant = true;
+        console.log('[Producer AI] Grant found via user_id fallback:', tier);
+      }
+    } else if (grant) {
+      tier = grant.granted_tier || 'pro';
+      hasGrant = true;
+      console.log('[Producer AI] Grant found:', tier);
+      if (!grant.user_id) {
+        await db.from('free_access_grants').update({ user_id: user.id }).eq('id', grant.id);
+      }
+    }
+  } catch (e) {
+    console.warn('[Producer AI] Grant check failed:', e);
+  }
+
+  // If no grant, check subscription
+  if (!hasGrant) {
+    try {
+      const { data: sub } = await db
+        .from('app_subscriptions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (sub) {
+        tier = sub.tier || 'free';
+        if (sub.expires_at && new Date(sub.expires_at) < new Date() && sub.tier !== 'free') {
+          tier = 'free';
+          await db.from('app_subscriptions').update({ tier: 'free', status: 'expired' }).eq('id', sub.id);
+        }
+      }
+    } catch (e) {
+      console.warn('[Producer AI] Subscription check failed:', e);
+    }
+  }
+
+  // Owner always gets pro
+  if (isOwner) { tier = 'pro'; hasGrant = true; }
+
+  // Check if user has a network profile
+  try {
+    const { data: profile } = await db.from('profiles').select('user_id').eq('user_id', user.id).maybeSingle();
+    hasProfile = !!profile;
+    console.log('[Producer AI] Has profile:', hasProfile);
+  } catch (e) { hasProfile = false; }
+
+  console.log('[Producer AI] Final tier:', tier, '| hasGrant:', hasGrant, '| isOwner:', isOwner);
+
+  const today = new Date().toISOString().split('T')[0];
+  const { data: u } = await db.from('app_usage').select('count').eq('user_id', user.id).eq('usage_date', today);
+  used = u ? u.reduce((s, r) => s + r.count, 0) : 0;
+  refreshUI();
+}
+
+function refreshUI(){const te=document.getElementById('nTier');if(hasGrant&&!isOwner){te.textContent='GRANTED';te.className='nav-tier t-granted';}else{te.textContent=tier.toUpperCase();te.className='nav-tier t-'+tier;}document.getElementById('nEmail').textContent=user?.email||'';const lim=LIM[tier];document.getElementById('uC').textContent=used;document.getElementById('uL').textContent=lim>=999999?'∞':lim;document.getElementById('uF').style.width=(lim>=999999?3:Math.min(100,(used/lim)*100))+'%';document.getElementById('aBtnF').disabled=tier==='free';document.getElementById('aBtnF').textContent=tier==='free'?'Current':'Downgrade';document.getElementById('aBtnS').disabled=tier==='starter';document.getElementById('aBtnS').textContent=tier==='starter'?'✓ Current':'Get Starter';document.getElementById('aBtnP').disabled=tier==='pro';document.getElementById('aBtnP').textContent=tier==='pro'?'✓ Current':'Get Pro';if(tier!=='free')document.querySelectorAll('.output-lock').forEach(el=>{el.style.userSelect='text';el.style.webkitUserSelect='text';});
+/* FIX: Defensive admin panel guard — ONLY show for owner */
+document.getElementById('adminToggle').style.display=isOwner?'inline-block':'none';
+if(!isOwner){document.getElementById('adminPanel').style.display='none';}
+}
+
+function enterApp(){document.getElementById('landing').style.display='none';document.getElementById('appW').style.display='block';document.getElementById('navL').style.display='none';document.getElementById('navA').style.display='flex';if(isOwner)loadAdmin();}
+function openTool(t){document.getElementById('tGrid').style.display='none';document.getElementById('mSec').style.display='none';if(document.getElementById('adminPanel'))document.getElementById('adminPanel').style.display='none';document.querySelectorAll('.ws').forEach(w=>w.classList.remove('open'));document.getElementById('ws-'+t).classList.add('open');window.scrollTo({top:0,behavior:'smooth'});}
+function closeTool(){document.querySelectorAll('.ws').forEach(w=>w.classList.remove('open'));document.getElementById('tGrid').style.display='grid';document.getElementById('mSec').style.display='block';if(isOwner)document.getElementById('adminPanel').style.display='block';}
+function scrollPrice(){closeTool();document.getElementById('mSec').scrollIntoView({behavior:'smooth'});}
+async function gen(tool){if(used>=LIM[tier]){alert("Daily limit reached! Upgrade for more.");window.open('https://8bfr.github.io/8bfr-Music-Network/upgrades.html?from=producer-ai','_blank');return;}const prompt=buildP(tool);if(!prompt)return;const out=document.getElementById('out-'+tool);out.classList.add('show');const btn=document.getElementById('ws-'+tool).querySelector('.wgo');btn.disabled=true;if(tool==='cover'){out.innerHTML='<div class="cover-loading"><div class="dots"><span></span><span></span><span></span></div>&nbsp; Generating cover art...</div>';await genCover(prompt,out);}else{out.innerHTML='<div class="dots"><span></span><span></span><span></span></div> Generating...';try{const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({input:prompt,tool:'general'})});if(!r.ok)throw new Error('API error');const d=await r.json();const reply=d.response||d.result||'No output.';renderPremium(tool,reply,out);}catch(e){out.innerHTML='<span style="color:var(--danger);">Error: '+e.message+'</span>';}}btn.disabled=false;used++;await db.from('app_usage').insert({user_id:user.id,tool:tool,count:1});refreshUI();}
+
+function renderPremium(tool,text,out){
+const paid=tier!=='free'||isOwner;
+let h='';
+if(tool==='lyrics'||tool==='song'){h=renderSongSections(text,tool==='song');}
+else if(tool==='rhyme'){h=renderRhymes(text);}
+else if(tool==='post'){h=renderPosts(text);}
+else if(tool==='beat'){h=renderBeat(text);}
+else if(tool==='video'){h=renderVideo(text);}
+else{h='<pre>'+esc(text)+'</pre>';}
+if(!paid)h+='<div class="watermark">Producer AI — Upgrade to Copy</div>';
+else h+='<button class="cpbtn" onclick="doCopy(this)">📋 Copy All</button>';
+out.innerHTML=h;out.dataset.raw=text;
+}
+
+function renderSongSections(text,isSong){
+const lines=text.split('\n');let sections=[];let cur=null;
+for(const line of lines){
+const t=line.trim();
+const m=t.match(/^\[([^\]]+)\]/i);
+if(m){if(cur)sections.push(cur);const label=m[1];let type='verse';
+if(/chorus|hook/i.test(label))type='chorus';
+else if(/bridge/i.test(label))type='bridge';
+else if(/intro|outro/i.test(label))type='intro';
+const rest=t.replace(/^\[[^\]]+\]\s*/,'');
+cur={label,type,lines:rest?[rest]:[]};
+}else if(t){if(!cur)cur={label:'',type:'verse',lines:[]};
+let processed=esc(t);
+processed=processed.replace(/\(([^)]*(?:whisper|yell|slow|fast|flow|punch|glide|double|triple|rasp|sing|soft|loud|breath|pause|emphasis)[^)]*)\)/gi,'<span class="delivery">($1)</span>');
+processed=processed.replace(/\(([^)]*(?:ad[\s-]?lib|yeah|uh|woo|skrt|brr|ayy|sheesh|huh)[^)]*)\)/gi,'<span class="adlib">($1)</span>');
+cur.lines.push(processed);}
+}
+if(cur)sections.push(cur);
+if(sections.length===0)return'<pre>'+esc(text)+'</pre>';
+let h='';
+const icons={verse:'🎤',chorus:'🔥',bridge:'🌉',intro:'🎬'};
+const hcls={verse:'v',chorus:'c',bridge:'b',intro:'i'};
+for(const s of sections){
+h+='<div class="po-section '+s.type+'">';
+if(s.label)h+='<div class="po-head '+hcls[s.type]+'">'+(icons[s.type]||'🎵')+' '+esc(s.label)+'</div>';
+h+='<div class="po-lines">'+s.lines.join('<br>')+'</div></div>';
+}
+return h;
+}
+
+function renderRhymes(text){
+const sections={};const lines=text.split('\n');let curSec=null;
+for(const line of lines){
+const t=line.trim();if(!t)continue;
+const m=t.match(/^(PERFECT_RHYMES|PERFECT|NEAR_RHYMES|NEAR|MULTI_SYLLABLE|MULTI|HOMOPHONES|HOMO|SYLLABLES|DEFINITION|SYNONYMS)[:\s\-]+(.*)/i);
+if(m){curSec=m[1].toUpperCase().replace(/_RHYMES|_SYLLABLE/,'');if(curSec==='HOMO')curSec='HOMOPHONES';
+const c=m[2].trim();if(c)sections[curSec]=(sections[curSec]||'')+c;
+}else if(curSec){sections[curSec]=(sections[curSec]||'')+' '+t;}
+}
+if(Object.keys(sections).length===0)return'<pre>'+esc(text)+'</pre>';
+let h='';
+const cfgs=[
+{key:'PERFECT',title:'✨ Perfect Rhymes',cls:'perf'},
+{key:'NEAR',title:'🎵 Near / Slant Rhymes',cls:'near'},
+{key:'MULTI',title:'🔥 Multi-Syllable',cls:'multi'},
+{key:'HOMOPHONES',title:'🔤 Homophones',cls:''}];
+for(const cfg of cfgs){
+if(!sections[cfg.key])continue;
+const words=sections[cfg.key].split(/[,;]/).map(w=>w.trim().replace(/^[-•\d.)\s]+/,'').trim()).filter(w=>w.length>0&&w.length<50&&!w.includes(':'));
+if(!words.length)continue;
+h+='<div class="rhy-sec"><div class="rhy-title">'+cfg.title+'<span class="rhy-count">'+words.length+' words</span></div>';
+h+='<div class="rhy-grid">'+words.map(w=>'<span class="rhy-chip '+cfg.cls+'" onclick="rhyDefine(\''+esc(w).replace(/'/g,"\\'")+'\',this)" title="Click for definition">'+esc(w)+'</span>').join('')+'</div></div>';
+}
+let info='';
+if(sections['SYLLABLES'])info+='<b>Syllables:</b> '+esc(sections['SYLLABLES'])+'<br>';
+if(sections['DEFINITION'])info+='<b>Definition:</b> '+esc(sections['DEFINITION']);
+if(info)h='<div class="rhy-sec" style="border-color:var(--gold-b);"><div style="font-size:.88rem;line-height:1.6;color:var(--t2);">'+info+'</div></div>'+h;
+h+='<div class="rhy-def" id="rhyDefPanel"><div class="rhy-def-word" id="rhyDefWord"></div><div id="rhyDefContent"></div></div>';
+return h;
+}
+
+async function rhyDefine(word,chip){
+const panel=document.getElementById('rhyDefPanel'),wEl=document.getElementById('rhyDefWord'),cEl=document.getElementById('rhyDefContent');
+wEl.textContent=word;cEl.innerHTML='<div class="dots"><span></span><span></span><span></span></div>';
+panel.classList.add('show');panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+try{const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({input:'Define "'+word+'" briefly for a songwriter. Part of speech, 1-2 definitions, syllable count, 1 example. Under 80 words.',tool:'general'})});
+const d=await r.json();cEl.innerHTML='<div style="font-size:.86rem;line-height:1.6;color:var(--t2);">'+(d.response||d.result||'No definition.').replace(/\n/g,'<br>')+'</div>';
+}catch(e){cEl.innerHTML='<span style="color:var(--danger);">Error</span>';}
+const wi=document.getElementById('rhy-w');if(wi)wi.value=word;
+}
+
+function renderPosts(text){
+const posts=text.split(/(?:Post\s*\d|Option\s*\d|#\d|\d\.\s)/i).filter(p=>p.trim().length>10);
+if(posts.length<2)return'<pre>'+esc(text)+'</pre>';
+let h='';posts.forEach((p,i)=>{
+h+='<div class="post-card"><div class="post-num">📱 Post '+(i+1)+'</div>';
+h+='<div class="post-body">'+esc(p.trim())+'</div>';
+h+='<button class="post-copy" onclick="copyOne(this)">📋 Copy</button></div>';
+});return h;
+}
+
+function renderBeat(text){
+const lines=text.split('\n');
+const fields={};let curField=null;let arrangement=[];let inArr=false;
+for(const line of lines){
+const t=line.trim();if(!t)continue;
+const m=t.match(/^(?:[\*\-•]?\s*)?(title|bpm|tempo|key|time\s*sig|drum|hi[\s-]?hat|snare|kick|bass|melody|melodic|instrument|synth|pad|sample|arrangement|structure|mix|creative|concept|name)[s]?\s*[:\-]\s*(.*)/i);
+if(m){curField=m[1].toLowerCase().replace(/\s+/g,'_');
+if(curField.includes('arrangement')||curField.includes('structure')){inArr=true;if(m[2].trim())arrangement.push(m[2].trim());}
+else{inArr=false;fields[curField]=(fields[curField]||'')+m[2].trim()+' ';}
+}else if(inArr){arrangement.push(t);}
+else if(curField){fields[curField]+=' '+t;}
+}
+if(Object.keys(fields).length<2)return'<pre>'+esc(text)+'</pre>';
+let h='<div class="bp-grid">';
+const cards=[
+{keys:['title','name','creative','concept'],label:'TITLE',icon:'🎵'},
+{keys:['bpm','tempo'],label:'BPM / TEMPO',icon:'⏱️'},
+{keys:['key'],label:'KEY',icon:'🎹'},
+{keys:['time_sig','time_signature'],label:'TIME SIG',icon:'📐'},
+];
+for(const c of cards){
+let val='';for(const k of c.keys)if(fields[k])val+=fields[k].trim()+' ';
+if(val.trim())h+='<div class="bp-card"><div class="bp-label">'+c.icon+' '+c.label+'</div><div class="bp-value">'+esc(val.trim())+'</div></div>';
+}
+h+='</div>';
+const details=[
+{keys:['drum','kick','snare','hi_hat','hi-hat'],label:'🥁 Drums',icon:'🥁'},
+{keys:['bass'],label:'🎸 Bass',icon:'🎸'},
+{keys:['melody','melodic','instrument','synth','pad','sample'],label:'🎹 Melodics',icon:'🎹'},
+];
+for(const d of details){
+let val='';for(const k of d.keys)if(fields[k])val+=fields[k].trim()+'\n';
+if(val.trim())h+='<div class="po-section verse"><div class="po-head v">'+d.label+'</div><div style="font-size:.86rem;line-height:1.7;color:var(--t2);">'+esc(val.trim()).replace(/\n/g,'<br>')+'</div></div>';
+}
+if(arrangement.length)h+='<div class="po-section chorus"><div class="po-head c">📋 Arrangement</div><div style="font-size:.86rem;line-height:1.7;color:var(--t2);">'+arrangement.map(a=>esc(a)).join('<br>')+'</div></div>';
+const mix=fields['mix'];
+if(mix)h+='<div class="po-section bridge"><div class="po-head b">🎚️ Mixing Tips</div><div style="font-size:.86rem;line-height:1.7;color:var(--t2);">'+esc(mix.trim()).replace(/\n/g,'<br>')+'</div></div>';
+return h;
+}
+
+function renderVideo(text){
+const lines=text.split('\n');let scenes=[];let cur=null;let meta=[];
+for(const line of lines){
+const t=line.trim();if(!t)continue;
+const isHeader=t.match(/^(?:#{1,3}\s*)?(?:[\*\-•]?\s*)?(?:scene|shot|location|sequence|act|section|concept|treatment|wardrobe|color|lighting|props|special|storyboard)\s*(?:\d+)?[:\-]/i);
+if(isHeader){if(cur)scenes.push(cur);cur={label:t.replace(/^[#\*\-•\s]+/,'').replace(/[:\-]\s*$/,''),lines:[]};}
+else if(cur){cur.lines.push(t);}
+else{meta.push(t);}
+}
+if(cur)scenes.push(cur);
+if(scenes.length<2)return'<pre>'+esc(text)+'</pre>';
+let h='';
+if(meta.length)h+='<div class="po-section intro"><div class="po-head i">🎬 Overview</div><div style="font-size:.86rem;line-height:1.7;color:var(--t2);">'+meta.map(m=>esc(m)).join('<br>')+'</div></div>';
+scenes.forEach((s,i)=>{
+h+='<div class="vid-scene"><div class="vid-num">'+(i+1)+'</div><div class="vid-label">'+esc(s.label)+'</div>';
+h+='<div class="vid-text">'+s.lines.map(l=>esc(l)).join('<br>')+'</div></div>';
+});return h;
+}
+
+async function enhanceCoverPrompt() {
+  const ta = document.getElementById('cov-d');
+  const raw = ta.value.trim();
+  if (!raw) { alert('Enter a description first!'); return; }
+  const origText = ta.value;
+  ta.value = '✨ Enhancing...';
+  ta.disabled = true;
+  try {
+    const r = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        input: 'You are an AI image prompt enhancer for album covers. CRITICAL RULES: 1) NEVER change or reinterpret the subject. If they say "killa bees" keep it as "killa bees" not "killer bees". 2) NEVER correct or change spelling of ANY words - use their EXACT spelling. 3) Keep the users exact concept as the focal point. 4) Only ADD visual details: art style, lighting, colors, composition. 5) Under 80 words. 6) No text or typography. Output ONLY the enhanced prompt.\n\nUser wants: ' + raw,
+        tool: 'general'
+      })
+    });
+    if (r.ok) {
+      const d = await r.json();
+      const resp = (d.response || d.result || '').trim();
+      if (resp && resp.length > 10) { ta.value = resp; }
+      else { ta.value = origText; }
+    } else { ta.value = origText; }
+  } catch (e) { ta.value = origText; }
+  ta.disabled = false;
+  ta.focus();
+}
+
+function overlayTextOnImage(imgSrc, coverText) {
+  return new Promise((resolve) => {
+    const TARGET = 3000;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = TARGET;
+      canvas.height = TARGET;
+      const ctx = canvas.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, TARGET, TARGET);
+      const hasText = coverText.title || coverText.artist || coverText.feat;
+      if (!hasText) { resolve(canvas.toDataURL('image/png')); return; }
+      const maxW = TARGET * 0.88;
+      const cx = TARGET / 2;
+
+      function wrapText(text, fontSize, weight) {
+        ctx.font = weight + ' ' + fontSize + 'px Syne, Arial, sans-serif';
+        while (ctx.measureText(text).width > maxW && fontSize > 30) {
+          fontSize -= 4;
+          ctx.font = weight + ' ' + fontSize + 'px Syne, Arial, sans-serif';
+        }
+        const words = text.split(' ');
+        const lines = [];
+        let cur = '';
+        for (const w of words) {
+          const test = cur ? cur + ' ' + w : w;
+          if (ctx.measureText(test).width > maxW && cur) { lines.push(cur); cur = w; }
+          else { cur = test; }
+        }
+        if (cur) lines.push(cur);
+        return { lines, fontSize };
+      }
+
+      function drawBlock(lines, fontSize, weight, y) {
+        ctx.font = weight + ' ' + fontSize + 'px Syne, Arial, sans-serif';
+        ctx.textAlign = 'center';
+        const lineH = fontSize * 1.3;
+        lines.forEach((line, i) => {
+          const ly = y + i * lineH;
+          ctx.fillStyle = 'rgba(0,0,0,0.75)';
+          ctx.fillText(line, cx + 3, ly + 3);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText(line, cx, ly);
+        });
+        return lines.length * lineH;
+      }
+
+      if (coverText.title) {
+        const t = wrapText(coverText.title, Math.floor(TARGET / 9), '800');
+        const barH = t.lines.length * t.fontSize * 1.3 + t.fontSize * 1.2;
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(0, 0, TARGET, barH);
+        drawBlock(t.lines, t.fontSize, '800', t.fontSize * 1.0);
+      }
+
+      if (coverText.artist) {
+        const a = wrapText(coverText.artist, Math.floor(TARGET / 14), '700');
+        const totalH = a.lines.length * a.fontSize * 1.3;
+        const startY = (TARGET - totalH) / 2 + a.fontSize * 0.4;
+        const barPad = a.fontSize * 0.5;
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.fillRect(0, startY - barPad - a.fontSize * 0.3, TARGET, totalH + barPad * 2 + a.fontSize * 0.3);
+        drawBlock(a.lines, a.fontSize, '700', startY);
+      }
+
+      if (coverText.feat) {
+        const f = wrapText(coverText.feat, Math.floor(TARGET / 18), '600');
+        const totalH = f.lines.length * f.fontSize * 1.3;
+        const startY = TARGET - totalH - f.fontSize * 0.6;
+        const barPad = f.fontSize * 0.5;
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(0, startY - barPad - f.fontSize * 0.2, TARGET, TARGET - (startY - barPad - f.fontSize * 0.2));
+        drawBlock(f.lines, f.fontSize, '600', startY);
+      }
+
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = () => resolve(imgSrc);
+    img.src = imgSrc;
+  });
+}
+
+async function genCover(prompt, out) {
+  const IMG_API = API.replace('/openai', '/image');
+  const coverText = {
+    title: document.getElementById('cov-title')?.value?.trim() || '',
+    artist: document.getElementById('cov-artist')?.value?.trim() || '',
+    feat: document.getElementById('cov-feat')?.value?.trim() || ''
+  };
+  const hasText = coverText.title || coverText.artist || coverText.feat;
+  try {
+    out.innerHTML = '<div class="cover-loading"><div class="dots"><span></span><span></span><span></span></div>&nbsp; Step 1: Enhancing your description...</div>';
+
+    let enhanced = prompt;
+    try {
+      const r = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          input: 'Enhance this image prompt for an album cover. CRITICAL: Keep the EXACT subject AND exact spelling — do not reinterpret, replace, or correct any words. If they wrote killa keep killa not killer. Only add: art style, lighting, colors, composition. Under 80 words. No text/typography. Output ONLY the prompt.\n\nSubject: ' + prompt,
+          tool: 'general'
+        })
+      });
+      if (r.ok) {
+        const d = await r.json();
+        const resp = (d.response || d.result || '').trim();
+        if (resp && resp.length > 10) enhanced = resp.replace(/["]/g, '').substring(0, 400);
+      }
+    } catch (e) { /* use original prompt */ }
+
+    enhanced = enhanced.replace(/\b(text|word|letter|title|name|font|typography|writing|logo)\b/gi, '').replace(/\s{2,}/g, ' ').trim();
+    const fullPrompt = enhanced + ', album cover art, high quality, professional, no text, no words, no letters, square format';
+
+    out.innerHTML = '<div class="cover-loading"><div class="dots"><span></span><span></span><span></span></div>&nbsp; Step 2: Generating cover art... (10-30 seconds)</div>';
+
+    const paid = tier !== 'free' || isOwner;
+
+    const genOne = async (p) => {
+      try {
+        const r = await fetch(IMG_API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: p })
+        });
+        if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || 'API error'); }
+        const d = await r.json();
+        if (d.image) return { ok: true, src: d.image, model: d.model || 'AI' };
+        throw new Error('No image returned');
+      } catch (e) { return { ok: false, error: e.message }; }
+    };
+
+    const results = await Promise.all([
+      genOne(fullPrompt),
+      genOne(fullPrompt + ', alternate composition, different color palette')
+    ]);
+
+    out.innerHTML = '<div class="cover-loading"><div class="dots"><span></span><span></span><span></span></div>&nbsp; Upscaling to 3000×3000' + (hasText ? ' + adding text' : '') + '...</div>';
+    for (let i = 0; i < results.length; i++) {
+      if (results[i].ok && results[i].src) {
+        results[i].src = await overlayTextOnImage(results[i].src, coverText);
+      }
+    }
+
+    const modelName = results.find(r => r.ok)?.model || 'AI';
+    const shortModel = modelName.includes('/') ? modelName.split('/').pop() : modelName;
+    let h = '<div style="text-align:center;margin-bottom:.75rem;font-size:.82rem;color:var(--t3);">Generated with ' + esc(shortModel) + ' — 3000×3000px' + (hasText ? ' — with text overlay' : '') + '</div>';
+    h += '<div class="cover-grid">';
+
+    let anySuccess = false;
+    results.forEach((r, i) => {
+      if (r.ok && r.src) {
+        anySuccess = true;
+        h += '<div class="cover-img">';
+        h += '<img src="' + r.src + '" alt="Cover ' + (i+1) + '" loading="eager">';
+        if (paid) {
+          h += '<button class="cover-dl" style="bottom:2.2rem;" onclick="viewFull(this)">🔍 View Full</button>';
+          h += '<a class="cover-dl" href="' + r.src + '" download="producer-ai-cover-' + (i+1) + '.png" target="_blank">📥 Download</a>';
+        }
+        h += '</div>';
+      } else {
+        h += '<div class="cover-img" style="display:flex;align-items:center;justify-content:center;min-height:200px;border:1px dashed rgba(255,255,255,.1);">';
+        h += '<div style="text-align:center;color:var(--t3);font-size:.85rem;">⚠️ Variation ' + (i+1) + ' failed' + (r.error ? '<br><span style="font-size:.72rem;">' + esc(r.error) + '</span>' : '') + '</div>';
+        h += '</div>';
+      }
+    });
+    h += '</div>';
+
+    h += '<div style="margin-top:1rem;padding:.75rem;background:rgba(0,0,0,.2);border-radius:8px;font-size:.78rem;color:var(--t3);line-height:1.5;">';
+    h += '<strong style="color:var(--gold);">Enhanced prompt:</strong> ' + esc(enhanced.substring(0, 200)) + (enhanced.length > 200 ? '...' : '');
+    h += '</div>';
+
+    if (!paid) {
+      h += '<div style="text-align:center;margin-top:.75rem;font-size:.78rem;color:var(--t3);"><a href="https://8bfr.github.io/8bfr-Music-Network/upgrades.html?from=producer-ai" target="_blank" style="color:#a855f7;">⬆️ Upgrade to download high-res covers without watermarks</a></div>';
+      h += '<div class="watermark">Producer AI</div>';
+    }
+    h += '<div class="cover-retry"><button onclick="gen(\'cover\')">🔄 Generate New Variations</button></div>';
+
+    if (!anySuccess) {
+      out.innerHTML = '<div style="text-align:center;padding:2rem;">' +
+        '<div style="font-size:1.5rem;margin-bottom:.5rem;">⚠️</div>' +
+        '<div style="color:var(--danger);margin-bottom:.75rem;">Image generation failed.</div>' +
+        '<div style="font-size:.82rem;color:var(--t3);margin-bottom:1rem;">' + esc(results[0]?.error || 'Unknown error') + '</div>' +
+        '<div class="cover-retry"><button onclick="gen(\'cover\')">🔄 Try Again</button></div></div>';
+    } else {
+      out.innerHTML = h;
+    }
+
+  } catch (e) {
+    out.innerHTML = '<span style="color:var(--danger);">Error: ' + (e.message || 'Unknown error') + '</span>' +
+      '<div class="cover-retry"><button onclick="gen(\'cover\')">🔄 Try Again</button></div>';
+  }
+}
+
+function viewFull(btn){const img=btn.parentElement.querySelector('img');if(!img)return;const w=window.open('');w.document.write('<html><head><title>Album Cover</title><style>body{margin:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh;}img{max-width:100%;max-height:100vh;object-fit:contain;}</style></head><body><img src="'+img.src+'"></body></html>');w.document.close();}
+function doCopy(b){const out=b.closest('.wo');const raw=out?.dataset?.raw;if(raw){navigator.clipboard.writeText(raw).then(()=>{b.textContent='✓ Copied!';setTimeout(()=>b.textContent='📋 Copy All',2000);});}else{const pre=out?.querySelector('pre');if(pre)navigator.clipboard.writeText(pre.textContent).then(()=>{b.textContent='✓ Copied!';setTimeout(()=>b.textContent='📋 Copy All',2000);});}}
+function copyOne(b){const body=b.parentElement.querySelector('.post-body');if(body)navigator.clipboard.writeText(body.textContent).then(()=>{b.textContent='✓';setTimeout(()=>b.textContent='📋 Copy',1500);});}
+
+function buildP(t){const v=id=>document.getElementById(id)?.value?.trim()||'';switch(t){case'lyrics':{const tp=v('lyr-t');if(!tp){alert('Enter a topic!');return null;}return'Write complete '+( v('lyr-g')||'hip-hop')+' song lyrics about "'+tp+'". Mood: '+(v('lyr-m')||'versatile')+'. Include: 2 full verses (8-16 lines each), chorus (4-8 lines, repeated), bridge, and optional outro. Use creative wordplay, metaphors, internal rhymes, and strong end rhymes. '+(v('lyr-x')?'Notes: '+v('lyr-x'):'')+' FORMAT: Use [Verse 1], [Chorus], [Verse 2], [Bridge], [Outro] section headers on their own line.';}case'cover':{const d=v('cov-d');if(!d){alert('Describe your vision!');return null;}return d;}case'song':{const tp=v('sng-t');if(!tp){alert('Enter a topic!');return null;}return'Create a complete '+(v('sng-g')||'rap')+' song about "'+tp+'". '+(v('sng-b')?'Tempo: '+v('sng-b')+'.':'')+' '+(v('sng-f')?'Flow: '+v('sng-f')+'.':'')+' Include: [Intro], [Verse 1] (12-16 lines with delivery notes in parentheses like (slow, emphasize) or (double-time)), [Chorus] (catchy, 4-8 lines), [Verse 2] (different flow), [Bridge], [Outro]. Add (ad-lib: yeah) style suggestions. Complex multi-syllable rhyme schemes. Each section header on its own line in brackets.';}case'beat':{const s=v('bt-s');if(!s){alert('Enter a style!');return null;}return'Create a detailed beat production blueprint.\n\nTitle: (creative name for this beat)\nBPM: (specific number)\nKey: (specific key and scale)\nTime Signature: (e.g. 4/4)\n\nDrums: (detailed pattern - kick, snare, hi-hat patterns)\nBass: (type, pattern, characteristics)\nMelodic Instruments: (synths, samples, pads - describe each)\n\nArrangement:\n(list each section with bar counts, e.g. Intro - 4 bars, Verse - 16 bars, etc.)\n\nMixing Tips: (3-4 specific tips)\n\nStyle: "'+s+'". Mood: '+(v('bt-m')||'dark')+'. '+(v('bt-r')?'Reference: '+v('bt-r')+'.':'');}case'rhyme':{const w=v('rhy-w');if(!w){alert('Enter a word!');return null;}let types=[];if(document.getElementById('rhy-p').checked)types.push('PERFECT_RHYMES: (list 20-30 exact ending sound matches, comma-separated)');if(document.getElementById('rhy-n').checked)types.push('NEAR_RHYMES: (list 20-30 slant/near rhymes, comma-separated)');if(document.getElementById('rhy-m').checked)types.push('MULTI_SYLLABLE: (list 15-20 multi-syllable rhymes and compound phrases, comma-separated)');if(document.getElementById('rhy-h').checked)types.push('HOMOPHONES: (words that sound the same, comma-separated)');if(document.getElementById('rhy-d').checked)types.push('DEFINITION: (brief definition)\nSYLLABLES: (count and breakdown)');return'You are a professional rhyming dictionary for rappers and songwriters. For the word "'+w+'":\n\n'+types.join('\n\n')+'\n\nRULES: Each category on its own line starting with the label and colon. Words comma-separated. Include slang, rap terminology. Order common to uncommon. Do NOT include the original word.';}case'post':{const tp=v('pst-w');if(!tp){alert("Enter what you're promoting!");return null;}return'Create 3 unique '+(v('pst-p')||'Instagram')+' posts for a music artist promoting "'+tp+'". Tone: '+(v('pst-t')||'engaging')+'. Each post should: include relevant emojis, 3-5 hashtags, a clear call-to-action, and be formatted for maximum engagement. Make each post a different style/approach. Format: Post 1:\n(content)\n\nPost 2:\n(content)\n\nPost 3:\n(content)';}case'video':{const d=v('vid-d');if(!d){alert('Describe the song!');return null;}return'Create a detailed music video concept for a '+(v('vid-g')||'hip-hop')+' song. Mood: '+(v('vid-m')||'cinematic')+'. Song theme: "'+d+'". Budget: '+document.getElementById('vid-b').value+'.\n\nFormat with clear section headers:\nConcept: (overall narrative/visual approach)\nColor Palette: (specific colors and why)\nWardrobe: (outfit descriptions per scene)\nLighting: (style and techniques)\nLocation 1: (description)\nLocation 2: (description)\nShot 1: (camera angle, movement, action)\nShot 2: (camera angle, movement, action)\n(continue for 10+ shots)\nSpecial Effects: (if any)\nTreatment Summary: (2-3 sentence pitch)';}}return null;}
+async function applyPromo(){const code=document.getElementById('appPromo').value.trim(),msg=document.getElementById('promoMsg');if(!code){msg.textContent='Enter a promo code.';msg.style.color='var(--danger)';msg.style.display='block';return;}const{data:result,error}=await db.rpc('redeem_promo',{p_user_id:user.id,p_code:code});if(error){msg.textContent='❌ Error: '+error.message;msg.style.color='var(--danger)';msg.style.display='block';return;}const r=result||'';if(r.startsWith('ERROR:')){const reason=r.split(':')[1];const reasons={CODE_NOT_FOUND:'Code not found.',CODE_DISABLED:'Code is no longer active.',CODE_EXPIRED:'Code has expired.',MAX_USES_REACHED:'Code usage limit reached.',ALREADY_REDEEMED:'You already used this code.'};msg.textContent='❌ '+(reasons[reason]||reason);msg.style.color='var(--danger)';msg.style.display='block';return;}if(r.startsWith('OK:')){const parts=r.split(':');const pType=parts[1],pVal=parseFloat(parts[2])||0,pApplies=parts[3]||'all',pDesc=parts.slice(4).join(':')||'';let em='';if(pType==='free_month')em='🎉 '+(pDesc||'Free month applied! Contact 8bfr.music@gmail.com to activate.');else if(pType==='discount_amount')em='🎉 $'+pVal+' off! '+(pDesc||'');else if(pType==='discount_percent')em='🎉 '+pVal+'% off! '+(pDesc||'');else if(pType==='trial_extension'){const exp=new Date(Date.now()+pVal*86400000).toISOString();await db.from('app_subscriptions').update({tier:pApplies==='pro'?'pro':'starter',expires_at:exp,status:'active',updated_at:new Date().toISOString()}).eq('user_id',user.id);em='🎉 '+pVal+'-day free trial activated!';await loadUser();}else em='🎉 Code applied! '+(pDesc||'');msg.textContent=em;msg.style.color='var(--success)';msg.style.display='block';document.getElementById('appPromo').value='';}}
+function subscribe(t){window.open('https://8bfr.github.io/8bfr-Music-Network/upgrades.html?from=producer-ai','_blank');}
+function toggleAdmin(){const p=document.getElementById('adminPanel');if(!isOwner){p.style.display='none';return;}p.style.display=p.style.display==='none'?'block':'none';}
+function showAdminTab(tab,btn){document.querySelectorAll('.admin-tab').forEach(t=>t.classList.remove('active'));btn.classList.add('active');document.querySelectorAll('.admin-panel').forEach(p=>p.classList.remove('active'));document.getElementById('ap-'+tab).classList.add('active');if(tab==='codes')loadCodes();if(tab==='grants')loadGrants();if(tab==='stats')loadStats();}
+async function loadAdmin(){if(!isOwner)return;document.getElementById('adminPanel').style.display='block';loadCodes();loadGrants();}
+async function createPromo(){const code=document.getElementById('pc-code').value.trim().toUpperCase(),type=document.getElementById('pc-type').value,value=parseFloat(document.getElementById('pc-value').value)||0,applies=document.getElementById('pc-applies').value,max=document.getElementById('pc-max').value?parseInt(document.getElementById('pc-max').value):null,exp=document.getElementById('pc-exp').value||null,desc=document.getElementById('pc-desc').value.trim();if(!code){alert('Enter a code!');return;}const{error}=await db.from('promo_codes').insert({code,promo_type:type,value,applies_to:applies,max_uses:max,expires_at:exp?new Date(exp).toISOString():null,description:desc,created_by:user.id});if(error){alert('Error: '+error.message);return;}alert('✅ Code '+code+' created!');document.getElementById('pc-code').value='';document.getElementById('pc-value').value='';document.getElementById('pc-desc').value='';loadCodes();}
+async function loadCodes(){const{data}=await db.from('promo_codes').select('*').order('created_at',{ascending:false});const el=document.getElementById('codeList');if(!data||!data.length){el.innerHTML='<div style="text-align:center;padding:1rem;color:var(--t3);">No promo codes yet.</div>';return;}el.innerHTML=data.map(c=>{const active=c.is_active&&(!c.max_uses||c.times_used<c.max_uses)&&(!c.expires_at||new Date(c.expires_at)>new Date());const tl={'free_month':'Free Month','discount_amount':'$'+c.value+' Off','discount_percent':c.value+'% Off','trial_extension':c.value+' Day Trial'}[c.promo_type]||c.promo_type;return'<div class="code-item"><div><span class="code-label">'+esc(c.code)+'</span> <span style="font-size:.7rem;padding:.15rem .35rem;border-radius:4px;'+(active?'background:rgba(34,197,94,.12);color:#4ade80;':'background:rgba(239,68,68,.12);color:#f87171;')+'">'+(active?'Active':'Inactive')+'</span><div class="code-meta">'+tl+' · '+c.applies_to+' · Used '+c.times_used+(c.max_uses?'/'+c.max_uses:'/∞')+(c.description?' · '+esc(c.description):'')+'</div></div><div style="display:flex;gap:.3rem;"><button class="abtn abtn-ghost" style="font-size:.7rem;padding:.25rem .5rem;" onclick="toggleCode(\''+c.id+'\','+(!c.is_active)+')">'+(c.is_active?'Disable':'Enable')+'</button><button class="abtn abtn-red" style="font-size:.7rem;padding:.25rem .5rem;" onclick="deleteCode(\''+c.id+'\')">Delete</button></div></div>';}).join('');}
+async function toggleCode(id,active){await db.from('promo_codes').update({is_active:active}).eq('id',id);loadCodes();}
+async function deleteCode(id){if(!confirm('Delete this code?'))return;await db.from('promo_codes').delete().eq('id',id);loadCodes();}
+async function grantAccess(){const email=document.getElementById('fg-email').value.trim(),gTier=document.getElementById('fg-tier').value,reason=document.getElementById('fg-reason').value.trim();if(!email){alert('Enter an email!');return;}const{data:ex}=await db.from('free_access_grants').select('id').eq('user_email',email).eq('is_active',true).limit(1);if(ex&&ex.length){alert('Already has free access.');return;}const{error}=await db.from('free_access_grants').insert({user_email:email,granted_tier:gTier,reason:reason||null,granted_by:user.id});if(error){alert('Error: '+error.message);return;}alert('✅ Free '+gTier+' granted to '+email);document.getElementById('fg-email').value='';document.getElementById('fg-reason').value='';loadGrants();}
+async function loadGrants(){const{data}=await db.from('free_access_grants').select('*').order('granted_at',{ascending:false});const el=document.getElementById('grantList');if(!data||!data.length){el.innerHTML='<div style="text-align:center;padding:1rem;color:var(--t3);">No grants yet.</div>';return;}el.innerHTML=data.map(g=>'<div class="grant-item"><div><span class="grant-email">'+esc(g.user_email)+'</span> <span class="grant-tier '+(g.is_active?'grant-active':'grant-revoked')+'">'+(g.is_active?g.granted_tier:'revoked')+'</span><div class="code-meta">'+(g.reason?esc(g.reason)+' · ':'')+new Date(g.granted_at).toLocaleDateString()+'</div></div><button class="abtn '+(g.is_active?'abtn-red':'abtn-gold')+'" style="font-size:.7rem;padding:.25rem .5rem;" onclick="toggleGrant(\''+g.id+'\','+(!g.is_active)+')">'+(g.is_active?'Revoke':'Restore')+'</button></div>').join('');}
+async function toggleGrant(id,active){if(active)await db.from('free_access_grants').update({is_active:true,revoked_at:null}).eq('id',id);else await db.from('free_access_grants').update({is_active:false,revoked_at:new Date().toISOString()}).eq('id',id);loadGrants();}
+async function loadStats(){const el=document.getElementById('statsContent');try{const{data:subs}=await db.from('app_subscriptions').select('tier');const{data:usage}=await db.from('app_usage').select('tool,count');const{data:codes}=await db.from('promo_codes').select('times_used');const{data:grants}=await db.from('free_access_grants').select('is_active');const tiers={free:0,starter:0,pro:0};if(subs)subs.forEach(s=>tiers[s.tier]=(tiers[s.tier]||0)+1);const totalUses=usage?usage.reduce((s,u)=>s+u.count,0):0;const toolCounts={};if(usage)usage.forEach(u=>toolCounts[u.tool]=(toolCounts[u.tool]||0)+u.count);const activeGrants=grants?grants.filter(g=>g.is_active).length:0;el.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:1rem;"><div style="background:var(--bg);padding:1rem;border-radius:10px;text-align:center;"><div style="font-family:Syne;font-size:1.5rem;font-weight:800;color:var(--gold);">'+((subs||[]).length)+'</div><div style="font-size:.75rem;color:var(--t3);">Total Users</div></div><div style="background:var(--bg);padding:1rem;border-radius:10px;text-align:center;"><div style="font-family:Syne;font-size:1.5rem;font-weight:800;color:var(--purple);">'+(tiers.starter+tiers.pro)+'</div><div style="font-size:.75rem;color:var(--t3);">Paid</div></div><div style="background:var(--bg);padding:1rem;border-radius:10px;text-align:center;"><div style="font-family:Syne;font-size:1.5rem;font-weight:800;color:var(--gold);">'+totalUses+'</div><div style="font-size:.75rem;color:var(--t3);">Generations</div></div><div style="background:var(--bg);padding:1rem;border-radius:10px;text-align:center;"><div style="font-family:Syne;font-size:1.5rem;font-weight:800;color:var(--success);">'+activeGrants+'</div><div style="font-size:.75rem;color:var(--t3);">Grants</div></div></div><div style="margin-top:1.5rem;font-size:.82rem;font-weight:600;color:var(--t2);">Tool Usage:</div>'+Object.entries(toolCounts).sort((a,b)=>b[1]-a[1]).map(([t,c])=>'<div style="display:flex;justify-content:space-between;padding:.3rem 0;font-size:.82rem;border-bottom:1px solid rgba(255,255,255,.03);"><span>'+t+'</span><b style="color:var(--gold);">'+c+'</b></div>').join('')+'<div style="margin-top:1rem;font-size:.82rem;">Free: '+tiers.free+' · Starter: '+tiers.starter+' · Pro: '+tiers.pro+'</div>';}catch(e){el.innerHTML='<span style="color:var(--danger);">Error loading stats.</span>';}}
+
+/* ====== FIX 2: init — clean state reset on page load ====== */
+async function init(){
+  const ls = document.getElementById('loadScreen');
+  // Reset all state — prevents stale data from previous session
+  user = null; tier = 'free'; used = 0; isOwner = false; hasGrant = false; hasProfile = false;
+  // Hide admin panel by default (defensive guard)
+  document.getElementById('adminPanel').style.display = 'none';
+  document.getElementById('adminToggle').style.display = 'none';
+  try {
+    const { data: { session } } = await db.auth.getSession();
+    if (session) {
+      user = session.user;
+      await loadUser();
+      enterApp();
+    } else {
+      document.getElementById('landing').style.display = 'block';
+    }
+  } catch (e) {
+    console.error('[Producer AI] Init error:', e);
+    document.getElementById('landing').style.display = 'block';
+  }
+  ls.style.display = 'none';
+}
+
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+init();
+</script>
+</body>
+                                                                                     </html>
