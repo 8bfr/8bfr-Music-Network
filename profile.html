@@ -899,11 +899,13 @@
     }catch(e){console.warn('Follow check:',e);}
     // Check friend status
     try{
-      var fr=await db.from('friends').select('id,status').or('and(user_id.eq.'+currentUser.id+',friend_id.eq.'+tid+'),and(user_id.eq.'+tid+',friend_id.eq.'+currentUser.id+')').limit(1);
+      var fr=await db.from('friends').select('id,status,user_id').or('and(user_id.eq.'+currentUser.id+',friend_id.eq.'+tid+'),and(user_id.eq.'+tid+',friend_id.eq.'+currentUser.id+')').limit(1);
       var fbtn=document.getElementById('friendBtn');
       if(fbtn&&fr.data&&fr.data.length>0){
-        if(fr.data[0].status==='accepted')fbtn.textContent='🤝 Friends';
-        else fbtn.textContent='⏳ Pending';
+        var row=fr.data[0];
+        if(row.status==='accepted'){fbtn.textContent='🤝 Friends';}
+        else if(row.user_id===tid){fbtn.textContent='✓ Accept';fbtn.style.background='#059669';}
+        else{fbtn.textContent='⏳ Pending';}
       }
       if(fr.error)console.warn('Friend check error:',fr.error.message);
     }catch(e){console.warn('Friend check:',e);}
@@ -930,13 +932,30 @@
     if(!currentUser||!profileData)return;
     var btn=document.getElementById('friendBtn');
     try{
-      var sr=await db.from('friends').select('id,status').or('and(user_id.eq.'+currentUser.id+',friend_id.eq.'+profileData.user_id+'),and(user_id.eq.'+profileData.user_id+',friend_id.eq.'+currentUser.id+')').limit(1);
+      var sr=await db.from('friends').select('id,status,user_id').or('and(user_id.eq.'+currentUser.id+',friend_id.eq.'+profileData.user_id+'),and(user_id.eq.'+profileData.user_id+',friend_id.eq.'+currentUser.id+')').limit(1);
       if(sr.error){console.error('Friend check:',sr.error);alert('Error: '+sr.error.message);return;}
       if(sr.data&&sr.data.length>0){
-        btn.textContent=sr.data[0].status==='accepted'?'\ud83e\udd1d Friends':'\u23f3 Pending';return;
+        var row=sr.data[0];
+        if(row.status==='accepted'){btn.textContent='\ud83e\udd1d Friends';return;}
+        /* If THEY sent the request to ME, accept it */
+        if(row.user_id===profileData.user_id&&row.status==='pending'){
+          var ur=await db.from('friends').update({status:'accepted'}).eq('id',row.id);
+          if(ur.error){alert('Error accepting: '+ur.error.message);return;}
+          btn.textContent='\ud83e\udd1d Friends';
+          /* Notify them that we accepted */
+          var myName=(await db.from('profiles').select('display_name,username').eq('user_id',currentUser.id).single()).data;
+          await db.from('notifications').insert({recipient_id:profileData.user_id,notif_type:'friend_accepted',metadata:{from_id:currentUser.id,from_name:(myName?myName.display_name||myName.username:'Someone'),message:(myName?myName.display_name||myName.username:'Someone')+' accepted your friend request!'},created_at:new Date().toISOString()});
+          return;
+        }
+        btn.textContent='\u23f3 Pending';return;
       }
+      /* Send new friend request */
       var ir=await db.from('friends').insert({user_id:currentUser.id,friend_id:profileData.user_id,status:'pending'});
       if(ir.error){console.error('Friend req:',ir.error);alert('Error: '+ir.error.message);return;}
+      /* Send notification to recipient */
+      var myProf=(await db.from('profiles').select('display_name,username').eq('user_id',currentUser.id).single()).data;
+      var senderName=myProf?(myProf.display_name||myProf.username):'Someone';
+      await db.from('notifications').insert({recipient_id:profileData.user_id,notif_type:'friend_request',metadata:{from_id:currentUser.id,from_name:senderName,message:senderName+' sent you a friend request!'},created_at:new Date().toISOString()});
       btn.textContent='\u23f3 Sent';
     }catch(e){console.error('Friend:',e);alert(e.message);}
   };
