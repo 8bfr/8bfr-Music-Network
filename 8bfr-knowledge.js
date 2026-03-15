@@ -8,7 +8,7 @@ window.PLATFORM_KNOWLEDGE = `
 
 8BFR Music Network is a social music platform connecting artists, beatmakers, fans, and music industry professionals. It's built with Supabase (database + auth), hosted on GitHub Pages, with AI tools powered by Groq/Pollinations.
 
-Website: https://8bfr.github.io/8bfr-Music-Network/
+Website: https://8bfr.com/
 Owner: 8bfr_Official (Jim)
 
 ============================
