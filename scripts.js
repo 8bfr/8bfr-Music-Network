@@ -316,12 +316,13 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
       <a href="genres.html" class="menu-chip">&#x1F3BC; Genres</a>
       <a href="charts.html" class="menu-chip">&#x1F4C8; Charts</a>
       <a href="dedications.html" class="menu-chip">&#x1F48C; Dedications</a>
+      <a href="mom-thank-you.html" class="menu-chip">&#x1F49C; Mom Thank You</a>
     </div>
   </div>
   <div class="menu-group collapsed">
     <div class="menu-group-title">&#x1F916; Producer AI</div>
     <div class="menu-links">
-      <a href="https://8bfr.github.io/producer-ai/index.html" target="_blank" rel="noopener" class="menu-chip menu-chip-ai">&#x1F916; Open Producer AI</a>
+      <a href="https://8bfr.com/producer-ai/index.html" target="_blank" rel="noopener" class="menu-chip menu-chip-ai">&#x1F916; Open Producer AI</a>
       <a href="author.html" class="menu-chip">&#x1F4DD; Author</a>
       <a href="author-hub.html" class="menu-chip">&#x1F4DA; Author Hub</a>
       <a href="translate.html" class="menu-chip">&#x1F310; Translate</a>
@@ -340,6 +341,8 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
     <div class="menu-group-title">Profiles &amp; Community</div>
     <div class="menu-links">
       <a href="members.html" class="menu-chip">&#x1F465; Browse Members</a>
+      <a href="pages.html" class="menu-chip">&#x1F4C4; Pages</a>
+      <a href="groups.html" class="menu-chip">&#x1F465; Groups</a>
       <a href="profile.html" class="menu-chip">&#x1F464; My Profile</a>
       <a href="chat.html" class="menu-chip">&#x1F4AC; Chat</a>
       <a href="dm.html" class="menu-chip">&#x2709;&#xFE0F; DM</a>
@@ -371,6 +374,9 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
       <a href="upgrades.html" class="menu-chip">&#x1F680; Upgrades</a>
       <a href="pricing.html" class="menu-chip">&#x1F4B3; Pricing</a>
       <a href="donate.html" class="menu-chip">&#x2764;&#xFE0F; Donate</a>
+      <a href="affiliates.html" class="menu-chip">&#x1F91D; Affiliates</a>
+      <a href="suggested-links.html" class="menu-chip">&#x1F517; Suggested Links</a>
+      <a href="products.html" class="menu-chip">&#x1F6CD;&#xFE0F; 8BFR Products</a>
     </div>
   </div>
   <div class="menu-group collapsed">
@@ -710,14 +716,14 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
           });
         }
 
-        var res = await _db.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', _uid).eq('read', false);
+        var res = await _db.from('notifications').select('*', { count: 'exact', head: true }).eq('recipient_id', _uid).eq('is_read', false);
         setBellBadge(res.count || 0);
 
         if (!window.location.pathname.includes('notifications')) {
           _db.channel('global-notif-bell').on('postgres_changes', {
-            event: 'INSERT', schema: 'public', table: 'notifications', filter: 'user_id=eq.' + _uid
+            event: 'INSERT', schema: 'public', table: 'notifications', filter: 'recipient_id=eq.' + _uid
           }, async function() {
-            var r2 = await _db.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', _uid).eq('read', false);
+            var r2 = await _db.from('notifications').select('*', { count: 'exact', head: true }).eq('recipient_id', _uid).eq('is_read', false);
             setBellBadge(r2.count || 0);
           }).subscribe();
         }
