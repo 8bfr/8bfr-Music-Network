@@ -149,12 +149,21 @@ function renderList(){
     var title=n.title||formatType(n.notif_type);
     var msg=(n.metadata&&n.metadata.message)||'';
     var time=timeAgo(n.created_at);
+    var actions='';
+    if(n.notif_type==='friend_request'&&n.metadata&&n.metadata.from_id){
+      link='profile.html?id='+n.metadata.from_id;
+      actions='<div style="display:flex;gap:.4rem;margin-top:.4rem;">'
+        +'<button onclick="event.preventDefault();event.stopPropagation();acceptFriend(\''+n.metadata.from_id+'\',\''+n.id+'\',this)" style="padding:.25rem .6rem;border-radius:8px;background:#059669;border:none;color:#fff;font-size:.75rem;font-weight:600;cursor:pointer;">✓ Accept</button>'
+        +'<button onclick="event.preventDefault();event.stopPropagation();declineFriend(\''+n.metadata.from_id+'\',\''+n.id+'\',this)" style="padding:.25rem .6rem;border-radius:8px;background:#6b7280;border:none;color:#fff;font-size:.75rem;font-weight:600;cursor:pointer;">✕ Decline</button>'
+        +'</div>';
+    }
 
     return '<a href="'+link+'" class="'+unreadClass+'" onclick="markRead(\''+n.id+'\')">'
       +'<div class="notif-icon" style="background:'+cfg.bg+';">'+cfg.icon+'</div>'
       +'<div class="notif-body">'
         +'<div class="notif-title">'+esc(title)+'</div>'
         +'<div class="notif-msg">'+esc(msg)+'</div>'
+        +actions
         +'<div class="notif-time">'+time+'</div>'
       +'</div>'
     +'</a>';
@@ -187,6 +196,39 @@ window.markAllRead=async function(){
 
 function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
 function timeAgo(d){var s=Math.floor((Date.now()-new Date(d))/1000);if(s<60)return'just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';}
+
+/* ── FRIEND REQUEST ACCEPT/DECLINE ── */
+window.acceptFriend=async function(fromId,notifId,btn){
+  if(!currentUser)return;
+  try{
+    // Update friends row to accepted
+    var ur=await db.from('friends').update({status:'accepted'}).eq('user_id',fromId).eq('friend_id',currentUser.id).eq('status','pending');
+    if(ur.error){alert('Error: '+ur.error.message);return;}
+    // Mark notification read
+    await db.from('notifications').update({is_read:true}).eq('id',notifId);
+    // Notify the requester that we accepted
+    var myProf=(await db.from('profiles').select('display_name,username').eq('user_id',currentUser.id).single()).data;
+    var myName=myProf?(myProf.display_name||myProf.username):'Someone';
+    await db.from('notifications').insert({recipient_id:fromId,notif_type:'friend_accepted',metadata:{from_id:currentUser.id,from_name:myName,message:myName+' accepted your friend request!'},created_at:new Date().toISOString()});
+    // Update UI
+    var row=btn.parentElement;
+    row.innerHTML='<span style="color:#4ade80;font-size:.75rem;font-weight:600;">✓ Accepted!</span>';
+  }catch(e){alert('Error: '+e.message);}
+};
+
+window.declineFriend=async function(fromId,notifId,btn){
+  if(!currentUser)return;
+  try{
+    // Delete the friends row
+    var dr=await db.from('friends').delete().eq('user_id',fromId).eq('friend_id',currentUser.id).eq('status','pending');
+    if(dr.error){alert('Error: '+dr.error.message);return;}
+    // Mark notification read
+    await db.from('notifications').update({is_read:true}).eq('id',notifId);
+    // Update UI
+    var row=btn.parentElement;
+    row.innerHTML='<span style="color:#9ca3af;font-size:.75rem;">Declined</span>';
+  }catch(e){alert('Error: '+e.message);}
+};
 
 init();
 </script>
