@@ -1,94 +1,396 @@
-<!DOCTYPE html><html lang="en"><head>
-<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>8BFR | Playlists</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
-<script src="https://cdn.tailwindcss.com"></script>
-<script defer src="assets/js/site-shell.js"></script>
-</head>
-<body class="min-h-screen bg-[radial-gradient(ellipse_at_top,_#1a0022,_#000)] text-white font-[Poppins]">
-<div id="site-header"></div>
-<main class="max-w-6xl mx-auto px-4 py-10">
-<section class="rounded-2xl p-6 bg-black/50 border border-purple-700/40 shadow-xl">
-  <h2 class="text-2xl font-bold mb-2">Playlists</h2>
-  <p class="text-purple-200">Glassy neon starter • Supabase-ready stub.</p>
-</section>
-</main>
-<div id="site-footer"></div>
-<script defer src="assets/js/carousel.js"></script>
-<script defer src="assets/js/supabase.js"></script>
-  <!-- ADD THIS SCRIPT TO EVERY PAGE (except index.html where you want it always shown) -->
-<!-- Place it right before the closing </body> tag -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Playlists - 8BFR Music Network</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary: #7c3aed; --dark: #0b0014; --dark-card: #0c0618; --text: #eae6ff; --text-dim: #a855f7; --border: rgba(124,58,237,.35); --green: #00ff88; --cyan: #00d9ff; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Work Sans', sans-serif; background: linear-gradient(#0b0014,#000); color: var(--text); min-height: 100vh; padding-bottom: 120px; }
+        .header { background: rgba(15,0,30,.9); border-bottom: 2px solid var(--primary); padding: 1.25rem 1.5rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(12px); }
+        .header h1 { font-family: 'Bebas Neue', cursive; font-size: 1.8rem; color: var(--primary); }
+        .header a { color: var(--text); text-decoration: none; font-weight: 600; font-size: 0.9rem; }
+        .container { max-width: 900px; margin: 0 auto; padding: 1.5rem; }
+        .card { background: var(--dark-card); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .section-title { color: var(--primary); font-family: 'Bebas Neue', cursive; font-size: 1.4rem; margin-bottom: 1rem; }
+        .btn { background: var(--primary); color: white; border: none; padding: 0.65rem 1.25rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.2s; }
+        .btn:hover { background: #6d28d9; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-outline { background: rgba(124,58,237,0.2); border: 1px solid var(--border); color: var(--text); }
+        input, textarea { width: 100%; padding: 0.65rem; background: var(--dark); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit; font-size: 0.9rem; }
+        input:focus, textarea:focus { outline: none; border-color: var(--primary); }
+        .form-group { margin-bottom: 0.75rem; }
+        .form-group label { display: block; font-size: 0.8rem; color: var(--text-dim); margin-bottom: 0.3rem; font-weight: 600; }
 
-<script>
-// Avatar & Bubble Toggle System
-(function() {
-    // Create toggle button
-    const toggleBtn = document.createElement('button');
-    toggleBtn.id = 'avatarToggle';
-    toggleBtn.innerHTML = '👁️';
-    toggleBtn.title = 'Toggle Avatar/Bubbles';
-    toggleBtn.style.cssText = `
-        position: fixed;
-        top: 80px;
-        right: 20px;
-        z-index: 9999;
-        background: rgba(124, 58, 237, 0.9);
-        border: 2px solid rgba(124, 58, 237, 1);
-        color: white;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.5);
-        transition: all 0.3s ease;
-    `;
-    
-    toggleBtn.addEventListener('mouseenter', function() {
-        this.style.transform = 'scale(1.1)';
-    });
-    
-    toggleBtn.addEventListener('mouseleave', function() {
-        this.style.transform = 'scale(1)';
-    });
-    
-    document.body.appendChild(toggleBtn);
-    
-    // Load saved preference
-    let isHidden = localStorage.getItem('hideAvatarBubbles') === 'true';
-    
-    function updateVisibility() {
-        const elementsToToggle = [
-            document.getElementById('homeAvatarSwitcher'),
-            ...document.querySelectorAll('[id*="bubble"]'),
-            ...document.querySelectorAll('[class*="bubble"]'),
-            ...document.querySelectorAll('[id*="avatar"][id*="switcher"]')
-        ];
-        
-        elementsToToggle.forEach(el => {
-            if (el) {
-                el.style.display = isHidden ? 'none' : '';
+        /* Playlist Grid */
+        .playlist-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; }
+        .playlist-card { background: var(--dark); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; cursor: pointer; transition: all 0.3s; }
+        .playlist-card:hover { border-color: var(--primary); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.4); }
+        .playlist-cover { aspect-ratio: 1; background: linear-gradient(135deg, rgba(124,58,237,0.3), rgba(168,85,247,0.1)); display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; overflow: hidden; position: relative; }
+        .playlist-cover img { width: 100%; height: 100%; object-fit: cover; }
+        .playlist-cover .quad { background: rgba(124,58,237,0.15); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+        .playlist-cover .play-hover { position: absolute; bottom: 8px; right: 8px; width: 42px; height: 42px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.1rem; opacity: 0; transition: opacity 0.2s; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        .playlist-card:hover .play-hover { opacity: 1; }
+        .playlist-meta { padding: 0.75rem; }
+        .playlist-name { font-weight: 700; font-size: 0.9rem; margin-bottom: 0.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .playlist-creator { font-size: 0.75rem; color: var(--text-dim); }
+        .playlist-count { font-size: 0.7rem; color: rgba(168,85,247,0.6); margin-top: 0.2rem; }
+
+        /* Playlist Detail */
+        #playlistDetail { display: none; }
+        .detail-hero { display: flex; gap: 1.25rem; align-items: flex-end; margin-bottom: 1.5rem; }
+        .detail-cover { width: 160px; height: 160px; border-radius: 10px; background: rgba(124,58,237,0.2); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 3rem; overflow: hidden; box-shadow: 0 8px 25px rgba(0,0,0,0.5); }
+        .detail-cover img { width: 100%; height: 100%; object-fit: cover; }
+        .detail-info h2 { font-family: 'Bebas Neue', cursive; font-size: 2rem; color: var(--primary); }
+        .detail-info .creator { font-size: 0.88rem; color: var(--text-dim); margin-bottom: 0.25rem; }
+        .detail-info .meta { font-size: 0.78rem; color: rgba(168,85,247,0.5); }
+        .detail-actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+
+        .track-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0.5rem; border-radius: 8px; transition: background 0.2s; }
+        .track-row:hover { background: rgba(124,58,237,0.06); }
+        .track-num { width: 28px; text-align: center; font-size: 0.82rem; color: var(--text-dim); flex-shrink: 0; }
+        .track-art { width: 40px; height: 40px; border-radius: 6px; background: rgba(124,58,237,0.15); flex-shrink: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; }
+        .track-art img { width: 100%; height: 100%; object-fit: cover; }
+        .track-info { flex: 1; min-width: 0; }
+        .track-title { font-weight: 600; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .track-artist { font-size: 0.72rem; color: var(--text-dim); }
+        .track-dur { font-size: 0.72rem; color: var(--text-dim); flex-shrink: 0; }
+        .track-play { width: 32px; height: 32px; border-radius: 50%; background: var(--primary); border: none; color: white; cursor: pointer; font-size: 0.8rem; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+        .back-link { color: var(--primary); text-decoration: none; font-weight: 600; font-size: 0.88rem; cursor: pointer; }
+
+        /* Create Modal */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 300; display: none; align-items: center; justify-content: center; padding: 1rem; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: var(--dark-card); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; max-width: 450px; width: 100%; }
+        .modal h2 { font-family: 'Bebas Neue', cursive; color: var(--primary); font-size: 1.4rem; margin-bottom: 1rem; }
+        .modal-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
+        .modal-actions button { flex: 1; padding: 0.7rem; border-radius: 8px; cursor: pointer; font-weight: 600; }
+
+        .empty-state { text-align: center; padding: 2.5rem; color: var(--text-dim); }
+        .empty-state .emoji { font-size: 3rem; margin-bottom: 0.75rem; }
+
+        /* Player bar */
+        .player-bar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(12,6,24,0.97); border-top: 2px solid var(--primary); padding: 0.75rem 1rem; z-index: 200; backdrop-filter: blur(12px); display: none; }
+        .player-inner { max-width: 900px; margin: 0 auto; display: flex; align-items: center; gap: 0.75rem; }
+        .p-art { width: 40px; height: 40px; border-radius: 6px; background: rgba(124,58,237,0.2); flex-shrink: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        .p-art img { width: 100%; height: 100%; object-fit: cover; }
+        .p-info { flex: 1; min-width: 0; }
+        .p-title { font-weight: 600; font-size: 0.82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .p-artist { font-size: 0.7rem; color: var(--text-dim); }
+        .p-controls { display: flex; align-items: center; gap: 0.4rem; }
+        .p-controls button { background: none; border: none; color: var(--text); cursor: pointer; font-size: 1.1rem; }
+        .p-controls .p-main { width: 36px; height: 36px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 1rem; color: white; }
+        .p-bar { flex: 1; height: 4px; background: rgba(124,58,237,0.2); border-radius: 2px; cursor: pointer; }
+        .p-fill { height: 100%; background: var(--primary); border-radius: 2px; width: 0%; }
+        .p-time { font-size: 0.7rem; color: var(--text-dim); white-space: nowrap; }
+
+        @media (max-width: 600px) {
+            .playlist-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+            .detail-hero { flex-direction: column; align-items: flex-start; }
+            .detail-cover { width: 120px; height: 120px; }
+            .container { padding: 1rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📻 Playlists</h1>
+        <a href="feed.html">← Back</a>
+    </div>
+    <div class="container">
+
+        <!-- YOUR PLAYLISTS -->
+        <div class="card" id="myPlaylistsCard">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <h2 class="section-title" style="margin:0;">📁 Your Playlists</h2>
+                <button class="btn" onclick="openCreateModal()">+ Create</button>
+            </div>
+            <div id="myPlaylists" style="margin-top:1rem;"></div>
+        </div>
+
+        <!-- BROWSE PLAYLISTS -->
+        <div class="card" id="browseCard">
+            <h2 class="section-title">🔥 Popular Playlists</h2>
+            <div id="publicPlaylists" class="playlist-grid"></div>
+        </div>
+
+        <!-- PLAYLIST DETAIL -->
+        <div id="playlistDetail" class="card">
+            <span class="back-link" onclick="closeDetail()">← All Playlists</span>
+            <div class="detail-hero" id="detailHero"></div>
+            <div id="detailTracks"></div>
+        </div>
+    </div>
+
+    <!-- CREATE PLAYLIST MODAL -->
+    <div class="modal-overlay" id="createModal">
+        <div class="modal">
+            <h2>+ New Playlist</h2>
+            <div class="form-group">
+                <label>Playlist Name</label>
+                <input type="text" id="newPlName" placeholder="e.g. Late Night Vibes">
+            </div>
+            <div class="form-group">
+                <label>Description (optional)</label>
+                <textarea id="newPlDesc" placeholder="What's this playlist about?" style="min-height:60px;resize:vertical;"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Visibility</label>
+                <select id="newPlVisibility" style="width:100%;padding:0.65rem;background:var(--dark);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+                    <option value="public">🌎 Public</option>
+                    <option value="private">🔒 Private</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-outline btn" onclick="closeCreateModal()">Cancel</button>
+                <button class="btn" onclick="createPlaylist()">Create Playlist</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PLAYER BAR -->
+    <div class="player-bar" id="playerBar">
+        <div class="player-inner">
+            <div class="p-art" id="pArt">🎵</div>
+            <div class="p-info"><div class="p-title" id="pTitle">—</div><div class="p-artist" id="pArtist">—</div></div>
+            <div class="p-controls">
+                <button onclick="prevTrack()">⏮</button>
+                <button class="p-main" id="pPlayBtn" onclick="togglePlay()">▶</button>
+                <button onclick="nextTrack()">⏭</button>
+            </div>
+            <div class="p-bar" onclick="seekAudio(event)"><div class="p-fill" id="pFill"></div></div>
+            <div class="p-time" id="pTime">0:00</div>
+        </div>
+    </div>
+
+    <audio id="audioEl"></audio>
+
+    <script src="scripts.js" defer></script>
+    <script>
+    const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let currentUser = null;
+    let myPlaylists = [];
+    let publicPlaylists = [];
+    let currentPlaylist = null;
+    let playlistTracks = [];
+    let playIndex = -1;
+    const audio = document.getElementById('audioEl');
+
+    async function init() {
+        const { data: { session } } = await db.auth.getSession();
+        if (!session) { location.href = 'login.html?return=playlists.html'; return; }
+        currentUser = session.user;
+        setupAudio();
+        await Promise.all([loadMyPlaylists(), loadPublicPlaylists()]);
+    }
+
+    async function loadMyPlaylists() {
+        const div = document.getElementById('myPlaylists');
+        try {
+            const { data } = await db.from('playlists').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
+            myPlaylists = data || [];
+        } catch(e) { myPlaylists = []; }
+
+        /* Also check localStorage */
+        const local = JSON.parse(localStorage.getItem('8bfr_playlists') || '[]');
+        if (local.length && !myPlaylists.length) myPlaylists = local;
+
+        if (!myPlaylists.length) {
+            div.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">No playlists yet. Create your first one!</p>';
+            return;
+        }
+
+        div.innerHTML = '<div class="playlist-grid">' + myPlaylists.map((pl, i) => playlistCardHTML(pl, i)).join('') + '</div>';
+    }
+
+    async function loadPublicPlaylists() {
+        const div = document.getElementById('publicPlaylists');
+        try {
+            const { data } = await db.from('playlists').select('*').eq('visibility', 'public').order('followers', { ascending: false }).limit(12);
+            publicPlaylists = data || [];
+        } catch(e) { publicPlaylists = []; }
+
+        if (!publicPlaylists.length) {
+            div.innerHTML = '<div class="empty-state"><div class="emoji">📻</div><p>No public playlists yet. Create one and share it!</p></div>';
+            return;
+        }
+
+        div.innerHTML = publicPlaylists.map((pl, i) => playlistCardHTML(pl, i)).join('');
+    }
+
+    function playlistCardHTML(pl, idx) {
+        return `
+        <div class="playlist-card" onclick="openPlaylist('${pl.id || 'local_' + idx}')">
+            <div class="playlist-cover">
+                <div class="quad">🎵</div><div class="quad">🎤</div>
+                <div class="quad">🎹</div><div class="quad">🎧</div>
+                <div class="play-hover">▶</div>
+            </div>
+            <div class="playlist-meta">
+                <div class="playlist-name">${esc(pl.name)}</div>
+                <div class="playlist-creator">${esc(pl.creator_name || 'You')}</div>
+                <div class="playlist-count">${pl.track_count || 0} tracks</div>
+            </div>
+        </div>`;
+    }
+
+    async function openPlaylist(id) {
+        document.getElementById('myPlaylistsCard').style.display = 'none';
+        document.getElementById('browseCard').style.display = 'none';
+        document.getElementById('playlistDetail').style.display = 'block';
+
+        /* Find playlist */
+        currentPlaylist = [...myPlaylists, ...publicPlaylists].find(p => p.id === id || 'local_' + myPlaylists.indexOf(p) === id);
+        if (!currentPlaylist) { closeDetail(); return; }
+
+        document.getElementById('detailHero').innerHTML = `
+            <div class="detail-cover">🎵</div>
+            <div class="detail-info">
+                <h2>${esc(currentPlaylist.name)}</h2>
+                <div class="creator">by ${esc(currentPlaylist.creator_name || 'You')}</div>
+                <div class="meta">${currentPlaylist.track_count || 0} tracks · ${currentPlaylist.visibility === 'private' ? '🔒 Private' : '🌎 Public'}</div>
+                ${currentPlaylist.description ? '<p style="font-size:0.82rem;color:var(--text-dim);margin-top:0.5rem;">' + esc(currentPlaylist.description) + '</p>' : ''}
+                <div class="detail-actions">
+                    <button class="btn" onclick="playAll()">▶ Play All</button>
+                    <button class="btn btn-outline" onclick="shufflePlay()">🔀 Shuffle</button>
+                </div>
+            </div>`;
+
+        /* Load tracks */
+        const tracksDiv = document.getElementById('detailTracks');
+        tracksDiv.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--text-dim);">Loading tracks...</div>';
+
+        playlistTracks = [];
+        try {
+            const { data } = await db.from('playlist_tracks').select('*, songs(*)').eq('playlist_id', currentPlaylist.id).order('position', { ascending: true });
+            if (data) playlistTracks = data.map(pt => pt.songs).filter(Boolean);
+        } catch(e) {}
+
+        if (!playlistTracks.length) {
+            tracksDiv.innerHTML = '<div class="empty-state"><div class="emoji">🎵</div><p>No tracks in this playlist yet. Add songs from the Songs page!</p></div>';
+            return;
+        }
+
+        tracksDiv.innerHTML = playlistTracks.map((t, i) => `
+            <div class="track-row">
+                <div class="track-num">${i + 1}</div>
+                <div class="track-art" onclick="playTrack(${i})">${t.cover_url ? '<img src="' + esc(t.cover_url) + '">' : '🎵'}</div>
+                <div class="track-info">
+                    <div class="track-title">${esc(t.title)}</div>
+                    <div class="track-artist">${esc(t.artist || t.display_name || 'Unknown')}</div>
+                </div>
+                <div class="track-dur">${t.duration ? fmtTime(t.duration) : '—'}</div>
+                <button class="track-play" onclick="playTrack(${i})">▶</button>
+            </div>
+        `).join('');
+    }
+
+    function closeDetail() {
+        document.getElementById('playlistDetail').style.display = 'none';
+        document.getElementById('myPlaylistsCard').style.display = 'block';
+        document.getElementById('browseCard').style.display = 'block';
+    }
+
+    function playAll() { if (playlistTracks.length) playTrack(0); }
+    function shufflePlay() {
+        if (!playlistTracks.length) return;
+        const idx = Math.floor(Math.random() * playlistTracks.length);
+        playTrack(idx);
+    }
+
+    /* ═══ CREATE PLAYLIST ═══ */
+    function openCreateModal() { document.getElementById('createModal').classList.add('show'); }
+    function closeCreateModal() { document.getElementById('createModal').classList.remove('show'); }
+
+    async function createPlaylist() {
+        const name = document.getElementById('newPlName').value.trim();
+        if (!name) { alert('Enter a name.'); return; }
+        const desc = document.getElementById('newPlDesc').value.trim();
+        const vis = document.getElementById('newPlVisibility').value;
+
+        try {
+            const { data: profile } = await db.from('profiles').select('display_name,username').eq('user_id', currentUser.id).single();
+            const { error } = await db.from('playlists').insert({
+                user_id: currentUser.id,
+                name: name,
+                description: desc,
+                visibility: vis,
+                creator_name: profile?.display_name || profile?.username || 'Unknown',
+                track_count: 0,
+                followers: 0
+            });
+
+            if (error) {
+                /* Table might not exist, save locally */
+                const local = JSON.parse(localStorage.getItem('8bfr_playlists') || '[]');
+                local.push({ id: 'local_' + Date.now(), name, description: desc, visibility: vis, creator_name: 'You', track_count: 0 });
+                localStorage.setItem('8bfr_playlists', JSON.stringify(local));
+            }
+        } catch(e) {
+            const local = JSON.parse(localStorage.getItem('8bfr_playlists') || '[]');
+            local.push({ id: 'local_' + Date.now(), name, description: document.getElementById('newPlDesc').value, visibility: document.getElementById('newPlVisibility').value, creator_name: 'You', track_count: 0 });
+            localStorage.setItem('8bfr_playlists', JSON.stringify(local));
+        }
+
+        closeCreateModal();
+        document.getElementById('newPlName').value = '';
+        document.getElementById('newPlDesc').value = '';
+        await loadMyPlaylists();
+    }
+
+    /* ═══ AUDIO PLAYER ═══ */
+    function setupAudio() {
+        audio.addEventListener('timeupdate', () => {
+            if (audio.duration) {
+                document.getElementById('pFill').style.width = (audio.currentTime / audio.duration * 100) + '%';
+                document.getElementById('pTime').textContent = fmtTime(audio.currentTime) + ' / ' + fmtTime(audio.duration);
             }
         });
-        
-        toggleBtn.innerHTML = isHidden ? '👁️‍🗨️' : '👁️';
-        toggleBtn.title = isHidden ? 'Show Avatar/Bubbles' : 'Hide Avatar/Bubbles';
+        audio.addEventListener('ended', nextTrack);
+        audio.addEventListener('play', () => { document.getElementById('pPlayBtn').textContent = '⏸'; });
+        audio.addEventListener('pause', () => { document.getElementById('pPlayBtn').textContent = '▶'; });
     }
-    
-    toggleBtn.addEventListener('click', function() {
-        isHidden = !isHidden;
-        localStorage.setItem('hideAvatarBubbles', isHidden);
-        updateVisibility();
-    });
-    
-    // Apply on load
-    updateVisibility();
-    
-    
-</script>
 
-</body></html>
+    function playTrack(idx) {
+        if (!playlistTracks[idx]) return;
+        const t = playlistTracks[idx];
+        playIndex = idx;
+        if (!t.audio_url) { alert('No audio available.'); return; }
+        audio.src = t.audio_url;
+        audio.play().catch(() => {});
+        document.getElementById('playerBar').style.display = 'block';
+        document.getElementById('pTitle').textContent = t.title;
+        document.getElementById('pArtist').textContent = t.artist || t.display_name || 'Unknown';
+        document.getElementById('pArt').innerHTML = t.cover_url ? '<img src="' + t.cover_url + '">' : '🎵';
+    }
+
+    function togglePlay() { if (audio.paused) audio.play(); else audio.pause(); }
+    function nextTrack() { if (playIndex < playlistTracks.length - 1) playTrack(playIndex + 1); }
+    function prevTrack() { if (audio.currentTime > 3) { audio.currentTime = 0; return; } if (playIndex > 0) playTrack(playIndex - 1); }
+    function seekAudio(e) { const pct = e.offsetX / e.currentTarget.offsetWidth; if (audio.duration) audio.currentTime = pct * audio.duration; }
+
+    function fmtTime(s) { if(!s||isNaN(s))return'0:00'; return Math.floor(s/60)+':'+(Math.floor(s%60)<10?'0':'')+Math.floor(s%60); }
+    function esc(s) { if(!s)return''; const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
+    </script>
+
+    <script>
+    (function() {
+        var b = document.createElement('button'); b.innerHTML = '👁️';
+        b.style.cssText = 'position:fixed;top:80px;right:20px;z-index:9999;background:rgba(124,58,237,0.9);border:2px solid rgba(124,58,237,1);color:white;width:50px;height:50px;border-radius:50%;cursor:pointer;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(124,58,237,0.5);';
+        document.body.appendChild(b);
+        var h = localStorage.getItem('hideAvatarBubbles') === 'true';
+        function u() { document.querySelectorAll('[id*="bubble"],[class*="bubble"],[id*="avatar"][id*="switcher"]').forEach(function(el) { if(el) el.style.display = h ? 'none' : ''; }); b.innerHTML = h ? '👁️‍🗨️' : '👁️'; }
+        b.addEventListener('click', function() { h = !h; localStorage.setItem('hideAvatarBubbles', h); u(); }); u();
+    })();
+    </script>
+</body>
+</html>
