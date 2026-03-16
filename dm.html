@@ -576,5 +576,113 @@ init();
 <script>
 (function(){var b=document.createElement('button');b.innerHTML='👁️';b.style.cssText='position:fixed;top:80px;right:20px;z-index:9999;background:rgba(124,58,237,0.9);border:2px solid rgba(124,58,237,1);color:white;width:50px;height:50px;border-radius:50%;cursor:pointer;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(124,58,237,0.5);';document.body.appendChild(b);var h=localStorage.getItem('hideAvatarBubbles')==='true';function u(){document.querySelectorAll('[id*="bubble"],[class*="bubble"],[id*="avatar"][id*="switcher"]').forEach(function(el){if(el)el.style.display=h?'none':'';});b.innerHTML=h?'👁️‍🗨️':'👁️';}b.addEventListener('click',function(){h=!h;localStorage.setItem('hideAvatarBubbles',h);u();});u();})();
 </script>
+  <!--
+  DM BUTTON PATCH FOR profile.html
+  Paste this script right before the closing </body> tag.
+  
+  It automatically finds the profile action buttons area and injects
+  a "✉️ Message" button that links to dm.html?user=THEIR_ID
+  
+  Works by detecting if you're viewing someone else's profile
+  (not your own) and inserting the button after a short delay
+  so the profile has time to load.
+-->
+<script>
+(function(){
+  function addDMButton(){
+    // Don't add if viewing own profile
+    const params=new URLSearchParams(location.search);
+    const profileId=params.get('id');
+    if(!profileId)return; // No ID = own profile
+
+    // Check we're not already on own profile
+    if(window.currentUser && profileId===window.currentUser.id)return;
+    
+    // Also check via supabase if available
+    if(window.s || window.db || window.SB){
+      const client=window.s||window.db||window.SB;
+      client.auth.getSession().then(({data:{session}})=>{
+        if(!session || session.user.id===profileId)return;
+        insertButton(profileId);
+      });
+    }else{
+      insertButton(profileId);
+    }
+  }
+
+  function insertButton(userId){
+    // Avoid duplicates
+    if(document.getElementById('dmProfileBtn'))return;
+
+    // Strategy 1: Find existing action buttons container
+    const btnContainers=[
+      // Common class/id patterns for action button areas
+      document.querySelector('.profile-actions'),
+      document.querySelector('.action-buttons'),
+      document.querySelector('.profile-btns'),
+      document.querySelector('[class*="action"]'),
+      // Find by looking for Follow button's parent
+      document.querySelector('button[onclick*="follow"]')?.parentElement,
+      document.querySelector('button[onclick*="Follow"]')?.parentElement,
+      document.querySelector('a[href*="donate"]')?.parentElement,
+    ];
+
+    let container=null;
+    for(const c of btnContainers){
+      if(c){container=c;break;}
+    }
+
+    // Strategy 2: If no container found, look for any button group near the top of profile
+    if(!container){
+      const allBtns=document.querySelectorAll('.btn, .btn-sm, button');
+      for(const btn of allBtns){
+        const text=btn.textContent.toLowerCase();
+        if(text.includes('follow')||text.includes('donate')||text.includes('share')){
+          container=btn.parentElement;
+          break;
+        }
+      }
+    }
+
+    // Create the DM button
+    const btn=document.createElement('a');
+    btn.id='dmProfileBtn';
+    btn.href='dm.html?user='+userId;
+    btn.innerHTML='✉️ Message';
+    btn.style.cssText='display:inline-flex;align-items:center;gap:.35rem;background:rgba(124,58,237,0.2);border:1px solid rgba(124,58,237,0.4);color:#a855f7;padding:.5rem 1rem;border-radius:8px;cursor:pointer;font-weight:600;font-size:.85rem;text-decoration:none;transition:all .2s;';
+    btn.onmouseover=function(){this.style.background='rgba(124,58,237,0.35)';this.style.borderColor='#7c3aed';this.style.color='#eae6ff';};
+    btn.onmouseout=function(){this.style.background='rgba(124,58,237,0.2)';this.style.borderColor='rgba(124,58,237,0.4)';this.style.color='#a855f7';};
+
+    if(container){
+      container.appendChild(btn);
+    }else{
+      // Last resort: inject after the first h1 or h2 on page
+      const heading=document.querySelector('h1,h2,.display-name,.profile-name');
+      if(heading){
+        heading.parentElement.insertBefore(btn,heading.nextSibling);
+        btn.style.marginTop='.5rem';
+        btn.style.display='inline-flex';
+      }
+    }
+  }
+
+  // Run after profile loads (with retry)
+  let attempts=0;
+  function tryAdd(){
+    addDMButton();
+    attempts++;
+    if(attempts<10 && !document.getElementById('dmProfileBtn')){
+      setTimeout(tryAdd,500);
+    }
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',()=>setTimeout(tryAdd,800));
+  }else{
+    setTimeout(tryAdd,800);
+  }
+})();
+</script>
+
 </body>
 </html>
