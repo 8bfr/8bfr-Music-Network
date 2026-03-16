@@ -146,7 +146,19 @@ async function loadCurrentTab(){
 }
 
 async function loadDMs(){
-  const{data}=await db.from('owner_dm_monitor').select('*').order('created_at',{ascending:false}).range(page*LIMIT,(page+1)*LIMIT-1);
+
+<!--
+  OWNER MONITOR PATCH
+  In owner-monitor.html, replace the loadDMs(), loadChat(), and loadKidZone() 
+  functions with these versions that call the secure RPCs instead of open views.
+  
+  Find and replace each function body.
+-->
+
+// REPLACE loadDMs() with:
+async function loadDMs(){
+  const{data,error}=await db.rpc('fn_owner_dm_monitor',{p_limit:LIMIT,p_offset:page*LIMIT});
+  if(error){document.getElementById('content').innerHTML='<div class="empty">Error: '+error.message+'</div>';return;}
   allMessages=data||[];
   renderMessages(allMessages.map(m=>({
     id:m.id,
@@ -159,11 +171,11 @@ async function loadDMs(){
   })));
 }
 
+// REPLACE loadChat() with:
 async function loadChat(){
-  const room=document.getElementById('roomFilter').value;
-  let query=db.from('owner_chat_monitor').select('*').order('created_at',{ascending:false}).range(page*LIMIT,(page+1)*LIMIT-1);
-  if(room)query=query.eq('room',room);
-  const{data}=await query;
+  const room=document.getElementById('roomFilter').value||null;
+  const{data,error}=await db.rpc('fn_owner_chat_monitor',{p_room:room,p_limit:LIMIT});
+  if(error){document.getElementById('content').innerHTML='<div class="empty">Error: '+error.message+'</div>';return;}
   allMessages=data||[];
   renderMessages(allMessages.map(m=>({
     id:m.id,
@@ -178,11 +190,11 @@ async function loadChat(){
   })));
 }
 
+// REPLACE loadKidZone() with:
 async function loadKidZone(){
-  const room=document.getElementById('roomFilter').value;
-  let query=db.from('owner_kidzone_monitor').select('*').order('created_at',{ascending:false}).range(page*LIMIT,(page+1)*LIMIT-1);
-  if(room)query=query.eq('room',room);
-  const{data}=await query;
+  const room=document.getElementById('roomFilter').value||null;
+  const{data,error}=await db.rpc('fn_owner_kidzone_monitor',{p_room:room,p_limit:LIMIT});
+  if(error){document.getElementById('content').innerHTML='<div class="empty">Error: '+error.message+'</div>';return;}
   allMessages=data||[];
   renderMessages(allMessages.map(m=>({
     id:m.id,
@@ -197,6 +209,7 @@ async function loadKidZone(){
     type:'kidzone'
   })));
 }
+</script>
 
 async function loadFlagged(){
   const{data}=await db.from('owner_flagged_content').select('*').order('created_at',{ascending:false}).limit(50);
