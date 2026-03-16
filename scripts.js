@@ -293,7 +293,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
       <a href="radio.html" class="menu-chip">&#x1F4FB; Radio</a>
       <a href="live.html" class="menu-chip">&#x1F4E1; Live</a>
       <a href="ai-tools.html" class="menu-chip">🤖 AI Tools</a>
-      <a href="featured-artists.html" class="menu-chip">&#x2B50; Featured Artist</a>
+      <a href="featured.html" class="menu-chip">&#x2B50; Featured Artist</a>
       <a href="featured-songs.html" class="menu-chip">&#x1F3B5; Featured Songs</a>
       <a href="fan-zone.html" class="menu-chip">&#x1F3A4; Fan Zone</a>
       <a href="stories.html" class="menu-chip">&#x1F4D6; Stories</a>
@@ -307,7 +307,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
   <div class="menu-group collapsed">
     <div class="menu-group-title">Music &amp; Content</div>
     <div class="menu-links">
-      <a href="songs.html" class="menu-chip">&#x1F3B5; Songs</a>
+      <a href="song.html" class="menu-chip">&#x1F3B5; Songs</a>
       <a href="singles.html" class="menu-chip">&#x1F4BF; Singles</a>
       <a href="albums.html" class="menu-chip">&#x1F4C0; Albums</a>
       <a href="beats.html" class="menu-chip">&#x1F941; Beats</a>
@@ -316,7 +316,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
       <a href="genres.html" class="menu-chip">&#x1F3BC; Genres</a>
       <a href="charts.html" class="menu-chip">&#x1F4C8; Charts</a>
       <a href="dedications.html" class="menu-chip">&#x1F48C; Dedications</a>
-      <a href="mom-thankyou.html" class="menu-chip">&#x1F49C; Mom Thank You</a>
+      <a href="dedication.html" class="menu-chip">&#x1F49C; Mom Thank You</a>
     </div>
   </div>
   <div class="menu-group collapsed">
@@ -326,7 +326,6 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
       <a href="author.html" class="menu-chip">&#x1F4DD; Author</a>
       <a href="author-hub.html" class="menu-chip">&#x1F4DA; Author Hub</a>
       <a href="translate.html" class="menu-chip">&#x1F310; Translate</a>
-      <a href="translator.html" class="menu-chip">&#x1F30D; Translator</a>
       <a href="integration.html" class="menu-chip">&#x1F517; Integration</a>
       <a href="stats.html" class="menu-chip">&#x1F4CA; Stats</a>
     </div>
@@ -342,15 +341,15 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
     <div class="menu-group-title">Profiles &amp; Community</div>
     <div class="menu-links">
       <a href="members.html" class="menu-chip">&#x1F465; Browse Members</a>
-      <a href="pages.html" class="menu-chip">&#x1F4C4; Pages</a>
-      <a href="groups.html" class="menu-chip">&#x1F465; Groups</a>
+      <a href="page.html" class="menu-chip">&#x1F4C4; Pages</a>
+      <a href="group.html" class="menu-chip">&#x1F465; Groups</a>
       <a href="profile.html" class="menu-chip">&#x1F464; My Profile</a>
       <a href="chat.html" class="menu-chip">&#x1F4AC; Chat</a>
       <a href="dm.html" class="menu-chip">&#x2709;&#xFE0F; DM</a>
-      <a href="kids.html" class="menu-chip">&#x1F476; Kids</a>
-      <a href="kids-zone.html" class="menu-chip">&#x1F9F8; Kids Zone</a>
-      <a href="kids_games.html" class="menu-chip">&#x1F3AE; Kids Games</a>
-      <a href="kids_stories.html" class="menu-chip">&#x1F4D6; Kids Stories</a>
+      <a href="kid-zone.html" class="menu-chip">&#x1F476; Kids</a>
+      <a href="kid-zone.html" class="menu-chip">&#x1F9F8; Kids Zone</a>
+      <a href="kidzone-games.html" class="menu-chip">&#x1F3AE; Kids Games</a>
+      <a href="kids-stories.html" class="menu-chip">&#x1F4D6; Kids Stories</a>
     </div>
   </div>
   <div class="menu-group collapsed">
@@ -394,6 +393,8 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
       <a href="owner-studio.html" class="menu-chip">&#x1F3A8; Owner Studio</a>
       <a href="owner-users.html" class="menu-chip">&#x1F465; Manage Users</a>
       <a href="owner-verifications.html" class="menu-chip">&#x2705; Verifications</a>
+      <a href="owner-kidzone.html" class="menu-chip">&#x1F9F8; KidZone Admin</a>
+      <a href="owner-monitor.html" class="menu-chip">&#x1F441; Site Monitor</a>
       <a href="admin-panel.html" class="menu-chip">&#x2699;&#xFE0F; Admin Panel</a>
       <a href="mod-panel.html" class="menu-chip">&#x1F6E1;&#xFE0F; Mod Panel</a>
     </div>
