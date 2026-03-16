@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Parent Dashboard — KidZone</title>
+<link rel="icon" href="assets/images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Work+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--kp:#8b5cf6;--dark:#0f0a1a;--card:rgba(15,10,35,.85);--text:#f0eaff;--dim:rgba(168,130,255,.7);--green:#22c55e;--red:#ef4444;--yellow:#eab308;--border:rgba(139,92,246,.3);}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Work Sans',sans-serif;background:linear-gradient(135deg,#0f0a1a,#1a0533);color:var(--text);min-height:100vh;padding-bottom:80px;}
+.header{background:rgba(15,10,35,.95);border-bottom:3px solid var(--kp);padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;backdrop-filter:blur(12px);}
+.header h1{font-family:'Fredoka One',cursive;font-size:1.5rem;color:var(--kp);}
+.header a{color:var(--text);text-decoration:none;font-weight:600;font-size:.85rem;}
+.container{max-width:800px;margin:0 auto;padding:1.5rem;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:1.5rem;margin-bottom:1.5rem;}
+.st{font-family:'Fredoka One',cursive;font-size:1.2rem;color:var(--kp);margin-bottom:.75rem;}
+.btn{padding:.65rem 1.25rem;border-radius:10px;border:none;cursor:pointer;font-weight:700;font-size:.9rem;transition:all .2s;}
+.btn-purple{background:var(--kp);color:#fff;}.btn-purple:hover{background:#7c3aed;}
+.btn-green{background:rgba(34,197,94,.2);border:1px solid rgba(34,197,94,.4);color:var(--green);}
+.btn-red{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#fca5a5;}
+.btn-outline{background:rgba(139,92,246,.15);border:1px solid var(--border);color:var(--text);}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+input,select,textarea{width:100%;padding:.6rem .8rem;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:.9rem;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--kp);}
+.form-group{margin-bottom:.75rem;}
+.form-group label{display:block;font-size:.8rem;color:var(--dim);margin-bottom:.3rem;font-weight:600;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;}
+.status-badge{display:inline-block;padding:.2rem .6rem;border-radius:6px;font-size:.75rem;font-weight:700;}
+.status-pending{background:rgba(234,179,8,.15);color:var(--yellow);}
+.status-approved{background:rgba(34,197,94,.15);color:var(--green);}
+.status-rejected{background:rgba(239,68,68,.15);color:var(--red);}
+
+/* Kid cards */
+.kid-card{background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:12px;padding:1rem;margin-bottom:.75rem;display:flex;gap:1rem;align-items:flex-start;}
+.kid-card-avatar{width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,var(--kp),#ec4899);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;border:2px solid var(--yellow);}
+.kid-card-info{flex:1;min-width:0;}
+.kid-card-name{font-family:'Fredoka One',cursive;font-size:1rem;margin-bottom:.15rem;}
+.kid-card-meta{font-size:.78rem;color:var(--dim);}
+.kid-card-controls{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.5rem;}
+.control-toggle{display:flex;align-items:center;gap:.4rem;font-size:.78rem;cursor:pointer;padding:.25rem .5rem;border-radius:6px;border:1px solid var(--border);background:rgba(0,0,0,.2);transition:all .2s;}
+.control-toggle.on{border-color:rgba(34,197,94,.4);color:var(--green);}
+.control-toggle.off{border-color:rgba(239,68,68,.3);color:#fca5a5;}
+
+/* Activity log */
+.activity-item{display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:1px solid rgba(139,92,246,.1);font-size:.85rem;}
+.activity-item:last-child{border:none;}
+.activity-time{font-size:.7rem;color:rgba(168,130,255,.4);}
+
+.warning-box{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:10px;padding:.75rem 1rem;font-size:.82rem;color:#fca5a5;margin-bottom:1rem;line-height:1.5;}
+
+@media(max-width:500px){.form-row{grid-template-columns:1fr;}.kid-card{flex-direction:column;align-items:center;text-align:center;}}
+</style>
+</head>
+<body>
+<div class="header">
+<a href="kidzone-home.html">← KidZone</a>
+<h1>👨‍👩‍👧 Parent Dashboard</h1>
+<div></div>
+</div>
+
+<div class="container">
+
+<!-- LOADING -->
+<div id="loading" style="text-align:center;padding:2rem;"><div style="width:30px;height:30px;border:3px solid var(--border);border-top-color:var(--kp);border-radius:50%;animation:spin .7s linear infinite;display:inline-block;"></div></div>
+<style>@keyframes spin{to{transform:rotate(360deg);}}</style>
+
+<!-- VERIFICATION FORM (shown if not yet verified) -->
+<div id="verifySection" style="display:none;">
+<div class="card">
+<div class="st">🔒 Parent Verification</div>
+<p style="font-size:.88rem;color:var(--dim);margin-bottom:1rem;">Verify your identity to create and manage KidZone accounts for your children.</p>
+<div class="warning-box">⚠️ <strong>Important:</strong> Any unlawful actions involving minors will result in all available information being forwarded to law enforcement authorities. KidZone exists to protect children.</div>
+
+<div id="verifyStatus" style="display:none;margin-bottom:1rem;"></div>
+
+<div class="form-group"><label>Your Full Name</label><input type="text" id="vName" placeholder="Full legal name"></div>
+<div class="form-group"><label>Your Email</label><input type="email" id="vEmail" placeholder="Email address"></div>
+<div class="form-group">
+<label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;">
+<input type="checkbox" id="vAgree" style="width:auto;">
+<span>I confirm I am the parent/legal guardian of the child(ren) I will register, and I agree to the <a href="terms.html" style="color:var(--kp);">Terms</a> and <a href="privacy.html" style="color:var(--kp);">Privacy Policy</a>.</span>
+</label>
+</div>
+<button class="btn btn-purple" onclick="submitVerification()" id="verifyBtn">Submit for Verification</button>
+</div>
+</div>
+
+<!-- DASHBOARD (shown when verified) -->
+<div id="dashboard" style="display:none;">
+
+<!-- Create Kid Account -->
+<div class="card">
+<div class="st">➕ Create Kid Account</div>
+<div class="form-row">
+<div class="form-group"><label>Display Name</label><input type="text" id="newKidName" placeholder="e.g. DJ Jay"></div>
+<div class="form-group"><label>Username</label><input type="text" id="newKidUsername" placeholder="e.g. dj_jay_kid"></div>
+</div>
+<div class="form-group"><label>Age Group</label>
+<select id="newKidAge"><option value="6-9">6–9 years</option><option value="10-12" selected>10–12 years</option><option value="13-15">13–15 years</option></select>
+</div>
+<button class="btn btn-purple" onclick="createKidAccount()">🧒 Create Account</button>
+<div id="createStatus" style="margin-top:.5rem;font-size:.85rem;"></div>
+</div>
+
+<!-- My Kids -->
+<div class="card">
+<div class="st">🧒 My Children's Accounts</div>
+<div id="kidsList"><p style="color:var(--dim);font-size:.85rem;">Loading...</p></div>
+</div>
+
+<!-- Activity Log -->
+<div class="card">
+<div class="st">📋 Recent Activity</div>
+<div id="activityLog"><p style="color:var(--dim);font-size:.85rem;">Loading...</p></div>
+</div>
+
+</div>
+</div>
+
+<script src="scripts.js" defer></script>
+<script>
+const SUPABASE_URL='https://novbuvwpjnxwwvdekjhr.supabase.co';
+const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
+
+let currentUser=null;
+let isVerifiedParent=false;
+let myKids=[];
+
+async function init(){
+  const{data:{session}}=await db.auth.getSession();
+  if(!session){location.href='login.html?return=kidzone-parent.html';return;}
+  currentUser=session.user;
+  document.getElementById('loading').style.display='none';
+
+  // Check verification status
+  const{data:pv}=await db.from('parent_verifications').select('*').eq('user_id',currentUser.id).maybeSingle();
+
+  if(!pv){
+    // Not submitted yet
+    document.getElementById('verifySection').style.display='block';
+    document.getElementById('vEmail').value=currentUser.email||'';
+    return;
+  }
+
+  if(pv.status==='pending'){
+    document.getElementById('verifySection').style.display='block';
+    document.getElementById('verifyStatus').style.display='block';
+    document.getElementById('verifyStatus').innerHTML='<div class="status-badge status-pending">⏳ Pending Review</div><p style="font-size:.82rem;color:var(--dim);margin-top:.5rem;">Your verification is being reviewed by the platform owner. This usually takes less than 24 hours.</p>';
+    return;
+  }
+
+  if(pv.status==='rejected'){
+    document.getElementById('verifySection').style.display='block';
+    document.getElementById('verifyStatus').style.display='block';
+    document.getElementById('verifyStatus').innerHTML='<div class="status-badge status-rejected">❌ Rejected</div><p style="font-size:.82rem;color:var(--dim);margin-top:.5rem;">Reason: '+(pv.notes||'Not specified')+'. Contact the owner to appeal.</p>';
+    return;
+  }
+
+  // Approved!
+  isVerifiedParent=true;
+  document.getElementById('dashboard').style.display='block';
+
+  // Add parent badge if not already
+  await db.from('profiles').update({
+    badges: db.rpc ? undefined : undefined // badges handled separately
+  }).eq('user_id',currentUser.id);
+
+  loadKids();
+  loadActivity();
+}
+
+async function submitVerification(){
+  const name=document.getElementById('vName').value.trim();
+  const email=document.getElementById('vEmail').value.trim();
+  const agreed=document.getElementById('vAgree').checked;
+
+  if(!name){alert('Enter your full name.');return;}
+  if(!email){alert('Enter your email.');return;}
+  if(!agreed){alert('You must agree to the terms.');return;}
+
+  const btn=document.getElementById('verifyBtn');
+  btn.disabled=true;btn.textContent='Submitting...';
+
+  const{error}=await db.from('parent_verifications').insert({
+    user_id:currentUser.id,
+    full_name:name,
+    email:email,
+    agreed_to_terms:true
+  });
+
+  if(error){
+    if(error.message.includes('duplicate')){alert('You already have a verification request.');}
+    else{alert('Error: '+error.message);}
+    btn.disabled=false;btn.textContent='Submit for Verification';
+    return;
+  }
+
+  // Notify owner
+  try{
+    const{data:owners}=await db.from('profiles').select('user_id').in('role',['owner','co-owner']);
+    if(owners){
+      for(const o of owners){
+        await db.from('notifications').insert({
+          recipient_id:o.user_id,
+          actor_id:currentUser.id,
+          notif_type:'parent_verify',
+          metadata:{title:'👨‍👩‍👧 Parent Verification Request',body:name+' wants to create KidZone accounts',link:'owner-panel.html'}
+        });
+      }
+    }
+  }catch(e){}
+
+  alert('✅ Verification submitted! The owner will review your request.');
+  location.reload();
+}
+
+async function createKidAccount(){
+  const name=document.getElementById('newKidName').value.trim();
+  const username=document.getElementById('newKidUsername').value.trim().toLowerCase().replace(/[^a-z0-9_]/g,'');
+  const ageGroup=document.getElementById('newKidAge').value;
+  const status=document.getElementById('createStatus');
+
+  if(!name){status.innerHTML='<span style="color:#fca5a5;">Enter a display name.</span>';return;}
+  if(!username||username.length<3){status.innerHTML='<span style="color:#fca5a5;">Username must be 3+ characters (letters, numbers, underscore).</span>';return;}
+
+  const{error}=await db.from('kid_profiles').insert({
+    parent_user_id:currentUser.id,
+    display_name:name,
+    username:username,
+    age_group:ageGroup
+  });
+
+  if(error){
+    if(error.message.includes('unique')||error.message.includes('duplicate')){
+      status.innerHTML='<span style="color:#fca5a5;">Username already taken. Try another.</span>';
+    }else{
+      status.innerHTML='<span style="color:#fca5a5;">Error: '+error.message+'</span>';
+    }
+    return;
+  }
+
+  status.innerHTML='<span style="color:var(--green);">✅ Account created for '+esc(name)+'!</span>';
+  document.getElementById('newKidName').value='';
+  document.getElementById('newKidUsername').value='';
+  loadKids();
+}
+
+async function loadKids(){
+  const{data}=await db.from('kid_profiles').select('*').eq('parent_user_id',currentUser.id).order('created_at',{ascending:false});
+  myKids=data||[];
+  const box=document.getElementById('kidsList');
+
+  if(!myKids.length){
+    box.innerHTML='<p style="color:var(--dim);font-size:.85rem;">No kid accounts yet. Create one above!</p>';
+    return;
+  }
+
+  box.innerHTML=myKids.map(k=>`
+    <div class="kid-card">
+      <div class="kid-card-avatar">🧒</div>
+      <div class="kid-card-info">
+        <div class="kid-card-name">${esc(k.display_name)} <span style="font-size:.7rem;color:var(--dim);">@${esc(k.username)}</span></div>
+        <div class="kid-card-meta">Age: ${k.age_group} · Level: ${k.level} · 🪙 ${k.kidcoins} coins · 🎵 ${k.songs_uploaded} songs</div>
+        <div class="kid-card-controls">
+          <div class="control-toggle ${k.can_post?'on':'off'}" onclick="toggleControl('${k.id}','can_post',${!k.can_post},this)">
+            ${k.can_post?'✅':'❌'} Posting
+          </div>
+          <div class="control-toggle ${k.can_comment?'on':'off'}" onclick="toggleControl('${k.id}','can_comment',${!k.can_comment},this)">
+            ${k.can_comment?'✅':'❌'} Comments
+          </div>
+          <div class="control-toggle ${k.can_message?'on':'off'}" onclick="toggleControl('${k.id}','can_message',${!k.can_message},this)">
+            ${k.can_message?'✅':'❌'} Messages
+          </div>
+          <div class="control-toggle" onclick="editTimeLimit('${k.id}',${k.daily_time_limit})" style="border-color:rgba(234,179,8,.3);color:var(--yellow);">
+            ⏱️ ${k.daily_time_limit||0}min/day
+          </div>
+        </div>
+        <div style="margin-top:.5rem;display:flex;gap:.4rem;">
+          <button class="btn btn-outline" style="font-size:.75rem;padding:.3rem .6rem;" onclick="viewActivity('${k.id}')">📋 Activity</button>
+          <button class="btn btn-red" style="font-size:.75rem;padding:.3rem .6rem;" onclick="deactivateKid('${k.id}','${esc(k.display_name)}')">🚫 Deactivate</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function toggleControl(kidId,field,newValue,el){
+  const update={};
+  update[field]=newValue;
+  await db.from('kid_profiles').update(update).eq('id',kidId).eq('parent_user_id',currentUser.id);
+  loadKids();
+}
+
+function editTimeLimit(kidId,current){
+  const mins=prompt('Daily time limit in minutes (0 = unlimited):',current||60);
+  if(mins===null)return;
+  const val=parseInt(mins)||0;
+  db.from('kid_profiles').update({daily_time_limit:val}).eq('id',kidId).eq('parent_user_id',currentUser.id).then(()=>loadKids());
+}
+
+async function deactivateKid(kidId,name){
+  if(!confirm('Deactivate '+name+'\'s account? They won\'t be able to access KidZone until reactivated.'))return;
+  await db.from('kid_profiles').update({is_active:false}).eq('id',kidId).eq('parent_user_id',currentUser.id);
+  loadKids();
+}
+
+async function loadActivity(){
+  const{data}=await db.from('kid_activity_log').select('*').eq('parent_user_id',currentUser.id).order('created_at',{ascending:false}).limit(20);
+  const box=document.getElementById('activityLog');
+  if(!data||!data.length){box.innerHTML='<p style="color:var(--dim);font-size:.85rem;">No activity recorded yet.</p>';return;}
+
+  // Get kid names
+  const kidMap={};
+  myKids.forEach(k=>{kidMap[k.id]=k.display_name;});
+
+  box.innerHTML=data.map(a=>{
+    const icons={'login':'🔑','upload':'🎵','comment':'💬','challenge':'🏆','reward_purchase':'🎁','coin_earned':'🪙'};
+    const icon=icons[a.action]||'📋';
+    const kidName=kidMap[a.kid_id]||'Unknown';
+    const time=new Date(a.created_at).toLocaleString();
+    const coins=a.coins_change?(' <span style="color:'+(a.coins_change>0?'var(--green)':'#fca5a5')+';">'+(a.coins_change>0?'+':'')+a.coins_change+' coins</span>'):'';
+    return '<div class="activity-item"><div>'+icon+' <strong>'+esc(kidName)+'</strong> — '+(a.detail||a.action)+coins+'</div><div class="activity-time">'+time+'</div></div>';
+  }).join('');
+}
+
+async function viewActivity(kidId){
+  const{data}=await db.from('kid_activity_log').select('*').eq('kid_id',kidId).order('created_at',{ascending:false}).limit(30);
+  if(!data||!data.length){alert('No activity for this account yet.');return;}
+  const lines=data.map(a=>new Date(a.created_at).toLocaleString()+' — '+(a.detail||a.action)+(a.coins_change?' ('+a.coins_change+' coins)':'')).join('\n');
+  alert('Recent Activity:\n\n'+lines);
+}
+
+function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+</script>
+
+<script>(function(){var b=document.createElement('button');b.innerHTML='👁️';b.style.cssText='position:fixed;top:80px;right:20px;z-index:9999;background:rgba(124,58,237,0.9);border:2px solid rgba(124,58,237,1);color:white;width:50px;height:50px;border-radius:50%;cursor:pointer;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(124,58,237,0.5);';document.body.appendChild(b);var h=localStorage.getItem('hideAvatarBubbles')==='true';function u(){document.querySelectorAll('[id*="bubble"],[class*="bubble"],[id*="avatar"][id*="switcher"]').forEach(function(el){if(el)el.style.display=h?'none':'';});b.innerHTML=h?'👁️‍🗨️':'👁️';}b.addEventListener('click',function(){h=!h;localStorage.setItem('hideAvatarBubbles',h);u();});u();})();</script>
+</body>
+</html>
