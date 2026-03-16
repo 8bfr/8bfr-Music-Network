@@ -1,173 +1,220 @@
-<!DOCTYPE html><html lang="en"><head>
-<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>8BFR | Genres</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
-<script src="https://cdn.tailwindcss.com"></script>
-<script defer src="assets/js/site-shell.js"></script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Genres - 8BFR Music Network</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary: #7c3aed; --dark: #0b0014; --dark-card: #0c0618; --text: #eae6ff; --text-dim: #a855f7; --border: rgba(124,58,237,.35); --green: #00ff88; --cyan: #00d9ff; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Work Sans', sans-serif; background: linear-gradient(#0b0014,#000); color: var(--text); min-height: 100vh; padding-bottom: 80px; }
+        .header { background: rgba(15,0,30,.9); border-bottom: 2px solid var(--primary); padding: 1.25rem 1.5rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(12px); }
+        .header h1 { font-family: 'Bebas Neue', cursive; font-size: 1.8rem; color: var(--primary); }
+        .header a { color: var(--text); text-decoration: none; font-weight: 600; font-size: 0.9rem; }
+        .container { max-width: 1000px; margin: 0 auto; padding: 1.5rem; }
+        .card { background: var(--dark-card); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
+
+        /* Genre Grid */
+        .genre-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; }
+        .genre-card { position: relative; border-radius: 14px; overflow: hidden; cursor: pointer; aspect-ratio: 1; display: flex; align-items: flex-end; transition: all 0.3s; border: 2px solid transparent; }
+        .genre-card:hover { transform: translateY(-3px); border-color: rgba(255,255,255,0.2); box-shadow: 0 8px 25px rgba(0,0,0,0.5); }
+        .genre-card.active { border-color: var(--primary); box-shadow: 0 0 20px rgba(124,58,237,0.4); }
+        .genre-bg { position: absolute; inset: 0; }
+        .genre-overlay { position: absolute; inset: 0; background: linear-gradient(transparent 30%, rgba(0,0,0,0.85)); }
+        .genre-content { position: relative; z-index: 1; padding: 0.75rem; width: 100%; }
+        .genre-emoji { font-size: 1.5rem; margin-bottom: 0.2rem; }
+        .genre-name { font-family: 'Bebas Neue', cursive; font-size: 1.1rem; color: white; }
+        .genre-count { font-size: 0.7rem; color: rgba(255,255,255,0.6); }
+
+        /* Genre detail view */
+        #genreDetail { display: none; }
+        .detail-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; }
+        .detail-icon { font-size: 2.5rem; }
+        .detail-title { font-family: 'Bebas Neue', cursive; font-size: 2rem; color: var(--primary); }
+        .detail-sub { font-size: 0.85rem; color: var(--text-dim); }
+        .back-btn { background: rgba(124,58,237,0.2); border: 1px solid var(--border); color: var(--text); padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: all 0.2s; }
+        .back-btn:hover { border-color: var(--primary); }
+
+        /* Song list in genre */
+        .song-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0; border-bottom: 1px solid rgba(124,58,237,0.1); }
+        .song-item:last-child { border: none; }
+        .song-num { width: 28px; text-align: center; font-size: 0.85rem; color: var(--text-dim); font-weight: 600; }
+        .song-art { width: 44px; height: 44px; border-radius: 8px; background: rgba(124,58,237,0.15); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; overflow: hidden; flex-shrink: 0; }
+        .song-art img { width: 100%; height: 100%; object-fit: cover; }
+        .song-info { flex: 1; min-width: 0; }
+        .song-name { font-weight: 600; font-size: 0.88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .song-artist-name { font-size: 0.75rem; color: var(--text-dim); }
+        .song-play { width: 34px; height: 34px; border-radius: 50%; background: var(--primary); border: none; color: white; cursor: pointer; font-size: 0.85rem; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+
+        .empty-state { text-align: center; padding: 2rem; color: var(--text-dim); }
+        .empty-state .emoji { font-size: 2.5rem; margin-bottom: 0.75rem; }
+
+        @media (max-width: 500px) {
+            .genre-grid { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+            .container { padding: 1rem; }
+        }
+    </style>
 </head>
-<body class="min-h-screen bg-[radial-gradient(ellipse_at_top,_#1a0022,_#000)] text-white font-[Poppins]">
-<div id="site-header"></div>
-<main class="max-w-6xl mx-auto px-4 py-10">
-<section class="rounded-2xl p-6 bg-black/50 border border-purple-700/40 shadow-xl">
-  <h2 class="text-2xl font-bold mb-2">Genres</h2>
-  <p class="text-purple-200">Glassy neon starter • Supabase-ready stub.</p>
-</section>
-</main>
-<div id="site-footer"></div>
-<script defer src="assets/js/carousel.js"></script>
-<script defer src="assets/js/supabase.js"></script>
-  <!-- ADD THIS SCRIPT TO EVERY PAGE (except index.html where you want it always shown) -->
-<!-- Place it right before the closing </body> tag -->
+<body>
+    <div class="header">
+        <h1>🎶 Genres</h1>
+        <a href="feed.html">← Back</a>
+    </div>
+    <div class="container">
 
-<script>
-// Avatar & Bubble Toggle System
-(function() {
-    // Create toggle button
-    const toggleBtn = document.createElement('button');
-    toggleBtn.id = 'avatarToggle';
-    toggleBtn.innerHTML = '👁️';
-    toggleBtn.title = 'Toggle Avatar/Bubbles';
-    toggleBtn.style.cssText = `
-        position: fixed;
-        top: 80px;
-        right: 20px;
-        z-index: 9999;
-        background: rgba(124, 58, 237, 0.9);
-        border: 2px solid rgba(124, 58, 237, 1);
-        color: white;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.5);
-        transition: all 0.3s ease;
-    `;
-    
-    toggleBtn.addEventListener('mouseenter', function() {
-        this.style.transform = 'scale(1.1)';
-    });
-    
-    toggleBtn.addEventListener('mouseleave', function() {
-        this.style.transform = 'scale(1)';
-    });
-    
-    document.body.appendChild(toggleBtn);
-    
-    // Load saved preference
-    let isHidden = localStorage.getItem('hideAvatarBubbles') === 'true';
-    
-    function updateVisibility() {
-        const elementsToToggle = [
-            document.getElementById('homeAvatarSwitcher'),
-            ...document.querySelectorAll('[id*="bubble"]'),
-            ...document.querySelectorAll('[class*="bubble"]'),
-            ...document.querySelectorAll('[id*="avatar"][id*="switcher"]')
-        ];
-        
-        elementsToToggle.forEach(el => {
-            if (el) {
-                el.style.display = isHidden ? 'none' : '';
-            }
-        });
-        
-        toggleBtn.innerHTML = isHidden ? '👁️‍🗨️' : '👁️';
-        toggleBtn.title = isHidden ? 'Show Avatar/Bubbles' : 'Hide Avatar/Bubbles';
+        <!-- GENRE GRID -->
+        <div id="genreGrid" class="card">
+            <h2 style="font-family:'Bebas Neue',cursive;font-size:1.4rem;color:var(--primary);margin-bottom:1rem;">Browse by Genre</h2>
+            <div class="genre-grid" id="genreCards"></div>
+        </div>
+
+        <!-- GENRE DETAIL VIEW -->
+        <div id="genreDetail" class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+                <div class="detail-header">
+                    <div class="detail-icon" id="detailIcon"></div>
+                    <div>
+                        <div class="detail-title" id="detailTitle"></div>
+                        <div class="detail-sub" id="detailSub"></div>
+                    </div>
+                </div>
+                <button class="back-btn" onclick="closeDetail()">← All Genres</button>
+            </div>
+            <div id="detailSongs"></div>
+        </div>
+    </div>
+
+    <script src="scripts.js" defer></script>
+    <script>
+    const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const genres = [
+        { id: 'hiphop', name: 'Hip-Hop', emoji: '🎤', color: '#7c3aed', gradient: 'linear-gradient(135deg, #4c1d95, #7c3aed)' },
+        { id: 'trap', name: 'Trap', emoji: '🔥', color: '#ef4444', gradient: 'linear-gradient(135deg, #991b1b, #ef4444)' },
+        { id: 'rnb', name: 'R&B', emoji: '💜', color: '#8b5cf6', gradient: 'linear-gradient(135deg, #5b21b6, #c084fc)' },
+        { id: 'drill', name: 'Drill', emoji: '🗡️', color: '#64748b', gradient: 'linear-gradient(135deg, #1e293b, #475569)' },
+        { id: 'boombap', name: 'Boom Bap', emoji: '🥁', color: '#d97706', gradient: 'linear-gradient(135deg, #78350f, #f59e0b)' },
+        { id: 'pop', name: 'Pop', emoji: '✨', color: '#ec4899', gradient: 'linear-gradient(135deg, #9d174d, #f472b6)' },
+        { id: 'rock', name: 'Rock', emoji: '🎸', color: '#dc2626', gradient: 'linear-gradient(135deg, #7f1d1d, #dc2626)' },
+        { id: 'lofi', name: 'Lo-Fi', emoji: '🌙', color: '#6366f1', gradient: 'linear-gradient(135deg, #312e81, #818cf8)' },
+        { id: 'afrobeats', name: 'Afrobeats', emoji: '🌍', color: '#16a34a', gradient: 'linear-gradient(135deg, #14532d, #22c55e)' },
+        { id: 'latin', name: 'Latin', emoji: '💃', color: '#ea580c', gradient: 'linear-gradient(135deg, #9a3412, #fb923c)' },
+        { id: 'country', name: 'Country', emoji: '🤠', color: '#ca8a04', gradient: 'linear-gradient(135deg, #713f12, #eab308)' },
+        { id: 'edm', name: 'EDM', emoji: '🎧', color: '#06b6d4', gradient: 'linear-gradient(135deg, #164e63, #22d3ee)' },
+        { id: 'jazz', name: 'Jazz', emoji: '🎷', color: '#0d9488', gradient: 'linear-gradient(135deg, #134e4a, #2dd4bf)' },
+        { id: 'soul', name: 'Soul', emoji: '🎹', color: '#a855f7', gradient: 'linear-gradient(135deg, #581c87, #d8b4fe)' },
+        { id: 'reggae', name: 'Reggae', emoji: '🇯🇲', color: '#22c55e', gradient: 'linear-gradient(135deg, #166534, #4ade80)' },
+        { id: 'gospel', name: 'Gospel', emoji: '🙏', color: '#f59e0b', gradient: 'linear-gradient(135deg, #78350f, #fcd34d)' },
+        { id: 'indie', name: 'Indie', emoji: '🎵', color: '#8b5cf6', gradient: 'linear-gradient(135deg, #4c1d95, #a78bfa)' },
+        { id: 'other', name: 'Other', emoji: '🌀', color: '#94a3b8', gradient: 'linear-gradient(135deg, #334155, #64748b)' }
+    ];
+
+    let genreCounts = {};
+
+    async function init() {
+        const { data: { session } } = await db.auth.getSession();
+        if (!session) { location.href = 'login.html?return=genres.html'; return; }
+        await loadGenreCounts();
+        renderGenreGrid();
     }
-    
-    toggleBtn.addEventListener('click', function() {
-        isHidden = !isHidden;
-        localStorage.setItem('hideAvatarBubbles', isHidden);
-        updateVisibility();
-    });
-    
-    // Apply on load
-    updateVisibility();
-    
-    // Watch for dynamically added elements
-    const observer = new MutationObserver(updateVisibility);
-    observer.observe(document.body, { childList: true, subtree: true });
-})();
-</script>
-<!-- ADD THIS SCRIPT TO EVERY PAGE (except index.html where you want it always shown) -->
-<!-- Place it right before the closing </body> tag -->
 
-<script>
-// Avatar & Bubble Toggle System
-(function() {
-    // Create toggle button
-    const toggleBtn = document.createElement('button');
-    toggleBtn.id = 'avatarToggle';
-    toggleBtn.innerHTML = '👁️';
-    toggleBtn.title = 'Toggle Avatar/Bubbles';
-    toggleBtn.style.cssText = `
-        position: fixed;
-        top: 80px;
-        right: 20px;
-        z-index: 9999;
-        background: rgba(124, 58, 237, 0.9);
-        border: 2px solid rgba(124, 58, 237, 1);
-        color: white;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.5);
-        transition: all 0.3s ease;
-    `;
-    
-    toggleBtn.addEventListener('mouseenter', function() {
-        this.style.transform = 'scale(1.1)';
-    });
-    
-    toggleBtn.addEventListener('mouseleave', function() {
-        this.style.transform = 'scale(1)';
-    });
-    
-    document.body.appendChild(toggleBtn);
-    
-    // Load saved preference
-    let isHidden = localStorage.getItem('hideAvatarBubbles') === 'true';
-    
-    function updateVisibility() {
-        const elementsToToggle = [
-            document.getElementById('homeAvatarSwitcher'),
-            ...document.querySelectorAll('[id*="bubble"]'),
-            ...document.querySelectorAll('[class*="bubble"]'),
-            ...document.querySelectorAll('[id*="avatar"][id*="switcher"]')
-        ];
-        
-        elementsToToggle.forEach(el => {
-            if (el) {
-                el.style.display = isHidden ? 'none' : '';
+    async function loadGenreCounts() {
+        try {
+            const { data } = await db.from('songs').select('genre');
+            if (data) {
+                data.forEach(s => {
+                    const g = (s.genre || 'other').toLowerCase().replace(/[^a-z]/g, '');
+                    genreCounts[g] = (genreCounts[g] || 0) + 1;
+                });
             }
-        });
-        
-        toggleBtn.innerHTML = isHidden ? '👁️‍🗨️' : '👁️';
-        toggleBtn.title = isHidden ? 'Show Avatar/Bubbles' : 'Hide Avatar/Bubbles';
+        } catch(e) { /* songs table may not exist yet */ }
     }
-    
-    toggleBtn.addEventListener('click', function() {
-        isHidden = !isHidden;
-        localStorage.setItem('hideAvatarBubbles', isHidden);
-        updateVisibility();
-    });
-    
-    // Apply on load
-    updateVisibility();
-    
-    // Watch for dynamically added elements
-    const observer = new MutationObserver(updateVisibility);
-    observer.observe(document.body, { childList: true, subtree: true });
-})();
-</script>
 
-</body></html>
+    function renderGenreGrid() {
+        const grid = document.getElementById('genreCards');
+        grid.innerHTML = genres.map(g => `
+            <div class="genre-card" onclick="openGenre('${g.id}')" id="genre-${g.id}">
+                <div class="genre-bg" style="background:${g.gradient};"></div>
+                <div class="genre-overlay"></div>
+                <div class="genre-content">
+                    <div class="genre-emoji">${g.emoji}</div>
+                    <div class="genre-name">${g.name}</div>
+                    <div class="genre-count">${genreCounts[g.id] || 0} songs</div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    async function openGenre(genreId) {
+        const genre = genres.find(g => g.id === genreId);
+        if (!genre) return;
+
+        document.querySelectorAll('.genre-card').forEach(c => c.classList.remove('active'));
+        document.getElementById('genre-' + genreId).classList.add('active');
+
+        document.getElementById('detailIcon').textContent = genre.emoji;
+        document.getElementById('detailTitle').textContent = genre.name;
+        document.getElementById('detailSub').textContent = (genreCounts[genreId] || 0) + ' songs';
+        document.getElementById('genreDetail').style.display = 'block';
+        document.getElementById('genreDetail').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        const songsDiv = document.getElementById('detailSongs');
+        songsDiv.innerHTML = '<div style="text-align:center;padding:1rem;"><div class="spinner-lg" style="width:30px;height:30px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 0.7s linear infinite;display:inline-block;"></div></div>';
+
+        /* Load songs for this genre */
+        let songs = [];
+        try {
+            const { data } = await db.from('songs').select('*').ilike('genre', '%' + genre.name + '%').order('plays', { ascending: false }).limit(30);
+            if (data) songs = data;
+        } catch(e) { /* ok */ }
+
+        if (!songs.length) {
+            songsDiv.innerHTML = `<div class="empty-state"><div class="emoji">${genre.emoji}</div><p>No ${genre.name} songs uploaded yet.<br>Be the first to upload in this genre!</p></div>`;
+            return;
+        }
+
+        songsDiv.innerHTML = songs.map((s, i) => `
+            <div class="song-item">
+                <div class="song-num">${i + 1}</div>
+                <div class="song-art">${s.cover_url ? '<img src="' + s.cover_url + '" alt="">' : '🎵'}</div>
+                <div class="song-info">
+                    <div class="song-name">${escHtml(s.title)}</div>
+                    <div class="song-artist-name">${escHtml(s.artist || s.display_name || 'Unknown')}</div>
+                </div>
+                <button class="song-play" onclick="playSong('${s.id}')">▶</button>
+            </div>
+        `).join('');
+    }
+
+    function closeDetail() {
+        document.getElementById('genreDetail').style.display = 'none';
+        document.querySelectorAll('.genre-card').forEach(c => c.classList.remove('active'));
+    }
+
+    function playSong(id) {
+        alert('Player integration coming soon!');
+    }
+
+    function escHtml(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
+    </script>
+
+    <!-- Safe avatar toggle (NO MutationObserver) -->
+    <script>
+    (function() {
+        var b = document.createElement('button'); b.innerHTML = '👁️';
+        b.style.cssText = 'position:fixed;top:80px;right:20px;z-index:9999;background:rgba(124,58,237,0.9);border:2px solid rgba(124,58,237,1);color:white;width:50px;height:50px;border-radius:50%;cursor:pointer;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(124,58,237,0.5);';
+        document.body.appendChild(b);
+        var h = localStorage.getItem('hideAvatarBubbles') === 'true';
+        function u() { document.querySelectorAll('[id*="bubble"],[class*="bubble"],[id*="avatar"][id*="switcher"]').forEach(function(el) { if(el) el.style.display = h ? 'none' : ''; }); b.innerHTML = h ? '👁️‍🗨️' : '👁️'; }
+        b.addEventListener('click', function() { h = !h; localStorage.setItem('hideAvatarBubbles', h); u(); }); u();
+    })();
+    </script>
+</body>
+</html>
