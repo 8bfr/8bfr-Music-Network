@@ -293,7 +293,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
       <a href="radio.html" class="menu-chip">&#x1F4FB; Radio</a>
       <a href="live.html" class="menu-chip">&#x1F4E1; Live</a>
       <a href="ai-tools.html" class="menu-chip">🤖 AI Tools</a>
-      <a href="featured.html" class="menu-chip">&#x2B50; Featured Artist</a>
+      <a href="featured-artists.html" class="menu-chip">&#x2B50; Featured Artist</a>
       <a href="featured-songs.html" class="menu-chip">&#x1F3B5; Featured Songs</a>
       <a href="fan-zone.html" class="menu-chip">&#x1F3A4; Fan Zone</a>
       <a href="stories.html" class="menu-chip">&#x1F4D6; Stories</a>
@@ -307,7 +307,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
   <div class="menu-group collapsed">
     <div class="menu-group-title">Music &amp; Content</div>
     <div class="menu-links">
-      <a href="song.html" class="menu-chip">&#x1F3B5; Songs</a>
+      <a href="songs.html" class="menu-chip">&#x1F3B5; Songs</a>
       <a href="singles.html" class="menu-chip">&#x1F4BF; Singles</a>
       <a href="albums.html" class="menu-chip">&#x1F4C0; Albums</a>
       <a href="beats.html" class="menu-chip">&#x1F941; Beats</a>
@@ -316,7 +316,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
       <a href="genres.html" class="menu-chip">&#x1F3BC; Genres</a>
       <a href="charts.html" class="menu-chip">&#x1F4C8; Charts</a>
       <a href="dedications.html" class="menu-chip">&#x1F48C; Dedications</a>
-      <a href="mom-thank-you.html" class="menu-chip">&#x1F49C; Mom Thank You</a>
+      <a href="mom-thankyou.html" class="menu-chip">&#x1F49C; Mom Thank You</a>
     </div>
   </div>
   <div class="menu-group collapsed">
@@ -326,6 +326,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
       <a href="author.html" class="menu-chip">&#x1F4DD; Author</a>
       <a href="author-hub.html" class="menu-chip">&#x1F4DA; Author Hub</a>
       <a href="translate.html" class="menu-chip">&#x1F310; Translate</a>
+      <a href="translator.html" class="menu-chip">&#x1F30D; Translator</a>
       <a href="integration.html" class="menu-chip">&#x1F517; Integration</a>
       <a href="stats.html" class="menu-chip">&#x1F4CA; Stats</a>
     </div>
@@ -384,13 +385,15 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
     <div class="menu-links">
       <a href="carrie-chat.html" class="menu-chip">&#x1F916; Carrie Chat</a>
       <a href="carrie-closet.html" class="menu-chip">&#x1F457; Carrie Closet</a>
-      <a href="carrie-concerts.html" class="menu-chip">&#x1F3A4; Carrie Concerts</a>
     </div>
   </div>
   <div class="menu-group collapsed">
     <div class="menu-group-title">Admin / Mod / Owner</div>
     <div class="menu-links">
       <a href="owner-panel.html" class="menu-chip">&#x1F451; Owner Panel</a>
+      <a href="owner-studio.html" class="menu-chip">&#x1F3A8; Owner Studio</a>
+      <a href="owner-users.html" class="menu-chip">&#x1F465; Manage Users</a>
+      <a href="owner-verifications.html" class="menu-chip">&#x2705; Verifications</a>
       <a href="admin-panel.html" class="menu-chip">&#x2699;&#xFE0F; Admin Panel</a>
       <a href="mod-panel.html" class="menu-chip">&#x1F6E1;&#xFE0F; Mod Panel</a>
     </div>
@@ -418,203 +421,46 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
     </div>
   </div>
 </nav>
-<!-- ═══════════════════════════════════════════════════════
-     BUBBLE STACK + FULL NAVIGATION MENU
-     Replace your existing bubbleStack div with this entire block
-     ═══════════════════════════════════════════════════════ -->
-
 <div id="bubbleStack">
-  <div class="bubble-row"><button class="bubble" id="bubble-menu" title="Menu" onclick="toggleNavMenu()"><span>☰</span></button><span class="bubble-label">Menu</span></div>
-  <div class="bubble-row"><button class="bubble" id="bubble-contact" title="Contact"><span>✉️</span></button><span class="bubble-label">Contact</span></div>
-  <div class="bubble-row"><button class="bubble" id="bubble-donate" title="Donate"><span>💜</span></button><span class="bubble-label">Donate</span></div>
-  <div class="bubble-row"><button class="bubble" id="bubble-footer" title="Go to footer"><span>⬇️</span></button><span class="bubble-label">Footer</span></div>
-  <div class="bubble-row"><button class="bubble" id="bubble-theme" title="Light / Dark"><span>☯️</span></button><span class="bubble-label">Theme</span></div>
-  <div class="bubble-row"><button class="bubble" id="bubble-theme-random" title="Random theme"><span>🔀</span></button><span class="bubble-label">Random</span></div>
-  <div class="bubble-row"><button class="bubble" id="bubble-stream" title="Stream 8BFR"><span>🎧</span></button><span class="bubble-label">Stream</span></div>
+  <div class="bubble-row"><button class="bubble" id="bubble-contact" title="Contact"><span>&#x2709;&#xFE0F;</span></button><span class="bubble-label">Contact</span></div>
+  <div class="bubble-row"><button class="bubble" id="bubble-donate" title="Donate"><span>&#x1F49C;</span></button><span class="bubble-label">Donate</span></div>
+  <div class="bubble-row"><button class="bubble" id="bubble-footer" title="Go to footer"><span>&#x2B07;&#xFE0F;</span></button><span class="bubble-label">Footer</span></div>
+  <div class="bubble-row"><button class="bubble" id="bubble-theme" title="Light / Dark"><span>&#x262F;&#xFE0F;</span></button><span class="bubble-label">Theme</span></div>
+  <div class="bubble-row"><button class="bubble" id="bubble-theme-random" title="Random theme"><span>&#x1F500;</span></button><span class="bubble-label">Random</span></div>
+  <div class="bubble-row"><button class="bubble" id="bubble-stream" title="Stream 8BFR"><span>&#x1F3A7;</span></button><span class="bubble-label">Stream</span></div>
 </div>
+<button class="bubble" id="bubble-top-single"><span>&#x2B06;&#xFE0F;</span></button>
+`;
 
-<!-- FULL NAVIGATION OVERLAY -->
-<div id="navMenuOverlay" style="display:none;position:fixed;inset:0;background:rgba(7,0,15,0.97);z-index:99998;overflow-y:auto;padding:0;">
-
-  <div style="max-width:600px;margin:0 auto;padding:1rem 1.25rem 3rem;">
-    <!-- Close -->
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:.75rem 0;border-bottom:1px solid rgba(124,58,237,.25);margin-bottom:1rem;">
-      <span style="font-family:'Bebas Neue',cursive;font-size:1.5rem;color:#7c3aed;">☰ Menu</span>
-      <button onclick="toggleNavMenu()" style="background:none;border:1px solid rgba(124,58,237,.35);color:#eae6ff;width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:1.1rem;">✕</button>
+    if (!noCarrie) {
+      html += `
+<div id="carrieWrap" title="Chat avatar (global)">
+  <div id="avatarSwitcher">
+    <div class="avatar-switcher-row">
+      <button class="avatar-char-btn active" data-char="carrie">Carrie</button>
+      <button class="avatar-char-btn" data-char="james">James</button>
+      <button class="avatar-char-btn" data-char="azreen">Azreen</button>
     </div>
-
-    <!-- Menu sections built by JS below -->
-    <div id="navMenuContent"></div>
+    <div class="avatar-switcher-row">
+      <button class="avatar-style-btn active" data-style="business">Business</button>
+      <button class="avatar-style-btn" data-style="casual">Casual</button>
+      <button class="avatar-style-btn" data-style="partner">Partner</button>
+    </div>
+    <div class="avatar-switcher-row" style="margin-top:2px;">
+      <button id="avatarChatBtn" style="width:100%;padding:4px 8px;border-radius:999px;border:1px solid #a855f7;background:rgba(124,58,237,0.5);color:#fff;font-size:.68rem;font-weight:700;cursor:pointer;white-space:nowrap;">💬 Chat</button>
+    </div>
   </div>
+  <div id="carrieBubble">Chat with me</div>
+  <video id="avatar-carrie-business" class="global-avatar active" src="assets/videos/carrie_business_animate.webm" autoplay loop muted playsinline></video>
+  <video id="avatar-carrie-casual" class="global-avatar" src="assets/videos/Carrie_casual_animate_3_1.webm" autoplay loop muted playsinline></video>
+  <video id="avatar-carrie-partner" class="global-avatar" src="assets/videos/carrie_girlfriend.webm" autoplay loop muted playsinline></video>
+  <video id="avatar-james-business" class="global-avatar" src="assets/videos/james_business.webm" autoplay loop muted playsinline></video>
+  <video id="avatar-james-casual" class="global-avatar" src="assets/videos/james_casual.webm" autoplay loop muted playsinline></video>
+  <video id="avatar-james-partner" class="global-avatar" src="assets/videos/james_boyfriend.webm" autoplay loop muted playsinline></video>
+  <video id="avatar-azreen-business" class="global-avatar" src="assets/videos/azreen_business.webm" autoplay loop muted playsinline></video>
+  <video id="avatar-azreen-casual" class="global-avatar" src="assets/videos/azreen_casual.webm" autoplay loop muted playsinline></video>
+  <video id="avatar-azreen-partner" class="global-avatar" src="assets/videos/azreen_girlfriend.webm" autoplay loop muted playsinline></video>
 </div>
-
-<script>
-(function(){
-  // ═══ MENU DATA ═══
-  var sections = [
-    { title:'🏠 Main', links:[
-      {e:'🏠',t:'Home',h:'index.html'},
-      {e:'📰',t:'Feed',h:'feed.html'},
-      {e:'👤',t:'Profile',h:'profile.html'},
-      {e:'🔍',t:'Search',h:'search.html'},
-      {e:'👥',t:'Members',h:'members.html'},
-      {e:'🔔',t:'Notifications',h:'notifications.html'},
-    ]},
-    { title:'🎵 Music', links:[
-      {e:'🎵',t:'Songs',h:'songs.html'},
-      {e:'🎹',t:'Beat Store',h:'beat-store.html'},
-      {e:'📻',t:'Playlists',h:'playlists.html'},
-      {e:'📊',t:'Charts',h:'charts.html'},
-      {e:'🎶',t:'Genres',h:'genres.html'},
-      {e:'💕',t:'Dedications',h:'dedications.html'},
-      {e:'📻',t:'Radio',h:'radio.html'},
-      {e:'⭐',t:'Featured Artists',h:'featured-artists.html'},
-      {e:'🎵',t:'Featured Songs',h:'featured-songs.html'},
-    ]},
-    { title:'💬 Social', links:[
-      {e:'💬',t:'Chat Room',h:'chat.html'},
-      {e:'✉️',t:'Direct Messages',h:'dm.html'},
-      {e:'📖',t:'Stories',h:'stories.html'},
-      {e:'🎮',t:'Games',h:'games.html'},
-      {e:'📺',t:'Live',h:'live.html'},
-    ]},
-    { title:'🤖 AI Tools', links:[
-      {e:'🤖',t:'AI Tools',h:'ai-tools.html'},
-      {e:'🌍',t:'Translator',h:'translator.html'},
-    ]},
-    { title:'🛒 Shop & Links', links:[
-      {e:'🛒',t:'Products',h:'products.html'},
-      {e:'🤝',t:'Affiliates',h:'affiliates.html'},
-      {e:'🔗',t:'Suggested Links',h:'suggested-links.html'},
-      {e:'💎',t:'Pricing',h:'pricing.html'},
-      {e:'💰',t:'Donate',h:'donate.html'},
-    ]},
-    { title:'💜 Special', links:[
-      {e:'💝',t:'Thank You Mom',h:'mom-thankyou.html'},
-    ]},
-    { title:'ℹ️ Info', links:[
-      {e:'❓',t:'FAQ',h:'faq.html'},
-      {e:'🆘',t:'Help',h:'help.html'},
-      {e:'📜',t:'Rules',h:'rules.html'},
-      {e:'🔒',t:'Privacy',h:'privacy.html'},
-      {e:'📋',t:'Terms',h:'terms.html'},
-      {e:'🏆',t:'Credits',h:'credits.html'},
-      {e:'📰',t:'Press',h:'press.html'},
-      {e:'📧',t:'Contact',h:'contact.html'},
-      {e:'📖',t:'About',h:'about.html'},
-    ]},
-    { title:'⚙️ Account', links:[
-      {e:'⚙️',t:'Settings',h:'settings.html'},
-      {e:'🔑',t:'Reset Password',h:'reset-password.html'},
-    ]},
-  ];
-
-  // Owner-only section (added dynamically if user is owner/co-owner)
-  var ownerSection = { title:'👑 Owner', links:[
-    {e:'👑',t:'Owner Panel',h:'owner-panel.html'},
-    {e:'🎨',t:'Owner Studio',h:'owner-studio.html'},
-    {e:'👥',t:'Manage Users',h:'owner-users.html'},
-    {e:'✅',t:'Verifications',h:'owner-verifications.html'},
-  ]};
-
-  // ═══ BUILD MENU HTML ═══
-  function buildMenu(isOwner){
-    var allSections = isOwner ? [ownerSection].concat(sections) : sections;
-    var currentPage = location.pathname.split('/').pop() || 'index.html';
-    var html = '';
-
-    allSections.forEach(function(sec){
-      html += '<div style="margin-bottom:1.25rem;">';
-      html += '<div style="font-size:.75rem;color:rgba(168,85,247,.5);font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:0 .25rem .4rem;border-bottom:1px solid rgba(124,58,237,.15);">'+sec.title+'</div>';
-      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.25rem;margin-top:.4rem;">';
-      sec.links.forEach(function(lnk){
-        var active = (currentPage === lnk.h) ? 'background:rgba(124,58,237,.2);border-color:rgba(124,58,237,.5);' : '';
-        html += '<a href="'+lnk.h+'" style="display:flex;align-items:center;gap:.5rem;padding:.55rem .6rem;border-radius:8px;text-decoration:none;color:#eae6ff;border:1px solid transparent;transition:all .15s;font-size:.88rem;'+active+'" onmouseover="this.style.background=\'rgba(124,58,237,.12)\';this.style.borderColor=\'rgba(124,58,237,.3)\'" onmouseout="this.style.background=\''+( active ? 'rgba(124,58,237,.2)' : 'none' )+'\';this.style.borderColor=\''+( active ? 'rgba(124,58,237,.5)' : 'transparent' )+'\'"><span style="font-size:1.1rem;width:1.5rem;text-align:center;">'+lnk.e+'</span><span style="font-weight:500;">'+lnk.t+'</span></a>';
-      });
-      html += '</div></div>';
-    });
-
-    // Logout at bottom
-    html += '<div style="padding:1rem 0;border-top:1px solid rgba(124,58,237,.2);margin-top:.5rem;text-align:center;">';
-    html += '<button onclick="handleLogout()" style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#fca5a5;padding:.5rem 1.5rem;border-radius:8px;cursor:pointer;font-weight:600;font-size:.88rem;">🚪 Log Out</button>';
-    html += '</div>';
-
-    document.getElementById('navMenuContent').innerHTML = html;
-  }
-
-  // ═══ CHECK OWNER STATUS ═══
-  function initMenu(){
-    // Check if global perks object exists (from scripts.js _8bfr check)
-    if(window._8bfr && window._8bfr.ready){
-      window._8bfr.ready.then(function(){
-        buildMenu(window._8bfr.isOwner || window._8bfr.isCoOwner);
-      });
-    } else {
-      // Fallback: check Supabase directly
-      try {
-        var SB_URL='https://novbuvwpjnxwwvdekjhr.supabase.co';
-        var SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
-        var client = window.supabase ? window.supabase.createClient(SB_URL, SB_KEY) : null;
-        if(client){
-          client.auth.getSession().then(function(res){
-            var session = res.data.session;
-            if(!session){ buildMenu(false); return; }
-            client.from('profiles').select('role').eq('user_id',session.user.id).single().then(function(r){
-              var role = r.data ? r.data.role : '';
-              buildMenu(role==='owner'||role==='co-owner');
-            }).catch(function(){ buildMenu(false); });
-          }).catch(function(){ buildMenu(false); });
-        } else {
-          buildMenu(false);
-        }
-      } catch(e){ buildMenu(false); }
-    }
-  }
-
-  // ═══ TOGGLE ═══
-  window.toggleNavMenu = function(){
-    var overlay = document.getElementById('navMenuOverlay');
-    if(overlay.style.display === 'none'){
-      overlay.style.display = 'block';
-      document.body.style.overflow = 'hidden';
-    } else {
-      overlay.style.display = 'none';
-      document.body.style.overflow = '';
-    }
-  };
-
-  // Close on escape
-  document.addEventListener('keydown',function(e){
-    if(e.key==='Escape'){
-      var overlay = document.getElementById('navMenuOverlay');
-      if(overlay.style.display !== 'none'){
-        toggleNavMenu();
-      }
-    }
-  });
-
-  // ═══ LOGOUT ═══
-  window.handleLogout = function(){
-    if(!confirm('Log out?')) return;
-    try{
-      var SB_URL='https://novbuvwpjnxwwvdekjhr.supabase.co';
-      var SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
-      var client = window.supabase ? window.supabase.createClient(SB_URL, SB_KEY) : null;
-      if(client){
-        client.auth.signOut().then(function(){ location.href='login.html'; });
-      } else { location.href='login.html'; }
-    } catch(e){ location.href='login.html'; }
-  };
-
-  // Init on load
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded', initMenu);
-  } else {
-    initMenu();
-  }
-})();
-</script>
-
 `;
     }
 
