@@ -408,5 +408,271 @@ document.addEventListener('keydown', function(e) {
 
 init();
 </script>
+  <!--
+  GAME COIN REWARD SYSTEM
+  Paste this script into your games.html right before </body>
+  
+  How it works:
+  - Detects when a user starts playing a game (clicks an iframe/embed)
+  - Tracks active play time
+  - Awards coins based on time played:
+    • 5 coins per minute of play
+    • 25 coin bonus for first game of the day
+    • Max 200 coins per day from games (prevents farming)
+  - Shows a floating coin counter while playing
+  - Saves to Supabase profiles.coins
+-->
+<script>
+(function(){
+  const SUPABASE_URL='https://novbuvwpjnxwwvdekjhr.supabase.co';
+  const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+  
+  // Skip if supabase not loaded
+  if(!window.supabase)return;
+  const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
+
+  const COINS_PER_MINUTE=5;
+  const FIRST_GAME_BONUS=25;
+  const DAILY_MAX=200;
+  const AWARD_INTERVAL=60000; // Check every 60 seconds
+
+  let userId=null;
+  let currentCoins=0;
+  let isPlaying=false;
+  let playStartTime=null;
+  let awardTimer=null;
+  let todayEarned=0;
+  let coinWidget=null;
+
+  // ═══ INIT ═══
+  async function initCoinSystem(){
+    try{
+      const{data:{session}}=await db.auth.getSession();
+      if(!session)return;
+      userId=session.user.id;
+
+      const{data:profile}=await db.from('profiles').select('coins,role').eq('user_id',userId).single();
+      if(!profile)return;
+      currentCoins=profile.coins||0;
+
+      // Load today's earnings from localStorage
+      const today=new Date().toISOString().split('T')[0];
+      const key='game_coins_'+today;
+      todayEarned=parseInt(localStorage.getItem(key)||'0');
+
+      // Check first game bonus
+      const firstKey='first_game_'+today;
+      if(!localStorage.getItem(firstKey)){
+        // Will award on first play
+      }
+
+      createCoinWidget();
+      watchForGameStart();
+    }catch(e){console.error('Coin system init:',e);}
+  }
+
+  // ═══ DETECT GAME START ═══
+  function watchForGameStart(){
+    // Watch for iframe clicks (GameMonetize embeds games in iframes)
+    document.addEventListener('click',function(e){
+      const target=e.target;
+      
+      // Check if clicked on a game card, iframe, or game link
+      const gameEl=target.closest('[data-game-id]')||
+                    target.closest('.game-card')||
+                    target.closest('.game-item')||
+                    target.closest('a[href*="game"]')||
+                    target.closest('iframe');
+      
+      if(gameEl&&!isPlaying){
+        startPlaying();
+      }
+    });
+
+    // Also detect when an iframe gets focus (user clicked into game)
+    window.addEventListener('blur',function(){
+      // If window loses focus, likely user clicked into a game iframe
+      if(document.activeElement&&document.activeElement.tagName==='IFRAME'){
+        if(!isPlaying)startPlaying();
+      }
+    });
+
+    // Detect when user comes back from game
+    window.addEventListener('focus',function(){
+      // Don't stop — they might just be tabbing back briefly
+    });
+
+    // Watch for GameMonetize SDK events if available
+    if(window.SDK_OPTIONS||window.GameMonetize){
+      // GameMonetize fires events we can hook into
+      document.addEventListener('SDK_GAME_START',function(){startPlaying();});
+      document.addEventListener('SDK_GAME_PAUSE',function(){pausePlaying();});
+    }
+  }
+
+  // ═══ PLAY TRACKING ═══
+  function startPlaying(){
+    if(isPlaying)return;
+    if(todayEarned>=DAILY_MAX){
+      showCoinNotification('Daily coin limit reached ('+DAILY_MAX+' coins)');
+      return;
+    }
+
+    isPlaying=true;
+    playStartTime=Date.now();
+    showCoinWidget();
+
+    // Check first game of day bonus
+    const today=new Date().toISOString().split('T')[0];
+    const firstKey='first_game_'+today;
+    if(!localStorage.getItem(firstKey)){
+      localStorage.setItem(firstKey,'true');
+      awardCoins(FIRST_GAME_BONUS,'🎮 First game bonus!');
+    }
+
+    // Start awarding coins every minute
+    awardTimer=setInterval(function(){
+      if(todayEarned>=DAILY_MAX){
+        stopPlaying();
+        showCoinNotification('Daily limit reached!');
+        return;
+      }
+      awardCoins(COINS_PER_MINUTE,'🪙 +'+COINS_PER_MINUTE+' coins');
+    },AWARD_INTERVAL);
+
+    updateWidgetStatus('🎮 Playing...');
+  }
+
+  function pausePlaying(){
+    if(!isPlaying)return;
+    clearInterval(awardTimer);
+    isPlaying=false;
+    updateWidgetStatus('⏸ Paused');
+  }
+
+  function stopPlaying(){
+    clearInterval(awardTimer);
+    isPlaying=false;
+    updateWidgetStatus('✅ Done');
+    setTimeout(hideCoinWidget,3000);
+  }
+
+  // Stop tracking if page is hidden for too long (prevents idle farming)
+  let hiddenTime=null;
+  document.addEventListener('visibilitychange',function(){
+    if(document.hidden){
+      hiddenTime=Date.now();
+    }else{
+      if(hiddenTime&&Date.now()-hiddenTime>120000){
+        // Hidden for 2+ minutes = stop counting
+        pausePlaying();
+      }
+      hiddenTime=null;
+    }
+  });
+
+  // ═══ AWARD COINS ═══
+  async function awardCoins(amount,message){
+    if(!userId||amount<=0)return;
+    
+    // Check daily limit
+    const remaining=DAILY_MAX-todayEarned;
+    const actual=Math.min(amount,remaining);
+    if(actual<=0)return;
+
+    currentCoins+=actual;
+    todayEarned+=actual;
+
+    // Save daily earnings to localStorage
+    const today=new Date().toISOString().split('T')[0];
+    localStorage.setItem('game_coins_'+today,todayEarned.toString());
+
+    // Update widget
+    updateWidgetCoins();
+    showCoinNotification(message||'+'+actual+' coins');
+
+    // Save to Supabase
+    try{
+      // Use RPC if available, fallback to direct update
+      const{error}=await db.rpc('increment_coins',{user_uuid:userId,amount:actual}).catch(async()=>{
+        // Fallback: direct update
+        return await db.from('profiles').update({coins:currentCoins}).eq('user_id',userId);
+      });
+
+      if(error){
+        // Last resort fallback
+        await db.from('profiles').update({coins:currentCoins}).eq('user_id',userId);
+      }
+    }catch(e){
+      console.warn('Coin save error:',e);
+    }
+  }
+
+  // ═══ COIN WIDGET (floating display) ═══
+  function createCoinWidget(){
+    coinWidget=document.createElement('div');
+    coinWidget.id='gameCoinWidget';
+    coinWidget.style.cssText='position:fixed;bottom:80px;right:20px;z-index:9998;background:rgba(12,6,24,0.95);border:1px solid rgba(251,191,36,0.4);border-radius:12px;padding:0.5rem 0.75rem;min-width:140px;display:none;box-shadow:0 4px 15px rgba(0,0,0,0.5);font-family:"Work Sans",sans-serif;';
+    coinWidget.innerHTML=`
+      <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.25rem;">
+        <span style="font-size:1.1rem;">🪙</span>
+        <span id="gcwCoins" style="font-family:'Bebas Neue',cursive;font-size:1.3rem;color:#fbbf24;">${currentCoins.toLocaleString()}</span>
+      </div>
+      <div id="gcwStatus" style="font-size:0.7rem;color:#a855f7;"></div>
+      <div style="font-size:0.6rem;color:rgba(168,85,247,0.4);margin-top:0.15rem;">Today: <span id="gcwToday">${todayEarned}</span>/${DAILY_MAX}</div>
+    `;
+    document.body.appendChild(coinWidget);
+  }
+
+  function showCoinWidget(){if(coinWidget)coinWidget.style.display='block';}
+  function hideCoinWidget(){if(coinWidget)coinWidget.style.display='none';}
+
+  function updateWidgetCoins(){
+    const el=document.getElementById('gcwCoins');
+    if(el)el.textContent=currentCoins.toLocaleString();
+    const today=document.getElementById('gcwToday');
+    if(today)today.textContent=todayEarned;
+  }
+
+  function updateWidgetStatus(text){
+    const el=document.getElementById('gcwStatus');
+    if(el)el.textContent=text;
+  }
+
+  function showCoinNotification(text){
+    const notif=document.createElement('div');
+    notif.style.cssText='position:fixed;bottom:140px;right:20px;z-index:9999;background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.4);color:#fbbf24;padding:0.4rem 0.75rem;border-radius:8px;font-size:0.8rem;font-weight:600;animation:coinPop 0.3s ease;font-family:"Work Sans",sans-serif;';
+    notif.textContent=text;
+    document.body.appendChild(notif);
+    setTimeout(()=>{
+      notif.style.opacity='0';
+      notif.style.transition='opacity 0.3s';
+      setTimeout(()=>notif.remove(),300);
+    },2000);
+  }
+
+  // Add animation
+  const style=document.createElement('style');
+  style.textContent='@keyframes coinPop{from{transform:translateY(10px);opacity:0;}to{transform:translateY(0);opacity:1;}}';
+  document.head.appendChild(style);
+
+  // ═══ ALSO: Supabase helper function for incrementing coins ═══
+  // Run this SQL in Supabase if not already created:
+  // CREATE OR REPLACE FUNCTION increment_coins(user_uuid UUID, amount INTEGER)
+  // RETURNS VOID AS $$
+  // BEGIN
+  //   UPDATE profiles SET coins = COALESCE(coins, 0) + amount WHERE user_id = user_uuid;
+  // END;
+  // $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+  // Start
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',initCoinSystem);
+  }else{
+    initCoinSystem();
+  }
+})();
+</script>
+
 </body>
 </html>
