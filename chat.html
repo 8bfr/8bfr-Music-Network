@@ -505,5 +505,74 @@ function ago(d) {
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 </script>
 <script src="scripts.js" defer onerror="console.warn('scripts.js not found')"></script>
+<!-- 
+  TOKEN REFRESH PATCH FOR chat.html
+  Add this script block right before </body> in chat.html
+  This prevents realtime subscriptions from dying when tokens expire
+-->
+<script>
+(function(){
+  // Refresh Supabase session every 10 minutes
+  setInterval(async()=>{
+    try{
+      const{data,error}=await SB.auth.refreshSession();
+      if(error){
+        console.warn('Token refresh failed:',error.message);
+        // If refresh fails completely, try to re-init
+        const{data:{session}}=await SB.auth.getSession();
+        if(!session){
+          console.warn('Session expired, redirecting to login');
+          location.href='login.html?return=chat.html';
+        }
+      }
+    }catch(e){console.warn('Token refresh error:',e);}
+  },600000); // 10 minutes
+
+  // Listen for auth changes
+  SB.auth.onAuthStateChange((event,session)=>{
+    if(event==='TOKEN_REFRESHED'){
+      console.log('Chat token refreshed');
+    }else if(event==='SIGNED_OUT'){
+      location.href='login.html?return=chat.html';
+    }
+  });
+
+  // Reconnect realtime on visibility change (tab comes back to focus)
+  document.addEventListener('visibilitychange',async()=>{
+    if(document.visibilityState==='visible'){
+      // Small delay then refresh token and re-subscribe
+      setTimeout(async()=>{
+        try{
+          await SB.auth.refreshSession();
+          // Re-subscribe to current room
+          if(typeof subscribeToRoom==='function') subscribeToRoom();
+          if(typeof setupPresence==='function') setupPresence();
+        }catch(e){}
+      },500);
+    }
+  });
+
+  // Heartbeat: ping every 30s to detect stale connections
+  let lastPong=Date.now();
+  setInterval(()=>{
+    if(Date.now()-lastPong>120000){
+      // 2 minutes without successful operation — force reconnect
+      console.warn('Connection may be stale, refreshing...');
+      if(typeof subscribeToRoom==='function') subscribeToRoom();
+      lastPong=Date.now();
+    }
+  },30000);
+
+  // Track successful operations
+  const origSend=window.sendMsg;
+  if(typeof origSend==='function'){
+    window.sendMsg=async function(){
+      lastPong=Date.now();
+      return origSend.apply(this,arguments);
+    };
+  }
+})();
+</script>
+  
 </body>
 </html>
