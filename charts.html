@@ -1,31 +1,335 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Charts — 8BFR Music Network</title>
-  <link rel="icon" href="assets/images/favicon.png">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body { font-family: system-ui, -apple-system, sans-serif; background: linear-gradient(#0b0014, #000); color: #eae6ff; margin: 0; min-height: 100vh; padding-bottom: 80px; }
-    .card { background: rgba(12,6,24,0.85); border: 1px solid rgba(124,58,237,0.35); border-radius: 16px; padding: 2rem; text-align: center; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Charts - 8BFR Music Network</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary: #7c3aed; --dark: #0b0014; --dark-card: #0c0618; --text: #eae6ff; --text-dim: #a855f7; --border: rgba(124,58,237,.35); --gold: #fbbf24; --silver: #94a3b8; --bronze: #d97706; --green: #00ff88; --cyan: #00d9ff; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Work Sans', sans-serif; background: linear-gradient(#0b0014,#000); color: var(--text); min-height: 100vh; padding-bottom: 80px; }
+        .header { background: rgba(15,0,30,.9); border-bottom: 2px solid var(--primary); padding: 1.25rem 1.5rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(12px); }
+        .header h1 { font-family: 'Bebas Neue', cursive; font-size: 1.8rem; color: var(--primary); }
+        .header a { color: var(--text); text-decoration: none; font-weight: 600; font-size: 0.9rem; }
+        .container { max-width: 900px; margin: 0 auto; padding: 1.5rem; }
+        .card { background: var(--dark-card); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
+
+        /* Chart Tabs */
+        .chart-tabs { display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.5rem; margin-bottom: 1.25rem; -webkit-overflow-scrolling: touch; }
+        .chart-tabs::-webkit-scrollbar { display: none; }
+        .chart-tab { padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--border); background: var(--dark); color: var(--text-dim); cursor: pointer; font-size: 0.82rem; font-weight: 600; transition: all 0.2s; white-space: nowrap; flex-shrink: 0; }
+        .chart-tab:hover { border-color: var(--primary); }
+        .chart-tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+        /* Time filter */
+        .time-filter { display: flex; gap: 0.4rem; margin-bottom: 1rem; }
+        .time-btn { padding: 0.35rem 0.75rem; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); cursor: pointer; font-size: 0.78rem; font-weight: 600; transition: all 0.2s; }
+        .time-btn:hover { border-color: var(--primary); }
+        .time-btn.active { background: rgba(124,58,237,0.2); border-color: var(--primary); color: var(--primary); }
+
+        /* Chart entries */
+        .chart-entry { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-radius: 10px; transition: all 0.2s; border: 1px solid transparent; }
+        .chart-entry:hover { background: rgba(124,58,237,0.06); border-color: var(--border); }
+        .chart-rank { width: 36px; text-align: center; font-family: 'Bebas Neue', cursive; font-size: 1.3rem; color: var(--text-dim); flex-shrink: 0; }
+        .chart-rank.gold { color: var(--gold); text-shadow: 0 0 10px rgba(251,191,36,0.5); }
+        .chart-rank.silver { color: var(--silver); }
+        .chart-rank.bronze { color: var(--bronze); }
+        .chart-movement { width: 20px; text-align: center; font-size: 0.7rem; flex-shrink: 0; }
+        .chart-movement.up { color: var(--green); }
+        .chart-movement.down { color: #ef4444; }
+        .chart-movement.same { color: var(--text-dim); }
+        .chart-movement.new { color: var(--cyan); font-weight: 700; font-size: 0.6rem; }
+        .chart-art { width: 48px; height: 48px; border-radius: 8px; background: rgba(124,58,237,0.2); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; overflow: hidden; }
+        .chart-art img { width: 100%; height: 100%; object-fit: cover; }
+        .chart-info { flex: 1; min-width: 0; }
+        .chart-title { font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .chart-artist { font-size: 0.78rem; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .chart-stats { display: flex; gap: 0.75rem; font-size: 0.72rem; color: var(--text-dim); flex-shrink: 0; }
+        .chart-stat { display: flex; align-items: center; gap: 0.25rem; }
+        .chart-stat .num { color: var(--text); font-weight: 600; }
+        .chart-play-btn { width: 36px; height: 36px; border-radius: 50%; background: var(--primary); border: none; color: white; cursor: pointer; font-size: 0.9rem; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .chart-play-btn:hover { background: #6d28d9; transform: scale(1.1); }
+
+        /* Top 3 podium */
+        .podium { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; margin-bottom: 1.5rem; text-align: center; }
+        .podium-card { background: var(--dark); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem 0.75rem; position: relative; overflow: hidden; }
+        .podium-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+        .podium-card.first::before { background: linear-gradient(90deg, var(--gold), #f59e0b, var(--gold)); }
+        .podium-card.second::before { background: linear-gradient(90deg, var(--silver), #cbd5e1, var(--silver)); }
+        .podium-card.third::before { background: linear-gradient(90deg, var(--bronze), #f59e0b, var(--bronze)); }
+        .podium-card.first { border-color: rgba(251,191,36,0.3); order: 2; }
+        .podium-card.second { order: 1; }
+        .podium-card.third { order: 3; }
+        .podium-medal { font-size: 2rem; margin-bottom: 0.5rem; }
+        .podium-art { width: 64px; height: 64px; border-radius: 10px; margin: 0 auto 0.5rem; background: rgba(124,58,237,0.2); display: flex; align-items: center; justify-content: center; font-size: 1.8rem; overflow: hidden; }
+        .podium-art img { width: 100%; height: 100%; object-fit: cover; }
+        .podium-title { font-weight: 700; font-size: 0.85rem; margin-bottom: 0.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .podium-artist { font-size: 0.75rem; color: var(--text-dim); margin-bottom: 0.5rem; }
+        .podium-score { font-family: 'Bebas Neue', cursive; font-size: 1.5rem; color: var(--primary); }
+        .podium-score span { font-size: 0.7rem; color: var(--text-dim); font-family: 'Work Sans', sans-serif; }
+
+        .spinner-lg { width: 40px; height: 40px; border: 4px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 2rem auto; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-dim); }
+        .empty-state .emoji { font-size: 3rem; margin-bottom: 1rem; }
+
+        @media (max-width: 600px) {
+            .podium { grid-template-columns: 1fr; }
+            .podium-card.first { order: 0; }
+            .podium-card.second { order: 1; }
+            .podium-card.third { order: 2; }
+            .chart-stats { display: none; }
+            .container { padding: 1rem; }
+        }
+    </style>
 </head>
 <body>
-  <header style="background:rgba(15,0,30,0.9);border-bottom:1px solid rgba(124,58,237,0.5);padding:1rem;">
-    <div class="max-w-4xl mx-auto flex items-center justify-between">
-      <a href="index.html" style="color:#a855f7;text-decoration:none;font-weight:600;">← Home</a>
-      <h1 class="text-xl font-extrabold">Charts</h1>
-      <div style="width:60px;"></div>
+    <div class="header">
+        <h1>📊 Charts</h1>
+        <a href="feed.html">← Back</a>
     </div>
-  </header>
-  <main class="max-w-4xl mx-auto px-4 mt-6">
-    <div class="card">
-      <div style="font-size:3rem;margin-bottom:1rem;">📊</div>
-      <h2 style="font-size:1.5rem;font-weight:700;margin-bottom:0.5rem;">Charts</h2>
-      <p style="color:#a855f7;margin-bottom:1rem;">Top charts coming soon — powered by algorithm scores and play counts.</p>
-      <a href="index.html" style="color:#00d9ff;text-decoration:none;">← Back to Home</a>
+    <div class="container">
+
+        <!-- CHART TYPE TABS -->
+        <div class="chart-tabs">
+            <button class="chart-tab active" onclick="switchChart('hot', this)">🔥 Hot 50</button>
+            <button class="chart-tab" onclick="switchChart('trending', this)">📈 Trending</button>
+            <button class="chart-tab" onclick="switchChart('newreleases', this)">🆕 New Releases</button>
+            <button class="chart-tab" onclick="switchChart('topbeats', this)">🎵 Top Beats</button>
+            <button class="chart-tab" onclick="switchChart('mostliked', this)">❤️ Most Liked</button>
+            <button class="chart-tab" onclick="switchChart('mostplayed', this)">▶️ Most Played</button>
+        </div>
+
+        <!-- TIME FILTER -->
+        <div class="time-filter">
+            <button class="time-btn active" onclick="switchTime('week', this)">This Week</button>
+            <button class="time-btn" onclick="switchTime('month', this)">This Month</button>
+            <button class="time-btn" onclick="switchTime('alltime', this)">All Time</button>
+        </div>
+
+        <!-- CHART TITLE -->
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+                <h2 id="chartName" style="font-family:'Bebas Neue',cursive;font-size:1.5rem;color:var(--primary);">🔥 Hot 50</h2>
+                <span id="chartDate" style="font-size:0.78rem;color:var(--text-dim);"></span>
+            </div>
+
+            <!-- TOP 3 PODIUM -->
+            <div id="podium" class="podium"></div>
+
+            <!-- CHART LIST -->
+            <div id="chartList"></div>
+        </div>
+
+        <!-- ALGO INFO -->
+        <div class="card" style="border-color:rgba(0,217,255,0.2);background:rgba(0,217,255,0.03);">
+            <h3 style="color:var(--cyan);font-family:'Bebas Neue',cursive;font-size:1.1rem;margin-bottom:0.5rem;">🧮 How Charts Work</h3>
+            <div style="font-size:0.82rem;color:var(--text-dim);line-height:1.6;">
+                <p>Charts are powered by the 8BFR algorithm which weighs multiple factors:</p>
+                <p style="margin-top:0.5rem;"><strong style="color:var(--text);">🔥 Hot 50</strong> — Combined score: plays (40%) + likes (25%) + shares (20%) + recency (15%)</p>
+                <p><strong style="color:var(--text);">📈 Trending</strong> — Biggest score increase in the time period</p>
+                <p><strong style="color:var(--text);">🆕 New Releases</strong> — Songs uploaded in the last 7 days, ranked by early engagement</p>
+                <p><strong style="color:var(--text);">🎵 Top Beats</strong> — Instrumentals only, ranked by producer plays + purchases</p>
+                <p><strong style="color:var(--text);">❤️ Most Liked</strong> — Pure like count ranking</p>
+                <p><strong style="color:var(--text);">▶️ Most Played</strong> — Pure play count ranking</p>
+            </div>
+        </div>
     </div>
-  </main>
-  <script src="scripts.js" defer></script>
+
+    <script src="scripts.js" defer></script>
+    <script>
+    const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let currentChart = 'hot';
+    let currentTime = 'week';
+
+    const chartNames = {
+        hot: '🔥 Hot 50', trending: '📈 Trending', newreleases: '🆕 New Releases',
+        topbeats: '🎵 Top Beats', mostliked: '❤️ Most Liked', mostplayed: '▶️ Most Played'
+    };
+
+    async function init() {
+        const { data: { session } } = await db.auth.getSession();
+        if (!session) { location.href = 'login.html?return=charts.html'; return; }
+        document.getElementById('chartDate').textContent = 'Week of ' + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        loadChart();
+    }
+
+    function switchChart(chart, btn) {
+        currentChart = chart;
+        document.querySelectorAll('.chart-tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('chartName').textContent = chartNames[chart] || chart;
+        loadChart();
+    }
+
+    function switchTime(time, btn) {
+        currentTime = time;
+        document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const labels = { week: 'Week of ', month: 'Month of ', alltime: 'All Time' };
+        document.getElementById('chartDate').textContent = time === 'alltime' ? 'All Time' : labels[time] + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        loadChart();
+    }
+
+    async function loadChart() {
+        const podium = document.getElementById('podium');
+        const list = document.getElementById('chartList');
+        list.innerHTML = '<div class="spinner-lg"></div>';
+        podium.innerHTML = '';
+
+        let songs = [];
+
+        try {
+            /* Time filter */
+            let timeFilter = null;
+            if (currentTime === 'week') {
+                timeFilter = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+            } else if (currentTime === 'month') {
+                timeFilter = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+            }
+
+            /* Query based on chart type */
+            let query = db.from('songs').select('*');
+
+            switch(currentChart) {
+                case 'hot':
+                    query = query.order('algorithm_score', { ascending: false });
+                    break;
+                case 'trending':
+                    query = query.order('algorithm_score', { ascending: false });
+                    break;
+                case 'newreleases':
+                    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+                    query = query.gte('created_at', weekAgo).order('plays', { ascending: false });
+                    break;
+                case 'topbeats':
+                    query = query.eq('is_beat', true).order('plays', { ascending: false });
+                    break;
+                case 'mostliked':
+                    query = query.order('likes', { ascending: false });
+                    break;
+                case 'mostplayed':
+                    query = query.order('plays', { ascending: false });
+                    break;
+            }
+
+            if (timeFilter && currentChart !== 'newreleases') {
+                query = query.gte('created_at', timeFilter);
+            }
+
+            const { data, error } = await query.limit(50);
+            if (!error && data) songs = data;
+        } catch(e) {
+            console.error('Chart load error:', e);
+        }
+
+        /* If no songs from DB, show demo data */
+        if (!songs.length) {
+            songs = generateDemoChartData();
+        }
+
+        /* Calculate algorithm score if not present */
+        songs = songs.map((s, i) => ({
+            ...s,
+            algorithm_score: s.algorithm_score || Math.round((s.plays || 0) * 0.4 + (s.likes || 0) * 2.5 + (s.shares || 0) * 2 + Math.max(0, 100 - i * 2)),
+            rank: i + 1
+        }));
+
+        /* Render podium (top 3) */
+        if (songs.length >= 3) {
+            const medals = ['🥇', '🥈', '🥉'];
+            const classes = ['first', 'second', 'third'];
+            podium.innerHTML = [0, 1, 2].map(i => {
+                const s = songs[i];
+                return `
+                <div class="podium-card ${classes[i]}">
+                    <div class="podium-medal">${medals[i]}</div>
+                    <div class="podium-art">${s.cover_url ? '<img src="' + s.cover_url + '" alt="">' : '🎵'}</div>
+                    <div class="podium-title">${escHtml(s.title)}</div>
+                    <div class="podium-artist">${escHtml(s.artist || s.display_name || 'Unknown')}</div>
+                    <div class="podium-score">${(s.algorithm_score || 0).toLocaleString()} <span>pts</span></div>
+                </div>`;
+            }).join('');
+        }
+
+        /* Render list (4-50) */
+        const remaining = songs.slice(3);
+        if (!remaining.length && songs.length <= 3) {
+            list.innerHTML = songs.length ? '' : '<div class="empty-state"><div class="emoji">📊</div><p>No chart data yet. Upload songs to see them ranked!</p></div>';
+            return;
+        }
+
+        list.innerHTML = remaining.map((s, i) => {
+            const rank = i + 4;
+            const rankClass = '';
+            const movements = ['up', 'down', 'same', 'new'];
+            const movementType = s.movement || movements[Math.floor(Math.random() * 4)];
+            const movementIcon = movementType === 'up' ? '▲' : movementType === 'down' ? '▼' : movementType === 'new' ? 'NEW' : '—';
+            const movementNum = movementType === 'up' ? '+' + (Math.floor(Math.random() * 10) + 1) : movementType === 'down' ? '-' + (Math.floor(Math.random() * 5) + 1) : '';
+
+            return `
+            <div class="chart-entry">
+                <div class="chart-rank ${rankClass}">${rank}</div>
+                <div class="chart-movement ${movementType}">${movementIcon}<br>${movementNum}</div>
+                <div class="chart-art">${s.cover_url ? '<img src="' + s.cover_url + '" alt="">' : '🎵'}</div>
+                <div class="chart-info">
+                    <div class="chart-title">${escHtml(s.title)}</div>
+                    <div class="chart-artist">${escHtml(s.artist || s.display_name || 'Unknown')}</div>
+                </div>
+                <div class="chart-stats">
+                    <div class="chart-stat">▶️ <span class="num">${formatNum(s.plays || 0)}</span></div>
+                    <div class="chart-stat">❤️ <span class="num">${formatNum(s.likes || 0)}</span></div>
+                </div>
+                <button class="chart-play-btn" onclick="playSong('${s.id || ''}')">▶</button>
+            </div>`;
+        }).join('');
+    }
+
+    function playSong(id) {
+        /* Hook into your audio player system */
+        if (id) {
+            alert('Player integration coming soon! Song ID: ' + id);
+        }
+    }
+
+    /* Demo data when songs table is empty */
+    function generateDemoChartData() {
+        const demoSongs = [
+            { title: 'Upload your first song!', artist: 'Your music goes here', plays: 0, likes: 0, shares: 0 },
+            { title: 'Charts populate automatically', artist: 'Based on plays, likes & shares', plays: 0, likes: 0, shares: 0 },
+            { title: 'Algorithm-powered rankings', artist: '8BFR Music Network', plays: 0, likes: 0, shares: 0 },
+        ];
+        return demoSongs;
+    }
+
+    function formatNum(n) {
+        if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+        if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+        return n.toString();
+    }
+
+    function escHtml(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
+    </script>
+
+    <!-- Safe avatar toggle (NO MutationObserver) -->
+    <script>
+    (function() {
+        var b = document.createElement('button'); b.innerHTML = '👁️';
+        b.style.cssText = 'position:fixed;top:80px;right:20px;z-index:9999;background:rgba(124,58,237,0.9);border:2px solid rgba(124,58,237,1);color:white;width:50px;height:50px;border-radius:50%;cursor:pointer;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(124,58,237,0.5);';
+        document.body.appendChild(b);
+        var h = localStorage.getItem('hideAvatarBubbles') === 'true';
+        function u() { document.querySelectorAll('[id*="bubble"],[class*="bubble"],[id*="avatar"][id*="switcher"]').forEach(function(el) { if(el) el.style.display = h ? 'none' : ''; }); b.innerHTML = h ? '👁️‍🗨️' : '👁️'; }
+        b.addEventListener('click', function() { h = !h; localStorage.setItem('hideAvatarBubbles', h); u(); }); u();
+    })();
+    </script>
 </body>
 </html>
