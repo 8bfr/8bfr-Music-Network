@@ -51,7 +51,6 @@
     .spinner{width:28px;height:28px;border:3px solid rgba(124,58,237,.2);border-top-color:#a855f7;border-radius:50%;animation:spin .7s linear infinite;margin:2rem auto;}
     @keyframes spin{to{transform:rotate(360deg);}}
     .scroll-bottom{position:fixed;bottom:130px;right:1.25rem;background:#7c3aed;border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:1rem;cursor:pointer;display:none;box-shadow:0 4px 12px rgba(0,0,0,.5);z-index:10;}
-    /* Context menu */
     .ctx-menu{position:fixed;z-index:9999;background:rgba(14,4,30,.98);border:1px solid rgba(124,58,237,.5);border-radius:10px;padding:.4rem 0;min-width:150px;box-shadow:0 8px 24px rgba(0,0,0,.7);display:none;}
     .ctx-item{padding:.45rem .9rem;font-size:.82rem;cursor:pointer;color:#eae6ff;transition:background .15s;}
     .ctx-item:hover{background:rgba(124,58,237,.2);}
@@ -95,7 +94,6 @@
 
 <button class="scroll-bottom" id="scrollBtn" onclick="scrollToBottom(true)" title="Scroll to latest">↓</button>
 
-<!-- Context Menu (staff only) -->
 <div class="ctx-menu" id="ctxMenu">
   <div class="ctx-item danger" id="ctxHide" onclick="ctxAction('hide')">🙈 Hide Message</div>
   <div class="ctx-item" id="ctxUnhide" onclick="ctxAction('unhide')" style="display:none;">👁️ Unhide Message</div>
@@ -113,38 +111,30 @@ const SB = window.supabase.createClient(
 let currentUser = null, currentProfile = null, currentRoom = 'general';
 let channel = null, presenceChannel = null;
 let isStaff = false, isMuted = false;
-let ctxTarget = null; // { msgId, userId, name }
+let ctxTarget = null;
 
 const ROLE_BADGES = {
-  owner:      '<span class="role-badge rb-owner">👑 Owner</span>',
-  cofounder:  '<span class="role-badge rb-cofounder">🎖️ Co-Founder</span>',
-  admin:      '<span class="role-badge rb-admin">🛡️ Admin</span>',
-  mod:        '<span class="role-badge rb-mod">🟢 Mod</span>',
+  owner:     '<span class="role-badge rb-owner">👑 Owner</span>',
+  'co-owner':'<span class="role-badge rb-cofounder">🎖️ Co-Owner</span>',
+  cofounder: '<span class="role-badge rb-cofounder">🎖️ Co-Founder</span>',
+  admin:     '<span class="role-badge rb-admin">🛡️ Admin</span>',
+  mod:       '<span class="role-badge rb-mod">🟢 Mod</span>',
 };
 
 async function init() {
   try {
     const { data: { session } } = await SB.auth.getSession();
     document.getElementById('loadingDiv').style.display = 'none';
-
-    if (!session) {
-      document.getElementById('loginGate').style.display = 'flex';
-      return;
-    }
-
+    if (!session) { document.getElementById('loginGate').style.display = 'flex'; return; }
     currentUser = session.user;
     const { data: profile } = await SB.from('profiles').select('*').eq('user_id', currentUser.id).single();
     currentProfile = profile || { username: currentUser.email?.split('@')[0] || 'User', role: 'fan' };
-    isStaff = ['owner','cofounder','admin','mod'].includes(currentProfile.role);
-
-    // Check mute
+    isStaff = ['owner','co-owner','cofounder','admin','mod'].includes(currentProfile.role);
     const { data: mute } = await SB.from('chat_mutes').select('expires_at').eq('user_id', currentUser.id).maybeSingle();
     isMuted = !!mute && (!mute.expires_at || new Date(mute.expires_at) > new Date());
     if (isMuted) document.getElementById('mutedNotice').style.display = 'block';
-
     document.getElementById('messages').style.display = 'flex';
     document.getElementById('inputArea').style.display = isMuted ? 'none' : 'flex';
-
     await loadMessages();
     subscribeToRoom();
     setupPresence();
@@ -153,18 +143,35 @@ async function init() {
   }
 }
 
+// ══════════════════════════════════════════════════════
+// ★ FIXED: loadMessages — no foreign key join needed
+// ══════════════════════════════════════════════════════
 async function loadMessages() {
   const el = document.getElementById('messages');
   try {
+    // Step 1: Load messages WITHOUT profiles join
     const { data: msgs, error } = await SB.from('chat_messages')
-      .select('id,user_id,message,created_at,hidden,profiles(username,display_name,avatar_url,role)')
+      .select('id,user_id,message,created_at,hidden')
       .eq('room', currentRoom)
       .order('created_at', { ascending: true })
       .limit(80);
     if (error) throw error;
+
+    // Step 2: Fetch profiles separately
+    const uids = [...new Set((msgs || []).map(m => m.user_id).filter(Boolean))];
+    const profileMap = {};
+    if (uids.length) {
+      const { data: profiles } = await SB.from('profiles')
+        .select('user_id,username,display_name,avatar_url,role')
+        .in('user_id', uids);
+      if (profiles) profiles.forEach(p => { profileMap[p.user_id] = p; });
+    }
+
+    // Step 3: Attach profiles and render
     el.innerHTML = '';
     (msgs || []).forEach(m => {
       if (m.hidden && !isStaff) return;
+      m.profiles = profileMap[m.user_id] || {};
       el.appendChild(buildMsg(m));
     });
     scrollToBottom(false);
@@ -179,23 +186,18 @@ function buildMsg(m) {
   const name = esc(p.display_name || p.username || 'User');
   const roleBadge = ROLE_BADGES[p.role] || '';
   const avatarHtml = p.avatar_url
-    ? `<img src="${p.avatar_url}" onerror="this.parentNode.textContent='👤'">`
+    ? '<img src="'+p.avatar_url+'" onerror="this.parentNode.textContent=\'👤\'">'
     : (name.charAt(0) || '?');
-
   const div = document.createElement('div');
   div.className = 'msg' + (isOwn ? ' own' : '') + (m.hidden ? ' hidden-msg' : '');
-  div.dataset.id = m.id;
-  div.dataset.uid = m.user_id;
-  div.dataset.name = name;
-  div.innerHTML = `
-    <div class="msg-avatar">${avatarHtml}</div>
-    <div class="msg-body">
-      ${!isOwn ? `<div class="msg-name"><a href="profile.html?id=${m.user_id}" style="color:inherit;text-decoration:none;">${name}</a>${roleBadge}</div>` : ''}
-      <div class="msg-bubble">${esc(m.message)}</div>
-      <div class="msg-time">${ago(m.created_at)}</div>
-    </div>`;
-
-  // Long-press / right-click for staff
+  div.dataset.id = m.id; div.dataset.uid = m.user_id; div.dataset.name = name;
+  div.innerHTML =
+    '<div class="msg-avatar">' + avatarHtml + '</div>' +
+    '<div class="msg-body">' +
+    (!isOwn ? '<div class="msg-name"><a href="profile.html?id='+m.user_id+'" style="color:inherit;text-decoration:none;">'+name+'</a>'+roleBadge+'</div>' : '') +
+    '<div class="msg-bubble">' + esc(m.message) + '</div>' +
+    '<div class="msg-time">' + ago(m.created_at) + '</div>' +
+    '</div>';
   if (isStaff && !isOwn) {
     div.addEventListener('contextmenu', e => { e.preventDefault(); openCtx(e, m.id, m.user_id, name, !!m.hidden); });
     div.addEventListener('pointerdown', e => {
@@ -209,51 +211,32 @@ function buildMsg(m) {
 
 function subscribeToRoom() {
   if (channel) SB.removeChannel(channel);
-
-  // Listen on the broadcast channel the DB trigger writes to: 'chat:{room}'
-  // Falls back to postgres_changes for environments where the trigger
-  // isn't deployed yet — both listeners can coexist safely.
   channel = SB.channel('chat:' + currentRoom)
-    // Broadcast path — fired by trg_broadcast_chat trigger
     .on('broadcast', { event: 'INSERT' }, async (payload) => {
-      const m = payload.payload;
-      if (!m) return;
+      const m = payload.payload; if (!m) return;
       if (m.hidden && !isStaff) return;
-      // Fetch sender profile (not included in broadcast payload)
-      const { data: p } = await SB.from('profiles')
-        .select('username,display_name,avatar_url,role')
-        .eq('user_id', m.user_id)
-        .single();
+      const { data: p } = await SB.from('profiles').select('username,display_name,avatar_url,role').eq('user_id', m.user_id).single();
       m.profiles = p || {};
       appendMessage(m);
     })
     .on('broadcast', { event: 'UPDATE' }, (payload) => {
-      const m = payload.payload;
-      if (!m) return;
-      const existing = document.querySelector(`.msg[data-id="${m.id}"]`);
+      const m = payload.payload; if (!m) return;
+      const existing = document.querySelector('.msg[data-id="'+m.id+'"]');
       if (!existing) return;
       if (m.hidden && !isStaff) existing.remove();
       else existing.classList.toggle('hidden-msg', !!m.hidden);
     })
-    // Postgres-changes fallback (covers direct DB inserts / pre-trigger deploy)
-    .on('postgres_changes', {
-      event: 'INSERT', schema: 'public', table: 'chat_messages',
-      filter: `room=eq.${currentRoom}`
-    }, async (payload) => {
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: 'room=eq.'+currentRoom }, async (payload) => {
       const m = payload.new;
       if (m.hidden && !isStaff) return;
-      const { data: p } = await SB.from('profiles')
-        .select('username,display_name,avatar_url,role')
-        .eq('user_id', m.user_id)
-        .single();
+      // Avoid duplicates from broadcast
+      if (document.querySelector('.msg[data-id="'+m.id+'"]')) return;
+      const { data: p } = await SB.from('profiles').select('username,display_name,avatar_url,role').eq('user_id', m.user_id).single();
       m.profiles = p || {};
       appendMessage(m);
     })
-    .on('postgres_changes', {
-      event: 'UPDATE', schema: 'public', table: 'chat_messages',
-      filter: `room=eq.${currentRoom}`
-    }, (payload) => {
-      const existing = document.querySelector(`.msg[data-id="${payload.new.id}"]`);
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chat_messages', filter: 'room=eq.'+currentRoom }, (payload) => {
+      const existing = document.querySelector('.msg[data-id="'+payload.new.id+'"]');
       if (!existing) return;
       if (payload.new.hidden && !isStaff) existing.remove();
       else existing.classList.toggle('hidden-msg', !!payload.new.hidden);
@@ -262,8 +245,7 @@ function subscribeToRoom() {
 }
 
 function appendMessage(m) {
-  const el = document.getElementById('messages');
-  if (!el) return;
+  const el = document.getElementById('messages'); if (!el) return;
   el.appendChild(buildMsg(m));
   const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
   if (atBottom) scrollToBottom(false);
@@ -271,6 +253,7 @@ function appendMessage(m) {
 }
 
 function setupPresence() {
+  if (presenceChannel) SB.removeChannel(presenceChannel);
   presenceChannel = SB.channel('chat-presence-' + currentRoom);
   presenceChannel
     .on('presence', { event: 'sync' }, () => {
@@ -279,67 +262,47 @@ function setupPresence() {
       document.getElementById('onlineCount').textContent = '🟢 ' + count + ' online';
     })
     .subscribe(async (status) => {
-      if (status === 'SUBSCRIBED') {
-        await presenceChannel.track({ user_id: currentUser.id });
-      }
+      if (status === 'SUBSCRIBED') await presenceChannel.track({ user_id: currentUser.id });
     });
 }
 
-// Edge Function URL — update project ref if needed
 const EDGE_BASE = 'https://novbuvwpjnxwwvdekjhr.supabase.co/functions/v1';
 
 async function sendMsg() {
   if (isMuted) return;
   const input = document.getElementById('msgInput');
-  const text  = input.value.trim();
+  const text = input.value.trim();
   if (!text || !currentUser) return;
-
   const btn = document.getElementById('sendBtn');
-  btn.disabled = true;
-  input.value  = '';
-  autoResize(input);
-
+  btn.disabled = true; input.value = ''; autoResize(input);
   try {
-    // Get the current session token to pass to the Edge Function
     const { data: { session } } = await SB.auth.getSession();
     if (!session) throw new Error('Not logged in');
-
-    const res = await fetch(`${EDGE_BASE}/chat-send`, {
-      method:  'POST',
+    const res = await fetch(EDGE_BASE + '/chat-send', {
+      method: 'POST',
       headers: {
-        'Content-Type':  'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-        'apikey':        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0',
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + session.access_token,
+        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0',
       },
       body: JSON.stringify({ room: currentRoom, message: text }),
     });
-
     const data = await res.json();
-
     if (!res.ok) {
-      // 429 = rate limited — show inline feedback instead of alert
-      if (res.status === 429) {
-        input.value = text;   // restore so they don't lose message
-        autoResize(input);
-        showRateLimit(data.retry_after_ms ?? 3000);
-        return;
-      }
-      throw new Error(data.error || `HTTP ${res.status}`);
+      if (res.status === 429) { input.value = text; autoResize(input); showRateLimit(data.retry_after_ms ?? 3000); return; }
+      throw new Error(data.error || 'HTTP ' + res.status);
     }
-    // Success — realtime subscription will render the message.
-    // No need to manually append here; the broadcast trigger handles it.
-
   } catch(e) {
-    input.value = text;
-    autoResize(input);
-    showSendError(e.message);
-  } finally {
-    btn.disabled = false;
-    input.focus();
-  }
+    // Fallback: insert directly if Edge Function not deployed
+    try {
+      const { error } = await SB.from('chat_messages').insert({ user_id: currentUser.id, room: currentRoom, message: text });
+      if (error) throw error;
+    } catch(e2) {
+      input.value = text; autoResize(input); showSendError(e2.message || e.message);
+    }
+  } finally { btn.disabled = false; input.focus(); }
 }
 
-// Show a brief rate-limit countdown on the send button
 let _rlTimer = null;
 function showRateLimit(ms) {
   const btn = document.getElementById('sendBtn');
@@ -347,26 +310,14 @@ function showRateLimit(ms) {
   if (_rlTimer) clearInterval(_rlTimer);
   _rlTimer = setInterval(() => {
     const left = Math.ceil((end - Date.now()) / 1000);
-    if (left <= 0) {
-      clearInterval(_rlTimer);
-      btn.textContent = '➤';
-      btn.disabled    = false;
-    } else {
-      btn.textContent = `${left}s`;
-      btn.disabled    = true;
-    }
+    if (left <= 0) { clearInterval(_rlTimer); btn.textContent = '➤'; btn.disabled = false; }
+    else { btn.textContent = left + 's'; btn.disabled = true; }
   }, 100);
 }
 
 function showSendError(msg) {
   const bar = document.getElementById('errorBar');
-  if (bar) {
-    bar.textContent = '⚠️ ' + msg;
-    bar.style.display = 'block';
-    setTimeout(() => bar.style.display = 'none', 4000);
-  } else {
-    console.warn('Send error:', msg);
-  }
+  if (bar) { bar.textContent = '⚠️ ' + msg; bar.style.display = 'block'; setTimeout(() => bar.style.display = 'none', 4000); }
 }
 
 window.switchRoom = function(room, btn) {
@@ -379,50 +330,39 @@ window.switchRoom = function(room, btn) {
   if (presenceChannel) { SB.removeChannel(presenceChannel); setupPresence(); }
 };
 
-// ── STAFF CONTEXT MENU ────────────────────────────────────────────
+// ── STAFF CONTEXT MENU ──
 function openCtx(e, msgId, userId, name, isHidden) {
   ctxTarget = { msgId, userId, name, isHidden };
   const menu = document.getElementById('ctxMenu');
-  document.getElementById('ctxHide').style.display   = isHidden ? 'none'  : 'block';
+  document.getElementById('ctxHide').style.display = isHidden ? 'none' : 'block';
   document.getElementById('ctxUnhide').style.display = isHidden ? 'block' : 'none';
   menu.style.display = 'block';
-  menu.style.left = Math.min(e.clientX, window.innerWidth  - 170) + 'px';
-  menu.style.top  = Math.min(e.clientY, window.innerHeight - 160) + 'px';
+  menu.style.left = Math.min(e.clientX, window.innerWidth - 170) + 'px';
+  menu.style.top = Math.min(e.clientY, window.innerHeight - 160) + 'px';
   document.addEventListener('click', closeCtx, { once: true });
 }
-
-function closeCtx() {
-  document.getElementById('ctxMenu').style.display = 'none';
-  ctxTarget = null;
-}
+function closeCtx() { document.getElementById('ctxMenu').style.display = 'none'; ctxTarget = null; }
 
 window.ctxAction = async function(action) {
   if (!ctxTarget) return;
   const { msgId, userId, name, isHidden } = ctxTarget;
   closeCtx();
-
   if (action === 'hide') {
     const reason = prompt('Reason for hiding this message:');
     if (!reason) return;
     await SB.from('chat_messages').update({ hidden: true }).eq('id', msgId);
     await logChatAction('hide_msg', userId, msgId, reason, null);
-
   } else if (action === 'unhide') {
     await SB.from('chat_messages').update({ hidden: false }).eq('id', msgId);
     await logChatAction('unhide_msg', userId, msgId, 'Staff unhid message', null);
-
   } else if (action === 'mute') {
     const reason = prompt('Reason for muting "' + name + '":');
     if (!reason) return;
     const h = parseInt(prompt('Mute duration in hours (0 = permanent):') || '0') || 0;
     const expires = h > 0 ? new Date(Date.now() + h * 3600000).toISOString() : null;
-    await SB.from('chat_mutes').upsert(
-      { user_id: userId, muted_by: currentUser.id, reason, expires_at: expires },
-      { onConflict: 'user_id' }
-    );
+    await SB.from('chat_mutes').upsert({ user_id: userId, muted_by: currentUser.id, reason, expires_at: expires }, { onConflict: 'user_id' });
     await logChatAction('mute', userId, null, reason, h || null);
     showSendError('✓ ' + name + ' muted' + (h ? ' for ' + h + 'h' : ' permanently') + '.');
-
   } else if (action === 'kick') {
     const reason = prompt('Reason for kicking "' + name + '":');
     if (!reason) return;
@@ -433,146 +373,50 @@ window.ctxAction = async function(action) {
   }
 };
 
-// Dual-write: chat_moderation_log (chat audit trail) + admin_actions (owner panel badge)
 async function logChatAction(action, targetUserId, messageId, reason, durationHours) {
-  const role    = currentProfile?.role || 'mod';
-  const expires = durationHours
-    ? new Date(Date.now() + durationHours * 3600000).toISOString()
-    : null;
-
+  const role = currentProfile?.role || 'mod';
+  const expires = durationHours ? new Date(Date.now() + durationHours * 3600000).toISOString() : null;
   await Promise.allSettled([
-    // ① Chat-specific audit log — queryable by room, action, user
-    SB.from('chat_moderation_log').insert({
-      performed_by:   currentUser.id,
-      performed_role: role,
-      action,
-      target_user_id: targetUserId  || null,
-      message_id:     messageId     || null,
-      room:           currentRoom,
-      reason,
-      duration_hours: durationHours || null,
-      expires_at:     expires,
-    }),
-    // ② Platform-wide admin_actions — lights up NEW badge in owner panel
-    SB.from('admin_actions').insert({
-      performed_by:      currentUser.id,
-      performed_by_role: role,
-      action_type:       'chat_' + action,
-      target_type:       messageId ? 'chat_message' : 'user',
-      target_id:         String(messageId || targetUserId || ''),
-      target_user_id:    targetUserId || null,
-      reason,
-      reviewed_by_owner: false,
-    }),
+    SB.from('chat_moderation_log').insert({ performed_by: currentUser.id, performed_role: role, action, target_user_id: targetUserId || null, message_id: messageId || null, room: currentRoom, reason, duration_hours: durationHours || null, expires_at: expires }),
+    SB.from('admin_actions').insert({ performed_by: currentUser.id, performed_by_role: role, action_type: 'chat_' + action, target_type: messageId ? 'chat_message' : 'user', target_id: String(messageId || targetUserId || ''), target_user_id: targetUserId || null, reason, reviewed_by_owner: false })
   ]);
 }
 
-// Listen for kick broadcast (if you get kicked)
-SB.channel('chat-moderation')
-  .on('broadcast', { event: 'kick' }, (payload) => {
-    if (currentUser && payload.payload?.user_id === currentUser.id) {
-      alert('You have been kicked from the chat.');
-      location.href = 'index.html';
-    }
-  }).subscribe();
+SB.channel('chat-moderation').on('broadcast', { event: 'kick' }, (payload) => {
+  if (currentUser && payload.payload?.user_id === currentUser.id) { alert('You have been kicked from the chat.'); location.href = 'index.html'; }
+}).subscribe();
 
-// ── UI HELPERS ────────────────────────────────────────────────────
 function scrollToBottom(smooth) {
   const el = document.getElementById('messages');
   el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'instant' });
   document.getElementById('scrollBtn').style.display = 'none';
 }
-
-function autoResize(el) {
-  el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight, 100) + 'px';
-}
-
+function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 100) + 'px'; }
 document.getElementById('messages')?.addEventListener('scroll', function() {
   const atBottom = this.scrollHeight - this.scrollTop - this.clientHeight < 80;
   document.getElementById('scrollBtn').style.display = atBottom ? 'none' : 'block';
 });
-
 function esc(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
-function ago(d) {
-  if (!d) return '';
-  const m = Math.floor((Date.now() - new Date(d).getTime()) / 60000);
-  if (m < 1) return 'now'; if (m < 60) return m + 'm ago';
-  const h = Math.floor(m/60); if (h < 24) return h + 'h ago';
-  return new Date(d).toLocaleDateString();
-}
+function ago(d) { if (!d) return ''; const m = Math.floor((Date.now() - new Date(d).getTime()) / 60000); if (m < 1) return 'now'; if (m < 60) return m + 'm ago'; const h = Math.floor(m/60); if (h < 24) return h + 'h ago'; return new Date(d).toLocaleDateString(); }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 </script>
+
 <script src="scripts.js" defer onerror="console.warn('scripts.js not found')"></script>
-<!-- 
-  TOKEN REFRESH PATCH FOR chat.html
-  Add this script block right before </body> in chat.html
-  This prevents realtime subscriptions from dying when tokens expire
--->
+
+<!-- Token refresh patch -->
 <script>
 (function(){
-  // Refresh Supabase session every 10 minutes
   setInterval(async()=>{
-    try{
-      const{data,error}=await SB.auth.refreshSession();
-      if(error){
-        console.warn('Token refresh failed:',error.message);
-        // If refresh fails completely, try to re-init
-        const{data:{session}}=await SB.auth.getSession();
-        if(!session){
-          console.warn('Session expired, redirecting to login');
-          location.href='login.html?return=chat.html';
-        }
-      }
-    }catch(e){console.warn('Token refresh error:',e);}
-  },600000); // 10 minutes
-
-  // Listen for auth changes
-  SB.auth.onAuthStateChange((event,session)=>{
-    if(event==='TOKEN_REFRESHED'){
-      console.log('Chat token refreshed');
-    }else if(event==='SIGNED_OUT'){
-      location.href='login.html?return=chat.html';
-    }
-  });
-
-  // Reconnect realtime on visibility change (tab comes back to focus)
+    try{const{error}=await SB.auth.refreshSession();
+    if(error){const{data:{session}}=await SB.auth.getSession();if(!session)location.href='login.html?return=chat.html';}}catch(e){}
+  },600000);
+  SB.auth.onAuthStateChange((event)=>{if(event==='SIGNED_OUT')location.href='login.html?return=chat.html';});
   document.addEventListener('visibilitychange',async()=>{
-    if(document.visibilityState==='visible'){
-      // Small delay then refresh token and re-subscribe
-      setTimeout(async()=>{
-        try{
-          await SB.auth.refreshSession();
-          // Re-subscribe to current room
-          if(typeof subscribeToRoom==='function') subscribeToRoom();
-          if(typeof setupPresence==='function') setupPresence();
-        }catch(e){}
-      },500);
-    }
+    if(document.visibilityState==='visible'){setTimeout(async()=>{try{await SB.auth.refreshSession();if(typeof subscribeToRoom==='function')subscribeToRoom();if(typeof setupPresence==='function')setupPresence();}catch(e){}},500);}
   });
-
-  // Heartbeat: ping every 30s to detect stale connections
-  let lastPong=Date.now();
-  setInterval(()=>{
-    if(Date.now()-lastPong>120000){
-      // 2 minutes without successful operation — force reconnect
-      console.warn('Connection may be stale, refreshing...');
-      if(typeof subscribeToRoom==='function') subscribeToRoom();
-      lastPong=Date.now();
-    }
-  },30000);
-
-  // Track successful operations
-  const origSend=window.sendMsg;
-  if(typeof origSend==='function'){
-    window.sendMsg=async function(){
-      lastPong=Date.now();
-      return origSend.apply(this,arguments);
-    };
-  }
 })();
 </script>
-  
+
 </body>
 </html>
