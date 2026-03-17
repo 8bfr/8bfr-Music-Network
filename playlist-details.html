@@ -1,94 +1,293 @@
-<!DOCTYPE html><html lang="en"><head>
-<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>8BFR | Playlist Details</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
-<script src="https://cdn.tailwindcss.com"></script>
-<script defer src="assets/js/site-shell.js"></script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Playlist — 8BFR Music Network</title>
+<link rel="icon" href="assets/images/favicon.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:system-ui,-apple-system,sans-serif;background:linear-gradient(#0b0014,#000);color:#eae6ff;min-height:100vh;padding-bottom:80px;}
+.header{background:rgba(15,0,30,.9);border-bottom:2px solid #7c3aed;padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;backdrop-filter:blur(12px);}
+.header h1{font-size:1.3rem;font-weight:800;color:#7c3aed;}
+.header a{color:#eae6ff;text-decoration:none;font-weight:600;font-size:.85rem;}
+.container{max-width:800px;margin:0 auto;padding:1.5rem;}
+
+/* Playlist header */
+.pl-header{display:flex;gap:1.25rem;align-items:flex-start;background:rgba(12,6,24,.7);border:1px solid rgba(124,58,237,.3);border-radius:16px;padding:1.5rem;margin-bottom:1.25rem;flex-wrap:wrap;}
+.pl-cover{width:140px;height:140px;border-radius:12px;background:linear-gradient(135deg,rgba(124,58,237,.4),rgba(168,85,247,.2));display:flex;align-items:center;justify-content:center;font-size:3.5rem;flex-shrink:0;overflow:hidden;}
+.pl-cover img{width:100%;height:100%;object-fit:cover;}
+.pl-info{flex:1;min-width:200px;}
+.pl-name{font-size:1.6rem;font-weight:800;margin-bottom:.25rem;}
+.pl-creator{font-size:.85rem;color:#a855f7;margin-bottom:.35rem;}
+.pl-creator a{color:#a855f7;text-decoration:none;font-weight:600;}
+.pl-creator a:hover{text-decoration:underline;}
+.pl-desc{font-size:.82rem;color:rgba(234,230,255,.5);line-height:1.5;margin-bottom:.5rem;}
+.pl-stats{display:flex;gap:1rem;font-size:.78rem;color:rgba(168,85,247,.5);margin-bottom:.75rem;}
+.pl-actions{display:flex;gap:.4rem;flex-wrap:wrap;}
+.btn{background:#7c3aed;color:#fff;border:none;padding:.5rem 1rem;border-radius:8px;cursor:pointer;font-weight:600;font-size:.82rem;transition:all .2s;}
+.btn:hover{background:#6d28d9;}.btn:disabled{opacity:.5;}
+.btn-sm{padding:.35rem .75rem;font-size:.75rem;}
+.btn-ghost{background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.3);color:#a855f7;}
+.btn-green{background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);color:#4ade80;}
+.btn-red{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.25);color:#fca5a5;}
+
+/* Track list */
+.track-list{margin-bottom:1.25rem;}
+.track{display:flex;align-items:center;gap:.75rem;padding:.65rem .75rem;border-radius:10px;transition:background .15s;cursor:pointer;}
+.track:hover{background:rgba(124,58,237,.08);}
+.track.playing{background:rgba(124,58,237,.15);border-left:3px solid #a855f7;}
+.track-num{width:24px;text-align:center;font-size:.78rem;color:rgba(168,85,247,.4);font-weight:600;flex-shrink:0;}
+.track.playing .track-num{color:#a855f7;}
+.track-cover{width:42px;height:42px;border-radius:6px;background:rgba(124,58,237,.15);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;overflow:hidden;}
+.track-cover img{width:100%;height:100%;object-fit:cover;}
+.track-info{flex:1;min-width:0;}
+.track-title{font-weight:600;font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.track-artist{font-size:.72rem;color:rgba(168,85,247,.5);}
+.track-duration{font-size:.72rem;color:rgba(168,85,247,.3);flex-shrink:0;}
+.track-remove{background:none;border:none;color:rgba(239,68,68,.5);font-size:.85rem;cursor:pointer;padding:.25rem;flex-shrink:0;opacity:0;transition:opacity .15s;}
+.track:hover .track-remove{opacity:1;}
+
+/* Now playing bar */
+.now-playing{position:fixed;bottom:0;left:0;right:0;background:rgba(12,4,26,.97);border-top:2px solid #7c3aed;padding:.5rem 1rem;z-index:200;backdrop-filter:blur(12px);}
+.np-inner{max-width:800px;margin:0 auto;display:flex;align-items:center;gap:.75rem;}
+.np-cover{width:40px;height:40px;border-radius:6px;background:rgba(124,58,237,.2);display:flex;align-items:center;justify-content:center;font-size:1rem;overflow:hidden;flex-shrink:0;}
+.np-cover img{width:100%;height:100%;object-fit:cover;}
+.np-info{flex:1;min-width:0;}
+.np-title{font-weight:600;font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.np-artist{font-size:.68rem;color:rgba(168,85,247,.5);}
+.np-controls{display:flex;gap:.5rem;align-items:center;}
+.np-btn{background:none;border:none;color:#eae6ff;font-size:1.2rem;cursor:pointer;padding:.25rem;}
+.np-btn:hover{color:#a855f7;}
+audio{display:none;}
+
+/* Add songs */
+.add-section{background:rgba(12,6,24,.7);border:1px solid rgba(124,58,237,.3);border-radius:12px;padding:1.25rem;margin-bottom:1.25rem;}
+.add-section h3{color:#a855f7;font-size:.95rem;font-weight:700;margin-bottom:.75rem;}
+.search-input{width:100%;padding:.55rem .85rem;background:rgba(0,0,0,.3);border:1px solid rgba(124,58,237,.3);border-radius:8px;color:#eae6ff;font-size:.88rem;outline:none;margin-bottom:.5rem;}
+.search-input:focus{border-color:#7c3aed;}
+.search-result{display:flex;align-items:center;gap:.6rem;padding:.45rem .5rem;border-radius:6px;cursor:pointer;transition:background .15s;}
+.search-result:hover{background:rgba(124,58,237,.08);}
+
+.empty{text-align:center;padding:2rem;color:rgba(168,85,247,.4);}
+.spinner{width:28px;height:28px;border:3px solid rgba(124,58,237,.2);border-top-color:#a855f7;border-radius:50%;animation:spin .7s linear infinite;margin:2rem auto;}
+@keyframes spin{to{transform:rotate(360deg);}}
+</style>
 </head>
-<body class="min-h-screen bg-[radial-gradient(ellipse_at_top,_#1a0022,_#000)] text-white font-[Poppins]">
-<div id="site-header"></div>
-<main class="max-w-6xl mx-auto px-4 py-10">
-<section class="rounded-2xl p-6 bg-black/50 border border-purple-700/40 shadow-xl">
-  <h2 class="text-2xl font-bold mb-2">Playlist Details</h2>
-  <p class="text-purple-200">Glassy neon starter • Supabase-ready stub.</p>
-</section>
-</main>
-<div id="site-footer"></div>
-<script defer src="assets/js/carousel.js"></script>
-<script defer src="assets/js/supabase.js"></script>
-  <!-- ADD THIS SCRIPT TO EVERY PAGE (except index.html where you want it always shown) -->
-<!-- Place it right before the closing </body> tag -->
+<body>
+<div class="header">
+<a href="playlists.html">← Playlists</a>
+<h1>🎶 Playlist</h1>
+<div></div>
+</div>
+<div class="container">
+<div id="loading"><div class="spinner"></div></div>
+<div id="content" style="display:none;"></div>
+</div>
 
+<!-- Now Playing Bar -->
+<div class="now-playing" id="nowPlaying" style="display:none;">
+<div class="np-inner">
+<div class="np-cover" id="npCover">🎵</div>
+<div class="np-info"><div class="np-title" id="npTitle">—</div><div class="np-artist" id="npArtist">—</div></div>
+<div class="np-controls">
+<button class="np-btn" onclick="prevTrack()">⏮</button>
+<button class="np-btn" id="npPlayBtn" onclick="togglePlay()">▶️</button>
+<button class="np-btn" onclick="nextTrack()">⏭</button>
+</div>
+</div>
+<audio id="audioPlayer" onended="nextTrack()" ontimeupdate="updateProgress()"></audio>
+</div>
+
+<script src="scripts.js" defer></script>
 <script>
-// Avatar & Bubble Toggle System
-(function() {
-    // Create toggle button
-    const toggleBtn = document.createElement('button');
-    toggleBtn.id = 'avatarToggle';
-    toggleBtn.innerHTML = '👁️';
-    toggleBtn.title = 'Toggle Avatar/Bubbles';
-    toggleBtn.style.cssText = `
-        position: fixed;
-        top: 80px;
-        right: 20px;
-        z-index: 9999;
-        background: rgba(124, 58, 237, 0.9);
-        border: 2px solid rgba(124, 58, 237, 1);
-        color: white;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.5);
-        transition: all 0.3s ease;
-    `;
-    
-    toggleBtn.addEventListener('mouseenter', function() {
-        this.style.transform = 'scale(1.1)';
-    });
-    
-    toggleBtn.addEventListener('mouseleave', function() {
-        this.style.transform = 'scale(1)';
-    });
-    
-    document.body.appendChild(toggleBtn);
-    
-    // Load saved preference
-    let isHidden = localStorage.getItem('hideAvatarBubbles') === 'true';
-    
-    function updateVisibility() {
-        const elementsToToggle = [
-            document.getElementById('homeAvatarSwitcher'),
-            ...document.querySelectorAll('[id*="bubble"]'),
-            ...document.querySelectorAll('[class*="bubble"]'),
-            ...document.querySelectorAll('[id*="avatar"][id*="switcher"]')
-        ];
-        
-        elementsToToggle.forEach(el => {
-            if (el) {
-                el.style.display = isHidden ? 'none' : '';
-            }
-        });
-        
-        toggleBtn.innerHTML = isHidden ? '👁️‍🗨️' : '👁️';
-        toggleBtn.title = isHidden ? 'Show Avatar/Bubbles' : 'Hide Avatar/Bubbles';
-    }
-    
-    toggleBtn.addEventListener('click', function() {
-        isHidden = !isHidden;
-        localStorage.setItem('hideAvatarBubbles', isHidden);
-        updateVisibility();
-    });
-    
-    // Apply on load
-    updateVisibility();
-    
-    
-</script>
+const db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
 
+let currentUser=null,playlist=null,tracks=[],currentTrackIdx=-1,isPlaying=false;
+
+async function init(){
+  const params=new URLSearchParams(location.search);
+  const plId=params.get('id');
+  if(!plId){document.getElementById('loading').innerHTML='<div class="empty">No playlist specified. <a href="playlists.html" style="color:#a855f7;">Browse playlists</a></div>';return;}
+
+  const{data:{session}}=await db.auth.getSession();
+  currentUser=session?session.user:null;
+
+  // Load playlist
+  const{data:pl,error}=await db.from('playlists').select('*').eq('id',plId).single();
+  if(error||!pl){document.getElementById('loading').innerHTML='<div class="empty">Playlist not found. <a href="playlists.html" style="color:#a855f7;">Browse playlists</a></div>';return;}
+  playlist=pl;
+
+  // Load creator profile
+  const{data:creator}=await db.from('profiles').select('username,display_name,avatar_url').eq('user_id',pl.user_id).single();
+
+  // Load tracks
+  const{data:trackRows}=await db.from('playlist_tracks').select('id,song_id,position').eq('playlist_id',plId).order('position');
+  const songIds=(trackRows||[]).map(t=>t.song_id).filter(Boolean);
+
+  if(songIds.length){
+    const{data:songs}=await db.from('songs').select('id,title,artist,cover_art,song_url,explicit').in('id',songIds);
+    const songMap={};(songs||[]).forEach(s=>{songMap[s.id]=s;});
+    tracks=(trackRows||[]).map(t=>({...t,song:songMap[t.song_id]||null})).filter(t=>t.song);
+  }
+
+  const isOwner=currentUser&&pl.user_id===currentUser.id;
+  document.getElementById('loading').style.display='none';
+  const el=document.getElementById('content');
+  el.style.display='block';
+
+  // Render header
+  const coverImg=pl.cover_url?'<img src="'+esc(pl.cover_url)+'">':'🎶';
+  const creatorName=creator?(creator.display_name||creator.username):'Unknown';
+
+  let h='<div class="pl-header">';
+  h+='<div class="pl-cover">'+coverImg+'</div>';
+  h+='<div class="pl-info">';
+  h+='<div class="pl-name">'+esc(pl.name||'Untitled Playlist')+'</div>';
+  h+='<div class="pl-creator">by <a href="profile.html?id='+pl.user_id+'">'+esc(creatorName)+'</a></div>';
+  if(pl.description)h+='<div class="pl-desc">'+esc(pl.description)+'</div>';
+  h+='<div class="pl-stats"><span>🎵 '+tracks.length+' tracks</span><span>'+(pl.is_public===false?'🔒 Private':'🌐 Public')+'</span></div>';
+  h+='<div class="pl-actions">';
+  if(tracks.length)h+='<button class="btn" onclick="playAll()">▶️ Play All</button><button class="btn btn-ghost" onclick="shufflePlay()">🔀 Shuffle</button>';
+  if(isOwner)h+='<button class="btn btn-ghost" onclick="toggleAddSection()">+ Add Songs</button><button class="btn btn-red btn-sm" onclick="deletePlaylist()">🗑️</button>';
+  h+='</div></div></div>';
+
+  // Track list
+  h+='<div class="track-list" id="trackList">';
+  if(!tracks.length){
+    h+='<div class="empty">No tracks yet.'+(isOwner?' Click "Add Songs" to get started!':'')+'</div>';
+  }else{
+    tracks.forEach(function(t,i){
+      var s=t.song;
+      var cv=s.cover_art?'<img src="'+esc(s.cover_art)+'">':'🎵';
+      h+='<div class="track" id="track-'+i+'" onclick="playTrack('+i+')">';
+      h+='<div class="track-num">'+(i+1)+'</div>';
+      h+='<div class="track-cover">'+cv+'</div>';
+      h+='<div class="track-info"><div class="track-title">'+esc(s.title||'Untitled')+(s.explicit?' 🔞':'')+'</div><div class="track-artist">'+esc(s.artist||'')+'</div></div>';
+      if(isOwner)h+='<button class="track-remove" onclick="event.stopPropagation();removeTrack(\''+t.id+'\','+i+')" title="Remove">✕</button>';
+      h+='</div>';
+    });
+  }
+  h+='</div>';
+
+  // Add songs section (hidden by default)
+  if(isOwner){
+    h+='<div class="add-section" id="addSection" style="display:none;">';
+    h+='<h3>🎵 Add Songs</h3>';
+    h+='<input class="search-input" type="text" id="songSearch" placeholder="🔍 Search songs by title or artist..." oninput="searchSongs(this.value)">';
+    h+='<div id="searchResults"></div>';
+    h+='</div>';
+  }
+
+  el.innerHTML=h;
+}
+
+// ── PLAYBACK ──
+function playTrack(idx){
+  if(idx<0||idx>=tracks.length)return;
+  currentTrackIdx=idx;
+  var s=tracks[idx].song;
+  if(!s.song_url){alert('No audio URL for this track.');return;}
+
+  var audio=document.getElementById('audioPlayer');
+  audio.src=s.song_url;
+  audio.play();
+  isPlaying=true;
+
+  // Update now playing bar
+  document.getElementById('nowPlaying').style.display='block';
+  document.getElementById('npTitle').textContent=s.title||'Untitled';
+  document.getElementById('npArtist').textContent=s.artist||'';
+  document.getElementById('npCover').innerHTML=s.cover_art?'<img src="'+esc(s.cover_art)+'">':'🎵';
+  document.getElementById('npPlayBtn').textContent='⏸️';
+
+  // Highlight current track
+  document.querySelectorAll('.track').forEach(function(el,i){el.classList.toggle('playing',i===idx);});
+}
+
+function togglePlay(){
+  var audio=document.getElementById('audioPlayer');
+  if(isPlaying){audio.pause();isPlaying=false;document.getElementById('npPlayBtn').textContent='▶️';}
+  else{audio.play();isPlaying=true;document.getElementById('npPlayBtn').textContent='⏸️';}
+}
+function nextTrack(){if(currentTrackIdx<tracks.length-1)playTrack(currentTrackIdx+1);else{isPlaying=false;document.getElementById('npPlayBtn').textContent='▶️';}}
+function prevTrack(){if(currentTrackIdx>0)playTrack(currentTrackIdx-1);}
+function playAll(){if(tracks.length)playTrack(0);}
+function shufflePlay(){
+  if(!tracks.length)return;
+  var idx=Math.floor(Math.random()*tracks.length);
+  playTrack(idx);
+}
+function updateProgress(){}
+
+// ── ADD SONGS ──
+window.toggleAddSection=function(){
+  var el=document.getElementById('addSection');
+  if(el)el.style.display=el.style.display==='none'?'block':'none';
+};
+
+var searchTimeout;
+window.searchSongs=function(q){
+  clearTimeout(searchTimeout);
+  var box=document.getElementById('searchResults');
+  if(q.length<2){box.innerHTML='<p style="font-size:.78rem;color:rgba(168,85,247,.4);padding:.5rem;">Type at least 2 characters...</p>';return;}
+  searchTimeout=setTimeout(async function(){
+    var{data}=await db.from('songs').select('id,title,artist,cover_art').or('title.ilike.%'+q+'%,artist.ilike.%'+q+'%').limit(15);
+    if(!data||!data.length){box.innerHTML='<p style="font-size:.78rem;color:rgba(168,85,247,.4);padding:.5rem;">No songs found.</p>';return;}
+    // Filter out songs already in playlist
+    var existing=tracks.map(function(t){return t.song_id;});
+    data=data.filter(function(s){return existing.indexOf(s.id)===-1;});
+    if(!data.length){box.innerHTML='<p style="font-size:.78rem;color:rgba(168,85,247,.4);padding:.5rem;">All matches already in playlist.</p>';return;}
+    box.innerHTML=data.map(function(s){
+      var cv=s.cover_art?'<img src="'+esc(s.cover_art)+'" style="width:100%;height:100%;object-fit:cover;">':'🎵';
+      return '<div class="search-result" onclick="addSong(\''+s.id+'\',\''+esc(s.title||'').replace(/'/g,'')+'\')"><div style="width:36px;height:36px;border-radius:6px;background:rgba(124,58,237,.15);display:flex;align-items:center;justify-content:center;font-size:.9rem;overflow:hidden;flex-shrink:0;">'+cv+'</div><div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:.82rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(s.title)+'</div><div style="font-size:.7rem;color:rgba(168,85,247,.5);">'+esc(s.artist||'')+'</div></div><span style="color:#4ade80;font-weight:700;font-size:.78rem;flex-shrink:0;">+ Add</span></div>';
+    }).join('');
+  },350);
+};
+
+window.addSong=async function(songId,title){
+  var nextPos=tracks.length;
+  try{
+    // Try RPC first
+    try{
+      var r=await db.rpc('add_track_to_playlist',{p_playlist_id:playlist.id,p_song_id:songId});
+      if(r.error)throw r.error;
+    }catch(e){
+      // Fallback: direct insert
+      var{error}=await db.from('playlist_tracks').insert({playlist_id:playlist.id,song_id:songId,position:nextPos});
+      if(error){
+        if(error.message.includes('duplicate')||error.message.includes('unique')){alert('Already in playlist.');return;}
+        throw error;
+      }
+    }
+    alert('✅ "'+title+'" added!');
+    location.reload();
+  }catch(e){alert('Error: '+e.message);}
+};
+
+// ── REMOVE TRACK ──
+window.removeTrack=async function(trackRowId,idx){
+  if(!confirm('Remove this track from the playlist?'))return;
+  try{
+    var{error}=await db.from('playlist_tracks').delete().eq('id',trackRowId);
+    if(error)throw error;
+    tracks.splice(idx,1);
+    location.reload();
+  }catch(e){alert('Error: '+e.message);}
+};
+
+// ── DELETE PLAYLIST ──
+window.deletePlaylist=async function(){
+  if(!confirm('Delete this entire playlist? This cannot be undone.'))return;
+  try{
+    await db.from('playlist_tracks').delete().eq('playlist_id',playlist.id);
+    await db.from('playlists').delete().eq('id',playlist.id);
+    alert('🗑️ Playlist deleted.');
+    location.href='playlists.html';
+  }catch(e){alert('Error: '+e.message);}
+};
+
+function esc(s){if(!s)return'';var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+</script>
 </body></html>
