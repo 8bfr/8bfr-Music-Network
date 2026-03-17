@@ -318,4 +318,62 @@ function ago(d){if(!d)return'';const s=Math.floor((Date.now()-new Date(d))/1000)
 function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 </script>
+
+  
+<!-- ═══ FIX 7: PAGES & GROUPS — DELETE/HIDE OPTIONS ═══ 
+     Paste BEFORE </body> in page.html -->
+<script id="PAGE_DELETE_PATCH">
+(function(){
+  // Add delete/hide to page cards for owner
+  var origOpenPage = window.openPage;
+  if (!origOpenPage) return;
+  
+  window.openPage = async function(id) {
+    await origOpenPage(id);
+    
+    // Check if current user owns this page or is site staff
+    if (!window.currentUser || !window.viewingPage) return;
+    var isPageOwner = window.viewingPage.owner_id === window.currentUser.id;
+    var isStaff = false;
+    try {
+      if (window._8bfr && (window._8bfr.isOwner || window._8bfr.isAdmin)) isStaff = true;
+    } catch(e) {}
+    
+    if (!isPageOwner && !isStaff) return;
+    
+    // Don't duplicate
+    if (document.getElementById('pageAdminActions')) return;
+    
+    var header = document.querySelector('.pd-header');
+    if (!header) return;
+    
+    var actions = document.createElement('div');
+    actions.id = 'pageAdminActions';
+    actions.style.cssText = 'display:flex;gap:.4rem;margin-top:.75rem;padding-top:.75rem;border-top:1px solid rgba(124,58,237,.15);';
+    actions.innerHTML = 
+      '<button class="btn btn-ghost btn-sm" onclick="editPageInfo(\'' + id + '\')">✏️ Edit</button>' +
+      '<button class="btn btn-sm" style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#fca5a5;" onclick="deletePage(\'' + id + '\')">🗑️ Delete Page</button>';
+    header.appendChild(actions);
+  };
+  
+  window.editPageInfo = function(id) {
+    var name = prompt('New page name:', window.viewingPage?.name || '');
+    if (!name) return;
+    var desc = prompt('New description:', window.viewingPage?.description || '');
+    var db = window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
+    db.from('pages').update({ name: name, description: desc || null }).eq('id', id).then(function(r) {
+      if (r.error) alert('Error: ' + r.error.message);
+      else { alert('✅ Updated!'); location.reload(); }
+    });
+  };
+  
+  window.deletePage = async function(id) {
+    if (!confirm('Delete this page and all its posts? This cannot be undone.')) return;
+    var db = window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
+    var { error } = await db.from('pages').delete().eq('id', id);
+    if (error) alert('Error: ' + error.message);
+    else { alert('🗑️ Page deleted.'); location.href = 'page.html'; }
+  };
+})();
+</script>
 </body></html>
