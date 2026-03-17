@@ -447,5 +447,89 @@
         async function logout(){await s.auth.signOut();location.href='login.html';}
         if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
     </script>
+    <!-- ═══════════════════════════════════════════════════════
+     OWNER PANEL STATS FIX — Paste BEFORE </body> in owner-panel.html
+     
+     Fixes: Stats now count BOTH primary role AND badges array.
+     Example: If you have role='owner' but badges=['owner','artist','beatmaker'],
+     you count as 1 artist AND 1 beatmaker (previously counted as 0 for both).
+     ═══════════════════════════════════════════════════════ -->
+<script>
+(function(){
+  // Override loadStats after it's defined
+  var checkReady = setInterval(function(){
+    if(typeof loadStats !== 'function') return;
+    clearInterval(checkReady);
+
+    // Store reference to original
+    var _origLoadStats = loadStats;
+
+    // Replace with fixed version
+    window.loadStats = async function(){
+      var db = window.s || window._8bfrSupabaseClient;
+      if(!db && window.supabase) db = window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
+      if(!db) return;
+
+      // Basic counts (parallel)
+      var stats = [
+        {id:'statUsers',   q:db.from('profiles').select('*',{count:'exact',head:true})},
+        {id:'statSongs',   q:db.from('songs').select('*',{count:'exact',head:true})},
+        {id:'statPosts',   q:db.from('posts').select('*',{count:'exact',head:true})},
+        {id:'statStories', q:db.from('stories').select('*',{count:'exact',head:true})},
+        {id:'statDummies', q:db.from('dummy_profiles').select('*',{count:'exact',head:true})},
+        {id:'statSales',   q:db.from('song_purchases').select('*',{count:'exact',head:true})}
+      ];
+
+      await Promise.allSettled(stats.map(async function(st){
+        try {
+          var r = await st.q;
+          var el = document.getElementById(st.id);
+          if(el) el.textContent = r.count ?? 0;
+        } catch(e){}
+      }));
+
+      // ★ FIXED: Role counts — check BOTH primary role AND badges array
+      try {
+        var r = await db.from('profiles').select('role,badges');
+        var d = r.data || [];
+
+        var ARTIST_ROLES = ['artist','rapper','singer','musician'];
+        var BEAT_ROLES = ['beatmaker','producer','dj'];
+
+        var artists = d.filter(function(p){
+          var b = p.badges || [];
+          return ARTIST_ROLES.indexOf(p.role) !== -1 || b.some(function(x){ return ARTIST_ROLES.indexOf(x) !== -1; });
+        }).length;
+
+        var beats = d.filter(function(p){
+          var b = p.badges || [];
+          return BEAT_ROLES.indexOf(p.role) !== -1 || b.some(function(x){ return BEAT_ROLES.indexOf(x) !== -1; });
+        }).length;
+
+        var fans = d.filter(function(p){
+          var b = p.badges || [];
+          return p.role === 'fan' || b.indexOf('fan') !== -1;
+        }).length;
+
+        var el1 = document.getElementById('statArtists'); if(el1) el1.textContent = artists;
+        var el2 = document.getElementById('statBeatmakers'); if(el2) el2.textContent = beats;
+        var el3 = document.getElementById('statFans'); if(el3) el3.textContent = fans;
+      } catch(e){ console.warn('Role count error:', e); }
+
+      // Revenue
+      try {
+        var rv = await db.from('artist_payouts').select('platform_amount');
+        var t = 0;
+        (rv.data || []).forEach(function(r){ t += parseFloat(r.platform_amount) || 0; });
+        var el4 = document.getElementById('statRevenue'); if(el4) el4.textContent = '$' + t.toFixed(2);
+      } catch(e){}
+    };
+
+    // Re-run the fixed version now
+    window.loadStats();
+  }, 300);
+})();
+</script>
+
 </body>
 </html>
