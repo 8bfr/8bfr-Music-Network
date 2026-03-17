@@ -55,6 +55,9 @@
     .ctx-item{padding:.45rem .9rem;font-size:.82rem;cursor:pointer;color:#eae6ff;transition:background .15s;}
     .ctx-item:hover{background:rgba(124,58,237,.2);}
     .ctx-item.danger{color:#f87171;}
+    .msg-mod-btn{position:absolute;top:2px;right:2px;background:rgba(0,0,0,.5);border:none;color:rgba(168,85,247,.6);width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:.85rem;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s;z-index:3;}
+    .msg:hover .msg-mod-btn,.msg-mod-btn:focus{opacity:1;}
+    @media(max-width:768px){.msg-mod-btn{opacity:.6;}}
   </style>
 </head>
 <body>
@@ -95,11 +98,7 @@
 <button class="scroll-bottom" id="scrollBtn" onclick="scrollToBottom(true)" title="Scroll to latest">↓</button>
 
 <div class="ctx-menu" id="ctxMenu">
-  <div class="ctx-item danger" id="ctxHide" onclick="ctxAction('hide')">🙈 Hide Message</div>
-  <div class="ctx-item" id="ctxUnhide" onclick="ctxAction('unhide')" style="display:none;">👁️ Unhide Message</div>
-  <div class="ctx-item danger" id="ctxMute" onclick="ctxAction('mute')">🔇 Mute User</div>
-  <div class="ctx-item danger" id="ctxKick" onclick="ctxAction('kick')">👢 Kick from Chat</div>
-  <div class="ctx-item" onclick="closeCtx()">Cancel</div>
+  <!-- Populated dynamically by openCtx() based on role -->
 </div>
 
 <script>
@@ -190,22 +189,22 @@ function buildMsg(m) {
     : (name.charAt(0) || '?');
   const div = document.createElement('div');
   div.className = 'msg' + (isOwn ? ' own' : '') + (m.hidden ? ' hidden-msg' : '');
+  div.style.position = 'relative';
   div.dataset.id = m.id; div.dataset.uid = m.user_id; div.dataset.name = name;
+
+  // ⋯ mod button (staff only, not on own messages)
+  const modBtn = (isStaff && !isOwn)
+    ? '<button class="msg-mod-btn" onclick="event.stopPropagation();openCtx(event,\''+m.id+'\',\''+m.user_id+'\',\''+name.replace(/'/g,'')+'\','+!!m.hidden+')">⋯</button>'
+    : '';
+
   div.innerHTML =
+    modBtn +
     '<div class="msg-avatar">' + avatarHtml + '</div>' +
     '<div class="msg-body">' +
     (!isOwn ? '<div class="msg-name"><a href="profile.html?id='+m.user_id+'" style="color:inherit;text-decoration:none;">'+name+'</a>'+roleBadge+'</div>' : '') +
     '<div class="msg-bubble">' + esc(m.message) + '</div>' +
     '<div class="msg-time">' + ago(m.created_at) + '</div>' +
     '</div>';
-  if (isStaff && !isOwn) {
-    div.addEventListener('contextmenu', e => { e.preventDefault(); openCtx(e, m.id, m.user_id, name, !!m.hidden); });
-    div.addEventListener('pointerdown', e => {
-      const t = setTimeout(() => openCtx(e, m.id, m.user_id, name, !!m.hidden), 600);
-      div.addEventListener('pointerup', () => clearTimeout(t), { once:true });
-      div.addEventListener('pointermove', () => clearTimeout(t), { once:true });
-    });
-  }
   return div;
 }
 
@@ -330,48 +329,144 @@ window.switchRoom = function(room, btn) {
   if (presenceChannel) { SB.removeChannel(presenceChannel); setupPresence(); }
 };
 
-// ── STAFF CONTEXT MENU ──
+// ── ROLE-BASED CONTEXT MENU ──
+// Mod: mute (notifies owner+admin)
+// Admin: mute, hide, kick (notifies owner)
+// Owner/Co-Owner: mute, kick, ban chat, ban site, hide, delete
+
 function openCtx(e, msgId, userId, name, isHidden) {
   ctxTarget = { msgId, userId, name, isHidden };
   const menu = document.getElementById('ctxMenu');
-  document.getElementById('ctxHide').style.display = isHidden ? 'none' : 'block';
-  document.getElementById('ctxUnhide').style.display = isHidden ? 'block' : 'none';
+  const role = currentProfile?.role || '';
+  const isOwner = (role === 'owner' || role === 'co-owner');
+  const isAdmin = (role === 'admin');
+  const isMod = (role === 'mod');
+
+  let items = '';
+
+  // Mod options
+  if (isMod || isAdmin || isOwner) {
+    items += '<div class="ctx-item danger" onclick="ctxAction(\'mute\')">🔇 Mute User</div>';
+  }
+
+  // Admin options
+  if (isAdmin || isOwner) {
+    if (isHidden) items += '<div class="ctx-item" onclick="ctxAction(\'unhide\')">👁️ Unhide Message</div>';
+    else items += '<div class="ctx-item danger" onclick="ctxAction(\'hide\')">🙈 Hide Message</div>';
+    items += '<div class="ctx-item danger" onclick="ctxAction(\'kick\')">👢 Kick from Chat</div>';
+  }
+
+  // Owner-only options
+  if (isOwner) {
+    items += '<div class="ctx-item danger" onclick="ctxAction(\'ban_chat\')">🚫 Ban from Chat</div>';
+    items += '<div class="ctx-item danger" onclick="ctxAction(\'ban_site\')">💀 Ban from Site</div>';
+    items += '<div class="ctx-item danger" onclick="ctxAction(\'delete\')">🗑️ Delete Message</div>';
+  }
+
+  items += '<div class="ctx-item" onclick="closeCtx()">Cancel</div>';
+  menu.innerHTML = items;
   menu.style.display = 'block';
-  menu.style.left = Math.min(e.clientX, window.innerWidth - 170) + 'px';
-  menu.style.top = Math.min(e.clientY, window.innerHeight - 160) + 'px';
-  document.addEventListener('click', closeCtx, { once: true });
+  menu.style.left = Math.min(e.clientX || e.pageX || 100, window.innerWidth - 180) + 'px';
+  menu.style.top = Math.min(e.clientY || e.pageY || 100, window.innerHeight - 200) + 'px';
+  setTimeout(() => document.addEventListener('click', closeCtx, { once: true }), 50);
 }
 function closeCtx() { document.getElementById('ctxMenu').style.display = 'none'; ctxTarget = null; }
 
 window.ctxAction = async function(action) {
   if (!ctxTarget) return;
   const { msgId, userId, name, isHidden } = ctxTarget;
+  const myRole = currentProfile?.role || '';
   closeCtx();
-  if (action === 'hide') {
-    const reason = prompt('Reason for hiding this message:');
-    if (!reason) return;
-    await SB.from('chat_messages').update({ hidden: true }).eq('id', msgId);
-    await logChatAction('hide_msg', userId, msgId, reason, null);
-  } else if (action === 'unhide') {
-    await SB.from('chat_messages').update({ hidden: false }).eq('id', msgId);
-    await logChatAction('unhide_msg', userId, msgId, 'Staff unhid message', null);
-  } else if (action === 'mute') {
+
+  if (action === 'mute') {
     const reason = prompt('Reason for muting "' + name + '":');
     if (!reason) return;
     const h = parseInt(prompt('Mute duration in hours (0 = permanent):') || '0') || 0;
     const expires = h > 0 ? new Date(Date.now() + h * 3600000).toISOString() : null;
     await SB.from('chat_mutes').upsert({ user_id: userId, muted_by: currentUser.id, reason, expires_at: expires }, { onConflict: 'user_id' });
     await logChatAction('mute', userId, null, reason, h || null);
+    // Notify owner + admin
+    await notifyStaff('mute', name, reason, myRole);
     showSendError('✓ ' + name + ' muted' + (h ? ' for ' + h + 'h' : ' permanently') + '.');
+
+  } else if (action === 'hide') {
+    const reason = prompt('Reason for hiding this message:');
+    if (!reason) return;
+    await SB.from('chat_messages').update({ hidden: true }).eq('id', msgId);
+    await logChatAction('hide_msg', userId, msgId, reason, null);
+    if (myRole !== 'owner') await notifyStaff('hide', name, reason, myRole);
+    showSendError('✓ Message hidden.');
+
+  } else if (action === 'unhide') {
+    await SB.from('chat_messages').update({ hidden: false }).eq('id', msgId);
+    await logChatAction('unhide_msg', userId, msgId, 'Unhidden by staff', null);
+
   } else if (action === 'kick') {
     const reason = prompt('Reason for kicking "' + name + '":');
     if (!reason) return;
     try { await SB.from('chat_kicks').insert({ user_id: userId, kicked_by: currentUser.id, reason }); } catch(e) {}
     await logChatAction('kick', userId, null, reason, null);
     await SB.channel('chat-moderation').send({ type: 'broadcast', event: 'kick', payload: { user_id: userId } });
-    showSendError('✓ Kick logged for ' + name + '.');
+    if (myRole !== 'owner') await notifyStaff('kick', name, reason, myRole);
+    showSendError('✓ ' + name + ' kicked.');
+
+  } else if (action === 'ban_chat') {
+    const reason = prompt('Reason for banning "' + name + '" from chat:');
+    if (!reason) return;
+    // Permanent mute = chat ban
+    await SB.from('chat_mutes').upsert({ user_id: userId, muted_by: currentUser.id, reason, expires_at: null }, { onConflict: 'user_id' });
+    await logChatAction('ban_chat', userId, null, reason, null);
+    await SB.channel('chat-moderation').send({ type: 'broadcast', event: 'kick', payload: { user_id: userId } });
+    showSendError('✓ ' + name + ' banned from chat.');
+
+  } else if (action === 'ban_site') {
+    const reason = prompt('Reason for SITE BAN on "' + name + '":');
+    if (!reason) return;
+    const dur = prompt('Duration: 1d, 7d, 30d, 90d, or "forever"');
+    if (!dur) return;
+    let expires = null;
+    if (dur !== 'forever') { const d = parseInt(dur); if (!isNaN(d)) expires = new Date(Date.now() + d * 86400000).toISOString(); }
+    try { await SB.from('site_bans').insert({ user_id: userId, banned_by: currentUser.id, reason, expires_at: expires }); } catch(e) {}
+    await SB.from('profiles').update({ banned: true, is_banned: true }).eq('user_id', userId);
+    await logChatAction('ban_site', userId, null, reason, null);
+    await SB.channel('chat-moderation').send({ type: 'broadcast', event: 'kick', payload: { user_id: userId } });
+    showSendError('✓ ' + name + ' banned from site.');
+
+  } else if (action === 'delete') {
+    if (!confirm('Delete this message permanently?')) return;
+    await SB.from('chat_messages').delete().eq('id', msgId);
+    const el = document.querySelector('.msg[data-id="' + msgId + '"]');
+    if (el) el.remove();
+    await logChatAction('delete_msg', userId, msgId, 'Deleted by owner', null);
+    showSendError('✓ Message deleted.');
   }
 };
+
+// Notify owner/admin of mod actions
+async function notifyStaff(action, targetName, reason, performedByRole) {
+  const actionLabels = { mute: '🔇 Muted', hide: '🙈 Hid message from', kick: '👢 Kicked' };
+  const label = actionLabels[action] || action;
+  const myName = currentProfile?.display_name || currentProfile?.username || 'Staff';
+  try {
+    // Get owner + admin user IDs
+    const roles = performedByRole === 'admin' ? ['owner','co-owner'] : ['owner','co-owner','admin'];
+    const { data: staff } = await SB.from('profiles').select('user_id').in('role', roles);
+    if (!staff) return;
+    for (const s of staff) {
+      if (s.user_id === currentUser.id) continue; // Don't notify yourself
+      await SB.from('notifications').insert({
+        recipient_id: s.user_id,
+        actor_id: currentUser.id,
+        notif_type: 'chat_moderation',
+        metadata: {
+          title: '🛡️ Chat Moderation',
+          body: myName + ' (' + performedByRole + ') ' + label + ' ' + targetName + ': ' + reason,
+          link: 'owner-monitor.html'
+        }
+      });
+    }
+  } catch(e) { console.warn('Notify staff:', e); }
+}
 
 async function logChatAction(action, targetUserId, messageId, reason, durationHours) {
   const role = currentProfile?.role || 'mod';
