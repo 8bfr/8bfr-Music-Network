@@ -1018,5 +1018,281 @@ window.sendTip=async function(){var amount=parseInt(document.getElementById('tip
 document.getElementById('tipModal').addEventListener('click',function(e){if(e.target===this)closeTipModal();});
 })();
 </script>
+  <!-- ═══════════════════════════════════════════════════════
+     PROFILE PATCH — Paste this BEFORE </body> in profile.html
+     
+     Fixes:
+     1. Music tab shows for owner/co-owner (not just artist roles)
+     2. Adds badge & role editor to edit panel
+     3. Save function includes badges and role
+     ═══════════════════════════════════════════════════════ -->
+<script>
+(function(){
+  // ═══ FIX 1: Show Music tab for owner/co-owner ═══
+  // Override switchProfileTab to handle music for all staff
+  var origSwitch = window.switchProfileTab;
+  window.switchProfileTab = function(tab) {
+    // Force music section to exist for owner/co-owner
+    var ms = document.getElementById('musicSection');
+    if (tab === 'music' && !ms) {
+      // Create music section if it doesn't exist
+      var tc = document.getElementById('tabContent');
+      if (tc) {
+        var section = document.createElement('div');
+        section.id = 'musicSection';
+        section.style.display = 'none';
+        section.innerHTML = buildMusicSection();
+        tc.parentNode.insertBefore(section, tc.nextSibling);
+      }
+    }
+    if (origSwitch) origSwitch(tab);
+  };
+
+  // Wait for profile to render, then inject missing Music tab + badge editor
+  var patchInterval = setInterval(function() {
+    var tabs = document.querySelector('.profile-tabs');
+    if (!tabs) return;
+    clearInterval(patchInterval);
+
+    // Check if Music tab is missing (owner/co-owner without music role badges)
+    var hasMusic = tabs.querySelector('[data-tab="music"]');
+    if (!hasMusic) {
+      // Check if user is owner/co-owner
+      var roleEl = document.querySelector('.profile-header-inner');
+      var isOwnerOrCoOwner = false;
+      try {
+        if (window._8bfr && (window._8bfr.isOwner || window._8bfr.isCoOwner)) isOwnerOrCoOwner = true;
+      } catch(e) {}
+      // Also check from page content
+      var roleText = document.querySelector('.profile-header-inner')?.textContent || '';
+      if (roleText.includes('OWNER') || roleText.includes('CO-OWNER')) isOwnerOrCoOwner = true;
+
+      if (isOwnerOrCoOwner) {
+        var musicBtn = document.createElement('button');
+        musicBtn.className = 'profile-tab';
+        musicBtn.dataset.tab = 'music';
+        musicBtn.textContent = '🎵 Music';
+        musicBtn.onclick = function() { window.switchProfileTab('music'); };
+        tabs.appendChild(musicBtn);
+
+        // Create music section if missing
+        if (!document.getElementById('musicSection')) {
+          var tc = document.getElementById('tabContent');
+          if (tc) {
+            var section = document.createElement('div');
+            section.id = 'musicSection';
+            section.style.display = 'none';
+            section.innerHTML = buildMusicSection();
+            tc.parentNode.insertBefore(section, tc.nextSibling);
+          }
+        }
+      }
+    }
+
+    // ═══ FIX 2: Inject Badge & Role Editor into Edit Panel ═══
+    var editPanel = document.getElementById('editPanel');
+    if (!editPanel) return; // Not own profile
+
+    // Find the PayPal field or the save button as anchor point
+    var paypalGroup = editPanel.querySelector('#ePP');
+    var saveBtn = editPanel.querySelector('[onclick="saveProfile()"]');
+    var anchor = paypalGroup ? paypalGroup.closest('.form-group') : (saveBtn ? saveBtn.parentElement : null);
+    if (!anchor) return;
+
+    // Don't inject twice
+    if (document.getElementById('badgeRoleEditor')) return;
+
+    var editor = document.createElement('div');
+    editor.id = 'badgeRoleEditor';
+    editor.innerHTML = 
+      '<div style="border-top:1px solid rgba(124,58,237,0.2);padding-top:1rem;margin:.75rem 0;">' +
+      '<div style="font-size:.85rem;font-weight:700;color:#a855f7;margin-bottom:.75rem;">🏷️ My Badges & Role</div>' +
+      
+      // Role selector
+      '<div class="form-group"><label>Primary Role</label><select class="form-input" id="eRole"></select>' +
+      '<div class="hint">Staff roles (owner/co-owner/admin) can only be changed in Owner Panel.</div></div>' +
+      
+      // Badge grid
+      '<div class="form-group"><label>Badges (tap to toggle)</label>' +
+      '<div id="eBadgesGrid" style="display:flex;flex-wrap:wrap;gap:.25rem;margin-bottom:.5rem;"></div>' +
+      '<div style="display:flex;gap:.4rem;margin-top:.5rem;">' +
+      '<input class="form-input form-input-sm" id="eCustomBadge" placeholder="Custom badge name" style="flex:1;">' +
+      '<button class="btn btn-sm btn-ghost" type="button" onclick="window._addOwnBadge()">+ Add</button>' +
+      '</div></div></div>';
+
+    anchor.parentNode.insertBefore(editor, anchor);
+
+    // Populate role selector
+    var allRoles = ['fan','artist','beatmaker','producer','songwriter','dj','singer','rapper','engineer','dancer','videographer','photographer','manager','label','promoter','journalist','educator','influencer','designer','author','blogger','community_leader','mentor','developer','streamer','gamer','filmmaker','podcaster','musician','student','brand_ambassador'];
+    var roleSelect = document.getElementById('eRole');
+    if (roleSelect) {
+      roleSelect.innerHTML = allRoles.map(function(r) {
+        return '<option value="' + r + '">' + r + '</option>';
+      }).join('');
+      // Try to get current role from the page
+      try {
+        var profileScript = document.querySelector('script:not([src])');
+        // Use _8bfr global if available
+        if (window._8bfr && window._8bfr.role) {
+          roleSelect.value = window._8bfr.role;
+        }
+      } catch(e) {}
+    }
+
+    // Initialize badge editor
+    initPatchBadgeEditor();
+  }, 500);
+
+  // ═══ BADGE EDITOR LOGIC ═══
+  var BADGE_LIST = ['artist','beatmaker','producer','songwriter','dj','singer','rapper','engineer','dancer','videographer','photographer','manager','label','promoter','journalist','educator','influencer','designer','author','blogger','community_leader','mentor','developer','streamer','gamer','filmmaker','podcaster','musician','student','brand_ambassador','supporter','donor','contest_winner','beta_tester','founder','8bfrfan','fyp','trending','top_creator','vip_member','early_supporter','fan','verified','parent','collector','mentor'];
+  var patchBadges = [];
+
+  function initPatchBadgeEditor() {
+    // Get current badges from the profile display
+    var badgeEls = document.querySelectorAll('.badges-compact .badge');
+    patchBadges = [];
+    badgeEls.forEach(function(el) {
+      var text = el.textContent.trim();
+      // Extract badge name (after emoji)
+      var parts = text.split(' ');
+      if (parts.length > 1) patchBadges.push(parts.slice(1).join(' ').trim());
+      else patchBadges.push(parts[0].trim());
+    });
+
+    // Also try from _8bfr
+    if (window._8bfr && window._8bfr.badges && window._8bfr.badges.length) {
+      patchBadges = window._8bfr.badges.slice();
+    }
+
+    // Set role selector
+    var roleSelect = document.getElementById('eRole');
+    if (roleSelect && window._8bfr && window._8bfr.role) {
+      // Add staff role if current user has one (read-only display)
+      var staffRoles = ['owner','co-owner','admin','mod','g7'];
+      if (staffRoles.indexOf(window._8bfr.role) !== -1) {
+        var opt = document.createElement('option');
+        opt.value = window._8bfr.role;
+        opt.textContent = window._8bfr.role + ' (staff)';
+        opt.disabled = true;
+        opt.selected = true;
+        roleSelect.prepend(opt);
+      } else {
+        roleSelect.value = window._8bfr.role;
+      }
+    }
+
+    renderPatchBadges();
+  }
+
+  function renderPatchBadges() {
+    var grid = document.getElementById('eBadgesGrid');
+    if (!grid) return;
+    // Deduplicate BADGE_LIST
+    var seen = {};
+    var uniqueBadges = BADGE_LIST.filter(function(b) { if (seen[b]) return false; seen[b] = true; return true; });
+    
+    grid.innerHTML = uniqueBadges.map(function(b) {
+      var active = patchBadges.indexOf(b) !== -1;
+      return '<button type="button" class="badge-editor-btn' + (active ? ' active' : '') + '" onclick="window._toggleOwnBadge(\'' + b + '\')">' + (active ? '✓ ' : '') + b + '</button>';
+    }).join('');
+    // Show custom badges not in standard list
+    patchBadges.forEach(function(b) {
+      if (!seen[b]) {
+        grid.innerHTML += '<button type="button" class="badge-editor-btn active" onclick="window._toggleOwnBadge(\'' + b + '\')">✓ ' + b + ' (custom)</button>';
+      }
+    });
+  }
+
+  window._toggleOwnBadge = function(badge) {
+    var idx = patchBadges.indexOf(badge);
+    if (idx === -1) patchBadges.push(badge);
+    else patchBadges.splice(idx, 1);
+    renderPatchBadges();
+  };
+
+  window._addOwnBadge = function() {
+    var inp = document.getElementById('eCustomBadge');
+    var v = (inp.value || '').trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+    if (!v) return;
+    if (patchBadges.indexOf(v) === -1) patchBadges.push(v);
+    inp.value = '';
+    renderPatchBadges();
+  };
+
+  // ═══ FIX 3: Override saveProfile to include badges and role ═══
+  var origSave = window.saveProfile;
+  window.saveProfile = async function() {
+    // Inject badges and role into the update before the original save runs
+    // We hook into the save by overriding it
+    if (!window._8bfr || !window._8bfr.userId) {
+      if (origSave) return origSave();
+      return;
+    }
+
+    var n = document.getElementById('saveN');
+    var un = document.getElementById('eUN').value.trim();
+    var dn = document.getElementById('eDN').value.trim();
+    var bio = document.getElementById('eBio').value;
+    var av = document.getElementById('eAv').value.trim();
+    var cov = document.getElementById('eCov').value.trim();
+    var pp = document.getElementById('ePP');
+
+    if (!un) { n.textContent = 'Username required'; n.style.color = '#ef4444'; return; }
+    n.textContent = 'Saving…'; n.style.color = '#a855f7';
+
+    try {
+      var up = { username: un, display_name: dn, bio: bio, avatar_url: av || null, cover_url: cov || null };
+
+      // Social links
+      var sKeys = ['spotify','apple_music','amazon_music','tidal','deezer','soundcloud','bandlab','audiomack','beatstars','pandora','youtube','youtube_music','instagram','tiktok','twitter','facebook','threads','snapchat','discord','twitch','website'];
+      var nSL = {};
+      sKeys.forEach(function(k) { var el = document.getElementById('sl_' + k); if (el && el.value.trim()) nSL[k] = el.value.trim(); });
+      up.social_links = nSL;
+      if (pp) up.paypal_email = pp.value.trim() || null;
+
+      // ★ NEW: Save role (non-staff only)
+      var roleSelect = document.getElementById('eRole');
+      if (roleSelect && roleSelect.value) {
+        var staffRoles = ['owner', 'co-owner', 'admin', 'mod', 'g7'];
+        if (staffRoles.indexOf(roleSelect.value) === -1) {
+          up.role = roleSelect.value;
+        }
+      }
+
+      // ★ NEW: Save badges
+      if (patchBadges && patchBadges.length > 0) {
+        up.badges = patchBadges;
+      }
+
+      var r = await db.from('profiles').update(up).eq('user_id', window._8bfr.userId);
+      if (r.error) throw r.error;
+      n.textContent = 'Saved!'; n.style.color = '#4ade80';
+      setTimeout(function() { n.textContent = ''; location.reload(); }, 1200);
+    } catch(e) { n.textContent = e.message; n.style.color = '#ef4444'; }
+  };
+
+  // ═══ MUSIC SECTION BUILDER ═══
+  function buildMusicSection() {
+    return '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">' +
+      '<h2 style="margin:0;color:#a855f7;">🎵 My Songs</h2>' +
+      '<button class="btn btn-sm" onclick="toggleUF()">+ Upload</button></div>' +
+      '<div id="uploadForm" style="display:none;background:rgba(0,0,0,0.3);border-radius:10px;padding:1.25rem;margin-bottom:1.25rem;border:1px solid rgba(124,58,237,0.25);">' +
+      '<div class="form-group"><label>Title *</label><input class="form-input" id="uT"></div>' +
+      '<div class="form-group"><label>Artist</label><input class="form-input" id="uA"></div>' +
+      '<div class="form-group"><label>Audio *</label><div class="upload-zone" onclick="document.getElementById(\'uAF\').click()"><input type="file" id="uAF" accept=".mp3,audio/mpeg"><div id="uAT">🎵 Select audio</div></div></div>' +
+      '<div class="form-group"><label>Cover</label><div class="upload-zone" onclick="document.getElementById(\'uCF\').click()"><input type="file" id="uCF" accept="image/*"><div id="uCT">🖼️ Select cover</div></div></div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">' +
+      '<div class="form-group"><label>Price</label><input class="form-input" type="number" id="uPr" placeholder="0.99" min="0" step="0.01"></div>' +
+      '<div class="form-group"><label>Explicit</label><select class="form-input" id="uEx"><option value="false">No</option><option value="true">Yes</option></select></div></div>' +
+      '<div style="display:flex;gap:0.75rem;">' +
+      '<button class="btn btn-green" onclick="uploadSong()" id="uBtn">⬆️ Upload</button>' +
+      '<button class="btn btn-ghost" onclick="toggleUF()">Cancel</button></div>' +
+      '<div id="uN" style="margin-top:0.75rem;font-size:0.85rem;"></div></div>' +
+      '<div id="songList"><div class="spinner"></div></div>';
+  }
+
+})();
+</script>
+
 </body>
 </html>
