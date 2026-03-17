@@ -332,4 +332,53 @@ function ago(d){if(!d)return'';const s=Math.floor((Date.now()-new Date(d))/1000)
 function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 </script>
+  <!-- Paste BEFORE </body> in group.html -->
+<script id="GROUP_DELETE_PATCH">
+(function(){
+  var origOpenGroup = window.openGroup;
+  if (!origOpenGroup) return;
+  
+  window.openGroup = async function(id) {
+    await origOpenGroup(id);
+    
+    if (!window.currentUser || !window.viewingGroup) return;
+    var isGroupOwner = window.viewingGroup.owner_id === window.currentUser.id;
+    var isStaff = false;
+    try { if (window._8bfr && (window._8bfr.isOwner || window._8bfr.isAdmin)) isStaff = true; } catch(e) {}
+    
+    if (!isGroupOwner && !isStaff) return;
+    if (document.getElementById('groupAdminActions')) return;
+    
+    var header = document.querySelector('.gd-header');
+    if (!header) return;
+    
+    var actions = document.createElement('div');
+    actions.id = 'groupAdminActions';
+    actions.style.cssText = 'display:flex;gap:.4rem;margin-top:.75rem;padding-top:.75rem;border-top:1px solid rgba(124,58,237,.15);';
+    actions.innerHTML = 
+      '<button class="btn btn-ghost btn-sm" onclick="editGroupInfo(\'' + id + '\')">✏️ Edit</button>' +
+      '<button class="btn btn-sm" style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#fca5a5;" onclick="deleteGroup(\'' + id + '\')">🗑️ Delete Group</button>';
+    header.appendChild(actions);
+  };
+  
+  window.editGroupInfo = function(id) {
+    var name = prompt('New group name:', window.viewingGroup?.name || '');
+    if (!name) return;
+    var desc = prompt('New description:', window.viewingGroup?.description || '');
+    var db = window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
+    db.from('groups').update({ name: name, description: desc || null }).eq('id', id).then(function(r) {
+      if (r.error) alert('Error: ' + r.error.message);
+      else { alert('✅ Updated!'); location.reload(); }
+    });
+  };
+  
+  window.deleteGroup = async function(id) {
+    if (!confirm('Delete this group and all its posts? This cannot be undone.')) return;
+    var db = window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
+    var { error } = await db.from('groups').delete().eq('id', id);
+    if (error) alert('Error: ' + error.message);
+    else { alert('🗑️ Group deleted.'); location.href = 'group.html'; }
+  };
+})();
+</script>
 </body></html>
