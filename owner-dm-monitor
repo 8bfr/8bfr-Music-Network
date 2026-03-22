@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>👁️ DM Monitor — Owner</title>
+<link rel="icon" href="assets/images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--primary:#7c3aed;--card:#0c0618;--text:#eae6ff;--dim:rgba(168,85,247,.7);--border:rgba(124,58,237,.35);--green:#22c55e;--danger:#ef4444;--yellow:#eab308;--blue:#3b82f6;--text-dim:rgba(234,230,255,.5);}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Work Sans',sans-serif;background:linear-gradient(#0b0014,#000);color:var(--text);min-height:100vh;padding-bottom:2rem;}
+.header{background:rgba(15,0,30,.95);border-bottom:2px solid var(--danger);padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;}
+.header h1{font-family:'Bebas Neue',cursive;font-size:1.5rem;color:var(--danger);}
+.container{max-width:800px;margin:0 auto;padding:1.5rem;}
+
+/* Stealth mode indicator */
+.stealth-bar{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:10px;padding:.6rem 1rem;display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;font-size:.82rem;}
+.stealth-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:.4rem;}
+.stealth-on{background:var(--green);box-shadow:0 0 6px var(--green);}
+.stealth-off{background:var(--danger);}
+
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:1rem;}
+.tab{flex:1;text-align:center;padding:.65rem .5rem;font-weight:600;font-size:.82rem;cursor:pointer;color:var(--text-dim);border:none;border-bottom:2px solid transparent;background:none;transition:all .2s;}
+.tab.active{color:var(--danger);border-bottom-color:var(--danger);}
+
+.panel{display:none;}
+.panel.active{display:block;}
+
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:.75rem;margin-bottom:1.25rem;}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:.75rem;text-align:center;}
+.stat h4{font-size:1.2rem;color:var(--primary);font-weight:800;}
+.stat p{font-size:.72rem;color:var(--text-dim);margin-top:.15rem;}
+
+/* Filters */
+.filters{display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap;}
+.filter-btn{padding:.35rem .7rem;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--dim);transition:all .2s;}
+.filter-btn.active{background:var(--primary);color:white;border-color:var(--primary);}
+.search-input{flex:1;min-width:150px;padding:.4rem .75rem;background:rgba(12,6,24,.8);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.85rem;}
+.search-input:focus{outline:none;border-color:var(--primary);}
+
+/* Message rows */
+.msg-row{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;margin-bottom:.6rem;transition:all .2s;}
+.msg-row:hover{border-color:rgba(124,58,237,.5);}
+.msg-row.flagged{border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.03);}
+.msg-row.teen{border-left:3px solid var(--blue);}
+.msg-row.kid{border-left:3px solid var(--yellow);}
+.msg-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem;flex-wrap:wrap;gap:.3rem;}
+.msg-users{font-size:.82rem;font-weight:600;}
+.msg-users .arrow{color:var(--dim);margin:0 .3rem;}
+.msg-time{font-size:.7rem;color:var(--text-dim);}
+.msg-content{font-size:.88rem;color:rgba(234,230,255,.8);line-height:1.5;padding:.3rem 0;}
+.msg-tags{display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.3rem;}
+.tag{font-size:.68rem;padding:.12rem .4rem;border-radius:4px;font-weight:600;}
+.tag-teen{background:rgba(59,130,246,.15);color:var(--blue);border:1px solid rgba(59,130,246,.3);}
+.tag-kid{background:rgba(234,179,8,.15);color:var(--yellow);border:1px solid rgba(234,179,8,.3);}
+.tag-hidden{background:rgba(239,68,68,.15);color:var(--danger);border:1px solid rgba(239,68,68,.3);}
+.tag-room{background:rgba(124,58,237,.15);color:var(--dim);border:1px solid rgba(124,58,237,.3);}
+.btn-action{padding:.2rem .5rem;border-radius:5px;font-size:.72rem;font-weight:600;cursor:pointer;border:none;transition:all .2s;}
+.btn-hide{background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.3);}
+.btn-delete{background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3);}
+.btn-view{background:rgba(124,58,237,.15);color:#a855f7;border:1px solid rgba(124,58,237,.3);}
+
+.empty{text-align:center;padding:2rem;color:rgba(168,85,247,.4);font-size:.88rem;}
+.spinner{width:24px;height:24px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;margin:1.5rem auto;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.load-more{display:block;width:100%;padding:.6rem;border-radius:8px;background:rgba(124,58,237,.1);border:1px solid var(--border);color:var(--dim);font-weight:600;cursor:pointer;font-size:.85rem;margin-top:.75rem;text-align:center;}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>👁️ DM &amp; Chat Monitor</h1>
+<div style="display:flex;gap:1rem;align-items:center;">
+<a href="owner-panel.html" style="color:var(--text-dim);text-decoration:none;font-size:.85rem;">← Panel</a>
+<a href="owner-monitor.html" style="color:var(--text-dim);text-decoration:none;font-size:.85rem;">Site Monitor</a>
+</div>
+</div>
+
+<div class="container">
+<!-- Stealth Mode -->
+<div class="stealth-bar">
+<div>
+<span class="stealth-dot stealth-on" id="stealthDot"></span>
+<span id="stealthLabel">Anonymous Mode: ON</span>
+</div>
+<button class="btn-action btn-view" onclick="toggleStealth()" id="stealthBtn">Switch to Visible</button>
+</div>
+
+<!-- Stats -->
+<div class="stats">
+<div class="stat"><h4 id="statTotalDMs">—</h4><p>Total DMs</p></div>
+<div class="stat"><h4 id="statTodayDMs">—</h4><p>Today's DMs</p></div>
+<div class="stat"><h4 id="statTeenDMs">—</h4><p>Teen DMs</p></div>
+<div class="stat"><h4 id="statHidden">—</h4><p>Hidden</p></div>
+<div class="stat"><h4 id="statChatMsgs">—</h4><p>Chat Msgs</p></div>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+<button class="tab active" onclick="switchTab('dms',this)">💬 Direct Messages</button>
+<button class="tab" onclick="switchTab('chat',this)">🌐 Community Chat</button>
+<button class="tab" onclick="switchTab('kidzone',this)">🧸 KidZone Chat</button>
+</div>
+
+<!-- DMs Panel -->
+<div class="panel active" id="panel-dms">
+<div class="filters">
+<input class="search-input" id="dmSearch" placeholder="Search messages..." oninput="filterDMs()">
+<button class="filter-btn active" onclick="setDMFilter('all',this)">All</button>
+<button class="filter-btn" onclick="setDMFilter('teen',this)">🔵 Teen</button>
+<button class="filter-btn" onclick="setDMFilter('hidden',this)">🚫 Hidden</button>
+</div>
+<div id="dmList"><div class="spinner"></div></div>
+<button class="load-more" id="dmLoadMore" onclick="loadMoreDMs()" style="display:none;">Load more...</button>
+</div>
+
+<!-- Chat Panel -->
+<div class="panel" id="panel-chat">
+<div class="filters">
+<input class="search-input" id="chatSearch" placeholder="Search chat..." oninput="filterChat()">
+<button class="filter-btn active" onclick="setChatFilter('all',this)">All Rooms</button>
+<button class="filter-btn" onclick="setChatFilter('general',this)">General</button>
+<button class="filter-btn" onclick="setChatFilter('music',this)">Music</button>
+<button class="filter-btn" onclick="setChatFilter('beats',this)">Beats</button>
+</div>
+<div id="chatList"><div class="spinner"></div></div>
+<button class="load-more" id="chatLoadMore" onclick="loadMoreChat()" style="display:none;">Load more...</button>
+</div>
+
+<!-- KidZone Chat Panel -->
+<div class="panel" id="panel-kidzone">
+<div id="kzChatList"><div class="spinner"></div></div>
+</div>
+</div>
+
+<script src="scripts.js" defer></script>
+<script>
+var SUPABASE_URL='https://novbuvwpjnxwwvdekjhr.supabase.co';
+var SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+var db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+var OWNER_ID='cb556180-f032-4b21-9470-1d786f2664ab';
+var stealthMode=true;
+var dmOffset=0,chatOffset=0;
+var allDMs=[],allChat=[];
+var dmFilter='all',chatFilter='all';
+
+(async function init(){
+  var sess=await db.auth.getSession();
+  if(!sess.data.session||sess.data.session.user.id!==OWNER_ID){location.href='feed.html';return;}
+
+  // Log monitoring session
+  await db.from('owner_monitor_log').insert({owner_id:OWNER_ID,action:'opened_dm_monitor',details:{stealth:true}}).catch(function(){});
+
+  loadStats();
+  loadDMs();
+  loadChat();
+  loadKZChat();
+})();
+
+async function loadStats(){
+  try{
+    var total=await db.from('direct_messages').select('id',{count:'exact',head:true});
+    document.getElementById('statTotalDMs').textContent=total.count||0;
+
+    var today=new Date();today.setHours(0,0,0,0);
+    var todayDMs=await db.from('direct_messages').select('id',{count:'exact',head:true}).gte('created_at',today.toISOString());
+    document.getElementById('statTodayDMs').textContent=todayDMs.count||0;
+
+    var hidden=await db.from('direct_messages').select('id',{count:'exact',head:true}).eq('is_hidden',true);
+    document.getElementById('statHidden').textContent=hidden.count||0;
+
+    // Teen DMs — messages where sender or receiver is a teen
+    var teenProfiles=await db.from('profiles').select('id').eq('age_tier','teen');
+    var teenIds=(teenProfiles.data||[]).map(function(p){return p.id;});
+    document.getElementById('statTeenDMs').textContent=teenIds.length>0?'~'+teenIds.length:'0';
+
+    var chatCount=await db.from('chat_messages').select('id',{count:'exact',head:true});
+    document.getElementById('statChatMsgs').textContent=chatCount.count||0;
+  }catch(e){console.warn('Stats error:',e);}
+}
+
+async function loadDMs(){
+  var res=await db.from('direct_messages')
+    .select('*,sender:profiles!direct_messages_sender_id_fkey(display_name,username,avatar_url,role,age_tier),receiver:profiles!direct_messages_receiver_id_fkey(display_name,username,avatar_url,role,age_tier)')
+    .order('created_at',{ascending:false})
+    .range(dmOffset,dmOffset+49);
+  allDMs=allDMs.concat(res.data||[]);
+  dmOffset+=50;
+  renderDMs();
+  if(res.data&&res.data.length>=50)document.getElementById('dmLoadMore').style.display='block';
+}
+
+function renderDMs(){
+  var search=(document.getElementById('dmSearch').value||'').toLowerCase();
+  var filtered=allDMs.filter(function(m){
+    if(dmFilter==='teen'){
+      var sTier=m.sender?m.sender.age_tier:'';
+      var rTier=m.receiver?m.receiver.age_tier:'';
+      if(sTier!=='teen'&&rTier!=='teen')return false;
+    }
+    if(dmFilter==='hidden'&&!m.is_hidden)return false;
+    if(search){
+      var hay=(m.content||'')+' '+(m.sender?m.sender.display_name:'')+' '+(m.receiver?m.receiver.display_name:'');
+      if(hay.toLowerCase().indexOf(search)===-1)return false;
+    }
+    return true;
+  });
+
+  if(!filtered.length){document.getElementById('dmList').innerHTML='<div class="empty">No messages found.</div>';return;}
+
+  var html='';
+  filtered.forEach(function(m){
+    var sName=m.sender?m.sender.display_name:'Unknown';
+    var rName=m.receiver?m.receiver.display_name:'Unknown';
+    var sTier=m.sender?m.sender.age_tier:'adult';
+    var rTier=m.receiver?m.receiver.age_tier:'adult';
+    var rowClass='msg-row';
+    if(sTier==='teen'||rTier==='teen')rowClass+=' teen';
+    if(sTier==='kid'||rTier==='kid')rowClass+=' kid';
+    if(m.is_hidden)rowClass+=' flagged';
+
+    var tags='';
+    if(sTier==='teen')tags+='<span class="tag tag-teen">🔵 Teen sender</span>';
+    if(rTier==='teen')tags+='<span class="tag tag-teen">🔵 Teen receiver</span>';
+    if(sTier==='kid')tags+='<span class="tag tag-kid">🧸 Kid sender</span>';
+    if(m.is_hidden)tags+='<span class="tag tag-hidden">Hidden</span>';
+
+    html+='<div class="'+rowClass+'">'+
+      '<div class="msg-header">'+
+        '<div class="msg-users">'+sName+'<span class="arrow">→</span>'+rName+'</div>'+
+        '<div class="msg-time">'+new Date(m.created_at).toLocaleString()+'</div>'+
+      '</div>'+
+      '<div class="msg-content">'+escHtml(m.content)+'</div>'+
+      '<div class="msg-tags">'+tags+
+        '<button class="btn-action btn-hide" onclick="toggleHideDM(\''+m.id+'\','+(!m.is_hidden)+')">'+(m.is_hidden?'Unhide':'Hide')+'</button>'+
+        '<button class="btn-action btn-delete" onclick="deleteDM(\''+m.id+'\')">Delete</button>'+
+        '<button class="btn-action btn-view" onclick="viewThread(\''+m.sender_id+'\',\''+m.receiver_id+'\')">Full Thread</button>'+
+      '</div>'+
+    '</div>';
+  });
+  document.getElementById('dmList').innerHTML=html;
+}
+
+async function loadChat(){
+  var res=await db.from('chat_messages')
+    .select('*,profiles(display_name,username,avatar_url,role,age_tier)')
+    .order('created_at',{ascending:false})
+    .range(chatOffset,chatOffset+49);
+  allChat=allChat.concat(res.data||[]);
+  chatOffset+=50;
+  renderChat();
+  if(res.data&&res.data.length>=50)document.getElementById('chatLoadMore').style.display='block';
+}
+
+function renderChat(){
+  var search=(document.getElementById('chatSearch').value||'').toLowerCase();
+  var filtered=allChat.filter(function(m){
+    if(chatFilter!=='all'&&m.room!==chatFilter)return false;
+    if(search){
+      var hay=(m.content||'')+' '+(m.profiles?m.profiles.display_name:'');
+      if(hay.toLowerCase().indexOf(search)===-1)return false;
+    }
+    return true;
+  });
+
+  if(!filtered.length){document.getElementById('chatList').innerHTML='<div class="empty">No chat messages found.</div>';return;}
+
+  var html='';
+  filtered.forEach(function(m){
+    var name=m.profiles?m.profiles.display_name:'Unknown';
+    var tier=m.profiles?m.profiles.age_tier:'adult';
+    var rowClass='msg-row';
+    if(tier==='teen')rowClass+=' teen';
+    if(m.is_hidden)rowClass+=' flagged';
+
+    var tags='<span class="tag tag-room">#'+(m.room||'general')+'</span>';
+    if(tier==='teen')tags+='<span class="tag tag-teen">🔵 Teen</span>';
+    if(m.is_hidden)tags+='<span class="tag tag-hidden">Hidden</span>';
+
+    html+='<div class="'+rowClass+'">'+
+      '<div class="msg-header">'+
+        '<div class="msg-users">'+name+'</div>'+
+        '<div class="msg-time">'+new Date(m.created_at).toLocaleString()+'</div>'+
+      '</div>'+
+      '<div class="msg-content">'+escHtml(m.content)+'</div>'+
+      '<div class="msg-tags">'+tags+
+        '<button class="btn-action btn-hide" onclick="toggleHideChat(\''+m.id+'\','+(!m.is_hidden)+')">'+(m.is_hidden?'Unhide':'Hide')+'</button>'+
+        '<button class="btn-action btn-delete" onclick="deleteChat(\''+m.id+'\')">Delete</button>'+
+      '</div>'+
+    '</div>';
+  });
+  document.getElementById('chatList').innerHTML=html;
+}
+
+async function loadKZChat(){
+  // KidZone-specific chat if it exists
+  var res=await db.from('chat_messages')
+    .select('*,profiles(display_name,age_tier)')
+    .eq('room','kidzone')
+    .order('created_at',{ascending:false})
+    .limit(50);
+  var msgs=res.data||[];
+  if(!msgs.length){
+    document.getElementById('kzChatList').innerHTML='<div class="empty">No KidZone chat messages yet.</div>';
+    return;
+  }
+  var html='';
+  msgs.forEach(function(m){
+    var name=m.profiles?m.profiles.display_name:'Unknown';
+    html+='<div class="msg-row kid">'+
+      '<div class="msg-header"><div class="msg-users">'+name+'</div><div class="msg-time">'+new Date(m.created_at).toLocaleString()+'</div></div>'+
+      '<div class="msg-content">'+escHtml(m.content)+'</div>'+
+      '<div class="msg-tags"><span class="tag tag-kid">🧸 KidZone</span>'+
+        '<button class="btn-action btn-hide" onclick="toggleHideChat(\''+m.id+'\','+(!m.is_hidden)+')">'+(m.is_hidden?'Show':'Hide')+'</button>'+
+        '<button class="btn-action btn-delete" onclick="deleteChat(\''+m.id+'\')">Delete</button>'+
+      '</div>'+
+    '</div>';
+  });
+  document.getElementById('kzChatList').innerHTML=html;
+}
+
+// Actions
+window.toggleHideDM=async function(id,hide){
+  await db.from('direct_messages').update({is_hidden:hide}).eq('id',id);
+  await db.from('owner_monitor_log').insert({owner_id:OWNER_ID,action:hide?'hid_dm':'unhid_dm',target_id:id});
+  var m=allDMs.find(function(x){return x.id===id;});if(m)m.is_hidden=hide;
+  renderDMs();loadStats();
+};
+
+window.deleteDM=async function(id){
+  if(!confirm('Permanently delete this DM?'))return;
+  await db.from('direct_messages').delete().eq('id',id);
+  await db.from('owner_monitor_log').insert({owner_id:OWNER_ID,action:'deleted_dm',target_id:id});
+  allDMs=allDMs.filter(function(x){return x.id!==id;});
+  renderDMs();loadStats();
+};
+
+window.toggleHideChat=async function(id,hide){
+  await db.from('chat_messages').update({is_hidden:hide}).eq('id',id);
+  var m=allChat.find(function(x){return x.id===id;});if(m)m.is_hidden=hide;
+  renderChat();
+};
+
+window.deleteChat=async function(id){
+  if(!confirm('Permanently delete this chat message?'))return;
+  await db.from('chat_messages').delete().eq('id',id);
+  allChat=allChat.filter(function(x){return x.id!==id;});
+  renderChat();loadStats();
+};
+
+window.viewThread=async function(uid1,uid2){
+  // Load full conversation between two users
+  var res=await db.from('direct_messages')
+    .select('*,sender:profiles!direct_messages_sender_id_fkey(display_name),receiver:profiles!direct_messages_receiver_id_fkey(display_name)')
+    .or('and(sender_id.eq.'+uid1+',receiver_id.eq.'+uid2+'),and(sender_id.eq.'+uid2+',receiver_id.eq.'+uid1+')')
+    .order('created_at',{ascending:true});
+  var msgs=res.data||[];
+  var html='<div style="margin-bottom:.75rem;"><button class="btn-action btn-view" onclick="renderDMs()">← Back to all DMs</button></div>';
+  if(!msgs.length){html+='<div class="empty">No messages in this thread.</div>';}
+  msgs.forEach(function(m){
+    var sName=m.sender?m.sender.display_name:'?';
+    html+='<div class="msg-row" style="border-left:3px solid var(--primary);">'+
+      '<div class="msg-header"><div class="msg-users"><strong>'+sName+'</strong></div><div class="msg-time">'+new Date(m.created_at).toLocaleString()+'</div></div>'+
+      '<div class="msg-content">'+escHtml(m.content)+'</div>'+
+    '</div>';
+  });
+  document.getElementById('dmList').innerHTML=html;
+};
+
+// Stealth
+window.toggleStealth=function(){
+  stealthMode=!stealthMode;
+  var dot=document.getElementById('stealthDot');
+  var label=document.getElementById('stealthLabel');
+  var btn=document.getElementById('stealthBtn');
+  if(stealthMode){dot.className='stealth-dot stealth-on';label.textContent='Anonymous Mode: ON';btn.textContent='Switch to Visible';}
+  else{dot.className='stealth-dot stealth-off';label.textContent='Anonymous Mode: OFF';btn.textContent='Switch to Anonymous';}
+  db.from('owner_monitor_log').insert({owner_id:OWNER_ID,action:'stealth_toggle',details:{stealth:stealthMode}}).catch(function(){});
+};
+
+// Filters
+window.setDMFilter=function(f,el){dmFilter=f;document.querySelectorAll('#panel-dms .filter-btn').forEach(function(b){b.classList.remove('active');});el.classList.add('active');renderDMs();};
+window.setChatFilter=function(f,el){chatFilter=f;document.querySelectorAll('#panel-chat .filter-btn').forEach(function(b){b.classList.remove('active');});el.classList.add('active');renderChat();};
+window.filterDMs=function(){renderDMs();};
+window.filterChat=function(){renderChat();};
+window.loadMoreDMs=function(){loadDMs();};
+window.loadMoreChat=function(){loadChat();};
+
+window.switchTab=function(name,el){
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
+  el.classList.add('active');
+  var panel=document.getElementById('panel-'+name);if(panel)panel.classList.add('active');
+};
+
+function escHtml(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+</script>
+
+<!-- Avatar toggle (safe — NO MutationObserver) -->
+<script>
+(function(){function updateVisibility(){var s=localStorage.getItem('showAvatarBubbles')!=='false';document.querySelectorAll('.avatar-bubble,.chat-bubble-float').forEach(function(e){e.style.display=s?'':'none';});}updateVisibility();})();
+</script>
+</body>
+</html>
