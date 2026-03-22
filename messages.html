@@ -30,8 +30,7 @@ body{font-family:'Work Sans',sans-serif;background:linear-gradient(#0b0014,#000)
 .btn-sm{padding:.35rem .7rem;border-radius:6px;border:none;cursor:pointer;font-size:.8rem;font-weight:600;transition:all .15s;}
 .btn-primary{background:var(--primary);color:#fff;}.btn-primary:hover{background:#6d28d9;}
 .btn-outline{background:rgba(124,58,237,.1);border:1px solid var(--border);color:var(--text);}.btn-outline:hover{background:rgba(124,58,237,.2);}
-.btn-success{background:rgba(34,197,94,.8);color:#fff;}.btn-success:hover{background:rgba(34,197,94,1);}
-.btn-danger{background:rgba(239,68,68,.8);color:#fff;}.btn-danger:hover{background:rgba(239,68,68,1);}
+.btn-success{background:rgba(34,197,94,.8);color:#fff;}.btn-danger{background:rgba(239,68,68,.8);color:#fff;}
 .status-badge{display:inline-block;font-size:.65rem;padding:.15rem .4rem;border-radius:4px;font-weight:600;text-transform:uppercase;}
 .status-pending{background:rgba(245,158,11,.2);color:#f59e0b;}
 .status-reviewed{background:rgba(59,130,246,.2);color:#3b82f6;}
@@ -52,23 +51,14 @@ body{font-family:'Work Sans',sans-serif;background:linear-gradient(#0b0014,#000)
   <h1>📬 Messages</h1>
   <span></span>
 </div>
-
 <div class="container">
   <div class="links-row">
-    <a href="dm.html" class="link-card">
-      <div class="icon">✉️</div>
-      <div class="label">Direct Messages</div>
-    </a>
-    <a href="chat.html" class="link-card">
-      <div class="icon">💬</div>
-      <div class="label">Community Chat</div>
-    </a>
+    <a href="dm.html" class="link-card"><div class="icon">✉️</div><div class="label">Direct Messages</div></a>
+    <a href="chat.html" class="link-card"><div class="icon">💬</div><div class="label">Community Chat</div></a>
   </div>
-
   <div class="tabs" id="tabs"></div>
   <div id="content"></div>
 </div>
-
 <script src="scripts.js" defer></script>
 <script>
 var db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
@@ -111,6 +101,10 @@ function loadTab(tab){
   else if(tab==='reports')loadReports();
 }
 
+// ★ FIXED: Notifications now show who accepted + link to profile
+var NOTIF_NAMES={follow:'New Follower',like:'Post Liked',comment:'New Comment',purchase:'New Purchase',system:'System Update',tip:'Coin Tip',reshare:'Post Reshared',friend_request:'Friend Request',friend_accepted:'Friend Accepted',verification:'Verification Update',badge:'New Badge',mention:'You were mentioned'};
+var NOTIF_ICONS={follow:'👤',like:'❤️',comment:'💬',purchase:'🛒',system:'📢',tip:'🪙',reshare:'🔁',friend_request:'🤝',friend_accepted:'🎉',verification:'✅',badge:'🏅',mention:'@'};
+
 async function loadNotifications(){
   var box=document.getElementById('content');
   box.innerHTML='<div style="text-align:center;padding:2rem;color:var(--dim);">Loading...</div>';
@@ -122,18 +116,33 @@ async function loadNotifications(){
       box.innerHTML='<div class="empty"><div>🔔</div><h3>No notifications yet</h3><p style="font-size:.85rem;color:var(--dim);">Follow alerts, tips, purchases, and system messages will appear here.</p></div>';
       return;
     }
-    var icons={follow:'👤',like:'❤️',comment:'💬',purchase:'🛒',system:'📢',tip:'🪙',reshare:'🔁',friend_request:'🤝',verification:'✅'};
     box.innerHTML=data.map(function(n){
-      var icon=icons[n.notif_type]||'🔔';
+      var icon=NOTIF_ICONS[n.notif_type]||'🔔';
       var unread=!n.is_read?' style="border-left:3px solid var(--primary);"':'';
-      return '<div class="card"'+unread+' onclick="markRead(\''+n.id+'\')">'+
-        '<div class="card-header"><div class="card-title">'+icon+' '+esc(n.notif_type||'Notification')+'</div><div class="card-time">'+timeAgo(n.created_at)+'</div></div>'+
+      
+      // ★ Build display title — show WHO for friend_accepted
+      var displayTitle=NOTIF_NAMES[n.notif_type]||n.notif_type;
+      if(n.notif_type==='friend_accepted'&&n.metadata&&n.metadata.from_name){
+        displayTitle=n.metadata.from_name+' accepted your friend request!';
+      }
+      if(n.notif_type==='friend_request'&&n.metadata&&n.metadata.from_name){
+        displayTitle=n.metadata.from_name+' sent a friend request';
+      }
+      
+      // ★ Build link — link to acceptor/requester profile
+      var notifLink='#';
+      if(n.metadata&&n.metadata.link) notifLink=n.metadata.link;
+      else if((n.notif_type==='friend_accepted'||n.notif_type==='friend_request')&&n.metadata&&n.metadata.from_id) notifLink='profile.html?id='+n.metadata.from_id;
+      
+      var clickAction=notifLink!=='#'?'onclick="markRead(\''+n.id+'\');location.href=\''+notifLink+'\';"':'onclick="markRead(\''+n.id+'\')"';
+      
+      return '<div class="card"'+unread+' '+clickAction+' style="cursor:pointer;">'+
+        '<div class="card-header"><div class="card-title">'+icon+' '+esc(displayTitle)+'</div><div class="card-time">'+timeAgo(n.created_at)+'</div></div>'+
         '<div class="card-body">'+esc((n.metadata&&n.metadata.message)||'')+'</div>'+
-        ((n.metadata&&n.metadata.link)?'<div style="margin-top:.5rem;"><a href="'+(n.metadata.link)+'" style="color:var(--primary);font-size:.82rem;">View →</a></div>':'')+
         '</div>';
     }).join('');
   }catch(e){
-    box.innerHTML='<div class="empty"><div>🔔</div><h3>No notifications yet</h3><p style="font-size:.85rem;color:var(--dim);">Follow alerts, tips, purchases, and system messages will appear here.</p></div>';
+    box.innerHTML='<div class="empty"><div>🔔</div><h3>No notifications yet</h3></div>';
   }
 }
 
@@ -165,7 +174,7 @@ async function loadRecentDMs(){
         '<div class="card-body">'+(isSent?'You: ':'')+esc((r.dm.message||'').substring(0,100))+'</div></div>';
     }).join('');
   }catch(e){
-    box.innerHTML='<div class="empty"><div>✉️</div><h3>No messages yet</h3><p style="font-size:.85rem;">Start a conversation in <a href="dm.html" style="color:var(--primary);">Direct Messages</a></p></div>';
+    box.innerHTML='<div class="empty"><div>✉️</div><h3>No messages yet</h3></div>';
   }
 }
 
