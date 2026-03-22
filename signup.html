@@ -2,941 +2,517 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Join 8BFR Music Network</title>
   <link rel="icon" href="assets/images/favicon.png">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root{--primary:#7c3aed;--card:#0c0618;--text:#eae6ff;--dim:rgba(168,85,247,.7);--border:rgba(124,58,237,.35);--success:#22c55e;--danger:#ef4444;}
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Work Sans',sans-serif;background:linear-gradient(135deg,#0b0014 0%,#1a0033 50%,#0b0014 100%);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem;}
+    .signup-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:2rem;max-width:480px;width:100%;box-shadow:0 0 60px rgba(124,58,237,.15);}
+    .logo{text-align:center;margin-bottom:1.5rem;}
+    .logo h1{font-family:'Bebas Neue',cursive;font-size:2rem;color:var(--primary);}
+    .logo p{font-size:.85rem;color:var(--dim);margin-top:.25rem;}
 
-    body {
-      min-height: 100vh;
-      background: #07000f;
-      color: #eae6ff;
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 1.5rem 1rem 3rem;
-    }
+    /* Steps */
+    .step-indicator{display:flex;justify-content:center;gap:.5rem;margin-bottom:1.5rem;}
+    .step-dot{width:10px;height:10px;border-radius:50%;background:var(--border);transition:all .3s;}
+    .step-dot.active{background:var(--primary);box-shadow:0 0 8px rgba(124,58,237,.5);}
+    .step-dot.done{background:var(--success);}
+    .step-panel{display:none;}
+    .step-panel.active{display:block;}
 
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background:
-        radial-gradient(ellipse 70% 50% at 10% 10%, rgba(124,58,237,.18) 0%, transparent 60%),
-        radial-gradient(ellipse 50% 40% at 90% 90%, rgba(168,85,247,.12) 0%, transparent 60%);
-      pointer-events: none;
-      z-index: 0;
-    }
+    /* Roles */
+    .role-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-bottom:1rem;}
+    .role-btn{background:rgba(124,58,237,.08);border:1px solid var(--border);border-radius:10px;padding:.5rem .25rem;text-align:center;cursor:pointer;transition:all .2s;font-size:.75rem;font-weight:600;color:var(--dim);}
+    .role-btn:hover{border-color:var(--primary);}
+    .role-btn.selected{background:rgba(124,58,237,.25);border-color:var(--primary);color:var(--primary);}
+    .role-icon{display:block;font-size:1.2rem;margin-bottom:.15rem;}
+    .role-note{font-size:.72rem;color:var(--dim);text-align:center;margin-bottom:.75rem;}
 
-    .card {
-      position: relative;
-      z-index: 1;
-      width: 100%;
-      max-width: 460px;
-      background: rgba(255,255,255,.04);
-      border: 1px solid rgba(168,85,247,.22);
-      border-radius: 20px;
-      padding: 2rem 1.75rem 1.75rem;
-      backdrop-filter: blur(12px);
-    }
+    /* Verify box */
+    .verify-box{display:none;background:rgba(34,197,94,.05);border:1px solid rgba(34,197,94,.25);border-radius:12px;padding:1rem;margin-bottom:1rem;}
+    .verify-box.show{display:block;}
+    .verify-box h3{color:var(--success);font-size:.9rem;margin-bottom:.4rem;}
+    .verify-box p{font-size:.78rem;color:var(--dim);line-height:1.4;}
 
-    .logo { text-align: center; margin-bottom: 1.4rem; }
-    .logo-text {
-      font-size: 2rem; font-weight: 900;
-      background: linear-gradient(135deg, #fff 30%, #c4b5fd);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text; letter-spacing: -.5px;
-    }
-    .logo-sub { font-size: .78rem; color: rgba(196,181,253,.6); margin-top: .15rem; }
+    /* Fields */
+    .field{margin-bottom:.75rem;}
+    .field label{display:block;font-size:.82rem;font-weight:600;color:var(--dim);margin-bottom:.3rem;}
+    .field input,.field select{width:100%;padding:.6rem .75rem;background:rgba(12,6,24,.8);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:.9rem;transition:border .2s;}
+    .field input:focus,.field select:focus{outline:none;border-color:var(--primary);}
+    .pw-wrap{position:relative;}
+    .pw-toggle{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--dim);cursor:pointer;font-size:1rem;}
+    .strength-bar{height:3px;background:var(--border);border-radius:2px;margin-top:.3rem;overflow:hidden;}
+    .strength-fill{height:100%;width:0;transition:all .3s;border-radius:2px;}
+    .strength-hint{font-size:.7rem;color:var(--dim);margin-top:.15rem;}
 
-    h1 { font-size: 1.25rem; font-weight: 800; text-align: center; margin-bottom: .3rem; }
-    .subtitle { text-align: center; font-size: .82rem; color: rgba(196,181,253,.65); margin-bottom: 1.5rem; }
+    /* Age tier info */
+    .age-info{margin-top:.3rem;font-size:.8rem;}
+    .age-tier-box{display:none;margin-top:.6rem;padding:.75rem 1rem;border-radius:10px;font-size:.82rem;line-height:1.5;}
 
-    /* ── STEP INDICATORS ── */
-    .steps { display: flex; align-items: center; justify-content: center; gap: .5rem; margin-bottom: 1.5rem; }
-    .step-dot {
-      width: 10px; height: 10px; border-radius: 50%;
-      background: rgba(168,85,247,.2); border: 1px solid rgba(168,85,247,.3);
-      transition: all .3s;
-    }
-    .step-dot.active { background: #a855f7; border-color: #a855f7; box-shadow: 0 0 8px rgba(168,85,247,.5); }
-    .step-dot.done { background: #22c55e; border-color: #22c55e; }
-    .step-line { width: 30px; height: 1px; background: rgba(168,85,247,.2); }
+    /* Terms */
+    .terms-row{display:flex;align-items:flex-start;gap:.5rem;margin:1rem 0;font-size:.82rem;}
+    .terms-row input{margin-top:.2rem;accent-color:var(--primary);}
+    .terms-row a{color:var(--primary);}
 
-    /* ── ROLE SELECTOR ── */
-    .role-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: .45rem;
-      margin-bottom: 1rem;
-    }
-    .role-btn {
-      padding: .5rem .3rem;
-      border-radius: 10px;
-      border: 1px solid rgba(168,85,247,.2);
-      background: rgba(0,0,0,.25);
-      color: rgba(196,181,253,.6);
-      font-size: .7rem;
-      font-weight: 600;
-      cursor: pointer;
-      text-align: center;
-      transition: all .18s;
-      line-height: 1.3;
-    }
-    .role-btn .role-icon { display: block; font-size: 1.15rem; margin-bottom: .15rem; }
-    .role-btn:hover { border-color: rgba(168,85,247,.5); color: #eae6ff; }
-    .role-btn.selected {
-      background: rgba(124,58,237,.25);
-      border-color: #a855f7;
-      color: #fff;
-      box-shadow: 0 0 0 1px rgba(168,85,247,.25);
-    }
+    /* Buttons */
+    .submit-btn{width:100%;padding:.75rem;background:linear-gradient(135deg,#7c3aed,#a855f7);color:white;border:none;border-radius:12px;font-weight:700;font-size:.95rem;cursor:pointer;transition:all .2s;}
+    .submit-btn:hover{box-shadow:0 0 20px rgba(124,58,237,.4);}
+    .submit-btn:disabled{opacity:.5;cursor:not-allowed;}
+    .back-btn{display:block;text-align:center;margin-top:.75rem;color:var(--dim);font-size:.85rem;cursor:pointer;background:none;border:none;text-decoration:underline;}
 
-    .role-note {
-      font-size: .72rem;
-      color: rgba(196,181,253,.45);
-      text-align: center;
-      margin-bottom: 1rem;
-      line-height: 1.5;
-    }
+    /* Messages */
+    .msg{display:none;padding:.6rem .8rem;border-radius:8px;font-size:.82rem;margin-bottom:.75rem;line-height:1.4;}
+    .msg.error{display:block;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#fca5a5;}
+    .msg.success{display:block;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:#86efac;}
+    .msg a{color:#a855f7;}
 
-    /* ── VERIFY BOX (artist/beatmaker only) ── */
-    .verify-box {
-      display: none;
-      background: rgba(124,58,237,.08);
-      border: 1px solid rgba(124,58,237,.3);
-      border-radius: 12px;
-      padding: .85rem;
-      margin-bottom: 1rem;
-    }
-    .verify-box.show { display: block; }
-    .verify-box h3 { font-size: .82rem; font-weight: 700; color: #a855f7; margin-bottom: .35rem; }
-    .verify-box p { font-size: .72rem; color: rgba(196,181,253,.6); line-height: 1.5; margin-bottom: .5rem; }
+    /* Success screen */
+    .success-screen{display:none;text-align:center;padding:1rem 0;}
+    .success-screen.show{display:block;}
+    .success-icon{font-size:3rem;margin-bottom:.5rem;}
+    .success-screen h2{font-family:'Bebas Neue',cursive;font-size:1.5rem;color:var(--success);margin-bottom:.5rem;}
+    .email-highlight{background:rgba(124,58,237,.1);border:1px solid var(--border);border-radius:8px;padding:.5rem;margin:.5rem 0;font-weight:600;color:var(--primary);}
 
-    /* ── FORM FIELDS ── */
-    .field { margin-bottom: .9rem; }
-    label {
-      display: block; font-size: .76rem; font-weight: 600;
-      color: rgba(196,181,253,.7); margin-bottom: .3rem;
-    }
-    input, select {
-      width: 100%;
-      background: rgba(0,0,0,.35);
-      border: 1px solid rgba(168,85,247,.25);
-      border-radius: 10px;
-      padding: .65rem .85rem;
-      color: #eae6ff;
-      font-size: .9rem;
-      outline: none;
-      transition: border-color .18s;
-      -webkit-appearance: none;
-    }
-    input::placeholder { color: rgba(196,181,253,.35); }
-    input:focus, select:focus { border-color: #a855f7; }
-    select option { background: #1a0a2e; color: #eae6ff; }
-
-    .pw-wrap { position: relative; }
-    .pw-toggle {
-      position: absolute; right: .75rem; top: 50%; transform: translateY(-50%);
-      background: none; border: none; color: rgba(196,181,253,.5);
-      cursor: pointer; font-size: .85rem; padding: 0;
-    }
-
-    .pw-strength { margin-top: .3rem; height: 4px; border-radius: 3px; background: rgba(255,255,255,.08); overflow: hidden; }
-    .pw-strength-bar { height: 100%; border-radius: 3px; width: 0%; transition: width .3s, background .3s; }
-    .pw-hint { font-size: .68rem; color: rgba(196,181,253,.45); margin-top: .25rem; }
-
-    .terms-row {
-      display: flex; align-items: flex-start; gap: .6rem;
-      margin: .9rem 0 1.1rem; font-size: .78rem;
-      color: rgba(196,181,253,.65); line-height: 1.5;
-    }
-    .terms-row input[type=checkbox] {
-      width: 20px; height: 20px; min-width: 20px;
-      margin-top: 1px; padding: 0; accent-color: #a855f7; cursor: pointer;
-      -webkit-appearance: none; appearance: none;
-      background: rgba(0,0,0,.4); border: 2px solid rgba(168,85,247,.5);
-      border-radius: 5px; position: relative; transition: all .2s;
-    }
-    .terms-row input[type=checkbox]:checked {
-      background: #a855f7; border-color: #a855f7;
-    }
-    .terms-row input[type=checkbox]:checked::after {
-      content: '✓'; position: absolute; top: 50%; left: 50%;
-      transform: translate(-50%, -50%); color: #fff; font-size: 14px; font-weight: 900;
-    }
-    .terms-row a { color: #a855f7; text-decoration: none; }
-    .terms-row a:hover { text-decoration: underline; }
-
-    /* ── BUTTONS ── */
-    .submit-btn {
-      width: 100%; padding: .85rem; border-radius: 12px; border: none;
-      background: linear-gradient(135deg, #7c3aed, #a855f7);
-      color: #fff; font-size: .95rem; font-weight: 800;
-      cursor: pointer; transition: opacity .18s, transform .12s; letter-spacing: .2px;
-    }
-    .submit-btn:hover:not(:disabled) { opacity: .9; transform: translateY(-1px); }
-    .submit-btn:disabled { opacity: .55; cursor: not-allowed; transform: none; }
-
-    .back-btn {
-      width: 100%; padding: .7rem; border-radius: 10px;
-      border: 1px solid rgba(168,85,247,.3);
-      background: rgba(0,0,0,.2); color: rgba(196,181,253,.7);
-      font-size: .85rem; font-weight: 600; cursor: pointer;
-      margin-bottom: .75rem; transition: all .18s;
-    }
-    .back-btn:hover { border-color: rgba(168,85,247,.6); color: #fff; }
-
-    .divider {
-      display: flex; align-items: center; gap: .75rem;
-      margin: 1.1rem 0; color: rgba(196,181,253,.3); font-size: .75rem;
-    }
-    .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: rgba(168,85,247,.15); }
-
-    .login-link { text-align: center; font-size: .82rem; color: rgba(196,181,253,.6); }
-    .login-link a { color: #a855f7; font-weight: 700; text-decoration: none; }
-    .login-link a:hover { text-decoration: underline; }
-
-    /* ── MESSAGE BOX ── */
-    .msg {
-      display: none; border-radius: 10px; padding: .7rem 1rem;
-      font-size: .82rem; margin-bottom: 1rem; line-height: 1.5; font-weight: 500;
-    }
-    .msg.error   { background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.3); color: #fca5a5; display: block; }
-    .msg.success { background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.25); color: #86efac; display: block; }
-
-    /* ── SUCCESS SCREEN ── */
-    .success-screen { display: none; text-align: center; padding: 1rem 0; }
-    .success-screen.show { display: block; }
-    .success-icon { font-size: 3.5rem; margin-bottom: .75rem; }
-    .success-screen h2 { font-size: 1.3rem; font-weight: 800; margin-bottom: .5rem; }
-    .success-screen p { font-size: .85rem; color: rgba(196,181,253,.7); line-height: 1.6; margin-bottom: 1.2rem; }
-    .email-highlight {
-      background: rgba(124,58,237,.2); border: 1px solid rgba(168,85,247,.3);
-      border-radius: 8px; padding: .45rem .85rem; display: inline-block;
-      font-weight: 700; color: #c4b5fd; font-size: .9rem; margin: .4rem 0 .9rem;
-    }
-    .back-home {
-      display: inline-block; margin-top: .5rem; color: rgba(196,181,253,.5);
-      font-size: .78rem; text-decoration: none;
-    }
-    .back-home:hover { color: #a855f7; }
-
-    /* step visibility */
-    .step-panel { display: none; }
-    .step-panel.active { display: block; }
-
-    /* ── VERIFICATION CODE INPUT ── */
-    .code-inputs {
-      display: flex; gap: .5rem; justify-content: center; margin: 1.25rem 0;
-    }
-    .code-inputs input {
-      width: 48px; height: 56px; text-align: center;
-      font-size: 1.5rem; font-weight: 900; letter-spacing: 0;
-      background: rgba(0,0,0,.4); border: 2px solid rgba(168,85,247,.3);
-      border-radius: 12px; color: #fff; outline: none; transition: all .2s;
-      padding: 0;
-    }
-    .code-inputs input:focus {
-      border-color: #a855f7; box-shadow: 0 0 12px rgba(168,85,247,.4);
-    }
-    .code-inputs input.correct { border-color: #22c55e; background: rgba(34,197,94,.1); }
-    .code-inputs input.wrong { border-color: #ef4444; background: rgba(239,68,68,.1); }
-    .resend-link {
-      color: rgba(196,181,253,.5); font-size: .78rem; cursor: pointer;
-      text-decoration: none; transition: color .2s;
-    }
-    .resend-link:hover { color: #a855f7; }
-    .resend-link.disabled { pointer-events: none; opacity: .4; }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .spinner {
-      display: inline-block; width: 16px; height: 16px;
-      border: 2px solid rgba(255,255,255,.3); border-top-color: #fff;
-      border-radius: 50%; animation: spin .7s linear infinite;
-      vertical-align: middle; margin-right: .4rem;
-    }
-
-    @media (max-width: 440px) {
-      .card { padding: 1.5rem 1.25rem 1.25rem; border-radius: 16px; }
-      .role-grid { grid-template-columns: repeat(2, 1fr); }
-    }
+    .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:white;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:.4rem;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .back-home{display:block;text-align:center;margin-top:.75rem;color:var(--dim);text-decoration:none;font-size:.82rem;}
+    .login-link{text-align:center;margin-top:1rem;font-size:.85rem;}
+    .login-link a{color:var(--primary);font-weight:600;text-decoration:none;}
   </style>
 </head>
 <body>
-
-<div class="card">
+<div class="signup-card">
   <div class="logo">
-    <div class="logo-text">8BFR</div>
-    <div class="logo-sub">Music Network</div>
+    <h1>🎵 Join 8BFR</h1>
+    <p>The music network built for creators</p>
   </div>
 
-  <!-- FORM -->
+  <!-- Step indicators -->
+  <div class="step-indicator">
+    <div class="step-dot active" id="dot1"></div>
+    <div class="step-dot" id="dot2"></div>
+    <div class="step-dot" id="dot3"></div>
+  </div>
+
+  <div id="msgBox" class="msg"></div>
+
   <div id="formSection">
-    <h1>Create Your Account</h1>
-    <p class="subtitle">Join artists, beatmakers & fans worldwide</p>
-    <div style="font-size:0.6rem;color:rgba(168,85,247,0.3);text-align:center;margin-bottom:0.5rem;">v3.1</div>
-
-    <!-- Step dots -->
-    <div class="steps">
-      <div class="step-dot active" id="dot1"></div>
-      <div class="step-line"></div>
-      <div class="step-dot" id="dot2"></div>
-      <div class="step-line"></div>
-      <div class="step-dot" id="dot3"></div>
-    </div>
-
-    <div id="msgBox" class="msg"></div>
-
-    <!-- ═══════════════ STEP 1: Choose Your Role ═══════════════ -->
+    <!-- ═══ STEP 1: Choose Roles ═══ -->
     <div class="step-panel active" id="step1">
-      <label style="font-size:.85rem;margin-bottom:.6rem;text-align:center;display:block;">What do you do in the music world? <span style="font-size:.7rem;opacity:.6;">(Select all that apply)</span></label>
+      <label style="font-weight:700;font-size:.92rem;display:block;margin-bottom:.5rem;">What describes you?
+        <span style="font-size:.7rem;opacity:.6;">(Select all that apply)</span>
+      </label>
 
       <div class="role-grid" id="roleGrid">
-        <button type="button" class="role-btn selected" data-role="fan" onclick="toggleRole(this)">
-          <span class="role-icon">🎧</span>Fan / Listener
-        </button>
-        <button type="button" class="role-btn" data-role="artist" onclick="toggleRole(this)">
-          <span class="role-icon">🎤</span>Artist
-        </button>
-        <button type="button" class="role-btn" data-role="beatmaker" onclick="toggleRole(this)">
-          <span class="role-icon">🎛️</span>Beatmaker
-        </button>
-        <button type="button" class="role-btn" data-role="producer" onclick="toggleRole(this)">
-          <span class="role-icon">🎹</span>Producer
-        </button>
-        <button type="button" class="role-btn" data-role="songwriter" onclick="toggleRole(this)">
-          <span class="role-icon">✍️</span>Songwriter
-        </button>
-        <button type="button" class="role-btn" data-role="dj" onclick="toggleRole(this)">
-          <span class="role-icon">💿</span>DJ
-        </button>
-        <button type="button" class="role-btn" data-role="singer" onclick="toggleRole(this)">
-          <span class="role-icon">🎶</span>Singer
-        </button>
-        <button type="button" class="role-btn" data-role="rapper" onclick="toggleRole(this)">
-          <span class="role-icon">🎙️</span>Rapper
-        </button>
-        <button type="button" class="role-btn" data-role="engineer" onclick="toggleRole(this)">
-          <span class="role-icon">🔊</span>Audio Engineer
-        </button>
-        <button type="button" class="role-btn" data-role="dancer" onclick="toggleRole(this)">
-          <span class="role-icon">💃</span>Dancer
-        </button>
-        <button type="button" class="role-btn" data-role="videographer" onclick="toggleRole(this)">
-          <span class="role-icon">🎬</span>Videographer
-        </button>
-        <button type="button" class="role-btn" data-role="photographer" onclick="toggleRole(this)">
-          <span class="role-icon">📸</span>Photographer
-        </button>
-        <button type="button" class="role-btn" data-role="manager" onclick="toggleRole(this)">
-          <span class="role-icon">📋</span>Manager
-        </button>
-        <button type="button" class="role-btn" data-role="label" onclick="toggleRole(this)">
-          <span class="role-icon">🏢</span>Label
-        </button>
-        <button type="button" class="role-btn" data-role="promoter" onclick="toggleRole(this)">
-          <span class="role-icon">📢</span>Promoter
-        </button>
-        <button type="button" class="role-btn" data-role="journalist" onclick="toggleRole(this)">
-          <span class="role-icon">📰</span>Music Journalist
-        </button>
-        <button type="button" class="role-btn" data-role="educator" onclick="toggleRole(this)">
-          <span class="role-icon">🏫</span>Educator
-        </button>
-        <button type="button" class="role-btn" data-role="influencer" onclick="toggleRole(this)">
-          <span class="role-icon">💫</span>Influencer
-        </button>
-        <button type="button" class="role-btn" data-role="designer" onclick="toggleRole(this)">
-          <span class="role-icon">🎨</span>Designer
-        </button>
-        <button type="button" class="role-btn" data-role="author" onclick="toggleRole(this)">
-          <span class="role-icon">📖</span>Author
-        </button>
-        <button type="button" class="role-btn" data-role="blogger" onclick="toggleRole(this)">
-          <span class="role-icon">📰</span>Blogger
-        </button>
-        <button type="button" class="role-btn" data-role="community_leader" onclick="toggleRole(this)">
-          <span class="role-icon">👥</span>Community Leader
-        </button>
-        <button type="button" class="role-btn" data-role="mentor" onclick="toggleRole(this)">
-          <span class="role-icon">🧭</span>Mentor
-        </button>
-        <button type="button" class="role-btn" data-role="developer" onclick="toggleRole(this)">
-          <span class="role-icon">🧠</span>Developer
-        </button>
-        <button type="button" class="role-btn" data-role="streamer" onclick="toggleRole(this)">
-          <span class="role-icon">📡</span>Streamer
-        </button>
-        <button type="button" class="role-btn" data-role="gamer" onclick="toggleRole(this)">
-          <span class="role-icon">🎮</span>Gamer
-        </button>
-        <button type="button" class="role-btn" data-role="filmmaker" onclick="toggleRole(this)">
-          <span class="role-icon">🎥</span>Filmmaker
-        </button>
-        <button type="button" class="role-btn" data-role="podcaster" onclick="toggleRole(this)">
-          <span class="role-icon">🎙️</span>Podcaster
-        </button>
-        <button type="button" class="role-btn" data-role="musician" onclick="toggleRole(this)">
-          <span class="role-icon">🎸</span>Musician
-        </button>
-        <button type="button" class="role-btn" data-role="student" onclick="toggleRole(this)">
-          <span class="role-icon">🎓</span>Student
-        </button>
-        <button type="button" class="role-btn" data-role="brand_ambassador" onclick="toggleRole(this)">
-          <span class="role-icon">🎯</span>Brand Ambassador
-        </button>
+        <button type="button" class="role-btn selected" data-role="fan" onclick="toggleRole(this)"><span class="role-icon">🎧</span>Fan / Listener</button>
+        <button type="button" class="role-btn" data-role="artist" onclick="toggleRole(this)"><span class="role-icon">🎤</span>Artist</button>
+        <button type="button" class="role-btn" data-role="beatmaker" onclick="toggleRole(this)"><span class="role-icon">🎛️</span>Beatmaker</button>
+        <button type="button" class="role-btn" data-role="producer" onclick="toggleRole(this)"><span class="role-icon">🎹</span>Producer</button>
+        <button type="button" class="role-btn" data-role="songwriter" onclick="toggleRole(this)"><span class="role-icon">✍️</span>Songwriter</button>
+        <button type="button" class="role-btn" data-role="dj" onclick="toggleRole(this)"><span class="role-icon">💿</span>DJ</button>
+        <button type="button" class="role-btn" data-role="singer" onclick="toggleRole(this)"><span class="role-icon">🎶</span>Singer</button>
+        <button type="button" class="role-btn" data-role="rapper" onclick="toggleRole(this)"><span class="role-icon">🎙️</span>Rapper</button>
+        <button type="button" class="role-btn" data-role="engineer" onclick="toggleRole(this)"><span class="role-icon">🔊</span>Audio Engineer</button>
+        <button type="button" class="role-btn" data-role="dancer" onclick="toggleRole(this)"><span class="role-icon">💃</span>Dancer</button>
+        <button type="button" class="role-btn" data-role="videographer" onclick="toggleRole(this)"><span class="role-icon">🎬</span>Videographer</button>
+        <button type="button" class="role-btn" data-role="photographer" onclick="toggleRole(this)"><span class="role-icon">📸</span>Photographer</button>
+        <button type="button" class="role-btn" data-role="manager" onclick="toggleRole(this)"><span class="role-icon">📋</span>Manager</button>
+        <button type="button" class="role-btn" data-role="label" onclick="toggleRole(this)"><span class="role-icon">🏢</span>Label</button>
+        <button type="button" class="role-btn" data-role="promoter" onclick="toggleRole(this)"><span class="role-icon">📢</span>Promoter</button>
+        <button type="button" class="role-btn" data-role="journalist" onclick="toggleRole(this)"><span class="role-icon">📰</span>Music Journalist</button>
+        <button type="button" class="role-btn" data-role="educator" onclick="toggleRole(this)"><span class="role-icon">🏫</span>Educator</button>
+        <button type="button" class="role-btn" data-role="influencer" onclick="toggleRole(this)"><span class="role-icon">💫</span>Influencer</button>
+        <button type="button" class="role-btn" data-role="designer" onclick="toggleRole(this)"><span class="role-icon">🎨</span>Designer</button>
+        <button type="button" class="role-btn" data-role="author" onclick="toggleRole(this)"><span class="role-icon">📖</span>Author</button>
+        <button type="button" class="role-btn" data-role="blogger" onclick="toggleRole(this)"><span class="role-icon">✏️</span>Blogger</button>
+        <button type="button" class="role-btn" data-role="community_leader" onclick="toggleRole(this)"><span class="role-icon">👥</span>Community Leader</button>
+        <button type="button" class="role-btn" data-role="mentor" onclick="toggleRole(this)"><span class="role-icon">🧭</span>Mentor</button>
+        <button type="button" class="role-btn" data-role="developer" onclick="toggleRole(this)"><span class="role-icon">🧠</span>Developer</button>
+        <button type="button" class="role-btn" data-role="streamer" onclick="toggleRole(this)"><span class="role-icon">📡</span>Streamer</button>
+        <button type="button" class="role-btn" data-role="gamer" onclick="toggleRole(this)"><span class="role-icon">🎮</span>Gamer</button>
+        <button type="button" class="role-btn" data-role="supporter" onclick="toggleRole(this)"><span class="role-icon">💜</span>Supporter</button>
       </div>
 
       <div class="role-note">You can update your roles anytime from Settings.</div>
 
-      <!-- Spotify Verification (shows for artist/beatmaker) -->
+      <!-- Spotify Verification -->
       <div class="verify-box" id="verifyBox">
         <h3>🟢 Artist / Beatmaker Verification</h3>
-        <p>To upload music and beats, we require verification through Spotify. Paste your <strong>Spotify artist page link</strong> below. The owner will review and approve your account.</p>
-        <p style="color:#fbbf24;font-size:.7rem;">⚠️ Without verification, you can still enjoy the platform but cannot upload or sell music.</p>
+        <p>To upload and sell music, we require verification through Spotify. Paste your <strong>Spotify artist page link</strong> below. The owner will review and approve.</p>
+        <p style="color:#fbbf24;font-size:.7rem;">⚠️ Without verification, you can still enjoy the platform but cannot upload or sell.</p>
         <div class="field" style="margin-bottom:0;">
           <label for="spotifyUrl">Spotify Artist URL *</label>
-          <input type="url" id="spotifyUrl" placeholder="https://open.spotify.com/artist/..." autocomplete="off">
+          <input type="url" id="spotifyUrl" placeholder="https://open.spotify.com/artist/...">
         </div>
       </div>
 
       <button class="submit-btn" onclick="goStep(2)">Continue →</button>
     </div>
 
-    <!-- ═══════════════ STEP 2: Account Details ═══════════════ -->
+    <!-- ═══ STEP 2: Account Details ═══ -->
     <div class="step-panel" id="step2">
       <div class="field">
         <label for="displayName">Display Name</label>
-        <input type="text" id="displayName" placeholder="How you want to appear" maxlength="50" autocomplete="name">
+        <input type="text" id="displayName" placeholder="How you want to appear" maxlength="50">
       </div>
       <div class="field">
         <label for="username">Username *</label>
-        <input type="text" id="username" placeholder="yourname (letters, numbers, _ . -)" maxlength="30" autocomplete="username">
+        <input type="text" id="username" placeholder="yourname (letters, numbers, _ .)" maxlength="30" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_.\-]/g,'')">
       </div>
       <div class="field">
-        <label for="email">Email Address *</label>
-        <input type="email" id="email" placeholder="you@example.com" autocomplete="email">
+        <label for="email">Email *</label>
+        <input type="email" id="email" placeholder="you@email.com">
       </div>
       <div class="field">
-        <label for="password">Password *</label>
+        <label>Password *</label>
         <div class="pw-wrap">
-          <input type="password" id="password" placeholder="At least 8 characters" autocomplete="new-password" oninput="checkStrength(this.value)">
-          <button type="button" class="pw-toggle" onclick="togglePw('password',this)" aria-label="Show password">👁</button>
+          <input type="password" id="password" placeholder="At least 8 characters" oninput="checkStrength(this.value)">
+          <button class="pw-toggle" onclick="togglePw('password',this)" type="button">👁</button>
         </div>
-        <div class="pw-strength"><div class="pw-strength-bar" id="strengthBar"></div></div>
-        <div class="pw-hint" id="strengthHint">Use 8+ characters with letters and numbers</div>
+        <div class="strength-bar"><div class="strength-fill" id="strengthBar"></div></div>
+        <div class="strength-hint" id="strengthHint"></div>
       </div>
       <div class="field">
-        <label for="confirm">Confirm Password *</label>
+        <label>Confirm Password *</label>
         <div class="pw-wrap">
-          <input type="password" id="confirm" placeholder="Repeat password" autocomplete="new-password">
-          <button type="button" class="pw-toggle" onclick="togglePw('confirm',this)" aria-label="Show password">👁</button>
+          <input type="password" id="confirm" placeholder="Re-enter password">
+          <button class="pw-toggle" onclick="togglePw('confirm',this)" type="button">👁</button>
         </div>
       </div>
+
+      <!-- ★ DATE OF BIRTH -->
+      <div class="field">
+        <label for="dob">📅 Date of Birth *</label>
+        <input type="date" id="dob" required>
+        <div class="age-info" id="ageInfo"></div>
+      </div>
+      <div class="age-tier-box" id="ageTierBox"></div>
+
+      <!-- ★ PARENT EMAIL (shown for teens 13-15) -->
+      <div id="parentEmailWrap" style="display:none;">
+        <div class="field">
+          <label for="parentEmail" style="color:#3b82f6;">👨‍👩‍👧 Parent/Guardian Email *</label>
+          <input type="email" id="parentEmail" placeholder="parent@email.com">
+          <div style="font-size:.72rem;color:rgba(96,165,250,.6);margin-top:.2rem;">Your parent will receive a consent email. Features limited until approved.</div>
+        </div>
+      </div>
+
+      <!-- Age Policy Link -->
+      <div style="text-align:center;margin-bottom:.5rem;">
+        <a href="age-policy.html" target="_blank" style="color:var(--primary);font-size:.78rem;">🛡️ View our Age Policy & Safety Rules</a>
+      </div>
+
+      <button class="submit-btn" onclick="goStep(3)">Continue →</button>
+      <button class="back-btn" onclick="goStep(1)">← Back</button>
+    </div>
+
+    <!-- ═══ STEP 3: Confirm ═══ -->
+    <div class="step-panel" id="step3">
+      <div style="text-align:center;margin-bottom:1rem;">
+        <div style="font-size:2rem;">✅</div>
+        <h3 style="color:var(--primary);margin:.5rem 0;">Almost there!</h3>
+        <p style="font-size:.85rem;color:var(--dim);">Review and create your account.</p>
+      </div>
+
+      <div id="reviewSummary" style="background:rgba(124,58,237,.05);border:1px solid var(--border);border-radius:10px;padding:1rem;margin-bottom:1rem;font-size:.85rem;"></div>
 
       <div class="terms-row">
         <input type="checkbox" id="agreeTerms">
-        <label for="agreeTerms" style="margin:0;font-weight:400;">
-          I agree to the <a href="terms.html" target="_blank">Terms of Service</a>
-          and <a href="privacy.html" target="_blank">Privacy Policy</a>
-        </label>
+        <label for="agreeTerms">I agree to the <a href="terms.html" target="_blank">Terms of Service</a>, <a href="privacy.html" target="_blank">Privacy Policy</a>, and <a href="age-policy.html" target="_blank">Age Policy</a>. I understand that all communications may be monitored for safety.</label>
       </div>
 
-      <button class="submit-btn" id="submitBtn" onclick="doSignup()">
-        🎵 Create My Account
-      </button>
-      <button class="back-btn" onclick="goStep(1)">← Back to role selection</button>
-
-      <div class="divider">or</div>
-      <div class="login-link">
-        Already a member? <a href="login.html">Log In</a>
-      </div>
-      <div style="text-align:center;margin-top:.6rem;">
-        <a href="index.html" class="back-home">← Back to Home</a>
-      </div>
+      <button class="submit-btn" id="submitBtn" onclick="doSignup()">🎵 Create My Account</button>
+      <button class="back-btn" onclick="goStep(2)">← Back</button>
     </div>
+
+    <div class="login-link">Already have an account? <a href="login.html">Log In</a></div>
+    <div style="text-align:center;margin-top:.4rem;"><a href="index.html" class="back-home">← Back to Home</a></div>
   </div>
 
-  <!-- ═══════════════ STEP 3: VERIFY EMAIL CODE ═══════════════ -->
-  <div class="step-panel" id="step3">
-    <div style="text-align:center;margin-bottom:1rem;">
-      <div style="font-size:2.5rem;margin-bottom:.5rem;">📧</div>
-      <h2 style="font-size:1.15rem;font-weight:800;margin-bottom:.3rem;">Check Your Email</h2>
-      <p style="font-size:.82rem;color:rgba(196,181,253,.65);line-height:1.5;">We sent a 6-digit code to:</p>
-      <div style="background:rgba(124,58,237,.15);border:1px solid rgba(168,85,247,.3);border-radius:8px;padding:.4rem .8rem;display:inline-block;font-weight:700;color:#c4b5fd;font-size:.88rem;margin:.4rem 0;" id="verifyEmailDisplay"></div>
-      <p style="font-size:.75rem;color:rgba(196,181,253,.45);margin-top:.3rem;">Check spam/junk if you don't see it</p>
-    </div>
-
-    <div class="code-inputs" id="codeInputs">
-      <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off">
-      <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off">
-      <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off">
-      <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off">
-      <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off">
-      <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off">
-    </div>
-
-    <div id="verifyMsg" class="msg"></div>
-
-    <button class="submit-btn" id="verifyBtn" onclick="verifyCode()">
-      ✅ Verify My Email
-    </button>
-
-    <div style="text-align:center;margin-top:1rem;">
-      <span class="resend-link" id="resendLink" onclick="resendCode()">Didn't get it? Resend code</span>
-      <div id="resendTimer" style="font-size:.72rem;color:rgba(196,181,253,.4);margin-top:.3rem;"></div>
-    </div>
-
-    <div style="text-align:center;margin-top:.8rem;">
-      <a href="index.html" class="back-home">← Back to Home</a>
-    </div>
-  </div>
-
-  <!-- ═══════════════ SUCCESS SCREEN ═══════════════ -->
+  <!-- SUCCESS SCREEN -->
   <div class="success-screen" id="successSection">
     <div class="success-icon">🎉</div>
-    <h2>Welcome to 8BFR!</h2>
-    <p>Your email is verified and your account is ready.</p>
-    <div id="pendingNote" style="display:none;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.25);border-radius:10px;padding:.7rem;font-size:.8rem;color:#fcd34d;margin-bottom:1rem;">
-      🟡 Your <strong>Artist / Beatmaker</strong> verification is pending owner review. You'll get full upload access once approved.
-    </div>
-    <a href="login.html" class="submit-btn" style="display:block;text-decoration:none;margin-top:.5rem;text-align:center;">
-      🚀 Log In Now
-    </a>
+    <h2>You're Almost In!</h2>
+    <p>We sent a confirmation link to:</p>
+    <div class="email-highlight" id="confirmedEmail"></div>
+    <div id="successExtra"></div>
+    <a href="login.html" class="submit-btn" style="display:block;text-decoration:none;margin-top:.75rem;text-align:center;">Go to Login</a>
     <a href="index.html" class="back-home">← Back to Home</a>
   </div>
 </div>
 
 <script>
-  const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
-  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
-  const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  // EmailJS config
-  const EMAILJS_PUBLIC_KEY = 'xGcw1bDESG7obtHJh';
-  const EMAILJS_SERVICE_ID = 'service_or00bc8';
-  const EMAILJS_TEMPLATE_ID = 'template_appp21r';
-  emailjs.init(EMAILJS_PUBLIC_KEY);
+let selectedRoles = ['fan'];
+let currentStep = 1;
+let calculatedAge = null;
+let calculatedTier = 'adult';
 
-  let selectedRoles = ['fan'];
-  let currentStep = 1;
-  let verificationCode = '';
-  let signupEmail = '';
-  let signupUserId = '';
-  let needsArtistVerify = false;
-  let resendCooldown = 0;
+// If logged in, redirect
+db.auth.getSession().then(({data:{session}}) => {
+  if (session) window.location.href = 'feed.html';
+});
 
-  // If already logged in, redirect
-  db.auth.getSession().then(({data:{session}}) => {
-    if (session) window.location.href = 'feed.html';
-  });
+// Set max DOB to today
+document.getElementById('dob').max = new Date().toISOString().split('T')[0];
 
-  /* ── GENERATE 6-DIGIT CODE ── */
-  function generateCode() {
-    return String(Math.floor(100000 + Math.random() * 900000));
+/* ── ROLE TOGGLE ── */
+function toggleRole(btn) {
+  const role = btn.dataset.role;
+  if (btn.classList.contains('selected')) {
+    if (selectedRoles.length <= 1) return;
+    btn.classList.remove('selected');
+    selectedRoles = selectedRoles.filter(r => r !== role);
+  } else {
+    btn.classList.add('selected');
+    if (!selectedRoles.includes(role)) selectedRoles.push(role);
   }
+  const needsVerify = selectedRoles.includes('artist') || selectedRoles.includes('beatmaker');
+  document.getElementById('verifyBox').classList.toggle('show', needsVerify);
+}
 
-  /* ── MULTI-SELECT ROLE TOGGLE ── */
-  function toggleRole(btn) {
-    const role = btn.dataset.role;
-    if (btn.classList.contains('selected')) {
-      if (selectedRoles.length <= 1) return;
-      btn.classList.remove('selected');
-      selectedRoles = selectedRoles.filter(r => r !== role);
-    } else {
-      btn.classList.add('selected');
-      if (!selectedRoles.includes(role)) selectedRoles.push(role);
-    }
+/* ── STEP NAV ── */
+function goStep(n) {
+  clearMsg();
+
+  if (n === 2 && currentStep === 1) {
     const needsVerify = selectedRoles.includes('artist') || selectedRoles.includes('beatmaker');
-    document.getElementById('verifyBox').classList.toggle('show', needsVerify);
-  }
-
-  /* ── STEP NAVIGATION ── */
-  function goStep(n) {
-    clearMsg();
-    if (n === 2 && currentStep === 1) {
-      const needsVerify = selectedRoles.includes('artist') || selectedRoles.includes('beatmaker');
-      const spotifyUrl = document.getElementById('spotifyUrl').value.trim();
-      if (needsVerify && !spotifyUrl) {
-        return showMsg('⚠️ Please enter your Spotify artist page link for verification.', 'error');
-      }
-      if (needsVerify && spotifyUrl && !spotifyUrl.includes('spotify.com/artist')) {
-        return showMsg('⚠️ Please enter a valid Spotify artist URL (e.g. https://open.spotify.com/artist/...)', 'error');
-      }
-    }
-    currentStep = n;
-    document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
-    document.getElementById('step' + n).classList.add('active');
-    for (let i = 1; i <= 3; i++) {
-      const dot = document.getElementById('dot' + i);
-      dot.classList.remove('active', 'done');
-      if (i < n) dot.classList.add('done');
-      else if (i === n) dot.classList.add('active');
-    }
-  }
-
-  function togglePw(fieldId, btn) {
-    const inp = document.getElementById(fieldId);
-    if (inp.type === 'password') { inp.type = 'text'; btn.textContent = '🙈'; }
-    else { inp.type = 'password'; btn.textContent = '👁'; }
-  }
-
-  function checkStrength(val) {
-    const bar = document.getElementById('strengthBar');
-    const hint = document.getElementById('strengthHint');
-    let score = 0;
-    if (val.length >= 8) score++;
-    if (val.length >= 12) score++;
-    if (/[A-Z]/.test(val)) score++;
-    if (/[0-9]/.test(val)) score++;
-    if (/[^A-Za-z0-9]/.test(val)) score++;
-    const pct = Math.min(score / 4 * 100, 100);
-    bar.style.width = pct + '%';
-    if (score <= 1)      { bar.style.background = '#ef4444'; hint.textContent = 'Too weak'; }
-    else if (score <= 2) { bar.style.background = '#f97316'; hint.textContent = 'Weak — try adding numbers'; }
-    else if (score <= 3) { bar.style.background = '#fbbf24'; hint.textContent = 'Fair'; }
-    else if (score <= 4) { bar.style.background = '#22c55e'; hint.textContent = 'Good password'; }
-    else                 { bar.style.background = '#a855f7'; hint.textContent = 'Strong password! 💪'; }
-  }
-
-  function showMsg(text, type) {
-    const box = document.getElementById('msgBox');
-    box.innerHTML = text;
-    box.className = 'msg ' + type;
-    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }
-  function clearMsg() {
-    const box = document.getElementById('msgBox');
-    box.className = 'msg';
-    box.textContent = '';
-  }
-  function showVerifyMsg(text, type) {
-    const box = document.getElementById('verifyMsg');
-    box.innerHTML = text;
-    box.className = 'msg ' + type;
-  }
-
-  /* ── SEND VERIFICATION CODE VIA EMAILJS ── */
-  async function sendVerificationEmail(email, name, code) {
-    try {
-      const result = await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-        to_email: email,
-        to_name: name || 'Music Creator',
-        verification_code: code
-      });
-      console.log('EmailJS sent:', result.status);
-      return true;
-    } catch(e) {
-      console.error('EmailJS error:', e);
-      return false;
-    }
-  }
-
-  /* ══════════════════════════════════════════
-     ── MAIN SIGNUP FLOW
-     ══════════════════════════════════════════ */
-  async function doSignup() {
-    clearMsg();
-    const displayName = document.getElementById('displayName').value.trim();
-    const username = document.getElementById('username').value.trim();
-    const email    = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
-    const confirm  = document.getElementById('confirm').value;
-    const agreed   = document.getElementById('agreeTerms').checked;
     const spotifyUrl = document.getElementById('spotifyUrl').value.trim();
-
-    if (!username) return showMsg('⚠️ Please choose a username.', 'error');
-    if (username.length < 3) return showMsg('⚠️ Username must be at least 3 characters.', 'error');
-    if (!/^[a-zA-Z0-9_.\-]+$/.test(username)) return showMsg('⚠️ Username can only contain letters, numbers, underscores, dots, and hyphens.', 'error');
-    if (!email || !email.includes('@')) return showMsg('⚠️ Please enter a valid email address.', 'error');
-    if (password.length < 8) return showMsg('⚠️ Password must be at least 8 characters.', 'error');
-    if (password !== confirm) return showMsg('⚠️ Passwords do not match.', 'error');
-    if (!agreed) return showMsg('⚠️ Please agree to the Terms of Service to continue.', 'error');
-
-    const btn = document.getElementById('submitBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span>Creating account…';
-
-    try {
-      // Check username
-      const { data: existing } = await db.from('profiles').select('id').ilike('username', username).maybeSingle();
-      if (existing) {
-        showMsg('⚠️ That username is already taken.', 'error');
-        btn.disabled = false; btn.innerHTML = '🎵 Create My Account';
-        return;
-      }
-
-      // Check founder
-      let isFounder = false;
-      try {
-        const { count } = await db.from('profiles').select('user_id', { count: 'exact', head: true });
-        isFounder = (count || 0) < 1000;
-      } catch(e) {}
-
-      const badges = [...selectedRoles];
-      if (isFounder) badges.push('founder');
-      const BLOCKED_ROLES = ['owner','admin','co-owner','mod','g7'];
-      const primaryRole = selectedRoles.find(r => r !== 'fan' && !BLOCKED_ROLES.includes(r)) || 'fan';
-      // Safety: strip any blocked roles from badges
-      const safeBadges = badges.filter(r => !BLOCKED_ROLES.includes(r));
-      needsArtistVerify = selectedRoles.includes('artist') || selectedRoles.includes('beatmaker');
-
-      // Sign up (Supabase email confirmation is OFF — we handle it ourselves)
-      btn.innerHTML = '<span class="spinner"></span>Setting up account…';
-      const { data, error } = await db.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { username, role: primaryRole, display_name: displayName || username },
-          // NOTE: Supabase email confirm is OFF — we verify via EmailJS
-        }
-      });
-
-      if (error) {
-        let msg = error.message;
-        if (msg.includes('already registered') || msg.includes('already been registered')) {
-          showMsg('⚠️ This email is already registered. <a href="login.html" style="color:#a855f7;">Log in instead?</a>', 'error');
-        } else {
-          showMsg('⚠️ ' + msg, 'error');
-        }
-        btn.disabled = false; btn.innerHTML = '🎵 Create My Account';
-        return;
-      }
-
-      if (data && data.user) {
-        signupUserId = data.user.id;
-        signupEmail = email;
-
-        // Create profile row
-        try {
-          console.log('=== SIGNUP v3.1 ===');
-          console.log('primaryRole:', primaryRole);
-
-          const profileData = {
-            user_id: signupUserId,
-            email: email,
-            username: username,
-            display_name: displayName || username,
-            role: primaryRole,
-            badges: safeBadges,
-            verified_artist: false,
-            verify_url: spotifyUrl || null,
-            email_verified: false,
-            coins: 50
-          };
-          const { error: err1 } = await db.from('profiles').insert(profileData);
-          if (err1) {
-            console.warn('Full insert failed:', err1.message);
-            const { error: err2 } = await db.from('profiles').upsert(profileData, { onConflict: 'user_id' });
-            if (err2) {
-              console.warn('Upsert failed:', err2.message);
-              await db.from('profiles').insert({ user_id: signupUserId, username: username, role: primaryRole });
-            }
-          }
-
-          // NUCLEAR SAFEGUARD: Force role to correct value after insert
-          // This overrides anything that might change it (triggers, defaults, etc.)
-          await db.from('profiles').update({ role: primaryRole }).eq('user_id', signupUserId);
-          console.log('=== ROLE FORCED TO:', primaryRole, '===');
-
-        } catch(e) { console.warn('Profile:', e.message); }
-
-        // Submit artist verification request
-        if (needsArtistVerify && spotifyUrl) {
-          try {
-            await db.from('verification_requests').insert({
-              user_id: signupUserId,
-              spotify_url: spotifyUrl,
-              roles: selectedRoles.filter(r => r === 'artist' || r === 'beatmaker'),
-              status: 'pending'
-            });
-          } catch(e) { console.warn('Verify request:', e.message); }
-        }
-
-        // Generate and send verification code
-        btn.innerHTML = '<span class="spinner"></span>Sending verification email…';
-        verificationCode = generateCode();
-
-        // Save code to DB for server-side check (optional but good)
-        try {
-          await db.from('email_verifications').upsert({
-            user_id: signupUserId,
-            email: email,
-            code: verificationCode,
-            expires_at: new Date(Date.now() + 15 * 60000).toISOString()
-          }, { onConflict: 'user_id' });
-        } catch(e) {
-          // Table may not exist — code still stored in memory
-          console.warn('Verification table:', e.message);
-        }
-
-        const sent = await sendVerificationEmail(email, displayName || username, verificationCode);
-        if (!sent) {
-          showMsg('⚠️ Could not send verification email. Please check your email address and try again.', 'error');
-          btn.disabled = false; btn.innerHTML = '🎵 Create My Account';
-          return;
-        }
-
-        // Show step 3: enter code
-        document.getElementById('verifyEmailDisplay').textContent = email;
-        goStep(3);
-        setupCodeInputs();
-        startResendCooldown();
-      }
-
-    } catch(e) {
-      console.error('Signup error:', e);
-      showMsg('⚠️ Something went wrong: ' + (e.message || 'unknown'), 'error');
-      btn.disabled = false; btn.innerHTML = '🎵 Create My Account';
-    }
+    if (needsVerify && !spotifyUrl) return showMsg('⚠️ Please enter your Spotify artist page link for verification.', 'error');
+    if (needsVerify && spotifyUrl && !spotifyUrl.includes('spotify.com/artist')) return showMsg('⚠️ Please enter a valid Spotify artist URL.', 'error');
   }
 
-  /* ── CODE INPUT UX (auto-advance, paste support) ── */
-  function setupCodeInputs() {
-    const inputs = document.querySelectorAll('#codeInputs input');
-    inputs.forEach((inp, i) => {
-      inp.value = '';
-      inp.classList.remove('correct', 'wrong');
+  if (n === 3 && currentStep === 2) {
+    const username = document.getElementById('username').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const pw = document.getElementById('password').value;
+    const confirm = document.getElementById('confirm').value;
+    const dob = document.getElementById('dob').value;
 
-      inp.addEventListener('input', function() {
-        this.value = this.value.replace(/[^0-9]/g, '');
-        if (this.value && i < inputs.length - 1) {
-          inputs[i + 1].focus();
-        }
-      });
+    if (!username || username.length < 3) return showMsg('⚠️ Username must be at least 3 characters.', 'error');
+    if (!/^[a-zA-Z0-9_.\-]+$/.test(username)) return showMsg('⚠️ Username: letters, numbers, _ . - only.', 'error');
+    if (!email || !email.includes('@')) return showMsg('⚠️ Please enter a valid email.', 'error');
+    if (pw.length < 8) return showMsg('⚠️ Password must be at least 8 characters.', 'error');
+    if (pw !== confirm) return showMsg('⚠️ Passwords do not match.', 'error');
+    if (!dob) return showMsg('⚠️ Please enter your date of birth.', 'error');
 
-      inp.addEventListener('keydown', function(e) {
-        if (e.key === 'Backspace' && !this.value && i > 0) {
-          inputs[i - 1].focus();
-        }
-        if (e.key === 'Enter') {
-          verifyCode();
-        }
-      });
+    // Age check
+    calcAge(dob);
+    if (calculatedAge < 5) return showMsg('❌ You must be at least 5 years old to use 8BFR.', 'error');
 
-      // Handle paste of full code
-      inp.addEventListener('paste', function(e) {
-        e.preventDefault();
-        const paste = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '');
-        if (paste.length >= 6) {
-          for (let j = 0; j < 6; j++) {
-            inputs[j].value = paste[j] || '';
-          }
-          inputs[5].focus();
-        }
-      });
-    });
-    inputs[0].focus();
-  }
-
-  /* ── VERIFY THE CODE ── */
-  async function verifyCode() {
-    const inputs = document.querySelectorAll('#codeInputs input');
-    let entered = '';
-    inputs.forEach(inp => { entered += inp.value; });
-
-    if (entered.length < 6) {
-      showVerifyMsg('⚠️ Please enter all 6 digits.', 'error');
-      return;
+    // Teen needs parent email
+    if (calculatedTier === 'teen') {
+      const pe = document.getElementById('parentEmail').value.trim();
+      if (!pe || !pe.includes('@')) return showMsg('⚠️ A parent/guardian email is required for users age 13-15.', 'error');
     }
 
-    const btn = document.getElementById('verifyBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span>Verifying…';
-
-    if (entered === verificationCode) {
-      // SUCCESS — show it immediately, don't wait for DB
-      inputs.forEach(inp => inp.classList.add('correct'));
-      btn.innerHTML = '✅ Verified!';
-
-      // Fire-and-forget: mark verified in DB (don't await/block)
-      db.from('profiles').update({ email_verified: true }).eq('user_id', signupUserId)
-        .then(r => { if (r.error) console.warn('Mark verified:', r.error.message); })
-        .catch(e => console.warn('Mark verified:', e));
-
-      db.from('email_verifications').delete().eq('user_id', signupUserId)
-        .then(() => {}).catch(() => {});
-
-      // Show success screen immediately
-      setTimeout(() => {
-        document.getElementById('formSection').style.display = 'none';
-        if (needsArtistVerify) {
-          document.getElementById('pendingNote').style.display = 'block';
-        }
-        document.getElementById('successSection').classList.add('show');
-      }, 500);
-
-    } else {
-      // WRONG CODE
-      inputs.forEach(inp => inp.classList.add('wrong'));
-      showVerifyMsg('⚠️ Incorrect code. Please try again.', 'error');
-      btn.disabled = false;
-      btn.innerHTML = '✅ Verify My Email';
-      setTimeout(() => {
-        inputs.forEach(inp => { inp.classList.remove('wrong'); inp.value = ''; });
-        inputs[0].focus();
-      }, 1200);
-    }
+    // Build review summary
+    const dn = document.getElementById('displayName').value.trim() || username;
+    let tierLabel = calculatedTier === 'kid' ? '🧸 KidZone (12 & Under)' :
+                    calculatedTier === 'teen' ? '🔵 Teen (13-15) — restricted features' :
+                    '🟣 Full Access (16+)';
+    document.getElementById('reviewSummary').innerHTML =
+      '<strong>Name:</strong> ' + dn + '<br>' +
+      '<strong>Username:</strong> @' + username + '<br>' +
+      '<strong>Email:</strong> ' + email + '<br>' +
+      '<strong>Roles:</strong> ' + selectedRoles.join(', ') + '<br>' +
+      '<strong>Age:</strong> ' + calculatedAge + '<br>' +
+      '<strong>Tier:</strong> ' + tierLabel;
   }
 
-  /* ── RESEND CODE WITH COOLDOWN ── */
-  function startResendCooldown() {
-    resendCooldown = 60;
-    const link = document.getElementById('resendLink');
-    const timer = document.getElementById('resendTimer');
-    link.classList.add('disabled');
-
-    const interval = setInterval(() => {
-      resendCooldown--;
-      if (resendCooldown <= 0) {
-        clearInterval(interval);
-        link.classList.remove('disabled');
-        timer.textContent = '';
-      } else {
-        timer.textContent = 'Wait ' + resendCooldown + 's before resending';
-      }
-    }, 1000);
-  }
-
-  async function resendCode() {
-    if (resendCooldown > 0) return;
-    const link = document.getElementById('resendLink');
-    link.textContent = 'Sending…';
-
-    verificationCode = generateCode();
-
-    // Update in DB
-    try {
-      await db.from('email_verifications').upsert({
-        user_id: signupUserId,
-        email: signupEmail,
-        code: verificationCode,
-        expires_at: new Date(Date.now() + 15 * 60000).toISOString()
-      }, { onConflict: 'user_id' });
-    } catch(e) {}
-
-    const sent = await sendVerificationEmail(signupEmail, '', verificationCode);
-    if (sent) {
-      showVerifyMsg('✅ New code sent! Check your email.', 'success');
-    } else {
-      showVerifyMsg('⚠️ Failed to resend. Try again in a moment.', 'error');
-    }
-
-    link.textContent = "Didn't get it? Resend code";
-    startResendCooldown();
-  }
-
-  // Enter key on step 2
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && currentStep === 2 && !document.getElementById('submitBtn').disabled) doSignup();
+  // Switch panels
+  document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('step' + n).classList.add('active');
+  document.querySelectorAll('.step-dot').forEach((d, i) => {
+    d.classList.remove('active', 'done');
+    if (i + 1 < n) d.classList.add('done');
+    if (i + 1 === n) d.classList.add('active');
   });
-</script>
+  currentStep = n;
+}
 
+/* ── AGE CALCULATION ── */
+function calcAge(dobStr) {
+  const dob = new Date(dobStr);
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const m = today.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+  calculatedAge = age;
+  calculatedTier = age <= 12 ? 'kid' : age <= 15 ? 'teen' : 'adult';
+}
+
+document.getElementById('dob').addEventListener('change', function() {
+  calcAge(this.value);
+  const info = document.getElementById('ageInfo');
+  const box = document.getElementById('ageTierBox');
+  const pw = document.getElementById('parentEmailWrap');
+  box.style.display = 'block';
+
+  if (calculatedAge < 5) {
+    info.textContent = 'Age: ' + calculatedAge + ' — Too young';
+    info.style.color = '#ef4444';
+    box.style.background = 'rgba(239,68,68,.08)'; box.style.border = '1px solid rgba(239,68,68,.25)'; box.style.color = '#fca5a5';
+    box.innerHTML = '❌ Children under 5 cannot use 8BFR.';
+    pw.style.display = 'none';
+  } else if (calculatedAge <= 12) {
+    info.textContent = 'Age: ' + calculatedAge + ' — KidZone account';
+    info.style.color = '#ec4899';
+    box.style.background = 'rgba(236,72,153,.08)'; box.style.border = '1px solid rgba(236,72,153,.25)'; box.style.color = '#f9a8d4';
+    box.innerHTML = '🧸 <strong>KidZone (12 & Under)</strong><br>A parent must verify via Didit. Access to KidZone only — a safe, moderated space for young creators. No DMs, no purchases, no main site. <a href="age-policy.html" target="_blank" style="color:#ec4899;">Learn more</a>';
+    pw.style.display = 'none';
+  } else if (calculatedAge <= 15) {
+    info.textContent = 'Age: ' + calculatedAge + ' — Teen (parental consent needed)';
+    info.style.color = '#3b82f6';
+    box.style.background = 'rgba(59,130,246,.08)'; box.style.border = '1px solid rgba(59,130,246,.25)'; box.style.color = '#93c5fd';
+    box.innerHTML = '🔵 <strong>Teen (13-15)</strong><br>Main site with restrictions. Parent email required. No tipping, purchases, live, or unrestricted DMs. 2hr daily default. <a href="age-policy.html" target="_blank" style="color:#60a5fa;">Learn more</a>';
+    pw.style.display = 'block';
+  } else {
+    info.textContent = 'Age: ' + calculatedAge + ' — Full access';
+    info.style.color = '#22c55e';
+    box.style.background = 'rgba(34,197,94,.08)'; box.style.border = '1px solid rgba(34,197,94,.25)'; box.style.color = '#86efac';
+    box.innerHTML = '🟣 <strong>Full Access (16+)</strong><br>All features unlocked.';
+    pw.style.display = 'none';
+  }
+});
+
+/* ── PASSWORD ── */
+function togglePw(fieldId, btn) {
+  const inp = document.getElementById(fieldId);
+  if (inp.type === 'password') { inp.type = 'text'; btn.textContent = '🙈'; }
+  else { inp.type = 'password'; btn.textContent = '👁'; }
+}
+
+function checkStrength(val) {
+  const bar = document.getElementById('strengthBar');
+  const hint = document.getElementById('strengthHint');
+  let score = 0;
+  if (val.length >= 8) score++;
+  if (val.length >= 12) score++;
+  if (/[A-Z]/.test(val)) score++;
+  if (/[0-9]/.test(val)) score++;
+  if (/[^A-Za-z0-9]/.test(val)) score++;
+  const pct = Math.min(score / 4 * 100, 100);
+  bar.style.width = pct + '%';
+  if (score <= 1) { bar.style.background = '#ef4444'; hint.textContent = 'Too weak'; }
+  else if (score <= 2) { bar.style.background = '#f97316'; hint.textContent = 'Weak'; }
+  else if (score <= 3) { bar.style.background = '#fbbf24'; hint.textContent = 'Fair'; }
+  else if (score <= 4) { bar.style.background = '#22c55e'; hint.textContent = 'Good'; }
+  else { bar.style.background = '#a855f7'; hint.textContent = 'Strong 💪'; }
+}
+
+/* ── MESSAGES ── */
+function showMsg(text, type) {
+  const box = document.getElementById('msgBox');
+  box.innerHTML = text;
+  box.className = 'msg ' + type;
+}
+function clearMsg() { document.getElementById('msgBox').className = 'msg'; document.getElementById('msgBox').textContent = ''; }
+
+/* ── SIGNUP ── */
+async function doSignup() {
+  clearMsg();
+  const username = document.getElementById('username').value.trim();
+  const displayName = document.getElementById('displayName').value.trim() || username;
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const dob = document.getElementById('dob').value;
+  const agreed = document.getElementById('agreeTerms').checked;
+
+  if (!agreed) return showMsg('⚠️ Please agree to the Terms of Service to continue.', 'error');
+
+  calcAge(dob);
+  if (calculatedAge < 5) return showMsg('❌ Too young to use 8BFR.', 'error');
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Creating account…';
+
+  try {
+    // Check username
+    const { data: existing } = await db.from('profiles').select('id').ilike('username', username).maybeSingle();
+    if (existing) { showMsg('⚠️ Username taken.', 'error'); btn.disabled = false; btn.innerHTML = '🎵 Create My Account'; return; }
+
+    // Sign up
+    const { data, error } = await db.auth.signUp({
+      email, password,
+      options: {
+        data: { username, role: selectedRoles[0], display_name: displayName },
+        emailRedirectTo: window.location.origin + '/login.html'
+      }
+    });
+
+    if (error) {
+      let msg = error.message;
+      if (msg.includes('already registered')) {
+        document.getElementById('msgBox').innerHTML = '⚠️ Email already registered. <a href="login.html">Log in?</a>';
+        document.getElementById('msgBox').className = 'msg error';
+      } else { showMsg('⚠️ ' + msg, 'error'); }
+      btn.disabled = false; btn.innerHTML = '🎵 Create My Account'; return;
+    }
+
+    // Create profile
+    if (data?.user) {
+      const spotifyUrl = document.getElementById('spotifyUrl').value.trim();
+      try {
+        await db.from('profiles').upsert({
+          id: data.user.id,
+          username: username,
+          display_name: displayName,
+          role: selectedRoles[0],
+          badges: selectedRoles,
+          date_of_birth: dob,
+          age_tier: calculatedTier,
+          is_verified: false,
+          coins: 50,
+          spotify_url: spotifyUrl || null
+        }, { onConflict: 'id', ignoreDuplicates: true });
+      } catch(e) { /* trigger may handle this */ }
+
+      // ★ If teen — create consent request
+      if (calculatedTier === 'teen') {
+        const parentEmail = document.getElementById('parentEmail').value.trim();
+        if (parentEmail) {
+          try {
+            await db.from('teen_consent_requests').insert({
+              teen_user_id: data.user.id,
+              parent_email: parentEmail,
+              status: 'pending',
+              consent_code: Math.random().toString(36).substring(2, 8).toUpperCase()
+            });
+          } catch(e) {}
+        }
+      }
+    }
+
+    // Show success
+    document.getElementById('formSection').style.display = 'none';
+    document.getElementById('confirmedEmail').textContent = email;
+
+    // Tier-specific success message
+    let extra = '';
+    if (calculatedTier === 'kid') {
+      extra = '<div style="margin-top:.75rem;padding:.75rem;background:rgba(236,72,153,.08);border:1px solid rgba(236,72,153,.25);border-radius:10px;font-size:.85rem;color:#f9a8d4;">' +
+        '🧸 <strong>KidZone Account</strong><br>After confirming your email, you will need a parent to verify their identity at the <a href="kidzone-parent.html" style="color:#ec4899;">Parent Hub</a> before this account can be used.</div>';
+    } else if (calculatedTier === 'teen') {
+      extra = '<div style="margin-top:.75rem;padding:.75rem;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);border-radius:10px;font-size:.85rem;color:#93c5fd;">' +
+        '🔵 <strong>Teen Account</strong><br>Your parent/guardian will receive a consent email. Some features are restricted until they approve. DMs limited to other teens and your parent.</div>';
+    }
+    document.getElementById('successExtra').innerHTML = extra;
+    document.getElementById('successSection').classList.add('show');
+
+  } catch(e) {
+    showMsg('⚠️ Something went wrong. Please try again.', 'error');
+    btn.disabled = false; btn.innerHTML = '🎵 Create My Account';
+  }
+}
+</script>
 </body>
 </html>
