@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>📰 Blog Admin — 8BFR</title>
+    <link rel="icon" href="assets/images/favicon.png">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root{--primary:#7c3aed;--card:#0c0618;--text:#eae6ff;--dim:rgba(168,85,247,.7);--border:rgba(124,58,237,.35);--success:#22c55e;--danger:#ef4444;--text-dim:rgba(234,230,255,.5);}
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:'Work Sans',sans-serif;background:linear-gradient(#0b0014,#000);color:var(--text);min-height:100vh;padding-bottom:2rem;}
+        .header{background:rgba(15,0,30,.95);border-bottom:2px solid var(--primary);padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;}
+        .header h1{font-family:'Bebas Neue',cursive;font-size:1.5rem;color:var(--primary);}
+        .container{max-width:700px;margin:0 auto;padding:1.5rem;}
+        .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.25rem;margin-bottom:1rem;}
+        .card h3{font-size:1rem;font-weight:700;color:var(--primary);margin-bottom:.75rem;}
+        .input{width:100%;padding:.55rem .75rem;background:rgba(12,6,24,.8);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.88rem;margin-bottom:.75rem;}
+        .input:focus{outline:none;border-color:var(--primary);}
+        textarea.input{min-height:200px;resize:vertical;font-family:inherit;line-height:1.6;}
+        select.input{cursor:pointer;}
+        .btn{padding:.6rem 1.2rem;border-radius:8px;font-weight:600;cursor:pointer;border:none;transition:all .2s;font-size:.88rem;}
+        .btn-primary{background:linear-gradient(135deg,#7c3aed,#a855f7);color:white;}
+        .btn-primary:hover{box-shadow:0 0 15px rgba(124,58,237,.4);}
+        .btn-danger{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);color:#ef4444;}
+        .btn-sm{padding:.3rem .6rem;font-size:.75rem;border-radius:6px;font-weight:600;cursor:pointer;border:none;}
+        .toolbar{display:flex;gap:.5rem;margin-bottom:.5rem;flex-wrap:wrap;padding:.5rem;background:rgba(124,58,237,.05);border:1px solid rgba(124,58,237,.2);border-radius:8px;}
+        .toolbar button{padding:.3rem .6rem;border-radius:6px;background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.3);color:#a855f7;cursor:pointer;font-size:.78rem;font-weight:600;transition:all .2s;}
+        .toolbar button:hover{background:rgba(124,58,237,.3);}
+        .help-text{font-size:.75rem;color:var(--text-dim);margin-top:.25rem;line-height:1.5;}
+        .post-item{display:flex;align-items:flex-start;gap:.75rem;padding:.75rem;border-bottom:1px solid rgba(124,58,237,.1);}
+        .post-item:last-child{border-bottom:none;}
+        .post-meta{font-size:.72rem;color:var(--text-dim);}
+        .post-title{font-weight:700;font-size:.92rem;}
+        .post-preview{font-size:.82rem;color:rgba(234,230,255,.6);margin-top:.2rem;}
+        .status-tag{display:inline-block;padding:.12rem .4rem;border-radius:4px;font-size:.68rem;font-weight:600;}
+        .status-published{background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.3);}
+        .status-draft{background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.3);}
+        .tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:1.25rem;}
+        .tab{flex:1;text-align:center;padding:.6rem;font-weight:600;font-size:.85rem;cursor:pointer;color:var(--text-dim);border:none;border-bottom:2px solid transparent;background:none;transition:all .2s;}
+        .tab.active{color:var(--primary);border-bottom-color:var(--primary);}
+        .panel{display:none;}
+        .panel.active{display:block;}
+        .spinner{width:24px;height:24px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;margin:1rem auto;}
+        @keyframes spin{to{transform:rotate(360deg);}}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📰 Blog Admin</h1>
+        <div style="display:flex;gap:1rem;align-items:center;">
+            <a href="blog.html" style="color:var(--dim);text-decoration:none;font-size:.85rem;">View Blog →</a>
+            <a href="owner-panel.html" style="color:var(--text-dim);text-decoration:none;font-size:.85rem;">← Panel</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('write',this)">✏️ Write</button>
+            <button class="tab" onclick="switchTab('manage',this)">📋 Manage</button>
+        </div>
+
+        <!-- WRITE PANEL -->
+        <div class="panel active" id="panel-write">
+            <div class="card">
+                <h3>✏️ New Blog Post</h3>
+                <input class="input" id="postTitle" placeholder="Post title...">
+                <input class="input" id="postSlug" placeholder="URL slug (auto-generated)" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'')">
+                <input class="input" id="image" placeholder="https://i.ibb.co/... or emoji like 📰">
+                <div style="display:flex;gap:.75rem;margin-bottom:.75rem;">
+                    <select class="input" id="postCategory" style="flex:1;">
+                        <option value="news">📰 News</option>
+                        <option value="music">🎵 Music</option>
+                        <option value="updates">🔔 Updates</option>
+                        <option value="tutorials">📚 Tutorials</option>
+                        <option value="community">👥 Community</option>
+                    </select>
+                    <select class="input" id="postStatus" style="flex:1;">
+                        <option value="published">✅ Published</option>
+                        <option value="draft">📝 Draft</option>
+                    </select>
+                </div>
+
+                <!-- ★ CONTENT TOOLBAR -->
+                <div class="toolbar">
+                    <button type="button" onclick="blogInsert('[img:PASTE_IMAGE_URL]')">🖼️ Image</button>
+                    <button type="button" onclick="blogInsert('[video:PASTE_YOUTUBE_URL]')">🎥 Video</button>
+                    <button type="button" onclick="blogInsert('**bold text**')"><b>B</b> Bold</button>
+                    <button type="button" onclick="blogInsert('# Heading\n')">H1</button>
+                    <button type="button" onclick="blogInsert('## Subheading\n')">H2</button>
+                    <button type="button" onclick="blogInsert('https://')">🔗 Link</button>
+                </div>
+
+                <textarea class="input" id="content" placeholder="Write your blog post..."></textarea>
+                <div class="help-text">
+                    Use toolbar to insert images, videos, and formatting.
+                    <br>Shortcuts: # Header, ## Subheader, **bold**, [img:URL], [video:YOUTUBE_URL]
+                    <br>Plain URLs auto-link. Double line breaks = new paragraph.
+                </div>
+
+                <div style="display:flex;gap:.75rem;margin-top:1rem;">
+                    <button class="btn btn-primary" onclick="publishPost()">📤 Publish</button>
+                    <button class="btn btn-danger" onclick="clearForm()">🗑️ Clear</button>
+                </div>
+                <div id="writeStatus" style="margin-top:.75rem;font-size:.85rem;"></div>
+            </div>
+        </div>
+
+        <!-- MANAGE PANEL -->
+        <div class="panel" id="panel-manage">
+            <div class="card">
+                <h3>📋 All Posts</h3>
+                <div id="allPosts"><div class="spinner"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="scripts.js" defer></script>
+    <script>
+    (function() {
+        var SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+        var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+        var db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        var OWNER_ID = 'cb556180-f032-4b21-9470-1d786f2664ab';
+        var editingId = null;
+
+        async function init() {
+            var sess = await db.auth.getSession();
+            if (!sess.data.session) { location.href = 'login.html?return=blog-admin.html'; return; }
+            var user = sess.data.session.user;
+            var prof = await db.from('profiles').select('role,badges').eq('id', user.id).single();
+            var isOwner = user.id === OWNER_ID;
+            var isCoOwner = (prof.data && prof.data.badges && prof.data.badges.indexOf('co-owner') !== -1);
+            if (!isOwner && !isCoOwner) { location.href = 'blog.html'; return; }
+            loadPosts();
+        }
+        init();
+
+        // Auto-generate slug from title
+        document.getElementById('postTitle').addEventListener('input', function() {
+            var slug = document.getElementById('postSlug');
+            if (!slug.dataset.manual) {
+                slug.value = this.value.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').substring(0, 60);
+            }
+        });
+        document.getElementById('postSlug').addEventListener('input', function() { this.dataset.manual = '1'; });
+
+        async function loadPosts() {
+            var res = await db.from('blog_posts').select('*').order('created_at', { ascending: false });
+            var posts = res.data || [];
+            var html = '';
+            if (!posts.length) {
+                html = '<p style="font-size:.85rem;color:var(--text-dim);">No blog posts yet. Write your first one!</p>';
+            }
+            posts.forEach(function(p) {
+                var statusCls = p.status === 'published' ? 'status-published' : 'status-draft';
+                var preview = (p.content || '').substring(0, 100);
+                html += '<div class="post-item">' +
+                    '<div style="font-size:1.5rem;">' + (p.featured_image && p.featured_image.length <= 4 ? p.featured_image : '📝') + '</div>' +
+                    '<div style="flex:1;min-width:0;">' +
+                        '<div class="post-title">' + (p.title || 'Untitled') + ' <span class="status-tag ' + statusCls + '">' + (p.status || 'draft') + '</span></div>' +
+                        '<div class="post-preview">' + preview + (preview.length >= 100 ? '...' : '') + '</div>' +
+                        '<div class="post-meta">' + (p.category || '') + ' · ' + new Date(p.created_at).toLocaleDateString() + '</div>' +
+                    '</div>' +
+                    '<div style="display:flex;flex-direction:column;gap:.3rem;">' +
+                        '<button class="btn-sm" style="background:rgba(124,58,237,.15);color:#a855f7;border:1px solid rgba(124,58,237,.3);" onclick="editPost(\'' + p.id + '\')">✏️</button>' +
+                        '<button class="btn-sm" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3);" onclick="deletePost(\'' + p.id + '\')">🗑️</button>' +
+                    '</div>' +
+                '</div>';
+            });
+            document.getElementById('allPosts').innerHTML = html;
+        }
+
+        window.publishPost = async function() {
+            var title = document.getElementById('postTitle').value.trim();
+            var slug = document.getElementById('postSlug').value.trim();
+            var content = document.getElementById('content').value.trim();
+            var category = document.getElementById('postCategory').value;
+            var status = document.getElementById('postStatus').value;
+            var image = document.getElementById('image').value.trim();
+            var statusEl = document.getElementById('writeStatus');
+
+            if (!title || !content) {
+                statusEl.style.color = '#fca5a5';
+                statusEl.textContent = 'Title and content are required.';
+                return;
+            }
+
+            if (!slug) slug = title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').substring(0, 60);
+
+            var sess = await db.auth.getSession();
+            var payload = {
+                title: title,
+                slug: slug,
+                content: content,
+                category: category,
+                status: status,
+                featured_image: image || '📝',
+                author_id: sess.data.session.user.id
+            };
+
+            var res;
+            if (editingId) {
+                res = await db.from('blog_posts').update(payload).eq('id', editingId);
+                editingId = null;
+            } else {
+                res = await db.from('blog_posts').insert(payload);
+            }
+
+            if (res.error) {
+                statusEl.style.color = '#fca5a5';
+                statusEl.textContent = '✕ ' + res.error.message;
+            } else {
+                statusEl.style.color = '#86efac';
+                statusEl.textContent = '✓ Post saved!';
+                clearForm();
+                loadPosts();
+                setTimeout(function() { statusEl.textContent = ''; }, 3000);
+            }
+        };
+
+        window.editPost = async function(id) {
+            var res = await db.from('blog_posts').select('*').eq('id', id).single();
+            if (!res.data) return;
+            var p = res.data;
+            editingId = p.id;
+            document.getElementById('postTitle').value = p.title || '';
+            document.getElementById('postSlug').value = p.slug || '';
+            document.getElementById('content').value = p.content || '';
+            document.getElementById('postCategory').value = p.category || 'news';
+            document.getElementById('postStatus').value = p.status || 'draft';
+            document.getElementById('image').value = p.featured_image || '';
+            switchTab('write', document.querySelector('.tab'));
+            document.getElementById('writeStatus').style.color = '#a855f7';
+            document.getElementById('writeStatus').textContent = 'Editing: ' + p.title;
+        };
+
+        window.deletePost = async function(id) {
+            if (!confirm('Delete this blog post permanently?')) return;
+            await db.from('blog_posts').delete().eq('id', id);
+            loadPosts();
+        };
+
+        window.clearForm = function() {
+            editingId = null;
+            document.getElementById('postTitle').value = '';
+            document.getElementById('postSlug').value = '';
+            document.getElementById('postSlug').dataset.manual = '';
+            document.getElementById('content').value = '';
+            document.getElementById('image').value = '';
+            document.getElementById('writeStatus').textContent = '';
+        };
+
+        window.switchTab = function(name, el) {
+            document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+            document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
+            el.classList.add('active');
+            var panel = document.getElementById('panel-' + name);
+            if (panel) panel.classList.add('active');
+        };
+    })();
+    </script>
+
+    <!-- ★ blogInsert helper for toolbar -->
+    <script>
+    function blogInsert(text) {
+        var el = document.getElementById('content');
+        if (!el) return;
+        var start = el.selectionStart;
+        var end = el.selectionEnd;
+        el.value = el.value.substring(0, start) + text + el.value.substring(end);
+        el.selectionStart = el.selectionEnd = start + text.length;
+        el.focus();
+    }
+    </script>
+
+    <!-- Avatar toggle (safe version — NO MutationObserver) -->
+    <script>
+    (function(){
+        function updateVisibility() {
+            var show = localStorage.getItem('showAvatarBubbles') !== 'false';
+            document.querySelectorAll('.avatar-bubble, .chat-bubble-float').forEach(function(el) {
+                el.style.display = show ? '' : 'none';
+            });
+        }
+        updateVisibility();
+    })();
+    </script>
+</body>
+</html>
