@@ -1,64 +1,314 @@
-<!-- ═══ 8BFR FEED FIXES — Paste this BEFORE </body> in feed.html ═══
-     Fixes: Private posts filtered from feed, story sharing blocked for private posts
-     Replace the broken avatar toggle IIFE too.
--->
-<script>
-(function(){
-  // ★ FIX 1: Override shareSheetToStory to block private posts
-  window.shareSheetToStory = async function(postId) {
-    if (!window._currentUser) { alert('Sign in first'); return; }
-    var o=document.getElementById('shareSheetOverlay'); if(o)o.remove();
-    try {
-      var { data: p } = await window._db.from('posts').select('text,media,media_type,is_private,hidden').eq('id',postId).single();
-      if (p && (p.is_private || p.hidden)) {
-        alert('🔒 Private posts cannot be shared to your story.');
-        return;
-      }
-      await window._db.from('stories').insert({user_id:window._currentUser.id,text:p&&p.text?p.text.substring(0,200):null,media_url:p&&p.media?p.media:null,media_type:p&&p.media?'image':null,background_color:'#7c3aed',views:0,expires_at:new Date(Date.now()+24*3600000).toISOString()});
-      alert('✅ Added to your story!');
-    } catch(e){ alert('Error: '+e.message); }
-  };
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Community Feed — 8BFR Music Network</title>
+  <link rel="icon" href="assets/images/favicon.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; background: linear-gradient(#0b0014, #000); color: #eae6ff; margin: 0; min-height: 100vh; padding-bottom: 80px; }
+    .feed-card { background: rgba(12,6,24,0.85); border: 1px solid rgba(124,58,237,0.3); border-radius: 14px; padding: 1.25rem; margin-bottom: 1rem; }
+    .feed-card:hover { border-color: rgba(124,58,237,0.5); }
+    .tab-bar { display: flex; gap: 0; border-bottom: 1px solid rgba(124,58,237,0.3); margin-bottom: 1.5rem; overflow-x: auto; scrollbar-width: none; }
+    .tab-bar::-webkit-scrollbar { display: none; }
+    .tab-btn { flex: 1; min-width: 80px; text-align: center; padding: 0.75rem 0.5rem; font-weight: 600; font-size: 0.85rem; cursor: pointer; color: rgba(234,230,255,0.5); border-bottom: 2px solid transparent; background: none; border-top: none; border-left: none; border-right: none; transition: all 0.2s; white-space: nowrap; }
+    .tab-btn.active { color: #a855f7; border-bottom-color: #a855f7; }
+    .action-btn { background: none; border: none; color: rgba(168,85,247,0.7); cursor: pointer; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.35rem 0.6rem; border-radius: 8px; transition: all 0.2s; }
+    .action-btn:hover { background: rgba(124,58,237,0.15); color: #a855f7; }
+    .action-btn.liked { color: #f472b6; }
+    .action-btn.favorited { color: #fbbf24; }
+    .spinner { width: 32px; height: 32px; border-radius: 50%; border: 3px solid rgba(168,85,247,0.2); border-top-color: #a855f7; animation: spin 0.7s linear infinite; margin: 2rem auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .bottom-nav-item { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; padding: 0.5rem 0.75rem; text-decoration: none; color: #a855f7; transition: all 0.2s; border-radius: 0.5rem; flex: 1; max-width: 100px; }
+    .bottom-nav-item:hover { background: rgba(124,58,237,0.2); }
+    .bottom-nav-item.active { color: #fff; background: rgba(124,58,237,0.3); }
+    .comment-section { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid rgba(124,58,237,0.2); }
+    .comment-item { padding: 0.5rem 0.6rem; border-radius: 8px; background: rgba(0,0,0,0.2); margin-bottom: 0.4rem; }
+    .comment-author { font-weight: 700; font-size: 0.78rem; color: #a855f7; }
+    .comment-text { font-size: 0.85rem; margin: 0.15rem 0; line-height: 1.4; }
+    .comment-meta { font-size: 0.68rem; color: rgba(168,85,247,0.4); }
+    .comment-actions { display: flex; gap: 0.5rem; margin-top: 0.25rem; }
+    .comment-action-btn { background: none; border: none; color: rgba(168,85,247,0.5); font-size: 0.7rem; cursor: pointer; padding: 0; display: inline-flex; align-items: center; gap: 0.2rem; }
+    .reply-indent { margin-left: 1rem; border-left: 2px solid rgba(124,58,237,0.2); padding-left: 0.6rem; }
+    .sticker-row { display:flex; flex-wrap:wrap; gap:0.3rem; margin-top:0.4rem; }
+    .sticker-bubble { display:inline-flex; align-items:center; gap:0.25rem; padding:0.2rem 0.55rem; border-radius:999px; font-size:0.82rem; background:rgba(124,58,237,0.12); border:1px solid rgba(124,58,237,0.3); cursor:pointer; transition:all .15s; user-select:none; }
+    .sticker-bubble:hover { background:rgba(124,58,237,0.25); }
+    .sticker-bubble.mine { background:rgba(124,58,237,0.25); border-color:rgba(168,85,247,0.7); }
+    .sticker-bubble .s-count { font-size:0.72rem; color:#a855f7; font-weight:700; }
+    .sticker-picker { display:none; position:absolute; z-index:200; bottom:calc(100% + 6px); left:0; background:rgba(14,4,30,.98); border:1px solid rgba(124,58,237,.5); border-radius:12px; padding:0.6rem; box-shadow:0 8px 24px rgba(0,0,0,.7); max-width:240px; }
+    .sticker-picker.open { display:block; }
+    .sticker-picker-inner { display:flex; flex-wrap:wrap; gap:0.35rem; }
+    .sticker-pick-btn { font-size:1.3rem; padding:0.3rem; border-radius:8px; cursor:pointer; background:rgba(124,58,237,.1); border:1px solid rgba(124,58,237,.25); transition:all .15s; line-height:1; }
+    .sticker-pick-btn:hover { background:rgba(124,58,237,.35); transform:scale(1.15); }
+    .sticker-pick-btn.no-stickers { font-size:.75rem; color:#a855f7; opacity:.7; padding:.4rem .6rem; background:none; border:none; cursor:default; }
+    .sticker-wrap { position:relative; display:inline-block; }
+  </style>
+</head>
+<body>
+  <header class="px-4 py-4" style="background:rgba(15,0,30,0.9);border-bottom:1px solid rgba(124,58,237,0.5);">
+    <div class="max-w-2xl mx-auto flex items-center justify-between">
+      <div>
+        <h1 class="text-xl font-bold">🗨️ Community Feed</h1>
+        <p class="text-xs text-purple-300/80">See what creators are sharing</p>
+      </div>
+      <div style="font-size:0.78rem;color:rgba(168,85,247,0.6);">Post from your <a href="profile.html" style="color:#a855f7;font-weight:600;">Profile</a></div>
+    </div>
+  </header>
+  <main class="max-w-2xl mx-auto px-4 mt-4">
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="trending">🔥 Trending</button>
+      <button class="tab-btn" data-tab="top">🏆 Top</button>
+      <button class="tab-btn" data-tab="latest">🕐 Latest</button>
+      <button class="tab-btn" data-tab="following">👥 Following</button>
+    </div>
+    <div id="feedLoading"><div class="spinner"></div></div>
+    <div id="feedList"></div>
+    <div id="feedEmpty" style="display:none;text-align:center;padding:3rem 1rem;">
+      <div style="font-size:4rem;margin-bottom:1rem;">🗨️</div>
+      <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:0.5rem;">No posts yet</h3>
+      <p style="color:#a855f7;opacity:0.8;margin-bottom:1rem;">Be the first to share something!</p>
+      <a href="profile.html" style="background:#7c3aed;color:white;padding:0.6rem 1.2rem;border-radius:8px;text-decoration:none;font-weight:600;">Go to Profile to Post</a>
+    </div>
+    <button id="loadMoreBtn" style="display:none;width:100%;padding:0.75rem;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:10px;color:#a855f7;font-weight:600;cursor:pointer;margin-top:0.5rem;">Load More</button>
+  </main>
+  <nav class="fixed bottom-0 left-0 right-0 z-50 bg-[rgba(15,0,30,0.95)] backdrop-blur-md border-t border-purple-500/40">
+    <div class="max-w-6xl mx-auto px-2 py-2">
+      <div class="flex items-center justify-around gap-1">
+        <a href="index.html" class="bottom-nav-item"><div style="font-size:1.25rem;">🏠</div><div style="font-size:0.7rem;font-weight:600;">Home</div></a>
+        <a href="search.html" class="bottom-nav-item"><div style="font-size:1.25rem;">🔍</div><div style="font-size:0.7rem;font-weight:600;">Search</div></a>
+        <a href="feed.html" class="bottom-nav-item active"><div style="font-size:1.25rem;">📰</div><div style="font-size:0.7rem;font-weight:600;">Feed</div></a>
+        <a href="radio.html" class="bottom-nav-item"><div style="font-size:1.25rem;">📻</div><div style="font-size:0.7rem;font-weight:600;">Radio</div></a>
+        <a href="profile.html" class="bottom-nav-item"><div style="font-size:1.25rem;">👤</div><div style="font-size:0.7rem;font-weight:600;">Profile</div></a>
+      </div>
+    </div>
+  </nav>
+  <script src="scripts.js" defer></script>
+  <script>
+  (async function() {
+    const db = window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
+    const OWNER_ID = 'cb556180-f032-4b21-9470-1d786f2664ab';
+    let currentTab = 'trending', currentUser = null, offset = 0;
+    const PAGE = 20;
+    let COMMENT_TABLE = 'post_comments';
+    try { const test = await db.from('post_comments').select('id').limit(1); if (test.error && test.error.message && test.error.message.includes('does not exist')) COMMENT_TABLE = 'comments'; } catch(e) { COMMENT_TABLE = 'comments'; }
+    try { const { data: { session } } = await db.auth.getSession(); if (session) currentUser = session.user; } catch(e) {}
+    window._db = db;
+    window._currentUser = currentUser;
+    window._COMMENT_TABLE = COMMENT_TABLE;
 
-  // ★ FIX 2: Intercept feed rendering to filter out private/hidden posts
-  // This runs after each feed load by hooking into the feedList element
-  var origInsert = Element.prototype.insertAdjacentHTML;
-  var feedList = document.getElementById('feedList');
-  
-  // Simpler approach: periodically check for and remove private posts from DOM
-  // (The real fix would be in the query, but we can't modify the IIFE without rewriting)
-  // Instead, let's override at the data level by patching the rendering
-  
-  // Monitor feedList for new cards and hide private ones  
-  var observer = new MutationObserver(function(mutations){
-    mutations.forEach(function(m){
-      m.addedNodes.forEach(function(node){
-        if(node.nodeType===1 && node.classList && node.classList.contains('feed-card')){
-          // Check if this post is private by looking for a data attribute
-          // Since we can't easily detect, this is handled server-side via the query
-        }
+    db.channel('feed-reactions').on('postgres_changes',{event:'*',schema:'public',table:'post_reactions'},async(payload)=>{
+      const postId=(payload.new&&payload.new.post_id)||(payload.old&&payload.old.post_id);
+      if(!postId||!document.getElementById('sticker-row-'+postId))return;
+      try{const{data}=await db.from('post_reactions').select('post_id,sticker_id,user_id').eq('post_id',postId);renderStickerRow(postId,data||[]);}catch(e){}
+    }).subscribe();
+
+    document.querySelectorAll('.tab-btn').forEach(btn=>{
+      btn.addEventListener('click',function(){
+        document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+        this.classList.add('active');currentTab=this.dataset.tab;offset=0;loadFeed();
       });
     });
-  });
-  if(feedList) observer.observe(feedList, {childList:true});
-  
-  // The most reliable fix: add .neq('is_private',true) to the query
-  // Since the feed code is in an IIFE we can't directly modify, 
-  // we need to filter posts client-side after they render.
-  // But actually the feed already selects('*') which includes is_private.
-  // The cleanest approach is to patch the renderPost function.
-  
-  console.log('✅ Feed fixes loaded: private story sharing blocked');
+    document.getElementById('loadMoreBtn').addEventListener('click',()=>{offset+=PAGE;loadFeed(true);});
+
+    async function loadFeed(append){
+      if(!append){document.getElementById('feedLoading').style.display='block';document.getElementById('feedList').innerHTML='';document.getElementById('feedEmpty').style.display='none';document.getElementById('loadMoreBtn').style.display='none';}
+      try{
+        let posts=[];
+        if(currentTab==='trending'){
+          try{const{data,error}=await db.rpc('get_feed_posts',{p_limit:PAGE,p_offset:offset});if(!error&&data)posts=data;else throw new Error('rpc failed');}catch(e){
+            const{data:allPosts}=await db.from('posts').select('*').order('created_at',{ascending:false}).range(offset,offset+PAGE-1);
+            posts=(allPosts||[]).sort((a,b)=>{if(a.user_id===OWNER_ID&&b.user_id!==OWNER_ID)return-1;if(b.user_id===OWNER_ID&&a.user_id!==OWNER_ID)return 1;return(b.algorithm_score||0)-(a.algorithm_score||0);});
+          }
+          // ★ FIX: Filter out private/hidden posts
+          posts=posts.filter(function(p){return !p.is_private&&!p.hidden;});
+        }else if(currentTab==='top'){
+          const{data,error}=await db.from('posts').select('*').order('algorithm_score',{ascending:false}).range(offset,offset+PAGE-1);
+          if(error)throw error;
+          posts=(data||[]).sort((a,b)=>{if(a.user_id===OWNER_ID&&b.user_id!==OWNER_ID)return-1;if(b.user_id===OWNER_ID&&a.user_id!==OWNER_ID)return 1;return(b.algorithm_score||0)-(a.algorithm_score||0);});
+          // ★ FIX: Filter out private/hidden posts
+          posts=posts.filter(function(p){return !p.is_private&&!p.hidden;});
+        }else if(currentTab==='latest'){
+          const{data,error}=await db.from('posts').select('*').order('created_at',{ascending:false}).range(offset,offset+PAGE-1);
+          if(error)throw error;
+          posts=data||[];
+          // ★ FIX: Filter out private/hidden posts
+          posts=posts.filter(function(p){return !p.is_private&&!p.hidden;});
+        }else if(currentTab==='following'){
+          if(!currentUser){document.getElementById('feedLoading').style.display='none';document.getElementById('feedList').innerHTML='<div class="feed-card" style="text-align:center;padding:2rem;"><p style="color:#a855f7;">Log in to see posts from people you follow.</p><a href="login.html" style="color:#7c3aed;font-weight:600;">Log In</a></div>';return;}
+          const{data:follows}=await db.from('follows').select('following_id').eq('follower_id',currentUser.id);
+          const ids=(follows||[]).map(f=>f.following_id);
+          if(!ids.length){document.getElementById('feedLoading').style.display='none';document.getElementById('feedList').innerHTML='<div class="feed-card" style="text-align:center;padding:2rem;"><p style="color:#a855f7;">You\'re not following anyone yet.</p><a href="members.html" style="color:#7c3aed;font-weight:600;">Browse Members</a></div>';return;}
+          const{data,error}=await db.from('posts').select('*').in('user_id',ids).order('created_at',{ascending:false}).range(offset,offset+PAGE-1);
+          if(error)throw error;
+          posts=data||[];
+          // ★ FIX: Filter out private/hidden posts
+          posts=posts.filter(function(p){return !p.is_private&&!p.hidden;});
+        }
+        document.getElementById('feedLoading').style.display='none';
+        if(!posts.length&&!append){document.getElementById('feedEmpty').style.display='block';return;}
+        const authorIds=[...new Set(posts.map(p=>p.user_id).filter(Boolean))];
+        let pm={};
+        if(authorIds.length){const{data:profiles}=await db.from('profiles').select('user_id,username,display_name,avatar_url,verified_artist,algorithm_tier').in('user_id',authorIds);if(profiles)profiles.forEach(p=>{pm[p.user_id]=p;});}
+        let likedSet={},favSet={};
+        if(currentUser&&posts.length){
+          const ids=posts.map(p=>p.id);
+          const[lkr,fvr]=await Promise.all([db.from('post_likes').select('post_id').eq('user_id',currentUser.id).in('post_id',ids),db.from('post_favorites').select('post_id').eq('user_id',currentUser.id).in('post_id',ids)]);
+          (lkr.data||[]).forEach(x=>likedSet[x.post_id]=true);(fvr.data||[]).forEach(x=>favSet[x.post_id]=true);
+        }
+        const fl=document.getElementById('feedList');
+        posts.forEach(post=>{fl.insertAdjacentHTML('beforeend',renderPost(post,pm[post.user_id]||{},likedSet[post.id],favSet[post.id]));});
+        if(posts.length)loadBatchStickerReactions(posts.map(p=>p.id));
+        document.getElementById('loadMoreBtn').style.display=posts.length>=PAGE?'block':'none';
+      }catch(err){console.error('Feed:',err);document.getElementById('feedLoading').style.display='none';document.getElementById('feedList').innerHTML='<div class="feed-card" style="text-align:center;padding:2rem;color:#ef4444;">Error loading feed.</div>';}
+    }
+
+    function renderPost(post,pr,liked,favorited){
+      const name=pr.display_name||pr.username||'User';
+      const av=pr.avatar_url?'<img src="'+pr.avatar_url+'" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML=\'🎵\'">':'🎵';
+      const v=pr.verified_artist?'<span style="color:#00d9ff;margin-left:4px;">✓</span>':'';
+      const tier=pr.algorithm_tier||'Bronze';
+      const tc={Bronze:'#cd7f32',Silver:'#c0c0c0',Gold:'#ffd700',Platinum:'#e5e4e2',Diamond:'#b9f2ff'};
+      const tb='<span style="font-size:0.7rem;color:'+(tc[tier]||'#cd7f32')+';margin-left:4px;">'+tier+'</span>';
+      const isOwner=post.user_id===OWNER_ID;
+      const ownerBadge=isOwner?'<span style="font-size:0.65rem;background:linear-gradient(90deg,#7c3aed,#a855f7);color:white;padding:1px 6px;border-radius:10px;margin-left:4px;">OWNER</span>':'';
+      const ago=timeAgo(post.created_at);
+      const sc=(post.algorithm_score||0);const si=sc>100?' 🔥':sc>50?' ⭐':'';
+      const scoreBadge=currentTab==='top'?'<span style="font-size:0.68rem;background:rgba(124,58,237,0.2);border:1px solid rgba(124,58,237,0.4);color:#a855f7;padding:1px 7px;border-radius:10px;margin-left:6px;">score '+sc+'</span>':'';
+      let media='';
+      if(post.media&&(post.media_type==='image'||post.media_type==='photo'))media='<div style="margin:0.75rem 0;border-radius:10px;overflow:hidden;"><img src="'+post.media+'" style="width:100%;max-height:400px;object-fit:cover;" onerror="this.style.display=\'none\'"></div>';
+      else if(post.media&&post.media_type==='video'){const yt=post.media.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);if(yt)media='<div style="margin:0.75rem 0;position:relative;padding-bottom:56.25%;height:0;border-radius:10px;overflow:hidden;"><iframe src="https://www.youtube.com/embed/'+yt[1]+'" style="position:absolute;inset:0;width:100%;height:100%;border:none;" allowfullscreen></iframe></div>';else media='<div style="margin:0.75rem 0;border-radius:10px;overflow:hidden;"><video controls preload="none" style="width:100%;max-height:400px;"><source src="'+post.media+'"></video></div>';}
+      else if(post.media&&post.media_type==='audio')media='<div style="margin:0.75rem 0;"><audio controls preload="none" style="width:100%;"><source src="'+post.media+'"></audio></div>';
+      const likeClass=liked?'action-btn liked':'action-btn';const favClass=favorited?'action-btn favorited':'action-btn';
+      return '<div class="feed-card" data-post-id="'+post.id+'"'+(isOwner?' style="border-color:rgba(124,58,237,0.6);box-shadow:0 0 12px rgba(124,58,237,0.15);"':'')+'><div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;"><a href="profile.html?id='+post.user_id+'" style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden;text-decoration:none;">'+av+'</a><div style="flex:1;min-width:0;"><a href="profile.html?id='+post.user_id+'" style="font-weight:700;font-size:0.95rem;text-decoration:none;color:#eae6ff;">'+esc(name)+v+'</a>'+tb+ownerBadge+scoreBadge+'<div style="font-size:0.78rem;color:#a855f7;opacity:0.7;">'+ago+si+'</div></div></div>'+(post.text?'<div style="margin-bottom:0.5rem;line-height:1.55;word-break:break-word;">'+esc(post.text)+'</div>':'')+media+'<div style="display:flex;gap:0.25rem;flex-wrap:wrap;padding-top:0.6rem;border-top:1px solid rgba(124,58,237,0.15);"><button class="'+likeClass+'" id="like-btn-'+post.id+'" onclick="likePost(\''+post.id+'\',this)">❤️ <span id="like-count-'+post.id+'">'+(post.likes||0)+'</span></button><button class="action-btn" onclick="toggleComments(\''+post.id+'\')">💬 <span id="comment-count-'+post.id+'">'+(post.comments||post.comment_count||0)+'</span></button><button class="action-btn" onclick="resharePost(\''+post.id+'\',this)">🔁 <span id="reshare-count-'+post.id+'">'+(post.reshares||post.shares||0)+'</span></button><button class="'+favClass+'" id="fav-btn-'+post.id+'" onclick="favPost(\''+post.id+'\',this)">⭐ <span id="fav-count-'+post.id+'">'+(post.favorites||0)+'</span></button><button class="action-btn" onclick="openShareSheet(\''+post.id+'\',\''+encodeURIComponent(post.text||'')+'\')" title="Share">📤</button>'+(post.user_id!==(currentUser&&currentUser.id)?'<button class="action-btn" onclick="openFeedTip(\''+post.user_id+'\',\''+esc(name).replace(/'/g,"\\'")+'\')" title="Tip">🪙</button>':'')+'<div class="sticker-wrap"><button class="action-btn" title="React" onclick="toggleStickerPicker(\''+post.id+'\',event)">🎭</button><div class="sticker-picker" id="spicker-'+post.id+'"></div></div></div><div class="sticker-row" id="sticker-row-'+post.id+'"></div></div>';
+    }
+
+    function esc(s){return s?s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):''}
+    function timeAgo(d){if(!d)return'';const m=Math.floor((Date.now()-new Date(d).getTime())/60000);if(m<1)return'Just now';if(m<60)return m+'m ago';const h=Math.floor(m/60);if(h<24)return h+'h ago';const dy=Math.floor(h/24);if(dy<7)return dy+'d ago';return new Date(d).toLocaleDateString();}
+
+    /* ── LIKE ── */
+    window.likePost=async function(id,btn){
+      if(!currentUser){alert('Log in to like posts');return;}
+      try{const alreadyLiked=btn.classList.contains('liked');
+      if(alreadyLiked){await db.from('post_likes').delete().eq('post_id',id).eq('user_id',currentUser.id);const{data}=await db.from('posts').select('likes,user_id').eq('id',id).single();const n=Math.max(0,(data.likes||1)-1);await db.from('posts').update({likes:n}).eq('id',id);document.getElementById('like-count-'+id).textContent=n;btn.classList.remove('liked');}
+      else{await db.from('post_likes').upsert({post_id:id,user_id:currentUser.id});const{data}=await db.from('posts').select('likes,user_id').eq('id',id).single();const n=(data.likes||0)+1;await db.from('posts').update({likes:n}).eq('id',id);document.getElementById('like-count-'+id).textContent=n;btn.classList.add('liked');try{await db.rpc('add_algorithm_points',{p_user_id:data.user_id,p_action:'receive_like',p_points:2});}catch(e){}try{await db.rpc('recalc_post_score',{p_post_id:id});}catch(e){}}
+      }catch(e){console.error(e);}
+    };
+
+    /* ── COMMENTS ── */
+    window.toggleComments=async function(id){
+      let section=document.getElementById('comments-'+id);
+      if(section){section.style.display=section.style.display==='none'?'block':'none';return;}
+      const postCard=document.querySelector('[data-post-id="'+id+'"]');if(!postCard)return;
+      section=document.createElement('div');section.id='comments-'+id;section.className='comment-section';
+      section.innerHTML='<div class="spinner" style="width:20px;height:20px;margin:0.5rem auto;"></div>';
+      postCard.appendChild(section);await renderComments(id,section);
+    };
+    async function renderComments(postId,section){
+      try{const{data:rawComments,error:cmErr}=await db.from(COMMENT_TABLE).select('*').eq('post_id',postId).order('created_at',{ascending:true}).limit(50);
+      if(cmErr){section.innerHTML='<p style="color:#ef4444;font-size:0.8rem;">Error: '+cmErr.message+'</p>';return;}
+      const list=rawComments||[];
+      const authorIds=[...new Set(list.map(c=>c.user_id).filter(Boolean))];let profileMap={};
+      if(authorIds.length){const{data:profiles}=await db.from('profiles').select('user_id,username,display_name,avatar_url').in('user_id',authorIds);if(profiles)profiles.forEach(p=>{profileMap[p.user_id]=p;});}
+      const topLevel=[];const replies={};
+      list.forEach(c=>{const parentId=c.parent_id||c.reply_to||null;if(parentId){if(!replies[parentId])replies[parentId]=[];replies[parentId].push(c);}else topLevel.push(c);});
+      let cHtml='';
+      if(!list.length)cHtml='<div style="text-align:center;padding:0.75rem;color:rgba(168,85,247,0.4);font-size:0.82rem;">No comments yet.</div>';
+      else{topLevel.forEach(c=>{cHtml+=renderSingleComment(c,profileMap,postId);if(replies[c.id]){cHtml+='<div class="reply-indent">';replies[c.id].forEach(r=>{cHtml+=renderSingleComment(r,profileMap,postId);});cHtml+='</div>';}});}
+      cHtml+='<div style="display:flex;gap:0.5rem;margin-top:0.6rem;"><input id="cinput-'+postId+'" type="text" placeholder="Write a comment…" style="flex:1;background:rgba(0,0,0,0.3);border:1px solid rgba(124,58,237,0.3);border-radius:6px;padding:0.4rem 0.7rem;color:#eae6ff;font-size:0.83rem;outline:none;" onkeypress="if(event.key===\'Enter\')sendComment(\''+postId+'\')"><button onclick="sendComment(\''+postId+'\')" style="background:#7c3aed;border:none;color:white;padding:0.4rem 0.85rem;border-radius:6px;cursor:pointer;font-size:0.83rem;font-weight:600;">Post</button></div>';
+      section.innerHTML=cHtml;}catch(e){section.innerHTML='<p style="color:#ef4444;font-size:0.8rem;">Error: '+(e.message||'unknown')+'</p>';}
+    }
+    function renderSingleComment(c,profileMap,postId){
+      const pr=profileMap[c.user_id]||{};const name=pr.display_name||pr.username||'User';const mine=currentUser&&c.user_id===currentUser.id;
+      const m=Math.floor((Date.now()-new Date(c.created_at).getTime())/60000);const t=m<1?'now':m<60?m+'m':m<1440?Math.floor(m/60)+'h':Math.floor(m/1440)+'d';
+      const commentText=c.text||c.content||'';
+      return '<div class="comment-item" id="cm-'+c.id+'"><div style="display:flex;justify-content:space-between;"><div style="flex:1;"><a href="profile.html?id='+c.user_id+'" class="comment-author" style="text-decoration:none;">'+esc(name)+'</a> <span class="comment-meta">'+t+'</span><div class="comment-text">'+esc(commentText)+'</div></div>'+(mine?'<button class="comment-action-btn" onclick="deleteComment(\''+c.id+'\',\''+postId+'\')">🗑️</button>':'')+'</div><div class="comment-actions"><button class="comment-action-btn" id="clk-'+c.id+'" onclick="likeComment(\''+c.id+'\')">❤️ <span id="clc-'+c.id+'">'+(c.likes||0)+'</span></button><button class="comment-action-btn" onclick="replyToComment(\''+postId+'\',\''+esc(name).replace(/'/g,"\\'")+'\')">\u21a9\ufe0f Reply</button></div></div>';
+    }
+    window.sendComment=async function(postId){if(!currentUser){alert('Log in');return;}const input=document.getElementById('cinput-'+postId);if(!input)return;const text=input.value.trim();if(!text)return;input.value='';try{await db.from(COMMENT_TABLE).insert({post_id:postId,user_id:currentUser.id,text:text,likes:0});const{data}=await db.from('posts').select('comments,comment_count,user_id').eq('id',postId).single();const oldCount=data?(data.comments||data.comment_count||0):0;await db.from('posts').update({comments:oldCount+1,comment_count:oldCount+1}).eq('id',postId);document.getElementById('comment-count-'+postId).textContent=oldCount+1;try{await db.rpc('add_algorithm_points',{p_user_id:data.user_id,p_action:'receive_comment',p_points:5});}catch(e){}const section=document.getElementById('comments-'+postId);if(section)await renderComments(postId,section);}catch(e){alert('Error: '+(e.message||'unknown'));}};
+    window.likeComment=async function(id){if(!currentUser)return;try{const{data}=await db.from(COMMENT_TABLE).select('likes').eq('id',id).maybeSingle();const n=((data&&data.likes)||0)+1;await db.from(COMMENT_TABLE).update({likes:n}).eq('id',id);const el=document.getElementById('clc-'+id);if(el)el.textContent=n;}catch(e){}};
+    window.replyToComment=function(postId,name){const inp=document.getElementById('cinput-'+postId);if(inp){inp.value='@'+name+' ';inp.focus();}};
+    window.deleteComment=async function(id,postId){if(!confirm('Delete comment?'))return;try{await db.from(COMMENT_TABLE).delete().eq('id',id).eq('user_id',currentUser.id);const{data}=await db.from('posts').select('comments,comment_count').eq('id',postId).single();const n=Math.max(0,(data?(data.comments||data.comment_count||1):1)-1);await db.from('posts').update({comments:n,comment_count:n}).eq('id',postId);document.getElementById('comment-count-'+postId).textContent=n;const section=document.getElementById('comments-'+postId);if(section)await renderComments(postId,section);}catch(e){}};
+
+    /* ── RESHARE ── */
+    window.resharePost=async function(id,btn){if(!currentUser){alert('Log in');return;}if(!confirm('Reshare this post?'))return;try{const{data}=await db.from('posts').select('*').eq('id',id).single();if(!data)return;await db.from('posts').insert({user_id:currentUser.id,text:data.text||null,media:data.media||null,media_type:data.media_type||null,reshared_from:id,likes:0,shares:0,favorites:0,reshares:0,comments:0,comment_count:0});const n=(data.reshares||data.shares||0)+1;await db.from('posts').update({reshares:n,shares:n}).eq('id',id);document.getElementById('reshare-count-'+id).textContent=n;try{await db.rpc('add_algorithm_points',{p_user_id:data.user_id,p_action:'receive_share',p_points:15});}catch(e){}}catch(e){alert('Error: '+e.message);}};
+
+    /* ── SHARE SHEET ── */
+    window.openShareSheet=function(id,encodedText){
+      const existing=document.getElementById('shareSheetOverlay');if(existing)existing.remove();
+      const url=window.location.origin+'/feed.html?post='+id;const text=decodeURIComponent(encodedText||'');
+      const overlay=document.createElement('div');overlay.id='shareSheetOverlay';
+      overlay.style.cssText='position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,0.7);display:flex;align-items:flex-end;justify-content:center;';
+      overlay.onclick=function(e){if(e.target===overlay)overlay.remove();};
+      overlay.innerHTML='<div style="width:100%;max-width:480px;background:rgba(12,6,24,0.98);border:1px solid rgba(124,58,237,0.5);border-radius:18px 18px 0 0;padding:1.5rem;padding-bottom:2rem;"><div style="width:40px;height:4px;background:rgba(168,85,247,0.4);border-radius:2px;margin:0 auto 1.25rem;"></div><h3 style="font-size:1rem;font-weight:700;color:#a855f7;margin-bottom:1.25rem;text-align:center;">📤 Share Post</h3><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.75rem;margin-bottom:1.25rem;"><button onclick="shareSheetCopyLink(\''+url+'\')" style="background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:0.85rem 0.5rem;color:#eae6ff;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.4rem;font-size:0.72rem;"><span style="font-size:1.5rem;">🔗</span>Copy Link</button><button onclick="shareSheetToStory(\''+id+'\')" style="background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:0.85rem 0.5rem;color:#eae6ff;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.4rem;font-size:0.72rem;"><span style="font-size:1.5rem;">📖</span>Your Story</button><button onclick="shareSheetDM(\''+id+'\')" style="background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:0.85rem 0.5rem;color:#eae6ff;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.4rem;font-size:0.72rem;"><span style="font-size:1.5rem;">💬</span>Send DM</button><button onclick="shareSheetNative(\''+url+'\',\''+encodeURIComponent(text)+'\')" style="background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:0.85rem 0.5rem;color:#eae6ff;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.4rem;font-size:0.72rem;"><span style="font-size:1.5rem;">↗️</span>More</button></div><button onclick="document.getElementById(\'shareSheetOverlay\').remove()" style="width:100%;padding:0.7rem;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:10px;color:#a855f7;cursor:pointer;font-weight:600;">Cancel</button></div>';
+      document.body.appendChild(overlay);
+    };
+    window.shareSheetCopyLink=function(url){navigator.clipboard.writeText(url).then(function(){alert('✅ Link copied!');var o=document.getElementById('shareSheetOverlay');if(o)o.remove();}).catch(function(){alert(url);});};
+
+    // ★ FIX: Block private posts from being shared to story
+    window.shareSheetToStory=async function(postId){
+      if(!currentUser){alert('Sign in first');return;}
+      var o=document.getElementById('shareSheetOverlay');if(o)o.remove();
+      try{
+        var{data:p}=await db.from('posts').select('text,media,media_type,is_private,hidden').eq('id',postId).single();
+        if(p&&(p.is_private||p.hidden)){alert('🔒 Private posts cannot be shared to your story.');return;}
+        await db.from('stories').insert({user_id:currentUser.id,text:p&&p.text?p.text.substring(0,200):null,media_url:p&&p.media?p.media:null,media_type:p&&p.media?'image':null,background_color:'#7c3aed',views:0,expires_at:new Date(Date.now()+24*3600000).toISOString()});
+        alert('✅ Added to your story!');
+      }catch(e){alert('Error: '+e.message);}
+    };
+
+    window.shareSheetDM=function(postId){var o=document.getElementById('shareSheetOverlay');if(o)o.remove();window.location.href='dm.html?share_post='+postId;};
+    window.shareSheetNative=function(url,encodedText){var text=decodeURIComponent(encodedText||'');if(navigator.share)navigator.share({title:'8BFR Post',text:text.substring(0,100),url:url}).catch(function(){});else alert('Use the other share options above.');};
+
+    /* ── FAVORITE ── */
+    window.favPost=async function(id,btn){if(!currentUser){alert('Log in');return;}try{const alreadyFav=btn.classList.contains('favorited');if(alreadyFav){await db.from('post_favorites').delete().eq('post_id',id).eq('user_id',currentUser.id);const{data}=await db.from('posts').select('favorites').eq('id',id).single();const n=Math.max(0,(data.favorites||1)-1);await db.from('posts').update({favorites:n}).eq('id',id);document.getElementById('fav-count-'+id).textContent=n;btn.classList.remove('favorited');}else{await db.from('post_favorites').upsert({post_id:id,user_id:currentUser.id});const{data}=await db.from('posts').select('favorites').eq('id',id).single();const n=(data.favorites||0)+1;await db.from('posts').update({favorites:n}).eq('id',id);document.getElementById('fav-count-'+id).textContent=n;btn.classList.add('favorited');}}catch(e){console.error(e);}};
+
+    await loadFeed();
+  })();
+
+  // ── STICKER SYSTEM ──
+  var STICKERS=[{id:'sticker_fire',icon:'🔥',name:'Fire'},{id:'sticker_phones',icon:'🎧',name:'Headphones'},{id:'sticker_crown',icon:'👑',name:'Crown'},{id:'sticker_wave',icon:'👋',name:'Wave'},{id:'sticker_mic',icon:'🎤',name:'Mic Drop'},{id:'sticker_dj',icon:'🎚️',name:'DJ'},{id:'sticker_note',icon:'🎼',name:'Music Note'},{id:'sticker_8bfr',icon:'⭐',name:'8BFR Gold'}];
+  var _ownedStickers=null;
+  async function getOwnedStickers(){if(!window._db||!window._currentUser)return[];if(_ownedStickers!==null)return _ownedStickers;try{const OWNER_ID='cb556180-f032-4b21-9470-1d786f2664ab';if(window._currentUser.id===OWNER_ID){_ownedStickers=STICKERS.map(s=>s.id);return _ownedStickers;}try{const{data:prole}=await window._db.from('profiles').select('role').eq('user_id',window._currentUser.id).single();if(prole&&prole.role==='co-owner'){_ownedStickers=STICKERS.map(s=>s.id);return _ownedStickers;}}catch(e){}const{data}=await window._db.from('user_owned_items').select('item_id').eq('user_id',window._currentUser.id).in('item_id',STICKERS.map(s=>s.id));_ownedStickers=(data||[]).map(r=>r.item_id);return _ownedStickers;}catch(e){return[];}}
+  async function loadBatchStickerReactions(postIds){if(!window._db||!postIds.length)return;try{const{data}=await window._db.from('post_reactions').select('post_id,sticker_id,user_id').in('post_id',postIds);if(!data)return;const byPost={};data.forEach(r=>{if(!byPost[r.post_id])byPost[r.post_id]=[];byPost[r.post_id].push(r);});postIds.forEach(pid=>renderStickerRow(pid,byPost[pid]||[]));}catch(e){}}
+  function renderStickerRow(postId,reactions){const row=document.getElementById('sticker-row-'+postId);if(!row)return;if(!reactions.length){row.innerHTML='';return;}const tally={};reactions.forEach(r=>{if(!tally[r.sticker_id])tally[r.sticker_id]={count:0,users:[]};tally[r.sticker_id].count++;tally[r.sticker_id].users.push(r.user_id);});const uid=window._currentUser?window._currentUser.id:null;let html='';Object.keys(tally).forEach(sid=>{const s=STICKERS.find(x=>x.id===sid);if(!s)return;const mine=uid&&tally[sid].users.includes(uid);html+='<button class="sticker-bubble'+(mine?' mine':'')+'" onclick="toggleStickerReact(\''+postId+'\',\''+sid+'\')" title="'+s.name+'">'+s.icon+' <span class="s-count">'+tally[sid].count+'</span></button>';});row.innerHTML=html;}
+  window.toggleStickerPicker=async function(postId,e){e.stopPropagation();const picker=document.getElementById('spicker-'+postId);if(!picker)return;const isOpen=picker.classList.contains('open');document.querySelectorAll('.sticker-picker.open').forEach(p=>p.classList.remove('open'));if(isOpen)return;if(!window._currentUser){picker.innerHTML='<div class="sticker-pick-btn no-stickers">Log in to react</div>';picker.classList.add('open');setTimeout(()=>picker.classList.remove('open'),2000);return;}const owned=await getOwnedStickers();const available=STICKERS.filter(s=>owned.includes(s.id));if(!available.length)picker.innerHTML='<div class="sticker-pick-btn no-stickers">No stickers — <a href="shop-stickers.html" style="color:#a855f7;">Shop</a></div>';else picker.innerHTML='<div class="sticker-picker-inner">'+available.map(s=>'<button class="sticker-pick-btn" title="'+s.name+'" onclick="reactWithSticker(\''+postId+'\',\''+s.id+'\',event)">'+s.icon+'</button>').join('')+'</div>';picker.classList.add('open');setTimeout(()=>{document.addEventListener('click',function closePicker(ev){if(!picker.contains(ev.target)){picker.classList.remove('open');document.removeEventListener('click',closePicker);}});},50);};
+  window.reactWithSticker=async function(postId,stickerId,e){e.stopPropagation();document.getElementById('spicker-'+postId).classList.remove('open');await toggleStickerReact(postId,stickerId);};
+  window.toggleStickerReact=async function(postId,stickerId){if(!window._currentUser||!window._db){alert('Log in');return;}const uid=window._currentUser.id;try{const{data:existing}=await window._db.from('post_reactions').select('id').eq('post_id',postId).eq('user_id',uid).eq('sticker_id',stickerId).maybeSingle();if(existing)await window._db.from('post_reactions').delete().eq('post_id',postId).eq('user_id',uid).eq('sticker_id',stickerId);else await window._db.from('post_reactions').upsert({post_id:postId,user_id:uid,sticker_id:stickerId},{onConflict:'post_id,user_id,sticker_id'});const{data}=await window._db.from('post_reactions').select('post_id,sticker_id,user_id').eq('post_id',postId);renderStickerRow(postId,data||[]);}catch(e){console.error(e);}};
+  </script>
+
+<!-- FEED TIP MODAL -->
+<div id="feedTipModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.75);backdrop-filter:blur(5px);align-items:center;justify-content:center;">
+  <div style="background:rgba(12,4,26,.98);border:1px solid rgba(124,58,237,.55);border-radius:18px;padding:1.5rem;width:min(92vw,340px);text-align:center;">
+    <div style="font-size:2.2rem;margin-bottom:.4rem;">🪙</div>
+    <h3 style="font-size:1rem;font-weight:800;margin-bottom:.2rem;">Tip <span id="ftipName">this artist</span></h3>
+    <p style="font-size:.78rem;color:#a855f7;opacity:.8;margin-bottom:.85rem;">Coins go directly to their balance</p>
+    <div style="display:flex;gap:.4rem;justify-content:center;flex-wrap:wrap;margin-bottom:.75rem;">
+      <button class="ftip-quick" onclick="setFTip(50)">50</button>
+      <button class="ftip-quick" onclick="setFTip(100)">100</button>
+      <button class="ftip-quick" onclick="setFTip(250)">250</button>
+      <button class="ftip-quick" onclick="setFTip(500)">500</button>
+    </div>
+    <input id="ftipAmount" type="number" min="1" placeholder="Custom..." style="width:100%;background:rgba(18,3,39,.8);border:1px solid rgba(124,58,237,.4);border-radius:8px;color:#eae6ff;padding:.45rem .7rem;font-size:.9rem;text-align:center;margin-bottom:.4rem;box-sizing:border-box;outline:none;"/>
+    <div style="font-size:.75rem;color:#a855f7;opacity:.7;margin-bottom:.6rem;">Balance: 🪙 <span id="ftipBal">...</span></div>
+    <input id="ftipNote" type="text" maxlength="120" placeholder="Note (optional)..." style="width:100%;background:rgba(18,3,39,.8);border:1px solid rgba(124,58,237,.25);border-radius:8px;color:#eae6ff;padding:.4rem .7rem;font-size:.8rem;margin-bottom:.85rem;box-sizing:border-box;outline:none;"/>
+    <div style="display:flex;gap:.65rem;justify-content:center;">
+      <button onclick="closeFeedTip()" style="padding:.45rem 1rem;border-radius:10px;background:rgba(255,255,255,.07);border:none;color:#eae6ff;font-size:.85rem;font-weight:700;cursor:pointer;">Cancel</button>
+      <button id="ftipBtn" onclick="submitFeedTip()" style="padding:.45rem 1.1rem;border-radius:10px;background:#7c3aed;border:none;color:#fff;font-size:.85rem;font-weight:700;cursor:pointer;">Send 🪙</button>
+    </div>
+    <div id="ftipStatus" style="margin-top:.55rem;font-size:.8rem;min-height:1.1em;"></div>
+  </div>
+</div>
+<style>.ftip-quick{padding:.3rem .65rem;border-radius:999px;border:1px solid rgba(124,58,237,.4);background:rgba(18,3,39,.8);color:#eae6ff;font-size:.8rem;font-weight:700;cursor:pointer;transition:all .15s;}.ftip-quick:hover,.ftip-quick.sel{background:#7c3aed;border-color:#7c3aed;color:#fff;}</style>
+<script>
+(function(){
+  var _fTipToId=null;
+  window.openFeedTip=async function(toId,toName){_fTipToId=toId;document.getElementById('ftipName').textContent=toName;document.getElementById('ftipAmount').value='';document.getElementById('ftipNote').value='';document.getElementById('ftipStatus').textContent='';document.querySelectorAll('.ftip-quick').forEach(b=>b.classList.remove('sel'));document.getElementById('feedTipModal').style.display='flex';try{var db=window._db;var sess=await db.auth.getSession();if(sess.data.session){var r=await db.from('profiles').select('coins').eq('user_id',sess.data.session.user.id).single();document.getElementById('ftipBal').textContent=r.data?(r.data.coins||0).toLocaleString():'—';}}catch(e){document.getElementById('ftipBal').textContent='—';}};
+  window.closeFeedTip=function(){document.getElementById('feedTipModal').style.display='none';_fTipToId=null;};
+  window.setFTip=function(n){document.getElementById('ftipAmount').value=n;document.querySelectorAll('.ftip-quick').forEach(b=>b.classList.toggle('sel',parseInt(b.textContent)===n));};
+  window.submitFeedTip=async function(){var amount=parseInt(document.getElementById('ftipAmount').value);var note=document.getElementById('ftipNote').value.trim()||'Coin tip from feed';var status=document.getElementById('ftipStatus');var btn=document.getElementById('ftipBtn');if(!amount||amount<1){status.style.color='#fca5a5';status.textContent='Enter an amount.';return;}btn.disabled=true;btn.textContent='Sending...';try{var db=window._db;var sess=await db.auth.getSession();if(!sess.data.session){status.style.color='#fca5a5';status.textContent='Log in to tip.';btn.disabled=false;btn.textContent='Send 🪙';return;}var res=await db.rpc('transfer_coins',{p_from_id:sess.data.session.user.id,p_to_id:_fTipToId,p_amount:amount,p_note:note});if(res.error)throw new Error(res.error.message);if(!res.data.success){status.style.color='#fca5a5';status.textContent='✕ '+res.data.error;btn.disabled=false;btn.textContent='Send 🪙';return;}status.style.color='#86efac';status.textContent='✓ Sent! Balance: 🪙 '+(res.data.new_balance||0).toLocaleString();document.getElementById('ftipBal').textContent=(res.data.new_balance||0).toLocaleString();btn.textContent='✓ Done!';setTimeout(()=>{closeFeedTip();btn.disabled=false;btn.textContent='Send 🪙';},1600);}catch(e){status.style.color='#fca5a5';status.textContent='✕ '+(e.message||'Unknown error');btn.disabled=false;btn.textContent='Send 🪙';}};
+  document.getElementById('feedTipModal').addEventListener('click',function(e){if(e.target===this)closeFeedTip();});
 })();
 </script>
-
-<!-- ═══ ALSO: Paste this data-filter into the IIFE ═══
-     In each tab section of loadFeed(), AFTER posts are assigned, add:
-     
-     posts = (posts || []).filter(function(p) { return !p.is_private && !p.hidden; });
-     
-     There are 4 places (trending, top, latest, following).
-     Search for "posts = data || [];" and add the filter line right after each one.
-     For trending (RPC result), add after "posts = data;" 
-     
-     This is the ONE change that must go inside the IIFE.
--->
+</body>
+</html>
