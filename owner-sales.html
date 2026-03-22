@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sales Tracking — Owner Panel</title>
+<link rel="icon" href="assets/images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--primary:#7c3aed;--card:#0c0618;--text:#eae6ff;--dim:#a855f7;--border:rgba(124,58,237,.35);--green:#4ade80;--yellow:#fbbf24;--red:#ef4444;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Work Sans',sans-serif;background:linear-gradient(#0b0014,#000);color:var(--text);min-height:100vh;padding-bottom:80px;}
+.header{background:rgba(15,0,30,.9);border-bottom:2px solid var(--primary);padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;}
+.header h1{font-family:'Bebas Neue',cursive;font-size:1.5rem;color:var(--primary);}
+.header a{color:var(--dim);text-decoration:none;font-weight:600;font-size:.85rem;}
+.container{max-width:900px;margin:0 auto;padding:1.5rem;}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:1.5rem;}
+.stat-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.25rem;text-align:center;}
+.stat-num{font-family:'Bebas Neue',cursive;font-size:2rem;color:var(--primary);}
+.stat-label{font-size:.78rem;color:var(--dim);}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.25rem;margin-bottom:1.25rem;}
+.card h2{font-family:'Bebas Neue',cursive;font-size:1.3rem;color:var(--primary);margin-bottom:.75rem;}
+.artist-row{display:flex;align-items:center;gap:.75rem;padding:.75rem .5rem;border-bottom:1px solid rgba(124,58,237,.1);flex-wrap:wrap;}
+.artist-row:last-child{border:none;}
+.artist-name{font-weight:700;font-size:.9rem;flex:1;min-width:120px;}
+.artist-owed{font-family:'Bebas Neue',cursive;font-size:1.2rem;color:var(--yellow);min-width:80px;}
+.artist-paid{color:var(--green);font-size:.82rem;}
+.btn-sm{padding:.35rem .7rem;border-radius:6px;border:none;cursor:pointer;font-size:.78rem;font-weight:600;transition:all .15s;}
+.btn-paid{background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);color:var(--green);}
+.btn-disable{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.25);color:#fca5a5;}
+.sale-row{display:flex;align-items:center;gap:.6rem;padding:.5rem;border-bottom:1px solid rgba(124,58,237,.08);font-size:.82rem;}
+.sale-row:last-child{border:none;}
+.empty{text-align:center;padding:2rem;color:var(--dim);}
+.spinner{width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;margin:2rem auto;}
+@keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+<div class="header">
+<a href="owner-panel.html">← Owner Panel</a>
+<h1>💰 Sales Tracking</h1>
+<div></div>
+</div>
+<div class="container">
+<div class="stats-row">
+<div class="stat-box"><div class="stat-num" id="totalSales">—</div><div class="stat-label">Total Sales</div></div>
+<div class="stat-box"><div class="stat-num" id="totalRevenue">—</div><div class="stat-label">Total Revenue</div></div>
+<div class="stat-box"><div class="stat-num" id="platformOwed">—</div><div class="stat-label">20% Owed to 8BFR</div></div>
+<div class="stat-box"><div class="stat-num" id="platformPaid">—</div><div class="stat-label">20% Received</div></div>
+</div>
+<div class="card">
+<h2>👤 Artist Balances (20% Owed)</h2>
+<div id="artistList"><div class="spinner"></div></div>
+</div>
+<div class="card">
+<h2>🧾 Recent Sales</h2>
+<div id="salesList"><div class="spinner"></div></div>
+</div>
+</div>
+<script>
+const db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
+
+async function init(){
+  const{data:{session}}=await db.auth.getSession();
+  if(!session){location.href='login.html?return=owner-sales.html';return;}
+  // Verify owner
+  const{data:p}=await db.from('profiles').select('role').eq('user_id',session.user.id).single();
+  if(!p||p.role!=='owner'){alert('Owner only');location.href='index.html';return;}
+  loadStats();loadArtists();loadSales();
+}
+
+async function loadStats(){
+  try{
+    const{data:sales}=await db.from('song_purchases').select('amount,artist_id,platform_paid');
+    if(!sales||!sales.length){
+      ['totalSales','totalRevenue','platformOwed','platformPaid'].forEach(id=>{document.getElementById(id).textContent='0';});
+      return;
+    }
+    let total=0,owed=0,paid=0;
+    sales.forEach(s=>{
+      const amt=parseFloat(s.amount)||0;
+      total+=amt;
+      const fee=amt*0.2;
+      if(s.platform_paid)paid+=fee; else owed+=fee;
+    });
+    document.getElementById('totalSales').textContent=sales.length;
+    document.getElementById('totalRevenue').textContent='$'+total.toFixed(2);
+    document.getElementById('platformOwed').textContent='$'+owed.toFixed(2);
+    document.getElementById('platformPaid').textContent='$'+paid.toFixed(2);
+  }catch(e){console.warn(e);}
+}
+
+async function loadArtists(){
+  const el=document.getElementById('artistList');
+  try{
+    const{data:sales}=await db.from('song_purchases').select('amount,artist_id,platform_paid');
+    if(!sales||!sales.length){el.innerHTML='<div class="empty">No sales yet.</div>';return;}
+    
+    // Group by artist
+    const artists={};
+    sales.forEach(s=>{
+      if(!artists[s.artist_id])artists[s.artist_id]={total:0,owed:0,paid:0,count:0};
+      const amt=parseFloat(s.amount)||0;
+      const fee=amt*0.2;
+      artists[s.artist_id].total+=amt;
+      artists[s.artist_id].count++;
+      if(s.platform_paid)artists[s.artist_id].paid+=fee;
+      else artists[s.artist_id].owed+=fee;
+    });
+
+    // Get profiles
+    const ids=Object.keys(artists);
+    const{data:profiles}=await db.from('profiles').select('user_id,username,display_name,selling_disabled').in('user_id',ids);
+    const pm={};if(profiles)profiles.forEach(p=>{pm[p.user_id]=p;});
+
+    el.innerHTML=ids.map(id=>{
+      const a=artists[id];
+      const p=pm[id]||{};
+      const name=p.display_name||p.username||'Unknown';
+      const disabled=p.selling_disabled;
+      return '<div class="artist-row">'+
+        '<div class="artist-name"><a href="profile.html?id='+id+'" style="color:var(--text);text-decoration:none;">'+esc(name)+'</a>'+(disabled?' <span style="color:var(--red);font-size:.7rem;">SELLING DISABLED</span>':'')+'</div>'+
+        '<div style="font-size:.78rem;color:var(--dim);">'+a.count+' sales · $'+a.total.toFixed(2)+' total</div>'+
+        '<div class="artist-owed">$'+a.owed.toFixed(2)+' owed</div>'+
+        (a.paid>0?'<div class="artist-paid">$'+a.paid.toFixed(2)+' paid</div>':'')+
+        '<button class="btn-sm btn-paid" onclick="markPaid(\''+id+'\')">✓ Mark Paid</button>'+
+        '<button class="btn-sm btn-disable" onclick="toggleSelling(\''+id+'\','+(!disabled)+')">'+( disabled?'Enable Selling':'Disable Selling')+'</button>'+
+      '</div>';
+    }).join('');
+  }catch(e){el.innerHTML='<div class="empty">Error: '+e.message+'</div>';}
+}
+
+async function loadSales(){
+  const el=document.getElementById('salesList');
+  try{
+    const{data}=await db.from('song_purchases').select('*').order('created_at',{ascending:false}).limit(50);
+    if(!data||!data.length){el.innerHTML='<div class="empty">No sales yet.</div>';return;}
+    const uids=[...new Set(data.map(s=>s.artist_id).concat(data.map(s=>s.buyer_id)).filter(Boolean))];
+    const pm={};
+    if(uids.length){const{data:profiles}=await db.from('profiles').select('user_id,username,display_name').in('user_id',uids);if(profiles)profiles.forEach(p=>{pm[p.user_id]=p;});}
+    
+    el.innerHTML=data.map(s=>{
+      const artist=pm[s.artist_id]||{};const buyer=pm[s.buyer_id]||{};
+      const amt=parseFloat(s.amount)||0;
+      const fee=(amt*0.2).toFixed(2);
+      const paidBadge=s.platform_paid?'<span style="color:var(--green);font-size:.7rem;">✓ PAID</span>':'<span style="color:var(--yellow);font-size:.7rem;">OWED $'+fee+'</span>';
+      return '<div class="sale-row">'+
+        '<span style="flex-shrink:0;">🛒</span>'+
+        '<span style="flex:1;min-width:0;">'+esc(buyer.display_name||buyer.username||'Buyer')+' bought from <b>'+esc(artist.display_name||artist.username||'Artist')+'</b></span>'+
+        '<span style="color:var(--yellow);font-weight:700;">$'+amt.toFixed(2)+'</span>'+
+        paidBadge+
+        '<span style="color:rgba(168,85,247,.4);font-size:.72rem;">'+ago(s.created_at)+'</span>'+
+      '</div>';
+    }).join('');
+  }catch(e){el.innerHTML='<div class="empty">Error: '+e.message+'</div>';}
+}
+
+window.markPaid=async function(artistId){
+  if(!confirm('Mark all outstanding sales from this artist as paid?'))return;
+  try{
+    await db.from('song_purchases').update({platform_paid:true}).eq('artist_id',artistId).eq('platform_paid',false);
+    alert('✅ Marked as paid.');loadStats();loadArtists();loadSales();
+  }catch(e){alert('Error: '+e.message);}
+};
+
+window.toggleSelling=async function(userId,disable){
+  const action=disable?'disable':'re-enable';
+  if(!confirm('Are you sure you want to '+action+' selling for this user?'))return;
+  try{
+    await db.from('profiles').update({selling_disabled:disable}).eq('user_id',userId);
+    alert('✅ Selling '+(disable?'disabled':'re-enabled')+'.');loadArtists();
+  }catch(e){alert('Error: '+e.message);}
+};
+
+function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function ago(d){if(!d)return'';const s=Math.floor((Date.now()-new Date(d))/1000);if(s<60)return'now';if(s<3600)return Math.floor(s/60)+'m';if(s<86400)return Math.floor(s/3600)+'h';return Math.floor(s/86400)+'d';}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+</script>
+<script src="scripts.js" defer></script>
+</body></html>
