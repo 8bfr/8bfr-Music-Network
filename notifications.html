@@ -40,7 +40,6 @@ body{font-family:'Work Sans',sans-serif;background:linear-gradient(#0b0014,#000)
   <h1>🔔 Notifications</h1>
   <span></span>
 </div>
-
 <div class="container">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
     <div class="tabs" style="flex:1;margin-bottom:0;">
@@ -51,7 +50,6 @@ body{font-family:'Work Sans',sans-serif;background:linear-gradient(#0b0014,#000)
   </div>
   <div id="notifList"><div class="spinner"></div></div>
 </div>
-
 <nav style="position:fixed;bottom:0;left:0;right:0;background:rgba(15,0,30,0.95);border-top:1px solid rgba(124,58,237,0.4);display:flex;justify-content:space-around;padding:0.5rem 0;z-index:200;">
   <a href="index.html" style="text-decoration:none;text-align:center;color:rgba(234,230,255,0.6);font-size:0.7rem;">🏠<br>Home</a>
   <a href="search.html" style="text-decoration:none;text-align:center;color:rgba(234,230,255,0.6);font-size:0.7rem;">🔍<br>Search</a>
@@ -59,7 +57,6 @@ body{font-family:'Work Sans',sans-serif;background:linear-gradient(#0b0014,#000)
   <a href="radio.html" style="text-decoration:none;text-align:center;color:rgba(234,230,255,0.6);font-size:0.7rem;">📻<br>Radio</a>
   <a href="profile.html" style="text-decoration:none;text-align:center;color:rgba(234,230,255,0.6);font-size:0.7rem;">👤<br>Profile</a>
 </nav>
-
 <script src="scripts.js" defer></script>
 <script>
 var db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
@@ -78,7 +75,8 @@ var ICONS={
   system:{icon:'📢',bg:'rgba(124,58,237,.15)'},
   badge:{icon:'🏅',bg:'rgba(251,191,36,.12)'},
   mention:{icon:'@',bg:'rgba(124,58,237,.15)'},
-  story_view:{icon:'👁️',bg:'rgba(168,85,247,.12)'}
+  story_view:{icon:'👁️',bg:'rgba(168,85,247,.12)'},
+  parent_verify:{icon:'👨‍👩‍👧',bg:'rgba(139,92,246,.12)'}
 };
 
 async function init(){
@@ -87,8 +85,6 @@ async function init(){
     if(!s.data.session){location.href='login.html?return=notifications.html';return;}
     currentUser=s.data.session.user;
     loadNotifications();
-
-    // Realtime: auto-refresh on new notifications
     db.channel('notif-live')
       .on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications',filter:'recipient_id=eq.'+currentUser.id},function(){
         loadNotifications();
@@ -113,21 +109,16 @@ async function loadNotifications(){
       .eq('recipient_id',currentUser.id)
       .order('created_at',{ascending:false})
       .limit(50);
-
     if(r.error)throw r.error;
     allNotifs=r.data||[];
-
-    // Update unread badge
     var unreadCount=allNotifs.filter(function(n){return !n.is_read;}).length;
     var badge=document.getElementById('allBadge');
     if(badge){
       if(unreadCount>0){badge.textContent=unreadCount;badge.style.display='inline';}
       else badge.style.display='none';
     }
-
     renderList();
   }catch(e){
-    // Table may not exist — show setup message
     el.innerHTML='<div class="empty"><div class="empty-icon">🔔</div><h3 style="font-size:1.1rem;font-weight:700;margin-bottom:.5rem;">No notifications yet</h3><p style="font-size:.85rem;">When someone follows you, likes your posts, sends you a tip, or other activity happens — you\'ll see it here.</p></div>';
   }
 }
@@ -150,8 +141,17 @@ function renderList(){
     var msg=(n.metadata&&n.metadata.message)||'';
     var time=timeAgo(n.created_at);
     var actions='';
+
+    // ★ FIX: Friend accepted — show WHO accepted + link to profile
+    if(n.notif_type==='friend_accepted'&&n.metadata){
+      if(n.metadata.from_id) link='profile.html?id='+n.metadata.from_id;
+      if(n.metadata.from_name) title=n.metadata.from_name+' accepted your friend request!';
+    }
+
+    // Friend request — show accept/decline + link to profile
     if(n.notif_type==='friend_request'&&n.metadata&&n.metadata.from_id){
       link='profile.html?id='+n.metadata.from_id;
+      if(n.metadata.from_name) title=n.metadata.from_name+' sent you a friend request';
       actions='<div style="display:flex;gap:.4rem;margin-top:.4rem;">'
         +'<button onclick="event.preventDefault();event.stopPropagation();acceptFriend(\''+n.metadata.from_id+'\',\''+n.id+'\',this)" style="padding:.25rem .6rem;border-radius:8px;background:#059669;border:none;color:#fff;font-size:.75rem;font-weight:600;cursor:pointer;">✓ Accept</button>'
         +'<button onclick="event.preventDefault();event.stopPropagation();declineFriend(\''+n.metadata.from_id+'\',\''+n.id+'\',this)" style="padding:.25rem .6rem;border-radius:8px;background:#6b7280;border:none;color:#fff;font-size:.75rem;font-weight:600;cursor:pointer;">✕ Decline</button>'
@@ -171,13 +171,12 @@ function renderList(){
 }
 
 function formatType(t){
-  var m={follow:'New Follower',like:'Post Liked',comment:'New Comment',reshare:'Post Reshared',tip:'Coin Tip Received',purchase:'New Purchase',friend_request:'Friend Request',friend_accepted:'Friend Accepted',verification:'Verification Update',system:'System',badge:'New Badge',mention:'You were mentioned',story_view:'Story Viewed'};
+  var m={follow:'New Follower',like:'Post Liked',comment:'New Comment',reshare:'Post Reshared',tip:'Coin Tip Received',purchase:'New Purchase',friend_request:'Friend Request',friend_accepted:'Friend Accepted',verification:'Verification Update',system:'System',badge:'New Badge',mention:'You were mentioned',story_view:'Story Viewed',parent_verify:'Parent Verification'};
   return m[t]||'Notification';
 }
 
 window.markRead=async function(id){
   try{await db.from('notifications').update({is_read:true}).eq('id',id).eq('recipient_id',currentUser.id);}catch(e){}
-  // Update locally
   allNotifs.forEach(function(n){if(n.id===id)n.is_read=true;});
   var unread=allNotifs.filter(function(n){return !n.is_read;}).length;
   var badge=document.getElementById('allBadge');
@@ -197,20 +196,15 @@ window.markAllRead=async function(){
 function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
 function timeAgo(d){var s=Math.floor((Date.now()-new Date(d))/1000);if(s<60)return'just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';}
 
-/* ── FRIEND REQUEST ACCEPT/DECLINE ── */
 window.acceptFriend=async function(fromId,notifId,btn){
   if(!currentUser)return;
   try{
-    // Update friends row to accepted
     var ur=await db.from('friends').update({status:'accepted'}).eq('user_id',fromId).eq('friend_id',currentUser.id).eq('status','pending');
     if(ur.error){alert('Error: '+ur.error.message);return;}
-    // Mark notification read
     await db.from('notifications').update({is_read:true}).eq('id',notifId);
-    // Notify the requester that we accepted
     var myProf=(await db.from('profiles').select('display_name,username').eq('user_id',currentUser.id).single()).data;
     var myName=myProf?(myProf.display_name||myProf.username):'Someone';
-    await db.from('notifications').insert({recipient_id:fromId,notif_type:'friend_accepted',metadata:{from_id:currentUser.id,from_name:myName,message:myName+' accepted your friend request!'},created_at:new Date().toISOString()});
-    // Update UI
+    await db.from('notifications').insert({recipient_id:fromId,notif_type:'friend_accepted',metadata:{from_id:currentUser.id,from_name:myName,message:myName+' accepted your friend request!',link:'profile.html?id='+currentUser.id},created_at:new Date().toISOString()});
     var row=btn.parentElement;
     row.innerHTML='<span style="color:#4ade80;font-size:.75rem;font-weight:600;">✓ Accepted!</span>';
   }catch(e){alert('Error: '+e.message);}
@@ -219,12 +213,9 @@ window.acceptFriend=async function(fromId,notifId,btn){
 window.declineFriend=async function(fromId,notifId,btn){
   if(!currentUser)return;
   try{
-    // Delete the friends row
     var dr=await db.from('friends').delete().eq('user_id',fromId).eq('friend_id',currentUser.id).eq('status','pending');
     if(dr.error){alert('Error: '+dr.error.message);return;}
-    // Mark notification read
     await db.from('notifications').update({is_read:true}).eq('id',notifId);
-    // Update UI
     var row=btn.parentElement;
     row.innerHTML='<span style="color:#9ca3af;font-size:.75rem;">Declined</span>';
   }catch(e){alert('Error: '+e.message);}
@@ -232,34 +223,5 @@ window.declineFriend=async function(fromId,notifId,btn){
 
 init();
 </script>
-<script>
-(function(){
-  // Fix notification display to show "who" from metadata
-  var checkReady = setInterval(function(){
-    var items = document.querySelectorAll('.notif-item, [class*="notification"]');
-    if (!items.length) return;
-    clearInterval(checkReady);
-
-    items.forEach(function(item) {
-      // Check if it says "friend request accepted" without a name
-      var text = item.textContent || '';
-      if (text.includes('friend request accepted') && !text.includes('accepted your')) {
-        // Try to find the metadata
-        var link = item.querySelector('a[href*="profile"]');
-        if (link) {
-          var name = link.textContent.trim();
-          if (name) {
-            // Replace generic text with specific
-            item.innerHTML = item.innerHTML.replace(
-              /friend request accepted/i,
-              name + ' accepted your friend request'
-            );
-          }
-        }
-      }
-    });
-  }, 1000);
-})();
-</script>  
 </body>
 </html>
