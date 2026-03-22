@@ -799,6 +799,13 @@
           if(likedIds.length){
             var lp=await db.from('posts').select('id,text,media,media_type,likes,shares,favorites,reshares,reshared_from,comment_count,created_at,hidden,pinned,is_private,user_id').in('id',likedIds);
             window._likedPosts=lp.data||[];
+            // ★ FIX: Load author profiles for liked posts
+            if(window._likedPosts.length){
+              var lAuthIds=[...new Set(window._likedPosts.map(function(p){return p.user_id;}).filter(Boolean))];
+              var{data:lProfs}=await db.from('profiles').select('user_id,username,display_name,avatar_url').in('user_id',lAuthIds);
+              window._likedPostAuthors={};
+              if(lProfs)lProfs.forEach(function(p){window._likedPostAuthors[p.user_id]=p;});
+            } else { window._likedPostAuthors={}; }
           }else{window._likedPosts=[];}
         }catch(e){window._likedPosts=[];}
       }
@@ -811,6 +818,13 @@
           if(favIds.length){
             var fp=await db.from('posts').select('id,text,media,media_type,likes,shares,favorites,reshares,reshared_from,comment_count,created_at,hidden,pinned,is_private,user_id').in('id',favIds);
             window._favoritedPosts=fp.data||[];
+            // ★ FIX: Load author profiles for favorited posts
+            if(window._favoritedPosts.length){
+              var fAuthIds=[...new Set(window._favoritedPosts.map(function(p){return p.user_id;}).filter(Boolean))];
+              var{data:fProfs}=await db.from('profiles').select('user_id,username,display_name,avatar_url').in('user_id',fAuthIds);
+              window._favPostAuthors={};
+              if(fProfs)fProfs.forEach(function(p){window._favPostAuthors[p.user_id]=p;});
+            } else { window._favPostAuthors={}; }
           }else{window._favoritedPosts=[];}
         }catch(e){window._favoritedPosts=[];}
       }
@@ -1019,7 +1033,41 @@ document.getElementById('tipModal').addEventListener('click',function(e){if(e.ta
 })();
 </script>
   <!-- ═══════════════════════════════════════════════════════
-     PROFILE PATCH — Paste this BEFORE </body> in profile.html
+     PROFILE PATCH — Paste this BEFORE 
+<script>
+// ★ FIX: Add author name overlays to liked/favorited post grids
+(function(){
+  var origSwitch = window.switchProfileTab;
+  if(!origSwitch) return;
+  window.switchProfileTab = function(tab){
+    origSwitch(tab);
+    if(tab === 'likes' || tab === 'favorites'){
+      setTimeout(function(){ addAuthorOverlays(tab); }, 300);
+      setTimeout(function(){ addAuthorOverlays(tab); }, 800);
+    }
+  };
+  function addAuthorOverlays(tab){
+    var authorMap = tab === 'likes' ? (window._likedPostAuthors||{}) : (window._favPostAuthors||{});
+    var posts = tab === 'likes' ? (window._likedPosts||[]) : (window._favoritedPosts||[]);
+    var cells = document.querySelectorAll('.post-grid > div, .post-grid-cell');
+    cells.forEach(function(cell, idx){
+      if(idx >= posts.length) return;
+      var p = posts[idx];
+      if(!p || !p.user_id) return;
+      var auth = authorMap[p.user_id];
+      if(!auth) return;
+      if(cell.querySelector('.author-overlay')) return;
+      var overlay = document.createElement('div');
+      overlay.className = 'author-overlay';
+      overlay.style.cssText = 'position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.85));padding:4px 6px 3px;font-size:.65rem;color:#eae6ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;border-radius:0 0 8px 8px;';
+      overlay.textContent = auth.display_name || auth.username || '';
+      cell.style.position = 'relative';
+      cell.appendChild(overlay);
+    });
+  }
+})();
+</script>
+</body> in profile.html
      
      Fixes:
      1. Music tab shows for owner/co-owner (not just artist roles)
@@ -1295,5 +1343,39 @@ document.getElementById('tipModal').addEventListener('click',function(e){if(e.ta
 </script>
   <script src="scripts.js" defer></script>
 
+
+<script>
+// ★ FIX: Add author name overlays to liked/favorited post grids
+(function(){
+  var origSwitch = window.switchProfileTab;
+  if(!origSwitch) return;
+  window.switchProfileTab = function(tab){
+    origSwitch(tab);
+    if(tab === 'likes' || tab === 'favorites'){
+      setTimeout(function(){ addAuthorOverlays(tab); }, 300);
+      setTimeout(function(){ addAuthorOverlays(tab); }, 800);
+    }
+  };
+  function addAuthorOverlays(tab){
+    var authorMap = tab === 'likes' ? (window._likedPostAuthors||{}) : (window._favPostAuthors||{});
+    var posts = tab === 'likes' ? (window._likedPosts||[]) : (window._favoritedPosts||[]);
+    var cells = document.querySelectorAll('.post-grid > div, .post-grid-cell');
+    cells.forEach(function(cell, idx){
+      if(idx >= posts.length) return;
+      var p = posts[idx];
+      if(!p || !p.user_id) return;
+      var auth = authorMap[p.user_id];
+      if(!auth) return;
+      if(cell.querySelector('.author-overlay')) return;
+      var overlay = document.createElement('div');
+      overlay.className = 'author-overlay';
+      overlay.style.cssText = 'position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.85));padding:4px 6px 3px;font-size:.65rem;color:#eae6ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;border-radius:0 0 8px 8px;';
+      overlay.textContent = auth.display_name || auth.username || '';
+      cell.style.position = 'relative';
+      cell.appendChild(overlay);
+    });
+  }
+})();
+</script>
 </body>
 </html>
