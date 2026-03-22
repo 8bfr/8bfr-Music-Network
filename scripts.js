@@ -393,6 +393,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }
       <a href="owner-studio.html" class="menu-chip">&#x1F3A8; Owner Studio</a>
       <a href="owner-users.html" class="menu-chip">&#x1F465; Manage Users</a>
       <a href="owner-verifications.html" class="menu-chip">&#x2705; Verifications</a>
+      { label: '👁️ DM Monitor', href: 'owner-dm-monitor.html' },
       <a href="owner-kidzone.html" class="menu-chip">&#x1F9F8; KidZone Admin</a>
       <a href="owner-monitor.html" class="menu-chip">&#x1F441; Site Monitor</a>
       <a href="admin-panel.html" class="menu-chip">&#x2699;&#xFE0F; Admin Panel</a>
