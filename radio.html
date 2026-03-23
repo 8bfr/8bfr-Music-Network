@@ -111,19 +111,10 @@
     </div>
   </nav>
 
-  <audio id="audioPlayer" preload="auto" autoplay></audio>
+  <audio id="audioPlayer"></audio>
 
   <script>
-  // ═══ DEBUG BANNER — will show any crash reason on screen ═══
-  window.onerror = function(msg, url, line) {
-    var d = document.createElement('div');
-    d.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:red;color:white;padding:12px;font-size:13px;font-weight:bold;word-break:break-all;';
-    d.textContent = 'JS ERROR: ' + msg + ' (line ' + line + ')';
-    document.body.appendChild(d);
-  };
-
   (async function() {
-    try {
     var SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
     var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
     var db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -145,7 +136,7 @@
     var currentUser = null;
     var likedIds = [];
 
-    // localStorage persistence keys
+    // ★ localStorage persistence keys
     var LS_TRACK = '8bfr_radio_track';
     var LS_TIME = '8bfr_radio_time';
     var LS_SHUFFLE = '8bfr_radio_shuffle';
@@ -170,7 +161,7 @@
     if (isShuffled) shuffleBtn.classList.add('active');
     if (isRepeat) repeatBtn.classList.add('active');
 
-    // Auth (wrapped so it can't crash the whole page)
+    // Auth — wrapped so it can't crash the radio
     try {
       var sess = await db.auth.getSession();
       if (sess.data.session) {
@@ -178,35 +169,21 @@
         var lk = await db.from('song_likes').select('song_id').eq('user_id', currentUser.id);
         likedIds = (lk.data || []).map(function(r) { return r.song_id; });
       }
-    } catch(authErr) {
-      // Auth or likes failed — not critical, continue without likes
-    }
+    } catch(e) {}
 
-    // ═══════════════════════════════════════════════════
-    // FIXED: Use correct column names from songs table
-    // ═══════════════════════════════════════════════════
-    var res = await db.from('songs')
-      .select('id, title, artist, song_url, cover_art')
-      .order('created_at', { ascending: false });
-
-    if (res.error) {
-      nowTitle.textContent = 'DB Error';
-      nowArtist.textContent = res.error.message;
-      return;
-    }
-
-    var songs = (res.data || []).filter(function(s) {
-      return s.song_url && s.song_url.length > 10;
-    });
+    // ═══ FIXED: correct column names ═══
+    // Your songs table has: artist (not artist_name), song_url (not audio_url), cover_art (not cover_url)
+    var res = await db.from('songs').select('id, title, artist, song_url, cover_art').order('created_at', { ascending: false });
+    var songs = (res.data || []).filter(function(s) { return s.song_url && s.song_url.length > 5; });
 
     if (!songs.length) {
       nowTitle.textContent = 'No songs yet';
-      nowArtist.textContent = res.data ? (res.data.length + ' songs found but none have audio') : 'Query returned nothing';
+      nowArtist.textContent = 'Upload songs to start the radio';
       queueList.innerHTML = '<div class="empty-state">No tracks available</div>';
       return;
     }
 
-    // Build playlist with correct field names
+    // Build playlist
     playlist = songs.map(function(s, i) {
       return {
         id: s.id,
@@ -220,7 +197,7 @@
 
     if (isShuffled) shufflePlaylist();
 
-    // Restore last track position from localStorage
+    // ★ Restore last track position from localStorage
     var resumed = false;
     try {
       var savedTrackId = localStorage.getItem(LS_TRACK);
@@ -244,7 +221,7 @@
 
     renderQueue();
 
-    // Save position every 5 seconds while playing
+    // ★ Save position every 5 seconds while playing
     setInterval(function() {
       if (isPlaying && playlist[currentIndex]) {
         try {
@@ -275,8 +252,6 @@
       var t = playlist[idx];
       currentIndex = idx;
       audio.src = t.url;
-      audio.preload = 'auto';
-      audio.load();
       nowTitle.textContent = t.title;
       nowArtist.textContent = t.artist;
 
@@ -292,7 +267,7 @@
       // Update like button
       likeBtn.textContent = likedIds.indexOf(t.id) !== -1 ? '❤️' : '🤍';
 
-      // Save to localStorage
+      // ★ Save to localStorage
       try {
         localStorage.setItem(LS_TRACK, t.id);
         localStorage.setItem(LS_TIME, '0');
@@ -301,23 +276,12 @@
       renderQueue();
 
       if (autoplay !== false) {
-        // Wait for enough audio to be buffered before playing
-        audio.addEventListener('canplaythrough', function onReady() {
-          audio.removeEventListener('canplaythrough', onReady);
-          audio.play().then(function() {
-            isPlaying = true;
-            playBtn.textContent = '⏸';
-            vinyl.classList.add('spinning');
-          }).catch(function() {
-            // Browser blocked — just show play button ready to go
-            isPlaying = false;
-            playBtn.textContent = '▶';
-          });
-        }, { once: true });
+        audio.play().then(function() {
+          isPlaying = true;
+          playBtn.textContent = '⏸';
+          vinyl.classList.add('spinning');
+        }).catch(function() {});
       }
-
-      // Increment play count (safe — won't crash if function missing)
-      try { db.rpc('increment_play_count', { song_id: t.id }); } catch(e) {}
     }
 
     function renderQueue() {
@@ -351,30 +315,11 @@
         playBtn.textContent = '▶';
         vinyl.classList.remove('spinning');
       } else {
-        // If audio isn't loaded yet, load it first
-        if (audio.readyState < 3) {
-          playBtn.textContent = '⏳';
-          audio.load();
-          audio.addEventListener('canplaythrough', function onReady() {
-            audio.removeEventListener('canplaythrough', onReady);
-            audio.play().then(function() {
-              isPlaying = true;
-              playBtn.textContent = '⏸';
-              vinyl.classList.add('spinning');
-            }).catch(function(err) {
-              playBtn.textContent = '▶';
-              showToast('Play error: ' + err.message);
-            });
-          }, { once: true });
-        } else {
-          audio.play().then(function() {
-            isPlaying = true;
-            playBtn.textContent = '⏸';
-            vinyl.classList.add('spinning');
-          }).catch(function(err) {
-            showToast('Play error: ' + err.message);
-          });
-        }
+        audio.play().then(function() {
+          isPlaying = true;
+          playBtn.textContent = '⏸';
+          vinyl.classList.add('spinning');
+        }).catch(function() {});
       }
     };
 
@@ -403,6 +348,7 @@
       if (isShuffled) {
         var current = playlist[currentIndex];
         shufflePlaylist();
+        // Move current track to front
         var ci = playlist.indexOf(current);
         if (ci > 0) { playlist.splice(ci, 1); playlist.unshift(current); }
         currentIndex = 0;
@@ -497,14 +443,6 @@
       if (e.code === 'KeyS') window.toggleShuffle();
       if (e.code === 'KeyR') window.toggleRepeat();
     });
-
-    } catch(fatalErr) {
-      // Show crash reason on screen
-      var d = document.createElement('div');
-      d.style.cssText = 'position:fixed;top:60px;left:0;right:0;z-index:99999;background:#dc2626;color:white;padding:12px;font-size:13px;font-weight:bold;word-break:break-all;';
-      d.textContent = 'RADIO CRASH: ' + fatalErr.message;
-      document.body.appendChild(d);
-    }
   })();
   </script>
 
