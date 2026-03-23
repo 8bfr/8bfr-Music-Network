@@ -136,6 +136,26 @@
     var timeDuration=document.getElementById('timeDuration');
     var btnPlay=document.getElementById('btnPlay');
     var queueList=document.getElementById('queueList');
+    var currentUser=null, likedIds=[];
+
+    // ★ localStorage persistence
+    try {
+      var sv=localStorage.getItem('8bfr_radio_shuffle'); if(sv!==null) isShuffled=sv==='true';
+      var rv=localStorage.getItem('8bfr_radio_repeat'); if(rv!==null) isRepeat=rv==='true';
+      var vv=localStorage.getItem('8bfr_radio_volume'); if(vv!==null) { audio.volume=parseInt(vv)/100; document.getElementById('volumeSlider').value=vv; }
+      if(isShuffled) document.getElementById('btnShuffle').classList.add('active');
+      if(isRepeat) document.getElementById('btnRepeat').classList.add('active');
+    } catch(e){}
+
+    // ★ Get current user for likes
+    try {
+      var sess=await db.auth.getSession();
+      if(sess.data.session) {
+        currentUser=sess.data.session.user;
+        var lk=await db.from('song_likes').select('song_id').eq('user_id',currentUser.id);
+        likedIds=(lk.data||[]).map(function(r){return r.song_id;});
+      }
+    } catch(e){}
 
     async function loadSongs() {
       try {
@@ -179,14 +199,22 @@
         document.getElementById('statArtists').textContent=Object.keys(artistSet).length;
 
         if(isShuffled) shuffle();
+
+        // ★ Resume last track if saved
+        var resumeIdx=0;
+        try {
+          var savedId=localStorage.getItem('8bfr_radio_track');
+          if(savedId){for(var ri=0;ri<playlist.length;ri++){if(playlist[ri].id===savedId){resumeIdx=ri;break;}}}
+        } catch(e){}
+
         renderQueue();
         document.getElementById('emptyState').style.display='none';
         document.getElementById('playerCard').style.display='block';
         document.getElementById('queueSection').style.display='block';
 
         if(playlist.length>0){
-          currentIndex=0;
-          loadTrack(0);
+          currentIndex=resumeIdx;
+          loadTrack(resumeIdx);
           setTimeout(function(){
             audio.play().then(function(){
               isPlaying=true; btnPlay.textContent='⏸'; vinyl.classList.add('spinning'); nowExtra.textContent='';
@@ -194,7 +222,11 @@
               nowExtra.innerHTML='<span class="tap-prompt" style="color:#a855f7;">▶ Tap play to start</span>';
             });
           },600);
+          // ★ Restore saved time position
+          try{var st=parseFloat(localStorage.getItem('8bfr_radio_time'))||0;if(st>0)audio.currentTime=st;}catch(e){}
         }
+        // ★ Save position every 5 seconds
+        setInterval(function(){if(isPlaying&&playlist[currentIndex]){try{localStorage.setItem('8bfr_radio_track',playlist[currentIndex].id);localStorage.setItem('8bfr_radio_time',String(audio.currentTime));}catch(e){}}},5000);
       } catch(err) { console.error('Radio:',err); showEmpty(); }
     }
 
@@ -222,11 +254,15 @@
       nowExtra.textContent='';
       document.getElementById('btnBuy').style.display=t.price>0?'flex':'none';
       document.getElementById('btnLike').textContent='🤍';
+      // ★ Sync like button with Supabase
+      if(likedIds.indexOf(t.id)!==-1) document.getElementById('btnLike').textContent='❤️';
       progressFill.style.width='0%';
       timeElapsed.textContent='0:00'; timeDuration.textContent='0:00';
       renderQueue();
       if(t.uploadedBy) db.rpc('add_algorithm_points',{p_user_id:t.uploadedBy,p_action:'song_played',p_points:1}).catch(function(){});
       console.log('📻 Now playing:',t.title,'by',t.artist);
+      // ★ Save current track to localStorage
+      try{localStorage.setItem('8bfr_radio_track',t.id);localStorage.setItem('8bfr_radio_time','0');}catch(e){}
     }
 
     function playTrack() {
@@ -254,18 +290,26 @@
 
     document.getElementById('btnShuffle').addEventListener('click',function(){
       isShuffled=!isShuffled; this.classList.toggle('active',isShuffled);
+      try{localStorage.setItem('8bfr_radio_shuffle',String(isShuffled));}catch(e){}
       if(isShuffled){var cur=playlist[currentIndex];shuffle();var i=-1;for(var x=0;x<playlist.length;x++){if(playlist[x].id===cur.id){i=x;break;}}if(i>0){var tmp=playlist[0];playlist[0]=playlist[i];playlist[i]=tmp;}currentIndex=0;renderQueue();}
       showToast(isShuffled?'🔀 Shuffle on':'Shuffle off');
     });
 
     document.getElementById('btnRepeat').addEventListener('click',function(){
       isRepeat=!isRepeat; this.classList.toggle('active',isRepeat);
+      try{localStorage.setItem('8bfr_radio_repeat',String(isRepeat));}catch(e){}
       showToast(isRepeat?'🔁 Repeat on':'Repeat off');
     });
 
     document.getElementById('btnLike').addEventListener('click',function(){
       var liked=this.textContent==='❤️'; this.textContent=liked?'🤍':'❤️';
       showToast(liked?'Removed from favorites':'❤️ Added to favorites');
+      // ★ Sync with Supabase
+      if(currentUser&&playlist[currentIndex]){
+        var sid=playlist[currentIndex].id;
+        if(liked){likedIds=likedIds.filter(function(x){return x!==sid;});db.from('song_likes').delete().eq('user_id',currentUser.id).eq('song_id',sid);}
+        else{likedIds.push(sid);db.from('song_likes').upsert({user_id:currentUser.id,song_id:sid});}
+      }
     });
 
     document.getElementById('btnShare').addEventListener('click',async function(){
@@ -279,7 +323,7 @@
       var t=playlist[currentIndex]; if(t) location.href='checkout.html?song='+t.id+'&price='+t.price;
     });
 
-    document.getElementById('volumeSlider').addEventListener('input',function(e){audio.volume=e.target.value/100;});
+    document.getElementById('volumeSlider').addEventListener('input',function(e){audio.volume=e.target.value/100;try{localStorage.setItem('8bfr_radio_volume',e.target.value);}catch(ex){}});
     audio.volume=0.8;
 
     audio.addEventListener('timeupdate',function(){
