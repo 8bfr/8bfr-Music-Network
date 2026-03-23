@@ -100,11 +100,45 @@
       <span class="text-sm">🔊</span>
       <input type="range" min="0" max="100" value="80" class="volume-slider flex-1" id="volumeSlider">
     </div>
-    <audio
-      <script>
+    <audio id="audioPlayer" preload="auto"></audio>
+  </div>
+
+  <!-- Empty state — was missing -->
+  <div id="emptyState" class="radio-card p-6 mb-6" style="display:none;">
+    <div style="text-align:center;padding:3rem 1rem;">
+      <div style="font-size:4rem;margin-bottom:1rem;">📻</div>
+      <h3 class="text-lg font-bold mb-2">No tracks available yet</h3>
+      <p class="text-purple-300/70 mb-4">Upload music from your profile to be played on 8BFR Radio.</p>
+      <a href="profile.html" style="background:#7c3aed;color:white;padding:0.6rem 1.2rem;border-radius:8px;text-decoration:none;font-weight:600;">Go to Profile</a>
+    </div>
+  </div>
+
+  <!-- Queue section — was missing -->
+  <div id="queueSection" class="radio-card p-4 mb-6" style="display:none;">
+    <h3 class="font-bold text-sm text-purple-400 mb-3">🎶 Up Next</h3>
+    <div id="queueList" class="flex flex-col gap-2"></div>
+  </div>
+</main>
+
+<div id="toast" class="toast"></div>
+
+<!-- Bottom nav — was missing -->
+<nav class="fixed bottom-0 left-0 right-0 z-50 bg-[rgba(15,0,30,0.95)] backdrop-blur-md border-t border-purple-500/40">
+  <div class="max-w-6xl mx-auto px-2 py-2">
+    <div class="flex items-center justify-around gap-1">
+      <a href="index.html" class="bottom-nav-item"><div style="font-size:1.25rem;">🏠</div><div style="font-size:0.7rem;font-weight:600;">Home</div></a>
+      <a href="search.html" class="bottom-nav-item"><div style="font-size:1.25rem;">🔍</div><div style="font-size:0.7rem;font-weight:600;">Search</div></a>
+      <a href="feed.html" class="bottom-nav-item"><div style="font-size:1.25rem;">📰</div><div style="font-size:0.7rem;font-weight:600;">Feed</div></a>
+      <a href="radio.html" class="bottom-nav-item active"><div style="font-size:1.25rem;">📻</div><div style="font-size:0.7rem;font-weight:600;">Radio</div></a>
+      <a href="shop.html" class="bottom-nav-item"><div style="font-size:1.25rem;">🛒</div><div style="font-size:0.7rem;font-weight:600;">Shop</div></a>
+    </div>
+  </div>
+</nav>
+
+<script>
 (async function(){
   const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
-  const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
   const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   let playlist=[], currentIndex=-1, isPlaying=false, isShuffled=true, isRepeat=false;
@@ -121,39 +155,57 @@
   const timeElapsed=document.getElementById('timeElapsed');
   const timeDuration=document.getElementById('timeDuration');
   const btnPlay=document.getElementById('btnPlay');
+  const btnLike=document.getElementById('btnLike');
+  const btnShuffle=document.getElementById('btnShuffle');
+  const btnRepeat=document.getElementById('btnRepeat');
   const queueList=document.getElementById('queueList');
   const playOverlay=document.getElementById('playOverlay');
 
   async function loadSongs(){
     try{
+      // Step 1: Get songs (safe query — no joins that can break)
       const { data: songs, error } = await db
         .from('songs')
-        .select(`
-          id,title,artist,song_url,cover_art,price,explicit,created_at,uploaded_by,dummy_id,
-          profiles(display_name,username,verified_artist),
-          dummy_profiles(display_name,username,verified_artist)
-        `)
+        .select('id,title,artist,song_url,cover_art,price,explicit,created_at,uploaded_by,dummy_id')
+        .not('song_url','is',null)
         .neq('song_url','')
         .order('created_at',{ascending:false});
 
       if(error||!songs||songs.length===0){ showEmpty(); return; }
 
-      playlist = songs.map(s=>{
-        const isDummy=!!s.dummy_id;
-        const profile = isDummy ? (s.dummy_profiles||{}) : (s.profiles||{});
-        const artistName = s.artist || profile.display_name || profile.username || 'Unknown';
-        const verified = !!profile.verified_artist;
-        const link = isDummy?('profile.html?dummy='+s.dummy_id):(s.uploaded_by?'profile.html?id='+s.uploaded_by:'#');
-        return { 
-          id: s.id, title:s.title||'Untitled', artist:artistName, cover:s.cover_art||'', url:s.song_url,
+      // Step 2: Get profiles for artist names + verified status (separate safe queries)
+      var uploaderIds=[]; songs.forEach(function(s){ if(s.uploaded_by && uploaderIds.indexOf(s.uploaded_by)===-1) uploaderIds.push(s.uploaded_by); });
+      var profileMap={};
+      if(uploaderIds.length>0){
+        var pr=await db.from('profiles').select('user_id,username,display_name,verified_artist').in('user_id',uploaderIds);
+        if(pr.data) pr.data.forEach(function(p){ profileMap[p.user_id]=p; });
+      }
+
+      var dummyIds=[]; songs.forEach(function(s){ if(s.dummy_id && dummyIds.indexOf(s.dummy_id)===-1) dummyIds.push(s.dummy_id); });
+      var dummyMap={};
+      if(dummyIds.length>0){
+        var dr=await db.from('dummy_profiles').select('id,username,display_name,verified_artist').in('id',dummyIds);
+        if(dr.data) dr.data.forEach(function(d){ dummyMap[d.id]=d; });
+      }
+
+      // Step 3: Build playlist
+      playlist = songs.map(function(s){
+        var isDummy=!!s.dummy_id;
+        var dP=isDummy?(dummyMap[s.dummy_id]||{}):{};
+        var rP=profileMap[s.uploaded_by]||{};
+        var artistName=s.artist||(isDummy?(dP.display_name||dP.username):(rP.display_name||rP.username))||'Unknown';
+        var verified=isDummy?!!dP.verified_artist:!!rP.verified_artist;
+        var link=isDummy?('profile.html?dummy='+s.dummy_id):(s.uploaded_by?'profile.html?id='+s.uploaded_by:'#');
+        return {
+          id:s.id, title:s.title||'Untitled', artist:artistName, cover:s.cover_art||'', url:s.song_url,
           uploadedBy:s.uploaded_by, dummyId:s.dummy_id, price:parseFloat(s.price)||0, explicit:!!s.explicit,
-          verified, profileLink:link
+          verified:verified, profileLink:link
         };
       });
 
       // PRIORITIZE 8BFR SONGS AND INTERLEAVE
-      const bfrSongs = playlist.filter(t=>t.artist.toLowerCase().includes('8bfr'));
-      const otherSongs = playlist.filter(t=>!t.artist.toLowerCase().includes('8bfr'));
+      var bfrSongs = playlist.filter(function(t){return t.artist.toLowerCase().indexOf('8bfr')!==-1;});
+      var otherSongs = playlist.filter(function(t){return t.artist.toLowerCase().indexOf('8bfr')===-1;});
       playlist = [];
       while(bfrSongs.length || otherSongs.length){
         if(bfrSongs.length) playlist.push(bfrSongs.shift());
@@ -161,7 +213,7 @@
       }
 
       document.getElementById('statTracks').textContent=playlist.length;
-      const artistSet = {}; playlist.forEach(t=>artistSet[t.artist]=1);
+      var artistSet = {}; playlist.forEach(function(t){artistSet[t.artist]=1;});
       document.getElementById('statArtists').textContent=Object.keys(artistSet).length;
 
       if(isShuffled) shufflePlaylist();
@@ -173,21 +225,31 @@
       if(playlist.length>0){
         currentIndex=0;
         loadTrack(0);
-        if(playOverlay) playOverlay.style.display='flex';
+        // Try autoplay with 600ms delay (the pattern that worked)
+        setTimeout(function(){
+          audio.play().then(function(){
+            isPlaying=true; btnPlay.textContent='⏸'; vinyl.classList.add('spinning');
+            playOverlay.style.display='none';
+          }).catch(function(){
+            // Autoplay blocked — show overlay
+            playOverlay.style.display='flex';
+          });
+        },600);
       }
-    }catch(e){ showEmpty(); console.error(e); }
+    }catch(e){ showEmpty(); console.error('Radio:',e); }
   }
 
   function showEmpty(){
     document.getElementById('emptyState').style.display='block';
     document.getElementById('playerCard').style.display='none';
     document.getElementById('queueSection').style.display='none';
+    playOverlay.style.display='none';
   }
 
   function loadTrack(idx){
     if(idx<0||idx>=playlist.length) return;
     currentIndex=idx;
-    const t=playlist[idx];
+    var t=playlist[idx];
     audio.src=t.url;
     audio.load();
     vinylArt.src=t.cover||'assets/images/default_post.jpg';
@@ -198,7 +260,7 @@
     nowVerified.style.display=t.verified?'inline':'none';
     nowExtra.textContent='';
     document.getElementById('btnBuy').style.display=t.price>0?'flex':'none';
-    document.getElementById('btnLike').textContent='🤍';
+    btnLike.textContent='🤍';
     progressFill.style.width='0%';
     timeElapsed.textContent='0:00'; timeDuration.textContent='0:00';
     renderQueue();
@@ -207,13 +269,13 @@
 
   function playTrack(){
     if(!playlist.length) return;
-    audio.play().then(()=>{
+    audio.play().then(function(){
       isPlaying=true;
       btnPlay.textContent='⏸';
       vinyl.classList.add('spinning');
-      if(playOverlay) playOverlay.style.display='none';
-    }).catch(()=>{
-      if(playOverlay) playOverlay.style.display='flex';
+      playOverlay.style.display='none';
+    }).catch(function(){
+      playOverlay.style.display='flex';
     });
   }
 
@@ -226,7 +288,7 @@
 
   function nextTrack(){
     if(!playlist.length) return;
-    let n=currentIndex+1;
+    var n=currentIndex+1;
     if(n>=playlist.length){ if(isRepeat) n=0; else { pauseTrack(); return; } }
     loadTrack(n); playTrack();
   }
@@ -234,92 +296,96 @@
   function prevTrack(){
     if(!playlist.length) return;
     if(audio.currentTime>3){ audio.currentTime=0; return; }
-    let p=currentIndex-1; if(p<0) p=playlist.length-1;
+    var p=currentIndex-1; if(p<0) p=playlist.length-1;
     loadTrack(p); playTrack();
   }
 
   function shufflePlaylist(){
-    for(let i=playlist.length-1;i>0;i--){
-      const j=Math.floor(Math.random()*(i+1));
-      [playlist[i], playlist[j]]=[playlist[j], playlist[i]];
+    for(var i=playlist.length-1;i>0;i--){
+      var j=Math.floor(Math.random()*(i+1));
+      var tmp=playlist[i]; playlist[i]=playlist[j]; playlist[j]=tmp;
     }
   }
 
   function renderQueue(){
-    const up=[];
-    for(let i=1;i<=Math.min(8,playlist.length-1);i++){
-      const idx=(currentIndex+i)%playlist.length;
+    var up=[];
+    for(var i=1;i<=Math.min(8,playlist.length-1);i++){
+      var idx=(currentIndex+i)%playlist.length;
       up.push({t:playlist[idx],qi:idx});
     }
-    queueList.innerHTML=up.map(item=>{
-      const t=item.t;
-      const coverHtml=t.cover?'<img src="'+t.cover+'" onerror="this.parentElement.innerHTML=\'🎵\'">':'🎵';
-      return `<div class="queue-item" onclick="jumpTrack(${item.qi})">
-        <div class="queue-cover">${coverHtml}</div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-weight:600;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.title}</div>
-          <div style="font-size:0.78rem;color:#a855f7;">${t.artist}${t.verified?' <span style="color:#00d9ff;">✓</span>':''}</div>
-        </div>
-        <div style="color:#a855f7;opacity:0.5;">🎵</div>
-      </div>`;
+    queueList.innerHTML=up.map(function(item){
+      var t=item.t;
+      var coverHtml=t.cover?'<img src="'+t.cover+'" onerror="this.parentElement.innerHTML=\'🎵\'">':'🎵';
+      return '<div class="queue-item" onclick="window.jumpTrack('+item.qi+')">'+
+        '<div class="queue-cover">'+coverHtml+'</div>'+
+        '<div style="flex:1;min-width:0;">'+
+          '<div style="font-weight:600;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+t.title+'</div>'+
+          '<div style="font-size:0.78rem;color:#a855f7;">'+t.artist+(t.verified?' <span style="color:#00d9ff;">✓</span>':'')+'</div>'+
+        '</div>'+
+        '<div style="color:#a855f7;opacity:0.5;">🎵</div></div>';
     }).join('');
   }
 
-  window.jumpTrack=function(i){ loadTrack(i); playTrack(); }
+  window.jumpTrack=function(i){ loadTrack(i); playTrack(); };
 
   function fmt(s){ if(!s||isNaN(s)) return '0:00'; return Math.floor(s/60)+':'+(Math.floor(s%60)<10?'0':'')+Math.floor(s%60); }
-  function showToast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>{t.classList.remove('show');},2000); }
+  function showToast(m){ var t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},2000); }
 
   // Event listeners
-  btnPlay.addEventListener('click',()=>{ if(isPlaying) pauseTrack(); else playTrack(); });
+  btnPlay.addEventListener('click',function(){ if(isPlaying) pauseTrack(); else playTrack(); });
   document.getElementById('btnNext').addEventListener('click',nextTrack);
   document.getElementById('btnPrev').addEventListener('click',prevTrack);
-  document.getElementById('btnShuffle').addEventListener('click',()=>{
+  btnShuffle.addEventListener('click',function(){
     isShuffled=!isShuffled; btnShuffle.classList.toggle('active',isShuffled);
-    if(isShuffled){ shufflePlaylist(); renderQueue(); showToast('🔀 Shuffle on'); }
-    else showToast('Shuffle off');
+    if(isShuffled){
+      var cur=playlist[currentIndex]; shufflePlaylist();
+      var ci=-1; for(var x=0;x<playlist.length;x++){if(playlist[x].id===cur.id){ci=x;break;}}
+      if(ci>0){var tmp=playlist[0];playlist[0]=playlist[ci];playlist[ci]=tmp;}
+      currentIndex=0; renderQueue();
+    }
+    showToast(isShuffled?'🔀 Shuffle on':'Shuffle off');
   });
-  document.getElementById('btnRepeat').addEventListener('click',()=>{
+  btnRepeat.addEventListener('click',function(){
     isRepeat=!isRepeat; btnRepeat.classList.toggle('active',isRepeat);
     showToast(isRepeat?'🔁 Repeat on':'Repeat off');
   });
-  document.getElementById('btnLike').addEventListener('click',()=>{
-    const liked = btnLike.textContent==='❤️';
+  btnLike.addEventListener('click',function(){
+    var liked = btnLike.textContent==='❤️';
     btnLike.textContent = liked?'🤍':'❤️';
     showToast(liked?'Removed from favorites':'❤️ Added to favorites');
   });
-  document.getElementById('btnShare').addEventListener('click',async()=>{
-    const t = playlist[currentIndex]; if(!t) return;
-    const txt=`🎵 Listening to "${t.title}" by ${t.artist} on 8BFR Radio!`;
+  document.getElementById('btnShare').addEventListener('click',async function(){
+    var t = playlist[currentIndex]; if(!t) return;
+    var txt='🎵 Listening to "'+t.title+'" by '+t.artist+' on 8BFR Radio!';
     try{
       if(navigator.share) await navigator.share({title:'8BFR Radio', text:txt, url:location.href});
       else { await navigator.clipboard.writeText(txt+' '+location.href); showToast('📋 Link copied!'); }
     }catch(e){}
   });
-  document.getElementById('btnBuy').addEventListener('click',()=>{
-    const t=playlist[currentIndex]; if(t) location.href='checkout.html?song='+t.id+'&price='+t.price;
+  document.getElementById('btnBuy').addEventListener('click',function(){
+    var t=playlist[currentIndex]; if(t) location.href='checkout.html?song='+t.id+'&price='+t.price;
   });
-  document.getElementById('volumeSlider').addEventListener('input',e=>{ audio.volume=e.target.value/100; });
+  document.getElementById('volumeSlider').addEventListener('input',function(e){ audio.volume=e.target.value/100; });
   audio.volume=0.8;
 
-  audio.addEventListener('timeupdate',()=>{
+  audio.addEventListener('timeupdate',function(){
     if(!audio.duration) return;
     progressFill.style.width=(audio.currentTime/audio.duration*100)+'%';
     timeElapsed.textContent=fmt(audio.currentTime);
     timeDuration.textContent=fmt(audio.duration);
   });
   audio.addEventListener('ended',nextTrack);
-  progressTrack.addEventListener('click',e=>{
+  progressTrack.addEventListener('click',function(e){
     if(!audio.duration) return;
-    const r=progressTrack.getBoundingClientRect();
+    var r=progressTrack.getBoundingClientRect();
     audio.currentTime=((e.clientX-r.left)/r.width)*audio.duration;
   });
 
-  // Overlay tap
-  playOverlay.addEventListener('click',()=>{ playTrack(); });
+  // Overlay tap — starts playback
+  playOverlay.addEventListener('click',function(){ playTrack(); });
 
   // Keyboard shortcuts
-  document.addEventListener('keydown',e=>{
+  document.addEventListener('keydown',function(e){
     if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
     if(e.code==='Space'){ e.preventDefault(); if(isPlaying) pauseTrack(); else playTrack(); }
     if(e.code==='ArrowRight') nextTrack();
@@ -330,5 +396,4 @@
 })();
 </script>
 </body>
-  </html>id="audioPlayer" preload="auto"></audio>
-  </div>
+</html>
