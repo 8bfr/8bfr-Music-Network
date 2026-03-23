@@ -136,7 +136,7 @@
     var currentUser = null;
     var likedIds = [];
 
-    // ★ localStorage persistence keys
+    // localStorage persistence keys
     var LS_TRACK = '8bfr_radio_track';
     var LS_TIME = '8bfr_radio_time';
     var LS_SHUFFLE = '8bfr_radio_shuffle';
@@ -170,9 +170,22 @@
       likedIds = (lk.data || []).map(function(r) { return r.song_id; });
     }
 
-    // Load songs
-    var res = await db.from('songs').select('id,title,artist_name,audio_url,cover_url,profiles(display_name,avatar_url)').order('created_at', { ascending: false });
-    var songs = res.data || [];
+    // ═══════════════════════════════════════════════════
+    // FIXED: Use correct column names from songs table
+    // song_url (not audio_url), artist (not artist_name), cover_art (not cover_url)
+    // Only load songs that have an actual audio file
+    // ═══════════════════════════════════════════════════
+    var res = await db.from('songs')
+      .select('id, title, artist, song_url, cover_art, uploaded_by')
+      .not('song_url', 'is', null)
+      .neq('song_url', '')
+      .eq('hidden', false)
+      .order('created_at', { ascending: false });
+
+    var songs = (res.data || []).filter(function(s) {
+      // Extra safety: make sure song_url is a real URL
+      return s.song_url && s.song_url.startsWith('http');
+    });
 
     if (!songs.length) {
       nowTitle.textContent = 'No songs yet';
@@ -181,21 +194,21 @@
       return;
     }
 
-    // Build playlist
+    // Build playlist with correct field names
     playlist = songs.map(function(s, i) {
       return {
         id: s.id,
         title: s.title || 'Untitled',
-        artist: s.artist_name || (s.profiles ? s.profiles.display_name : 'Unknown'),
-        url: s.audio_url,
-        cover: s.cover_url || (s.profiles ? s.profiles.avatar_url : ''),
+        artist: s.artist || 'Unknown',
+        url: s.song_url,
+        cover: s.cover_art || '',
         originalIndex: i
       };
     });
 
     if (isShuffled) shufflePlaylist();
 
-    // ★ Restore last track position from localStorage
+    // Restore last track position from localStorage
     var resumed = false;
     try {
       var savedTrackId = localStorage.getItem(LS_TRACK);
@@ -204,7 +217,7 @@
         var idx = playlist.findIndex(function(t) { return t.id === savedTrackId; });
         if (idx !== -1) {
           currentIndex = idx;
-          loadTrack(idx, false); // load but don't auto-play
+          loadTrack(idx, false);
           audio.currentTime = savedTime;
           resumed = true;
           showToast('Resumed: ' + playlist[idx].title);
@@ -219,7 +232,7 @@
 
     renderQueue();
 
-    // ★ Save position every 5 seconds while playing
+    // Save position every 5 seconds while playing
     setInterval(function() {
       if (isPlaying && playlist[currentIndex]) {
         try {
@@ -265,7 +278,7 @@
       // Update like button
       likeBtn.textContent = likedIds.indexOf(t.id) !== -1 ? '❤️' : '🤍';
 
-      // ★ Save to localStorage
+      // Save to localStorage
       try {
         localStorage.setItem(LS_TRACK, t.id);
         localStorage.setItem(LS_TIME, '0');
@@ -349,7 +362,6 @@
       if (isShuffled) {
         var current = playlist[currentIndex];
         shufflePlaylist();
-        // Move current track to front
         var ci = playlist.indexOf(current);
         if (ci > 0) { playlist.splice(ci, 1); playlist.unshift(current); }
         currentIndex = 0;
