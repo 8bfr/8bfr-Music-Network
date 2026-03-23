@@ -301,28 +301,19 @@
       renderQueue();
 
       if (autoplay !== false) {
-        audio.play().then(function() {
-          isPlaying = true;
-          playBtn.textContent = '⏸';
-          vinyl.classList.add('spinning');
-        }).catch(function(err) {
-          // Browser blocked autoplay — show tap-to-start overlay
-          if (!document.getElementById('autoplayGate')) {
-            var gate = document.createElement('div');
-            gate.id = 'autoplayGate';
-            gate.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;background:rgba(11,0,20,0.95);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;';
-            gate.innerHTML = '<div style="font-size:4rem;margin-bottom:1rem;">📻</div><div style="font-size:1.4rem;font-weight:700;color:#a855f7;margin-bottom:0.5rem;">8BFR Radio</div><div style="font-size:1rem;color:#eae6ff;opacity:0.8;">Tap anywhere to start playing</div>';
-            gate.onclick = function() {
-              gate.remove();
-              audio.play().then(function() {
-                isPlaying = true;
-                playBtn.textContent = '⏸';
-                vinyl.classList.add('spinning');
-              }).catch(function() {});
-            };
-            document.body.appendChild(gate);
-          }
-        });
+        // Wait for enough audio to be buffered before playing
+        audio.addEventListener('canplaythrough', function onReady() {
+          audio.removeEventListener('canplaythrough', onReady);
+          audio.play().then(function() {
+            isPlaying = true;
+            playBtn.textContent = '⏸';
+            vinyl.classList.add('spinning');
+          }).catch(function() {
+            // Browser blocked — just show play button ready to go
+            isPlaying = false;
+            playBtn.textContent = '▶';
+          });
+        }, { once: true });
       }
 
       // Increment play count (safe — won't crash if function missing)
@@ -360,13 +351,30 @@
         playBtn.textContent = '▶';
         vinyl.classList.remove('spinning');
       } else {
-        audio.play().then(function() {
-          isPlaying = true;
-          playBtn.textContent = '⏸';
-          vinyl.classList.add('spinning');
-        }).catch(function(err) {
-          showToast('Play error: ' + err.message);
-        });
+        // If audio isn't loaded yet, load it first
+        if (audio.readyState < 3) {
+          playBtn.textContent = '⏳';
+          audio.load();
+          audio.addEventListener('canplaythrough', function onReady() {
+            audio.removeEventListener('canplaythrough', onReady);
+            audio.play().then(function() {
+              isPlaying = true;
+              playBtn.textContent = '⏸';
+              vinyl.classList.add('spinning');
+            }).catch(function(err) {
+              playBtn.textContent = '▶';
+              showToast('Play error: ' + err.message);
+            });
+          }, { once: true });
+        } else {
+          audio.play().then(function() {
+            isPlaying = true;
+            playBtn.textContent = '⏸';
+            vinyl.classList.add('spinning');
+          }).catch(function(err) {
+            showToast('Play error: ' + err.message);
+          });
+        }
       }
     };
 
