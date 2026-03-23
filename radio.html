@@ -107,105 +107,128 @@ body { font-family: system-ui, -apple-system, sans-serif; background: linear-gra
 </main>
 
 <div id="toast" class="toast"></div>
-
-<script>
 (async function(){
-const SUPABASE_URL='https://novbuvwpjnxwwvdekjhr.supabase.co';
-const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
-const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  const SUPABASE_URL='https://novbuvwpjnxwwvdekjhr.supabase.co';
+  const SUPABASE_KEY='YOUR_SUPABASE_KEY';
+  const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
-let playlist=[], currentIndex=-1, isPlaying=false, isShuffled=true, isRepeat=false;
-const audio=document.getElementById('audioPlayer');
-const vinyl=document.getElementById('vinyl');
-const vinylArt=document.getElementById('vinylArt');
-const nowTitle=document.getElementById('nowTitle');
-const nowArtist=document.getElementById('nowArtist');
-const nowArtistLink=document.getElementById('nowArtistLink');
-const nowVerified=document.getElementById('nowVerified');
-const nowExtra=document.getElementById('nowExtra');
-const progressFill=document.getElementById('progressFill');
-const progressTrack=document.getElementById('progressTrack');
-const timeElapsed=document.getElementById('timeElapsed');
-const timeDuration=document.getElementById('timeDuration');
-const btnPlay=document.getElementById('btnPlay');
-const queueList=document.getElementById('queueList');
+  let playlist=[], currentIndex=-1, isPlaying=false, isShuffled=true, isRepeat=false;
+  const audio=document.getElementById('audioPlayer');
+  const vinyl=document.getElementById('vinyl');
+  const vinylArt=document.getElementById('vinylArt');
+  const nowTitle=document.getElementById('nowTitle');
+  const nowArtist=document.getElementById('nowArtist');
+  const nowArtistLink=document.getElementById('nowArtistLink');
+  const nowVerified=document.getElementById('nowVerified');
+  const nowExtra=document.getElementById('nowExtra');
+  const progressFill=document.getElementById('progressFill');
+  const progressTrack=document.getElementById('progressTrack');
+  const timeElapsed=document.getElementById('timeElapsed');
+  const timeDuration=document.getElementById('timeDuration');
+  const btnPlay=document.getElementById('btnPlay');
+  const queueList=document.getElementById('queueList');
 
-async function loadSongs(){
-  try{
-    const {data,error}=await db.from('songs').select('*').not('song_url','is',null).order('created_at',{ascending:false});
-    if(error) throw error;
-    playlist=data.map(s=>({...s, is_8bfr:true})); // mark all uploaded as 8BFR for now
-    document.getElementById('statTracks').textContent=playlist.length;
-    const artists=new Set(playlist.map(x=>x.artist));
-    document.getElementById('statArtists').textContent=artists.size;
-    if(!playlist.length) return;
-    currentIndex=0; loadTrack(0); playTrack();
-  }catch(e){ console.error(e); showToast('Error loading songs'); }
-}
+  async function logPlay(songId){
+    try{ await db.from('radio_plays').insert({song_id:songId}); } catch(e){ console.error('Play log failed',e); }
+  }
 
-function loadTrack(idx){
-  if(idx<0||idx>=playlist.length) return;
-  currentIndex=idx;
-  const t=playlist[idx];
-  audio.src=t.song_url; audio.load();
-  vinylArt.src=t.cover_art||'assets/images/default_post.jpg';
-  nowTitle.textContent=t.title+(t.explicit?' 🔞':'');
-  nowArtist.textContent=t.artist;
-  nowArtistLink.href='#';
-  nowVerified.style.display=t.verified?'inline':'none';
-  document.getElementById('btnBuy').style.display=t.price>0?'flex':'none';
-  document.getElementById('btnLike').textContent='🤍';
-  progressFill.style.width='0%';
-  timeElapsed.textContent='0:00'; timeDuration.textContent='0:00';
-  renderQueue();
-}
+  async function logEvent(songId,eventType){
+    try{ await db.from('radio_events').insert({song_id:songId,event_type:eventType}); } catch(e){ console.error('Event log failed',e); }
+  }
 
-function playTrack(){ audio.play().then(()=>{isPlaying=true;btnPlay.textContent='⏸';vinyl.classList.add('spinning');}).catch(()=>{nowExtra.innerHTML='<span class="tap-prompt">▶ Tap play</span>'}); }
-function pauseTrack(){ audio.pause(); isPlaying=false; btnPlay.textContent='▶'; vinyl.classList.remove('spinning'); }
+  async function loadSongs(){
+    try{
+      const {data,error}=await db.from('songs').select('*').not('song_url','is',null).order('created_at',{ascending:false});
+      if(error) throw error;
+      playlist=data.map(s=>({...s, is_8bfr:true}));
+      document.getElementById('statTracks').textContent=playlist.length;
+      const artists=new Set(playlist.map(x=>x.artist));
+      document.getElementById('statArtists').textContent=artists.size;
+      if(!playlist.length) return;
+      currentIndex=0; loadTrack(0); playTrack();
+    } catch(e){ console.error(e); showToast('Error loading songs'); }
+  }
 
-btnPlay.onclick=()=>isPlaying?pauseTrack():playTrack();
-audio.onended=nextTrack;
+  function loadTrack(idx){
+    if(idx<0||idx>=playlist.length) return;
+    currentIndex=idx;
+    const t=playlist[idx];
+    audio.src=t.song_url; audio.load();
+    vinylArt.src=t.cover_art||'assets/images/default_post.jpg';
+    nowTitle.textContent=t.title+(t.explicit?' 🔞':'');
+    nowArtist.textContent=t.artist;
+    nowArtistLink.href='#';
+    nowVerified.style.display=t.verified?'inline':'none';
+    document.getElementById('btnBuy').style.display=t.price>0?'flex':'none';
+    document.getElementById('btnLike').textContent='🤍';
+    progressFill.style.width='0%';
+    timeElapsed.textContent='0:00'; timeDuration.textContent='0:00';
+    renderQueue();
+    logPlay(t.id); // log every play
+  }
 
-function nextTrack(){
-  const recentArtists=[playlist[currentIndex]?.artist];
-  const scored=playlist.map(s=>{
-    let score=Math.random()*5;
-    if(s.is_8bfr) score+=50;
-    if(recentArtists.includes(s.artist)) score-=500;
-    return {...s,score};
-  }).sort((a,b)=>b.score-a.score);
-  const next=playlist.indexOf(scored[0]);
-  loadTrack(next); playTrack();
-}
+  function playTrack(){ 
+    audio.play().then(()=>{ isPlaying=true; btnPlay.textContent='⏸'; vinyl.classList.add('spinning'); }).catch(()=>{ nowExtra.innerHTML='<span class="tap-prompt">▶ Tap play</span>'; });
+  }
+  function pauseTrack(){ audio.pause(); isPlaying=false; btnPlay.textContent='▶'; vinyl.classList.remove('spinning'); }
 
-function renderQueue(){
-  queueList.innerHTML=playlist.slice(currentIndex+1,currentIndex+4).map((t,i)=>`
-    <div class="queue-item" onclick="window._rJump(${playlist.indexOf(t)})">
-      <div class="queue-cover">${t.cover_art?'<img src="'+t.cover_art+'">':'🎵'}</div>
-      <div style="flex:1;min-width:0;">
-        <div style="font-weight:600;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.title}</div>
-        <div style="font-size:0.78rem;color:#a855f7;">${t.artist}</div>
-      </div>
-    </div>`).join('');
-}
-window._rJump=i=>{loadTrack(i); playTrack();};
+  btnPlay.onclick=()=>isPlaying?pauseTrack():playTrack();
 
-audio.addEventListener('timeupdate',()=>{
-  if(!audio.duration) return;
-  progressFill.style.width=(audio.currentTime/audio.duration*100)+'%';
-  timeElapsed.textContent=Math.floor(audio.currentTime/60)+':'+(Math.floor(audio.currentTime%60)<10?'0':'')+Math.floor(audio.currentTime%60);
-  timeDuration.textContent=Math.floor(audio.duration/60)+':'+(Math.floor(audio.duration%60)<10?'0':'')+Math.floor(audio.duration%60);
-});
-progressTrack.addEventListener('click',e=>{
-  const r=progressTrack.getBoundingClientRect();
-  audio.currentTime=((e.clientX-r.left)/r.width)*audio.duration;
-});
-document.getElementById('volumeSlider').addEventListener('input',e=>audio.volume=e.target.value/100);
+  function nextTrack(){
+    logEvent(playlist[currentIndex]?.id,'skip'); // log skip for current
+    const recentArtists=[playlist[currentIndex]?.artist];
+    const scored=playlist.map(s=>{
+      let score=Math.random()*5;
+      if(s.is_8bfr) score+=50;
+      if(recentArtists.includes(s.artist)) score-=500;
+      return {...s,score};
+    }).sort((a,b)=>b.score-a.score);
+    const next=playlist.indexOf(scored[0]);
+    loadTrack(next); playTrack();
+  }
 
-function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2000); }
+  function renderQueue(){
+    queueList.innerHTML=playlist.slice(currentIndex+1,currentIndex+4).map((t,i)=>`
+      <div class="queue-item" onclick="window._rJump(${playlist.indexOf(t)})">
+        <div class="queue-cover">${t.cover_art?'<img src="'+t.cover_art+'">':'🎵'}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.title}</div>
+          <div style="font-size:0.78rem;color:#a855f7;">${t.artist}</div>
+        </div>
+      </div>`).join('');
+  }
 
-await loadSongs();
+  window._rJump=i=>{loadTrack(i); playTrack();};
+
+  audio.addEventListener('timeupdate',()=>{
+    if(!audio.duration) return;
+    progressFill.style.width=(audio.currentTime/audio.duration*100)+'%';
+    timeElapsed.textContent=Math.floor(audio.currentTime/60)+':'+(Math.floor(audio.currentTime%60)<10?'0':'')+Math.floor(audio.currentTime%60);
+    timeDuration.textContent=Math.floor(audio.duration/60)+':'+(Math.floor(audio.duration%60)<10?'0':'')+Math.floor(audio.duration%60);
+  });
+
+  progressTrack.addEventListener('click',e=>{
+    const r=progressTrack.getBoundingClientRect();
+    audio.currentTime=((e.clientX-r.left)/r.width)*audio.duration;
+  });
+
+  document.getElementById('volumeSlider').addEventListener('input',e=>audio.volume=e.target.value/100);
+
+  document.getElementById('btnLike').addEventListener('click',()=>{
+    const t=playlist[currentIndex]; if(!t) return;
+    const liked=btnPlay.textContent==='❤️';
+    btnPlay.textContent=liked?'🤍':'❤️';
+    logEvent(t.id,'like');
+    showToast(liked?'Removed from favorites':'❤️ Added to favorites');
+  });
+
+  document.getElementById('btnShare').addEventListener('click',()=>{
+    const t=playlist[currentIndex]; if(!t) return;
+    logEvent(t.id,'share');
+  });
+
+  await loadSongs();
 })();
-</script>
+
 </body>
 </html>
