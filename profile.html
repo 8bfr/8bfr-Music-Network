@@ -1032,48 +1032,8 @@ window.sendTip=async function(){var amount=parseInt(document.getElementById('tip
 document.getElementById('tipModal').addEventListener('click',function(e){if(e.target===this)closeTipModal();});
 })();
 </script>
-  <!-- ═══════════════════════════════════════════════════════
-     PROFILE PATCH — Paste this BEFORE 
-<script>
-// ★ FIX: Add author name overlays to liked/favorited post grids
-(function(){
-  var origSwitch = window.switchProfileTab;
-  if(!origSwitch) return;
-  window.switchProfileTab = function(tab){
-    origSwitch(tab);
-    if(tab === 'likes' || tab === 'favorites'){
-      setTimeout(function(){ addAuthorOverlays(tab); }, 300);
-      setTimeout(function(){ addAuthorOverlays(tab); }, 800);
-    }
-  };
-  function addAuthorOverlays(tab){
-    var authorMap = tab === 'likes' ? (window._likedPostAuthors||{}) : (window._favPostAuthors||{});
-    var posts = tab === 'likes' ? (window._likedPosts||[]) : (window._favoritedPosts||[]);
-    var cells = document.querySelectorAll('.post-grid > div, .post-grid-cell');
-    cells.forEach(function(cell, idx){
-      if(idx >= posts.length) return;
-      var p = posts[idx];
-      if(!p || !p.user_id) return;
-      var auth = authorMap[p.user_id];
-      if(!auth) return;
-      if(cell.querySelector('.author-overlay')) return;
-      var overlay = document.createElement('div');
-      overlay.className = 'author-overlay';
-      overlay.style.cssText = 'position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.85));padding:4px 6px 3px;font-size:.65rem;color:#eae6ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;border-radius:0 0 8px 8px;';
-      overlay.textContent = auth.display_name || auth.username || '';
-      cell.style.position = 'relative';
-      cell.appendChild(overlay);
-    });
-  }
-})();
-</script>
-</body> in profile.html
-     
-     Fixes:
-     1. Music tab shows for owner/co-owner (not just artist roles)
-     2. Adds badge & role editor to edit panel
-     3. Save function includes badges and role
-     ═══════════════════════════════════════════════════════ -->
+
+<!-- ═══ PROFILE PATCH: Music tab for owner, badge editor, save badges+role ═══ -->
 <script>
 (function(){
   // ═══ FIX 1: Show Music tab for owner/co-owner ═══
@@ -1105,9 +1065,9 @@ document.getElementById('tipModal').addEventListener('click',function(e){if(e.ta
     // Check if Music tab is missing (owner/co-owner without music role badges)
     var hasMusic = tabs.querySelector('[data-tab="music"]');
     if (!hasMusic) {
-      // Check if user is owner/co-owner
-      var roleEl = document.querySelector('.profile-header-inner');
+      // Check if this is the OWNER's profile AND it's their own profile (edit panel exists = own profile)
       var isOwnerOrCoOwner = false;
+      var isViewingOwnProfile = !!document.getElementById('editPanel') || !!document.getElementById('editToggleBtn');
       try {
         if (window._8bfr && (window._8bfr.isOwner || window._8bfr.isCoOwner)) isOwnerOrCoOwner = true;
       } catch(e) {}
@@ -1123,14 +1083,14 @@ document.getElementById('tipModal').addEventListener('click',function(e){if(e.ta
         musicBtn.onclick = function() { window.switchProfileTab('music'); };
         tabs.appendChild(musicBtn);
 
-        // Create music section if missing
+        // Create music section if missing — only include upload form if viewing OWN profile
         if (!document.getElementById('musicSection')) {
           var tc = document.getElementById('tabContent');
           if (tc) {
             var section = document.createElement('div');
             section.id = 'musicSection';
             section.style.display = 'none';
-            section.innerHTML = buildMusicSection();
+            section.innerHTML = isViewingOwnProfile ? buildMusicSection() : buildMusicSectionReadOnly();
             tc.parentNode.insertBefore(section, tc.nextSibling);
           }
         }
@@ -1336,6 +1296,12 @@ document.getElementById('tipModal').addEventListener('click',function(e){if(e.ta
       '<button class="btn btn-green" onclick="uploadSong()" id="uBtn">⬆️ Upload</button>' +
       '<button class="btn btn-ghost" onclick="toggleUF()">Cancel</button></div>' +
       '<div id="uN" style="margin-top:0.75rem;font-size:0.85rem;"></div></div>' +
+      '<div id="songList"><div class="spinner"></div></div>';
+  }
+
+  // Read-only version — visitors see songs but no upload button
+  function buildMusicSectionReadOnly() {
+    return '<div style="margin-bottom:1rem;"><h2 style="margin:0;color:#a855f7;">🎵 Songs</h2></div>' +
       '<div id="songList"><div class="spinner"></div></div>';
   }
 
