@@ -199,9 +199,10 @@
         var sort = document.getElementById('sortFilter').value;
 
         try {
-            // ★ Only get beats (is_beat = true)
+            // ★ Only get beats (is_beat = true), exclude sold
             var query = db.from('songs').select('*')
                 .eq('is_beat', true)
+                .or('sold.is.null,sold.eq.false')
                 .not('song_url', 'is', null)
                 .neq('song_url', '');
 
@@ -388,6 +389,26 @@
         document.querySelectorAll('.license-option').forEach(function(o) { o.classList.remove('selected'); });
         el.classList.add('selected');
         document.getElementById('buyModalTotal').textContent = '$' + price;
+
+        // Show matching license agreement if available
+        var licLink = document.getElementById('buyLicenseLink');
+        if (licLink && selectedBeat && selectedBeat.license_url) {
+            try {
+                var licenses = typeof selectedBeat.license_url === 'string' ? JSON.parse(selectedBeat.license_url) : selectedBeat.license_url;
+                if (licenses[id]) {
+                    licLink.href = licenses[id];
+                    licLink.textContent = '📄 View ' + id.toUpperCase() + ' License Agreement';
+                    licLink.style.display = 'inline-block';
+                } else {
+                    licLink.style.display = 'none';
+                }
+            } catch(e) {
+                // Old format — single URL string
+                licLink.href = selectedBeat.license_url;
+                licLink.textContent = '📄 View License Agreement';
+                licLink.style.display = 'inline-block';
+            }
+        }
     }
 
     function closeBuyModal() {
