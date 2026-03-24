@@ -33,7 +33,6 @@
     .tag{font-size:.65rem;background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.3);border-radius:4px;padding:.1rem .4rem;color:#a855f7;}
     .bm-stats{display:flex;gap:.75rem;justify-content:center;font-size:.7rem;color:rgba(168,85,247,.6);}
     .verified-mark{color:#00d9ff;font-size:.75rem;}
-    /* Beats list */
     .beat-row{background:rgba(12,6,24,.85);border:1px solid rgba(124,58,237,.2);border-radius:12px;padding:.85rem 1rem;margin-bottom:.55rem;display:flex;align-items:center;gap:.75rem;transition:all .2s;}
     .beat-row:hover{border-color:rgba(124,58,237,.45);}
     .beat-cover{width:46px;height:46px;border-radius:8px;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden;}
@@ -69,17 +68,15 @@
     <p>Connect with producers, discover fire beats, and sell your sound to artists worldwide.</p>
     <div style="display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;">
       <a href="profile.html" class="cta-btn">Upload My Beats</a>
-      <a href="members.html?role=beatmaker" class="cta-btn" style="background:transparent;border:1px solid rgba(124,58,237,.5);color:#a855f7;">Browse All Producers</a>
+      <a href="beats-store.html" class="cta-btn" style="background:transparent;border:1px solid rgba(0,255,136,.5);color:#00ff88;">🛒 Beat Store</a>
     </div>
   </div>
 
-  <!-- SELL YOUR BEATS CTA -->
   <div class="cta-bar" id="sellCta" style="display:none;">
     <p>🔥 Are you a beatmaker? Upload your beats directly from your profile and start selling today.</p>
     <a href="profile.html" class="cta-btn">Go to My Profile → Upload Beats</a>
   </div>
 
-  <!-- FILTER BAR -->
   <div class="filter-bar">
     <div class="search-wrap">
       <input type="text" id="searchInput" placeholder="Search beatmakers or beats..." oninput="filterContent()">
@@ -90,163 +87,170 @@
     <button class="filter-chip" onclick="setGenreFilter('boom bap',this)">Boom Bap</button>
     <button class="filter-chip" onclick="setGenreFilter('rnb',this)">R&B</button>
     <button class="filter-chip" onclick="setGenreFilter('pop',this)">Pop</button>
+    <button class="filter-chip" onclick="setGenreFilter('rap',this)">Rap</button>
   </div>
 
-  <!-- FEATURED BEATMAKERS -->
   <div class="section-title">🌟 Featured Producers</div>
   <div class="beatmakers-grid" id="beatmakersGrid"><div class="spinner"></div></div>
 
-  <!-- RECENT BEATS -->
   <div class="section-title">🎵 Latest Beats</div>
   <div id="beatsList"><div class="spinner"></div></div>
 
 </div>
 
-<audio id="audioPlayer"></audio>
+<audio id="audioPlayer" preload="auto"></audio>
 
 <script>
-const SB = window.supabase.createClient(
+var SB = window.supabase.createClient(
   'https://novbuvwpjnxwwvdekjhr.supabase.co',
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0'
 );
-let currentUser = null, allBeats = [], allBeatmakers = [];
-let activeGenre = 'all', currentlyPlaying = null;
+var currentUser = null, allBeats = [], allBeatmakers = [];
+var activeGenreFilter = 'all', currentlyPlaying = null;
 
 async function init() {
-  const { data: { session } } = await SB.auth.getSession().catch(() => ({ data:{} }));
-  if (session?.user) {
-    currentUser = session.user;
-    const { data: p } = await SB.from('profiles').select('role').eq('user_id', session.user.id).single();
-    if (p && ['beatmaker','producer','dj','owner','cofounder'].includes(p.role)) {
-      document.getElementById('sellCta').style.display = 'block';
+  try {
+    var sess = await SB.auth.getSession();
+    if (sess.data.session) {
+      currentUser = sess.data.session.user;
+      var pr = await SB.from('profiles').select('role').eq('user_id', currentUser.id).single();
+      if (pr.data && ['beatmaker','producer','dj','owner','co-owner'].indexOf(pr.data.role) !== -1) {
+        document.getElementById('sellCta').style.display = 'block';
+      }
     }
-  }
+  } catch(e) {}
   await Promise.all([loadBeatmakers(), loadBeats()]);
 }
 
 async function loadBeatmakers() {
-  const el = document.getElementById('beatmakersGrid');
+  var el = document.getElementById('beatmakersGrid');
   try {
-    const { data, error } = await SB.from('profiles')
+    var result = await SB.from('profiles')
       .select('user_id,username,display_name,avatar_url,role,bio,verified_artist,badges,tags')
       .in('role', ['beatmaker','producer','dj'])
       .order('created_at', { ascending: false })
       .limit(12);
-    if (error) throw error;
-    allBeatmakers = data || [];
+    if (result.error) throw result.error;
+    allBeatmakers = result.data || [];
     renderBeatmakers(allBeatmakers);
   } catch(e) {
-    el.innerHTML = `<p class="empty">Could not load beatmakers: ${e.message}</p>`;
+    el.innerHTML = '<p class="empty">Could not load beatmakers: ' + e.message + '</p>';
   }
 }
 
 function renderBeatmakers(list) {
-  const el = document.getElementById('beatmakersGrid');
+  var el = document.getElementById('beatmakersGrid');
   if (!list.length) { el.innerHTML = '<p class="empty" style="grid-column:1/-1;">No beatmakers yet. Be the first!</p>'; return; }
-  el.innerHTML = list.map(p => {
-    const name = esc(p.display_name || p.username || 'Producer');
-    const tags = Array.isArray(p.badges) ? p.badges : (Array.isArray(p.tags) ? p.tags : []);
-    const tagHtml = tags.slice(0,3).map(t => `<span class="tag">${esc(t)}</span>`).join('');
-    const verMark = p.verified_artist ? '<span class="verified-mark">✓ Verified</span>' : '';
-    return `<a href="profile.html?id=${p.user_id}" class="bm-card">
-      <div class="bm-avatar">${p.avatar_url ? `<img src="${p.avatar_url}" onerror="this.parentNode.textContent='🎚️'">` : '🎚️'}</div>
-      <div class="bm-name">${name} ${verMark}</div>
-      <div class="bm-tags">${tagHtml || `<span class="tag">${esc(p.role)}</span>`}</div>
-      <div class="bm-stats"><span>🎵 View Beats</span></div>
-    </a>`;
+  el.innerHTML = list.map(function(p) {
+    var name = esc(p.display_name || p.username || 'Producer');
+    var tags = Array.isArray(p.badges) ? p.badges : (Array.isArray(p.tags) ? p.tags : []);
+    var tagHtml = tags.slice(0,3).map(function(t) { return '<span class="tag">' + esc(t) + '</span>'; }).join('');
+    var verMark = p.verified_artist ? '<span class="verified-mark">✓ Verified</span>' : '';
+    return '<a href="profile.html?id=' + p.user_id + '" class="bm-card">' +
+      '<div class="bm-avatar">' + (p.avatar_url ? '<img src="' + p.avatar_url + '" onerror="this.parentNode.textContent=\'🎚️\'">' : '🎚️') + '</div>' +
+      '<div class="bm-name">' + name + ' ' + verMark + '</div>' +
+      '<div class="bm-tags">' + (tagHtml || '<span class="tag">' + esc(p.role) + '</span>') + '</div>' +
+      '<div class="bm-stats"><span>🎵 View Beats</span></div></a>';
   }).join('');
 }
 
 async function loadBeats() {
-  const el = document.getElementById('beatsList');
+  var el = document.getElementById('beatsList');
   try {
-    const { data, error } = await SB.from('songs')
-      .select('id,title,artist,cover_art,song_url,price,genre,uploaded_by,bpm,created_at,hidden,downloads_enabled')
-      .eq('hidden', false)
+    // ★ FIXED: Only load beats (is_beat = true), use correct columns
+    var result = await SB.from('songs')
+      .select('id,title,artist,cover_art,song_url,price,genre,uploaded_by,bpm,created_at,play_count')
+      .eq('is_beat', true)
       .not('song_url', 'is', null)
+      .neq('song_url', '')
       .order('created_at', { ascending: false })
       .limit(40);
-    if (error) throw error;
-    allBeats = data || [];
+    if (result.error) throw result.error;
+    allBeats = result.data || [];
+
     // Get uploader profiles
-    const uids = [...new Set(allBeats.map(b => b.uploaded_by).filter(Boolean))];
-    const pm = {};
+    var uids = [];
+    allBeats.forEach(function(b) { if (b.uploaded_by && uids.indexOf(b.uploaded_by) === -1) uids.push(b.uploaded_by); });
+    var pm = {};
     if (uids.length) {
-      const { data: profiles } = await SB.from('profiles').select('user_id,username,display_name,role').in('user_id', uids);
-      (profiles || []).forEach(p => pm[p.user_id] = p);
+      var pr = await SB.from('profiles').select('user_id,username,display_name,role').in('user_id', uids);
+      (pr.data || []).forEach(function(p) { pm[p.user_id] = p; });
     }
-    allBeats.forEach(b => b._producer = pm[b.uploaded_by]);
-    // Filter to only beatmaker uploads
-    allBeats = allBeats.filter(b => b._producer && ['beatmaker','producer','dj','owner','cofounder'].includes(b._producer.role));
+    allBeats.forEach(function(b) { b._producer = pm[b.uploaded_by]; });
+
     renderBeats(allBeats);
   } catch(e) {
-    el.innerHTML = `<p class="empty">Could not load beats: ${e.message}</p>`;
+    el.innerHTML = '<p class="empty">Could not load beats: ' + e.message + '</p>';
   }
 }
 
 function renderBeats(list) {
-  const el = document.getElementById('beatsList');
-  if (!list.length) { el.innerHTML = '<p class="empty">No beats uploaded yet. Beatmakers — go to your profile to upload!</p>'; return; }
-  el.innerHTML = list.map(b => {
-    const producer = esc(b._producer?.display_name || b._producer?.username || b.artist || 'Unknown');
-    const price = b.price > 0 ? '$' + parseFloat(b.price).toFixed(2) : 'Free';
-    const bpmTag = b.bpm ? `${b.bpm} BPM · ` : '';
-    const genreTag = b.genre ? `${esc(b.genre)} · ` : '';
-    const dlDisabled = b.downloads_enabled === false;
-    return `<div class="beat-row" data-genre="${esc((b.genre||'').toLowerCase())}">
-      <div class="beat-cover">${b.cover_art ? `<img src="${b.cover_art}" onerror="this.parentNode.textContent='🎵'">` : '🎵'}</div>
-      <div class="beat-info">
-        <div class="beat-title">${esc(b.title||'Untitled')}</div>
-        <div class="beat-meta">${bpmTag}${genreTag}<a href="profile.html?id=${b.uploaded_by}" style="color:#a855f7;text-decoration:none;">${producer}</a></div>
-      </div>
-      ${b.song_url ? `<button class="play-btn" onclick="togglePlay('${b.id}','${esc(b.song_url)}',this)" title="Preview">▶</button>` : ''}
-      ${!dlDisabled && b.price > 0 ? `<span class="beat-price">${price}</span><button class="buy-btn" onclick="buyBeat('${b.id}','${esc(b.title||'Beat')}',${b.price})">Buy</button>` : ''}
-      ${!dlDisabled && b.price === 0 ? `<span class="beat-price">Free</span>` : ''}
-      ${dlDisabled ? `<span style="font-size:.7rem;color:rgba(168,85,247,.35);">N/A</span>` : ''}
-    </div>`;
+  var el = document.getElementById('beatsList');
+  if (!list.length) { el.innerHTML = '<p class="empty">No beats uploaded yet. Beatmakers — upload from your profile and mark as "Beat"!</p>'; return; }
+  el.innerHTML = list.map(function(b) {
+    var producer = esc(b._producer ? (b._producer.display_name || b._producer.username) : (b.artist || 'Unknown'));
+    var price = parseFloat(b.price) || 0;
+    var priceText = price > 0 ? '$' + price.toFixed(2) : 'Free';
+    var bpmTag = b.bpm ? b.bpm + ' BPM · ' : '';
+    var genreTag = b.genre ? esc(b.genre) + ' · ' : '';
+    return '<div class="beat-row" data-genre="' + esc((b.genre || '').toLowerCase()) + '">' +
+      '<div class="beat-cover">' + (b.cover_art ? '<img src="' + b.cover_art + '" onerror="this.parentNode.textContent=\'🎵\'">' : '🎵') + '</div>' +
+      '<div class="beat-info">' +
+      '<div class="beat-title">' + esc(b.title || 'Untitled') + '</div>' +
+      '<div class="beat-meta">' + bpmTag + genreTag + '<a href="profile.html?id=' + b.uploaded_by + '" style="color:#a855f7;text-decoration:none;">' + producer + '</a></div>' +
+      '</div>' +
+      (b.song_url ? '<button class="play-btn" onclick="togglePlay(\'' + b.id + '\',\'' + esc(b.song_url) + '\',this)" title="Preview">▶</button>' : '') +
+      '<span class="beat-price">' + priceText + '</span>' +
+      (price > 0 ? '<button class="buy-btn" onclick="buyBeat(\'' + b.id + '\',\'' + esc(b.title || 'Beat') + '\',' + price + ',\'' + (b.uploaded_by || '') + '\')">Buy</button>' : '') +
+      '</div>';
   }).join('');
 }
 
 function togglePlay(id, url, btn) {
-  const audio = document.getElementById('audioPlayer');
+  var audio = document.getElementById('audioPlayer');
   if (currentlyPlaying === id) {
     audio.pause(); currentlyPlaying = null;
-    document.querySelectorAll('.play-btn').forEach(b => b.textContent = '▶');
+    document.querySelectorAll('.play-btn').forEach(function(b) { b.textContent = '▶'; });
   } else {
-    audio.src = url; audio.play().catch(() => {});
+    audio.src = url;
+    audio.load();
+    audio.play().catch(function() {});
     currentlyPlaying = id;
-    document.querySelectorAll('.play-btn').forEach(b => b.textContent = '▶');
+    document.querySelectorAll('.play-btn').forEach(function(b) { b.textContent = '▶'; });
     btn.textContent = '⏸';
   }
-  audio.onended = () => { currentlyPlaying = null; btn.textContent = '▶'; };
+  audio.onended = function() { currentlyPlaying = null; btn.textContent = '▶'; };
 }
 
-function buyBeat(id, title, price) {
-  if (!currentUser) { if (confirm('Log in to purchase beats.')) location.href='login.html'; return; }
-  alert('💳 Beat purchase coming soon!\n\n"' + title + '" — $' + price + '\n\nPayPal integration will be enabled shortly.');
+function buyBeat(id, title, price, producerId) {
+  if (!currentUser) { if (confirm('Log in to purchase beats.')) location.href = 'login.html'; return; }
+  if (producerId) {
+    if (confirm('💰 "' + title + '" — $' + price.toFixed(2) + '\n\nThis will take you to the producer\'s profile where you can message them and complete the purchase via PayPal.\n\nContinue?')) {
+      location.href = 'profile.html?id=' + producerId;
+    }
+  }
 }
 
-let activeGenreFilter = 'all';
 function setGenreFilter(genre, btn) {
   activeGenreFilter = genre;
-  document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.filter-chip').forEach(function(b) { b.classList.remove('active'); });
   if (btn) btn.classList.add('active');
   filterContent();
 }
 
 function filterContent() {
-  const q = (document.getElementById('searchInput')?.value || '').toLowerCase();
-  const filtered = allBeats.filter(b => {
-    const matchGenre = activeGenreFilter === 'all' || (b.genre||'').toLowerCase().includes(activeGenreFilter);
-    const name = (b.title||'') + ' ' + (b.artist||'') + ' ' + (b._producer?.display_name||'') + ' ' + (b._producer?.username||'');
-    const matchQ = !q || name.toLowerCase().includes(q);
+  var q = (document.getElementById('searchInput').value || '').toLowerCase();
+  var filtered = allBeats.filter(function(b) {
+    var matchGenre = activeGenreFilter === 'all' || (b.genre || '').toLowerCase().indexOf(activeGenreFilter) !== -1;
+    var name = (b.title || '') + ' ' + (b.artist || '') + ' ' + (b._producer ? (b._producer.display_name || '') + ' ' + (b._producer.username || '') : '');
+    var matchQ = !q || name.toLowerCase().indexOf(q) !== -1;
     return matchGenre && matchQ;
   });
   renderBeats(filtered);
 
-  const bmFiltered = allBeatmakers.filter(p => {
-    const name = (p.display_name||'') + ' ' + (p.username||'');
-    return !q || name.toLowerCase().includes(q);
+  var bmFiltered = allBeatmakers.filter(function(p) {
+    var name = (p.display_name || '') + ' ' + (p.username || '');
+    return !q || name.toLowerCase().indexOf(q) !== -1;
   });
   renderBeatmakers(bmFiltered);
 }
@@ -254,6 +258,5 @@ function filterContent() {
 function esc(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
 init();
 </script>
-<script src="scripts.js" defer onerror="console.warn('scripts.js not found')"></script>
 </body>
 </html>
