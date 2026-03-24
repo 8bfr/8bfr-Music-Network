@@ -575,9 +575,9 @@
 
     /* Stats bar */
     h+='<div class="stats-bar" id="statsBar">';
-    h+='<div class="stat-item"><span class="stat-num" id="sn-followers">—</span><span class="stat-label">Followers</span></div>';
-    h+='<div class="stat-item"><span class="stat-num" id="sn-following">—</span><span class="stat-label">Following</span></div>';
-    h+='<div class="stat-item"><span class="stat-num" id="sn-friends">—</span><span class="stat-label">Friends</span></div>';
+    h+='<div class="stat-item" onclick="showStatList(\'followers\')"><span class="stat-num" id="sn-followers">—</span><span class="stat-label">Followers</span></div>';
+    h+='<div class="stat-item" onclick="showStatList(\'following\')"><span class="stat-num" id="sn-following">—</span><span class="stat-label">Following</span></div>';
+    h+='<div class="stat-item" onclick="showStatList(\'friends\')"><span class="stat-num" id="sn-friends">—</span><span class="stat-label">Friends</span></div>';
     h+='<div class="stat-item"><span class="stat-num" id="sn-likes">—</span><span class="stat-label">Likes</span></div>';
     h+='<div class="stat-item"><span class="stat-num" id="sn-reshares">—</span><span class="stat-label">Reshares</span></div>';
     h+='</div>';
@@ -1001,6 +1001,17 @@
   })();
   </script>
 
+<!-- ── Stat List Modal (followers/following/friends) ── -->
+<div id="statListModal" class="modal-overlay" onclick="if(event.target===this)closeStatList()">
+  <div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+      <h3 id="statListTitle" style="font-size:1.1rem;font-weight:800;color:#a855f7;">Followers</h3>
+      <button onclick="closeStatList()" style="background:none;border:none;color:#eae6ff;font-size:1.5rem;cursor:pointer;">✕</button>
+    </div>
+    <div id="statListContent" style="max-height:60vh;overflow-y:auto;"></div>
+  </div>
+</div>
+
 <!-- ── TIP MODAL ── -->
 <div id="tipModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.75);backdrop-filter:blur(5px);align-items:center;justify-content:center;">
   <div style="background:rgba(12,4,26,.98);border:1px solid rgba(124,58,237,.55);border-radius:18px;padding:1.5rem;width:min(92vw,360px);text-align:center;">
@@ -1031,6 +1042,78 @@ window.closeTipModal=function(){document.getElementById('tipModal').style.displa
 window.setTipAmount=function(n){document.getElementById('tipAmount').value=n;document.querySelectorAll('.tip-quick').forEach(function(b){b.classList.toggle('selected',parseInt(b.textContent)===n);});};
 window.sendTip=async function(){var amount=parseInt(document.getElementById('tipAmount').value);var note=document.getElementById('tipNote').value.trim()||'Coin tip';var status=document.getElementById('tipStatus');var btn=document.getElementById('tipConfirmBtn');if(!amount||amount<1){status.style.color='#fca5a5';status.textContent='Enter amount.';return;}btn.disabled=true;btn.textContent='Sending...';try{var db2=window._8bfrSupabaseClient||window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');var sess=await db2.auth.getSession();if(!sess.data.session){status.style.color='#fca5a5';status.textContent='Log in to tip.';btn.disabled=false;btn.textContent='Send 🪙';return;}var res=await db2.rpc('transfer_coins',{p_from_id:sess.data.session.user.id,p_to_id:_tipToId,p_amount:amount,p_note:note});if(res.error)throw new Error(res.error.message);if(!res.data.success){status.style.color='#fca5a5';status.textContent='✕ '+res.data.error;btn.disabled=false;btn.textContent='Send 🪙';return;}status.style.color='#86efac';status.textContent='✓ Sent! Balance: 🪙 '+(res.data.new_balance||0).toLocaleString();btn.textContent='✓ Sent!';setTimeout(function(){closeTipModal();btn.disabled=false;btn.textContent='Send 🪙';},1800);}catch(e){status.style.color='#fca5a5';status.textContent='✕ '+(e.message||'Error');btn.disabled=false;btn.textContent='Send 🪙';}};
 document.getElementById('tipModal').addEventListener('click',function(e){if(e.target===this)closeTipModal();});
+})();
+</script>
+
+<!-- ═══ STAT LIST (followers/following/friends) ═══ -->
+<script>
+(function(){
+  var _statDb = window._8bfrSupabaseClient || (window.supabase ? window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0') : null);
+
+  window.closeStatList = function(){ document.getElementById('statListModal').classList.remove('show'); };
+
+  window.showStatList = async function(type){
+    var modal = document.getElementById('statListModal');
+    var title = document.getElementById('statListTitle');
+    var content = document.getElementById('statListContent');
+    if(!modal || !_statDb) return;
+
+    var titles = {followers:'Followers', following:'Following', friends:'Friends'};
+    title.textContent = titles[type] || type;
+    content.innerHTML = '<div class="spinner"></div>';
+    modal.classList.add('show');
+
+    // Get profile ID from URL or current user
+    var params = new URLSearchParams(location.search);
+    var targetId = params.get('id');
+    if(!targetId){
+      try{ var s = await _statDb.auth.getSession(); targetId = s?.data?.session?.user?.id; }catch(e){}
+    }
+    if(!targetId){ content.innerHTML = '<div style="text-align:center;padding:1rem;color:#ef4444;">Not logged in</div>'; return; }
+
+    try {
+      var userIds = [];
+
+      if(type === 'followers'){
+        var r = await _statDb.from('follows').select('follower_id').eq('following_id', targetId).limit(100);
+        userIds = (r.data||[]).map(function(x){ return x.follower_id; });
+      } else if(type === 'following'){
+        var r = await _statDb.from('follows').select('following_id').eq('follower_id', targetId).limit(100);
+        userIds = (r.data||[]).map(function(x){ return x.following_id; });
+      } else if(type === 'friends'){
+        var r = await _statDb.from('friends').select('user_id,friend_id').or('user_id.eq.'+targetId+',friend_id.eq.'+targetId).eq('status','accepted').limit(100);
+        userIds = (r.data||[]).map(function(x){ return x.user_id === targetId ? x.friend_id : x.user_id; });
+      }
+
+      if(!userIds.length){
+        content.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(168,85,247,0.5);">No '+type+' yet.</div>';
+        return;
+      }
+
+      // Get profiles
+      var pr = await _statDb.from('profiles').select('user_id,username,display_name,avatar_url,role,verified_artist').in('user_id', userIds);
+      var profiles = pr.data || [];
+
+      if(!profiles.length){
+        content.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(168,85,247,0.5);">No '+type+' found.</div>';
+        return;
+      }
+
+      content.innerHTML = profiles.map(function(p){
+        var av = p.avatar_url ? '<img src="'+p.avatar_url+'" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentNode.textContent=\'👤\'">' : '👤';
+        var name = p.display_name || p.username || 'Unknown';
+        var verified = p.verified_artist ? ' <span style="color:#00d9ff;">✓</span>' : '';
+        var role = p.role ? '<span style="font-size:0.72rem;color:rgba(168,85,247,0.6);">'+p.role+'</span>' : '';
+        return '<a href="profile.html?id='+p.user_id+'" style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem;border-radius:10px;border:1px solid rgba(124,58,237,0.15);margin-bottom:0.5rem;text-decoration:none;color:#eae6ff;transition:background 0.2s;" onmouseover="this.style.background=\'rgba(124,58,237,0.1)\'" onmouseout="this.style.background=\'none\'">'+
+          '<div style="width:44px;height:44px;border-radius:50%;overflow:hidden;background:rgba(124,58,237,0.2);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">'+av+'</div>'+
+          '<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:0.9rem;">'+name+verified+'</div>'+role+'</div>'+
+          '</a>';
+      }).join('');
+
+    }catch(e){
+      content.innerHTML = '<div style="text-align:center;padding:1rem;color:#ef4444;">'+e.message+'</div>';
+    }
+  };
 })();
 </script>
 
