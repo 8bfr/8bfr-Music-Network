@@ -639,7 +639,14 @@
         // Beat-only fields (hidden by default, shown when Beat is selected)
         h+='<div id="beatOnlyFields" style="display:none;">';
         h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;"><div class="form-group" style="margin-bottom:0;"><label>BPM</label><input class="form-input" type="number" id="uBpm" placeholder="140" min="40" max="300"></div><div class="form-group" style="margin-bottom:0;"><label>Key</label><select class="form-input" id="uKey"><option value="">Select key</option><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option><option>Cm</option><option>C#m</option><option>Dm</option><option>D#m</option><option>Em</option><option>Fm</option><option>F#m</option><option>Gm</option><option>G#m</option><option>Am</option><option>A#m</option><option>Bm</option></select></div></div>';
-        h+='<div class="form-group"><label>📄 License Agreement (PDF/DOC)</label><div class="upload-zone" onclick="document.getElementById(\'uLF\').click()"><input type="file" id="uLF" accept=".pdf,.doc,.docx,application/pdf"><div id="uLT">📄 Upload your license agreement</div></div><div class="hint">Upload the license terms buyers agree to. This is YOUR agreement — 8BFR is not a party to the transaction.</div></div>';
+        h+='<div class="form-group"><label>📄 License Agreements (PDF/DOC — one per license type)</label>';
+        h+='<div style="display:grid;gap:0.5rem;">';
+        h+='<div style="display:flex;align-items:center;gap:0.5rem;"><span style="font-size:0.78rem;color:var(--text-dim);width:90px;flex-shrink:0;">🎵 MP3 Lease</span><div class="upload-zone" onclick="document.getElementById(\'uLF_mp3\').click()" style="flex:1;padding:0.6rem;"><input type="file" id="uLF_mp3" accept=".pdf,.doc,.docx" style="display:none;"><span id="uLT_mp3" style="font-size:0.78rem;">Upload PDF</span></div></div>';
+        h+='<div style="display:flex;align-items:center;gap:0.5rem;"><span style="font-size:0.78rem;color:var(--text-dim);width:90px;flex-shrink:0;">🎧 WAV Lease</span><div class="upload-zone" onclick="document.getElementById(\'uLF_wav\').click()" style="flex:1;padding:0.6rem;"><input type="file" id="uLF_wav" accept=".pdf,.doc,.docx" style="display:none;"><span id="uLT_wav" style="font-size:0.78rem;">Upload PDF</span></div></div>';
+        h+='<div style="display:flex;align-items:center;gap:0.5rem;"><span style="font-size:0.78rem;color:var(--text-dim);width:90px;flex-shrink:0;">🎼 Trackout</span><div class="upload-zone" onclick="document.getElementById(\'uLF_trackout\').click()" style="flex:1;padding:0.6rem;"><input type="file" id="uLF_trackout" accept=".pdf,.doc,.docx" style="display:none;"><span id="uLT_trackout" style="font-size:0.78rem;">Upload PDF</span></div></div>';
+        h+='<div style="display:flex;align-items:center;gap:0.5rem;"><span style="font-size:0.78rem;color:var(--text-dim);width:90px;flex-shrink:0;">👑 Exclusive</span><div class="upload-zone" onclick="document.getElementById(\'uLF_exclusive\').click()" style="flex:1;padding:0.6rem;"><input type="file" id="uLF_exclusive" accept=".pdf,.doc,.docx" style="display:none;"><span id="uLT_exclusive" style="font-size:0.78rem;">Upload PDF</span></div></div>';
+        h+='</div>';
+        h+='<div class="hint">Upload your license terms for each tier. These are YOUR agreements — 8BFR is not a party to any transaction.</div></div>';
         h+='</div>';
         h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;"><div class="form-group"><label>Price</label><input class="form-input" type="number" id="uPr" placeholder="0.99" min="0" step="0.01"></div><div class="form-group"><label>Explicit</label><select class="form-input" id="uEx"><option value="false">No</option><option value="true">Yes</option></select></div></div>';
         h+='<div style="display:flex;gap:0.75rem;"><button class="btn btn-green" onclick="uploadSong()" id="uBtn">⬆️ Upload</button><button class="btn btn-ghost" onclick="toggleUF()">Cancel</button></div>';
@@ -1039,7 +1046,6 @@
     var albumName=document.getElementById('uAlbum')?document.getElementById('uAlbum').value.trim():'';
     var af=document.getElementById('uAF').files[0];
     var cf=document.getElementById('uCF').files[0];
-    var lf=document.getElementById('uLF')?document.getElementById('uLF').files[0]:null;
     var bpmVal=document.getElementById('uBpm')?parseInt(document.getElementById('uBpm').value)||null:null;
     var keyVal=document.getElementById('uKey')?document.getElementById('uKey').value||null:null;
     var n=document.getElementById('uN');
@@ -1056,13 +1062,22 @@
       var cu=null;
       if(cf){var ce=cf.name.split('.').pop();var cp=currentUser.id+'/covers/'+Date.now()+'.'+ce;var cr=await db.storage.from('songs').upload(cp,cf,{contentType:cf.type});if(!cr.error)cu=db.storage.from('songs').getPublicUrl(cp).data.publicUrl;}
 
-      // Upload license file (beats only)
-      var licenseUrl=null;
-      if(isBeat&&lf){
-        n.innerHTML='<span style="color:#a855f7;">Uploading license…</span>';
-        var le=lf.name.split('.').pop();var lp=currentUser.id+'/licenses/'+Date.now()+'-'+lf.name.replace(/[^a-zA-Z0-9.-]/g,'-');
-        var lr=await db.storage.from('songs').upload(lp,lf,{contentType:lf.type});
-        if(!lr.error)licenseUrl=db.storage.from('songs').getPublicUrl(lp).data.publicUrl;
+      // Upload license files (beats only — one per type)
+      var licenses={};
+      if(isBeat){
+        var licTypes=['mp3','wav','trackout','exclusive'];
+        for(var li=0;li<licTypes.length;li++){
+          var lt=licTypes[li];
+          var licInput=document.getElementById('uLF_'+lt);
+          if(licInput&&licInput.files[0]){
+            n.innerHTML='<span style="color:#a855f7;">Uploading '+lt+' license…</span>';
+            var licFile=licInput.files[0];
+            var licExt=licFile.name.split('.').pop();
+            var licPath=currentUser.id+'/licenses/'+Date.now()+'-'+lt+'.'+licExt;
+            var licRes=await db.storage.from('songs').upload(licPath,licFile,{contentType:licFile.type});
+            if(!licRes.error) licenses[lt]=db.storage.from('songs').getPublicUrl(licPath).data.publicUrl;
+          }
+        }
       }
 
       // Upload first track
@@ -1073,13 +1088,14 @@
       var su=db.storage.from('songs').getPublicUrl(ap).data.publicUrl;
 
       var songType=_uploadMode==='album'?'album':'single';
+      var hasLicenses=Object.keys(licenses).length>0;
 
       var ir=await db.from('songs').insert({
         title:title, artist:artist||profileData?.display_name||'', uploaded_by:currentUser.id,
         song_url:su, cover_art:cu, explicit:expl, featured:false,
         price:price?parseFloat(price):0, is_beat:isBeat, type:songType,
         genre:genre||null, bpm:isBeat?bpmVal:null, music_key:isBeat?keyVal:null,
-        license_url:licenseUrl
+        license_url:hasLicenses?JSON.stringify(licenses):null
       });
       if(ir.error)throw new Error(ir.error.message);
 
@@ -1112,7 +1128,14 @@
   document.addEventListener('change',function(e){
     if(e.target.id==='uAF'){var f=e.target.files[0];if(!f)return;if(f.size>20e6){document.getElementById('uN').textContent='Max 20MB';e.target.value='';return;}document.getElementById('uAT').textContent='✅ '+f.name;var t=document.getElementById('uT');if(!t.value)t.value=f.name.replace(/\.[^/.]+$/,'').replace(/[-_]/g,' ');}
     if(e.target.id==='uCF'&&e.target.files[0])document.getElementById('uCT').textContent='✅ '+e.target.files[0].name;
-    if(e.target.id==='uLF'&&e.target.files[0]){var lf=e.target.files[0];if(lf.size>10e6){document.getElementById('uN').textContent='License file max 10MB';e.target.value='';return;}document.getElementById('uLT').textContent='📄 '+lf.name;}
+    // License file handlers
+    var licIds=['uLF_mp3','uLF_wav','uLF_trackout','uLF_exclusive'];
+    if(licIds.indexOf(e.target.id)!==-1&&e.target.files[0]){
+      var lf=e.target.files[0];
+      if(lf.size>10e6){document.getElementById('uN').textContent='License file max 10MB';e.target.value='';return;}
+      var labelId='uLT_'+e.target.id.replace('uLF_','');
+      document.getElementById(labelId).textContent='📄 '+lf.name;
+    }
     if(e.target.id==='uAFMulti'){var files=e.target.files;if(!files.length)return;var list='';for(var i=0;i<files.length;i++){list+='<div style="color:#4ade80;padding:2px 0;">✅ '+files[i].name+'</div>';}document.getElementById('uATMulti').textContent='✅ '+files.length+' tracks selected';document.getElementById('albumTrackList').innerHTML=list;}
   });
   window.delSong=async function(id){if(!confirm('Delete?'))return;try{await db.from('songs').delete().eq('id',id).eq('uploaded_by',currentUser.id);var r=document.getElementById('s-'+id);if(r)r.remove();}catch(e){alert(e.message);}};
