@@ -482,7 +482,7 @@
   function renderProfile(){
     var p=profileData;
     var tags=Array.isArray(p.badges)?p.badges:(Array.isArray(p.tags)?p.tags:[]);
-    var isMusic=tags.some(function(t){return MR.indexOf(t)!==-1;})||MR.indexOf(p.role)!==-1;
+    var isMusic=tags.some(function(t){return MR.indexOf(t)!==-1;})||MR.indexOf(p.role)!==-1||p.role==='owner'||p.role==='co-owner';
     var avH=p.avatar_url?'<img src="'+p.avatar_url+'" onerror="this.parentNode.textContent=\'👤\'">':'👤';
     var covH=p.cover_url?'<img src="'+p.cover_url+'" onerror="this.style.display=\'none\'">':'';
 
@@ -610,10 +610,32 @@
       if(isOwnProfile){
         h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;"><h2 style="margin:0;color:#a855f7;">🎵 My Songs</h2><button class="btn btn-sm" onclick="toggleUF()">+ Upload</button></div>';
         h+='<div id="uploadForm" style="display:none;background:rgba(0,0,0,0.3);border-radius:10px;padding:1.25rem;margin-bottom:1.25rem;border:1px solid rgba(124,58,237,0.25);">';
+        // Upload mode toggle
+        h+='<div style="display:flex;gap:0.5rem;margin-bottom:1rem;">';
+        h+='<button class="btn btn-sm umode-btn" data-mode="single" onclick="setUploadMode(\'single\',this)" style="flex:1;background:#7c3aed;">💿 Single Song</button>';
+        h+='<button class="btn btn-sm umode-btn" data-mode="album" onclick="setUploadMode(\'album\',this)" style="flex:1;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.4);color:#a855f7;">📀 Album</button>';
+        h+='</div>';
+        // Song vs Beat toggle
+        h+='<div style="display:flex;gap:0.5rem;margin-bottom:1rem;">';
+        h+='<label style="display:flex;align-items:center;gap:0.4rem;font-size:0.82rem;color:rgba(234,230,255,0.7);cursor:pointer;padding:0.4rem 0.75rem;border-radius:8px;border:1px solid #7c3aed;background:rgba(124,58,237,0.2);" id="uTypeSong"><input type="radio" name="uType" value="song" checked style="accent-color:#a855f7;"> 🎵 Song</label>';
+        h+='<label style="display:flex;align-items:center;gap:0.4rem;font-size:0.82rem;color:rgba(234,230,255,0.7);cursor:pointer;padding:0.4rem 0.75rem;border-radius:8px;border:1px solid rgba(124,58,237,0.3);" id="uTypeBeat"><input type="radio" name="uType" value="beat" style="accent-color:#a855f7;"> 🎹 Beat</label>';
+        h+='</div>';
+        // Album name (hidden by default)
+        h+='<div id="albumNameGroup" class="form-group" style="display:none;"><label>Album Name *</label><input class="form-input" id="uAlbum" placeholder="Album title"></div>';
         h+='<div class="form-group"><label>Title *</label><input class="form-input" id="uT"></div>';
         h+='<div class="form-group"><label>Artist</label><input class="form-input" id="uA" value="'+(p.display_name||'')+'"></div>';
-        h+='<div class="form-group"><label>Audio *</label><div class="upload-zone" onclick="document.getElementById(\'uAF\').click()"><input type="file" id="uAF" accept=".mp3,audio/mpeg"><div id="uAT">🎵 Select audio</div></div></div>';
-        h+='<div class="form-group"><label>Cover</label><div class="upload-zone" onclick="document.getElementById(\'uCF\').click()"><input type="file" id="uCF" accept="image/*"><div id="uCT">🖼️ Select cover</div></div></div>';
+        // Genre selector
+        h+='<div class="form-group"><label>Genre</label><select class="form-input" id="uGenre"><option value="">Select genre</option>';
+        h+='<option>Hip-Hop</option><option>Trap</option><option>R&B</option><option>Drill</option><option>Boom Bap</option>';
+        h+='<option>Pop</option><option>Rock</option><option>Lo-Fi</option><option>Afrobeats</option><option>Latin</option>';
+        h+='<option>Country</option><option>EDM</option><option>Jazz</option><option>Soul</option><option>Reggae</option>';
+        h+='<option>Gospel</option><option>Rap</option><option>Rap/Rock</option><option>Rap/Metal</option><option>Rap/Country</option>';
+        h+='<option>Alternative</option><option>Indie</option><option>Classical</option><option>Electronic</option><option>Other</option>';
+        h+='</select></div>';
+        // Audio - single file for single, multiple for album
+        h+='<div class="form-group"><label id="audioLabel">Audio *</label><div class="upload-zone" onclick="document.getElementById(\'uAF\').click()"><input type="file" id="uAF" accept=".mp3,audio/mpeg"><div id="uAT">🎵 Select audio</div></div></div>';
+        h+='<div id="albumTracksGroup" style="display:none;margin-bottom:1rem;"><label style="display:block;margin-bottom:0.4rem;font-size:0.88rem;font-weight:600;color:rgba(234,230,255,0.75);">Additional Tracks</label><div class="upload-zone" onclick="document.getElementById(\'uAFMulti\').click()"><input type="file" id="uAFMulti" accept=".mp3,audio/mpeg" multiple><div id="uATMulti">🎵 Select more tracks</div></div><div class="hint">Select multiple MP3 files. Each becomes a track on the album.</div><div id="albumTrackList" style="margin-top:0.5rem;font-size:0.8rem;"></div></div>';
+        h+='<div class="form-group"><label>Cover Art</label><div class="upload-zone" onclick="document.getElementById(\'uCF\').click()"><input type="file" id="uCF" accept="image/*"><div id="uCT">🖼️ Select cover</div></div></div>';
         h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;"><div class="form-group"><label>Price</label><input class="form-input" type="number" id="uPr" placeholder="0.99" min="0" step="0.01"></div><div class="form-group"><label>Explicit</label><select class="form-input" id="uEx"><option value="false">No</option><option value="true">Yes</option></select></div></div>';
         h+='<div style="display:flex;gap:0.75rem;"><button class="btn btn-green" onclick="uploadSong()" id="uBtn">⬆️ Upload</button><button class="btn btn-ghost" onclick="toggleUF()">Cancel</button></div>';
         h+='<div id="uN" style="margin-top:0.75rem;font-size:0.85rem;"></div></div>';
@@ -982,22 +1004,89 @@
   };
 
   /* ── SONG UPLOAD ── */
+  var _uploadMode='single';
+  window.setUploadMode=function(mode,btn){
+    _uploadMode=mode;
+    document.querySelectorAll('.umode-btn').forEach(function(b){
+      b.style.background=b.getAttribute('data-mode')===mode?'#7c3aed':'rgba(124,58,237,0.15)';
+      b.style.color=b.getAttribute('data-mode')===mode?'white':'#a855f7';
+    });
+    document.getElementById('albumNameGroup').style.display=mode==='album'?'block':'none';
+    document.getElementById('albumTracksGroup').style.display=mode==='album'?'block':'none';
+    document.getElementById('audioLabel').textContent=mode==='album'?'First Track *':'Audio *';
+  };
   window.toggleUF=function(){var f=document.getElementById('uploadForm');f.style.display=f.style.display==='none'?'block':'none';};
   window.uploadSong=async function(){
-    if(!currentUser)return;var title=document.getElementById('uT').value.trim(),artist=document.getElementById('uA').value.trim(),expl=document.getElementById('uEx').value==='true',price=document.getElementById('uPr').value.trim(),af=document.getElementById('uAF').files[0],cf=document.getElementById('uCF').files[0],n=document.getElementById('uN');
-    if(!title){n.textContent='Title needed';return;}if(!af){n.textContent='Audio needed';return;}
-    document.getElementById('uBtn').disabled=true;n.innerHTML='<span style="color:#a855f7;">Uploading…</span>';
-    try{var ext=af.name.split('.').pop();var ap=currentUser.id+'/songs/'+Date.now()+'.'+ext;var ur=await db.storage.from('songs').upload(ap,af,{contentType:af.type});if(ur.error)throw new Error(ur.error.message);
-    var su=db.storage.from('songs').getPublicUrl(ap).data.publicUrl;var cu=null;
-    if(cf){var ce=cf.name.split('.').pop();var cp=currentUser.id+'/covers/'+Date.now()+'.'+ce;var cr=await db.storage.from('songs').upload(cp,cf,{contentType:cf.type});if(!cr.error)cu=db.storage.from('songs').getPublicUrl(cp).data.publicUrl;}
-    var ir=await db.from('songs').insert({title:title,artist:artist||profileData?.display_name||'',uploaded_by:currentUser.id,song_url:su,cover_art:cu,explicit:expl,featured:false,price:price?parseFloat(price):0});
-    if(ir.error)throw new Error(ir.error.message);
-    n.innerHTML='<span style="color:#4ade80;">Done!</span>';setTimeout(function(){toggleUF();loadSongs(currentUser.id);},1200);
-    }catch(e){n.innerHTML='<span style="color:#ef4444;">'+e.message+'</span>';}document.getElementById('uBtn').disabled=false;
+    if(!currentUser)return;
+    var title=document.getElementById('uT').value.trim();
+    var artist=document.getElementById('uA').value.trim();
+    var expl=document.getElementById('uEx').value==='true';
+    var price=document.getElementById('uPr').value.trim();
+    var genre=document.getElementById('uGenre').value;
+    var isBeat=document.querySelector('input[name="uType"]:checked').value==='beat';
+    var albumName=document.getElementById('uAlbum')?document.getElementById('uAlbum').value.trim():'';
+    var af=document.getElementById('uAF').files[0];
+    var cf=document.getElementById('uCF').files[0];
+    var n=document.getElementById('uN');
+
+    if(!title){n.textContent='Title needed';return;}
+    if(!af){n.textContent='Audio needed';return;}
+    if(_uploadMode==='album'&&!albumName){n.textContent='Album name needed';return;}
+
+    document.getElementById('uBtn').disabled=true;
+    n.innerHTML='<span style="color:#a855f7;">Uploading…</span>';
+
+    try{
+      // Upload cover art
+      var cu=null;
+      if(cf){var ce=cf.name.split('.').pop();var cp=currentUser.id+'/covers/'+Date.now()+'.'+ce;var cr=await db.storage.from('songs').upload(cp,cf,{contentType:cf.type});if(!cr.error)cu=db.storage.from('songs').getPublicUrl(cp).data.publicUrl;}
+
+      // Upload first track
+      var ext=af.name.split('.').pop();var ap=currentUser.id+'/songs/'+Date.now()+'-'+af.name.replace(/[^a-zA-Z0-9.-]/g,'-');
+      var ur=await db.storage.from('songs').upload(ap,af,{contentType:af.type});
+      if(ur.error)throw new Error(ur.error.message);
+      var su=db.storage.from('songs').getPublicUrl(ap).data.publicUrl;
+
+      var songType=_uploadMode==='album'?'album':'single';
+
+      var ir=await db.from('songs').insert({
+        title:title, artist:artist||profileData?.display_name||'', uploaded_by:currentUser.id,
+        song_url:su, cover_art:cu, explicit:expl, featured:false,
+        price:price?parseFloat(price):0, is_beat:isBeat, type:songType,
+        genre:genre||null
+      });
+      if(ir.error)throw new Error(ir.error.message);
+
+      // If album mode, upload additional tracks
+      if(_uploadMode==='album'){
+        var multiInput=document.getElementById('uAFMulti');
+        var extraFiles=multiInput?multiInput.files:[];
+        for(var fi=0;fi<extraFiles.length;fi++){
+          var ef=extraFiles[fi];
+          n.innerHTML='<span style="color:#a855f7;">Uploading track '+(fi+2)+'/'+(extraFiles.length+1)+'…</span>';
+          var eExt=ef.name.split('.').pop();
+          var ePath=currentUser.id+'/songs/'+Date.now()+'-'+ef.name.replace(/[^a-zA-Z0-9.-]/g,'-');
+          var eUr=await db.storage.from('songs').upload(ePath,ef,{contentType:ef.type});
+          if(eUr.error){console.error('Track upload error:',eUr.error);continue;}
+          var eSu=db.storage.from('songs').getPublicUrl(ePath).data.publicUrl;
+          var trackTitle=ef.name.replace(/\.[^/.]+$/,'').replace(/[-_]/g,' ');
+          await db.from('songs').insert({
+            title:albumName+' - '+trackTitle, artist:artist||profileData?.display_name||'',
+            uploaded_by:currentUser.id, song_url:eSu, cover_art:cu, explicit:expl, featured:false,
+            price:0, is_beat:false, type:'album', genre:genre||null
+          });
+        }
+      }
+
+      n.innerHTML='<span style="color:#4ade80;">Done!</span>';
+      setTimeout(function(){toggleUF();loadSongs(currentUser.id);},1200);
+    }catch(e){n.innerHTML='<span style="color:#ef4444;">'+e.message+'</span>';}
+    document.getElementById('uBtn').disabled=false;
   };
   document.addEventListener('change',function(e){
     if(e.target.id==='uAF'){var f=e.target.files[0];if(!f)return;if(f.size>20e6){document.getElementById('uN').textContent='Max 20MB';e.target.value='';return;}document.getElementById('uAT').textContent='✅ '+f.name;var t=document.getElementById('uT');if(!t.value)t.value=f.name.replace(/\.[^/.]+$/,'').replace(/[-_]/g,' ');}
     if(e.target.id==='uCF'&&e.target.files[0])document.getElementById('uCT').textContent='✅ '+e.target.files[0].name;
+    if(e.target.id==='uAFMulti'){var files=e.target.files;if(!files.length)return;var list='';for(var i=0;i<files.length;i++){list+='<div style="color:#4ade80;padding:2px 0;">✅ '+files[i].name+'</div>';}document.getElementById('uATMulti').textContent='✅ '+files.length+' tracks selected';document.getElementById('albumTrackList').innerHTML=list;}
   });
   window.delSong=async function(id){if(!confirm('Delete?'))return;try{await db.from('songs').delete().eq('id',id).eq('uploaded_by',currentUser.id);var r=document.getElementById('s-'+id);if(r)r.remove();}catch(e){alert(e.message);}};
 
