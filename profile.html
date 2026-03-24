@@ -805,9 +805,11 @@
     el.innerHTML=songs.map(function(s){
       var cv=s.cover_art?'<img src="'+s.cover_art+'" onerror="this.parentNode.textContent=\'🎵\'">':'🎵';
       var del=isOwnProfile?'<button class="btn btn-red btn-sm" onclick="delSong(\''+s.id+'\')">🗑️</button>':'';
-      var pr=parseFloat(s.price)||0;var pt=pr>0?'<span style="color:#4ade80;font-size:0.8rem;margin-left:0.4rem;">$'+pr.toFixed(2)+'</span>':'';
-      var buyBtn=pr>0?'<button class="btn btn-sm btn-green" onclick="event.stopPropagation();location.href=\'checkout.html?song='+s.id+'&price='+pr+'\'" style="flex-shrink:0;padding:0.3rem 0.7rem;font-size:0.75rem;">💰 Buy</button>':'';
-      return '<div class="song-row" id="s-'+s.id+'"><div class="song-cover">'+cv+'</div><div class="song-info"><div class="song-title">'+esc(s.title||'Untitled')+(s.explicit?' 🔞':'')+pt+'</div><div class="song-meta">'+esc(s.artist||'')+'</div>'+(s.song_url?'<audio controls src="'+s.song_url+'" preload="none" style="height:32px;margin-top:6px;"></audio>':'')+'</div>'+buyBtn+del+'</div>';
+      var soldBtn=isOwnProfile&&s.is_beat&&!s.sold?'<button class="btn btn-sm" style="background:#d97706;font-size:0.7rem;padding:0.25rem 0.6rem;" onclick="markSold(\''+s.id+'\',this)">Mark Sold</button>':'';
+      var soldBadge=s.sold?'<span style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#ef4444;padding:0.15rem 0.5rem;border-radius:12px;font-size:0.7rem;font-weight:700;margin-left:0.4rem;">SOLD</span>':'';
+      var pr=parseFloat(s.price)||0;var pt=pr>0&&!s.sold?'<span style="color:#4ade80;font-size:0.8rem;margin-left:0.4rem;">$'+pr.toFixed(2)+'</span>':'';
+      var buyBtn=pr>0&&!s.sold?'<button class="btn btn-sm btn-green" onclick="event.stopPropagation();location.href=\'checkout.html?song='+s.id+'&price='+pr+'\'" style="flex-shrink:0;padding:0.3rem 0.7rem;font-size:0.75rem;">💰 Buy</button>':'';
+      return '<div class="song-row" id="s-'+s.id+'"'+(s.sold?' style="opacity:0.6;"':'')+'><div class="song-cover">'+cv+'</div><div class="song-info"><div class="song-title">'+esc(s.title||'Untitled')+(s.explicit?' 🔞':'')+pt+soldBadge+'</div><div class="song-meta">'+esc(s.artist||'')+'</div>'+(s.song_url&&!s.sold?'<audio controls src="'+s.song_url+'" preload="none" style="height:32px;margin-top:6px;"></audio>':'')+'</div>'+buyBtn+soldBtn+del+'</div>';
     }).join('');}catch(e){el.innerHTML='<div style="color:#ef4444;">'+e.message+'</div>';}
   }
 
@@ -1139,7 +1141,7 @@
     if(e.target.id==='uAFMulti'){var files=e.target.files;if(!files.length)return;var list='';for(var i=0;i<files.length;i++){list+='<div style="color:#4ade80;padding:2px 0;">✅ '+files[i].name+'</div>';}document.getElementById('uATMulti').textContent='✅ '+files.length+' tracks selected';document.getElementById('albumTrackList').innerHTML=list;}
   });
   window.delSong=async function(id){if(!confirm('Delete?'))return;try{await db.from('songs').delete().eq('id',id).eq('uploaded_by',currentUser.id);var r=document.getElementById('s-'+id);if(r)r.remove();}catch(e){alert(e.message);}};
-
+  window.markSold=async function(id,btn){if(!confirm('Mark this beat as SOLD (exclusive)? It will be hidden from the beat store.'))return;try{await db.from('songs').update({sold:true}).eq('id',id).eq('uploaded_by',currentUser.id);btn.textContent='✓ Sold';btn.disabled=true;btn.style.background='#444';loadSongs(currentUser.id);}catch(e){alert(e.message);}};
   setTimeout(function(){var s=document.getElementById('loadingSpinner');if(s&&s.style.display!=='none')showError('Timed out.');},8000);
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){init();});
   else init();
