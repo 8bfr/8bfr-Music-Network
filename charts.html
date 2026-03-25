@@ -105,9 +105,9 @@
 
         <!-- TIME FILTER -->
         <div class="time-filter">
-            <button class="time-btn active" onclick="switchTime('week', this)">This Week</button>
+            <button class="time-btn" onclick="switchTime('week', this)">This Week</button>
             <button class="time-btn" onclick="switchTime('month', this)">This Month</button>
-            <button class="time-btn" onclick="switchTime('alltime', this)">All Time</button>
+            <button class="time-btn active" onclick="switchTime('alltime', this)">All Time</button>
         </div>
 
         <!-- CHART TITLE -->
@@ -146,7 +146,7 @@
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let currentChart = 'hot';
-    let currentTime = 'week';
+    let currentTime = 'alltime';
 
     const chartNames = {
         hot: '🔥 Hot 50', trending: '📈 Trending', newreleases: '🆕 New Releases',
@@ -156,7 +156,7 @@
     async function init() {
         const { data: { session } } = await db.auth.getSession();
         if (!session) { location.href = 'login.html?return=charts.html'; return; }
-        document.getElementById('chartDate').textContent = 'Week of ' + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        document.getElementById('chartDate').textContent = 'All Time';
         loadChart();
     }
 
@@ -196,37 +196,35 @@
 
             /* Query based on chart type */
             let query = db.from('songs').select('*')
-                .not('song_url', 'is', null)
-                .neq('song_url', '');
+                .not('song_url', 'is', null);
 
-            switch(currentChart) {
-                case 'hot':
-                    query = query.or('is_beat.is.null,is_beat.eq.false').order('play_count', { ascending: false, nullsFirst: false });
-                    break;
-                case 'trending':
-                    query = query.or('is_beat.is.null,is_beat.eq.false').order('play_count', { ascending: false, nullsFirst: false });
-                    break;
-                case 'newreleases':
-                    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-                    query = query.or('is_beat.is.null,is_beat.eq.false').gte('created_at', weekAgo).order('play_count', { ascending: false, nullsFirst: false });
-                    break;
-                case 'topbeats':
-                    query = query.eq('is_beat', true).order('play_count', { ascending: false, nullsFirst: false });
-                    break;
-                case 'mostliked':
-                    query = query.or('is_beat.is.null,is_beat.eq.false').order('play_count', { ascending: false, nullsFirst: false });
-                    break;
-                case 'mostplayed':
-                    query = query.or('is_beat.is.null,is_beat.eq.false').order('play_count', { ascending: false, nullsFirst: false });
-                    break;
+            if (currentChart === 'topbeats') {
+                query = query.eq('is_beat', true);
             }
+
+            query = query.order('play_count', { ascending: false, nullsFirst: false });
 
             if (timeFilter && currentChart !== 'newreleases') {
                 query = query.gte('created_at', timeFilter);
             }
 
-            const { data, error } = await query.limit(50);
-            if (!error && data) songs = data;
+            if (currentChart === 'newreleases') {
+                const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+                query = query.gte('created_at', weekAgo);
+            }
+
+            const { data, error } = await query.limit(100);
+            if (error) console.error('Chart query error:', error);
+            if (!error && data) {
+                // Filter out beats client-side (except for topbeats tab)
+                if (currentChart !== 'topbeats') {
+                    songs = data.filter(function(s) { return !s.is_beat; });
+                } else {
+                    songs = data;
+                }
+                // Also filter out empty song_url
+                songs = songs.filter(function(s) { return s.song_url && s.song_url.length > 0; });
+            }
         } catch(e) {
             console.error('Chart load error:', e);
         }
@@ -243,7 +241,7 @@
             rank: i + 1
         }));
 
-        /* Render podium (top 3) */
+        /* Render podium (top 3) — only if we have at least 3 songs */
         if (songs.length >= 3) {
             const medals = ['🥇', '🥈', '🥉'];
             const classes = ['first', 'second', 'third'];
@@ -258,17 +256,20 @@
                     <div class="podium-score">${(s.algorithm_score || 0).toLocaleString()} <span>pts</span></div>
                 </div>`;
             }).join('');
+        } else {
+            podium.innerHTML = '';
         }
 
-        /* Render list (4-50) */
-        const remaining = songs.slice(3);
-        if (!remaining.length && songs.length <= 3) {
+        /* Render list — start from position 4 if podium shown, otherwise show all */
+        const startIdx = songs.length >= 3 ? 3 : 0;
+        const remaining = songs.slice(startIdx);
+        if (!remaining.length) {
             list.innerHTML = songs.length ? '' : '<div class="empty-state"><div class="emoji">📊</div><p>No chart data yet. Upload songs to see them ranked!</p></div>';
             return;
         }
 
         list.innerHTML = remaining.map((s, i) => {
-            const rank = i + 4;
+            const rank = startIdx + i + 1;
             const rankClass = '';
             const movementType = 'same';
             const movementIcon = '—';
