@@ -117,7 +117,7 @@ textarea.form-input{min-height:80px;resize:vertical;}
 
 <script>
 const db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
-let currentUser=null,currentTab='discover',allGroups=[],viewingGroup=null,groupTab='posts';
+let currentUser=null,currentTab='discover',allGroups=[],viewingGroup=null,groupTab='posts',isSiteOwner=false;
 
 async function init(){const{data:{session}}=await db.auth.getSession();currentUser=session?session.user:null;loadGroups();}
 
@@ -156,7 +156,7 @@ async function openGroup(id){
   viewingGroup=group;
   var SITE_OWNER='cb556180-f032-4b21-9470-1d786f2664ab';
   var isGroupOwner=currentUser&&group.owner_id===currentUser.id;
-  var isSiteOwner=currentUser&&currentUser.id===SITE_OWNER;
+  isSiteOwner=currentUser&&currentUser.id===SITE_OWNER;
   var memberData=null;
   let isMember=false;
   if(currentUser){const{data:m}=await db.from('group_members').select('id,role').eq('group_id',id).eq('user_id',currentUser.id).maybeSingle();isMember=!!m;memberData=m;}
@@ -222,6 +222,7 @@ async function loadGroupContent(id,tab){
       '<h3 style="color:var(--primary);margin-bottom:1rem;">⚙️ Group Admin Tools</h3>'+
       '<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;">'+
         '<button class="btn btn-ghost btn-sm" onclick="editGroupInfo(\''+id+'\')">✏️ Edit Name/Desc</button>'+
+        (isSiteOwner?'<button class="btn btn-sm" style="background:#d97706;" onclick="transferOwnership(\''+id+'\')">👑 Transfer Ownership</button>':'')+
         '<button class="btn btn-sm btn-red" onclick="deleteGroup(\''+id+'\')">🗑️ Delete Group</button>'+
       '</div>'+
       '<div style="border-top:1px solid var(--border);padding-top:.75rem;">'+
@@ -321,6 +322,35 @@ window.deleteGroup=async function(id){
   var{error}=await db.from('groups').delete().eq('id',id);
   if(error)alert('Error: '+error.message);
   else{alert('🗑️ Group deleted.');backToBrowse();loadGroups();}
+};
+
+window.transferOwnership=async function(groupId){
+  // Get members to pick from
+  var{data:members}=await db.from('group_members').select('user_id').eq('group_id',groupId);
+  if(!members||!members.length){alert('No members to transfer to.');return;}
+  var uids=members.map(function(m){return m.user_id;});
+  var{data:profiles}=await db.from('profiles').select('user_id,username,display_name').in('user_id',uids);
+  if(!profiles||!profiles.length){alert('Could not load member profiles.');return;}
+
+  var options=profiles.map(function(p){return(p.display_name||p.username||'Unknown')+' ('+p.user_id.substring(0,8)+'...)';}).join('\n');
+  var pick=prompt('Transfer ownership to which member?\n\n'+options+'\n\nType their username or display name:');
+  if(!pick)return;
+
+  var match=profiles.find(function(p){
+    var lower=pick.toLowerCase();
+    return(p.display_name||'').toLowerCase()===lower||(p.username||'').toLowerCase()===lower;
+  });
+  if(!match){alert('Member not found. Type the exact name.');return;}
+  if(!confirm('Transfer ownership of this group to '+match.display_name+'? You will remain a member but they become the owner.'))return;
+
+  try{
+    // Update group owner
+    await db.from('groups').update({owner_id:match.user_id}).eq('id',groupId);
+    // Make new owner admin in members table
+    await db.from('group_members').update({role:'admin'}).eq('group_id',groupId).eq('user_id',match.user_id);
+    alert('👑 Ownership transferred to '+(match.display_name||match.username)+'!');
+    openGroup(groupId);
+  }catch(e){alert('Error: '+e.message);}
 };
 
 window.openCreateGroup=function(){document.getElementById('createModal').classList.add('show');};
