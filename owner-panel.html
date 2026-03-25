@@ -68,10 +68,12 @@
         <!-- STATS -->
         <div class="stats-grid" id="statsGrid">
             <div class="stat-card"><h3 id="statUsers">—</h3><p>Total Users</p></div>
+            <div class="stat-card"><h3 id="statVerified">—</h3><p>✓ Verified Artists</p></div>
             <div class="stat-card"><h3 id="statArtists">—</h3><p>🎤 Artists</p></div>
             <div class="stat-card"><h3 id="statBeatmakers">—</h3><p>🎚️ Beatmakers</p></div>
             <div class="stat-card"><h3 id="statFans">—</h3><p>🎧 Fans</p></div>
             <div class="stat-card"><h3 id="statSongs">—</h3><p>🎵 Songs</p></div>
+            <div class="stat-card"><h3 id="statBeats">—</h3><p>🎹 Beats</p></div>
             <div class="stat-card"><h3 id="statPosts">—</h3><p>📝 Posts</p></div>
             <div class="stat-card"><h3 id="statRevenue">$0</h3><p>💰 Revenue</p></div>
         </div>
@@ -89,7 +91,25 @@
         <div class="panel active" id="panel-users">
             <div class="card">
                 <h3>👥 All Users</h3>
-                <input class="input" id="userSearch" placeholder="Search users..." oninput="filterUsers(this.value)">
+                <div style="display:flex;gap:0.5rem;margin-bottom:0.75rem;flex-wrap:wrap;">
+                    <input class="input" id="userSearch" placeholder="Search users..." oninput="filterUsers()" style="flex:1;min-width:150px;">
+                    <select class="input" id="roleFilter" onchange="filterUsers()" style="max-width:160px;">
+                        <option value="">All Roles</option>
+                        <option value="owner">👑 Owner</option>
+                        <option value="co-owner">👑 Co-Owner</option>
+                        <option value="admin">⚙️ Admin</option>
+                        <option value="mod">💬 Mod</option>
+                        <option value="artist">🎤 Artist</option>
+                        <option value="beatmaker">🎚️ Beatmaker</option>
+                        <option value="producer">🎧 Producer</option>
+                        <option value="singer">🎙️ Singer</option>
+                        <option value="rapper">🎤 Rapper</option>
+                        <option value="dj">📀 DJ</option>
+                        <option value="songwriter">🎼 Songwriter</option>
+                        <option value="fan">💎 Fan</option>
+                        <option value="verified">✓ Verified</option>
+                    </select>
+                </div>
                 <div id="userList"><div class="spinner"></div></div>
             </div>
         </div>
@@ -178,7 +198,7 @@
         loadStories();
     })();
 
-    // ★ FIXED: window.loadStats — checks BOTH role AND badges array
+    // ★ FIXED: window.loadStats — accurate counts
     window.loadStats = async function() {
         try {
             // Total users
@@ -187,38 +207,39 @@
             if (el) el.textContent = u.count || 0;
         } catch(e) {}
 
-        // Role counts — check BOTH primary role AND badges array
+        // Role counts — count by ACTUAL role field + verified_artist for verified count
         try {
-            var r = await db.from('profiles').select('role,badges');
+            var r = await db.from('profiles').select('role,badges,verified_artist');
             var d = r.data || [];
 
-            var ARTIST_ROLES = ['artist','rapper','singer','musician'];
-            var BEAT_ROLES = ['beatmaker','producer','dj'];
+            // Verified = only those with verified_artist = true in database
+            var verified = d.filter(function(p) { return p.verified_artist === true; }).length;
 
-            var artists = d.filter(function(p) {
-                var b = p.badges || [];
-                return ARTIST_ROLES.indexOf(p.role) !== -1 || b.some(function(x) { return ARTIST_ROLES.indexOf(x) !== -1; });
-            }).length;
+            // Artists = role is artist (not badge — role is set by owner)
+            var artists = d.filter(function(p) { return p.role === 'artist'; }).length;
 
-            var beats = d.filter(function(p) {
-                var b = p.badges || [];
-                return BEAT_ROLES.indexOf(p.role) !== -1 || b.some(function(x) { return BEAT_ROLES.indexOf(x) !== -1; });
-            }).length;
+            // Beatmakers = role is beatmaker or producer
+            var beats = d.filter(function(p) { return p.role === 'beatmaker' || p.role === 'producer'; }).length;
 
-            var fans = d.filter(function(p) {
-                var b = p.badges || [];
-                return p.role === 'fan' || b.indexOf('fan') !== -1;
-            }).length;
+            // Fans = role is fan
+            var fans = d.filter(function(p) { return p.role === 'fan'; }).length;
 
+            var elV = document.getElementById('statVerified'); if (elV) elV.textContent = verified;
             var el1 = document.getElementById('statArtists'); if (el1) el1.textContent = artists;
             var el2 = document.getElementById('statBeatmakers'); if (el2) el2.textContent = beats;
             var el3 = document.getElementById('statFans'); if (el3) el3.textContent = fans;
         } catch(e) { console.warn('Role count error:', e); }
 
-        // Songs
+        // Songs (not beats)
         try {
-            var s = await db.from('songs').select('id', { count: 'exact', head: true });
+            var s = await db.from('songs').select('id', { count: 'exact', head: true }).or('is_beat.is.null,is_beat.eq.false');
             var el4 = document.getElementById('statSongs'); if (el4) el4.textContent = s.count || 0;
+        } catch(e) {}
+
+        // Beats only
+        try {
+            var b = await db.from('songs').select('id', { count: 'exact', head: true }).eq('is_beat', true);
+            var elB = document.getElementById('statBeats'); if (elB) elB.textContent = b.count || 0;
         } catch(e) {}
 
         // Posts
@@ -237,9 +258,9 @@
     };
 
     async function loadUsers() {
-        var res = await db.from('profiles').select('id,display_name,username,role,badges,avatar_url,created_at').order('created_at', { ascending: false }).limit(100);
+        var res = await db.from('profiles').select('user_id,display_name,username,role,badges,avatar_url,verified_artist,created_at').order('created_at', { ascending: false }).limit(200);
         allUsers = res.data || [];
-        renderUsers(allUsers);
+        filterUsers();
     }
 
     function renderUsers(users) {
@@ -249,27 +270,32 @@
                 var cls = b === 'owner' ? 'badge-owner' : b === 'verified' ? 'badge-verified' : 'badge-artist';
                 return '<span class="badge ' + cls + '">' + b + '</span>';
             }).join(' ');
+            var verMark = u.verified_artist ? '<span style="color:#00d9ff;margin-left:4px;">✓</span>' : '';
             var avatar = u.avatar_url
                 ? '<div class="user-avatar"><img src="' + u.avatar_url + '" onerror="this.parentElement.textContent=\'👤\'"></div>'
                 : '<div class="user-avatar">👤</div>';
             html += '<div class="user-row">' +
                 avatar +
                 '<div class="user-info">' +
-                    '<div class="user-name">' + (u.display_name || u.username || 'Anonymous') + '</div>' +
+                    '<div class="user-name">' + (u.display_name || u.username || 'Anonymous') + verMark + '</div>' +
                     '<div class="user-role">' + (u.role || 'user') + ' ' + badges + '</div>' +
                 '</div>' +
-                '<a href="profile.html?id=' + u.id + '" class="btn-sm btn-view" style="text-decoration:none;">View</a>' +
+                '<a href="profile.html?id=' + u.user_id + '" class="btn-sm btn-view" style="text-decoration:none;">View</a>' +
             '</div>';
         });
         document.getElementById('userList').innerHTML = html || '<p style="font-size:.85rem;color:var(--text-dim);">No users found.</p>';
     }
 
-    window.filterUsers = function(q) {
-        q = q.toLowerCase();
+    window.filterUsers = function() {
+        var q = (document.getElementById('userSearch').value || '').toLowerCase();
+        var role = document.getElementById('roleFilter').value;
         var filtered = allUsers.filter(function(u) {
-            return (u.display_name || '').toLowerCase().indexOf(q) !== -1 ||
-                   (u.username || '').toLowerCase().indexOf(q) !== -1 ||
-                   (u.role || '').toLowerCase().indexOf(q) !== -1;
+            var matchText = !q || (u.display_name || '').toLowerCase().indexOf(q) !== -1 ||
+                   (u.username || '').toLowerCase().indexOf(q) !== -1;
+            var matchRole = !role;
+            if (role === 'verified') matchRole = u.verified_artist === true;
+            else if (role) matchRole = u.role === role || (u.badges || []).indexOf(role) !== -1;
+            return matchText && matchRole;
         });
         renderUsers(filtered);
     };
@@ -291,11 +317,11 @@
         document.getElementById('postList').innerHTML = ph || '<p style="font-size:.85rem;color:var(--text-dim);">No posts yet.</p>';
 
         // Songs
-        var songs = await db.from('songs').select('id,title,artist_name,created_at').order('created_at', { ascending: false }).limit(20);
+        var songs = await db.from('songs').select('id,title,artist,created_at').order('created_at', { ascending: false }).limit(20);
         var sh = '';
         (songs.data || []).forEach(function(s) {
             sh += '<div class="act-row">' +
-                '<span style="flex:1;">🎵 <strong>' + (s.title || 'Untitled') + '</strong> — ' + (s.artist_name || 'Unknown') + '</span>' +
+                '<span style="flex:1;">🎵 <strong>' + (s.title || 'Untitled') + '</strong> — ' + (s.artist || 'Unknown') + '</span>' +
                 '<span style="font-size:.72rem;color:var(--text-dim);">' + new Date(s.created_at).toLocaleDateString() + '</span>' +
                 '<button class="btn-sm btn-del" onclick="deleteSong(\'' + s.id + '\')">🗑️</button>' +
             '</div>';
