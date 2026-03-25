@@ -139,7 +139,7 @@
         </div>
     </div>
 
-    <script src="scripts.js" defer></script>
+    
     <script>
     const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
@@ -195,27 +195,29 @@
             }
 
             /* Query based on chart type */
-            let query = db.from('songs').select('*');
+            let query = db.from('songs').select('*')
+                .not('song_url', 'is', null)
+                .neq('song_url', '');
 
             switch(currentChart) {
                 case 'hot':
-                    query = query.order('algorithm_score', { ascending: false });
+                    query = query.or('is_beat.is.null,is_beat.eq.false').order('play_count', { ascending: false, nullsFirst: false });
                     break;
                 case 'trending':
-                    query = query.order('algorithm_score', { ascending: false });
+                    query = query.or('is_beat.is.null,is_beat.eq.false').order('play_count', { ascending: false, nullsFirst: false });
                     break;
                 case 'newreleases':
                     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-                    query = query.gte('created_at', weekAgo).order('plays', { ascending: false });
+                    query = query.or('is_beat.is.null,is_beat.eq.false').gte('created_at', weekAgo).order('play_count', { ascending: false, nullsFirst: false });
                     break;
                 case 'topbeats':
-                    query = query.eq('is_beat', true).order('plays', { ascending: false });
+                    query = query.eq('is_beat', true).order('play_count', { ascending: false, nullsFirst: false });
                     break;
                 case 'mostliked':
-                    query = query.order('likes', { ascending: false });
+                    query = query.or('is_beat.is.null,is_beat.eq.false').order('play_count', { ascending: false, nullsFirst: false });
                     break;
                 case 'mostplayed':
-                    query = query.order('plays', { ascending: false });
+                    query = query.or('is_beat.is.null,is_beat.eq.false').order('play_count', { ascending: false, nullsFirst: false });
                     break;
             }
 
@@ -237,7 +239,7 @@
         /* Calculate algorithm score if not present */
         songs = songs.map((s, i) => ({
             ...s,
-            algorithm_score: s.algorithm_score || Math.round((s.plays || 0) * 0.4 + (s.likes || 0) * 2.5 + (s.shares || 0) * 2 + Math.max(0, 100 - i * 2)),
+            algorithm_score: s.algorithm_score || Math.round((s.play_count || 0) * 0.4 + (s.likes || 0) * 2.5 + (s.shares || 0) * 2 + Math.max(0, 100 - i * 2)),
             rank: i + 1
         }));
 
@@ -250,9 +252,9 @@
                 return `
                 <div class="podium-card ${classes[i]}">
                     <div class="podium-medal">${medals[i]}</div>
-                    <div class="podium-art">${s.cover_url ? '<img src="' + s.cover_url + '" alt="">' : '🎵'}</div>
+                    <div class="podium-art">${s.cover_art ? '<img src="' + s.cover_art + '" alt="">' : '🎵'}</div>
                     <div class="podium-title">${escHtml(s.title)}</div>
-                    <div class="podium-artist">${escHtml(s.artist || s.display_name || 'Unknown')}</div>
+                    <div class="podium-artist">${escHtml(s.artist || 'Unknown')}</div>
                     <div class="podium-score">${(s.algorithm_score || 0).toLocaleString()} <span>pts</span></div>
                 </div>`;
             }).join('');
@@ -268,42 +270,72 @@
         list.innerHTML = remaining.map((s, i) => {
             const rank = i + 4;
             const rankClass = '';
-            const movements = ['up', 'down', 'same', 'new'];
-            const movementType = s.movement || movements[Math.floor(Math.random() * 4)];
-            const movementIcon = movementType === 'up' ? '▲' : movementType === 'down' ? '▼' : movementType === 'new' ? 'NEW' : '—';
-            const movementNum = movementType === 'up' ? '+' + (Math.floor(Math.random() * 10) + 1) : movementType === 'down' ? '-' + (Math.floor(Math.random() * 5) + 1) : '';
+            const movementType = 'same';
+            const movementIcon = '—';
+            const movementNum = '';
 
             return `
             <div class="chart-entry">
                 <div class="chart-rank ${rankClass}">${rank}</div>
                 <div class="chart-movement ${movementType}">${movementIcon}<br>${movementNum}</div>
-                <div class="chart-art">${s.cover_url ? '<img src="' + s.cover_url + '" alt="">' : '🎵'}</div>
+                <div class="chart-art">${s.cover_art ? '<img src="' + s.cover_art + '" alt="">' : '🎵'}</div>
                 <div class="chart-info">
                     <div class="chart-title">${escHtml(s.title)}</div>
-                    <div class="chart-artist">${escHtml(s.artist || s.display_name || 'Unknown')}</div>
+                    <div class="chart-artist">${escHtml(s.artist || 'Unknown')}</div>
                 </div>
                 <div class="chart-stats">
-                    <div class="chart-stat">▶️ <span class="num">${formatNum(s.plays || 0)}</span></div>
+                    <div class="chart-stat">▶️ <span class="num">${formatNum(s.play_count || 0)}</span></div>
                     <div class="chart-stat">❤️ <span class="num">${formatNum(s.likes || 0)}</span></div>
                 </div>
-                <button class="chart-play-btn" onclick="playSong('${s.id || ''}')">▶</button>
+                <button class="chart-play-btn" data-song-id="${s.id || ''}" data-song-url="${s.song_url || ''}" onclick="playSong('${s.id || ''}')">▶</button>
             </div>`;
         }).join('');
     }
 
+    var chartAudio = null;
+    var chartPlayingId = null;
+
     function playSong(id) {
-        /* Hook into your audio player system */
-        if (id) {
-            alert('Player integration coming soon! Song ID: ' + id);
+        if (!id) return;
+        // Find the song
+        var song = null;
+        document.querySelectorAll('[data-song-url]').forEach(function(el) {
+            if (el.getAttribute('data-song-id') === id) {
+                song = { id: id, url: el.getAttribute('data-song-url') };
+            }
+        });
+        if (!song || !song.url) return;
+
+        if (!chartAudio) {
+            chartAudio = new Audio();
+            chartAudio.preload = 'auto';
+            chartAudio.addEventListener('ended', function() { chartPlayingId = null; updatePlayBtns(); });
         }
+
+        if (chartPlayingId === id) {
+            chartAudio.pause();
+            chartPlayingId = null;
+        } else {
+            chartAudio.src = song.url;
+            chartAudio.load();
+            chartAudio.play().catch(function(){});
+            chartPlayingId = id;
+        }
+        updatePlayBtns();
+    }
+
+    function updatePlayBtns() {
+        document.querySelectorAll('.chart-play-btn').forEach(function(btn) {
+            btn.textContent = btn.getAttribute('data-song-id') === chartPlayingId ? '⏸' : '▶';
+        });
     }
 
     /* Demo data when songs table is empty */
     function generateDemoChartData() {
         const demoSongs = [
-            { title: 'Upload your first song!', artist: 'Your music goes here', plays: 0, likes: 0, shares: 0 },
-            { title: 'Charts populate automatically', artist: 'Based on plays, likes & shares', plays: 0, likes: 0, shares: 0 },
-            { title: 'Algorithm-powered rankings', artist: '8BFR Music Network', plays: 0, likes: 0, shares: 0 },
+            { title: 'Upload your first song!', artist: 'Your music goes here', play_count: 0, likes: 0, shares: 0 },
+            { title: 'Charts populate automatically', artist: 'Based on plays, likes & shares', play_count: 0, likes: 0, shares: 0 },
+            { title: 'Algorithm-powered rankings', artist: '8BFR Music Network', play_count: 0, likes: 0, shares: 0 },
         ];
         return demoSongs;
     }
