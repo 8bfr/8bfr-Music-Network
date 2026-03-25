@@ -222,6 +222,7 @@ async function loadGroupContent(id,tab){
       '<h3 style="color:var(--primary);margin-bottom:1rem;">⚙️ Group Admin Tools</h3>'+
       '<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;">'+
         '<button class="btn btn-ghost btn-sm" onclick="editGroupInfo(\''+id+'\')">✏️ Edit Name/Desc</button>'+
+        (isSiteOwner&&viewingGroup&&viewingGroup.owner_id!==currentUser.id?'<button class="btn btn-sm" style="background:#dc2626;" onclick="takeOverGroup(\''+id+'\')">🔒 Take Over Group</button>':'')+
         (isSiteOwner?'<button class="btn btn-sm" style="background:#d97706;" onclick="transferOwnership(\''+id+'\')">👑 Transfer Ownership</button>':'')+
         '<button class="btn btn-sm btn-red" onclick="deleteGroup(\''+id+'\')">🗑️ Delete Group</button>'+
       '</div>'+
@@ -322,6 +323,28 @@ window.deleteGroup=async function(id){
   var{error}=await db.from('groups').delete().eq('id',id);
   if(error)alert('Error: '+error.message);
   else{alert('🗑️ Group deleted.');backToBrowse();loadGroups();}
+};
+
+window.takeOverGroup=async function(groupId){
+  if(!confirm('Take over this group? The current owner will be demoted to a regular member.'))return;
+  var oldOwnerId=viewingGroup?viewingGroup.owner_id:null;
+  try{
+    // Make yourself the owner
+    await db.from('groups').update({owner_id:currentUser.id}).eq('id',groupId);
+    // Ensure you're in the members table as admin
+    var{data:existing}=await db.from('group_members').select('id').eq('group_id',groupId).eq('user_id',currentUser.id).maybeSingle();
+    if(existing){
+      await db.from('group_members').update({role:'admin'}).eq('group_id',groupId).eq('user_id',currentUser.id);
+    }else{
+      await db.from('group_members').insert({group_id:groupId,user_id:currentUser.id,role:'admin'});
+    }
+    // Demote old owner to member
+    if(oldOwnerId&&oldOwnerId!==currentUser.id){
+      await db.from('group_members').update({role:'member'}).eq('group_id',groupId).eq('user_id',oldOwnerId);
+    }
+    alert('🔒 You are now the owner of this group.');
+    openGroup(groupId);
+  }catch(e){alert('Error: '+e.message);}
 };
 
 window.transferOwnership=async function(groupId){
