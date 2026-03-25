@@ -114,7 +114,7 @@ textarea.form-input{min-height:80px;resize:vertical;}
 <div id="cgNotice" style="margin-top:.5rem;font-size:.82rem;text-align:center;"></div>
 </div>
 </div>
-<script src="scripts.js" defer></script>
+
 <script>
 const db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
 let currentUser=null,currentTab='discover',allGroups=[],viewingGroup=null,groupTab='posts';
@@ -154,9 +154,13 @@ async function openGroup(id){
   const{data:group}=await db.from('groups').select('*').eq('id',id).single();
   if(!group){el.innerHTML='<div class="empty">Group not found.</div>';return;}
   viewingGroup=group;
-  const isAdmin=currentUser&&group.owner_id===currentUser.id;
+  var SITE_OWNER='cb556180-f032-4b21-9470-1d786f2664ab';
+  var isGroupOwner=currentUser&&group.owner_id===currentUser.id;
+  var isSiteOwner=currentUser&&currentUser.id===SITE_OWNER;
+  var memberData=null;
   let isMember=false;
-  if(currentUser){const{data:m}=await db.from('group_members').select('id,role').eq('group_id',id).eq('user_id',currentUser.id).maybeSingle();isMember=!!m;}
+  if(currentUser){const{data:m}=await db.from('group_members').select('id,role').eq('group_id',id).eq('user_id',currentUser.id).maybeSingle();isMember=!!m;memberData=m;}
+  var isAdmin=isGroupOwner||isSiteOwner||(memberData&&(memberData.role==='admin'||memberData.role==='mod'));
   const cov=group.cover_url?'<img src="'+esc(group.cover_url)+'" style="width:100%;height:100%;object-fit:cover;">':'';
   let h='<div class="gd-cover">'+cov+'</div>';
   h+='<div class="gd-header">';
@@ -178,7 +182,7 @@ async function openGroup(id){
   h+='</div>';
   if(isMember||group.privacy==='public'){
     h+='<div id="groupContent"></div>';
-    if(isMember) h+='<div style="margin-bottom:1rem;"><button class="btn" onclick="postToGroup(\''+id+'\')">📝 Post in Group</button></div>';
+    if(isMember) h+='<div style="margin-bottom:1rem;background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:12px;padding:1rem;" id="postForm"><textarea id="gpText" placeholder="Write a post..." style="width:100%;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:8px;color:#eae6ff;padding:.6rem;font-size:.88rem;resize:vertical;min-height:60px;font-family:inherit;outline:none;margin-bottom:.5rem;"></textarea><div style="display:flex;gap:.5rem;align-items:center;"><input id="gpMedia" placeholder="Image URL (optional)" style="flex:1;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:8px;color:#eae6ff;padding:.45rem .7rem;font-size:.82rem;outline:none;"><button class="btn btn-sm" onclick="postToGroup(\''+id+'\')">📝 Post</button></div></div>';
   } else {
     h+='<div class="empty">🔒 Join this group to see posts and participate.</div>';
   }
@@ -238,10 +242,17 @@ async function loadAdminMembers(groupId){
   el.innerHTML=members.map(function(m){
     var u=pm[m.user_id]||{};var name=u.display_name||u.username||'User';
     var isMe=currentUser&&m.user_id===currentUser.id;
+    var isGroupCreator=viewingGroup&&m.user_id===viewingGroup.owner_id;
+    var roleTag=m.role==='admin'?' <span style="color:var(--primary);font-size:.68rem;">👑 Owner</span>':m.role==='mod'?' <span style="color:#4ade80;font-size:.68rem;">🟢 Mod</span>':'';
+    var actions='';
+    if(!isMe&&!isGroupCreator){
+      if(m.role==='mod') actions='<button class="btn btn-sm btn-ghost" style="font-size:.7rem;padding:.2rem .5rem;" onclick="setMemberRole(\''+groupId+'\',\''+m.user_id+'\',\'member\')">Remove Mod</button>';
+      else if(m.role==='member') actions='<button class="btn btn-sm btn-ghost" style="font-size:.7rem;padding:.2rem .5rem;" onclick="setMemberRole(\''+groupId+'\',\''+m.user_id+'\',\'mod\')">Make Mod</button>';
+      actions+=' <button class="btn btn-sm btn-red" style="font-size:.7rem;padding:.2rem .5rem;" onclick="kickMember(\''+groupId+'\',\''+m.user_id+'\',\''+esc(name).replace(/'/g,'')+'\')">Remove</button>';
+    }
     return '<div style="display:flex;justify-content:space-between;align-items:center;padding:.45rem 0;border-bottom:1px solid rgba(124,58,237,.08);font-size:.85rem;">'+
-      '<span>'+esc(name)+(m.role==='admin'?' <span style="color:var(--primary);font-size:.68rem;">Admin</span>':'')+'</span>'+
-      (!isMe?'<button class="btn btn-sm btn-red" style="font-size:.7rem;padding:.2rem .5rem;" onclick="kickMember(\''+groupId+'\',\''+m.user_id+'\',\''+esc(name).replace(/'/g,'')+'\')">Remove</button>':'')+
-    '</div>';
+      '<span>'+esc(name)+roleTag+'</span>'+
+      '<div style="display:flex;gap:.3rem;">'+actions+'</div></div>';
   }).join('');
 }
 
@@ -250,6 +261,13 @@ window.kickMember=async function(groupId,userId,name){
   await db.from('group_members').delete().eq('group_id',groupId).eq('user_id',userId);
   await db.from('groups').update({member_count:Math.max(0,(viewingGroup.member_count||1)-1)}).eq('id',groupId);
   alert('Removed '+name);loadGroupContent(groupId,'admin');
+};
+
+window.setMemberRole=async function(groupId,userId,role){
+  var label=role==='mod'?'mod':'regular member';
+  if(!confirm('Change this member to '+label+'?'))return;
+  await db.from('group_members').update({role:role}).eq('group_id',groupId).eq('user_id',userId);
+  loadGroupContent(groupId,'admin');
 };
 
 window.switchGroupTab=function(tab,btn){
@@ -265,17 +283,26 @@ window.joinGroup=async function(id){
   openGroup(id);
 };
 window.leaveGroup=async function(id){
-  if(!currentUser||!confirm('Leave this group?'))return;
+  if(!currentUser)return;
+  // Prevent group creator from leaving
+  if(viewingGroup&&viewingGroup.owner_id===currentUser.id){alert('You can\'t leave a group you created. Delete it instead.');return;}
+  if(!confirm('Leave this group?'))return;
   await db.from('group_members').delete().eq('group_id',id).eq('user_id',currentUser.id);
   await db.from('groups').update({member_count:Math.max(0,(viewingGroup.member_count||1)-1)}).eq('id',id);
   openGroup(id);
 };
 window.postToGroup=function(id){
-  const text=prompt('Write your group post:');if(!text)return;
-  const media=prompt('Image URL (optional):');
-  db.from('group_posts').insert({group_id:id,user_id:currentUser.id,text:text,media_url:media||null,likes:0,comments:0}).then(({error})=>{
-    if(error)alert('Error: '+error.message);
-    else{db.from('groups').update({post_count:(viewingGroup.post_count||0)+1}).eq('id',id);loadGroupContent(id,'posts');}
+  var text=(document.getElementById('gpText').value||'').trim();
+  var media=(document.getElementById('gpMedia').value||'').trim();
+  if(!text&&!media){alert('Write something or add an image.');return;}
+  db.from('group_posts').insert({group_id:id,user_id:currentUser.id,text:text||null,media_url:media||null,likes:0,comments:0}).then(function(r){
+    if(r.error)alert('Error: '+r.error.message);
+    else{
+      db.from('groups').update({post_count:(viewingGroup.post_count||0)+1}).eq('id',id);
+      document.getElementById('gpText').value='';
+      document.getElementById('gpMedia').value='';
+      loadGroupContent(id,'posts');
+    }
   });
 };
 window.backToBrowse=function(){document.getElementById('browseView').style.display='block';document.getElementById('groupDetail').style.display='none';viewingGroup=null;};
