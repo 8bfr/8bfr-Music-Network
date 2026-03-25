@@ -77,40 +77,38 @@
         </div>
     </div>
 
-    <script src="scripts.js" defer></script>
     <script>
-    const db = window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
-    let currentUser = null;
+    var db = window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
+    var currentUser = null;
 
     async function init() {
-        const { data: { session } } = await db.auth.getSession();
-        if (!session) { location.href = 'login.html?return=playlists.html'; return; }
-        currentUser = session.user;
+        var sess = await db.auth.getSession();
+        if (!sess.data.session) { location.href = 'login.html?return=playlists.html'; return; }
+        currentUser = sess.data.session.user;
         await Promise.all([loadMyPlaylists(), loadPublicPlaylists()]);
     }
 
     async function loadMyPlaylists() {
-        const div = document.getElementById('myPlaylists');
+        var div = document.getElementById('myPlaylists');
         try {
-            const { data } = await db.from('playlists').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
-            const playlists = data || [];
+            var result = await db.from('playlists').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
+            var playlists = result.data || [];
             if (!playlists.length) { div.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">No playlists yet. Create your first one!</p>'; return; }
-            div.innerHTML = '<div class="playlist-grid">' + playlists.map(pl => cardHTML(pl)).join('') + '</div>';
+            div.innerHTML = '<div class="playlist-grid">' + playlists.map(function(pl){ return cardHTML(pl); }).join('') + '</div>';
         } catch(e) { div.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">No playlists yet.</p>'; }
     }
 
     async function loadPublicPlaylists() {
-        const div = document.getElementById('publicPlaylists');
+        var div = document.getElementById('publicPlaylists');
         try {
-            const { data } = await db.from('playlists').select('*').eq('visibility', 'public').order('followers', { ascending: false }).limit(12);
-            const playlists = data || [];
+            var result = await db.from('playlists').select('*').eq('visibility', 'public').order('created_at', { ascending: false }).limit(12);
+            var playlists = result.data || [];
             if (!playlists.length) { div.innerHTML = '<div class="empty-state"><div class="emoji">📻</div><p>No public playlists yet.</p></div>'; return; }
-            div.innerHTML = playlists.map(pl => cardHTML(pl)).join('');
+            div.innerHTML = playlists.map(function(pl){ return cardHTML(pl); }).join('');
         } catch(e) { div.innerHTML = '<div class="empty-state"><div class="emoji">📻</div><p>No public playlists yet.</p></div>'; }
     }
 
     function cardHTML(pl) {
-        // ★ FIX: Cards link to playlist-details.html instead of inline view
         return '<a href="playlist-details.html?id=' + pl.id + '" class="playlist-card">' +
             '<div class="playlist-cover"><div class="quad">🎵</div><div class="quad">🎤</div><div class="quad">🎹</div><div class="quad">🎧</div><div class="play-hover">▶</div></div>' +
             '<div class="playlist-meta"><div class="playlist-name">' + esc(pl.name) + '</div><div class="playlist-creator">' + esc(pl.creator_name || 'You') + '</div><div class="playlist-count">' + (pl.track_count || 0) + ' tracks</div></div></a>';
@@ -120,11 +118,11 @@
     function closeCreateModal() { document.getElementById('createModal').classList.remove('show'); }
 
     async function createPlaylist() {
-        const name = document.getElementById('newPlName').value.trim();
+        var name = document.getElementById('newPlName').value.trim();
         if (!name) { alert('Enter a name.'); return; }
         try {
-            const { data: profile } = await db.from('profiles').select('display_name,username').eq('user_id', currentUser.id).single();
-            await db.from('playlists').insert({ user_id: currentUser.id, name: name, description: document.getElementById('newPlDesc').value.trim(), visibility: document.getElementById('newPlVisibility').value, creator_name: profile?.display_name || profile?.username || 'Unknown', track_count: 0, followers: 0 });
+            var pr = await db.from('profiles').select('display_name,username').eq('user_id', currentUser.id).single();
+            await db.from('playlists').insert({ user_id: currentUser.id, name: name, description: document.getElementById('newPlDesc').value.trim(), visibility: document.getElementById('newPlVisibility').value, creator_name: pr.data ? (pr.data.display_name || pr.data.username) : 'Unknown', track_count: 0, followers: 0 });
         } catch(e) { console.warn(e); }
         closeCreateModal();
         document.getElementById('newPlName').value = '';
@@ -132,7 +130,7 @@
         await loadMyPlaylists();
     }
 
-    function esc(s) { if(!s)return''; const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+    function esc(s) { if(!s)return''; var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
     document.getElementById('createModal').addEventListener('click',function(e){if(e.target===this)closeCreateModal();});
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
     </script>
