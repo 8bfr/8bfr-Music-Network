@@ -263,6 +263,8 @@
         filterUsers();
     }
 
+    var OWNER_ID = 'cb556180-f032-4b21-9470-1d786f2664ab';
+
     function renderUsers(users) {
         var html = '';
         users.forEach(function(u) {
@@ -274,13 +276,25 @@
             var avatar = u.avatar_url
                 ? '<div class="user-avatar"><img src="' + u.avatar_url + '" onerror="this.parentElement.textContent=\'👤\'"></div>'
                 : '<div class="user-avatar">👤</div>';
-            html += '<div class="user-row">' +
+            var isOwnerRow = u.user_id === OWNER_ID;
+            var actions = '<div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.3rem;">';
+            actions += '<a href="profile.html?id=' + u.user_id + '" class="btn-sm btn-view" style="text-decoration:none;">View</a>';
+            if (!isOwnerRow) {
+                actions += '<button class="btn-sm btn-view" onclick="changeRole(\'' + u.user_id + '\',\'' + (u.display_name||u.username||'User').replace(/'/g,'') + '\',\'' + (u.role||'fan') + '\')">Role</button>';
+                actions += u.verified_artist
+                    ? '<button class="btn-sm" style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#fca5a5;" onclick="toggleVerify(\'' + u.user_id + '\',false)">Unverify</button>'
+                    : '<button class="btn-sm" style="background:rgba(0,217,255,.1);border:1px solid rgba(0,217,255,.3);color:#00d9ff;" onclick="toggleVerify(\'' + u.user_id + '\',true)">Verify</button>';
+                actions += '<button class="btn-sm btn-del" onclick="deleteUser(\'' + u.user_id + '\',\'' + (u.display_name||u.username||'User').replace(/'/g,'') + '\')">Delete</button>';
+            }
+            actions += '</div>';
+            html += '<div class="user-row" style="flex-direction:column;align-items:flex-start;">' +
+                '<div style="display:flex;align-items:center;gap:.75rem;width:100%;">' +
                 avatar +
                 '<div class="user-info">' +
                     '<div class="user-name">' + (u.display_name || u.username || 'Anonymous') + verMark + '</div>' +
                     '<div class="user-role">' + (u.role || 'user') + ' ' + badges + '</div>' +
-                '</div>' +
-                '<a href="profile.html?id=' + u.user_id + '" class="btn-sm btn-view" style="text-decoration:none;">View</a>' +
+                '</div></div>' +
+                actions +
             '</div>';
         });
         document.getElementById('userList').innerHTML = html || '<p style="font-size:.85rem;color:var(--text-dim);">No users found.</p>';
@@ -368,6 +382,55 @@
         if (!confirm('Delete this story?')) return;
         await db.from('stories').delete().eq('id', id);
         loadStories();
+    };
+
+    // ═══ USER MANAGEMENT FUNCTIONS ═══
+    window.changeRole = async function(userId, name, currentRole) {
+        var roles = ['fan','artist','beatmaker','producer','songwriter','dj','singer','rapper','engineer','dancer','videographer','photographer','manager','label','promoter','admin','mod','co-owner'];
+        var pick = prompt('Change role for ' + name + '\nCurrent: ' + currentRole + '\n\nOptions:\n' + roles.join(', ') + '\n\nType new role:');
+        if (!pick) return;
+        pick = pick.trim().toLowerCase();
+        if (roles.indexOf(pick) === -1) { alert('Invalid role.'); return; }
+        var res = await db.from('profiles').update({ role: pick }).eq('user_id', userId);
+        if (res.error) { alert('Error: ' + res.error.message); return; }
+        alert('✅ ' + name + ' is now ' + pick);
+        loadUsers();
+    };
+
+    window.toggleVerify = async function(userId, verify) {
+        var action = verify ? 'verify' : 'unverify';
+        if (!confirm('Are you sure you want to ' + action + ' this user?')) return;
+        var update = { verified_artist: verify };
+        // Add/remove artist badge
+        var pr = await db.from('profiles').select('badges').eq('user_id', userId).single();
+        var badges = (pr.data && pr.data.badges) ? pr.data.badges.slice() : [];
+        if (verify && badges.indexOf('verified') === -1) badges.push('verified');
+        if (!verify) badges = badges.filter(function(b) { return b !== 'verified'; });
+        update.badges = badges;
+        var res = await db.from('profiles').update(update).eq('user_id', userId);
+        if (res.error) { alert('Error: ' + res.error.message); return; }
+        alert('✅ User ' + (verify ? 'verified' : 'unverified'));
+        loadUsers(); window.loadStats();
+    };
+
+    window.deleteUser = async function(userId, name) {
+        if (!confirm('⚠️ DELETE ' + name + '?\n\nThis will remove their profile, posts, songs, and all data.\n\nYou must ALSO delete them from Supabase Dashboard → Authentication → Users.\n\nContinue?')) return;
+        if (!confirm('FINAL WARNING: This cannot be undone. Delete ' + name + '?')) return;
+        try {
+            // Delete related data
+            await db.from('follows').delete().or('follower_id.eq.' + userId + ',following_id.eq.' + userId);
+            await db.from('friends').delete().or('user_id.eq.' + userId + ',friend_id.eq.' + userId);
+            await db.from('group_members').delete().eq('user_id', userId);
+            await db.from('playlist_tracks').delete().eq('playlist_id', userId);
+            await db.from('posts').delete().eq('user_id', userId);
+            await db.from('songs').delete().eq('uploaded_by', userId);
+            await db.from('stories').delete().eq('user_id', userId);
+            await db.from('email_verifications').delete().eq('user_id', userId);
+            // Delete profile last
+            await db.from('profiles').delete().eq('user_id', userId);
+            alert('✅ Profile deleted.\n\n⚠️ IMPORTANT: Also delete from Supabase Dashboard → Authentication → Users to free the email.');
+            loadUsers(); window.loadStats();
+        } catch(e) { alert('Error: ' + e.message); }
     };
 
     window.toggleMaint = function() {
