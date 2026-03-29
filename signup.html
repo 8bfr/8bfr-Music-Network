@@ -605,8 +605,7 @@ async function sendVerificationCode() {
     await db.from('email_verifications').upsert({
       user_id: signupUserId,
       email: signupEmail,
-      verification_code: generatedCode,
-      verified: false,
+      code: generatedCode,
       expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString()
     }, { onConflict: 'user_id' });
   } catch(e) { console.warn('Save code error:', e); }
@@ -695,10 +694,10 @@ async function verifyCode() {
 
   // Check code against DB
   try {
-    var res = await db.from('email_verifications').select('verification_code,expires_at').eq('user_id', signupUserId).single();
+    var res = await db.from('email_verifications').select('code,expires_at').eq('user_id', signupUserId).single();
     if (res.error) throw res.error;
 
-    if (res.data.verification_code === entered) {
+    if (res.data.code === entered) {
       // Check expiry
       if (new Date(res.data.expires_at) < new Date()) {
         document.getElementById('codeInputs').classList.add('error');
@@ -708,8 +707,10 @@ async function verifyCode() {
       }
 
       // Mark verified
-      await db.from('email_verifications').update({ verified: true }).eq('user_id', signupUserId);
+      // Mark verified on profile
       await db.from('profiles').update({ email_verified: true }).eq('user_id', signupUserId);
+      // Clean up verification row
+      await db.from('email_verifications').delete().eq('user_id', signupUserId);
 
       document.getElementById('codeInputs').classList.add('success');
       document.getElementById('verifyMsg').innerHTML = '<span style="color:var(--success);">✅ Verified!</span>';
