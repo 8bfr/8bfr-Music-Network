@@ -615,9 +615,20 @@ window.toggleBan=async function(uid,ban){
   try{var r=await db.from('profiles').update({is_banned:ban}).eq('user_id',uid);if(r.error)throw r.error;alert(ban?'🚫 Banned.':'✅ Unbanned.');refreshCurrentView();}catch(e){alert('Error: '+e.message);}
 };
 window.deleteUser=async function(uid,uname){
-  if(!confirm('⚠️ DELETE user @'+uname+'?\n\nThis removes their profile permanently.'))return;
-  if(!confirm('Are you absolutely sure? This cannot be undone.'))return;
-  try{var r=await db.from('profiles').delete().eq('user_id',uid);if(r.error)throw r.error;alert('🗑️ Profile deleted.');refreshCurrentView();}catch(e){alert('Error: '+e.message);}
+  if(!confirm('⚠️ DELETE user @'+uname+'?\n\nThis removes their profile, posts, songs, and all data.\n\nYou must ALSO delete from Supabase Dashboard → Auth → Users.'))return;
+  if(!confirm('FINAL WARNING: This cannot be undone. Delete @'+uname+'?'))return;
+  try{
+    await db.from('follows').delete().or('follower_id.eq.'+uid+',following_id.eq.'+uid);
+    await db.from('friends').delete().or('user_id.eq.'+uid+',friend_id.eq.'+uid);
+    await db.from('group_members').delete().eq('user_id',uid);
+    await db.from('posts').delete().eq('user_id',uid);
+    await db.from('songs').delete().eq('uploaded_by',uid);
+    await db.from('stories').delete().eq('user_id',uid);
+    await db.from('email_verifications').delete().eq('user_id',uid);
+    await db.from('profiles').delete().eq('user_id',uid);
+    alert('✅ Profile + all data deleted.\n\n⚠️ Also delete from Supabase Dashboard → Authentication → Users to free the email.');
+    refreshCurrentView();
+  }catch(e){alert('Error: '+e.message);}
 };
 
 function refreshCurrentView(){
