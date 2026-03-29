@@ -7,6 +7,7 @@
   <link rel="icon" href="assets/images/favicon.png">
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <style>
     :root{--primary:#7c3aed;--card:#0c0618;--text:#eae6ff;--dim:rgba(168,85,247,.7);--border:rgba(124,58,237,.35);--success:#22c55e;--danger:#ef4444;}
     *{margin:0;padding:0;box-sizing:border-box;}
@@ -76,6 +77,12 @@
     .success-icon{font-size:3rem;margin-bottom:.5rem;}
     .success-screen h2{font-family:'Bebas Neue',cursive;font-size:1.5rem;color:var(--success);margin-bottom:.5rem;}
     .email-highlight{background:rgba(124,58,237,.1);border:1px solid var(--border);border-radius:8px;padding:.5rem;margin:.5rem 0;font-weight:600;color:var(--primary);}
+    .code-inputs{display:flex;gap:.5rem;justify-content:center;margin:1rem 0;}
+    .code-inputs input{width:44px;height:52px;text-align:center;font-size:1.4rem;font-weight:800;background:rgba(0,0,0,.3);border:2px solid var(--border);border-radius:10px;color:var(--text);outline:none;}
+    .code-inputs input:focus{border-color:var(--primary);box-shadow:0 0 12px rgba(124,58,237,.3);}
+    .code-inputs.error input{border-color:var(--danger);animation:shake .4s ease;}
+    .code-inputs.success input{border-color:var(--success);}
+    @keyframes shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-6px);}75%{transform:translateX(6px);}}
 
     .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:white;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:.4rem;}
     @keyframes spin{to{transform:rotate(360deg);}}
@@ -186,8 +193,22 @@
 
       <!-- ★ DATE OF BIRTH -->
       <div class="field">
-        <label for="dob">📅 Date of Birth *</label>
-        <input type="date" id="dob" required>
+        <label>📅 Date of Birth *</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;">
+          <select id="dobMonth" class="input" onchange="onDobChange()" style="padding:.55rem .5rem;font-size:.88rem;">
+            <option value="">Month</option>
+            <option value="01">January</option><option value="02">February</option><option value="03">March</option>
+            <option value="04">April</option><option value="05">May</option><option value="06">June</option>
+            <option value="07">July</option><option value="08">August</option><option value="09">September</option>
+            <option value="10">October</option><option value="11">November</option><option value="12">December</option>
+          </select>
+          <select id="dobDay" class="input" onchange="onDobChange()" style="padding:.55rem .5rem;font-size:.88rem;">
+            <option value="">Day</option>
+          </select>
+          <select id="dobYear" class="input" onchange="onDobChange()" style="padding:.55rem .5rem;font-size:.88rem;">
+            <option value="">Year</option>
+          </select>
+        </div>
         <div class="age-info" id="ageInfo"></div>
       </div>
       <div class="age-tier-box" id="ageTierBox"></div>
@@ -233,14 +254,34 @@
     <div style="text-align:center;margin-top:.4rem;"><a href="index.html" class="back-home">← Back to Home</a></div>
   </div>
 
-  <!-- SUCCESS SCREEN -->
+  <!-- VERIFICATION CODE SCREEN -->
+  <div class="success-screen" id="verifySection">
+    <div style="font-size:2.5rem;margin-bottom:.5rem;">📧</div>
+    <h2 style="color:var(--primary);">Check Your Email</h2>
+    <p style="font-size:.88rem;color:var(--dim);margin:.5rem 0;">We sent a 6-digit code to:</p>
+    <div class="email-highlight" id="verifyEmail"></div>
+    <p style="font-size:.82rem;color:var(--dim);margin-bottom:.5rem;">Enter the code below to verify your account.</p>
+    <div class="code-inputs" id="codeInputs">
+      <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" id="c1" oninput="codeInput(1)" onkeydown="codeKey(event,1)">
+      <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" id="c2" oninput="codeInput(2)" onkeydown="codeKey(event,2)">
+      <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" id="c3" oninput="codeInput(3)" onkeydown="codeKey(event,3)">
+      <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" id="c4" oninput="codeInput(4)" onkeydown="codeKey(event,4)">
+      <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" id="c5" oninput="codeInput(5)" onkeydown="codeKey(event,5)">
+      <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" id="c6" oninput="codeInput(6)" onkeydown="codeKey(event,6)">
+    </div>
+    <div id="verifyMsg" style="font-size:.85rem;margin:.5rem 0;min-height:1.2rem;"></div>
+    <button class="submit-btn" id="verifyBtn" onclick="verifyCode()">✅ Verify</button>
+    <button class="back-btn" id="resendBtn" onclick="resendCode()" style="margin-top:.5rem;">📩 Resend Code <span id="resendTimer"></span></button>
+    <div id="verifyExtra" style="margin-top:.75rem;"></div>
+  </div>
+
+  <!-- ACTUAL SUCCESS SCREEN -->
   <div class="success-screen" id="successSection">
     <div class="success-icon">🎉</div>
-    <h2>You're Almost In!</h2>
-    <p>We sent a confirmation link to:</p>
-    <div class="email-highlight" id="confirmedEmail"></div>
+    <h2>Welcome to 8BFR!</h2>
+    <p style="font-size:.88rem;color:var(--dim);">Your account is verified and ready to go.</p>
     <div id="successExtra"></div>
-    <a href="login.html" class="submit-btn" style="display:block;text-decoration:none;margin-top:.75rem;text-align:center;">Go to Login</a>
+    <a href="feed.html" class="submit-btn" style="display:block;text-decoration:none;margin-top:.75rem;text-align:center;">🎵 Enter 8BFR</a>
     <a href="index.html" class="back-home">← Back to Home</a>
   </div>
 </div>
@@ -261,7 +302,68 @@ db.auth.getSession().then(({data:{session}}) => {
 });
 
 // Set max DOB to today
-document.getElementById('dob').max = new Date().toISOString().split('T')[0];
+// Populate day and year dropdowns
+(function(){
+  var daySelect = document.getElementById('dobDay');
+  var yearSelect = document.getElementById('dobYear');
+  for(var d=1;d<=31;d++){
+    var opt = document.createElement('option');
+    opt.value = d < 10 ? '0'+d : ''+d;
+    opt.textContent = d;
+    daySelect.appendChild(opt);
+  }
+  var thisYear = new Date().getFullYear();
+  for(var y=thisYear;y>=thisYear-100;y--){
+    var opt = document.createElement('option');
+    opt.value = ''+y;
+    opt.textContent = y;
+    yearSelect.appendChild(opt);
+  }
+})();
+
+function getDobValue(){
+  var m = document.getElementById('dobMonth').value;
+  var d = document.getElementById('dobDay').value;
+  var y = document.getElementById('dobYear').value;
+  if(!m||!d||!y) return '';
+  return y+'-'+m+'-'+d;
+}
+
+function onDobChange(){
+  var dob = getDobValue();
+  if(!dob) return;
+  calcAge(dob);
+  var info = document.getElementById('ageInfo');
+  var box = document.getElementById('ageTierBox');
+  var pw = document.getElementById('parentEmailWrap');
+  box.style.display = 'block';
+
+  if (calculatedAge < 5) {
+    info.textContent = 'Age: ' + calculatedAge + ' — Too young';
+    info.style.color = '#ef4444';
+    box.style.background = 'rgba(239,68,68,.08)'; box.style.border = '1px solid rgba(239,68,68,.25)'; box.style.color = '#fca5a5';
+    box.innerHTML = '❌ Children under 5 cannot use 8BFR.';
+    pw.style.display = 'none';
+  } else if (calculatedAge <= 12) {
+    info.textContent = 'Age: ' + calculatedAge + ' — KidZone account';
+    info.style.color = '#ec4899';
+    box.style.background = 'rgba(236,72,153,.08)'; box.style.border = '1px solid rgba(236,72,153,.25)'; box.style.color = '#f9a8d4';
+    box.innerHTML = '🧸 <strong>KidZone (12 & Under)</strong><br>A parent must verify via Didit. Access to KidZone only — a safe, moderated space for young creators. No DMs, no purchases, no main site. <a href="age-policy.html" target="_blank" style="color:#ec4899;">Learn more</a>';
+    pw.style.display = 'none';
+  } else if (calculatedAge <= 15) {
+    info.textContent = 'Age: ' + calculatedAge + ' — Teen (parental consent needed)';
+    info.style.color = '#3b82f6';
+    box.style.background = 'rgba(59,130,246,.08)'; box.style.border = '1px solid rgba(59,130,246,.25)'; box.style.color = '#93c5fd';
+    box.innerHTML = '🔵 <strong>Teen (13-15)</strong><br>Main site with restrictions. Parent email required. No tipping, purchases, live, or unrestricted DMs. 2hr daily default. <a href="age-policy.html" target="_blank" style="color:#60a5fa;">Learn more</a>';
+    pw.style.display = 'block';
+  } else {
+    info.textContent = 'Age: ' + calculatedAge + ' — Full access';
+    info.style.color = '#22c55e';
+    box.style.background = 'rgba(34,197,94,.08)'; box.style.border = '1px solid rgba(34,197,94,.25)'; box.style.color = '#86efac';
+    box.innerHTML = '🟣 <strong>Full Access (16+)</strong><br>All features unlocked.';
+    pw.style.display = 'none';
+  }
+}
 
 /* ── ROLE TOGGLE ── */
 function toggleRole(btn) {
@@ -294,14 +396,14 @@ function goStep(n) {
     const email = document.getElementById('email').value.trim();
     const pw = document.getElementById('password').value;
     const confirm = document.getElementById('confirm').value;
-    const dob = document.getElementById('dob').value;
+    const dob = getDobValue();
 
     if (!username || username.length < 3) return showMsg('⚠️ Username must be at least 3 characters.', 'error');
     if (!/^[a-zA-Z0-9_.\-]+$/.test(username)) return showMsg('⚠️ Username: letters, numbers, _ . - only.', 'error');
     if (!email || !email.includes('@')) return showMsg('⚠️ Please enter a valid email.', 'error');
     if (pw.length < 8) return showMsg('⚠️ Password must be at least 8 characters.', 'error');
     if (pw !== confirm) return showMsg('⚠️ Passwords do not match.', 'error');
-    if (!dob) return showMsg('⚠️ Please enter your date of birth.', 'error');
+    if (!dob) return showMsg('⚠️ Please select your date of birth (month, day, and year).', 'error');
 
     // Age check
     calcAge(dob);
@@ -349,40 +451,6 @@ function calcAge(dobStr) {
   calculatedTier = age <= 12 ? 'kid' : age <= 15 ? 'teen' : 'adult';
 }
 
-document.getElementById('dob').addEventListener('change', function() {
-  calcAge(this.value);
-  const info = document.getElementById('ageInfo');
-  const box = document.getElementById('ageTierBox');
-  const pw = document.getElementById('parentEmailWrap');
-  box.style.display = 'block';
-
-  if (calculatedAge < 5) {
-    info.textContent = 'Age: ' + calculatedAge + ' — Too young';
-    info.style.color = '#ef4444';
-    box.style.background = 'rgba(239,68,68,.08)'; box.style.border = '1px solid rgba(239,68,68,.25)'; box.style.color = '#fca5a5';
-    box.innerHTML = '❌ Children under 5 cannot use 8BFR.';
-    pw.style.display = 'none';
-  } else if (calculatedAge <= 12) {
-    info.textContent = 'Age: ' + calculatedAge + ' — KidZone account';
-    info.style.color = '#ec4899';
-    box.style.background = 'rgba(236,72,153,.08)'; box.style.border = '1px solid rgba(236,72,153,.25)'; box.style.color = '#f9a8d4';
-    box.innerHTML = '🧸 <strong>KidZone (12 & Under)</strong><br>A parent must verify via Didit. Access to KidZone only — a safe, moderated space for young creators. No DMs, no purchases, no main site. <a href="age-policy.html" target="_blank" style="color:#ec4899;">Learn more</a>';
-    pw.style.display = 'none';
-  } else if (calculatedAge <= 15) {
-    info.textContent = 'Age: ' + calculatedAge + ' — Teen (parental consent needed)';
-    info.style.color = '#3b82f6';
-    box.style.background = 'rgba(59,130,246,.08)'; box.style.border = '1px solid rgba(59,130,246,.25)'; box.style.color = '#93c5fd';
-    box.innerHTML = '🔵 <strong>Teen (13-15)</strong><br>Main site with restrictions. Parent email required. No tipping, purchases, live, or unrestricted DMs. 2hr daily default. <a href="age-policy.html" target="_blank" style="color:#60a5fa;">Learn more</a>';
-    pw.style.display = 'block';
-  } else {
-    info.textContent = 'Age: ' + calculatedAge + ' — Full access';
-    info.style.color = '#22c55e';
-    box.style.background = 'rgba(34,197,94,.08)'; box.style.border = '1px solid rgba(34,197,94,.25)'; box.style.color = '#86efac';
-    box.innerHTML = '🟣 <strong>Full Access (16+)</strong><br>All features unlocked.';
-    pw.style.display = 'none';
-  }
-});
-
 /* ── PASSWORD ── */
 function togglePw(fieldId, btn) {
   const inp = document.getElementById(fieldId);
@@ -423,7 +491,7 @@ async function doSignup() {
   const displayName = document.getElementById('displayName').value.trim() || username;
   const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value;
-  const dob = document.getElementById('dob').value;
+  const dob = getDobValue();
   const agreed = document.getElementById('agreeTerms').checked;
 
   if (!agreed) return showMsg('⚠️ Please agree to the Terms of Service to continue.', 'error');
@@ -463,17 +531,19 @@ async function doSignup() {
       const spotifyUrl = document.getElementById('spotifyUrl').value.trim();
       try {
         await db.from('profiles').upsert({
-          id: data.user.id,
+          user_id: data.user.id,
           username: username,
           display_name: displayName,
-          role: selectedRoles[0],
+          role: selectedRoles[0] || 'fan',
           badges: selectedRoles,
           date_of_birth: dob,
           age_tier: calculatedTier,
           is_verified: false,
           coins: 50,
-          spotify_url: spotifyUrl || null
-        }, { onConflict: 'id', ignoreDuplicates: true });
+          spotify_url: spotifyUrl || null,
+          follower_count: 0,
+          following_count: 0
+        }, { onConflict: 'user_id' });
       } catch(e) { /* trigger may handle this */ }
 
       // ★ If teen — create consent request
@@ -492,27 +562,177 @@ async function doSignup() {
       }
     }
 
-    // Show success
+    // Show verification code screen
     document.getElementById('formSection').style.display = 'none';
-    document.getElementById('confirmedEmail').textContent = email;
+    document.getElementById('verifyEmail').textContent = email;
+    document.getElementById('verifySection').classList.add('show');
 
-    // Tier-specific success message
-    let extra = '';
+    // Generate and send verification code
+    signupUserId = data.user.id;
+    signupEmail = email;
+    signupDisplayName = displayName;
+    await sendVerificationCode();
+
+    // Tier-specific message
+    var extra = '';
     if (calculatedTier === 'kid') {
-      extra = '<div style="margin-top:.75rem;padding:.75rem;background:rgba(236,72,153,.08);border:1px solid rgba(236,72,153,.25);border-radius:10px;font-size:.85rem;color:#f9a8d4;">' +
-        '🧸 <strong>KidZone Account</strong><br>After confirming your email, you will need a parent to verify their identity at the <a href="kidzone-parent.html" style="color:#ec4899;">Parent Hub</a> before this account can be used.</div>';
+      extra = '<div style="margin-top:.75rem;padding:.75rem;background:rgba(236,72,153,.08);border:1px solid rgba(236,72,153,.25);border-radius:10px;font-size:.85rem;color:#f9a8d4;">🧸 <strong>KidZone Account</strong> — After verifying, a parent must verify identity at the <a href="kidzone-parent.html" style="color:#ec4899;">Parent Hub</a>.</div>';
     } else if (calculatedTier === 'teen') {
-      extra = '<div style="margin-top:.75rem;padding:.75rem;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);border-radius:10px;font-size:.85rem;color:#93c5fd;">' +
-        '🔵 <strong>Teen Account</strong><br>Your parent/guardian will receive a consent email. Some features are restricted until they approve. DMs limited to other teens and your parent.</div>';
+      extra = '<div style="margin-top:.75rem;padding:.75rem;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);border-radius:10px;font-size:.85rem;color:#93c5fd;">🔵 <strong>Teen Account</strong> — Your parent/guardian will receive a consent email. Some features restricted until approved.</div>';
     }
-    document.getElementById('successExtra').innerHTML = extra;
-    document.getElementById('successSection').classList.add('show');
+    document.getElementById('verifyExtra').innerHTML = extra;
 
   } catch(e) {
     showMsg('⚠️ Something went wrong. Please try again.', 'error');
     btn.disabled = false; btn.innerHTML = '🎵 Create My Account';
   }
 }
+
+/* ── EMAIL VERIFICATION VIA EMAILJS ── */
+var signupUserId = null;
+var signupEmail = null;
+var signupDisplayName = null;
+var generatedCode = '';
+var resendCooldown = 0;
+
+async function sendVerificationCode() {
+  // Generate 6-digit code
+  generatedCode = '';
+  for (var i = 0; i < 6; i++) generatedCode += Math.floor(Math.random() * 10);
+
+  // Save to email_verifications table
+  try {
+    await db.from('email_verifications').upsert({
+      user_id: signupUserId,
+      email: signupEmail,
+      verification_code: generatedCode,
+      verified: false,
+      expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString()
+    }, { onConflict: 'user_id' });
+  } catch(e) { console.warn('Save code error:', e); }
+
+  // Send via EmailJS
+  try {
+    emailjs.init('xGcw1bDESG7obtHJh');
+    await emailjs.send('service_or00bc8', 'template_appp21r', {
+      to_name: signupDisplayName || 'New User',
+      to_email: signupEmail,
+      verification_code: generatedCode
+    });
+  } catch(e) {
+    console.warn('EmailJS error:', e);
+    document.getElementById('verifyMsg').innerHTML = '<span style="color:#fbbf24;">⚠️ Email may be delayed. Code: check spam folder.</span>';
+  }
+
+  // Start resend cooldown
+  startResendCooldown();
+}
+
+function startResendCooldown() {
+  resendCooldown = 60;
+  var btn = document.getElementById('resendBtn');
+  btn.disabled = true;
+  var timer = document.getElementById('resendTimer');
+  var interval = setInterval(function() {
+    resendCooldown--;
+    timer.textContent = '(' + resendCooldown + 's)';
+    if (resendCooldown <= 0) {
+      clearInterval(interval);
+      btn.disabled = false;
+      timer.textContent = '';
+    }
+  }, 1000);
+}
+
+async function resendCode() {
+  document.getElementById('verifyMsg').innerHTML = '<span style="color:var(--primary);">Sending new code...</span>';
+  await sendVerificationCode();
+  document.getElementById('verifyMsg').innerHTML = '<span style="color:var(--success);">✅ New code sent!</span>';
+}
+
+/* ── CODE INPUT HANDLING ── */
+function codeInput(n) {
+  var el = document.getElementById('c' + n);
+  el.value = el.value.replace(/[^0-9]/g, '');
+  if (el.value && n < 6) document.getElementById('c' + (n + 1)).focus();
+  document.getElementById('codeInputs').classList.remove('error', 'success');
+  // Auto-verify when all 6 entered
+  if (n === 6 && el.value) {
+    var full = '';
+    for (var i = 1; i <= 6; i++) full += document.getElementById('c' + i).value;
+    if (full.length === 6) verifyCode();
+  }
+}
+
+function codeKey(e, n) {
+  if (e.key === 'Backspace' && !document.getElementById('c' + n).value && n > 1) {
+    document.getElementById('c' + (n - 1)).focus();
+  }
+  // Support paste
+  if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+    e.preventDefault();
+    navigator.clipboard.readText().then(function(text) {
+      var digits = text.replace(/[^0-9]/g, '').substring(0, 6);
+      for (var i = 0; i < digits.length; i++) {
+        document.getElementById('c' + (i + 1)).value = digits[i];
+      }
+      if (digits.length === 6) verifyCode();
+    }).catch(function(){});
+  }
+}
+
+async function verifyCode() {
+  var entered = '';
+  for (var i = 1; i <= 6; i++) entered += document.getElementById('c' + i).value;
+  if (entered.length < 6) {
+    document.getElementById('verifyMsg').innerHTML = '<span style="color:var(--danger);">Enter all 6 digits.</span>';
+    return;
+  }
+
+  var btn = document.getElementById('verifyBtn');
+  btn.disabled = true;
+  btn.textContent = 'Verifying...';
+
+  // Check code against DB
+  try {
+    var res = await db.from('email_verifications').select('verification_code,expires_at').eq('user_id', signupUserId).single();
+    if (res.error) throw res.error;
+
+    if (res.data.verification_code === entered) {
+      // Check expiry
+      if (new Date(res.data.expires_at) < new Date()) {
+        document.getElementById('codeInputs').classList.add('error');
+        document.getElementById('verifyMsg').innerHTML = '<span style="color:var(--danger);">Code expired. Click resend.</span>';
+        btn.disabled = false; btn.textContent = '✅ Verify';
+        return;
+      }
+
+      // Mark verified
+      await db.from('email_verifications').update({ verified: true }).eq('user_id', signupUserId);
+      await db.from('profiles').update({ email_verified: true }).eq('user_id', signupUserId);
+
+      document.getElementById('codeInputs').classList.add('success');
+      document.getElementById('verifyMsg').innerHTML = '<span style="color:var(--success);">✅ Verified!</span>';
+
+      // Show success screen
+      setTimeout(function() {
+        document.getElementById('verifySection').classList.remove('show');
+        document.getElementById('successSection').classList.add('show');
+      }, 1200);
+    } else {
+      document.getElementById('codeInputs').classList.add('error');
+      document.getElementById('verifyMsg').innerHTML = '<span style="color:var(--danger);">❌ Wrong code. Try again.</span>';
+      btn.disabled = false; btn.textContent = '✅ Verify';
+      // Clear inputs
+      for (var j = 1; j <= 6; j++) document.getElementById('c' + j).value = '';
+      document.getElementById('c1').focus();
+    }
+  } catch(e) {
+    document.getElementById('verifyMsg').innerHTML = '<span style="color:var(--danger);">Error: ' + e.message + '</span>';
+    btn.disabled = false; btn.textContent = '✅ Verify';
+  }
+}
 </script>
+<script src="scripts.js" defer></script>
 </body>
 </html>
