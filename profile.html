@@ -643,6 +643,12 @@
         h+='<div id="albumNameGroup" class="form-group" style="display:none;"><label>Album Name *</label><input class="form-input" id="uAlbum" placeholder="Album title"></div>';
         h+='<div class="form-group"><label>Title *</label><input class="form-input" id="uT"></div>';
         h+='<div class="form-group"><label>Artist</label><input class="form-input" id="uA" value="'+(p.display_name||'')+'"></div>';
+        // Credits fields
+        h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">';
+        h+='<div class="form-group"><label>Producer / Beatmaker</label><input class="form-input" id="uProducer" placeholder="Who produced this?"></div>';
+        h+='<div class="form-group"><label>Featured Artist</label><input class="form-input" id="uFeatured" placeholder="ft. who?"></div>';
+        h+='</div>';
+        h+='<div class="form-group"><label>Lyrics</label><textarea class="form-input" id="uLyrics" rows="3" placeholder="Paste lyrics here (optional)" style="resize:vertical;min-height:60px;font-family:inherit;"></textarea></div>';
         // Genre selector
         h+='<div class="form-group"><label>Genre</label><select class="form-input" id="uGenre"><option value="">Select genre</option>';
         h+='<option>Hip-Hop</option><option>Trap</option><option>R&B</option><option>Drill</option><option>Boom Bap</option>';
@@ -818,7 +824,7 @@
   /* ── SONGS ── */
   async function loadSongs(uid){
     var el=document.getElementById('songList');if(!el)return;
-    try{var sr=await db.from('songs').select('id,title,artist,cover_art,song_url,explicit,price').eq('uploaded_by',uid).is('dummy_id',null).order('created_at',{ascending:false});
+    try{var sr=await db.from('songs').select('id,title,artist,cover_art,song_url,explicit,price,is_beat,sold,producer,featured_artist,lyrics').eq('uploaded_by',uid).is('dummy_id',null).order('created_at',{ascending:false});
     var songs=sr.data||[];
     if(!songs.length){el.innerHTML='<div style="text-align:center;padding:2rem;color:rgba(168,85,247,0.5);">No songs yet.</div>';return;}
     el.innerHTML=songs.map(function(s){
@@ -828,7 +834,10 @@
       var soldBadge=s.sold?'<span style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#ef4444;padding:0.15rem 0.5rem;border-radius:12px;font-size:0.7rem;font-weight:700;margin-left:0.4rem;">SOLD</span>':'';
       var pr=parseFloat(s.price)||0;var pt=pr>0&&!s.sold?'<span style="color:#4ade80;font-size:0.8rem;margin-left:0.4rem;">$'+pr.toFixed(2)+'</span>':'';
       var buyBtn=pr>0&&!s.sold?'<button class="btn btn-sm btn-green" onclick="event.stopPropagation();location.href=\'checkout.html?song='+s.id+'&price='+pr+'\'" style="flex-shrink:0;padding:0.3rem 0.7rem;font-size:0.75rem;">💰 Buy</button>':'';
-      return '<div class="song-row" id="s-'+s.id+'"'+(s.sold?' style="opacity:0.6;"':'')+'><div class="song-cover">'+cv+'</div><div class="song-info"><div class="song-title">'+esc(s.title||'Untitled')+(s.explicit?' 🔞':'')+pt+soldBadge+'</div><div class="song-meta">'+esc(s.artist||'')+'</div>'+(s.song_url&&!s.sold?'<audio controls src="'+s.song_url+'" preload="none" style="height:32px;margin-top:6px;"></audio>':'')+'</div>'+buyBtn+soldBtn+del+'</div>';
+      var credits='';
+      if(s.featured_artist)credits+=' ft. '+esc(s.featured_artist);
+      if(s.producer)credits+='<span style="font-size:0.7rem;color:rgba(168,85,247,0.5);margin-left:0.3rem;">prod. '+esc(s.producer)+'</span>';
+      return '<div class="song-row" id="s-'+s.id+'"'+(s.sold?' style="opacity:0.6;"':'')+'><div class="song-cover">'+cv+'</div><div class="song-info"><div class="song-title">'+esc(s.title||'Untitled')+(s.explicit?' 🔞':'')+pt+soldBadge+'</div><div class="song-meta">'+esc(s.artist||'')+credits+'</div>'+(s.song_url&&!s.sold?'<audio controls src="'+s.song_url+'" preload="none" style="height:32px;margin-top:6px;"></audio>':'')+'</div>'+buyBtn+soldBtn+del+'</div>';
     }).join('');}catch(e){el.innerHTML='<div style="color:#ef4444;">'+e.message+'</div>';}
   }
 
@@ -1060,6 +1069,9 @@
     if(!currentUser)return;
     var title=document.getElementById('uT').value.trim();
     var artist=document.getElementById('uA').value.trim();
+    var producer=document.getElementById('uProducer')?document.getElementById('uProducer').value.trim():'';
+    var featured=document.getElementById('uFeatured')?document.getElementById('uFeatured').value.trim():'';
+    var lyrics=document.getElementById('uLyrics')?document.getElementById('uLyrics').value.trim():'';
     var expl=document.getElementById('uEx').value==='true';
     var price=document.getElementById('uPr').value.trim();
     var genre=document.getElementById('uGenre').value;
@@ -1116,7 +1128,8 @@
         song_url:su, cover_art:cu, explicit:expl, featured:false,
         price:price?parseFloat(price):0, is_beat:isBeat, type:songType,
         genre:genre||null, bpm:isBeat?bpmVal:null, music_key:isBeat?keyVal:null,
-        license_url:hasLicenses?JSON.stringify(licenses):null
+        license_url:hasLicenses?JSON.stringify(licenses):null,
+        producer:producer||null, featured_artist:featured||null, lyrics:lyrics||null
       });
       if(ir.error)throw new Error(ir.error.message);
 
