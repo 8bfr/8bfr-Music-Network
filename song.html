@@ -52,6 +52,8 @@
         .song-row .row-actions { display: flex; gap: 0.3rem; flex-shrink: 0; }
         .action-btn { background: rgba(124,58,237,0.1); border: 1px solid transparent; color: var(--text-dim); width: 30px; height: 30px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
         .action-btn:hover { border-color: var(--primary); color: var(--text); }
+        .action-btn.liked { color: #f472b6; border-color: #f472b6; }
+        .liked-heart { color: #f472b6; }
         .view-toggle { display: flex; gap: 0.3rem; }
         .view-btn { padding: 0.4rem 0.6rem; border-radius: 6px; border: 1px solid var(--border); background: var(--dark); color: var(--text-dim); cursor: pointer; font-size: 0.85rem; transition: all 0.2s; }
         .view-btn.active { background: rgba(124,58,237,0.2); border-color: var(--primary); color: var(--primary); }
@@ -154,12 +156,23 @@
     var searchTimeout = null;
     var currentPlayIndex = -1;
     var playlist = [];
+    var currentUserId = '';
+    var likedSongs = {};
 
     async function init() {
         var sess = await db.auth.getSession();
         if (!sess.data.session) { location.href = 'login.html?return=song.html'; return; }
+        currentUserId = sess.data.session.user.id;
+        await loadUserLikes();
         await loadSongs();
         setupAudioListeners();
+    }
+
+    async function loadUserLikes() {
+        try {
+            var {data} = await db.from('likes').select('content_id').eq('user_id', currentUserId).eq('content_type', 'song');
+            if (data) data.forEach(function(l) { likedSongs[l.content_id] = true; });
+        } catch(e) {}
     }
 
     function debounceSearch() {
@@ -256,12 +269,15 @@
                 var cover = s.cover_art ? '<img src="' + esc(s.cover_art) + '" alt="">' : '🎵';
                 var priceTag = (s.price && s.price > 0) ? '<span class="price-tag">$' + Number(s.price).toFixed(2) + '</span>' : '';
                 var explicitTag = s.explicit ? '<span class="explicit-tag">E</span>' : '';
-                html += '<div class="song-card" onclick="playSongAtIndex(' + i + ')">' +
-                    '<div class="song-cover">' + cover + priceTag + '<div class="play-overlay"><button>▶</button></div></div>' +
+                html += '<div class="song-card">' +
+                    '<div class="song-cover" onclick="playSongAtIndex(' + i + ')">' + cover + priceTag + '<div class="play-overlay"><button>&#9654;</button></div></div>' +
                     '<div class="song-meta">' +
                     '<div class="title">' + esc(s.title) + explicitTag + '</div>' +
                     '<div class="artist">' + esc(s.artist || 'Unknown') + '</div>' +
-                    '<div class="stats"><span>▶ ' + fmt(s.play_count || 0) + '</span></div>' +
+                    '<div class="stats"><span>&#9654; ' + fmt(s.play_count || 0) + '</span>' +
+                    '<span class="' + (likedSongs[s.id] ? 'liked-heart' : '') + '" style="cursor:pointer;' + (likedSongs[s.id] ? 'color:#f472b6;' : '') + '" onclick="event.stopPropagation();toggleLike(\'' + s.id + '\',this)">' + (likedSongs[s.id] ? '&#9829;' : '&#9825;') + '</span>' +
+                    '<span style="cursor:pointer;" onclick="event.stopPropagation();shareSong(\'' + esc(s.title).replace(/'/g,'') + '\',\'' + esc(s.artist || '').replace(/'/g,'') + '\')">&#128279;</span>' +
+                    '</div>' +
                     '</div></div>';
             });
             html += '</div>';
@@ -280,7 +296,8 @@
                     '</div>' +
                     '<div class="row-stats"><span>▶ ' + fmt(s.play_count || 0) + '</span></div>' +
                     '<div class="row-actions">' +
-                    '<button class="action-btn" onclick="shareSong(\'' + esc(s.title) + '\',\'' + esc(s.artist || '') + '\')" title="Share">🔗</button>' +
+                    '<button class="action-btn" onclick="toggleLike(\'' + s.id + '\',this)" title="Like" style="' + (likedSongs[s.id] ? 'color:#f472b6;border-color:#f472b6;' : '') + '">' + (likedSongs[s.id] ? '&#9829;' : '&#9825;') + '</button>' +
+                    '<button class="action-btn" onclick="shareSong(\'' + esc(s.title).replace(/'/g,'') + '\',\'' + esc(s.artist || '').replace(/'/g,'') + '\')" title="Share">&#128279;</button>' +
                     '</div>' +
                     '<button class="row-play" onclick="playSongAtIndex(' + i + ')">▶</button>' +
                     '</div>';
@@ -362,10 +379,24 @@
         return m + ':' + (sec < 10 ? '0' : '') + sec;
     }
 
+    async function toggleLike(songId, el) {
+        if (!currentUserId) return;
+        try {
+            if (likedSongs[songId]) {
+                await db.from('likes').delete().eq('user_id', currentUserId).eq('content_id', songId).eq('content_type', 'song');
+                delete likedSongs[songId];
+            } else {
+                await db.from('likes').insert({ user_id: currentUserId, content_id: songId, content_type: 'song' });
+                likedSongs[songId] = true;
+            }
+            renderSongs(allSongs);
+        } catch(e) { console.log('Like error:', e); }
+    }
+
     function shareSong(title, artist) {
-        var text = '🎵 Check out "' + title + '" by ' + (artist || 'Unknown') + ' on 8BFR Music Network! #8BFR';
+        var text = 'Check out "' + title + '" by ' + (artist || 'Unknown') + ' on 8BFR Music Network! #8BFR';
         if (navigator.share) navigator.share({ title: title, text: text, url: location.href });
-        else navigator.clipboard.writeText(text).then(function(){ alert('✅ Copied!'); });
+        else navigator.clipboard.writeText(text).then(function(){ alert('Link copied!'); });
     }
 
     function fmt(n) { return n >= 1000000 ? (n/1000000).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(1)+'K' : n.toString(); }
