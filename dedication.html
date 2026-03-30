@@ -184,7 +184,7 @@ let isOwner=false;
 async function init(){
   // Load saved letter
   loadLetter();
-  loadPhotos();
+  await loadPhotos();
 
   try{
     const{data:{session}}=await db.auth.getSession();
@@ -242,18 +242,74 @@ function renderLetter(text,sig){
   if(sig)document.getElementById('letterSig').textContent=sig;
 }
 
-// Photos — stored in localStorage (or Supabase Storage if configured)
+// Photos — stored in Supabase Storage
 let photos=[];
 
-function loadPhotos(){
-  photos=JSON.parse(localStorage.getItem('8bfr_mom_photos')||'[]');
+async function loadPhotos(){
+  try{
+    var {data}=await db.from('site_settings').select('value').eq('key','mom_photos').maybeSingle();
+    if(data&&data.value){
+      photos=JSON.parse(data.value);
+    }
+  }catch(e){
+    // Fallback to localStorage
+    photos=JSON.parse(localStorage.getItem('8bfr_mom_photos')||'[]');
+  }
   renderPhotos();
 }
 
-function uploadPhotos(input){
-  const files=Array.from(input.files);
-  files.forEach(file=>{
-    const reader=new FileReader();
+async function uploadPhotos(input){
+  var files=Array.from(input.files);
+  if(!files.length)return;
+  var statusEl=document.createElement('div');
+  statusEl.style.cssText='color:var(--dim);font-size:.82rem;margin-top:.5rem;';
+  statusEl.textContent='Uploading '+files.length+' photo(s)...';
+  input.parentNode.appendChild(statusEl);
+
+  for(var i=0;i<files.length;i++){
+    var file=files[i];
+    var ext=file.name.split('.').pop().toLowerCase();
+    var fileName='mom-photos/photo-'+Date.now()+'-'+i+'.'+ext;
+    try{
+      var {data,error}=await db.storage.from('uploads').upload(fileName,file,{contentType:file.type,upsert:false});
+      if(error){
+        // Try creating bucket if it doesn't exist
+        if(error.message&&error.message.indexOf('not found')!==-1){
+          statusEl.textContent='Storage bucket not found. Saving locally instead...';
+          uploadPhotosLocally(files);
+          return;
+        }
+        throw error;
+      }
+      // Get public URL
+      var {data:urlData}=db.storage.from('uploads').getPublicUrl(fileName);
+      if(urlData&&urlData.publicUrl){
+        photos.push(urlData.publicUrl);
+      }
+    }catch(e){
+      statusEl.textContent='Upload error: '+e.message+'. Saving locally...';
+      uploadPhotosLocally(files.slice(i));
+      return;
+    }
+  }
+
+  // Save photo URLs to site_settings
+  try{
+    await db.from('site_settings').upsert({key:'mom_photos',value:JSON.stringify(photos)},{onConflict:'key'});
+  }catch(e){}
+
+  // Also backup in localStorage
+  localStorage.setItem('8bfr_mom_photos',JSON.stringify(photos));
+
+  statusEl.textContent='Uploaded '+files.length+' photo(s)!';
+  setTimeout(function(){statusEl.remove();},3000);
+  renderPhotos();
+  input.value='';
+}
+
+function uploadPhotosLocally(files){
+  files.forEach(function(file){
+    var reader=new FileReader();
     reader.onload=function(e){
       photos.push(e.target.result);
       localStorage.setItem('8bfr_mom_photos',JSON.stringify(photos));
@@ -264,14 +320,26 @@ function uploadPhotos(input){
 }
 
 function renderPhotos(){
-  const grid=document.getElementById('photoGrid');
+  var grid=document.getElementById('photoGrid');
   if(!photos.length){
-    grid.innerHTML='<div class="photo-item"><div class="photo-placeholder"><span class="icon">📷</span>Add photos<br>via edit</div></div>';
+    grid.innerHTML='<div class="photo-item"><div class="photo-placeholder"><span class="icon">&#128247;</span>Add photos<br>via edit</div></div>';
     return;
   }
-  grid.innerHTML=photos.map((src,i)=>
-    '<div class="photo-item" onclick="openLightbox('+i+')"><img src="'+src+'" alt="Memory '+(i+1)+'"></div>'
-  ).join('');
+  var html=photos.map(function(src,i){
+    var delBtn=isOwner?'<button onclick="event.stopPropagation();deletePhoto('+i+')" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.7);border:1px solid rgba(239,68,68,.5);color:#ef4444;border-radius:50%;width:24px;height:24px;cursor:pointer;font-size:.7rem;display:flex;align-items:center;justify-content:center;">X</button>':'';
+    return '<div class="photo-item" onclick="openLightbox('+i+')"><img src="'+src+'" alt="Memory '+(i+1)+'" onerror="this.parentNode.style.display=\'none\'">'+delBtn+'</div>';
+  }).join('');
+  grid.innerHTML=html;
+}
+
+async function deletePhoto(idx){
+  if(!confirm('Remove this photo?'))return;
+  photos.splice(idx,1);
+  try{
+    await db.from('site_settings').upsert({key:'mom_photos',value:JSON.stringify(photos)},{onConflict:'key'});
+  }catch(e){}
+  localStorage.setItem('8bfr_mom_photos',JSON.stringify(photos));
+  renderPhotos();
 }
 
 function openLightbox(idx){
@@ -301,6 +369,5 @@ for(let i=0;i<6;i++)setTimeout(spawnHeart,i*300);
 
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 </script>
-
-
+</body>
 </html>
