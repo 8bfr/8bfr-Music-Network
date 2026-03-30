@@ -71,9 +71,24 @@
         .empty-state .emoji { font-size: 3rem; margin-bottom: 1rem; }
 
         .tab-bar { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
-        .tab-btn { padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--border); background: var(--dark); color: var(--text-dim); cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.2s; }
+        .tab-bar::-webkit-scrollbar { display: none; }
+        .tab-btn { padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--border); background: var(--dark); color: var(--text-dim); cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.2s; white-space: nowrap; flex-shrink: 0; }
         .tab-btn:hover { border-color: var(--pink); }
         .tab-btn.active { background: linear-gradient(135deg, var(--pink), var(--primary)); color: white; border-color: transparent; }
+        .song-picker { position: relative; }
+        .song-search { width: 100%; padding: 0.75rem; background: var(--dark); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit; font-size: 0.92rem; }
+        .song-search:focus { outline: none; border-color: var(--pink); }
+        .song-results { position: absolute; top: 100%; left: 0; right: 0; background: var(--dark-card); border: 1px solid var(--border); border-radius: 0 0 8px 8px; max-height: 200px; overflow-y: auto; z-index: 50; display: none; }
+        .song-result { padding: 0.6rem 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 0.6rem; border-bottom: 1px solid rgba(124,58,237,0.1); transition: background 0.15s; }
+        .song-result:hover { background: rgba(124,58,237,0.1); }
+        .song-result:last-child { border: none; }
+        .sr-cover { width: 32px; height: 32px; border-radius: 4px; background: rgba(124,58,237,0.15); display: flex; align-items: center; justify-content: center; font-size: 0.9rem; overflow: hidden; flex-shrink: 0; }
+        .sr-cover img { width: 100%; height: 100%; object-fit: cover; }
+        .sr-info { flex: 1; min-width: 0; }
+        .sr-title { font-weight: 600; font-size: 0.82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .sr-artist { font-size: 0.72rem; color: var(--text-dim); }
+        .selected-song { display: none; background: rgba(236,72,153,0.08); border: 1px solid rgba(236,72,153,0.25); border-radius: 8px; padding: 0.6rem 0.75rem; margin-top: 0.5rem; }
+        .selected-song .clear-btn { background: none; border: none; color: var(--red); cursor: pointer; font-size: 0.8rem; font-weight: 600; margin-left: 0.5rem; }
 
         @media (max-width: 600px) {
             .form-row { grid-template-columns: 1fr; }
@@ -122,15 +137,31 @@
                     </select>
                 </div>
             </div>
-            <div class="form-row">
+            <div class="form-group">
+                <label>Pick a Song (search 8BFR library or type manually)</label>
+                <div class="song-picker">
+                    <input type="text" class="song-search" id="songSearchInput" placeholder="Search songs by title or artist..." oninput="searchSongsForDed()" autocomplete="off">
+                    <div class="song-results" id="songResults"></div>
+                </div>
+                <div class="selected-song" id="selectedSong">
+                    <span id="selectedSongText"></span>
+                    <button class="clear-btn" onclick="clearSelectedSong()">X Clear</button>
+                </div>
+                <input type="hidden" id="dedSong">
+                <input type="hidden" id="dedArtist">
+            </div>
+            <div class="form-row" id="manualSongFields" style="display:none;">
                 <div class="form-group">
-                    <label>Song Title</label>
-                    <input type="text" id="dedSong" placeholder="e.g. Best Part">
+                    <label>Song Title (manual)</label>
+                    <input type="text" id="dedSongManual" placeholder="e.g. Best Part">
                 </div>
                 <div class="form-group">
-                    <label>Artist</label>
-                    <input type="text" id="dedArtist" placeholder="e.g. Daniel Caesar ft. H.E.R.">
+                    <label>Artist (manual)</label>
+                    <input type="text" id="dedArtistManual" placeholder="e.g. Daniel Caesar ft. H.E.R.">
                 </div>
+            </div>
+            <div style="margin-bottom:0.75rem;">
+                <button type="button" onclick="toggleManualSong()" style="background:none;border:none;color:var(--text-dim);font-size:0.78rem;cursor:pointer;text-decoration:underline;">Can't find it? Type song manually</button>
             </div>
             <div class="form-group">
                 <label>Your Message</label>
@@ -147,12 +178,18 @@
         </div>
 
         <!-- FEED TABS -->
-        <div class="tab-bar">
-            <button class="tab-btn active" onclick="switchTab('all', this)">💕 All</button>
-            <button class="tab-btn" onclick="switchTab('love', this)">❤️ Love</button>
-            <button class="tab-btn" onclick="switchTab('birthday', this)">🎂 Birthday</button>
-            <button class="tab-btn" onclick="switchTab('memorial', this)">🕊️ Memorial</button>
-            <button class="tab-btn" onclick="switchTab('mine', this)">💌 For Me</button>
+        <div class="tab-bar" style="overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap;">
+            <button class="tab-btn active" onclick="switchTab('all', this)">All</button>
+            <button class="tab-btn" onclick="switchTab('love', this)">Love</button>
+            <button class="tab-btn" onclick="switchTab('birthday', this)">Birthday</button>
+            <button class="tab-btn" onclick="switchTab('anniversary', this)">Anniversary</button>
+            <button class="tab-btn" onclick="switchTab('friendship', this)">Friendship</button>
+            <button class="tab-btn" onclick="switchTab('memorial', this)">Memorial</button>
+            <button class="tab-btn" onclick="switchTab('congrats', this)">Congrats</button>
+            <button class="tab-btn" onclick="switchTab('thankyou', this)">Thank You</button>
+            <button class="tab-btn" onclick="switchTab('getwell', this)">Get Well</button>
+            <button class="tab-btn" onclick="switchTab('apology', this)">Apology</button>
+            <button class="tab-btn" onclick="switchTab('mine', this)">For Me</button>
         </div>
 
         <!-- DEDICATIONS FEED -->
@@ -201,11 +238,90 @@
         } catch (e) { console.error('Init:', e); }
     }
 
+    /* ═══ SONG PICKER ═══ */
+    let songSearchTimer = null;
+    let selectedSongData = null;
+
+    function searchSongsForDed() {
+        clearTimeout(songSearchTimer);
+        songSearchTimer = setTimeout(async function() {
+            const q = document.getElementById('songSearchInput').value.trim();
+            const results = document.getElementById('songResults');
+            if (!q || q.length < 2) { results.style.display = 'none'; return; }
+            results.style.display = 'block';
+            results.innerHTML = '<div style="padding:0.5rem;color:var(--text-dim);font-size:0.82rem;">Searching...</div>';
+            try {
+                const { data, error } = await db.from('songs').select('id,title,artist,cover_art')
+                    .or('title.ilike.%' + q + '%,artist.ilike.%' + q + '%')
+                    .not('song_url', 'is', null)
+                    .order('play_count', { ascending: false, nullsFirst: false })
+                    .limit(10);
+                if (error) throw error;
+                if (!data || !data.length) {
+                    results.innerHTML = '<div style="padding:0.5rem;color:var(--text-dim);font-size:0.82rem;">No songs found. Use manual entry below.</div>';
+                    return;
+                }
+                results.innerHTML = data.map(function(s) {
+                    const cover = s.cover_art ? '<img src="' + s.cover_art + '" onerror="this.parentNode.innerHTML=\'&#127925;\'">' : '&#127925;';
+                    return '<div class="song-result" onclick="pickSong(\'' + escHtml(s.title || '').replace(/'/g, '') + '\',\'' + escHtml(s.artist || '').replace(/'/g, '') + '\',\'' + (s.cover_art || '').replace(/'/g, '') + '\')">' +
+                        '<div class="sr-cover">' + cover + '</div>' +
+                        '<div class="sr-info"><div class="sr-title">' + escHtml(s.title) + '</div>' +
+                        '<div class="sr-artist">' + escHtml(s.artist || 'Unknown') + '</div></div></div>';
+                }).join('');
+            } catch(e) {
+                results.innerHTML = '<div style="padding:0.5rem;color:var(--red);font-size:0.82rem;">Error: ' + e.message + '</div>';
+            }
+        }, 300);
+    }
+
+    function pickSong(title, artist, cover) {
+        document.getElementById('dedSong').value = title;
+        document.getElementById('dedArtist').value = artist;
+        document.getElementById('songSearchInput').value = '';
+        document.getElementById('songResults').style.display = 'none';
+        const sel = document.getElementById('selectedSong');
+        document.getElementById('selectedSongText').textContent = '"' + title + '" by ' + (artist || 'Unknown');
+        sel.style.display = 'flex';
+        sel.style.alignItems = 'center';
+        sel.style.justifyContent = 'space-between';
+        selectedSongData = { title: title, artist: artist };
+        document.getElementById('manualSongFields').style.display = 'none';
+    }
+
+    function clearSelectedSong() {
+        document.getElementById('dedSong').value = '';
+        document.getElementById('dedArtist').value = '';
+        document.getElementById('selectedSong').style.display = 'none';
+        selectedSongData = null;
+    }
+
+    function toggleManualSong() {
+        const el = document.getElementById('manualSongFields');
+        el.style.display = el.style.display === 'none' ? 'grid' : 'none';
+        if (el.style.display !== 'none') clearSelectedSong();
+    }
+
+    // Close song results when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.song-picker')) {
+            document.getElementById('songResults').style.display = 'none';
+        }
+    });
+
     /* ═══ POST DEDICATION ═══ */
     async function postDedication() {
         const to = document.getElementById('dedTo').value.trim();
-        const song = document.getElementById('dedSong').value.trim();
-        const artist = document.getElementById('dedArtist').value.trim();
+        let song = document.getElementById('dedSong').value.trim();
+        let artist = document.getElementById('dedArtist').value.trim();
+        // Check manual fields if picker wasn't used
+        if (!song) {
+            song = (document.getElementById('dedSongManual') || {}).value || '';
+            song = song.trim();
+        }
+        if (!artist) {
+            artist = (document.getElementById('dedArtistManual') || {}).value || '';
+            artist = artist.trim();
+        }
         const message = document.getElementById('dedMessage').value.trim();
         const occasion = document.getElementById('dedOccasion').value;
         const visibility = document.getElementById('dedVisibility').value;
@@ -246,6 +362,11 @@
             document.getElementById('dedArtist').value = '';
             document.getElementById('dedMessage').value = '';
             document.getElementById('dedOccasion').value = '';
+            document.getElementById('songSearchInput').value = '';
+            if (document.getElementById('dedSongManual')) document.getElementById('dedSongManual').value = '';
+            if (document.getElementById('dedArtistManual')) document.getElementById('dedArtistManual').value = '';
+            clearSelectedSong();
+            document.getElementById('manualSongFields').style.display = 'none';
 
             /* Burst hearts on send */
             for (let i = 0; i < 20; i++) setTimeout(spawnHeart, i * 80);
