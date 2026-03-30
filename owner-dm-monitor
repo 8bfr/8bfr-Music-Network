@@ -2,404 +2,293 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>👁️ DM Monitor — Owner</title>
+<title>DM Monitor -- 8BFR Owner</title>
 <link rel="icon" href="assets/images/favicon.png">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-:root{--primary:#7c3aed;--card:#0c0618;--text:#eae6ff;--dim:rgba(168,85,247,.7);--border:rgba(124,58,237,.35);--green:#22c55e;--danger:#ef4444;--yellow:#eab308;--blue:#3b82f6;--text-dim:rgba(234,230,255,.5);}
+:root{--primary:#7c3aed;--card:#0c0618;--text:#eae6ff;--dim:#a855f7;--border:rgba(124,58,237,.35);--green:#059669;--red:#dc2626;--cyan:#00d9ff;--gold:#fbbf24;--bg:#0b0014;--text-dim:rgba(234,230,255,.55);}
 *{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Work Sans',sans-serif;background:linear-gradient(#0b0014,#000);color:var(--text);min-height:100vh;padding-bottom:2rem;}
-.header{background:rgba(15,0,30,.95);border-bottom:2px solid var(--danger);padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;}
-.header h1{font-family:'Bebas Neue',cursive;font-size:1.5rem;color:var(--danger);}
-.container{max-width:800px;margin:0 auto;padding:1.5rem;}
-
-/* Stealth mode indicator */
-.stealth-bar{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:10px;padding:.6rem 1rem;display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;font-size:.82rem;}
-.stealth-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:.4rem;}
-.stealth-on{background:var(--green);box-shadow:0 0 6px var(--green);}
-.stealth-off{background:var(--danger);}
-
-.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:1rem;}
-.tab{flex:1;text-align:center;padding:.65rem .5rem;font-weight:600;font-size:.82rem;cursor:pointer;color:var(--text-dim);border:none;border-bottom:2px solid transparent;background:none;transition:all .2s;}
-.tab.active{color:var(--danger);border-bottom-color:var(--danger);}
-
-.panel{display:none;}
-.panel.active{display:block;}
-
-/* Stats */
-.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:.75rem;margin-bottom:1.25rem;}
-.stat{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:.75rem;text-align:center;}
-.stat h4{font-size:1.2rem;color:var(--primary);font-weight:800;}
-.stat p{font-size:.72rem;color:var(--text-dim);margin-top:.15rem;}
-
-/* Filters */
-.filters{display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap;}
-.filter-btn{padding:.35rem .7rem;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--dim);transition:all .2s;}
-.filter-btn.active{background:var(--primary);color:white;border-color:var(--primary);}
-.search-input{flex:1;min-width:150px;padding:.4rem .75rem;background:rgba(12,6,24,.8);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.85rem;}
-.search-input:focus{outline:none;border-color:var(--primary);}
-
-/* Message rows */
-.msg-row{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;margin-bottom:.6rem;transition:all .2s;}
-.msg-row:hover{border-color:rgba(124,58,237,.5);}
-.msg-row.flagged{border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.03);}
-.msg-row.teen{border-left:3px solid var(--blue);}
-.msg-row.kid{border-left:3px solid var(--yellow);}
-.msg-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem;flex-wrap:wrap;gap:.3rem;}
-.msg-users{font-size:.82rem;font-weight:600;}
-.msg-users .arrow{color:var(--dim);margin:0 .3rem;}
-.msg-time{font-size:.7rem;color:var(--text-dim);}
-.msg-content{font-size:.88rem;color:rgba(234,230,255,.8);line-height:1.5;padding:.3rem 0;}
-.msg-tags{display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.3rem;}
-.tag{font-size:.68rem;padding:.12rem .4rem;border-radius:4px;font-weight:600;}
-.tag-teen{background:rgba(59,130,246,.15);color:var(--blue);border:1px solid rgba(59,130,246,.3);}
-.tag-kid{background:rgba(234,179,8,.15);color:var(--yellow);border:1px solid rgba(234,179,8,.3);}
-.tag-hidden{background:rgba(239,68,68,.15);color:var(--danger);border:1px solid rgba(239,68,68,.3);}
-.tag-room{background:rgba(124,58,237,.15);color:var(--dim);border:1px solid rgba(124,58,237,.3);}
-.btn-action{padding:.2rem .5rem;border-radius:5px;font-size:.72rem;font-weight:600;cursor:pointer;border:none;transition:all .2s;}
-.btn-hide{background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.3);}
-.btn-delete{background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3);}
-.btn-view{background:rgba(124,58,237,.15);color:#a855f7;border:1px solid rgba(124,58,237,.3);}
-
-.empty{text-align:center;padding:2rem;color:rgba(168,85,247,.4);font-size:.88rem;}
-.spinner{width:24px;height:24px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;margin:1.5rem auto;}
+body{font-family:'Work Sans',sans-serif;background:linear-gradient(var(--bg),#000);color:var(--text);min-height:100vh;padding-bottom:80px;}
+.header{background:rgba(15,0,30,.95);border-bottom:2px solid var(--red);padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;backdrop-filter:blur(12px);}
+.header h1{font-family:'Bebas Neue',cursive;font-size:1.4rem;color:var(--red);letter-spacing:1px;}
+.header-links{display:flex;align-items:center;gap:1rem;}
+.header-links a{color:var(--text-dim);text-decoration:none;font-size:0.85rem;}
+.stealth-badge{background:rgba(220,38,38,.15);border:1px solid rgba(220,38,38,.4);color:var(--red);padding:.25rem .6rem;border-radius:20px;font-size:.7rem;font-weight:700;letter-spacing:.5px;}
+.container{max-width:900px;margin:0 auto;padding:1.5rem 1rem;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.25rem;margin-bottom:1rem;}
+.card h2{font-family:'Bebas Neue',cursive;font-size:1.2rem;color:var(--dim);margin-bottom:1rem;}
+.search-row{display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap;}
+.search-input{flex:1;min-width:150px;background:rgba(124,58,237,.1);border:1px solid var(--border);border-radius:8px;padding:.6rem .8rem;color:var(--text);font-size:.85rem;outline:none;}
+.search-input:focus{border-color:var(--primary);box-shadow:0 0 8px rgba(124,58,237,.3);}
+.btn{padding:.5rem 1rem;border-radius:8px;font-weight:600;font-size:.8rem;cursor:pointer;border:none;transition:all .2s;}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-primary:hover{background:#6d28d9;}
+.btn-sm{padding:.3rem .6rem;border-radius:6px;font-size:.72rem;font-weight:600;cursor:pointer;border:none;transition:all .2s;}
+.btn-del{background:rgba(220,38,38,.15);color:var(--red);border:1px solid rgba(220,38,38,.4);}
+.stats-row{display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem;}
+.mini-stat{background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.2);border-radius:10px;padding:.6rem .8rem;text-align:center;flex:1;min-width:80px;}
+.mini-stat .num{font-family:'Bebas Neue',cursive;font-size:1.4rem;color:var(--primary);}
+.mini-stat .label{font-size:.65rem;color:var(--text-dim);text-transform:uppercase;}
+.convo-card{background:rgba(124,58,237,.06);border:1px solid rgba(124,58,237,.2);border-radius:10px;padding:.75rem;margin-bottom:.5rem;cursor:pointer;transition:all .2s;}
+.convo-card:hover{border-color:var(--primary);background:rgba(124,58,237,.1);}
+.convo-card.active{border-color:var(--primary);background:rgba(124,58,237,.12);}
+.convo-header{display:flex;align-items:center;gap:.6rem;}
+.convo-avatars{display:flex;}
+.convo-avatars img{width:30px;height:30px;border-radius:50%;border:2px solid var(--card);object-fit:cover;}
+.convo-avatars img:nth-child(2){margin-left:-10px;}
+.convo-names{flex:1;min-width:0;}
+.convo-names .names{font-weight:600;font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.convo-names .preview{font-size:.72rem;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.1rem;}
+.convo-time{font-size:.68rem;color:var(--text-dim);flex-shrink:0;}
+.msg-list{display:flex;flex-direction:column;gap:.4rem;max-height:500px;overflow-y:auto;padding:.5rem;}
+.msg-bubble{max-width:85%;padding:.5rem .75rem;border-radius:10px;font-size:.82rem;line-height:1.4;}
+.msg-sender{background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.25);align-self:flex-start;}
+.msg-receiver{background:rgba(0,217,255,.08);border:1px solid rgba(0,217,255,.2);align-self:flex-end;}
+.msg-meta{font-size:.65rem;color:var(--text-dim);margin-top:.2rem;}
+.msg-name{font-weight:600;font-size:.72rem;color:var(--dim);margin-bottom:.15rem;}
+.empty{text-align:center;padding:2rem;color:var(--text-dim);font-size:.85rem;}
+.spinner{width:24px;height:24px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;margin:1rem auto;}
 @keyframes spin{to{transform:rotate(360deg);}}
-.load-more{display:block;width:100%;padding:.6rem;border-radius:8px;background:rgba(124,58,237,.1);border:1px solid var(--border);color:var(--dim);font-weight:600;cursor:pointer;font-size:.85rem;margin-top:.75rem;text-align:center;}
+.warning-box{background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.3);border-radius:10px;padding:.75rem;margin-bottom:1rem;font-size:.78rem;color:rgba(234,230,255,.7);}
 </style>
 </head>
 <body>
 <div class="header">
-<h1>👁️ DM &amp; Chat Monitor</h1>
-<div style="display:flex;gap:1rem;align-items:center;">
-<a href="owner-panel.html" style="color:var(--text-dim);text-decoration:none;font-size:.85rem;">← Panel</a>
-<a href="owner-monitor.html" style="color:var(--text-dim);text-decoration:none;font-size:.85rem;">Site Monitor</a>
+    <h1>DM Monitor</h1>
+    <div class="header-links">
+        <span class="stealth-badge">STEALTH MODE</span>
+        <a href="owner-panel.html">&larr; Panel</a>
+    </div>
 </div>
-</div>
-
 <div class="container">
-<!-- Stealth Mode -->
-<div class="stealth-bar">
-<div>
-<span class="stealth-dot stealth-on" id="stealthDot"></span>
-<span id="stealthLabel">Anonymous Mode: ON</span>
-</div>
-<button class="btn-action btn-view" onclick="toggleStealth()" id="stealthBtn">Switch to Visible</button>
-</div>
 
-<!-- Stats -->
-<div class="stats">
-<div class="stat"><h4 id="statTotalDMs">—</h4><p>Total DMs</p></div>
-<div class="stat"><h4 id="statTodayDMs">—</h4><p>Today's DMs</p></div>
-<div class="stat"><h4 id="statTeenDMs">—</h4><p>Teen DMs</p></div>
-<div class="stat"><h4 id="statHidden">—</h4><p>Hidden</p></div>
-<div class="stat"><h4 id="statChatMsgs">—</h4><p>Chat Msgs</p></div>
-</div>
+    <div class="warning-box">
+        Owner-only. Users cannot see that you are viewing their messages. This access is for safety and moderation purposes only.
+    </div>
 
-<!-- Tabs -->
-<div class="tabs">
-<button class="tab active" onclick="switchTab('dms',this)">💬 Direct Messages</button>
-<button class="tab" onclick="switchTab('chat',this)">🌐 Community Chat</button>
-<button class="tab" onclick="switchTab('kidzone',this)">🧸 KidZone Chat</button>
-</div>
+    <!-- STATS -->
+    <div class="stats-row" id="dmStats">
+        <div class="mini-stat"><div class="num" id="statTotal">--</div><div class="label">Total DMs</div></div>
+        <div class="mini-stat"><div class="num" id="statConvos">--</div><div class="label">Conversations</div></div>
+        <div class="mini-stat"><div class="num" id="statToday">--</div><div class="label">Today</div></div>
+        <div class="mini-stat"><div class="num" id="statUsers">--</div><div class="label">Active Users</div></div>
+    </div>
 
-<!-- DMs Panel -->
-<div class="panel active" id="panel-dms">
-<div class="filters">
-<input class="search-input" id="dmSearch" placeholder="Search messages..." oninput="filterDMs()">
-<button class="filter-btn active" onclick="setDMFilter('all',this)">All</button>
-<button class="filter-btn" onclick="setDMFilter('teen',this)">🔵 Teen</button>
-<button class="filter-btn" onclick="setDMFilter('hidden',this)">🚫 Hidden</button>
-</div>
-<div id="dmList"><div class="spinner"></div></div>
-<button class="load-more" id="dmLoadMore" onclick="loadMoreDMs()" style="display:none;">Load more...</button>
-</div>
+    <!-- SEARCH -->
+    <div class="search-row">
+        <input type="text" class="search-input" id="searchBox" placeholder="Search by username or message content..." onkeyup="if(event.key==='Enter')searchDMs()">
+        <button class="btn btn-primary" onclick="searchDMs()">Search</button>
+        <button class="btn btn-primary" onclick="loadConversations()" style="background:rgba(124,58,237,.3);">All</button>
+    </div>
 
-<!-- Chat Panel -->
-<div class="panel" id="panel-chat">
-<div class="filters">
-<input class="search-input" id="chatSearch" placeholder="Search chat..." oninput="filterChat()">
-<button class="filter-btn active" onclick="setChatFilter('all',this)">All Rooms</button>
-<button class="filter-btn" onclick="setChatFilter('general',this)">General</button>
-<button class="filter-btn" onclick="setChatFilter('music',this)">Music</button>
-<button class="filter-btn" onclick="setChatFilter('beats',this)">Beats</button>
-</div>
-<div id="chatList"><div class="spinner"></div></div>
-<button class="load-more" id="chatLoadMore" onclick="loadMoreChat()" style="display:none;">Load more...</button>
-</div>
+    <!-- CONVERSATIONS -->
+    <div class="card">
+        <h2>Conversations</h2>
+        <div id="convoList"><div class="spinner"></div></div>
+    </div>
 
-<!-- KidZone Chat Panel -->
-<div class="panel" id="panel-kidzone">
-<div id="kzChatList"><div class="spinner"></div></div>
-</div>
-</div>
+    <!-- MESSAGE VIEWER -->
+    <div class="card" id="messageViewer" style="display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;">
+            <h2 id="viewerTitle">Messages</h2>
+            <button class="btn-sm btn-del" onclick="document.getElementById('messageViewer').style.display='none'">Close</button>
+        </div>
+        <div class="msg-list" id="msgList"></div>
+    </div>
 
+</div>
+<div style="text-align:center;padding:1rem 0;font-size:.72rem;color:rgba(168,85,247,.3);">Copyright 2025-2026 8BFR Music Network</div>
 <script src="scripts.js" defer></script>
 <script>
-var SUPABASE_URL='https://novbuvwpjnxwwvdekjhr.supabase.co';
-var SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
-var db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+var db=supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
 var OWNER_ID='cb556180-f032-4b21-9470-1d786f2664ab';
-var stealthMode=true;
-var dmOffset=0,chatOffset=0;
-var allDMs=[],allChat=[];
-var dmFilter='all',chatFilter='all';
+var profileMap={};
 
-(async function init(){
-  var sess=await db.auth.getSession();
-  if(!sess.data.session||sess.data.session.user.id!==OWNER_ID){location.href='feed.html';return;}
+async function init(){
+    var s=await db.auth.getSession();
+    if(!s.data.session){location.href='login.html';return;}
+    if(s.data.session.user.id!==OWNER_ID){
+        document.querySelector('.container').innerHTML='<div class="empty">Owner access only.</div>';
+        return;
+    }
+    await loadProfiles();
+    await loadStats();
+    await loadConversations();
+}
 
-  // Log monitoring session
-  await db.from('owner_monitor_log').insert({owner_id:OWNER_ID,action:'opened_dm_monitor',details:{stealth:true}}).catch(function(){});
-
-  loadStats();
-  loadDMs();
-  loadChat();
-  loadKZChat();
-})();
+async function loadProfiles(){
+    var {data}=await db.from('profiles').select('user_id,display_name,username,avatar_url');
+    if(data) data.forEach(function(p){profileMap[p.user_id]=p;});
+}
 
 async function loadStats(){
-  try{
-    var total=await db.from('direct_messages').select('id',{count:'exact',head:true});
-    document.getElementById('statTotalDMs').textContent=total.count||0;
+    try{
+        var {count:total}=await db.from('messages').select('id',{count:'exact',head:true});
+        document.getElementById('statTotal').textContent=total||0;
 
-    var today=new Date();today.setHours(0,0,0,0);
-    var todayDMs=await db.from('direct_messages').select('id',{count:'exact',head:true}).gte('created_at',today.toISOString());
-    document.getElementById('statTodayDMs').textContent=todayDMs.count||0;
+        // Unique conversation pairs
+        var {data:msgs}=await db.from('messages').select('sender_id,receiver_id');
+        var pairs={};
+        var activeUsers={};
+        if(msgs) msgs.forEach(function(m){
+            var key=[m.sender_id,m.receiver_id].sort().join('-');
+            pairs[key]=true;
+            activeUsers[m.sender_id]=true;
+            activeUsers[m.receiver_id]=true;
+        });
+        document.getElementById('statConvos').textContent=Object.keys(pairs).length;
+        document.getElementById('statUsers').textContent=Object.keys(activeUsers).length;
 
-    var hidden=await db.from('direct_messages').select('id',{count:'exact',head:true}).eq('is_hidden',true);
-    document.getElementById('statHidden').textContent=hidden.count||0;
-
-    // Teen DMs — messages where sender or receiver is a teen
-    var teenProfiles=await db.from('profiles').select('id').eq('age_tier','teen');
-    var teenIds=(teenProfiles.data||[]).map(function(p){return p.id;});
-    document.getElementById('statTeenDMs').textContent=teenIds.length>0?'~'+teenIds.length:'0';
-
-    var chatCount=await db.from('chat_messages').select('id',{count:'exact',head:true});
-    document.getElementById('statChatMsgs').textContent=chatCount.count||0;
-  }catch(e){console.warn('Stats error:',e);}
+        // Today count
+        var today=new Date();
+        today.setHours(0,0,0,0);
+        var {count:todayCount}=await db.from('messages').select('id',{count:'exact',head:true}).gte('created_at',today.toISOString());
+        document.getElementById('statToday').textContent=todayCount||0;
+    }catch(e){}
 }
 
-async function loadDMs(){
-  var res=await db.from('direct_messages')
-    .select('*,sender:profiles!direct_messages_sender_id_fkey(display_name,username,avatar_url,role,age_tier),receiver:profiles!direct_messages_receiver_id_fkey(display_name,username,avatar_url,role,age_tier)')
-    .order('created_at',{ascending:false})
-    .range(dmOffset,dmOffset+49);
-  allDMs=allDMs.concat(res.data||[]);
-  dmOffset+=50;
-  renderDMs();
-  if(res.data&&res.data.length>=50)document.getElementById('dmLoadMore').style.display='block';
+async function loadConversations(){
+    var el=document.getElementById('convoList');
+    el.innerHTML='<div class="spinner"></div>';
+    try{
+        var {data:msgs,error}=await db.from('messages').select('id,sender_id,receiver_id,message,created_at').order('created_at',{ascending:false}).limit(500);
+        if(error)throw error;
+        if(!msgs||!msgs.length){el.innerHTML='<div class="empty">No DMs found.</div>';return;}
+
+        // Group by conversation pair
+        var convos={};
+        msgs.forEach(function(m){
+            var key=[m.sender_id,m.receiver_id].sort().join('-');
+            if(!convos[key]){
+                convos[key]={
+                    user1:m.sender_id<m.receiver_id?m.sender_id:m.receiver_id,
+                    user2:m.sender_id<m.receiver_id?m.receiver_id:m.sender_id,
+                    lastMsg:m.message,
+                    lastTime:m.created_at,
+                    count:0
+                };
+            }
+            convos[key].count++;
+        });
+
+        var sorted=Object.keys(convos).sort(function(a,b){
+            return new Date(convos[b].lastTime)-new Date(convos[a].lastTime);
+        });
+
+        el.innerHTML=sorted.map(function(key){
+            var c=convos[key];
+            var p1=profileMap[c.user1]||{};
+            var p2=profileMap[c.user2]||{};
+            var av1=p1.avatar_url||'assets/images/default-avatar.png';
+            var av2=p2.avatar_url||'assets/images/default-avatar.png';
+            var name1=p1.display_name||p1.username||'Unknown';
+            var name2=p2.display_name||p2.username||'Unknown';
+            var timeAgo=ago(c.lastTime);
+            var preview=(c.lastMsg||'').substring(0,50);
+            if(c.lastMsg&&c.lastMsg.length>50) preview+='...';
+
+            return '<div class="convo-card" onclick="openConvo(\''+c.user1+'\',\''+c.user2+'\',\''+esc(name1)+' &amp; '+esc(name2)+'\')">'+
+                '<div class="convo-header">'+
+                '<div class="convo-avatars">'+
+                '<img src="'+av1+'" onerror="this.src=\'assets/images/default-avatar.png\'">'+
+                '<img src="'+av2+'" onerror="this.src=\'assets/images/default-avatar.png\'">'+
+                '</div>'+
+                '<div class="convo-names">'+
+                '<div class="names">'+esc(name1)+' &harr; '+esc(name2)+'</div>'+
+                '<div class="preview">'+esc(preview)+'</div>'+
+                '</div>'+
+                '<div class="convo-time">'+timeAgo+'<br>'+c.count+' msgs</div>'+
+                '</div></div>';
+        }).join('');
+    }catch(e){el.innerHTML='<div class="empty">Error: '+e.message+'</div>';}
 }
 
-function renderDMs(){
-  var search=(document.getElementById('dmSearch').value||'').toLowerCase();
-  var filtered=allDMs.filter(function(m){
-    if(dmFilter==='teen'){
-      var sTier=m.sender?m.sender.age_tier:'';
-      var rTier=m.receiver?m.receiver.age_tier:'';
-      if(sTier!=='teen'&&rTier!=='teen')return false;
-    }
-    if(dmFilter==='hidden'&&!m.is_hidden)return false;
-    if(search){
-      var hay=(m.content||'')+' '+(m.sender?m.sender.display_name:'')+' '+(m.receiver?m.receiver.display_name:'');
-      if(hay.toLowerCase().indexOf(search)===-1)return false;
-    }
-    return true;
-  });
+async function openConvo(uid1,uid2,title){
+    var viewer=document.getElementById('messageViewer');
+    var list=document.getElementById('msgList');
+    document.getElementById('viewerTitle').innerHTML=title;
+    viewer.style.display='block';
+    list.innerHTML='<div class="spinner"></div>';
+    viewer.scrollIntoView({behavior:'smooth'});
 
-  if(!filtered.length){document.getElementById('dmList').innerHTML='<div class="empty">No messages found.</div>';return;}
+    try{
+        var {data:msgs,error}=await db.from('messages').select('id,sender_id,receiver_id,message,created_at')
+            .or('and(sender_id.eq.'+uid1+',receiver_id.eq.'+uid2+'),and(sender_id.eq.'+uid2+',receiver_id.eq.'+uid1+')')
+            .order('created_at',{ascending:true}).limit(200);
+        if(error)throw error;
+        if(!msgs||!msgs.length){list.innerHTML='<div class="empty">No messages in this conversation.</div>';return;}
 
-  var html='';
-  filtered.forEach(function(m){
-    var sName=m.sender?m.sender.display_name:'Unknown';
-    var rName=m.receiver?m.receiver.display_name:'Unknown';
-    var sTier=m.sender?m.sender.age_tier:'adult';
-    var rTier=m.receiver?m.receiver.age_tier:'adult';
-    var rowClass='msg-row';
-    if(sTier==='teen'||rTier==='teen')rowClass+=' teen';
-    if(sTier==='kid'||rTier==='kid')rowClass+=' kid';
-    if(m.is_hidden)rowClass+=' flagged';
-
-    var tags='';
-    if(sTier==='teen')tags+='<span class="tag tag-teen">🔵 Teen sender</span>';
-    if(rTier==='teen')tags+='<span class="tag tag-teen">🔵 Teen receiver</span>';
-    if(sTier==='kid')tags+='<span class="tag tag-kid">🧸 Kid sender</span>';
-    if(m.is_hidden)tags+='<span class="tag tag-hidden">Hidden</span>';
-
-    html+='<div class="'+rowClass+'">'+
-      '<div class="msg-header">'+
-        '<div class="msg-users">'+sName+'<span class="arrow">→</span>'+rName+'</div>'+
-        '<div class="msg-time">'+new Date(m.created_at).toLocaleString()+'</div>'+
-      '</div>'+
-      '<div class="msg-content">'+escHtml(m.content)+'</div>'+
-      '<div class="msg-tags">'+tags+
-        '<button class="btn-action btn-hide" onclick="toggleHideDM(\''+m.id+'\','+(!m.is_hidden)+')">'+(m.is_hidden?'Unhide':'Hide')+'</button>'+
-        '<button class="btn-action btn-delete" onclick="deleteDM(\''+m.id+'\')">Delete</button>'+
-        '<button class="btn-action btn-view" onclick="viewThread(\''+m.sender_id+'\',\''+m.receiver_id+'\')">Full Thread</button>'+
-      '</div>'+
-    '</div>';
-  });
-  document.getElementById('dmList').innerHTML=html;
+        list.innerHTML=msgs.map(function(m){
+            var sender=profileMap[m.sender_id]||{};
+            var senderName=sender.display_name||sender.username||'Unknown';
+            var isUser1=m.sender_id===uid1;
+            var time=new Date(m.created_at).toLocaleString();
+            return '<div class="msg-bubble '+(isUser1?'msg-sender':'msg-receiver')+'">'+
+                '<div class="msg-name">'+esc(senderName)+'</div>'+
+                esc(m.message||'')+
+                '<div class="msg-meta">'+time+'</div>'+
+            '</div>';
+        }).join('');
+        list.scrollTop=list.scrollHeight;
+    }catch(e){list.innerHTML='<div class="empty">Error: '+e.message+'</div>';}
 }
 
-async function loadChat(){
-  var res=await db.from('chat_messages')
-    .select('*,profiles(display_name,username,avatar_url,role,age_tier)')
-    .order('created_at',{ascending:false})
-    .range(chatOffset,chatOffset+49);
-  allChat=allChat.concat(res.data||[]);
-  chatOffset+=50;
-  renderChat();
-  if(res.data&&res.data.length>=50)document.getElementById('chatLoadMore').style.display='block';
+async function searchDMs(){
+    var q=document.getElementById('searchBox').value.trim().toLowerCase();
+    if(!q){loadConversations();return;}
+    var el=document.getElementById('convoList');
+    el.innerHTML='<div class="spinner"></div>';
+
+    try{
+        // Search by message content
+        var {data:msgs}=await db.from('messages').select('id,sender_id,receiver_id,message,created_at')
+            .ilike('message','%'+q+'%').order('created_at',{ascending:false}).limit(100);
+
+        // Also search by username
+        var matchedUsers=Object.keys(profileMap).filter(function(uid){
+            var p=profileMap[uid];
+            return (p.username||'').toLowerCase().includes(q)||(p.display_name||'').toLowerCase().includes(q);
+        });
+
+        if(matchedUsers.length&&(!msgs||!msgs.length)){
+            // Search messages involving matched users
+            var {data:userMsgs}=await db.from('messages').select('id,sender_id,receiver_id,message,created_at')
+                .or(matchedUsers.map(function(u){return 'sender_id.eq.'+u+',receiver_id.eq.'+u;}).join(','))
+                .order('created_at',{ascending:false}).limit(100);
+            msgs=(msgs||[]).concat(userMsgs||[]);
+        }
+
+        if(!msgs||!msgs.length){el.innerHTML='<div class="empty">No messages matching "'+esc(q)+'"</div>';return;}
+
+        // Show as flat list of matching messages
+        el.innerHTML=msgs.map(function(m){
+            var sender=profileMap[m.sender_id]||{};
+            var receiver=profileMap[m.receiver_id]||{};
+            var time=ago(m.created_at);
+            return '<div class="convo-card" onclick="openConvo(\''+m.sender_id+'\',\''+m.receiver_id+'\',\''+esc(sender.display_name||'?')+' &amp; '+esc(receiver.display_name||'?')+'\')">'+
+                '<div class="convo-header">'+
+                '<div class="convo-names" style="flex:1;">'+
+                '<div class="names">'+esc(sender.display_name||sender.username||'?')+' &rarr; '+esc(receiver.display_name||receiver.username||'?')+'</div>'+
+                '<div class="preview">'+esc((m.message||'').substring(0,80))+'</div>'+
+                '</div>'+
+                '<div class="convo-time">'+time+'</div>'+
+                '</div></div>';
+        }).join('');
+    }catch(e){el.innerHTML='<div class="empty">Error: '+e.message+'</div>';}
 }
 
-function renderChat(){
-  var search=(document.getElementById('chatSearch').value||'').toLowerCase();
-  var filtered=allChat.filter(function(m){
-    if(chatFilter!=='all'&&m.room!==chatFilter)return false;
-    if(search){
-      var hay=(m.content||'')+' '+(m.profiles?m.profiles.display_name:'');
-      if(hay.toLowerCase().indexOf(search)===-1)return false;
-    }
-    return true;
-  });
-
-  if(!filtered.length){document.getElementById('chatList').innerHTML='<div class="empty">No chat messages found.</div>';return;}
-
-  var html='';
-  filtered.forEach(function(m){
-    var name=m.profiles?m.profiles.display_name:'Unknown';
-    var tier=m.profiles?m.profiles.age_tier:'adult';
-    var rowClass='msg-row';
-    if(tier==='teen')rowClass+=' teen';
-    if(m.is_hidden)rowClass+=' flagged';
-
-    var tags='<span class="tag tag-room">#'+(m.room||'general')+'</span>';
-    if(tier==='teen')tags+='<span class="tag tag-teen">🔵 Teen</span>';
-    if(m.is_hidden)tags+='<span class="tag tag-hidden">Hidden</span>';
-
-    html+='<div class="'+rowClass+'">'+
-      '<div class="msg-header">'+
-        '<div class="msg-users">'+name+'</div>'+
-        '<div class="msg-time">'+new Date(m.created_at).toLocaleString()+'</div>'+
-      '</div>'+
-      '<div class="msg-content">'+escHtml(m.content)+'</div>'+
-      '<div class="msg-tags">'+tags+
-        '<button class="btn-action btn-hide" onclick="toggleHideChat(\''+m.id+'\','+(!m.is_hidden)+')">'+(m.is_hidden?'Unhide':'Hide')+'</button>'+
-        '<button class="btn-action btn-delete" onclick="deleteChat(\''+m.id+'\')">Delete</button>'+
-      '</div>'+
-    '</div>';
-  });
-  document.getElementById('chatList').innerHTML=html;
+function ago(d){
+    if(!d)return '?';
+    var s=Math.floor((Date.now()-new Date(d).getTime())/1000);
+    if(s<60)return s+'s ago';
+    if(s<3600)return Math.floor(s/60)+'m ago';
+    if(s<86400)return Math.floor(s/3600)+'h ago';
+    return Math.floor(s/86400)+'d ago';
 }
+function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
 
-async function loadKZChat(){
-  // KidZone-specific chat if it exists
-  var res=await db.from('chat_messages')
-    .select('*,profiles(display_name,age_tier)')
-    .eq('room','kidzone')
-    .order('created_at',{ascending:false})
-    .limit(50);
-  var msgs=res.data||[];
-  if(!msgs.length){
-    document.getElementById('kzChatList').innerHTML='<div class="empty">No KidZone chat messages yet.</div>';
-    return;
-  }
-  var html='';
-  msgs.forEach(function(m){
-    var name=m.profiles?m.profiles.display_name:'Unknown';
-    html+='<div class="msg-row kid">'+
-      '<div class="msg-header"><div class="msg-users">'+name+'</div><div class="msg-time">'+new Date(m.created_at).toLocaleString()+'</div></div>'+
-      '<div class="msg-content">'+escHtml(m.content)+'</div>'+
-      '<div class="msg-tags"><span class="tag tag-kid">🧸 KidZone</span>'+
-        '<button class="btn-action btn-hide" onclick="toggleHideChat(\''+m.id+'\','+(!m.is_hidden)+')">'+(m.is_hidden?'Show':'Hide')+'</button>'+
-        '<button class="btn-action btn-delete" onclick="deleteChat(\''+m.id+'\')">Delete</button>'+
-      '</div>'+
-    '</div>';
-  });
-  document.getElementById('kzChatList').innerHTML=html;
-}
-
-// Actions
-window.toggleHideDM=async function(id,hide){
-  await db.from('direct_messages').update({is_hidden:hide}).eq('id',id);
-  await db.from('owner_monitor_log').insert({owner_id:OWNER_ID,action:hide?'hid_dm':'unhid_dm',target_id:id});
-  var m=allDMs.find(function(x){return x.id===id;});if(m)m.is_hidden=hide;
-  renderDMs();loadStats();
-};
-
-window.deleteDM=async function(id){
-  if(!confirm('Permanently delete this DM?'))return;
-  await db.from('direct_messages').delete().eq('id',id);
-  await db.from('owner_monitor_log').insert({owner_id:OWNER_ID,action:'deleted_dm',target_id:id});
-  allDMs=allDMs.filter(function(x){return x.id!==id;});
-  renderDMs();loadStats();
-};
-
-window.toggleHideChat=async function(id,hide){
-  await db.from('chat_messages').update({is_hidden:hide}).eq('id',id);
-  var m=allChat.find(function(x){return x.id===id;});if(m)m.is_hidden=hide;
-  renderChat();
-};
-
-window.deleteChat=async function(id){
-  if(!confirm('Permanently delete this chat message?'))return;
-  await db.from('chat_messages').delete().eq('id',id);
-  allChat=allChat.filter(function(x){return x.id!==id;});
-  renderChat();loadStats();
-};
-
-window.viewThread=async function(uid1,uid2){
-  // Load full conversation between two users
-  var res=await db.from('direct_messages')
-    .select('*,sender:profiles!direct_messages_sender_id_fkey(display_name),receiver:profiles!direct_messages_receiver_id_fkey(display_name)')
-    .or('and(sender_id.eq.'+uid1+',receiver_id.eq.'+uid2+'),and(sender_id.eq.'+uid2+',receiver_id.eq.'+uid1+')')
-    .order('created_at',{ascending:true});
-  var msgs=res.data||[];
-  var html='<div style="margin-bottom:.75rem;"><button class="btn-action btn-view" onclick="renderDMs()">← Back to all DMs</button></div>';
-  if(!msgs.length){html+='<div class="empty">No messages in this thread.</div>';}
-  msgs.forEach(function(m){
-    var sName=m.sender?m.sender.display_name:'?';
-    html+='<div class="msg-row" style="border-left:3px solid var(--primary);">'+
-      '<div class="msg-header"><div class="msg-users"><strong>'+sName+'</strong></div><div class="msg-time">'+new Date(m.created_at).toLocaleString()+'</div></div>'+
-      '<div class="msg-content">'+escHtml(m.content)+'</div>'+
-    '</div>';
-  });
-  document.getElementById('dmList').innerHTML=html;
-};
-
-// Stealth
-window.toggleStealth=function(){
-  stealthMode=!stealthMode;
-  var dot=document.getElementById('stealthDot');
-  var label=document.getElementById('stealthLabel');
-  var btn=document.getElementById('stealthBtn');
-  if(stealthMode){dot.className='stealth-dot stealth-on';label.textContent='Anonymous Mode: ON';btn.textContent='Switch to Visible';}
-  else{dot.className='stealth-dot stealth-off';label.textContent='Anonymous Mode: OFF';btn.textContent='Switch to Anonymous';}
-  db.from('owner_monitor_log').insert({owner_id:OWNER_ID,action:'stealth_toggle',details:{stealth:stealthMode}}).catch(function(){});
-};
-
-// Filters
-window.setDMFilter=function(f,el){dmFilter=f;document.querySelectorAll('#panel-dms .filter-btn').forEach(function(b){b.classList.remove('active');});el.classList.add('active');renderDMs();};
-window.setChatFilter=function(f,el){chatFilter=f;document.querySelectorAll('#panel-chat .filter-btn').forEach(function(b){b.classList.remove('active');});el.classList.add('active');renderChat();};
-window.filterDMs=function(){renderDMs();};
-window.filterChat=function(){renderChat();};
-window.loadMoreDMs=function(){loadDMs();};
-window.loadMoreChat=function(){loadChat();};
-
-window.switchTab=function(name,el){
-  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
-  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
-  el.classList.add('active');
-  var panel=document.getElementById('panel-'+name);if(panel)panel.classList.add('active');
-};
-
-function escHtml(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-</script>
-
-<!-- Avatar toggle (safe — NO MutationObserver) -->
-<script>
-(function(){function updateVisibility(){var s=localStorage.getItem('showAvatarBubbles')!=='false';document.querySelectorAll('.avatar-bubble,.chat-bubble-float').forEach(function(e){e.style.display=s?'':'none';});}updateVisibility();})();
+init();
 </script>
 </body>
 </html>
