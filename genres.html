@@ -50,6 +50,7 @@
 
         .empty-state { text-align: center; padding: 2rem; color: var(--text-dim); }
         .empty-state .emoji { font-size: 2.5rem; margin-bottom: 0.75rem; }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
         @media (max-width: 500px) {
             .genre-grid { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
@@ -132,8 +133,11 @@
             var r = await db.from('songs').select('genre').or('is_beat.is.null,is_beat.eq.false');
             if (r.data) {
                 r.data.forEach(function(s) {
-                    var g = s.genre || 'Other';
-                    genreCounts[g] = (genreCounts[g] || 0) + 1;
+                    var g = (s.genre || 'Other').trim();
+                    // Match to predefined genre (case-insensitive)
+                    var matched = genres.find(function(pg) { return pg.id.toLowerCase() === g.toLowerCase(); });
+                    var key = matched ? matched.id : 'Other';
+                    genreCounts[key] = (genreCounts[key] || 0) + 1;
                 });
             }
         } catch(e) {}
@@ -176,7 +180,7 @@
         var songs = [];
         try {
             var r = await db.from('songs').select('id,title,artist,cover_art,song_url,play_count,uploaded_by')
-                .eq('genre', genre.name)
+                .ilike('genre', genre.name)
                 .or('is_beat.is.null,is_beat.eq.false')
                 .order('play_count', { ascending: false }).limit(30);
             if (r.data) songs = r.data;
