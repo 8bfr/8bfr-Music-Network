@@ -67,15 +67,16 @@
     <div class="container">
         <!-- STATS -->
         <div class="stats-grid" id="statsGrid">
-            <div class="stat-card"><h3 id="statUsers">—</h3><p>Total Users</p></div>
-            <div class="stat-card"><h3 id="statVerified">—</h3><p>✓ Verified Artists</p></div>
-            <div class="stat-card"><h3 id="statArtists">—</h3><p>🎤 Artists</p></div>
-            <div class="stat-card"><h3 id="statBeatmakers">—</h3><p>🎚️ Beatmakers</p></div>
-            <div class="stat-card"><h3 id="statFans">—</h3><p>🎧 Fans</p></div>
-            <div class="stat-card"><h3 id="statSongs">—</h3><p>🎵 Songs</p></div>
-            <div class="stat-card"><h3 id="statBeats">—</h3><p>🎹 Beats</p></div>
-            <div class="stat-card"><h3 id="statPosts">—</h3><p>📝 Posts</p></div>
-            <div class="stat-card"><h3 id="statRevenue">$0</h3><p>💰 Revenue</p></div>
+            <div class="stat-card"><h3 id="statUsers">--</h3><p>Total Users</p></div>
+            <div class="stat-card"><h3 id="statVerifiedArtists">--</h3><p>Verified Artists</p></div>
+            <div class="stat-card"><h3 id="statVerifiedBeatmakers">--</h3><p>Verified Beatmakers</p></div>
+            <div class="stat-card"><h3 id="statVerifiedUsers">--</h3><p>Verified Users</p></div>
+            <div class="stat-card"><h3 id="statArtists">--</h3><p>Artists</p></div>
+            <div class="stat-card"><h3 id="statBeatmakers">--</h3><p>Beatmakers</p></div>
+            <div class="stat-card"><h3 id="statFans">--</h3><p>Fans</p></div>
+            <div class="stat-card"><h3 id="statSongs">--</h3><p>Songs</p></div>
+            <div class="stat-card"><h3 id="statBeats">--</h3><p>Beats</p></div>
+            <div class="stat-card"><h3 id="statPosts">--</h3><p>Posts</p></div>
         </div>
 
         <!-- TABS -->
@@ -199,35 +200,45 @@
         loadStories();
     })();
 
-    // ★ FIXED: window.loadStats — accurate counts
+    // Stats - accurate counts
     window.loadStats = async function() {
         try {
-            // Total users
             var u = await db.from('profiles').select('id', { count: 'exact', head: true });
             var el = document.getElementById('statUsers');
             if (el) el.textContent = u.count || 0;
         } catch(e) {}
 
-        // Role counts — count by ACTUAL role field + verified_artist for verified count
         try {
             var r = await db.from('profiles').select('role,badges,verified_artist');
             var d = r.data || [];
 
-            // Verified = only those with verified_artist = true in database
-            var verified = d.filter(function(p) { return p.verified_artist === true; }).length;
+            // Verified Artists: verified_artist=true AND role is artist or has artist badge
+            var verifiedArtists = d.filter(function(p) {
+                return p.verified_artist === true && (p.role === 'artist' || (p.badges || []).indexOf('artist') !== -1);
+            }).length;
 
-            // Artists = role is artist (not badge — role is set by owner)
-            var artists = d.filter(function(p) { return p.role === 'artist'; }).length;
+            // Verified Beatmakers: verified_artist=true AND role is beatmaker or has beatmaker badge
+            var verifiedBeatmakers = d.filter(function(p) {
+                return p.verified_artist === true && (p.role === 'beatmaker' || p.role === 'producer' || (p.badges || []).indexOf('beatmaker') !== -1);
+            }).length;
 
-            // Beatmakers = role is beatmaker or producer
-            var beats = d.filter(function(p) { return p.role === 'beatmaker' || p.role === 'producer'; }).length;
+            // Verified Users: total with verified_artist=true (all verified checkmarks)
+            var verifiedUsers = d.filter(function(p) { return p.verified_artist === true; }).length;
 
-            // Fans = role is fan
-            var fans = d.filter(function(p) { return p.role === 'fan'; }).length;
+            // Artists by role
+            var artists = d.filter(function(p) { return p.role === 'artist' || (p.badges || []).indexOf('artist') !== -1; }).length;
 
-            var elV = document.getElementById('statVerified'); if (elV) elV.textContent = verified;
+            // Beatmakers by role
+            var beatmakers = d.filter(function(p) { return p.role === 'beatmaker' || p.role === 'producer' || (p.badges || []).indexOf('beatmaker') !== -1; }).length;
+
+            // Fans
+            var fans = d.filter(function(p) { return p.role === 'fan' || p.role === 'supporter'; }).length;
+
+            var eVA = document.getElementById('statVerifiedArtists'); if (eVA) eVA.textContent = verifiedArtists;
+            var eVB = document.getElementById('statVerifiedBeatmakers'); if (eVB) eVB.textContent = verifiedBeatmakers;
+            var eVU = document.getElementById('statVerifiedUsers'); if (eVU) eVU.textContent = verifiedUsers;
             var el1 = document.getElementById('statArtists'); if (el1) el1.textContent = artists;
-            var el2 = document.getElementById('statBeatmakers'); if (el2) el2.textContent = beats;
+            var el2 = document.getElementById('statBeatmakers'); if (el2) el2.textContent = beatmakers;
             var el3 = document.getElementById('statFans'); if (el3) el3.textContent = fans;
         } catch(e) { console.warn('Role count error:', e); }
 
@@ -280,11 +291,12 @@
             var isOwnerRow = u.user_id === OWNER_ID;
             var actions = '<div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.3rem;">';
             actions += '<a href="profile.html?id=' + u.user_id + '" class="btn-sm btn-view" style="text-decoration:none;">View</a>';
+            // Owner can edit self but not delete self or change own role
+            actions += '<button class="btn-sm btn-view" onclick="changeRole(\'' + u.user_id + '\',\'' + (u.display_name||u.username||'User').replace(/'/g,'') + '\',\'' + (u.role||'fan') + '\')">Role</button>';
+            actions += u.verified_artist
+                ? '<button class="btn-sm" style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#fca5a5;" onclick="toggleVerify(\'' + u.user_id + '\',false)">Unverify</button>'
+                : '<button class="btn-sm" style="background:rgba(0,217,255,.1);border:1px solid rgba(0,217,255,.3);color:#00d9ff;" onclick="toggleVerify(\'' + u.user_id + '\',true)">Verify</button>';
             if (!isOwnerRow) {
-                actions += '<button class="btn-sm btn-view" onclick="changeRole(\'' + u.user_id + '\',\'' + (u.display_name||u.username||'User').replace(/'/g,'') + '\',\'' + (u.role||'fan') + '\')">Role</button>';
-                actions += u.verified_artist
-                    ? '<button class="btn-sm" style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#fca5a5;" onclick="toggleVerify(\'' + u.user_id + '\',false)">Unverify</button>'
-                    : '<button class="btn-sm" style="background:rgba(0,217,255,.1);border:1px solid rgba(0,217,255,.3);color:#00d9ff;" onclick="toggleVerify(\'' + u.user_id + '\',true)">Verify</button>';
                 actions += '<button class="btn-sm btn-del" onclick="deleteUser(\'' + u.user_id + '\',\'' + (u.display_name||u.username||'User').replace(/'/g,'') + '\')">Delete</button>';
             }
             actions += '</div>';
@@ -387,6 +399,7 @@
 
     // ═══ USER MANAGEMENT FUNCTIONS ═══
     window.changeRole = async function(userId, name, currentRole) {
+        if (userId === OWNER_ID && currentRole === 'owner') { alert('Owner role cannot be changed on the owner account.'); return; }
         var roles = ['fan','artist','beatmaker','producer','songwriter','dj','singer','rapper','engineer','dancer','videographer','photographer','manager','label','promoter','admin','mod','co-owner'];
         var pick = prompt('Change role for ' + name + '\nCurrent: ' + currentRole + '\n\nOptions:\n' + roles.join(', ') + '\n\nType new role:');
         if (!pick) return;
@@ -394,7 +407,7 @@
         if (roles.indexOf(pick) === -1) { alert('Invalid role.'); return; }
         var res = await db.from('profiles').update({ role: pick }).eq('user_id', userId);
         if (res.error) { alert('Error: ' + res.error.message); return; }
-        alert('✅ ' + name + ' is now ' + pick);
+        alert('Done. ' + name + ' is now ' + pick);
         loadUsers();
     };
 
@@ -415,6 +428,7 @@
     };
 
     window.deleteUser = async function(userId, name) {
+        if (userId === OWNER_ID) { alert('Cannot delete the owner account.'); return; }
         if (!confirm('⚠️ DELETE ' + name + '?\n\nThis will remove their profile, posts, songs, and all data.\n\nYou must ALSO delete them from Supabase Dashboard → Authentication → Users.\n\nContinue?')) return;
         if (!confirm('FINAL WARNING: This cannot be undone. Delete ' + name + '?')) return;
         try {
