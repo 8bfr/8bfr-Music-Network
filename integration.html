@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Integrations — 8BFR Music Network</title>
+<title>Integrations - 8BFR Music Network</title>
 <link rel="icon" href="assets/images/favicon.png">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--primary:#7c3aed;--dark:#0b0014;--card:#0c0618;--text:#eae6ff;--dim:#a855f7;--border:rgba(124,58,237,.35);}
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -16,56 +17,166 @@ body{font-family:'Work Sans',sans-serif;background:linear-gradient(#0b0014,#000)
 .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.5rem;margin-bottom:1.25rem;}
 .card h2{color:var(--primary);font-family:'Bebas Neue',cursive;font-size:1.3rem;margin-bottom:.75rem;}
 .int-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.75rem;}
-.int-card{background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:10px;padding:1rem;text-align:center;transition:all .2s;}
-.int-card:hover{border-color:var(--primary);}
-.int-icon{font-size:1.8rem;margin-bottom:.4rem;}
+.int-card{background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:10px;padding:1rem;text-align:center;transition:all .2s;cursor:pointer;}
+.int-card:hover{border-color:var(--primary);transform:translateY(-2px);}
+.int-card.is-connected{border-color:rgba(34,197,94,.4);}
+.int-icon{font-size:1.5rem;margin-bottom:.4rem;font-weight:900;}
 .int-name{font-weight:700;font-size:.85rem;margin-bottom:.15rem;}
 .int-status{font-size:.68rem;padding:.15rem .4rem;border-radius:4px;display:inline-block;}
 .connected{background:rgba(34,197,94,.15);color:#4ade80;}
-.available{background:rgba(124,58,237,.15);color:var(--dim);}
+.not-connected{background:rgba(124,58,237,.15);color:var(--dim);}
 .coming{background:rgba(251,191,36,.1);color:#fbbf24;}
 .info-box{background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.25);border-radius:10px;padding:.75rem 1rem;font-size:.85rem;color:var(--dim);line-height:1.6;margin-bottom:1.25rem;}
+.modal{display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.85);align-items:center;justify-content:center;padding:1rem;}
+.modal.show{display:flex;}
+.modal-box{background:rgba(12,6,24,.98);border:1px solid var(--primary);border-radius:16px;padding:1.5rem;max-width:420px;width:100%;}
+.modal-box h3{font-family:'Bebas Neue',cursive;color:var(--primary);font-size:1.2rem;margin-bottom:.75rem;}
+.form-input{width:100%;padding:.55rem .75rem;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.88rem;outline:none;font-family:inherit;margin-bottom:.75rem;}
+.form-input:focus{border-color:var(--primary);}
+.btn{background:var(--primary);color:#fff;border:none;padding:.55rem 1.1rem;border-radius:8px;cursor:pointer;font-weight:600;font-size:.85rem;}
+.btn-ghost{background:rgba(124,58,237,.15);border:1px solid var(--border);color:var(--dim);}
+.btn-red{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.25);color:#fca5a5;}
 </style>
 </head>
 <body>
-<div class="header"><a href="feed.html">← Back</a><h1>🔗 Integrations</h1><div></div></div>
+<div class="header"><a href="feed.html">Back</a><h1>Integrations</h1><div></div></div>
 <div class="container">
 
-<div class="info-box">Connect your streaming platforms and social accounts to sync your music presence across the web. Add links in your <a href="profile.html" style="color:var(--primary);font-weight:600;">Profile Settings</a>.</div>
+<div class="info-box">Connect your streaming platforms and social accounts. Click any card to add or update your link. Connected platforms show a green border.</div>
 
 <div class="card">
-<h2>🎵 Music Platforms</h2>
-<div class="int-grid">
-<div class="int-card"><div class="int-icon"><span style="color:#1db954;font-weight:900;">S</span></div><div class="int-name">Spotify</div><div class="int-status available">Add in Profile</div></div>
-<div class="int-card"><div class="int-icon"><span style="color:#fa233b;">♫</span></div><div class="int-name">Apple Music</div><div class="int-status available">Add in Profile</div></div>
-<div class="int-card"><div class="int-icon"><span style="color:#ff5500;font-weight:900;">SC</span></div><div class="int-name">SoundCloud</div><div class="int-status available">Add in Profile</div></div>
-<div class="int-card"><div class="int-icon"><span style="color:#00b4d8;font-weight:900;">BS</span></div><div class="int-name">BeatStars</div><div class="int-status available">Add in Profile</div></div>
-<div class="int-card"><div class="int-icon"><span style="color:#dc3545;font-weight:900;">BL</span></div><div class="int-name">BandLab</div><div class="int-status available">Add in Profile</div></div>
-<div class="int-card"><div class="int-icon"><span style="color:#ffa800;font-weight:900;">AM</span></div><div class="int-name">Audiomack</div><div class="int-status available">Add in Profile</div></div>
-</div>
+<h2>Music Platforms</h2>
+<div class="int-grid" id="musicGrid"></div>
 </div>
 
 <div class="card">
-<h2>📱 Social Platforms</h2>
-<div class="int-grid">
-<div class="int-card"><div class="int-icon"><span style="color:#ff0000;">▶</span></div><div class="int-name">YouTube</div><div class="int-status available">Add in Profile</div></div>
-<div class="int-card"><div class="int-icon"><span style="color:#e1306c;font-weight:900;">IG</span></div><div class="int-name">Instagram</div><div class="int-status available">Add in Profile</div></div>
-<div class="int-card"><div class="int-icon"><span style="font-weight:900;">𝕏</span></div><div class="int-name">X / Twitter</div><div class="int-status available">Add in Profile</div></div>
-<div class="int-card"><div class="int-icon"><span style="color:#69C9D0;font-weight:900;">TT</span></div><div class="int-name">TikTok</div><div class="int-status available">Add in Profile</div></div>
-<div class="int-card"><div class="int-icon"><span style="color:#5865f2;font-weight:900;">DC</span></div><div class="int-name">Discord</div><div class="int-status available">Add in Profile</div></div>
-<div class="int-card"><div class="int-icon"><span style="color:#9146ff;font-weight:900;">TV</span></div><div class="int-name">Twitch</div><div class="int-status available">Add in Profile</div></div>
-</div>
+<h2>Social Platforms</h2>
+<div class="int-grid" id="socialGrid"></div>
 </div>
 
 <div class="card">
-<h2>🔮 Coming Soon</h2>
+<h2>Coming Soon</h2>
 <div class="int-grid">
-<div class="int-card"><div class="int-icon">🎵</div><div class="int-name">Suno AI</div><div class="int-status coming">Coming Soon</div></div>
-<div class="int-card"><div class="int-icon">🎬</div><div class="int-name">Runway ML</div><div class="int-status coming">Coming Soon</div></div>
-<div class="int-card"><div class="int-icon">📊</div><div class="int-name">DistroKid</div><div class="int-status coming">Coming Soon</div></div>
+<div class="int-card" style="cursor:default;"><div class="int-icon">~</div><div class="int-name">Suno AI</div><div class="int-status coming">Coming Soon</div></div>
+<div class="int-card" style="cursor:default;"><div class="int-icon">~</div><div class="int-name">Runway ML</div><div class="int-status coming">Coming Soon</div></div>
+<div class="int-card" style="cursor:default;"><div class="int-icon">~</div><div class="int-name">DistroKid</div><div class="int-status coming">Coming Soon</div></div>
 </div>
 </div>
 
+<div style="text-align:center;padding:1rem 0;font-size:.72rem;color:rgba(168,85,247,.3);">Copyright 2025-2026 8BFR Music Network</div>
 </div>
+
+<div class="modal" id="linkModal">
+<div class="modal-box">
+<h3 id="lmTitle">Add Link</h3>
+<p style="font-size:.82rem;color:var(--dim);margin-bottom:.75rem;" id="lmHint">Paste your full URL below.</p>
+<input class="form-input" id="lmUrl" placeholder="https://...">
+<div style="display:flex;gap:.5rem;justify-content:flex-end;">
+<button class="btn-ghost btn" onclick="closeLinkModal()">Cancel</button>
+<button class="btn-red btn" id="lmRemove" onclick="removeLink()" style="display:none;">Remove</button>
+<button class="btn" onclick="saveLink()">Save</button>
+</div>
+</div>
+</div>
+
 <script src="scripts.js" defer></script>
-</body></html>
+<script>
+var db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
+var currentUser=null;
+var profileData={};
+var editingKey=null;
+
+var musicPlatforms=[
+  {key:'spotify_url',name:'Spotify',icon:'<span style="color:#1db954;font-weight:900;">S</span>',hint:'Paste your Spotify artist or profile URL'},
+  {key:'apple_music_url',name:'Apple Music',icon:'<span style="color:#fa233b;font-weight:900;">A</span>',hint:'Paste your Apple Music artist URL'},
+  {key:'soundcloud_url',name:'SoundCloud',icon:'<span style="color:#ff5500;font-weight:900;">SC</span>',hint:'Paste your SoundCloud profile URL'},
+  {key:'beatstars_url',name:'BeatStars',icon:'<span style="color:#00b4d8;font-weight:900;">BS</span>',hint:'Paste your BeatStars profile URL'},
+  {key:'bandlab_url',name:'BandLab',icon:'<span style="color:#dc3545;font-weight:900;">BL</span>',hint:'Paste your BandLab profile URL'},
+  {key:'audiomack_url',name:'Audiomack',icon:'<span style="color:#ffa800;font-weight:900;">AM</span>',hint:'Paste your Audiomack profile URL'}
+];
+
+var socialPlatforms=[
+  {key:'youtube_url',name:'YouTube',icon:'<span style="color:#ff0000;font-weight:900;">YT</span>',hint:'Paste your YouTube channel URL'},
+  {key:'instagram_url',name:'Instagram',icon:'<span style="color:#e1306c;font-weight:900;">IG</span>',hint:'Paste your Instagram profile URL'},
+  {key:'twitter_url',name:'X / Twitter',icon:'<span style="font-weight:900;">X</span>',hint:'Paste your X/Twitter profile URL'},
+  {key:'tiktok_url',name:'TikTok',icon:'<span style="color:#69C9D0;font-weight:900;">TT</span>',hint:'Paste your TikTok profile URL'},
+  {key:'discord_url',name:'Discord',icon:'<span style="color:#5865f2;font-weight:900;">DC</span>',hint:'Paste your Discord invite or profile URL'},
+  {key:'twitch_url',name:'Twitch',icon:'<span style="color:#9146ff;font-weight:900;">TV</span>',hint:'Paste your Twitch channel URL'}
+];
+
+async function init(){
+  try{
+    var s=await db.auth.getSession();
+    currentUser=s.data.session?s.data.session.user:null;
+  }catch(e){}
+  if(currentUser){
+    try{
+      var r=await db.from('profiles').select('*').eq('user_id',currentUser.id).single();
+      profileData=r.data||{};
+    }catch(e){}
+  }
+  renderGrid('musicGrid',musicPlatforms);
+  renderGrid('socialGrid',socialPlatforms);
+}
+
+function renderGrid(elId,platforms){
+  var el=document.getElementById(elId);
+  el.innerHTML=platforms.map(function(p){
+    var url=profileData[p.key]||'';
+    var connected=!!url;
+    var statusHtml=connected
+      ?'<div class="int-status connected">Connected</div>'
+      :(currentUser?'<div class="int-status not-connected">Click to add</div>':'<div class="int-status not-connected">Login to add</div>');
+    var cls='int-card'+(connected?' is-connected':'');
+    var safeHint=p.hint.replace(/'/g,'');
+    return '<div class="'+cls+'" onclick="openLinkModal(\''+p.key+'\',\''+p.name+'\',\''+safeHint+'\')">'+
+      '<div class="int-icon">'+p.icon+'</div>'+
+      '<div class="int-name">'+p.name+'</div>'+
+      statusHtml+'</div>';
+  }).join('');
+}
+
+function openLinkModal(key,name,hint){
+  if(!currentUser){alert('Log in to add links.');return;}
+  editingKey=key;
+  document.getElementById('lmTitle').textContent=name;
+  document.getElementById('lmHint').textContent=hint;
+  document.getElementById('lmUrl').value=profileData[key]||'';
+  document.getElementById('lmRemove').style.display=profileData[key]?'inline-block':'none';
+  document.getElementById('linkModal').classList.add('show');
+}
+
+function closeLinkModal(){document.getElementById('linkModal').classList.remove('show');editingKey=null;}
+
+async function saveLink(){
+  if(!editingKey||!currentUser)return;
+  var url=document.getElementById('lmUrl').value.trim();
+  var update={};
+  update[editingKey]=url||null;
+  try{
+    await db.from('profiles').update(update).eq('user_id',currentUser.id);
+    profileData[editingKey]=url||null;
+    renderGrid('musicGrid',musicPlatforms);
+    renderGrid('socialGrid',socialPlatforms);
+    closeLinkModal();
+  }catch(e){alert('Error: '+e.message);}
+}
+
+async function removeLink(){
+  if(!editingKey||!currentUser)return;
+  var update={};
+  update[editingKey]=null;
+  try{
+    await db.from('profiles').update(update).eq('user_id',currentUser.id);
+    profileData[editingKey]=null;
+    renderGrid('musicGrid',musicPlatforms);
+    renderGrid('socialGrid',socialPlatforms);
+    closeLinkModal();
+  }catch(e){alert('Error: '+e.message);}
+}
+
+document.getElementById('linkModal').addEventListener('click',function(e){if(e.target===this)closeLinkModal();});
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+</script>
+</body>
+</html>
