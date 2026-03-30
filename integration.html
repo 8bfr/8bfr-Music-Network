@@ -127,12 +127,13 @@ function renderGrid(elId,platforms){
     var statusHtml=connected
       ?'<div class="int-status connected">Connected</div>'
       :(currentUser?'<div class="int-status not-connected">Click to add</div>':'<div class="int-status not-connected">Login to add</div>');
+    var visitLink=connected?'<a href="'+url+'" target="_blank" onclick="event.stopPropagation();" style="display:inline-block;margin-top:.35rem;font-size:.7rem;color:#4ade80;text-decoration:underline;">Visit</a>':'';
     var cls='int-card'+(connected?' is-connected':'');
     var safeHint=p.hint.replace(/'/g,'');
     return '<div class="'+cls+'" onclick="openLinkModal(\''+p.key+'\',\''+p.name+'\',\''+safeHint+'\')">'+
       '<div class="int-icon">'+p.icon+'</div>'+
       '<div class="int-name">'+p.name+'</div>'+
-      statusHtml+'</div>';
+      statusHtml+visitLink+'</div>';
   }).join('');
 }
 
@@ -151,10 +152,19 @@ function closeLinkModal(){document.getElementById('linkModal').classList.remove(
 async function saveLink(){
   if(!editingKey||!currentUser)return;
   var url=document.getElementById('lmUrl').value.trim();
+  if(url&&!url.startsWith('http')){url='https://'+url;}
   var update={};
   update[editingKey]=url||null;
   try{
-    await db.from('profiles').update(update).eq('user_id',currentUser.id);
+    var {error}=await db.from('profiles').update(update).eq('user_id',currentUser.id);
+    if(error){
+      if(error.message&&error.message.indexOf('column')!==-1){
+        alert('This platform is not set up yet. Please run the integration SQL in Supabase first.');
+      }else{
+        alert('Error saving: '+error.message);
+      }
+      return;
+    }
     profileData[editingKey]=url||null;
     renderGrid('musicGrid',musicPlatforms);
     renderGrid('socialGrid',socialPlatforms);
@@ -164,10 +174,12 @@ async function saveLink(){
 
 async function removeLink(){
   if(!editingKey||!currentUser)return;
+  if(!confirm('Remove this link?'))return;
   var update={};
   update[editingKey]=null;
   try{
-    await db.from('profiles').update(update).eq('user_id',currentUser.id);
+    var {error}=await db.from('profiles').update(update).eq('user_id',currentUser.id);
+    if(error){alert('Error: '+error.message);return;}
     profileData[editingKey]=null;
     renderGrid('musicGrid',musicPlatforms);
     renderGrid('socialGrid',socialPlatforms);
