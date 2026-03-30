@@ -272,6 +272,7 @@ textarea.form-input{min-height:60px;resize:vertical;}
   </div>
 </div>
 
+<div style="text-align:center;padding:1rem 0;font-size:.72rem;color:rgba(168,85,247,.3);">Copyright 2025-2026 8BFR Music Network</div>
 <script src="scripts.js" defer></script>
 <script>
 var db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
@@ -281,11 +282,11 @@ var currentTab='search';
 var ALL_ROLES=['fan','artist','beatmaker','producer','songwriter','dj','singer','rapper','engineer','dancer','videographer','photographer','manager','label','promoter','journalist','educator','influencer','designer','author','blogger','community_leader','mentor','developer','streamer','gamer','filmmaker','podcaster','musician','student','brand_ambassador'];
 var STAFF_ROLES=['owner','co-owner','admin','mod','g7'];
 var PROMOTE_OPTIONS=[
-  {role:'co-owner',label:'Co-Owner',icon:'\u{1f451}',cls:'role-co-owner'},
-  {role:'admin',label:'Admin',icon:'\u2699\ufe0f',cls:'role-admin'},
-  {role:'mod',label:'Mod',icon:'\u{1f4ac}',cls:'role-mod'},
-  {role:'g7',label:'G7',icon:'\u{1f451}',cls:'role-g7'},
-  {role:'verified',label:'Verified',icon:'\u{1f6e1}\ufe0f',cls:'role-verified'}
+  {role:'co-owner',label:'Co-Owner',icon:'Crown',cls:'role-co-owner'},
+  {role:'admin',label:'Admin',icon:'Gear',cls:'role-admin'},
+  {role:'mod',label:'Mod',icon:'Chat',cls:'role-mod'},
+  {role:'g7',label:'G7',icon:'Crown',cls:'role-g7'},
+  {role:'verified',label:'Verified',icon:'Shield',cls:'role-verified'}
 ];
 var BADGE_OPTIONS=['owner','co-owner','admin','mod','g7','verified','artist','beatmaker','producer','songwriter','dj','singer','rapper','engineer','dancer','videographer','photographer','manager','label','promoter','journalist','educator','influencer','designer','author','blogger','community_leader','mentor','developer','streamer','gamer','filmmaker','podcaster','musician','student','brand_ambassador','founding_member','beta_tester','top_poster','top_supporter','vip'];
 
@@ -296,7 +297,7 @@ async function init(){
   if(!s.data.session){location.href='login.html';return;}
   var pr=await db.from('profiles').select('role').eq('user_id',s.data.session.user.id).single();
   if(!pr.data||pr.data.role!=='owner'){
-    document.getElementById('userList').innerHTML='<div class="empty">\u{1f512} Owner access only.</div>';
+    document.getElementById('userList').innerHTML='<div class="empty">Lock Owner access only.</div>';
     return;
   }
   populateRoleSelects();
@@ -388,7 +389,7 @@ function renderUsers(users){
   el.innerHTML=users.map(function(u){
     var av=u.avatar_url?'<img src="'+esc(u.avatar_url)+'" onerror="this.parentNode.textContent=\'👤\'">':'👤';
     var allBadges=u.badges||[];
-    var badgeHtml=allBadges.slice(0,8).map(function(b){
+    var badgeHtml=allBadges.map(function(b){
       var cls='role-badge ';
       if(STAFF_ROLES.indexOf(b)!==-1)cls+='role-'+(b==='co-owner'?'co-owner':b);
       else if(b==='verified')cls+='role-verified';
@@ -414,10 +415,14 @@ function renderUsers(users){
       else actions+='<button class="btn-sm btn-green" onclick="toggleBan(\''+u.user_id+'\',false)">🔓 Unban</button>';
       actions+='<button class="btn-sm btn-red" onclick="deleteUser(\''+u.user_id+'\',\''+esc(u.username||'')+'\')">🗑️</button>';
     }else{
-      // Owner can edit self but not delete
+      // Owner can edit self, verify, promote — just not delete
       actions+='<button class="btn-sm btn-cyan" onclick="openEditUser(\''+u.user_id+'\')">Edit</button>';
-      actions+='<span style="font-size:.7rem;color:var(--gold);margin-left:.3rem;">Cannot delete owner</span>';
-  }
+      PROMOTE_OPTIONS.forEach(function(opt){
+        var has=allBadges.indexOf(opt.role)!==-1||u.role===opt.role;
+        if(has)actions+='<button class="btn-sm btn-red" onclick="demoteUser(\''+u.user_id+'\',\''+opt.role+'\')">x '+opt.icon+'</button>';
+        else actions+='<button class="btn-sm btn-ghost" onclick="promoteUser(\''+u.user_id+'\',\''+opt.role+'\')">+ '+opt.icon+' '+opt.label+'</button>';
+      });
+      actions+='<span style="font-size:.68rem;color:var(--gold);margin-left:.3rem;">Delete protected</span>';
     }
     var coins=u.coins||0;
     var dateStr=u.created_at?new Date(u.created_at).toLocaleDateString():'';
@@ -618,6 +623,7 @@ window.toggleBan=async function(uid,ban){
   try{var r=await db.from('profiles').update({is_banned:ban}).eq('user_id',uid);if(r.error)throw r.error;alert(ban?'🚫 Banned.':'✅ Unbanned.');refreshCurrentView();}catch(e){alert('Error: '+e.message);}
 };
 window.deleteUser=async function(uid,uname){
+  if(uid===OWNER_ID){alert('Cannot delete the owner account.');return;}
   if(!confirm('⚠️ DELETE user @'+uname+'?\n\nThis removes their profile, posts, songs, and all data.\n\nYou must ALSO delete from Supabase Dashboard → Auth → Users.'))return;
   if(!confirm('FINAL WARNING: This cannot be undone. Delete @'+uname+'?'))return;
   try{
