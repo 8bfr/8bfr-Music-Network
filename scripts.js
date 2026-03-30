@@ -279,7 +279,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
       <a href="search.html" class="menu-chip menu-chip-network"><span class="menu-label-main">Network</span><span class="menu-label-alt">Search</span></a>\
       <a href="feed.html" class="menu-chip">&#x1F4F0; Community Feed</a>\
       <a href="radio.html" class="menu-chip">&#x1F4FB; Radio</a>\
-      <a href="live.html" class="menu-chip">&#x1F4E1; Live Stream Mirror</a>\
+      <a href="live.html" class="menu-chip">&#x1F4E1; Live</a>\
       <a href="ai-tools.html" class="menu-chip">&#x1F916; AI Tools</a>\
       <a href="featured.html" class="menu-chip">&#x2B50; Featured Artist</a>\
       <a href="featured-songs.html" class="menu-chip">&#x1F3B5; Featured Songs</a>\
@@ -298,6 +298,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
       <a href="song.html" class="menu-chip">&#x1F3B5; Songs</a>\
       <a href="singles.html" class="menu-chip">&#x1F4BF; Singles</a>\
       <a href="albums.html" class="menu-chip">&#x1F4C0; Albums</a>\
+      <a href="beats.html" class="menu-chip">&#x1F941; Beats</a>\
       <a href="beats-store.html" class="menu-chip">&#x1F6D2; Beat Store</a>\
       <a href="playlists.html" class="menu-chip">&#x25B6;&#xFE0F; Playlists</a>\
       <a href="genres.html" class="menu-chip">&#x1F3BC; Genres</a>\
@@ -647,7 +648,26 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
 
     function endAll(e) { if (e && e.touches && e.touches.length > 0) return; dragging2 = false; pinchActive = false; mouseResizeActive = false; }
 
-    avatarVideos.forEach(function(v) { try { v.muted = true; v.autoplay = true; v.playsInline = true; v.play().catch(function(){}); } catch(e){} });
+    // Only ensure the active avatar video plays (not all 9)
+    avatarVideos.forEach(function(v) {
+      v.muted = true; v.playsInline = true;
+      if(v.classList.contains('active')){ try{v.play().catch(function(){});}catch(e){} }
+      else { try{v.pause();}catch(e){} }
+    });
+
+    // Pause avatar video when any audio plays on the page (mobile resource conflict)
+    document.addEventListener('play', function(e) {
+      if(e.target.tagName==='AUDIO'){
+        avatarVideos.forEach(function(v){ try{v.pause();}catch(ex){} });
+      }
+    }, true);
+    document.addEventListener('pause', function(e) {
+      if(e.target.tagName==='AUDIO'){
+        avatarVideos.forEach(function(v){
+          if(v.classList.contains('active')){ try{v.play().catch(function(){});}catch(ex){} }
+        });
+      }
+    }, true);
 
     var contact = document.getElementById("bubble-contact");
     var donate = document.getElementById("bubble-donate");
