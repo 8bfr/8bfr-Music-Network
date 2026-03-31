@@ -138,9 +138,14 @@
                 </div>
             </div>
             <div class="form-group">
-                <label>Pick a Song (search 8BFR library or type manually)</label>
+                <label>Pick a Song</label>
+                <select class="song-search" id="songDropdown" onchange="pickFromDropdown()" style="appearance:auto;cursor:pointer;">
+                    <option value="">-- Select a song --</option>
+                </select>
+                <div style="margin-top:.5rem;">
+                    <input type="text" class="song-search" id="songSearchInput" placeholder="Or search by title or artist..." oninput="searchSongsForDed()" autocomplete="off" style="font-size:.85rem;">
+                </div>
                 <div class="song-picker">
-                    <input type="text" class="song-search" id="songSearchInput" placeholder="Search songs by title or artist..." oninput="searchSongsForDed()" autocomplete="off">
                     <div class="song-results" id="songResults"></div>
                 </div>
                 <div class="selected-song" id="selectedSong">
@@ -234,6 +239,7 @@
             currentUser = session.user;
             const { data: profile } = await db.from('profiles').select('*').eq('user_id', session.user.id).single();
             currentProfile = profile;
+            await loadSongDropdown();
             await loadDedications();
         } catch (e) { console.error('Init:', e); }
     }
@@ -241,6 +247,41 @@
     /* ═══ SONG PICKER ═══ */
     let songSearchTimer = null;
     let selectedSongData = null;
+    let allSongsCache = [];
+
+    async function loadSongDropdown() {
+        var dd = document.getElementById('songDropdown');
+        try {
+            var { data, error } = await db.from('songs').select('id,title,artist,cover_art')
+                .not('song_url', 'is', null)
+                .order('created_at', { ascending: false })
+                .limit(200);
+            if (error) throw error;
+            if (!data || !data.length) {
+                dd.innerHTML = '<option value="">-- No songs uploaded yet --</option>';
+                return;
+            }
+            allSongsCache = data;
+            dd.innerHTML = '<option value="">-- Select a song (' + data.length + ' available) --</option>';
+            data.forEach(function(s, i) {
+                var opt = document.createElement('option');
+                opt.value = i;
+                opt.textContent = (s.title || 'Untitled') + ' - ' + (s.artist || 'Unknown');
+                dd.appendChild(opt);
+            });
+        } catch(e) {
+            dd.innerHTML = '<option value="">-- Could not load songs --</option>';
+        }
+    }
+
+    function pickFromDropdown() {
+        var dd = document.getElementById('songDropdown');
+        var idx = dd.value;
+        if (idx === '' || !allSongsCache[idx]) return;
+        var s = allSongsCache[idx];
+        pickSong(s.title || 'Untitled', s.artist || 'Unknown', s.cover_art || '');
+        dd.value = '';
+    }
 
     function searchSongsForDed() {
         clearTimeout(songSearchTimer);
