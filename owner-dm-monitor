@@ -124,11 +124,11 @@ async function loadProfiles(){
 
 async function loadStats(){
     try{
-        var {count:total}=await db.from('messages').select('id',{count:'exact',head:true});
+        var {count:total}=await db.from('direct_messages').select('id',{count:'exact',head:true});
         document.getElementById('statTotal').textContent=total||0;
 
         // Unique conversation pairs
-        var {data:msgs}=await db.from('messages').select('sender_id,receiver_id');
+        var {data:msgs}=await db.from('direct_messages').select('sender_id,receiver_id');
         var pairs={};
         var activeUsers={};
         if(msgs) msgs.forEach(function(m){
@@ -143,7 +143,7 @@ async function loadStats(){
         // Today count
         var today=new Date();
         today.setHours(0,0,0,0);
-        var {count:todayCount}=await db.from('messages').select('id',{count:'exact',head:true}).gte('created_at',today.toISOString());
+        var {count:todayCount}=await db.from('direct_messages').select('id',{count:'exact',head:true}).gte('created_at',today.toISOString());
         document.getElementById('statToday').textContent=todayCount||0;
     }catch(e){}
 }
@@ -152,7 +152,7 @@ async function loadConversations(){
     var el=document.getElementById('convoList');
     el.innerHTML='<div class="spinner"></div>';
     try{
-        var {data:msgs,error}=await db.from('messages').select('id,sender_id,receiver_id,message,created_at').order('created_at',{ascending:false}).limit(500);
+        var {data:msgs,error}=await db.from('direct_messages').select('id,sender_id,receiver_id,message,created_at').order('created_at',{ascending:false}).limit(500);
         if(error)throw error;
         if(!msgs||!msgs.length){el.innerHTML='<div class="empty">No DMs found.</div>';return;}
 
@@ -213,7 +213,7 @@ async function openConvo(uid1,uid2,title){
     viewer.scrollIntoView({behavior:'smooth'});
 
     try{
-        var {data:msgs,error}=await db.from('messages').select('id,sender_id,receiver_id,message,created_at')
+        var {data:msgs,error}=await db.from('direct_messages').select('id,sender_id,receiver_id,message,created_at')
             .or('and(sender_id.eq.'+uid1+',receiver_id.eq.'+uid2+'),and(sender_id.eq.'+uid2+',receiver_id.eq.'+uid1+')')
             .order('created_at',{ascending:true}).limit(200);
         if(error)throw error;
@@ -242,7 +242,7 @@ async function searchDMs(){
 
     try{
         // Search by message content
-        var {data:msgs}=await db.from('messages').select('id,sender_id,receiver_id,message,created_at')
+        var {data:msgs}=await db.from('direct_messages').select('id,sender_id,receiver_id,message,created_at')
             .ilike('message','%'+q+'%').order('created_at',{ascending:false}).limit(100);
 
         // Also search by username
@@ -253,7 +253,7 @@ async function searchDMs(){
 
         if(matchedUsers.length&&(!msgs||!msgs.length)){
             // Search messages involving matched users
-            var {data:userMsgs}=await db.from('messages').select('id,sender_id,receiver_id,message,created_at')
+            var {data:userMsgs}=await db.from('direct_messages').select('id,sender_id,receiver_id,message,created_at')
                 .or(matchedUsers.map(function(u){return 'sender_id.eq.'+u+',receiver_id.eq.'+u;}).join(','))
                 .order('created_at',{ascending:false}).limit(100);
             msgs=(msgs||[]).concat(userMsgs||[]);
