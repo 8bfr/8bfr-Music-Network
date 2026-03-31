@@ -753,13 +753,47 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
             setBellBadge(res.count || 0);
           });
 
+          function showToast(notif) {
+            var existing = document.getElementById('8bfr-toast');
+            if (existing) existing.remove();
+            var meta = notif.metadata || {};
+            var type = notif.notif_type || 'notification';
+            var typeLabels = {follow:'New Follower',like:'Post Liked',comment:'New Comment',reshare:'Reshared',tip:'Coin Tip',dm:'New Message',direct_message:'New Message',friend_request:'Friend Request',friend_accepted:'Friend Accepted',purchase:'New Purchase',badge:'New Badge',referral:'New Referral',system:'System'};
+            var title = typeLabels[type] || 'Notification';
+            var body = meta.from_name ? meta.from_name : '';
+            if (meta.message_preview) body += (body ? ': ' : '') + meta.message_preview;
+            else if (meta.message) body += (body ? ': ' : '') + meta.message;
+            if (!body) body = meta.body || '';
+            var link = meta.link || 'notifications.html';
+            if (type === 'dm' && meta.from_id) link = 'dm.html?user=' + meta.from_id;
+            else if (type === 'friend_request' && meta.from_id) link = 'notifications.html';
+
+            var toast = document.createElement('div');
+            toast.id = '8bfr-toast';
+            toast.style.cssText = 'position:fixed;top:58px;left:50%;transform:translateX(-50%);z-index:99999;background:rgba(12,6,24,.96);border:1px solid rgba(124,58,237,.6);border-radius:12px;padding:0.6rem 1rem;max-width:min(90vw,360px);cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.6);animation:toastSlide 0.3s ease;display:flex;gap:0.6rem;align-items:center;';
+            toast.innerHTML = '<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:0.82rem;color:#a855f7;">' + title + '</div>' + (body ? '<div style="font-size:0.78rem;color:rgba(234,230,255,.7);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + body.substring(0, 60) + '</div>' : '') + '</div><div style="color:rgba(234,230,255,.3);font-size:0.7rem;cursor:pointer;" onclick="event.stopPropagation();this.parentElement.remove();">X</div>';
+            toast.onclick = function() { toast.remove(); window.location.href = link; };
+            document.body.appendChild(toast);
+            setTimeout(function() { if (toast.parentElement) toast.remove(); }, 6000);
+          }
+
+          // Add toast animation CSS
+          if (!document.getElementById('8bfr-toast-css')) {
+            var tcss = document.createElement('style');
+            tcss.id = '8bfr-toast-css';
+            tcss.textContent = '@keyframes toastSlide{from{opacity:0;transform:translateX(-50%) translateY(-20px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}';
+            document.head.appendChild(tcss);
+          }
+
           if (window.location.pathname.indexOf('notifications') === -1) {
             _db.channel('global-notif-bell').on('postgres_changes', {
               event: 'INSERT', schema: 'public', table: 'notifications', filter: 'recipient_id=eq.' + _uid
-            }, function() {
+            }, function(payload) {
               _db.from('notifications').select('*', { count: 'exact', head: true }).eq('recipient_id', _uid).eq('is_read', false).then(function(r2) {
                 setBellBadge(r2.count || 0);
               });
+              // Show toast popup
+              if (payload && payload.new) showToast(payload.new);
             }).subscribe();
           }
         });
