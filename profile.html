@@ -1002,9 +1002,9 @@
       var fbtn=document.getElementById('friendBtn');
       if(fbtn&&fr.data&&fr.data.length>0){
         var row=fr.data[0];
-        if(row.status==='accepted'){fbtn.textContent='🤝 Friends';}
-        else if(row.user_id===tid){fbtn.textContent='✓ Accept';fbtn.style.background='#059669';}
-        else{fbtn.textContent='⏳ Pending';}
+        if(row.status==='accepted'){fbtn.textContent='Friends';fbtn.style.background='rgba(5,150,105,.15)';fbtn.style.color='#4ade80';fbtn.style.borderColor='rgba(5,150,105,.4)';}
+        else if(row.user_id===tid){fbtn.textContent='Accept';fbtn.style.background='#059669';}
+        else{fbtn.textContent='Cancel Request';fbtn.style.background='rgba(239,68,68,.2)';fbtn.style.color='#fca5a5';fbtn.style.borderColor='rgba(239,68,68,.4)';}
       }
       if(fr.error)console.warn('Friend check error:',fr.error.message);
     }catch(e){console.warn('Friend check:',e);}
@@ -1035,18 +1035,33 @@
       if(sr.error){console.error('Friend check:',sr.error);alert('Error: '+sr.error.message);return;}
       if(sr.data&&sr.data.length>0){
         var row=sr.data[0];
-        if(row.status==='accepted'){btn.textContent='\ud83e\udd1d Friends';return;}
+        if(row.status==='accepted'){
+          if(!confirm('Unfriend this person?'))return;
+          var dr=await db.from('friends').delete().eq('id',row.id);
+          if(dr.error){alert('Error: '+dr.error.message);return;}
+          btn.textContent='Add Friend';btn.style.background='';btn.style.color='';btn.style.borderColor='';
+          loadStats(profileData.user_id);
+          return;
+        }
         /* If THEY sent the request to ME, accept it */
         if(row.user_id===profileData.user_id&&row.status==='pending'){
           var ur=await db.from('friends').update({status:'accepted'}).eq('id',row.id);
           if(ur.error){alert('Error accepting: '+ur.error.message);return;}
-          btn.textContent='\ud83e\udd1d Friends';
+          btn.textContent='Friends';btn.style.background='';btn.style.color='';btn.style.borderColor='';
           /* Notify them that we accepted */
           var myName=(await db.from('profiles').select('display_name,username').eq('user_id',currentUser.id).single()).data;
           await db.from('notifications').insert({recipient_id:profileData.user_id,notif_type:'friend_accepted',metadata:{from_id:currentUser.id,from_name:(myName?myName.display_name||myName.username:'Someone'),message:(myName?myName.display_name||myName.username:'Someone')+' accepted your friend request!'},created_at:new Date().toISOString()});
           return;
         }
-        btn.textContent='\u23f3 Pending';return;
+        /* If I sent the request, cancel it */
+        if(row.user_id===currentUser.id&&row.status==='pending'){
+          if(!confirm('Cancel friend request?'))return;
+          var dr=await db.from('friends').delete().eq('id',row.id);
+          if(dr.error){alert('Error: '+dr.error.message);return;}
+          btn.textContent='Add Friend';btn.style.background='';btn.style.color='';btn.style.borderColor='';
+          return;
+        }
+        btn.textContent='Pending';return;
       }
       /* Send new friend request */
       var ir=await db.from('friends').insert({user_id:currentUser.id,friend_id:profileData.user_id,status:'pending'});
@@ -1055,7 +1070,7 @@
       var myProf=(await db.from('profiles').select('display_name,username').eq('user_id',currentUser.id).single()).data;
       var senderName=myProf?(myProf.display_name||myProf.username):'Someone';
       await db.from('notifications').insert({recipient_id:profileData.user_id,notif_type:'friend_request',metadata:{from_id:currentUser.id,from_name:senderName,message:senderName+' sent you a friend request!'},created_at:new Date().toISOString()});
-      btn.textContent='\u23f3 Sent';
+      btn.textContent='Cancel Request';btn.style.background='rgba(239,68,68,.2)';btn.style.color='#fca5a5';btn.style.borderColor='rgba(239,68,68,.4)';
     }catch(e){console.error('Friend:',e);alert(e.message);}
   };
 
