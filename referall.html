@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Invite Friends -- 8BFR Music Network</title>
+<link rel="icon" href="assets/images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--primary:#7c3aed;--card:#0c0618;--text:#eae6ff;--dim:#a855f7;--border:rgba(124,58,237,.35);--green:#059669;--cyan:#00d9ff;--gold:#fbbf24;--bg:#0b0014;--text-dim:rgba(234,230,255,.55);}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Work Sans',sans-serif;background:linear-gradient(var(--bg),#000);color:var(--text);min-height:100vh;padding-bottom:80px;}
+.header{background:rgba(15,0,30,.95);border-bottom:2px solid var(--primary);padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;backdrop-filter:blur(12px);}
+.header h1{font-family:'Bebas Neue',cursive;font-size:1.5rem;color:var(--primary);letter-spacing:1px;}
+.header a{color:var(--text-dim);text-decoration:none;font-size:0.85rem;font-weight:600;}
+.container{max-width:800px;margin:0 auto;padding:1.5rem 1rem;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.25rem;margin-bottom:1rem;}
+.card h2{font-family:'Bebas Neue',cursive;font-size:1.2rem;color:var(--dim);margin-bottom:.75rem;letter-spacing:1px;}
+.hero{text-align:center;padding:2rem 1rem;margin-bottom:1rem;}
+.hero-icon{font-size:3rem;margin-bottom:.5rem;}
+.hero h2{font-family:'Bebas Neue',cursive;font-size:2rem;color:var(--primary);margin-bottom:.5rem;}
+.hero p{color:var(--text-dim);font-size:.9rem;max-width:500px;margin:0 auto;line-height:1.6;}
+.stats-row{display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1.25rem;}
+.mini-stat{background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.2);border-radius:12px;padding:.8rem;text-align:center;flex:1;min-width:100px;}
+.mini-stat .num{font-family:'Bebas Neue',cursive;font-size:1.8rem;color:var(--primary);}
+.mini-stat .label{font-size:.68rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;}
+.link-box{display:flex;gap:.5rem;margin-bottom:1rem;}
+.link-input{flex:1;padding:.7rem .9rem;background:rgba(124,58,237,.1);border:1px solid var(--border);border-radius:8px;color:var(--cyan);font-size:.88rem;font-family:monospace;outline:none;overflow:hidden;text-overflow:ellipsis;}
+.link-input:focus{border-color:var(--primary);}
+.btn{padding:.65rem 1.1rem;border-radius:8px;font-weight:600;font-size:.85rem;cursor:pointer;border:none;transition:all .2s;}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-primary:hover{background:#6d28d9;}
+.btn-green{background:var(--green);color:#fff;}
+.btn-ghost{background:rgba(124,58,237,.15);border:1px solid var(--border);color:var(--dim);}
+.share-btns{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.75rem;}
+.share-btn{padding:.5rem .9rem;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;border:none;text-decoration:none;transition:all .2s;display:inline-flex;align-items:center;gap:.3rem;}
+.share-btn:hover{filter:brightness(1.1);transform:translateY(-1px);}
+.share-x{background:#000;color:#fff;border:1px solid #333;}
+.share-fb{background:#1877f2;color:#fff;}
+.share-wa{background:#25d366;color:#fff;}
+.share-copy{background:rgba(124,58,237,.2);color:var(--dim);border:1px solid var(--border);}
+.share-sms{background:rgba(0,217,255,.15);color:var(--cyan);border:1px solid rgba(0,217,255,.3);}
+.reward-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.75rem;}
+.reward-card{background:rgba(124,58,237,.06);border:1px solid rgba(124,58,237,.2);border-radius:12px;padding:1rem;text-align:center;transition:all .2s;}
+.reward-card:hover{border-color:var(--primary);}
+.reward-icon{font-size:1.5rem;margin-bottom:.4rem;}
+.reward-title{font-weight:700;font-size:.9rem;margin-bottom:.2rem;}
+.reward-desc{font-size:.78rem;color:var(--text-dim);line-height:1.4;}
+.reward-coins{font-family:'Bebas Neue',cursive;font-size:1.3rem;color:var(--gold);margin-top:.4rem;}
+.referral-list{display:flex;flex-direction:column;gap:.5rem;}
+.ref-item{display:flex;align-items:center;gap:.75rem;padding:.6rem .75rem;background:rgba(124,58,237,.06);border:1px solid rgba(124,58,237,.15);border-radius:10px;}
+.ref-avatar{width:36px;height:36px;border-radius:50%;border:2px solid var(--border);object-fit:cover;}
+.ref-info{flex:1;min-width:0;}
+.ref-name{font-weight:600;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ref-date{font-size:.72rem;color:var(--text-dim);}
+.ref-coins{font-weight:700;color:var(--gold);font-size:.85rem;}
+.empty{text-align:center;padding:1.5rem;color:var(--text-dim);font-size:.85rem;}
+.spinner{width:24px;height:24px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;margin:1rem auto;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.leaderboard-item{display:flex;align-items:center;gap:.75rem;padding:.6rem .75rem;background:rgba(124,58,237,.06);border:1px solid rgba(124,58,237,.15);border-radius:10px;margin-bottom:.4rem;}
+.lb-rank{font-family:'Bebas Neue',cursive;font-size:1.3rem;color:var(--gold);width:30px;text-align:center;flex-shrink:0;}
+.lb-name{flex:1;font-weight:600;font-size:.85rem;}
+.lb-count{font-weight:700;color:var(--cyan);font-size:.85rem;}
+</style>
+</head>
+<body>
+<div class="header">
+    <h1>Invite Friends</h1>
+    <a href="feed.html">&larr; Back</a>
+</div>
+<div class="container">
+
+    <!-- HERO -->
+    <div class="hero">
+        <div class="hero-icon">&#127873;</div>
+        <h2>Invite Friends, Earn Coins</h2>
+        <p>Share your unique link. When someone signs up using it, you both get coins. The more friends you invite, the more you earn.</p>
+    </div>
+
+    <!-- YOUR STATS -->
+    <div class="stats-row">
+        <div class="mini-stat"><div class="num" id="statInvited">--</div><div class="label">Friends Invited</div></div>
+        <div class="mini-stat"><div class="num" id="statJoined">--</div><div class="label">Signed Up</div></div>
+        <div class="mini-stat"><div class="num" id="statEarned">--</div><div class="label">Coins Earned</div></div>
+    </div>
+
+    <!-- YOUR LINK -->
+    <div class="card">
+        <h2>Your Invite Link</h2>
+        <div class="link-box">
+            <input type="text" class="link-input" id="refLink" readonly value="Loading...">
+            <button class="btn btn-primary" onclick="copyLink()">Copy</button>
+        </div>
+        <div class="share-btns">
+            <a id="shareX" href="#" target="_blank" class="share-btn share-x">X / Twitter</a>
+            <a id="shareFB" href="#" target="_blank" class="share-btn share-fb">Facebook</a>
+            <a id="shareWA" href="#" target="_blank" class="share-btn share-wa">WhatsApp</a>
+            <a id="shareSMS" href="#" class="share-btn share-sms">Text Message</a>
+            <button class="share-btn share-copy" onclick="nativeShare()">Share...</button>
+        </div>
+    </div>
+
+    <!-- REWARDS INFO -->
+    <div class="card">
+        <h2>Rewards</h2>
+        <div class="reward-grid">
+            <div class="reward-card">
+                <div class="reward-icon">&#127873;</div>
+                <div class="reward-title">Invite Sent</div>
+                <div class="reward-desc">Share your link with friends</div>
+                <div class="reward-coins">Free</div>
+            </div>
+            <div class="reward-card">
+                <div class="reward-icon">&#9989;</div>
+                <div class="reward-title">Friend Signs Up</div>
+                <div class="reward-desc">They create an account using your link</div>
+                <div class="reward-coins">+50 Coins</div>
+            </div>
+            <div class="reward-card">
+                <div class="reward-icon">&#127775;</div>
+                <div class="reward-title">New Member Bonus</div>
+                <div class="reward-desc">Your friend also gets a welcome bonus</div>
+                <div class="reward-coins">+25 Coins</div>
+            </div>
+            <div class="reward-card">
+                <div class="reward-icon">&#127942;</div>
+                <div class="reward-title">Milestone: 10 Invites</div>
+                <div class="reward-desc">Reach 10 successful referrals</div>
+                <div class="reward-coins">+500 Bonus</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- YOUR REFERRALS -->
+    <div class="card">
+        <h2>Your Referrals</h2>
+        <div class="referral-list" id="refList"><div class="spinner"></div></div>
+    </div>
+
+    <!-- LEADERBOARD -->
+    <div class="card">
+        <h2>Top Inviters</h2>
+        <div id="leaderboard"><div class="spinner"></div></div>
+    </div>
+
+</div>
+<div style="text-align:center;padding:1rem 0;font-size:.72rem;color:rgba(168,85,247,.3);">Copyright 2025-2026 8BFR Music Network</div>
+<script src="scripts.js" defer></script>
+<script>
+var db=supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
+
+var COINS_PER_REFERRAL=50;
+var COINS_NEW_MEMBER=25;
+var MILESTONE_10_BONUS=500;
+var currentUserId='';
+var currentUsername='';
+var refCode='';
+
+async function init(){
+    var s=await db.auth.getSession();
+    if(!s.data.session){location.href='login.html?return=referral.html';return;}
+    currentUserId=s.data.session.user.id;
+
+    // Get or create referral code
+    var {data:profile}=await db.from('profiles').select('username,referral_code,coins').eq('user_id',currentUserId).single();
+    if(!profile){return;}
+    currentUsername=profile.username||'';
+
+    if(profile.referral_code){
+        refCode=profile.referral_code;
+    }else{
+        // Generate unique code from username + random
+        refCode=(profile.username||'user')+'-'+Math.random().toString(36).substring(2,8);
+        await db.from('profiles').update({referral_code:refCode}).eq('user_id',currentUserId);
+    }
+
+    var link='https://8bfr.com/signup.html?ref='+encodeURIComponent(refCode);
+    document.getElementById('refLink').value=link;
+
+    // Set up share links
+    var shareText='Join me on 8BFR Music Network! Sign up and we both get free coins. ';
+    document.getElementById('shareX').href='https://twitter.com/intent/tweet?text='+encodeURIComponent(shareText+link);
+    document.getElementById('shareFB').href='https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(link);
+    document.getElementById('shareWA').href='https://wa.me/?text='+encodeURIComponent(shareText+link);
+    document.getElementById('shareSMS').href='sms:?body='+encodeURIComponent(shareText+link);
+
+    await loadReferralStats();
+    await loadReferrals();
+    await loadLeaderboard();
+}
+
+async function loadReferralStats(){
+    try{
+        var {data,count}=await db.from('referrals').select('id,status',{count:'exact'}).eq('referrer_id',currentUserId);
+        var total=count||0;
+        var joined=0;
+        if(data) data.forEach(function(r){if(r.status==='completed')joined++;});
+        var earned=joined*COINS_PER_REFERRAL;
+        // Add milestone bonuses
+        if(joined>=10) earned+=MILESTONE_10_BONUS;
+
+        document.getElementById('statInvited').textContent=total;
+        document.getElementById('statJoined').textContent=joined;
+        document.getElementById('statEarned').textContent=earned;
+    }catch(e){
+        document.getElementById('statInvited').textContent='0';
+        document.getElementById('statJoined').textContent='0';
+        document.getElementById('statEarned').textContent='0';
+    }
+}
+
+async function loadReferrals(){
+    var el=document.getElementById('refList');
+    try{
+        var {data}=await db.from('referrals').select('id,referred_id,status,created_at').eq('referrer_id',currentUserId).order('created_at',{ascending:false}).limit(50);
+        if(!data||!data.length){el.innerHTML='<div class="empty">No referrals yet. Share your link to get started!</div>';return;}
+
+        // Fetch profiles for referred users
+        var uids=data.map(function(r){return r.referred_id;}).filter(Boolean);
+        var pMap={};
+        if(uids.length){
+            var {data:profs}=await db.from('profiles').select('user_id,display_name,username,avatar_url').in('user_id',uids);
+            if(profs) profs.forEach(function(p){pMap[p.user_id]=p;});
+        }
+
+        el.innerHTML=data.map(function(r){
+            var p=pMap[r.referred_id]||{};
+            var avatar=p.avatar_url||'assets/images/default-avatar.png';
+            var name=p.display_name||p.username||'Pending...';
+            var date=r.created_at?new Date(r.created_at).toLocaleDateString():'';
+            var statusText=r.status==='completed'?'+'+COINS_PER_REFERRAL+' coins':'Pending';
+            var statusColor=r.status==='completed'?'var(--gold)':'var(--text-dim)';
+            return '<div class="ref-item">'+
+                '<img src="'+avatar+'" class="ref-avatar" onerror="this.src=\'assets/images/default-avatar.png\'">'+
+                '<div class="ref-info"><div class="ref-name">'+esc(name)+'</div>'+
+                '<div class="ref-date">'+date+'</div></div>'+
+                '<div class="ref-coins" style="color:'+statusColor+'">'+statusText+'</div>'+
+            '</div>';
+        }).join('');
+    }catch(e){el.innerHTML='<div class="empty">Could not load referrals.</div>';}
+}
+
+async function loadLeaderboard(){
+    var el=document.getElementById('leaderboard');
+    try{
+        var {data}=await db.from('referrals').select('referrer_id').eq('status','completed');
+        if(!data||!data.length){el.innerHTML='<div class="empty">No referrals yet. Be the first!</div>';return;}
+
+        // Count per referrer
+        var counts={};
+        data.forEach(function(r){counts[r.referrer_id]=(counts[r.referrer_id]||0)+1;});
+        var sorted=Object.keys(counts).sort(function(a,b){return counts[b]-counts[a];}).slice(0,10);
+
+        // Fetch profiles
+        var {data:profs}=await db.from('profiles').select('user_id,display_name,username,avatar_url').in('user_id',sorted);
+        var pMap={};
+        if(profs) profs.forEach(function(p){pMap[p.user_id]=p;});
+
+        el.innerHTML=sorted.map(function(uid,i){
+            var p=pMap[uid]||{};
+            var name=p.display_name||p.username||'Unknown';
+            return '<div class="leaderboard-item">'+
+                '<div class="lb-rank">#'+(i+1)+'</div>'+
+                '<img src="'+(p.avatar_url||'assets/images/default-avatar.png')+'" class="ref-avatar" onerror="this.src=\'assets/images/default-avatar.png\'">'+
+                '<div class="lb-name">'+esc(name)+'</div>'+
+                '<div class="lb-count">'+counts[uid]+' invited</div>'+
+            '</div>';
+        }).join('');
+    }catch(e){el.innerHTML='<div class="empty">Could not load leaderboard.</div>';}
+}
+
+function copyLink(){
+    var input=document.getElementById('refLink');
+    navigator.clipboard.writeText(input.value).then(function(){
+        var btn=event.target;
+        btn.textContent='Copied!';
+        setTimeout(function(){btn.textContent='Copy';},2000);
+    }).catch(function(){
+        input.select();
+        document.execCommand('copy');
+        alert('Link copied!');
+    });
+}
+
+function nativeShare(){
+    var link=document.getElementById('refLink').value;
+    if(navigator.share){
+        navigator.share({title:'Join 8BFR Music Network',text:'Join me on 8BFR! We both get free coins.',url:link}).catch(function(){});
+    }else{
+        copyLink();
+    }
+}
+
+function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
+
+init();
+</script>
+</body>
+</html>
