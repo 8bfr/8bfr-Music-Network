@@ -272,24 +272,21 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
 <div id="menu-backdrop"></div>\
 <nav id="menu" aria-hidden="true">\
   <h2>8BFR Navigation</h2>\
+  <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">\
+    <a href="notifications.html" class="menu-chip" style="background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.5);color:#fca5a5;">&#x1F514; Notifications</a>\
+    <a href="messages.html" class="menu-chip" style="background:rgba(0,217,255,.1);border-color:rgba(0,217,255,.5);color:#00d9ff;">&#x2709;&#xFE0F; Messages</a>\
+    <a href="contact.html" class="menu-chip" style="background:rgba(251,191,36,.1);border-color:rgba(251,191,36,.5);color:#fbbf24;">&#x1F4EC; Contact</a>\
+  </div>\
   <div class="menu-group collapsed">\
     <div class="menu-group-title">Home &amp; Core</div>\
     <div class="menu-links">\
       <a href="index.html" class="menu-chip">&#x1F3E0; Home</a>\
-      <a href="search.html" class="menu-chip menu-chip-network"><span class="menu-label-main">Network</span><span class="menu-label-alt">Search</span></a>\
       <a href="feed.html" class="menu-chip">&#x1F4F0; Community Feed</a>\
-      <a href="radio.html" class="menu-chip">&#x1F4FB; Radio</a>\
-      <a href="live.html" class="menu-chip">&#x1F4E1; Live</a>\
-      <a href="ai-tools.html" class="menu-chip">&#x1F916; AI Tools</a>\
-      <a href="featured.html" class="menu-chip">&#x2B50; Featured Artist</a>\
-      <a href="featured-songs.html" class="menu-chip">&#x1F3B5; Featured Songs</a>\
-      <a href="fan-zone.html" class="menu-chip">&#x1F3A4; Fan Zone</a>\
       <a href="stories.html" class="menu-chip">&#x1F4D6; Stories</a>\
       <a href="announcements.html" class="menu-chip">&#x1F4E3; Announcements</a>\
       <a href="blog.html" class="menu-chip">&#x270D;&#xFE0F; Blog</a>\
-      <a href="algorithm-points.html" class="menu-chip">&#x1F4CA; Algorithm Points</a>\
-      <a href="about.html" class="menu-chip">&#x2139;&#xFE0F; About</a>\
-      <a href="contact.html" class="menu-chip">&#x1F4EC; Contact</a>\
+      <a href="stats.html" class="menu-chip">&#x1F4CA; Stats</a>\
+      <a href="live.html" class="menu-chip">&#x1F4E1; Live</a>\
     </div>\
   </div>\
   <div class="menu-group collapsed">\
@@ -303,56 +300,51 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
       <a href="playlists.html" class="menu-chip">&#x25B6;&#xFE0F; Playlists</a>\
       <a href="genres.html" class="menu-chip">&#x1F3BC; Genres</a>\
       <a href="charts.html" class="menu-chip">&#x1F4C8; Charts</a>\
-      <a href="dedications.html" class="menu-chip">&#x1F48C; Dedications</a>\
-      <a href="dedication.html" class="menu-chip">&#x1F49C; Mom Thank You</a>\
+      <a href="radio.html" class="menu-chip">&#x1F4FB; Radio</a>\
+      <a href="featured-songs.html" class="menu-chip">&#x2B50; Featured Songs</a>\
+      <a href="embed.html" class="menu-chip">&#x1F3A7; Embed Music</a>\
     </div>\
   </div>\
   <div class="menu-group collapsed">\
-    <div class="menu-group-title">&#x1F916; Producer AI</div>\
+    <div class="menu-group-title">Profile &amp; Community</div>\
     <div class="menu-links">\
-      <a href="https://8bfr.com/producer-ai/index.html" target="_blank" rel="noopener" class="menu-chip menu-chip-ai">&#x1F916; Open Producer AI</a>\
-      <a href="author.html" class="menu-chip">&#x1F4DD; Author</a>\
-      <a href="author-hub.html" class="menu-chip">&#x1F4DA; Author Hub</a>\
-      <a href="translate.html" class="menu-chip">&#x1F310; Translate</a>\
-      <a href="integration.html" class="menu-chip">&#x1F517; Integration</a>\
-      <a href="stats.html" class="menu-chip">&#x1F4CA; Stats</a>\
+      <a href="profile.html" class="menu-chip">&#x1F464; My Profile</a>\
+      <a href="search.html" class="menu-chip menu-chip-network"><span class="menu-label-main">Network</span><span class="menu-label-alt">Search</span></a>\
+      <a href="members.html" class="menu-chip">&#x1F465; Browse Members</a>\
+      <a href="page.html" class="menu-chip">&#x1F4C4; Pages</a>\
+      <a href="group.html" class="menu-chip">&#x1F465; Groups</a>\
+      <a href="featured.html" class="menu-chip">&#x2B50; Featured Artists</a>\
+      <a href="fan-zone.html" class="menu-chip">&#x1F3A4; Fan Zone</a>\
+      <a href="author.html" class="menu-chip">&#x1F4DD; Authors</a>\
+      <a href="chat.html" class="menu-chip">&#x1F4AC; Chat</a>\
+      <a href="dm.html" class="menu-chip">&#x2709;&#xFE0F; DM</a>\
+      <a href="integration.html" class="menu-chip">&#x1F517; Integrations</a>\
+    </div>\
+  </div>\
+  <div class="menu-group collapsed">\
+    <div class="menu-group-title">&#x1F916; AI Tools</div>\
+    <div class="menu-links">\
+      <a href="ai-tools.html" class="menu-chip menu-chip-ai">&#x1F916; AI Tools</a>\
+      <a href="https://8bfr.com/producer-ai/index.html" target="_blank" rel="noopener" class="menu-chip menu-chip-ai">&#x1F3B5; Producer AI</a>\
+      <a href="author-hub.html" class="menu-chip menu-chip-ai">&#x1F4DA; Author Hub</a>\
+      <a href="translate.html" class="menu-chip menu-chip-ai">&#x1F310; Translate</a>\
+    </div>\
+  </div>\
+  <div class="menu-group collapsed">\
+    <div class="menu-group-title">&#x1F49D; Dedications</div>\
+    <div class="menu-links">\
+      <a href="dedications.html" class="menu-chip">&#x1F48C; Dedications</a>\
+      <a href="dedication.html" class="menu-chip">&#x1F49C; Mom Thank You</a>\
     </div>\
   </div>\
   <div class="menu-group collapsed">\
     <div class="menu-group-title">&#x1F3AE; Games</div>\
     <div class="menu-links">\
       <a href="games.html" class="menu-chip">&#x1F3AE; Play Games</a>\
-      <a href="coinshop.html" class="menu-chip">&#x1FA99; Spend Coins</a>\
     </div>\
   </div>\
   <div class="menu-group collapsed">\
-    <div class="menu-group-title">Profiles &amp; Community</div>\
-    <div class="menu-links">\
-      <a href="members.html" class="menu-chip">&#x1F465; Browse Members</a>\
-      <a href="page.html" class="menu-chip">&#x1F4C4; Pages</a>\
-      <a href="group.html" class="menu-chip">&#x1F465; Groups</a>\
-      <a href="profile.html" class="menu-chip">&#x1F464; My Profile</a>\
-      <a href="chat.html" class="menu-chip">&#x1F4AC; Chat</a>\
-      <a href="dm.html" class="menu-chip">&#x2709;&#xFE0F; DM</a>\
-      <a href="kid-zone.html" class="menu-chip">&#x1F476; Kids</a>\
-      <a href="kid-zone.html" class="menu-chip">&#x1F9F8; Kids Zone</a>\
-      <a href="kidzone-games.html" class="menu-chip">&#x1F3AE; Kids Games</a>\
-      <a href="kids-stories.html" class="menu-chip">&#x1F4D6; Kids Stories</a>\
-    </div>\
-  </div>\
-  <div class="menu-group collapsed">\
-    <div class="menu-group-title">My Account &amp; Payments</div>\
-    <div class="menu-links">\
-      <a href="settings.html" class="menu-chip">&#x2699;&#xFE0F; Settings</a>\
-      <a href="purchases.html" class="menu-chip">&#x1F6D2; My Purchases</a>\
-      <a href="artist-payouts.html" class="menu-chip">&#x1F4B0; Earnings</a>\
-      <a href="artist-discounts.html" class="menu-chip">&#x1F3F7;&#xFE0F; My Discounts</a>\
-      <a href="notifications.html" class="menu-chip">&#x1F514; Notifications</a>\
-      <a href="messages.html" class="menu-chip">&#x2709;&#xFE0F; Messages</a>\
-    </div>\
-  </div>\
-  <div class="menu-group collapsed">\
-    <div class="menu-group-title">Shop &amp; Coins</div>\
+    <div class="menu-group-title">&#x1F6D2; Shop</div>\
     <div class="menu-links">\
       <a href="shop.html" class="menu-chip">&#x1F6D2; Shop</a>\
       <a href="shop-stickers.html" class="menu-chip">&#x1F3A8; Stickers</a>\
@@ -361,10 +353,38 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
       <a href="game-coin-shop.html" class="menu-chip">&#x1F3AE; Game Coin Shop</a>\
       <a href="upgrades.html" class="menu-chip">&#x1F680; Upgrades</a>\
       <a href="pricing.html" class="menu-chip">&#x1F4B3; Pricing</a>\
+    </div>\
+  </div>\
+  <div class="menu-group collapsed">\
+    <div class="menu-group-title">&#x2764;&#xFE0F; Donate</div>\
+    <div class="menu-links">\
       <a href="donate.html" class="menu-chip">&#x2764;&#xFE0F; Donate</a>\
-      <a href="affiliates.html" class="menu-chip">&#x1F91D; Affiliates</a>\
+    </div>\
+  </div>\
+  <div class="menu-group collapsed">\
+    <div class="menu-group-title">&#x1F9F8; KidZone</div>\
+    <div class="menu-links">\
+      <a href="kid-zone.html" class="menu-chip">&#x1F9F8; KidZone</a>\
+      <a href="kidzone-games.html" class="menu-chip">&#x1F3AE; Kids Games</a>\
+      <a href="kids-stories.html" class="menu-chip">&#x1F4D6; Kids Stories</a>\
+    </div>\
+  </div>\
+  <div class="menu-group collapsed">\
+    <div class="menu-group-title">&#x1F517; Suggested Links</div>\
+    <div class="menu-links">\
       <a href="suggested-links.html" class="menu-chip">&#x1F517; Suggested Links</a>\
+      <a href="affiliates.html" class="menu-chip">&#x1F91D; Affiliates</a>\
       <a href="products.html" class="menu-chip">&#x1F6CD;&#xFE0F; 8BFR Products</a>\
+    </div>\
+  </div>\
+  <div class="menu-group collapsed">\
+    <div class="menu-group-title">My Account</div>\
+    <div class="menu-links">\
+      <a href="settings.html" class="menu-chip">&#x2699;&#xFE0F; Settings</a>\
+      <a href="purchases.html" class="menu-chip">&#x1F6D2; My Purchases</a>\
+      <a href="artist-payouts.html" class="menu-chip">&#x1F4B0; Earnings</a>\
+      <a href="artist-discounts.html" class="menu-chip">&#x1F3F7;&#xFE0F; My Discounts</a>\
+      <a href="reset-password.html" class="menu-chip">&#x1F511; Reset Password</a>\
     </div>\
   </div>\
   <div class="menu-group collapsed">\
@@ -372,6 +392,20 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
     <div class="menu-links">\
       <a href="carrie-chat.html" class="menu-chip">&#x1F916; Carrie Chat</a>\
       <a href="carrie-closet.html" class="menu-chip">&#x1F457; Carrie Closet</a>\
+    </div>\
+  </div>\
+  <div class="menu-group collapsed">\
+    <div class="menu-group-title">Info &amp; Legal</div>\
+    <div class="menu-links">\
+      <a href="about.html" class="menu-chip">&#x2139;&#xFE0F; About</a>\
+      <a href="algorithm-points.html" class="menu-chip">&#x1F4CA; Algorithm Points</a>\
+      <a href="faq.html" class="menu-chip">&#x2753; FAQ</a>\
+      <a href="help.html" class="menu-chip">&#x1F198; Help</a>\
+      <a href="rules.html" class="menu-chip">&#x1F4CB; Rules</a>\
+      <a href="privacy.html" class="menu-chip">&#x1F512; Privacy</a>\
+      <a href="terms.html" class="menu-chip">&#x1F4C4; Terms</a>\
+      <a href="credits.html" class="menu-chip">&#x1F64F; Credits</a>\
+      <a href="press.html" class="menu-chip">&#x1F4F0; Press</a>\
     </div>\
   </div>\
   <div class="menu-group collapsed">\
@@ -386,19 +420,6 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
       <a href="owner-monitor.html" class="menu-chip">&#x1F441; Site Monitor</a>\
       <a href="admin-panel.html" class="menu-chip">&#x2699;&#xFE0F; Admin Panel</a>\
       <a href="mod-panel.html" class="menu-chip">&#x1F6E1;&#xFE0F; Mod Panel</a>\
-    </div>\
-  </div>\
-  <div class="menu-group collapsed">\
-    <div class="menu-group-title">Info &amp; Legal</div>\
-    <div class="menu-links">\
-      <a href="faq.html" class="menu-chip">&#x2753; FAQ</a>\
-      <a href="help.html" class="menu-chip">&#x1F198; Help</a>\
-      <a href="rules.html" class="menu-chip">&#x1F4CB; Rules</a>\
-      <a href="privacy.html" class="menu-chip">&#x1F512; Privacy</a>\
-      <a href="terms.html" class="menu-chip">&#x1F4C4; Terms</a>\
-      <a href="credits.html" class="menu-chip">&#x1F64F; Credits</a>\
-      <a href="press.html" class="menu-chip">&#x1F4F0; Press</a>\
-      <a href="reset-password.html" class="menu-chip">&#x1F511; Reset Password</a>\
     </div>\
   </div>\
   <div class="menu-group collapsed">\
