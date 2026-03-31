@@ -433,7 +433,9 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
   </div>\
 </nav>\
 <div id="bubbleStack">\
-  <div class="bubble-row"><button class="bubble" id="bubble-contact" title="Contact"><span>&#x2709;&#xFE0F;</span></button><span class="bubble-label">Contact</span></div>\
+  <div class="bubble-row"><button class="bubble" id="bubble-notif" title="Notifications" onclick="location.href=\'notifications.html\'" style="position:relative;"><span>&#x1F514;</span><span id="bubble-notif-badge" style="position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;font-size:.55rem;font-weight:800;min-width:16px;height:16px;border-radius:8px;display:none;align-items:center;justify-content:center;padding:0 3px;">0</span></button><span class="bubble-label">Notifs</span></div>\
+  <div class="bubble-row"><button class="bubble" id="bubble-msgs" title="Messages" onclick="location.href=\'messages.html\'"><span>&#x2709;&#xFE0F;</span></button><span class="bubble-label">Msgs</span></div>\
+  <div class="bubble-row"><button class="bubble" id="bubble-contact" title="Contact"><span>&#x1F4EC;</span></button><span class="bubble-label">Contact</span></div>\
   <div class="bubble-row"><button class="bubble" id="bubble-donate" title="Donate"><span>&#x1F49C;</span></button><span class="bubble-label">Donate</span></div>\
   <div class="bubble-row"><button class="bubble" id="bubble-footer" title="Go to footer"><span>&#x2B07;&#xFE0F;</span></button><span class="bubble-label">Footer</span></div>\
   <div class="bubble-row"><button class="bubble" id="bubble-theme" title="Light / Dark"><span>&#x262F;&#xFE0F;</span></button><span class="bubble-label">Theme</span></div>\
@@ -735,6 +737,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
           if (!_uid) return;
 
           function setBellBadge(count) {
+            // Update menu link badges
             document.querySelectorAll('a[href="notifications.html"]').forEach(function(link) {
               var ex = link.querySelector('.notif-nav-badge');
               if (count > 0) {
@@ -747,6 +750,16 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
                 ex.textContent = count > 99 ? '99+' : count;
               } else if (ex) { ex.remove(); }
             });
+            // Update bubble badge
+            var bb = document.getElementById('bubble-notif-badge');
+            if (bb) {
+              if (count > 0) {
+                bb.textContent = count > 99 ? '99+' : count;
+                bb.style.display = 'flex';
+              } else {
+                bb.style.display = 'none';
+              }
+            }
           }
 
           _db.from('notifications').select('*', { count: 'exact', head: true }).eq('recipient_id', _uid).eq('is_read', false).then(function(res) {
