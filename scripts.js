@@ -1,4 +1,4 @@
-// ═══════════════════════════════════════════════════════
+l// ═══════════════════════════════════════════════════════
 // 8BFR GLOBAL PERKS CHECK
 // ═══════════════════════════════════════════════════════
 (function(){
@@ -212,7 +212,7 @@ body.menu-open #pageWrap{ margin-right:280px; }\
 #fab svg{ display:block; }\
 #menu-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.25); backdrop-filter:blur(2px); z-index:9990; opacity:0; pointer-events:none; transition:opacity .2s ease; }\
 #menu-backdrop.open{ opacity:1; pointer-events:auto; }\
-#menu{ position:fixed; top:72px; right:0; width:min(92vw,280px); max-height:calc(100vh - 88px); overflow-y:auto; overflow-x:hidden; z-index:9998; transform:translateX(115%); transition:transform .25s ease; backdrop-filter:blur(12px); background:var(--glass); border:1px solid var(--ring); border-radius:14px 0 0 14px; box-shadow:0 14px 32px rgba(0,0,0,.6); padding:8px 7px 10px; }\
+#menu{ position:fixed; top:56px; right:0; width:min(92vw,280px); max-height:calc(100vh - 60px); overflow-y:auto; overflow-x:hidden; z-index:9998; transform:translateX(115%); transition:transform .25s ease; backdrop-filter:blur(12px); background:var(--glass); border:1px solid var(--ring); border-radius:14px 0 0 14px; box-shadow:0 14px 32px rgba(0,0,0,.6); padding:8px 7px 10px; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; touch-action:pan-y; }\
 #menu.open{ transform:translateX(0); }\
 #menu h2{ font-size:.85rem; text-transform:uppercase; letter-spacing:.12em; opacity:.9; margin:2px 6px 4px; }\
 .menu-group{ margin:4px 0 6px; padding:4px 4px 6px; border-radius:10px; border:1px solid rgba(139,92,246,.48); background:rgba(10,2,26,.85); }\
@@ -506,7 +506,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
     if (fab) { fab.addEventListener("click", function(e) { e.stopPropagation(); if (menu && menu.classList.contains("open")) closeMenu(); else openMenu(); }); }
     if (backdrop) { backdrop.addEventListener("click", closeMenu); }
     document.addEventListener("keydown", function(e) { if (e.key === "Escape") closeMenu(); });
-    if (menu) { menu.addEventListener("pointermove", resetMenuTimer); menu.addEventListener("wheel", resetMenuTimer); }
+    if (menu) { menu.addEventListener("pointermove", resetMenuTimer); menu.addEventListener("wheel", resetMenuTimer); menu.addEventListener("touchmove", resetMenuTimer); menu.addEventListener("touchstart", resetMenuTimer); menu.style.touchAction = "pan-y"; }
 
     var groups = menu ? menu.querySelectorAll(".menu-group") : [];
     groups.forEach(function(group) {
@@ -653,6 +653,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
     window.addEventListener("touchend", endAll);
 
     function onMove(e) {
+      if (e.target && e.target.closest && e.target.closest("#menu")) return;
       if (pinchActive && e.touches && e.touches.length >= 2) {
         var dist = getTouchDist(e); if (!dist || !pinchStartDist) return;
         userScale = clampScale(userScaleStart * (dist / pinchStartDist)); applyAvatarScale(); e.preventDefault(); return;
