@@ -594,6 +594,7 @@ var signupEmail = null;
 var signupDisplayName = null;
 var generatedCode = '';
 var resendCooldown = 0;
+var refCode = new URLSearchParams(window.location.search).get('ref') || '';
 
 async function sendVerificationCode() {
   // Generate 6-digit code
@@ -711,6 +712,13 @@ async function verifyCode() {
       await db.from('profiles').update({ email_verified: true }).eq('user_id', signupUserId);
       // Clean up verification row
       await db.from('email_verifications').delete().eq('user_id', signupUserId);
+
+      // Process referral if signup came from an invite link
+      if (refCode && signupUserId) {
+        try {
+          await db.rpc('process_referral', { p_ref_code: refCode, p_new_user_id: signupUserId });
+        } catch(e) { console.log('Referral:', e); }
+      }
 
       document.getElementById('codeInputs').classList.add('success');
       document.getElementById('verifyMsg').innerHTML = '<span style="color:var(--success);">✅ Verified!</span>';
