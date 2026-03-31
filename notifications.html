@@ -46,7 +46,10 @@ body{font-family:'Work Sans',sans-serif;background:linear-gradient(#0b0014,#000)
       <button class="tab active" data-tab="all" onclick="switchTab('all',this)">All <span id="allBadge" class="count-badge" style="display:none;"></span></button>
       <button class="tab" data-tab="unread" onclick="switchTab('unread',this)">Unread</button>
     </div>
-    <button class="mark-all" onclick="markAllRead()">✓ Mark all read</button>
+    <div style="display:flex;gap:.4rem;">
+      <button class="mark-all" onclick="markAllRead()">Mark read</button>
+      <button class="mark-all" onclick="clearAllNotifs()" style="border-color:rgba(239,68,68,.3);color:#fca5a5;">Clear all</button>
+    </div>
   </div>
   <div id="notifList"><div class="spinner"></div></div>
 </div>
@@ -236,6 +239,7 @@ function renderList(){
         +actions
         +'<div class="notif-time">'+time+'</div>'
       +'</div>'
+      +'<button onclick="event.preventDefault();event.stopPropagation();deleteNotif(\''+n.id+'\',this)" style="background:none;border:none;color:rgba(234,230,255,.25);font-size:.9rem;cursor:pointer;flex-shrink:0;padding:0 .25rem;align-self:flex-start;" title="Delete">X</button>'
     +'</a>';
   }).join('');
 }
@@ -257,6 +261,29 @@ window.markAllRead=async function(){
   try{
     await db.from('notifications').update({is_read:true}).eq('recipient_id',currentUser.id).eq('is_read',false);
     allNotifs.forEach(function(n){n.is_read=true;});
+    var badge=document.getElementById('allBadge');
+    if(badge)badge.style.display='none';
+    renderList();
+  }catch(e){alert('Error: '+e.message);}
+};
+
+window.deleteNotif=async function(id,btn){
+  try{
+    await db.from('notifications').delete().eq('id',id).eq('recipient_id',currentUser.id);
+    allNotifs=allNotifs.filter(function(n){return n.id!==id;});
+    var unread=allNotifs.filter(function(n){return !n.is_read;}).length;
+    var badge=document.getElementById('allBadge');
+    if(badge){if(unread>0){badge.textContent=unread;badge.style.display='inline';}else badge.style.display='none';}
+    if(btn){var card=btn.closest('.notif');if(card)card.remove();}
+    if(!allNotifs.length)renderList();
+  }catch(e){alert('Error: '+e.message);}
+};
+
+window.clearAllNotifs=async function(){
+  if(!confirm('Delete ALL notifications? This cannot be undone.'))return;
+  try{
+    await db.from('notifications').delete().eq('recipient_id',currentUser.id);
+    allNotifs=[];
     var badge=document.getElementById('allBadge');
     if(badge)badge.style.display='none';
     renderList();
