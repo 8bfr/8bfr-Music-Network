@@ -75,8 +75,12 @@ var ICONS={
   system:{icon:'📢',bg:'rgba(124,58,237,.15)'},
   badge:{icon:'🏅',bg:'rgba(251,191,36,.12)'},
   mention:{icon:'@',bg:'rgba(124,58,237,.15)'},
-  story_view:{icon:'👁️',bg:'rgba(168,85,247,.12)'},
-  parent_verify:{icon:'👨‍👩‍👧',bg:'rgba(139,92,246,.12)'}
+  story_view:{icon:'*',bg:'rgba(168,85,247,.12)'},
+  parent_verify:{icon:'P',bg:'rgba(139,92,246,.12)'},
+  dm:{icon:'DM',bg:'rgba(0,217,255,.12)'},
+  direct_message:{icon:'DM',bg:'rgba(0,217,255,.12)'},
+  referral:{icon:'+',bg:'rgba(34,197,94,.12)'},
+  chat_moderation:{icon:'!',bg:'rgba(251,191,36,.12)'}
 };
 
 async function init(){
@@ -129,40 +133,106 @@ function renderList(){
 
   if(!list.length){
     var msg=activeTab==='unread'?'All caught up! No unread notifications.':'No notifications yet. Activity will show up here.';
-    el.innerHTML='<div class="empty"><div class="empty-icon">'+(activeTab==='unread'?'✅':'🔔')+'</div><p style="font-size:.88rem;">'+msg+'</p></div>';
+    el.innerHTML='<div class="empty"><div class="empty-icon">'+(activeTab==='unread'?'':'')+'</div><p style="font-size:.88rem;">'+msg+'</p></div>';
     return;
   }
 
   el.innerHTML=list.map(function(n){
     var cfg=ICONS[n.notif_type]||ICONS.system;
     var unreadClass=!n.is_read?'notif unread':'notif';
-    var link=(n.metadata&&n.metadata.link)||'#';
-    var title=n.title||formatType(n.notif_type);
-    var msg=(n.metadata&&n.metadata.message)||'';
-    var time=timeAgo(n.created_at);
+    var meta=n.metadata||{};
+    var link=meta.link||'#';
+    var fromName=meta.from_name||meta.sender_name||'';
+    var title='';
+    var preview='';
     var actions='';
+    var time=timeAgo(n.created_at);
 
-    // ★ FIX: Friend accepted — show WHO accepted + link to profile
-    if(n.notif_type==='friend_accepted'&&n.metadata){
-      if(n.metadata.from_id) link='profile.html?id='+n.metadata.from_id;
-      if(n.metadata.from_name) title=n.metadata.from_name+' accepted your friend request!';
+    // Build title and preview based on type
+    switch(n.notif_type){
+      case 'friend_request':
+        title=(fromName||'Someone')+' sent you a friend request';
+        link=meta.from_id?'profile.html?id='+meta.from_id:'#';
+        actions='<div style="display:flex;gap:.4rem;margin-top:.4rem;">'
+          +'<button onclick="event.preventDefault();event.stopPropagation();acceptFriend(\''+meta.from_id+'\',\''+n.id+'\',this)" style="padding:.25rem .6rem;border-radius:8px;background:#059669;border:none;color:#fff;font-size:.75rem;font-weight:600;cursor:pointer;">Accept</button>'
+          +'<button onclick="event.preventDefault();event.stopPropagation();declineFriend(\''+meta.from_id+'\',\''+n.id+'\',this)" style="padding:.25rem .6rem;border-radius:8px;background:#6b7280;border:none;color:#fff;font-size:.75rem;font-weight:600;cursor:pointer;">Decline</button>'
+          +'</div>';
+        break;
+      case 'friend_accepted':
+        title=(fromName||'Someone')+' accepted your friend request!';
+        link=meta.from_id?'profile.html?id='+meta.from_id:'#';
+        break;
+      case 'follow':
+        title=(fromName||'Someone')+' started following you';
+        link=meta.from_id?'profile.html?id='+meta.from_id:'#';
+        break;
+      case 'like':
+        title=(fromName||'Someone')+' liked your post';
+        preview=meta.post_preview||meta.message||'';
+        link=meta.post_id?'feed.html#post-'+meta.post_id:(meta.link||'feed.html');
+        break;
+      case 'comment':
+        title=(fromName||'Someone')+' commented on your post';
+        preview=meta.comment_text||meta.message||'';
+        link=meta.post_id?'feed.html#post-'+meta.post_id:(meta.link||'feed.html');
+        break;
+      case 'reshare':
+        title=(fromName||'Someone')+' reshared your post';
+        link=meta.link||'feed.html';
+        break;
+      case 'dm':
+      case 'direct_message':
+        title=(fromName||'Someone')+' sent you a message';
+        preview=meta.message_preview||meta.message||'';
+        link=meta.from_id?'dm.html?user='+meta.from_id:(meta.link||'dm.html');
+        cfg=ICONS.comment;
+        break;
+      case 'tip':
+        title=(fromName||'Someone')+' sent you '+(meta.amount||'')+' coins';
+        preview=meta.note||meta.message||'';
+        link=meta.link||'profile.html';
+        break;
+      case 'purchase':
+        title=(fromName||'Someone')+' purchased your '+(meta.item_type||'item');
+        preview=meta.item_name||meta.message||'';
+        link=meta.link||'artist-payouts.html';
+        break;
+      case 'verification':
+        title='Verification update';
+        preview=meta.message||'Your verification status has changed.';
+        break;
+      case 'badge':
+        title='You earned a new badge!';
+        preview=meta.badge_name||meta.message||'';
+        link=meta.link||'profile.html';
+        break;
+      case 'mention':
+        title=(fromName||'Someone')+' mentioned you';
+        preview=meta.message||'';
+        link=meta.link||'feed.html';
+        break;
+      case 'chat_moderation':
+        title=meta.title||'Chat moderation action';
+        preview=meta.body||meta.message||'';
+        link=meta.link||'owner-monitor.html';
+        break;
+      case 'referral':
+        title=(fromName||'Someone')+' joined via your invite!';
+        preview=meta.message||'+50 coins earned';
+        link='referral.html';
+        break;
+      default:
+        title=meta.title||formatType(n.notif_type);
+        preview=meta.body||meta.message||'';
     }
 
-    // Friend request — show accept/decline + link to profile
-    if(n.notif_type==='friend_request'&&n.metadata&&n.metadata.from_id){
-      link='profile.html?id='+n.metadata.from_id;
-      if(n.metadata.from_name) title=n.metadata.from_name+' sent you a friend request';
-      actions='<div style="display:flex;gap:.4rem;margin-top:.4rem;">'
-        +'<button onclick="event.preventDefault();event.stopPropagation();acceptFriend(\''+n.metadata.from_id+'\',\''+n.id+'\',this)" style="padding:.25rem .6rem;border-radius:8px;background:#059669;border:none;color:#fff;font-size:.75rem;font-weight:600;cursor:pointer;">✓ Accept</button>'
-        +'<button onclick="event.preventDefault();event.stopPropagation();declineFriend(\''+n.metadata.from_id+'\',\''+n.id+'\',this)" style="padding:.25rem .6rem;border-radius:8px;background:#6b7280;border:none;color:#fff;font-size:.75rem;font-weight:600;cursor:pointer;">✕ Decline</button>'
-        +'</div>';
-    }
+    var previewHtml=preview?'<div class="notif-msg">'+esc(preview.substring(0,120))+'</div>':'';
 
     return '<a href="'+link+'" class="'+unreadClass+'" onclick="markRead(\''+n.id+'\')">'
       +'<div class="notif-icon" style="background:'+cfg.bg+';">'+cfg.icon+'</div>'
       +'<div class="notif-body">'
         +'<div class="notif-title">'+esc(title)+'</div>'
-        +'<div class="notif-msg">'+esc(msg)+'</div>'
+        +previewHtml
         +actions
         +'<div class="notif-time">'+time+'</div>'
       +'</div>'
@@ -213,11 +283,19 @@ window.acceptFriend=async function(fromId,notifId,btn){
 window.declineFriend=async function(fromId,notifId,btn){
   if(!currentUser)return;
   try{
-    var dr=await db.from('friends').delete().eq('user_id',fromId).eq('friend_id',currentUser.id).eq('status','pending');
-    if(dr.error){alert('Error: '+dr.error.message);return;}
-    await db.from('notifications').update({is_read:true}).eq('id',notifId);
+    // Delete friend request row (check both directions)
+    await db.from('friends').delete().eq('user_id',fromId).eq('friend_id',currentUser.id).eq('status','pending');
+    await db.from('friends').delete().eq('user_id',currentUser.id).eq('friend_id',fromId).eq('status','pending');
+    // Delete the notification entirely so it doesn't reappear
+    await db.from('notifications').delete().eq('id',notifId);
+    // Remove from local array
+    allNotifs=allNotifs.filter(function(n){return n.id!==notifId;});
     var row=btn.parentElement;
     row.innerHTML='<span style="color:#9ca3af;font-size:.75rem;">Declined</span>';
+    // Update badge count
+    var unread=allNotifs.filter(function(n){return !n.is_read;}).length;
+    var badge=document.getElementById('allBadge');
+    if(badge){if(unread>0){badge.textContent=unread;badge.style.display='inline';}else badge.style.display='none';}
   }catch(e){alert('Error: '+e.message);}
 };
 
