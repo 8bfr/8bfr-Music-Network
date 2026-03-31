@@ -319,6 +319,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
       <a href="chat.html" class="menu-chip">&#x1F4AC; Chat</a>\
       <a href="dm.html" class="menu-chip">&#x2709;&#xFE0F; DM</a>\
       <a href="integration.html" class="menu-chip">&#x1F517; Integrations</a>\
+      <a href="referral.html" class="menu-chip">&#x1F381; Invite Friends</a>\
     </div>\
   </div>\
   <div class="menu-group collapsed">\
