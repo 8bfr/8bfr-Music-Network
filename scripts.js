@@ -365,9 +365,15 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
   <div class="menu-group collapsed">\
     <div class="menu-group-title">&#x1F9F8; KidZone</div>\
     <div class="menu-links">\
-      <a href="kid-zone.html" class="menu-chip">&#x1F9F8; KidZone</a>\
+      <a href="kids.html" class="menu-chip">&#x1F9F8; KidZone Gate</a>\
+      <a href="kid-zone.html" class="menu-chip">&#x1F3E0; KidZone Home</a>\
+      <a href="kidzone-parent.html" class="menu-chip">&#x1F468; Parent Hub</a>\
       <a href="kidzone-games.html" class="menu-chip">&#x1F3AE; Kids Games</a>\
       <a href="kids-stories.html" class="menu-chip">&#x1F4D6; Kids Stories</a>\
+      <a href="kidzone-creators.html" class="menu-chip">&#x1F3A8; Kids Creators</a>\
+      <a href="kidzone-studio.html" class="menu-chip">&#x1F3B5; Kids Studio</a>\
+      <a href="kidzone-challenges.html" class="menu-chip">&#x1F3C6; Challenges</a>\
+      <a href="kidzone-rewards.html" class="menu-chip">&#x2B50; Rewards</a>\
     </div>\
   </div>\
   <div class="menu-group collapsed">\
