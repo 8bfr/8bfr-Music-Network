@@ -131,6 +131,15 @@ select.form-input{appearance:auto;cursor:pointer;}
         </div>
 
         <div class="form-group">
+            <label>Discount Code (optional)</label>
+            <div style="display:flex;gap:.5rem;">
+                <input type="text" class="form-input" id="discountCode" placeholder="Enter code..." style="flex:1;">
+                <button class="btn btn-primary" onclick="applyDiscount()" style="flex-shrink:0;padding:.5rem .75rem;font-size:.82rem;">Apply</button>
+            </div>
+            <div id="discountMsg" style="font-size:.78rem;margin-top:.3rem;min-height:1em;"></div>
+        </div>
+
+        <div class="form-group">
             <label>Payment Instructions</label>
             <div class="info-box" style="margin-bottom:0;">
                 Send <strong id="payAmount">$5.00</strong> to <strong>8bfr.music@gmail.com</strong> via PayPal.<br>
@@ -158,6 +167,53 @@ var db=supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGc
 var currentUser=null;
 var selectedHours=168;
 var selectedPrice=5;
+var discountPercent=0;
+var discountCodeUsed='';
+
+async function applyDiscount(){
+    var code=document.getElementById('discountCode').value.trim().toUpperCase();
+    var msg=document.getElementById('discountMsg');
+    if(!code){msg.style.color='#fca5a5';msg.textContent='Enter a code.';return;}
+    try{
+        // Check coupons table
+        var {data,error}=await db.from('coupons').select('*').eq('code',code).eq('active',true).maybeSingle();
+        if(!data){
+            // Also try discount_codes table
+            var {data:d2}=await db.from('discount_codes').select('*').eq('code',code).eq('active',true).maybeSingle();
+            data=d2;
+        }
+        if(!data){msg.style.color='#fca5a5';msg.textContent='Invalid or expired code.';discountPercent=0;discountCodeUsed='';updateTotal();return;}
+        // Check if expired
+        if(data.expires_at&&new Date(data.expires_at)<new Date()){msg.style.color='#fca5a5';msg.textContent='This code has expired.';discountPercent=0;discountCodeUsed='';updateTotal();return;}
+        // Check usage limit
+        if(data.max_uses&&data.uses_count>=data.max_uses){msg.style.color='#fca5a5';msg.textContent='This code has reached its usage limit.';discountPercent=0;discountCodeUsed='';updateTotal();return;}
+        discountPercent=data.discount_percent||data.percent||0;
+        discountCodeUsed=code;
+        msg.style.color='#4ade80';
+        msg.textContent='Code applied! '+discountPercent+'% off';
+        updateTotal();
+    }catch(e){
+        // Table might not exist - just show as invalid
+        msg.style.color='#fca5a5';
+        msg.textContent='Could not verify code.';
+        discountPercent=0;
+        discountCodeUsed='';
+        updateTotal();
+    }
+}
+
+function updateTotal(){
+    var price=selectedPrice;
+    if(discountPercent>0){
+        price=selectedPrice*(1-discountPercent/100);
+        price=Math.max(0,Math.round(price*100)/100);
+    }
+    document.getElementById('totalPrice').textContent='$'+price.toFixed(2);
+    document.getElementById('payAmount').textContent='$'+price.toFixed(2);
+    if(discountPercent>0){
+        document.getElementById('totalDetail').textContent=selectedHours+'h - '+discountPercent+'% discount applied';
+    }
+}
 
 async function init(){
     var s=await db.auth.getSession();
@@ -217,10 +273,9 @@ function selectDur(hours,price,el){
     selectedPrice=price;
     document.querySelectorAll('.price-opt').forEach(function(o){o.classList.remove('sel');});
     el.classList.add('sel');
-    document.getElementById('totalPrice').textContent='$'+price.toFixed(2);
     var detail=hours>=168?'1 week (168 hours)':hours>=72?'3 days ('+hours+' hours)':hours>=24?'1 day (24 hours)':hours+' hour'+(hours>1?'s':'');
     document.getElementById('totalDetail').textContent=detail;
-    document.getElementById('payAmount').textContent='$'+price.toFixed(2);
+    updateTotal();
 }
 
 async function submitAd(){
@@ -241,6 +296,9 @@ async function submitAd(){
     var expiresAt=new Date(Date.now()+selectedHours*3600000).toISOString();
 
     try{
+        var finalPrice=selectedPrice;
+        if(discountPercent>0)finalPrice=Math.max(0,Math.round(selectedPrice*(1-discountPercent/100)*100)/100);
+
         var {error}=await db.from('ads').insert({
             user_id:currentUser.id,
             ad_type:'feed',
@@ -250,7 +308,8 @@ async function submitAd(){
             status:'pending',
             approved:false,
             hours:selectedHours,
-            price:selectedPrice,
+            price:finalPrice,
+            discount_code:discountCodeUsed||null,
             expires_at:expiresAt,
             payment_method:'paypal',
             payment_status:'pending'
@@ -258,7 +317,7 @@ async function submitAd(){
         if(error)throw error;
 
         status.className='status-msg success';
-        status.textContent='Promotion submitted! Send $'+selectedPrice.toFixed(2)+' to 8bfr.music@gmail.com via PayPal with your username in the note. The owner will approve your ad after payment is confirmed.';
+        status.textContent='Promotion submitted! Send $'+finalPrice.toFixed(2)+' to 8bfr.music@gmail.com via PayPal with your username in the note. The owner will approve your ad after payment is confirmed.'+(discountCodeUsed?' (Discount: '+discountPercent+'% off)':'');
 
         // Notify owner
         try{
@@ -268,7 +327,7 @@ async function submitAd(){
             await db.from('notifications').insert({
                 recipient_id:OWNER_ID,
                 notif_type:'purchase',
-                metadata:{from_id:currentUser.id,from_name:senderName,message:senderName+' submitted a feed ad ($'+selectedPrice.toFixed(2)+', '+selectedHours+'h). Check owner panel to approve.',link:'owner-panel.html'}
+                metadata:{from_id:currentUser.id,from_name:senderName,message:senderName+' submitted a feed ad ($'+finalPrice.toFixed(2)+', '+selectedHours+'h). Check Ad Manager to approve.',link:'owner-ads.html'}
             });
         }catch(e){}
 
