@@ -57,6 +57,18 @@
     </div>
   </header>
   <main class="max-w-2xl mx-auto px-4 mt-4">
+    <!-- FEED AD CAROUSEL -->
+    <div style="margin-bottom:1.25rem;position:relative;border-radius:12px;overflow:hidden;border:1px solid rgba(124,58,237,.3);background:rgba(12,6,24,.6);">
+      <div id="feedAdTrack" style="position:relative;width:100%;height:120px;overflow:hidden;">
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(168,85,247,.3);font-size:.8rem;">Loading ads...</div>
+      </div>
+      <div style="position:absolute;bottom:6px;right:8px;display:flex;gap:4px;z-index:5;">
+        <button id="feedAdPrev" style="width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,.6);border:1px solid rgba(124,58,237,.4);color:#a855f7;font-size:.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&#9664;</button>
+        <button id="feedAdPause" style="width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,.6);border:1px solid rgba(124,58,237,.4);color:#a855f7;font-size:.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">||</button>
+        <button id="feedAdNext" style="width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,.6);border:1px solid rgba(124,58,237,.4);color:#a855f7;font-size:.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&#9654;</button>
+      </div>
+      <a href="feed-ads.html" style="position:absolute;top:6px;right:8px;font-size:.6rem;color:rgba(168,85,247,.4);text-decoration:none;z-index:5;">Promote Your Post</a>
+    </div>
     <div class="tab-bar">
       <button class="tab-btn active" data-tab="trending">🔥 Trending</button>
       <button class="tab-btn" data-tab="top">🏆 Top</button>
@@ -85,6 +97,72 @@
     </div>
   </nav>
   <script src="scripts.js" defer></script>
+  <!-- FEED AD CAROUSEL -->
+  <script>
+  (function(){
+    var track=document.getElementById('feedAdTrack');
+    if(!track)return;
+    var defaultFeedAds=[
+      {img:'assets/images/ad_banner_1.jpg',url:'feed-ads.html'},
+      {img:'assets/images/ad_banner_2.jpg',url:'feed-ads.html'},
+      {img:'assets/images/ad_banner_3.jpg',url:'feed-ads.html'}
+    ];
+    var feedAds=defaultFeedAds.slice();
+    var feedIdx=0,feedPaused=false,feedTimer=null;
+    var prev=document.getElementById('feedAdPrev');
+    var next=document.getElementById('feedAdNext');
+    var pause=document.getElementById('feedAdPause');
+
+    function createFeedSlide(i){
+      var d=feedAds[i];
+      var a=document.createElement('a');
+      a.style.cssText='position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .35s;';
+      a.href=d.url||'feed-ads.html';
+      if(d.url&&d.url.startsWith('http'))a.target='_blank';
+      var img=new Image();
+      img.src=d.img;
+      img.alt='Feed ad '+(i+1);
+      img.style.cssText='width:100%;height:100%;object-fit:cover;';
+      img.onerror=function(){this.parentElement.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:.8rem;color:rgba(168,85,247,.4);">Ad space available - <a href="feed-ads.html" style="color:#a855f7;margin-left:4px;">Promote here</a></div>';};
+      a.appendChild(img);
+      return a;
+    }
+    function showFeedSlide(ni){
+      feedIdx=(ni+feedAds.length)%feedAds.length;
+      var old=track.querySelector('a[style*="opacity: 1"],a[style*="opacity:1"]');
+      var ns=createFeedSlide(feedIdx);
+      track.appendChild(ns);
+      requestAnimationFrame(function(){ns.style.opacity='1';});
+      if(old)setTimeout(function(){old.remove();},400);
+    }
+    function scheduleFeed(){clearTimeout(feedTimer);if(feedPaused)return;feedTimer=setTimeout(function(){showFeedSlide(feedIdx+1);scheduleFeed();},5000);}
+
+    if(prev)prev.onclick=function(){showFeedSlide(feedIdx-1);};
+    if(next)next.onclick=function(){showFeedSlide(feedIdx+1);};
+    if(pause)pause.onclick=function(){feedPaused=!feedPaused;pause.textContent=feedPaused?'>':'||';if(!feedPaused)scheduleFeed();else clearTimeout(feedTimer);};
+
+    // Load live feed ads from Supabase
+    function loadFeedAds(){
+      try{
+        var SB_URL='https://novbuvwpjnxwwvdekjhr.supabase.co';
+        var SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+        var client=window._8bfrSupabaseClient||(window.supabase?window.supabase.createClient(SB_URL,SB_KEY):null);
+        if(!client){showFeedSlide(0);scheduleFeed();return;}
+        var now=new Date().toISOString();
+        client.from('ads').select('*').eq('status','approved').eq('approved',true).eq('ad_type','feed').gte('expires_at',now).order('created_at',{ascending:false})
+          .then(function(res){
+            if(res.data&&res.data.length>0){
+              var live=res.data.map(function(ad){return{img:ad.image_url||'assets/images/ad_banner_1.jpg',url:ad.link_url||'feed-ads.html'};});
+              if(live.length<defaultFeedAds.length){for(var i=live.length;i<defaultFeedAds.length;i++)live.push(defaultFeedAds[i]);}
+              feedAds=live;
+            }
+            showFeedSlide(0);scheduleFeed();
+          }).catch(function(){showFeedSlide(0);scheduleFeed();});
+      }catch(e){showFeedSlide(0);scheduleFeed();}
+    }
+    loadFeedAds();
+  })();
+  </script>
   <script>
   (async function() {
     const db = window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
@@ -178,8 +256,10 @@
       const scoreBadge=currentTab==='top'?'<span style="font-size:0.68rem;background:rgba(124,58,237,0.2);border:1px solid rgba(124,58,237,0.4);color:#a855f7;padding:1px 7px;border-radius:10px;margin-left:6px;">score '+sc+'</span>':'';
       let media='';
       if(post.media&&(post.media_type==='image'||post.media_type==='photo'))media='<div style="margin:0.75rem 0;border-radius:10px;overflow:hidden;"><img src="'+post.media+'" style="width:100%;max-height:400px;object-fit:cover;" onerror="this.style.display=\'none\'"></div>';
-      else if(post.media&&post.media_type==='video'){const yt=post.media.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);if(yt)media='<div style="margin:0.75rem 0;position:relative;padding-bottom:56.25%;height:0;border-radius:10px;overflow:hidden;"><iframe src="https://www.youtube.com/embed/'+yt[1]+'" style="position:absolute;inset:0;width:100%;height:100%;border:none;" allowfullscreen></iframe></div>';else media='<div style="margin:0.75rem 0;border-radius:10px;overflow:hidden;"><video controls preload="none" style="width:100%;max-height:400px;"><source src="'+post.media+'"></video></div>';}
+      else if(post.media&&post.media_type==='video'){const yt=post.media.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);if(yt)media='<div style="margin:0.75rem 0;position:relative;padding-bottom:56.25%;height:0;border-radius:10px;overflow:hidden;"><iframe src="https://www.youtube.com/embed/'+yt[1]+'?playsinline=1" style="position:absolute;inset:0;width:100%;height:100%;border:none;" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture;web-share" allowfullscreen loading="lazy"></iframe></div>';else media='<div style="margin:0.75rem 0;border-radius:10px;overflow:hidden;"><video controls playsinline preload="none" style="width:100%;max-height:400px;"><source src="'+post.media+'"></video></div>';}
       else if(post.media&&post.media_type==='audio')media='<div style="margin:0.75rem 0;"><audio controls preload="none" style="width:100%;"><source src="'+post.media+'"></audio></div>';
+      // Also detect YouTube links in post text when no media is set
+      if(!media&&post.text){var ytInText=post.text.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);if(ytInText)media='<div style="margin:0.75rem 0;position:relative;padding-bottom:56.25%;height:0;border-radius:10px;overflow:hidden;"><iframe src="https://www.youtube.com/embed/'+ytInText[1]+'?playsinline=1" style="position:absolute;inset:0;width:100%;height:100%;border:none;" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture;web-share" allowfullscreen loading="lazy"></iframe></div>';}
       const likeClass=liked?'action-btn liked':'action-btn';const favClass=favorited?'action-btn favorited':'action-btn';
       return '<div class="feed-card" data-post-id="'+post.id+'"'+(isOwner?' style="border-color:rgba(124,58,237,0.6);box-shadow:0 0 12px rgba(124,58,237,0.15);"':'')+'><div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;"><a href="profile.html?id='+post.user_id+'" style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden;text-decoration:none;">'+av+'</a><div style="flex:1;min-width:0;"><a href="profile.html?id='+post.user_id+'" style="font-weight:700;font-size:0.95rem;text-decoration:none;color:#eae6ff;">'+esc(name)+v+'</a>'+tb+ownerBadge+scoreBadge+'<div style="font-size:0.78rem;color:#a855f7;opacity:0.7;">'+ago+si+'</div></div></div>'+(post.text?'<div style="margin-bottom:0.5rem;line-height:1.55;word-break:break-word;">'+esc(post.text)+'</div>':'')+media+'<div style="display:flex;gap:0.25rem;flex-wrap:wrap;padding-top:0.6rem;border-top:1px solid rgba(124,58,237,0.15);"><button class="'+likeClass+'" id="like-btn-'+post.id+'" onclick="likePost(\''+post.id+'\',this)">❤️ <span id="like-count-'+post.id+'">'+(post.likes||0)+'</span></button><button class="action-btn" onclick="toggleComments(\''+post.id+'\')">💬 <span id="comment-count-'+post.id+'">'+(post.comments||post.comment_count||0)+'</span></button><button class="action-btn" onclick="resharePost(\''+post.id+'\',this)">🔁 <span id="reshare-count-'+post.id+'">'+(post.reshares||post.shares||0)+'</span></button><button class="'+favClass+'" id="fav-btn-'+post.id+'" onclick="favPost(\''+post.id+'\',this)">⭐ <span id="fav-count-'+post.id+'">'+(post.favorites||0)+'</span></button><button class="action-btn" onclick="openShareSheet(\''+post.id+'\',\''+encodeURIComponent(post.text||'')+'\')" title="Share">📤</button>'+(post.user_id!==(currentUser&&currentUser.id)?'<button class="action-btn" onclick="openFeedTip(\''+post.user_id+'\',\''+esc(name).replace(/'/g,"\\'")+'\')" title="Tip">🪙</button>':'')+'<div class="sticker-wrap"><button class="action-btn" title="React" onclick="toggleStickerPicker(\''+post.id+'\',event)">🎭</button><div class="sticker-picker" id="spicker-'+post.id+'"></div></div></div><div class="sticker-row" id="sticker-row-'+post.id+'"></div></div>';
     }
@@ -308,6 +388,70 @@
   window.setFTip=function(n){document.getElementById('ftipAmount').value=n;document.querySelectorAll('.ftip-quick').forEach(b=>b.classList.toggle('sel',parseInt(b.textContent)===n));};
   window.submitFeedTip=async function(){var amount=parseInt(document.getElementById('ftipAmount').value);var note=document.getElementById('ftipNote').value.trim()||'Coin tip from feed';var status=document.getElementById('ftipStatus');var btn=document.getElementById('ftipBtn');if(!amount||amount<1){status.style.color='#fca5a5';status.textContent='Enter an amount.';return;}btn.disabled=true;btn.textContent='Sending...';try{var db=window._db;var sess=await db.auth.getSession();if(!sess.data.session){status.style.color='#fca5a5';status.textContent='Log in to tip.';btn.disabled=false;btn.textContent='Send 🪙';return;}var res=await db.rpc('transfer_coins',{p_from_id:sess.data.session.user.id,p_to_id:_fTipToId,p_amount:amount,p_note:note});if(res.error)throw new Error(res.error.message);if(!res.data.success){status.style.color='#fca5a5';status.textContent='✕ '+res.data.error;btn.disabled=false;btn.textContent='Send 🪙';return;}status.style.color='#86efac';status.textContent='✓ Sent! Balance: 🪙 '+(res.data.new_balance||0).toLocaleString();document.getElementById('ftipBal').textContent=(res.data.new_balance||0).toLocaleString();btn.textContent='✓ Done!';setTimeout(()=>{closeFeedTip();btn.disabled=false;btn.textContent='Send 🪙';},1600);}catch(e){status.style.color='#fca5a5';status.textContent='✕ '+(e.message||'Unknown error');btn.disabled=false;btn.textContent='Send 🪙';}};
   document.getElementById('feedTipModal').addEventListener('click',function(e){if(e.target===this)closeFeedTip();});
+})();
+</script>
+
+<!-- POST NAVIGATION: Arrows + Swipe -->
+<div id="postNavArrows" style="display:none;position:fixed;bottom:90px;right:12px;z-index:150;display:flex;flex-direction:column;gap:6px;">
+  <button onclick="navPost(-1)" style="width:38px;height:38px;border-radius:50%;background:rgba(12,6,24,.9);border:1px solid rgba(124,58,237,.5);color:#a855f7;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&#9650;</button>
+  <button onclick="navPost(1)" style="width:38px;height:38px;border-radius:50%;background:rgba(12,6,24,.9);border:1px solid rgba(124,58,237,.5);color:#a855f7;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&#9660;</button>
+</div>
+<script>
+(function(){
+  var currentPostIdx=0;
+  function getPostCards(){return Array.from(document.querySelectorAll('.feed-card'));}
+
+  window.navPost=function(dir){
+    var cards=getPostCards();
+    if(!cards.length)return;
+    currentPostIdx=Math.max(0,Math.min(cards.length-1,currentPostIdx+dir));
+    cards[currentPostIdx].scrollIntoView({behavior:'smooth',block:'start'});
+  };
+
+  // Show arrows once posts load
+  var arrowCheck=setInterval(function(){
+    if(getPostCards().length>0){
+      document.getElementById('postNavArrows').style.display='flex';
+      clearInterval(arrowCheck);
+    }
+  },1000);
+
+  // Swipe to scroll between posts
+  var touchStartY=0;
+  var touchStartX=0;
+  var swiping=false;
+
+  document.addEventListener('touchstart',function(e){
+    // Don't interfere with menu or horizontal scrolling
+    if(e.target.closest('#menu')||e.target.closest('#carrieWrap')||e.target.closest('.tab-bar')||e.target.closest('iframe'))return;
+    touchStartY=e.touches[0].clientY;
+    touchStartX=e.touches[0].clientX;
+    swiping=true;
+  },{passive:true});
+
+  document.addEventListener('touchend',function(e){
+    if(!swiping)return;
+    swiping=false;
+    var deltaY=e.changedTouches[0].clientY-touchStartY;
+    var deltaX=e.changedTouches[0].clientX-touchStartX;
+    // Only trigger on vertical swipes (not horizontal)
+    if(Math.abs(deltaY)<60||Math.abs(deltaX)>Math.abs(deltaY))return;
+    // Find which post is closest to viewport center
+    var cards=getPostCards();
+    if(!cards.length)return;
+    var viewCenter=window.innerHeight/2;
+    var closest=0;
+    var closestDist=Infinity;
+    cards.forEach(function(c,i){
+      var rect=c.getBoundingClientRect();
+      var dist=Math.abs(rect.top+rect.height/2-viewCenter);
+      if(dist<closestDist){closestDist=dist;closest=i;}
+    });
+    currentPostIdx=closest;
+    // Swipe up = next post, swipe down = prev post
+    if(deltaY<-60)navPost(1);
+    else if(deltaY>60)navPost(-1);
+  },{passive:true});
 })();
 </script>
 </body>
