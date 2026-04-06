@@ -1,0 +1,94 @@
+<!--
+  AUTOMOD INTEGRATION GUIDE
+  
+  Add this function to any page where users submit text content
+  (chat, feed posts, DMs, comments, bios, etc.)
+  
+  Copy this script block into chat.html, feed.html, dm.html, profile.html
+  right before the closing </body> tag.
+  
+  Then call checkAutoMod() before sending the content.
+-->
+
+<script>
+// ── AUTOMOD CLIENT HELPER ──
+// Returns: { allowed: true/false, warning: "message" }
+// Never blocks - only warns. Owner gets notified for serious violations.
+
+window.checkAutoMod = async function(text, contentType, userId, contentId) {
+  if (!text || text.length < 3) return { allowed: true };
+  try {
+    var res = await fetch('https://8bfr-api.vercel.app/api/automod', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: text,
+        content_type: contentType || 'message',
+        user_id: userId || '',
+        content_id: contentId || ''
+      })
+    });
+    var data = await res.json();
+    if (data.flagged) {
+      return {
+        allowed: true,
+        flagged: true,
+        severity: data.severity,
+        warning: data.warning_message || 'This content may violate community guidelines.'
+      };
+    }
+    return { allowed: true, flagged: false };
+  } catch(e) {
+    // On error, allow content through
+    return { allowed: true, flagged: false };
+  }
+};
+</script>
+
+<!--
+  USAGE EXAMPLES:
+  
+  ── In chat.html (before sending message) ──
+  
+  async function sendMessage() {
+    var text = document.getElementById('chatInput').value.trim();
+    if (!text) return;
+    
+    // Check automod
+    var mod = await checkAutoMod(text, 'chat', currentUser.id);
+    if (mod.flagged) {
+      // Show warning but still allow sending
+      alert(mod.warning);
+    }
+    
+    // Continue sending...
+    await db.from('chat_messages').insert({...});
+  }
+  
+  
+  ── In dm.html (before sending DM) ──
+  
+  async function sendDM() {
+    var text = document.getElementById('dmInput').value.trim();
+    if (!text) return;
+    
+    var mod = await checkAutoMod(text, 'dm', currentUser.id);
+    if (mod.flagged) alert(mod.warning);
+    
+    // Continue sending...
+  }
+  
+  
+  ── In feed.html / profile.html (before creating post) ──
+  
+  async function createPost() {
+    var text = document.getElementById('postText').value.trim();
+    
+    var mod = await checkAutoMod(text, 'post', currentUser.id);
+    if (mod.flagged) {
+      if (!confirm(mod.warning + '\n\nPost anyway?')) return;
+    }
+    
+    // Continue posting...
+  }
+-->
