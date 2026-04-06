@@ -1,259 +1,559 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Beatmakers — 8BFR Music Network</title>
-  <link rel="icon" href="assets/images/favicon.png">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    *{margin:0;padding:0;box-sizing:border-box;}
-    body{font-family:system-ui,-apple-system,sans-serif;background:linear-gradient(#0b0014,#000);color:#eae6ff;min-height:100vh;padding-bottom:80px;}
-    .header{background:rgba(12,4,26,.95);border-bottom:1px solid rgba(124,58,237,.4);padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
-    .header h1{font-size:1.15rem;font-weight:800;}
-    .container{max-width:900px;margin:0 auto;padding:1.25rem 1rem;}
-    .hero{background:linear-gradient(135deg,rgba(124,58,237,.2),rgba(0,217,255,.08));border:1px solid rgba(124,58,237,.3);border-radius:18px;padding:1.5rem;text-align:center;margin-bottom:1.5rem;}
-    .hero h2{font-size:1.5rem;font-weight:900;background:linear-gradient(135deg,#a855f7,#00d9ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
-    .hero p{color:rgba(168,85,247,.8);font-size:.85rem;margin:.4rem 0 .85rem;}
-    .filter-bar{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.25rem;align-items:center;}
-    .filter-chip{background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.3);color:rgba(234,230,255,.6);padding:.3rem .75rem;border-radius:999px;font-size:.78rem;font-weight:600;cursor:pointer;transition:all .2s;}
-    .filter-chip.active, .filter-chip:hover{background:rgba(124,58,237,.3);border-color:#a855f7;color:#eae6ff;}
-    .search-wrap{flex:1;min-width:160px;position:relative;}
-    .search-wrap input{width:100%;background:rgba(18,3,39,.8);border:1px solid rgba(124,58,237,.35);border-radius:999px;color:#eae6ff;padding:.35rem .85rem .35rem 2rem;font-size:.82rem;outline:none;}
-    .search-wrap input:focus{border-color:#a855f7;}
-    .search-wrap::before{content:'🔍';position:absolute;left:.65rem;top:50%;transform:translateY(-50%);font-size:.75rem;}
-    .section-title{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:rgba(168,85,247,.55);margin:.1rem 0 .6rem;}
-    .beatmakers-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.85rem;margin-bottom:1.5rem;}
-    .bm-card{background:rgba(12,6,24,.9);border:1px solid rgba(124,58,237,.25);border-radius:14px;padding:1.1rem;text-decoration:none;color:inherit;display:block;transition:all .2s;}
-    .bm-card:hover{border-color:rgba(124,58,237,.6);transform:translateY(-2px);}
-    .bm-avatar{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:1.4rem;margin:0 auto .65rem;overflow:hidden;}
-    .bm-avatar img{width:100%;height:100%;object-fit:cover;}
-    .bm-name{font-size:.9rem;font-weight:800;text-align:center;margin-bottom:.2rem;}
-    .bm-tags{display:flex;gap:.3rem;flex-wrap:wrap;justify-content:center;margin-bottom:.5rem;}
-    .tag{font-size:.65rem;background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.3);border-radius:4px;padding:.1rem .4rem;color:#a855f7;}
-    .bm-stats{display:flex;gap:.75rem;justify-content:center;font-size:.7rem;color:rgba(168,85,247,.6);}
-    .verified-mark{color:#00d9ff;font-size:.75rem;}
-    /* Beats list */
-    .beat-row{background:rgba(12,6,24,.85);border:1px solid rgba(124,58,237,.2);border-radius:12px;padding:.85rem 1rem;margin-bottom:.55rem;display:flex;align-items:center;gap:.75rem;transition:all .2s;}
-    .beat-row:hover{border-color:rgba(124,58,237,.45);}
-    .beat-cover{width:46px;height:46px;border-radius:8px;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden;}
-    .beat-cover img{width:100%;height:100%;object-fit:cover;}
-    .beat-info{flex:1;min-width:0;}
-    .beat-title{font-size:.9rem;font-weight:700;}
-    .beat-meta{font-size:.72rem;color:rgba(168,85,247,.65);margin-top:.15rem;}
-    .play-btn{background:rgba(124,58,237,.25);border:1px solid rgba(124,58,237,.5);color:#a855f7;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-size:.9rem;transition:all .2s;}
-    .play-btn:hover{background:rgba(124,58,237,.5);}
-    .beat-price{font-size:.78rem;font-weight:800;color:#f59e0b;flex-shrink:0;}
-    .buy-btn{background:#7c3aed;border:none;color:#fff;padding:.3rem .75rem;border-radius:8px;font-size:.75rem;font-weight:700;cursor:pointer;flex-shrink:0;transition:all .2s;}
-    .buy-btn:hover{background:#6d28d9;}
-    .spinner{width:24px;height:24px;border:3px solid rgba(124,58,237,.2);border-top-color:#a855f7;border-radius:50%;animation:spin .7s linear infinite;margin:2rem auto;}
-    @keyframes spin{to{transform:rotate(360deg);}}
-    .empty{text-align:center;color:rgba(168,85,247,.4);padding:2rem;font-size:.9rem;}
-    audio{display:none;}
-    .cta-bar{background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.3);border-radius:12px;padding:1rem;text-align:center;margin-bottom:1.5rem;}
-    .cta-bar p{font-size:.85rem;color:#a855f7;margin-bottom:.65rem;}
-    .cta-btn{background:#7c3aed;border:none;color:#fff;padding:.5rem 1.25rem;border-radius:10px;font-weight:700;font-size:.88rem;cursor:pointer;text-decoration:none;display:inline-block;}
-  </style>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Beat Maker -- 8BFR Music Network</title>
+<link rel="icon" href="assets/images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--primary:#7c3aed;--card:#0c0618;--text:#eae6ff;--dim:#a855f7;--border:rgba(124,58,237,.35);--cyan:#00d9ff;--gold:#fbbf24;--green:#4ade80;--bg:#0b0014;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Work Sans',sans-serif;background:linear-gradient(var(--bg),#000);color:var(--text);min-height:100vh;padding-bottom:80px;}
+.header{background:rgba(15,0,30,.95);border-bottom:2px solid var(--primary);padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;backdrop-filter:blur(12px);}
+.header h1{font-family:'Bebas Neue',cursive;font-size:1.5rem;color:var(--primary);letter-spacing:1px;}
+.header a{color:var(--dim);text-decoration:none;font-weight:600;font-size:.85rem;}
+.container{max-width:750px;margin:0 auto;padding:1.5rem 1rem;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.25rem;margin-bottom:1rem;}
+.card h2{font-family:'Bebas Neue',cursive;font-size:1.2rem;color:var(--dim);margin-bottom:.75rem;letter-spacing:1px;}
+.hero{text-align:center;padding:1.5rem 1rem;margin-bottom:1rem;}
+.hero h2{font-family:'Bebas Neue',cursive;font-size:2rem;color:var(--primary);margin-bottom:.4rem;}
+.hero p{color:var(--dim);font-size:.85rem;max-width:500px;margin:0 auto;line-height:1.5;}
+.form-group{margin-bottom:.9rem;}
+.form-group label{display:block;font-size:.78rem;color:var(--dim);margin-bottom:.3rem;font-weight:600;}
+.form-input{width:100%;padding:.6rem .75rem;background:rgba(124,58,237,.08);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.85rem;outline:none;font-family:inherit;}
+.form-input:focus{border-color:var(--primary);}
+select.form-input{appearance:auto;cursor:pointer;}
+textarea.form-input{resize:vertical;min-height:60px;}
+.row{display:flex;gap:.6rem;flex-wrap:wrap;}
+.row .form-group{flex:1;min-width:120px;}
+.chip-grid{display:flex;flex-wrap:wrap;gap:.35rem;}
+.chip{padding:.35rem .65rem;border-radius:20px;font-size:.72rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:rgba(124,58,237,.06);color:var(--dim);transition:all .15s;user-select:none;}
+.chip:hover{border-color:var(--primary);}
+.chip.sel{background:rgba(124,58,237,.25);border-color:var(--primary);color:var(--text);}
+.slider-wrap{display:flex;align-items:center;gap:.6rem;}
+.slider-wrap input[type="range"]{flex:1;accent-color:var(--primary);}
+.slider-val{font-family:'Bebas Neue',cursive;font-size:1.1rem;color:var(--cyan);min-width:40px;text-align:center;}
+.btn{padding:.7rem 1.25rem;border-radius:10px;font-weight:700;font-size:.88rem;cursor:pointer;border:none;transition:all .2s;color:#fff;}
+.btn:hover{filter:brightness(1.1);transform:translateY(-1px);}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+.btn-primary{background:linear-gradient(135deg,#7c3aed,#a855f7);width:100%;}
+.btn-outline{background:rgba(124,58,237,.12);border:1px solid var(--border);color:var(--dim);}
+.btn-green{background:var(--green);color:#000;}
+.btn-cyan{background:var(--cyan);color:#000;}
+.result-box{background:rgba(0,217,255,.04);border:1px solid rgba(0,217,255,.2);border-radius:12px;padding:1.25rem;margin-top:1rem;display:none;}
+.result-box.show{display:block;}
+.result-box audio{width:100%;margin:.75rem 0;}
+.result-actions{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.5rem;}
+.prompt-preview{background:rgba(0,0,0,.3);border-radius:8px;padding:.6rem .8rem;margin-top:.5rem;font-size:.78rem;color:rgba(234,230,255,.5);line-height:1.4;font-style:italic;display:none;}
+.prompt-preview.show{display:block;}
+.status-msg{font-size:.82rem;padding:.5rem;text-align:center;margin-top:.5rem;border-radius:8px;}
+.status-msg.loading{background:rgba(124,58,237,.1);color:var(--dim);}
+.status-msg.error{background:rgba(239,68,68,.1);color:#fca5a5;}
+.status-msg.success{background:rgba(5,150,105,.1);color:var(--green);}
+.history-item{display:flex;gap:.6rem;align-items:center;padding:.6rem;background:rgba(124,58,237,.06);border:1px solid rgba(124,58,237,.15);border-radius:10px;margin-bottom:.4rem;}
+.history-item audio{flex:1;height:36px;}
+.history-prompt{font-size:.7rem;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px;}
+.info-note{font-size:.72rem;color:rgba(234,230,255,.4);line-height:1.5;margin-top:.5rem;padding:.5rem .75rem;background:rgba(124,58,237,.04);border-radius:8px;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.5;}}
+.generating{animation:pulse 1.5s infinite;}
+</style>
 </head>
 <body>
-
 <div class="header">
-  <h1>🎚️ Beatmakers</h1>
-  <a href="profile.html" style="color:#a855f7;text-decoration:none;font-size:.82rem;">My Profile</a>
+    <a href="ai-tools.html">&larr; AI Tools</a>
+    <h1>AI Beat Maker</h1>
+    <a href="pricing.html">Pricing</a>
 </div>
-
 <div class="container">
 
-  <div class="hero">
-    <h2>🎚️ Beatmaker Hub</h2>
-    <p>Connect with producers, discover fire beats, and sell your sound to artists worldwide.</p>
-    <div style="display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;">
-      <a href="profile.html" class="cta-btn">Upload My Beats</a>
-      <a href="members.html?role=beatmaker" class="cta-btn" style="background:transparent;border:1px solid rgba(124,58,237,.5);color:#a855f7;">Browse All Producers</a>
-    </div>
-  </div>
-
-  <!-- SELL YOUR BEATS CTA -->
-  <div class="cta-bar" id="sellCta" style="display:none;">
-    <p>🔥 Are you a beatmaker? Upload your beats directly from your profile and start selling today.</p>
-    <a href="profile.html" class="cta-btn">Go to My Profile → Upload Beats</a>
-  </div>
-
-  <!-- FILTER BAR -->
-  <div class="filter-bar">
-    <div class="search-wrap">
-      <input type="text" id="searchInput" placeholder="Search beatmakers or beats..." oninput="filterContent()">
-    </div>
-    <button class="filter-chip active" onclick="setGenreFilter('all',this)">All</button>
-    <button class="filter-chip" onclick="setGenreFilter('trap',this)">Trap</button>
-    <button class="filter-chip" onclick="setGenreFilter('drill',this)">Drill</button>
-    <button class="filter-chip" onclick="setGenreFilter('boom bap',this)">Boom Bap</button>
-    <button class="filter-chip" onclick="setGenreFilter('rnb',this)">R&B</button>
-    <button class="filter-chip" onclick="setGenreFilter('pop',this)">Pop</button>
-  </div>
-
-  <!-- FEATURED BEATMAKERS -->
-  <div class="section-title">🌟 Featured Producers</div>
-  <div class="beatmakers-grid" id="beatmakersGrid"><div class="spinner"></div></div>
-
-  <!-- RECENT BEATS -->
-  <div class="section-title">🎵 Latest Beats</div>
-  <div id="beatsList"><div class="spinner"></div></div>
-
+<div class="hero">
+    <div style="font-size:3rem;margin-bottom:.3rem;">&#127911;</div>
+    <h2>AI Beat Maker</h2>
+    <p>Create beats from text descriptions. Customize genre, BPM, instruments, mood, and more. Powered by MusicGen AI.</p>
 </div>
 
-<audio id="audioPlayer"></audio>
+<!-- REFERENCE SECTION -->
+<div class="card">
+    <h2>Reference (Optional)</h2>
+    <div class="form-group">
+        <label>In the Style of (Artist Name)</label>
+        <input type="text" class="form-input" id="styleArtist" placeholder="e.g. Metro Boomin, J Dilla, Timbaland, Pharrell...">
+    </div>
+    <div class="form-group">
+        <label>Reference Song or YouTube Link</label>
+        <input type="text" class="form-input" id="refLink" placeholder="e.g. 'Drake - God's Plan' or paste YouTube URL">
+    </div>
+    <div class="info-note">We analyze the style and create something similar -- never copies. AI generates a unique beat inspired by the reference.</div>
+</div>
 
+<!-- GENRE & STYLE -->
+<div class="card">
+    <h2>Genre & Style</h2>
+    <div class="form-group">
+        <label>Genre</label>
+        <div class="chip-grid" id="genreChips">
+            <div class="chip sel" onclick="toggleChip(this,'genre')">Trap</div>
+            <div class="chip" onclick="toggleChip(this,'genre')">Hip Hop</div>
+            <div class="chip" onclick="toggleChip(this,'genre')">Lo-fi</div>
+            <div class="chip" onclick="toggleChip(this,'genre')">Boom Bap</div>
+            <div class="chip" onclick="toggleChip(this,'genre')">R&B</div>
+            <div class="chip" onclick="toggleChip(this,'genre')">Drill</div>
+            <div class="chip" onclick="toggleChip(this,'genre')">Pop</div>
+            <div class="chip" onclick="toggleChip(this,'genre')">EDM</div>
+            <div class="chip" onclick="toggleChip(this,'genre')">Afrobeat</div>
+            <div class="chip" onclick="toggleChip(this,'genre')">Reggaeton</div>
+            <div class="chip" onclick="toggleChip(this,'genre')">Jazz</div>
+            <div class="chip" onclick="toggleChip(this,'genre')">Soul</div>
+            <div class="chip" onclick="toggleChip(this,'genre')">Rock</div>
+            <div class="chip" onclick="toggleChip(this,'genre')">Ambient</div>
+            <div class="chip" onclick="toggleChip(this,'genre')">Phonk</div>
+            <div class="chip" onclick="toggleChip(this,'genre')">Gospel</div>
+            <div class="chip" onclick="toggleChip(this,'genre')">Country</div>
+            <div class="chip" onclick="toggleChip(this,'genre')">Latin</div>
+        </div>
+    </div>
+    <div class="form-group">
+        <label>Sub-Genre / Vibe (optional)</label>
+        <input type="text" class="form-input" id="subGenre" placeholder="e.g. dark trap, melodic drill, bouncy, ethereal...">
+    </div>
+</div>
+
+<!-- TEMPO & KEY -->
+<div class="card">
+    <h2>Tempo & Key</h2>
+    <div class="row">
+        <div class="form-group">
+            <label>BPM</label>
+            <div class="slider-wrap">
+                <input type="range" min="60" max="200" value="140" id="bpmSlider" oninput="document.getElementById('bpmVal').textContent=this.value">
+                <div class="slider-val" id="bpmVal">140</div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="form-group">
+            <label>Key</label>
+            <select class="form-input" id="keySelect">
+                <option value="">Any Key</option>
+                <option value="C">C</option><option value="C#">C#/Db</option>
+                <option value="D">D</option><option value="D#">D#/Eb</option>
+                <option value="E">E</option><option value="F">F</option>
+                <option value="F#">F#/Gb</option><option value="G">G</option>
+                <option value="G#">G#/Ab</option><option value="A" selected>A</option>
+                <option value="A#">A#/Bb</option><option value="B">B</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Scale</label>
+            <select class="form-input" id="scaleSelect">
+                <option value="minor" selected>Minor</option>
+                <option value="major">Major</option>
+                <option value="dorian">Dorian</option>
+                <option value="mixolydian">Mixolydian</option>
+                <option value="phrygian">Phrygian</option>
+                <option value="pentatonic minor">Pentatonic Minor</option>
+                <option value="blues">Blues</option>
+                <option value="harmonic minor">Harmonic Minor</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Time Signature</label>
+            <select class="form-input" id="timeSig">
+                <option value="4/4" selected>4/4 (Standard)</option>
+                <option value="3/4">3/4 (Waltz)</option>
+                <option value="6/8">6/8 (Compound)</option>
+                <option value="5/4">5/4 (Odd)</option>
+                <option value="7/8">7/8 (Odd)</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- INSTRUMENTS -->
+<div class="card">
+    <h2>Instruments</h2>
+    <div class="chip-grid" id="instrChips">
+        <div class="chip sel" onclick="toggleChip(this,'instr')">808 Bass</div>
+        <div class="chip sel" onclick="toggleChip(this,'instr')">Hi-Hats</div>
+        <div class="chip sel" onclick="toggleChip(this,'instr')">Kick Drum</div>
+        <div class="chip sel" onclick="toggleChip(this,'instr')">Snare</div>
+        <div class="chip" onclick="toggleChip(this,'instr')">Clap</div>
+        <div class="chip" onclick="toggleChip(this,'instr')">Piano</div>
+        <div class="chip" onclick="toggleChip(this,'instr')">Guitar</div>
+        <div class="chip" onclick="toggleChip(this,'instr')">Synth Pad</div>
+        <div class="chip" onclick="toggleChip(this,'instr')">Synth Lead</div>
+        <div class="chip" onclick="toggleChip(this,'instr')">Strings</div>
+        <div class="chip" onclick="toggleChip(this,'instr')">Flute</div>
+        <div class="chip" onclick="toggleChip(this,'instr')">Brass</div>
+        <div class="chip" onclick="toggleChip(this,'instr')">Bells</div>
+        <div class="chip" onclick="toggleChip(this,'instr')">Organ</div>
+        <div class="chip" onclick="toggleChip(this,'instr')">Choir</div>
+        <div class="chip" onclick="toggleChip(this,'instr')">Vinyl Crackle</div>
+        <div class="chip" onclick="toggleChip(this,'instr')">Acoustic Drums</div>
+        <div class="chip" onclick="toggleChip(this,'instr')">Tabla</div>
+        <div class="chip" onclick="toggleChip(this,'instr')">Steel Drums</div>
+        <div class="chip" onclick="toggleChip(this,'instr')">Saxophone</div>
+        <div class="chip" onclick="toggleChip(this,'instr')">Trumpet</div>
+        <div class="chip" onclick="toggleChip(this,'instr')">Violin</div>
+        <div class="chip" onclick="toggleChip(this,'instr')">Bass Guitar</div>
+        <div class="chip" onclick="toggleChip(this,'instr')">Arpeggiator</div>
+    </div>
+</div>
+
+<!-- MOOD & ENERGY -->
+<div class="card">
+    <h2>Mood & Energy</h2>
+    <div class="row">
+        <div class="form-group">
+            <label>Mood</label>
+            <div class="chip-grid" id="moodChips">
+                <div class="chip sel" onclick="toggleChip(this,'mood')">Dark</div>
+                <div class="chip" onclick="toggleChip(this,'mood')">Chill</div>
+                <div class="chip" onclick="toggleChip(this,'mood')">Hype</div>
+                <div class="chip" onclick="toggleChip(this,'mood')">Sad</div>
+                <div class="chip" onclick="toggleChip(this,'mood')">Aggressive</div>
+                <div class="chip" onclick="toggleChip(this,'mood')">Happy</div>
+                <div class="chip" onclick="toggleChip(this,'mood')">Dreamy</div>
+                <div class="chip" onclick="toggleChip(this,'mood')">Mysterious</div>
+                <div class="chip" onclick="toggleChip(this,'mood')">Uplifting</div>
+                <div class="chip" onclick="toggleChip(this,'mood')">Nostalgic</div>
+                <div class="chip" onclick="toggleChip(this,'mood')">Ethereal</div>
+                <div class="chip" onclick="toggleChip(this,'mood')">Cinematic</div>
+            </div>
+        </div>
+    </div>
+    <div class="form-group">
+        <label>Energy Level</label>
+        <div class="slider-wrap">
+            <span style="font-size:.72rem;color:var(--dim);">Low</span>
+            <input type="range" min="1" max="10" value="7" id="energySlider" oninput="document.getElementById('energyVal').textContent=this.value+'/10'">
+            <span style="font-size:.72rem;color:var(--dim);">High</span>
+            <div class="slider-val" id="energyVal">7/10</div>
+        </div>
+    </div>
+</div>
+
+<!-- EXTRA -->
+<div class="card">
+    <h2>Extra Details</h2>
+    <div class="form-group">
+        <label>Additional Description (optional)</label>
+        <textarea class="form-input" id="extraDesc" placeholder="e.g. 'heavy sliding 808s, fast hi-hat rolls, spacey reverb, melodic piano chords, Travis Scott type vibe'"></textarea>
+    </div>
+</div>
+
+<!-- GENERATE -->
+<div class="card">
+    <h2>Generate</h2>
+    <div id="tierNote" class="info-note" style="margin-bottom:.6rem;font-weight:600;"></div>
+    <div id="upgradePrompt" style="display:none;margin-bottom:.6rem;padding:.6rem;background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.2);border-radius:8px;font-size:.78rem;text-align:center;">
+        Want full-length beats? <a href="pricing.html" style="color:var(--cyan);font-weight:700;">Upgrade to VIP ($4.99/mo)</a> or higher to unlock multi-section beat generation.
+    </div>
+    <div class="prompt-preview" id="promptPreview"></div>
+    <div style="display:flex;gap:.5rem;margin-bottom:.5rem;">
+        <button class="btn btn-outline" onclick="buildPrompt()" style="flex:1;">Preview Prompt</button>
+        <button class="btn btn-primary" onclick="generateBeat()" id="genBtn" style="flex:2;">Generate Beat</button>
+    </div>
+    <!-- Extend section - only visible for owner/paid users -->
+    <div id="extendSection" style="display:none;margin-top:.6rem;padding:.6rem;background:rgba(0,217,255,.04);border:1px solid rgba(0,217,255,.15);border-radius:8px;">
+        <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+            <label style="font-size:.78rem;color:var(--cyan);font-weight:600;flex-shrink:0;">Sections:</label>
+            <select class="form-input" id="segmentCount" style="width:auto;padding:.3rem .5rem;font-size:.8rem;">
+                <option value="2">2 (~45-60s)</option>
+                <option value="3">3 (~60-90s)</option>
+                <option value="4" selected>4 (~90-120s)</option>
+                <option value="5">5 (~2-2.5min)</option>
+                <option value="6">6 (~2.5-3min)</option>
+            </select>
+            <button class="btn btn-cyan" onclick="extendBeat()" id="extendBtn" style="padding:.4rem .8rem;font-size:.8rem;">Extend Beat</button>
+        </div>
+        <div style="font-size:.68rem;color:var(--dim);margin-top:.3rem;">Generate first, then click Extend to add more sections and merge into a full-length beat.</div>
+    </div>
+    <div class="status-msg" id="statusMsg" style="display:none;"></div>
+</div>
+
+<!-- RESULT -->
+<div class="result-box" id="resultBox">
+    <h3 style="font-family:'Bebas Neue',cursive;font-size:1.1rem;color:var(--cyan);margin-bottom:.5rem;">Generated Beat</h3>
+    <audio controls id="resultAudio" style="width:100%;"></audio>
+    <div style="font-size:.75rem;color:var(--dim);margin:.25rem 0;" id="resultInfo"></div>
+    <div class="result-actions">
+        <button class="btn btn-cyan" onclick="downloadBeat()" style="padding:.5rem .9rem;font-size:.8rem;">Download</button>
+        <button class="btn btn-outline" onclick="generateBeat()" style="padding:.5rem .9rem;font-size:.8rem;">Regenerate</button>
+    </div>
+</div>
+
+<!-- HISTORY -->
+<div class="card" id="historyCard" style="display:none;">
+    <h2>Recent Generations</h2>
+    <div id="historyList"></div>
+</div>
+
+</div>
+<div style="text-align:center;padding:1rem 0;font-size:.72rem;color:rgba(168,85,247,.3);">Copyright 2025-2026 8BFR Music Network. AI beats are royalty-free for personal use.</div>
+<script src="scripts.js" defer></script>
 <script>
-const SB = window.supabase.createClient(
-  'https://novbuvwpjnxwwvdekjhr.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0'
-);
-let currentUser = null, allBeats = [], allBeatmakers = [];
-let activeGenre = 'all', currentlyPlaying = null;
+var API_URL='https://8bfr-api.vercel.app';
+var currentAudioData=null;
+var currentPrompt='';
+var history=[];
+var segments=[];
+var userTier='free';
+var isOwner=false;
+var OWNER_ID='cb556180-f032-4b21-9470-1d786f2664ab';
 
-async function init() {
-  const { data: { session } } = await SB.auth.getSession().catch(() => ({ data:{} }));
-  if (session?.user) {
-    currentUser = session.user;
-    const { data: p } = await SB.from('profiles').select('role').eq('user_id', session.user.id).single();
-    if (p && ['beatmaker','producer','dj','owner','cofounder'].includes(p.role)) {
-      document.getElementById('sellCta').style.display = 'block';
+// Check user tier on load
+(async function(){
+    try{
+        var db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
+        var s=await db.auth.getSession();
+        if(s.data.session){
+            var uid=s.data.session.user.id;
+            isOwner=uid===OWNER_ID;
+            if(isOwner){userTier='owner';}
+            else{
+                try{
+                    var{data:p}=await db.from('profiles').select('subscription_tier').eq('user_id',uid).single();
+                    if(p&&p.subscription_tier&&p.subscription_tier!=='free')userTier=p.subscription_tier;
+                }catch(e){}
+                // Also check app_subscriptions
+                if(userTier==='free'){
+                    try{
+                        var{data:sub}=await db.from('app_subscriptions').select('tier,expires_at').eq('user_id',uid).order('created_at',{ascending:false}).limit(1).single();
+                        if(sub&&sub.tier&&sub.tier!=='free'){
+                            if(!sub.expires_at||new Date(sub.expires_at)>new Date())userTier=sub.tier;
+                        }
+                    }catch(e){}
+                }
+            }
+        }
+    }catch(e){}
+    // Show/hide extend controls based on tier
+    var canExtend=isOwner||userTier==='vip'||userTier==='pro'||userTier==='elite';
+    if(canExtend){
+        document.getElementById('extendSection').style.display='block';
+        document.getElementById('tierNote').textContent='Full-length generation enabled ('+( isOwner?'Owner':userTier.toUpperCase())+')';
+        document.getElementById('tierNote').style.color='#4ade80';
+    }else{
+        document.getElementById('tierNote').textContent='Free tier: 15-30 second previews. Upgrade for full-length beats.';
+        document.getElementById('tierNote').style.color='#fbbf24';
+        document.getElementById('upgradePrompt').style.display='block';
     }
-  }
-  await Promise.all([loadBeatmakers(), loadBeats()]);
+})();
+
+function getSelected(groupId){
+    var chips=document.getElementById(groupId).querySelectorAll('.chip.sel');
+    var vals=[];
+    for(var i=0;i<chips.length;i++)vals.push(chips[i].textContent.trim());
+    return vals;
 }
 
-async function loadBeatmakers() {
-  const el = document.getElementById('beatmakersGrid');
-  try {
-    const { data, error } = await SB.from('profiles')
-      .select('user_id,username,display_name,avatar_url,role,bio,verified_artist,badges,tags')
-      .in('role', ['beatmaker','producer','dj'])
-      .order('created_at', { ascending: false })
-      .limit(12);
-    if (error) throw error;
-    allBeatmakers = data || [];
-    renderBeatmakers(allBeatmakers);
-  } catch(e) {
-    el.innerHTML = `<p class="empty">Could not load beatmakers: ${e.message}</p>`;
-  }
-}
-
-function renderBeatmakers(list) {
-  const el = document.getElementById('beatmakersGrid');
-  if (!list.length) { el.innerHTML = '<p class="empty" style="grid-column:1/-1;">No beatmakers yet. Be the first!</p>'; return; }
-  el.innerHTML = list.map(p => {
-    const name = esc(p.display_name || p.username || 'Producer');
-    const tags = Array.isArray(p.badges) ? p.badges : (Array.isArray(p.tags) ? p.tags : []);
-    const tagHtml = tags.slice(0,3).map(t => `<span class="tag">${esc(t)}</span>`).join('');
-    const verMark = p.verified_artist ? '<span class="verified-mark">✓ Verified</span>' : '';
-    return `<a href="profile.html?id=${p.user_id}" class="bm-card">
-      <div class="bm-avatar">${p.avatar_url ? `<img src="${p.avatar_url}" onerror="this.parentNode.textContent='🎚️'">` : '🎚️'}</div>
-      <div class="bm-name">${name} ${verMark}</div>
-      <div class="bm-tags">${tagHtml || `<span class="tag">${esc(p.role)}</span>`}</div>
-      <div class="bm-stats"><span>🎵 View Beats</span></div>
-    </a>`;
-  }).join('');
-}
-
-async function loadBeats() {
-  const el = document.getElementById('beatsList');
-  try {
-    const { data, error } = await SB.from('songs')
-      .select('id,title,artist,cover_art,song_url,price,genre,uploaded_by,bpm,created_at,hidden,downloads_enabled')
-      .eq('hidden', false)
-      .not('song_url', 'is', null)
-      .order('created_at', { ascending: false })
-      .limit(40);
-    if (error) throw error;
-    allBeats = data || [];
-    // Get uploader profiles
-    const uids = [...new Set(allBeats.map(b => b.uploaded_by).filter(Boolean))];
-    const pm = {};
-    if (uids.length) {
-      const { data: profiles } = await SB.from('profiles').select('user_id,username,display_name,role').in('user_id', uids);
-      (profiles || []).forEach(p => pm[p.user_id] = p);
+function toggleChip(el,group){
+    if(group==='genre'||group==='mood'){
+        var parent=el.parentElement;
+        parent.querySelectorAll('.chip').forEach(function(c){c.classList.remove('sel');});
     }
-    allBeats.forEach(b => b._producer = pm[b.uploaded_by]);
-    // Filter to only beatmaker uploads
-    allBeats = allBeats.filter(b => b._producer && ['beatmaker','producer','dj','owner','cofounder'].includes(b._producer.role));
-    renderBeats(allBeats);
-  } catch(e) {
-    el.innerHTML = `<p class="empty">Could not load beats: ${e.message}</p>`;
-  }
+    el.classList.toggle('sel');
 }
 
-function renderBeats(list) {
-  const el = document.getElementById('beatsList');
-  if (!list.length) { el.innerHTML = '<p class="empty">No beats uploaded yet. Beatmakers — go to your profile to upload!</p>'; return; }
-  el.innerHTML = list.map(b => {
-    const producer = esc(b._producer?.display_name || b._producer?.username || b.artist || 'Unknown');
-    const price = b.price > 0 ? '$' + parseFloat(b.price).toFixed(2) : 'Free';
-    const bpmTag = b.bpm ? `${b.bpm} BPM · ` : '';
-    const genreTag = b.genre ? `${esc(b.genre)} · ` : '';
-    const dlDisabled = b.downloads_enabled === false;
-    return `<div class="beat-row" data-genre="${esc((b.genre||'').toLowerCase())}">
-      <div class="beat-cover">${b.cover_art ? `<img src="${b.cover_art}" onerror="this.parentNode.textContent='🎵'">` : '🎵'}</div>
-      <div class="beat-info">
-        <div class="beat-title">${esc(b.title||'Untitled')}</div>
-        <div class="beat-meta">${bpmTag}${genreTag}<a href="profile.html?id=${b.uploaded_by}" style="color:#a855f7;text-decoration:none;">${producer}</a></div>
-      </div>
-      ${b.song_url ? `<button class="play-btn" onclick="togglePlay('${b.id}','${esc(b.song_url)}',this)" title="Preview">▶</button>` : ''}
-      ${!dlDisabled && b.price > 0 ? `<span class="beat-price">${price}</span><button class="buy-btn" onclick="buyBeat('${b.id}','${esc(b.title||'Beat')}',${b.price})">Buy</button>` : ''}
-      ${!dlDisabled && b.price === 0 ? `<span class="beat-price">Free</span>` : ''}
-      ${dlDisabled ? `<span style="font-size:.7rem;color:rgba(168,85,247,.35);">N/A</span>` : ''}
-    </div>`;
-  }).join('');
+function buildPrompt(){
+    var genres=getSelected('genreChips');
+    var instruments=getSelected('instrChips');
+    var moods=getSelected('moodChips');
+    var bpm=document.getElementById('bpmSlider').value;
+    var key=document.getElementById('keySelect').value;
+    var scale=document.getElementById('scaleSelect').value;
+    var timeSig=document.getElementById('timeSig').value;
+    var energy=document.getElementById('energySlider').value;
+    var subGenre=document.getElementById('subGenre').value.trim();
+    var styleArtist=document.getElementById('styleArtist').value.trim();
+    var refLink=document.getElementById('refLink').value.trim();
+    var extraDesc=document.getElementById('extraDesc').value.trim();
+
+    var parts=[];
+    if(genres.length)parts.push(genres.join(', ')+' beat');
+    else parts.push('instrumental beat');
+    if(subGenre)parts.push(subGenre+' style');
+    if(styleArtist)parts.push('in the style of '+styleArtist);
+    parts.push(bpm+' BPM');
+    if(timeSig!=='4/4')parts.push(timeSig+' time signature');
+    if(key)parts.push('key of '+key+' '+scale);
+    if(instruments.length)parts.push('featuring '+instruments.join(', '));
+    if(moods.length)parts.push(moods.join(', ')+' mood');
+    var energyWords=['very minimal','minimal','sparse','laid back','moderate','energetic','driving','intense','aggressive','maximum energy'];
+    parts.push(energyWords[parseInt(energy)-1]+' energy');
+    if(extraDesc)parts.push(extraDesc);
+    if(refLink)parts.push('inspired by: '+refLink);
+
+    currentPrompt=parts.join('. ')+'.';
+    var preview=document.getElementById('promptPreview');
+    preview.textContent=currentPrompt;
+    preview.classList.add('show');
+    return currentPrompt;
 }
 
-function togglePlay(id, url, btn) {
-  const audio = document.getElementById('audioPlayer');
-  if (currentlyPlaying === id) {
-    audio.pause(); currentlyPlaying = null;
-    document.querySelectorAll('.play-btn').forEach(b => b.textContent = '▶');
-  } else {
-    audio.src = url; audio.play().catch(() => {});
-    currentlyPlaying = id;
-    document.querySelectorAll('.play-btn').forEach(b => b.textContent = '▶');
-    btn.textContent = '⏸';
-  }
-  audio.onended = () => { currentlyPlaying = null; btn.textContent = '▶'; };
+async function generateBeat(){
+    var btn=document.getElementById('genBtn');
+    var status=document.getElementById('statusMsg');
+
+    if(!currentPrompt)buildPrompt();
+    var prompt=currentPrompt;
+    var styleArtist=document.getElementById('styleArtist').value.trim();
+    var refLink=document.getElementById('refLink').value.trim();
+
+    btn.disabled=true;
+    btn.textContent='Generating...';
+    btn.classList.add('generating');
+    status.style.display='block';
+    status.className='status-msg loading';
+    status.textContent='Preparing beat... This may take 30-60 seconds.';
+    segments=[];
+
+    try{
+        // Enhance prompt via OpenAI if reference provided
+        if(styleArtist||refLink){
+            status.textContent='Analyzing style reference...';
+            var descPrompt='Create a detailed music production prompt for generating a beat. ';
+            if(styleArtist)descPrompt+='Style: '+styleArtist+'. ';
+            if(refLink)descPrompt+='Reference: '+refLink+'. ';
+            descPrompt+='Additional specs: '+prompt;
+            try{
+                var descRes=await fetch(API_URL+'/api/beatmaker',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:descPrompt,mode:'describe'})});
+                var descData=await descRes.json();
+                if(descData.success&&descData.prompt){prompt=descData.prompt;document.getElementById('promptPreview').textContent=prompt;document.getElementById('promptPreview').classList.add('show');}
+            }catch(e){}
+        }
+
+        // Generate first segment
+        status.textContent='Generating beat with AI... Please wait.';
+        var audioBlob=await callMusicGen(prompt,status);
+        if(!audioBlob)throw new Error('No audio returned');
+        segments.push(audioBlob);
+
+        // Show result
+        showResult(audioBlob,prompt);
+        status.className='status-msg success';
+        status.textContent='Beat generated! '+(isOwner||userTier!=='free'?'Use "Extend" to add more sections.':'30-second preview. Upgrade for full-length beats.');
+
+    }catch(e){
+        status.className='status-msg error';
+        status.textContent='Error: '+e.message;
+    }
+    btn.disabled=false;
+    btn.textContent='Generate Beat';
+    btn.classList.remove('generating');
+    currentPrompt='';
 }
 
-function buyBeat(id, title, price) {
-  if (!currentUser) { if (confirm('Log in to purchase beats.')) location.href='login.html'; return; }
-  alert('💳 Beat purchase coming soon!\n\n"' + title + '" — $' + price + '\n\nPayPal integration will be enabled shortly.');
+async function extendBeat(){
+    var canExtend=isOwner||userTier==='vip'||userTier==='pro'||userTier==='elite';
+    if(!canExtend){alert('Upgrade to VIP or higher to extend beats.');return;}
+    if(!segments.length){alert('Generate a beat first.');return;}
+
+    var btn=document.getElementById('extendBtn');
+    var status=document.getElementById('statusMsg');
+    btn.disabled=true;
+    btn.textContent='Extending...';
+    status.style.display='block';
+    status.className='status-msg loading';
+
+    var segNum=segments.length+1;
+    var maxSegs=parseInt(document.getElementById('segmentCount').value)||4;
+    var segsToAdd=Math.min(maxSegs,6)-segments.length;
+
+    if(segsToAdd<=0){
+        status.textContent='Max segments reached. Download your beat.';
+        btn.disabled=false;btn.textContent='Extend Beat';
+        return;
+    }
+
+    try{
+        var prompt=document.getElementById('promptPreview').textContent||buildPrompt();
+        for(var i=0;i<segsToAdd;i++){
+            status.textContent='Generating section '+(segments.length+1)+' of '+Math.min(maxSegs,6)+'...';
+            var blob=await callMusicGen(prompt+'. continuation, seamless transition, consistent style',status);
+            if(blob)segments.push(blob);
+            else break;
+        }
+
+        // Merge all segments
+        status.textContent='Merging '+segments.length+' sections...';
+        var merged=new Blob(segments,{type:'audio/flac'});
+        showResult(merged,prompt);
+
+        status.className='status-msg success';
+        status.textContent='Full beat ready! '+segments.length+' sections merged (~'+(segments.length*20)+'-'+(segments.length*30)+' seconds).';
+
+    }catch(e){
+        status.className='status-msg error';
+        status.textContent='Extend error: '+e.message;
+    }
+    btn.disabled=false;
+    btn.textContent='Extend Beat';
 }
 
-let activeGenreFilter = 'all';
-function setGenreFilter(genre, btn) {
-  activeGenreFilter = genre;
-  document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-  filterContent();
+async function callMusicGen(prompt,status){
+    var genRes=await fetch(API_URL+'/api/beatmaker',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({prompt:prompt,mode:'generate'})
+    });
+    var genData=await genRes.json();
+
+    if(genData.retry){
+        if(status)status.textContent='Model warming up... Retrying in 30s.';
+        await new Promise(function(r){setTimeout(r,30000);});
+        genRes=await fetch(API_URL+'/api/beatmaker',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:prompt,mode:'generate'})});
+        genData=await genRes.json();
+    }
+
+    if(!genData.success||!genData.audio)throw new Error(genData.error||'Generation failed');
+
+    var audioBytes=atob(genData.audio);
+    var arr=new Uint8Array(audioBytes.length);
+    for(var i=0;i<audioBytes.length;i++)arr[i]=audioBytes.charCodeAt(i);
+    return new Blob([arr],{type:genData.mime||'audio/flac'});
 }
 
-function filterContent() {
-  const q = (document.getElementById('searchInput')?.value || '').toLowerCase();
-  const filtered = allBeats.filter(b => {
-    const matchGenre = activeGenreFilter === 'all' || (b.genre||'').toLowerCase().includes(activeGenreFilter);
-    const name = (b.title||'') + ' ' + (b.artist||'') + ' ' + (b._producer?.display_name||'') + ' ' + (b._producer?.username||'');
-    const matchQ = !q || name.toLowerCase().includes(q);
-    return matchGenre && matchQ;
-  });
-  renderBeats(filtered);
+function showResult(blob,prompt){
+    var url=URL.createObjectURL(blob);
+    currentAudioData={blob:blob,url:url,prompt:prompt,format:'flac'};
+    document.getElementById('resultAudio').src=url;
+    document.getElementById('resultInfo').textContent=segments.length+' segment'+(segments.length>1?'s':'')+' | Prompt: '+prompt.substring(0,80)+'...';
+    document.getElementById('resultBox').classList.add('show');
 
-  const bmFiltered = allBeatmakers.filter(p => {
-    const name = (p.display_name||'') + ' ' + (p.username||'');
-    return !q || name.toLowerCase().includes(q);
-  });
-  renderBeatmakers(bmFiltered);
+    history.unshift({url:url,prompt:prompt,time:new Date().toLocaleTimeString(),blob:blob,format:'flac',segments:segments.length});
+    renderHistory();
 }
 
-function esc(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
-init();
+function downloadBeat(){
+    if(!currentAudioData)return;
+    var a=document.createElement('a');
+    a.href=currentAudioData.url;
+    a.download='8bfr-beat-'+Date.now()+'.flac';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+function renderHistory(){
+    if(!history.length){document.getElementById('historyCard').style.display='none';return;}
+    document.getElementById('historyCard').style.display='block';
+    document.getElementById('historyList').innerHTML=history.slice(0,10).map(function(h,i){
+        return '<div class="history-item">'+
+            '<audio controls src="'+h.url+'" style="height:36px;flex:1;"></audio>'+
+            '<div class="history-prompt" title="'+h.prompt+'">'+h.segments+'x | '+h.prompt.substring(0,40)+'...</div>'+
+            '<button class="btn btn-outline" onclick="downloadHistoryBeat('+i+')" style="padding:.3rem .5rem;font-size:.7rem;">DL</button>'+
+        '</div>';
+    }).join('');
+}
+
+function downloadHistoryBeat(idx){
+    var h=history[idx];if(!h)return;
+    var a=document.createElement('a');a.href=h.url;a.download='8bfr-beat-'+idx+'.flac';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+}
 </script>
-<script src="scripts.js" defer onerror="console.warn('scripts.js not found')"></script>
 </body>
 </html>
