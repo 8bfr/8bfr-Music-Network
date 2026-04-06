@@ -399,6 +399,11 @@ async function sendDM(){
   const input=document.getElementById('dmInput');
   const text=input.value.trim();
   if(!text)return;
+
+  // AutoMod check
+  var mod=await checkAutoMod(text,'dm',currentUser.id);
+  if(mod.flagged){alert(mod.warning);}
+
   input.value='';
 
   const{error}=await db.from('direct_messages').insert({
@@ -699,6 +704,13 @@ init();
     setTimeout(tryAdd,800);
   }
 })();
+</script>
+
+<script>
+window.checkAutoMod=async function(text,contentType,userId){
+  if(!text||text.length<3)return{allowed:true,flagged:false};
+  try{var r=await fetch('https://8bfr-api.vercel.app/api/automod',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:text,content_type:contentType||'message',user_id:userId||''})});var d=await r.json();if(d.flagged)return{allowed:true,flagged:true,severity:d.severity,warning:d.warning_message||'This content may violate community guidelines.'};return{allowed:true,flagged:false};}catch(e){return{allowed:true,flagged:false};}
+};
 </script>
 
 </body>
