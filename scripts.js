@@ -326,6 +326,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
     <div class="menu-group-title">&#x1F916; AI Tools</div>\
     <div class="menu-links">\
       <a href="ai-tools.html" class="menu-chip menu-chip-ai">&#x1F916; AI Tools</a>\
+      <a href="beatmaker.html" class="menu-chip menu-chip-ai">&#x1F3B6; AI Beat Maker</a>\
       <a href="https://8bfr.com/producer-ai/index.html" target="_blank" rel="noopener" class="menu-chip menu-chip-ai">&#x1F3B5; Producer AI</a>\
       <a href="author-hub.html" class="menu-chip menu-chip-ai">&#x1F4DA; Author Hub</a>\
       <a href="translate.html" class="menu-chip menu-chip-ai">&#x1F310; Translate</a>\
