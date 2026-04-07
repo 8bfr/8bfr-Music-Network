@@ -143,7 +143,6 @@ textarea.form-input{resize:vertical;min-height:60px;}
                 <option value="major">Major</option>
                 <option value="blues">Blues</option>
                 <option value="dorian">Dorian</option>
-                <option value="pentatonic">Pentatonic</option>
             </select>
         </div>
         <div class="form-group">
@@ -213,33 +212,21 @@ textarea.form-input{resize:vertical;min-height:60px;}
 
 <div class="card">
     <h2>Generate</h2>
-    <div id="tierNote" class="info-note" style="margin-bottom:.6rem;font-weight:600;"></div>
-    <div id="upgradePrompt" style="display:none;margin-bottom:.6rem;padding:.6rem;background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.2);border-radius:8px;font-size:.78rem;text-align:center;">
-        Want full-length beats? <a href="pricing.html" style="color:var(--cyan);font-weight:700;">Upgrade to VIP ($4.99/mo)</a> for multi-section generation.
-    </div>
     <div class="prompt-preview" id="promptPreview"></div>
     <div style="display:flex;gap:.5rem;margin-bottom:.5rem;">
         <button class="btn btn-outline" onclick="buildPrompt()" style="flex:1;">Preview Prompt</button>
         <button class="btn btn-primary" onclick="generateBeat()" id="genBtn" style="flex:2;">Generate Beat</button>
     </div>
-    <div id="extendSection" style="display:none;margin-top:.6rem;padding:.6rem;background:rgba(0,217,255,.04);border:1px solid rgba(0,217,255,.15);border-radius:8px;">
-        <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
-            <label style="font-size:.78rem;color:var(--cyan);font-weight:600;">Sections:</label>
-            <select class="form-input" id="segmentCount" style="width:auto;padding:.3rem .5rem;font-size:.8rem;">
-                <option value="2">2</option><option value="3">3</option><option value="4" selected>4</option><option value="5">5</option><option value="6">6</option>
-            </select>
-            <button class="btn btn-cyan" onclick="extendBeat()" id="extendBtn" style="padding:.4rem .8rem;font-size:.8rem;">Extend Beat</button>
-        </div>
-    </div>
     <div class="status-msg" id="statusMsg" style="display:none;"></div>
+    <div class="info-note">Generation takes 10-30 seconds. Powered by Pollinations AI (free).</div>
 </div>
 
 <div class="result-box" id="resultBox">
     <h3 style="font-family:'Bebas Neue',cursive;font-size:1.1rem;color:var(--cyan);margin-bottom:.5rem;">Generated Beat</h3>
-    <audio controls id="resultAudio" style="width:100%;"></audio>
+    <audio controls id="resultAudio" style="width:100%;" crossorigin="anonymous"></audio>
     <div style="font-size:.75rem;color:var(--dim);margin:.25rem 0;" id="resultInfo"></div>
     <div class="result-actions">
-        <button class="btn btn-cyan" onclick="downloadBeat()" style="padding:.5rem .9rem;font-size:.8rem;">Download MP3</button>
+        <a class="btn btn-cyan" id="dlLink" href="#" download="8bfr-beat.mp3" style="padding:.5rem .9rem;font-size:.8rem;text-decoration:none;display:none;">Download MP3</a>
         <button class="btn btn-outline" onclick="generateBeat()" style="padding:.5rem .9rem;font-size:.8rem;">Regenerate</button>
     </div>
 </div>
@@ -250,41 +237,11 @@ textarea.form-input{resize:vertical;min-height:60px;}
 </div>
 
 </div>
-<div style="text-align:center;padding:1rem 0;font-size:.72rem;color:rgba(168,85,247,.3);">Copyright 2025-2026 8BFR Music Network</div>
+<div style="text-align:center;padding:1rem 0;font-size:.72rem;color:rgba(168,85,247,.3);">Copyright 2025-2026 8BFR Music Network. AI beats are royalty-free for personal use.</div>
 <script src="scripts.js" defer></script>
 <script>
-var currentAudioUrl=null;
 var currentPrompt='';
 var beatHistory=[];
-var segments=[];
-var userTier='free';
-var isOwner=false;
-var OWNER_ID='cb556180-f032-4b21-9470-1d786f2664ab';
-
-(async function(){
-    try{
-        var db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
-        var s=await db.auth.getSession();
-        if(s.data.session){
-            var uid=s.data.session.user.id;
-            isOwner=uid===OWNER_ID;
-            if(isOwner){userTier='owner';}
-            else{
-                try{var p=await db.from('profiles').select('subscription_tier').eq('user_id',uid).single();if(p.data&&p.data.subscription_tier&&p.data.subscription_tier!=='free')userTier=p.data.subscription_tier;}catch(e){}
-            }
-        }
-    }catch(e){}
-    var canExtend=isOwner||userTier==='vip'||userTier==='pro'||userTier==='elite';
-    if(canExtend){
-        document.getElementById('extendSection').style.display='block';
-        document.getElementById('tierNote').textContent='Full-length generation enabled ('+(isOwner?'Owner':userTier.toUpperCase())+')';
-        document.getElementById('tierNote').style.color='#4ade80';
-    }else{
-        document.getElementById('tierNote').textContent='Free: short previews. Upgrade for full beats.';
-        document.getElementById('tierNote').style.color='#fbbf24';
-        document.getElementById('upgradePrompt').style.display='block';
-    }
-})();
 
 function getSelected(id){
     var c=document.getElementById(id).querySelectorAll('.chip.sel');
@@ -313,70 +270,48 @@ function buildPrompt(){
     var ew=['very minimal','minimal','sparse','laid back','moderate','energetic','driving','intense','aggressive','maximum energy'];
     p.push(ew[parseInt(en)-1]+' energy');
     var ex=document.getElementById('extraDesc').value.trim();if(ex)p.push(ex);
+    p.push('instrumental only, no vocals');
     currentPrompt=p.join('. ')+'.';
     document.getElementById('promptPreview').textContent=currentPrompt;
     document.getElementById('promptPreview').classList.add('show');
     return currentPrompt;
 }
 
-async function generateBeat(){
+function generateBeat(){
     var btn=document.getElementById('genBtn');
     var status=document.getElementById('statusMsg');
     if(!currentPrompt)buildPrompt();
     btn.disabled=true;btn.textContent='Generating...';btn.classList.add('generating');
     status.style.display='block';status.className='status-msg loading';
-    status.textContent='Generating beat... This takes 30-60 seconds.';
-    segments=[];
-    try{
-        var prompt=currentPrompt;
-        var sa=document.getElementById('styleArtist').value.trim();
-        var rl=document.getElementById('refLink').value.trim();
-        if(sa||rl){
-            status.textContent='Analyzing style...';
-            try{
-                var dr=await fetch('https://8bfr-api.vercel.app/api/beatmaker',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:prompt,mode:'describe'})});
-                var dd=await dr.json();
-                if(dd.success&&dd.prompt){prompt=dd.prompt;document.getElementById('promptPreview').textContent=prompt;document.getElementById('promptPreview').classList.add('show');}
-            }catch(e){}
-            status.textContent='Generating beat...';
-        }
-        var url='https://audio.pollinations.ai/'+encodeURIComponent(prompt);
-        var audio=document.getElementById('resultAudio');
-        audio.src=url;
-        currentAudioUrl=url;
-        document.getElementById('resultInfo').textContent='Prompt: '+prompt.substring(0,100)+'...';
-        document.getElementById('resultBox').classList.add('show');
-        beatHistory.unshift({url:url,prompt:prompt,time:new Date().toLocaleTimeString()});
-        renderHistory();
+    status.textContent='Generating beat... Please wait 10-30 seconds.';
+
+    var prompt=currentPrompt;
+    var audioUrl='https://gen.pollinations.ai/audio/'+encodeURIComponent(prompt)+'?instrumental=true';
+    var audio=document.getElementById('resultAudio');
+
+    audio.oncanplaythrough=function(){
         status.className='status-msg success';
         status.textContent='Beat ready! Press play to listen.';
-    }catch(e){
+        btn.disabled=false;btn.textContent='Generate Beat';btn.classList.remove('generating');
+        document.getElementById('resultInfo').textContent='Prompt: '+prompt.substring(0,100)+'...';
+        var dl=document.getElementById('dlLink');
+        dl.href=audioUrl;
+        dl.style.display='inline-block';
+        audio.oncanplaythrough=null;
+        beatHistory.unshift({url:audioUrl,prompt:prompt});
+        renderHistory();
+    };
+    audio.onerror=function(){
         status.className='status-msg error';
-        status.textContent='Error: '+e.message;
-    }
-    btn.disabled=false;btn.textContent='Generate Beat';btn.classList.remove('generating');
+        status.textContent='Generation failed. Try a different prompt or try again in a moment.';
+        btn.disabled=false;btn.textContent='Generate Beat';btn.classList.remove('generating');
+        audio.onerror=null;
+    };
+
+    audio.src=audioUrl;
+    audio.load();
+    document.getElementById('resultBox').classList.add('show');
     currentPrompt='';
-}
-
-async function extendBeat(){
-    if(!isOwner&&userTier==='free'){alert('Upgrade to extend beats.');return;}
-    alert('Extended generation creates multiple sections. Each section loads as a separate track below. Use an audio editor like BandLab to stitch them together for a full beat.');
-    var prompt=document.getElementById('promptPreview').textContent||buildPrompt();
-    var count=parseInt(document.getElementById('segmentCount').value)||4;
-    var html='';
-    for(var i=0;i<count;i++){
-        var url='https://audio.pollinations.ai/'+encodeURIComponent(prompt+'. section '+(i+1)+' of '+count+', continuation');
-        html+='<div style="margin:.4rem 0;"><div style="font-size:.72rem;color:var(--dim);">Section '+(i+1)+'</div><audio controls src="'+url+'" style="width:100%;height:36px;" preload="none"></audio></div>';
-    }
-    document.getElementById('resultInfo').innerHTML=html;
-}
-
-function downloadBeat(){
-    if(!currentAudioUrl)return;
-    var a=document.createElement('a');
-    a.href=currentAudioUrl;a.download='8bfr-beat-'+Date.now()+'.mp3';
-    a.target='_blank';
-    document.body.appendChild(a);a.click();document.body.removeChild(a);
 }
 
 function renderHistory(){
