@@ -129,7 +129,31 @@ select.form-input{appearance:auto;cursor:pointer;}
 </div>
 
 <div class="card">
-<h2>3. Convert</h2>
+<h2>3. Audio Enhancement (Optional)</h2>
+<div class="info-note" style="margin-bottom:.75rem;color:#fbbf24;">Apply spatial and immersive effects to make your track sound wider, deeper, and more professional. These process during conversion.</div>
+<div class="form-group">
+<label>Spatial Widening</label>
+<div class="slider-wrap"><span style="font-size:.72rem;color:var(--dim);">Off</span><input type="range" min="0" max="100" value="0" id="spatialWidth" oninput="document.getElementById('swVal').textContent=this.value+'%'"><span style="font-size:.72rem;color:var(--dim);">Max</span><div class="slider-val" id="swVal">0%</div></div>
+<div style="font-size:.68rem;color:var(--dim);">Widens the stereo image for an immersive, room-filling sound.</div>
+</div>
+<div class="form-group">
+<label>Bass Boost</label>
+<div class="slider-wrap"><span style="font-size:.72rem;color:var(--dim);">Off</span><input type="range" min="0" max="12" value="0" id="bassBoost" oninput="document.getElementById('bbVal').textContent=this.value+'dB'"><span style="font-size:.72rem;color:var(--dim);">+12dB</span><div class="slider-val" id="bbVal">0dB</div></div>
+</div>
+<div class="form-group">
+<label>Presence / Air (High Shelf)</label>
+<div class="slider-wrap"><span style="font-size:.72rem;color:var(--dim);">Off</span><input type="range" min="0" max="8" value="0" id="airBoost" oninput="document.getElementById('abVal').textContent=this.value+'dB'"><span style="font-size:.72rem;color:var(--dim);">+8dB</span><div class="slider-val" id="abVal">0dB</div></div>
+<div style="font-size:.68rem;color:var(--dim);">Adds brightness and clarity to vocals and hi-hats.</div>
+</div>
+<div class="form-group">
+<label>Reverb (Room Feel)</label>
+<div class="slider-wrap"><span style="font-size:.72rem;color:var(--dim);">Off</span><input type="range" min="0" max="100" value="0" id="reverbMix" oninput="document.getElementById('rvVal').textContent=this.value+'%'"><span style="font-size:.72rem;color:var(--dim);">Max</span><div class="slider-val" id="rvVal">0%</div></div>
+<div style="font-size:.68rem;color:var(--dim);">Adds room/hall ambience for depth and space.</div>
+</div>
+</div>
+
+<div class="card">
+<h2>4. Convert</h2>
 <button class="btn btn-primary" id="convertBtn" onclick="convertFile()" disabled>Select a file first</button>
 <div class="progress-bar" id="progressBar"><div class="progress-fill" id="progressFill"></div></div>
 <div class="status-msg" id="statusMsg" style="display:none;"></div>
@@ -214,28 +238,38 @@ var status=document.getElementById('statusMsg');
 var prog=document.getElementById('progressBar');
 var fill=document.getElementById('progressFill');
 btn.disabled=true;btn.textContent='Converting...';
-status.style.display='block';status.className='status-msg loading';status.textContent='Converting...';
+status.style.display='block';status.className='status-msg loading';status.textContent='Processing...';
 prog.classList.add('show');fill.style.width='10%';
 
 try{
+// Apply spatial effects if any are set
+var sw=parseInt(document.getElementById('spatialWidth').value)||0;
+var bb=parseInt(document.getElementById('bassBoost').value)||0;
+var ab=parseInt(document.getElementById('airBoost').value)||0;
+var rv=parseInt(document.getElementById('reverbMix').value)||0;
+var needsProcessing=sw>0||bb>0||ab>0||rv>0;
+var processedBuffer=sourceBuffer;
+
+if(needsProcessing){
+status.textContent='Applying spatial effects...';
+fill.style.width='20%';
+processedBuffer=await applySpatialEffects(sourceBuffer,sw,bb,ab,rv);
+fill.style.width='50%';
+}
+
 var blob;
 var ext=targetFormat;
-
 if(targetFormat==='mp3'){
 status.textContent='Encoding to MP3...';
-blob=await encodeMP3(sourceBuffer,parseInt(document.getElementById('mp3Bitrate').value));
-fill.style.width='90%';
+blob=await encodeMP3(processedBuffer,parseInt(document.getElementById('mp3Bitrate').value));
 }else if(targetFormat==='wav'){
 status.textContent='Encoding to WAV...';
 var sr=parseInt(document.getElementById('wavSampleRate').value);
-blob=encodeWAV(sourceBuffer,sr);
-fill.style.width='90%';
+blob=encodeWAV(processedBuffer,sr);
 }else if(targetFormat==='ogg'||targetFormat==='webm'){
 status.textContent='Encoding to '+targetFormat.toUpperCase()+'...';
-blob=await encodeMediaRecorder(sourceBuffer,targetFormat);
-fill.style.width='90%';
+blob=await encodeMediaRecorder(processedBuffer,targetFormat);
 }
-
 fill.style.width='100%';
 var url=URL.createObjectURL(blob);
 var sizeMB=(blob.size/1024/1024).toFixed(2);
@@ -348,6 +382,121 @@ rec.onerror=function(e){reject(new Error('Recording error'));};
 rec.start();
 ctx.startRendering().then(function(){setTimeout(function(){rec.stop();},100);});
 });
+}
+
+function applySpatialEffects(srcBuf,widthPct,bassdB,airdB,reverbPct){
+return new Promise(function(resolve,reject){
+var sr=srcBuf.sampleRate;
+var ch=2;
+var len=srcBuf.length;
+// Add reverb tail
+var reverbLen=reverbPct>0?Math.round(sr*2):0;
+var totalLen=len+reverbLen;
+var ctx=new OfflineAudioContext(ch,totalLen,sr);
+
+// Source
+var src=ctx.createBufferSource();
+// Upmix mono to stereo if needed
+if(srcBuf.numberOfChannels===1){
+var stereoBuf=ctx.createBuffer(2,len,sr);
+stereoBuf.getChannelData(0).set(srcBuf.getChannelData(0));
+stereoBuf.getChannelData(1).set(srcBuf.getChannelData(0));
+src.buffer=stereoBuf;
+}else{
+src.buffer=srcBuf;
+}
+
+var lastNode=src;
+
+// Bass boost (low shelf at 100Hz)
+if(bassdB>0){
+var bass=ctx.createBiquadFilter();
+bass.type='lowshelf';
+bass.frequency.value=100;
+bass.gain.value=bassdB;
+lastNode.connect(bass);
+lastNode=bass;
+}
+
+// Air / presence (high shelf at 8kHz)
+if(airdB>0){
+var air=ctx.createBiquadFilter();
+air.type='highshelf';
+air.frequency.value=8000;
+air.gain.value=airdB;
+lastNode.connect(air);
+lastNode=air;
+}
+
+// Spatial widening using mid-side technique via channel splitter/merger
+if(widthPct>0){
+var splitter=ctx.createChannelSplitter(2);
+var merger=ctx.createChannelMerger(2);
+var gainL=ctx.createGain();
+var gainR=ctx.createGain();
+// Increase side signal for width
+var w=1+(widthPct/100)*1.5;
+lastNode.connect(splitter);
+splitter.connect(gainL,0);
+splitter.connect(gainR,1);
+// Apply width by boosting the difference between channels
+// Left = Mid + Side*w, Right = Mid - Side*w
+// Simplified: boost each channel and add a delayed/inverted cross-feed
+var delayL=ctx.createDelay(0.03);
+delayL.delayTime.value=0.0004*widthPct/10;
+var delayR=ctx.createDelay(0.03);
+delayR.delayTime.value=0.0006*widthPct/10;
+var crossL=ctx.createGain();
+crossL.gain.value=-0.3*(widthPct/100);
+var crossR=ctx.createGain();
+crossR.gain.value=-0.3*(widthPct/100);
+// Direct path
+gainL.connect(merger,0,0);
+gainR.connect(merger,0,1);
+// Cross-feed with delay (creates width)
+gainR.connect(delayL);
+delayL.connect(crossL);
+crossL.connect(merger,0,0);
+gainL.connect(delayR);
+delayR.connect(crossR);
+crossR.connect(merger,0,1);
+lastNode=merger;
+}
+
+// Reverb
+if(reverbPct>0){
+var dry=ctx.createGain();
+dry.gain.value=1;
+var wet=ctx.createGain();
+wet.gain.value=reverbPct/100*0.6;
+var convolver=ctx.createConvolver();
+convolver.buffer=createImpulse(ctx,sr,2,reverbPct/50+0.5);
+lastNode.connect(dry);
+lastNode.connect(convolver);
+convolver.connect(wet);
+dry.connect(ctx.destination);
+wet.connect(ctx.destination);
+}else{
+lastNode.connect(ctx.destination);
+}
+
+src.start(0);
+ctx.startRendering().then(function(rendered){
+resolve(rendered);
+}).catch(reject);
+});
+}
+
+function createImpulse(ctx,sr,channels,decayTime){
+var len=Math.round(sr*decayTime);
+var buf=ctx.createBuffer(channels,len,sr);
+for(var ch=0;ch<channels;ch++){
+var data=buf.getChannelData(ch);
+for(var i=0;i<len;i++){
+data[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.5);
+}
+}
+return buf;
 }
 </script>
 </body>
