@@ -328,6 +328,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
       <a href="ai-tools.html" class="menu-chip menu-chip-ai">&#x1F916; AI Tools</a>\
       <a href="beatmaker.html" class="menu-chip menu-chip-ai">&#x1F3B6; AI Beat Maker</a>\
       <a href="converter.html" class="menu-chip menu-chip-ai">&#x1F504; File Converter</a>\
+      <a href="mastering.html" class="menu-chip menu-chip-ai">&#x1F3A7; Mastering Studio</a>\
       <a href="https://8bfr.com/producer-ai/index.html" target="_blank" rel="noopener" class="menu-chip menu-chip-ai">&#x1F3B5; Producer AI</a>\
       <a href="author-hub.html" class="menu-chip menu-chip-ai">&#x1F4DA; Author Hub</a>\
       <a href="translate.html" class="menu-chip menu-chip-ai">&#x1F310; Translate</a>\
