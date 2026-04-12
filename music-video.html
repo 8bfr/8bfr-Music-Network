@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Music Video Maker - 8BFR Music Network</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+.mv-page { max-width: 600px; margin: 80px auto 100px; padding: 0 16px; }
+.mv-header { text-align: center; padding: 20px 0; }
+.mv-header h1 { font-size: 22px; color: #fff; margin: 0 0 4px; }
+.mv-header p { color: #999; font-size: 13px; margin: 0; }
+
+.section-card {
+  background: #1a1a2e; border: 1px solid #2a2a4a; border-radius: 12px;
+  padding: 16px; margin: 12px 0;
+}
+.section-label { font-size: 13px; font-weight: 600; color: #c4b5fd; margin: 0 0 10px; }
+
+.text-input {
+  width: 100%; padding: 10px 12px; border: 1px solid #333; border-radius: 8px;
+  background: #111; color: #fff; font-size: 13px; font-family: inherit;
+  resize: vertical; box-sizing: border-box;
+}
+.text-input::placeholder { color: #555; }
+.text-input:focus { outline: none; border-color: #8b5cf6; }
+
+.file-upload-area {
+  border: 2px dashed #333; border-radius: 10px; padding: 20px;
+  text-align: center; cursor: pointer; transition: border-color 0.2s;
+  background: #0d0d1a;
+}
+.file-upload-area:hover { border-color: #7c3aed; }
+.file-upload-area p { color: #888; font-size: 13px; margin: 4px 0; }
+.file-upload-area .hint { color: #555; font-size: 11px; }
+.file-upload-area input { display: none; }
+
+.audio-loaded {
+  display: flex; align-items: center; gap: 10px; padding: 10px;
+  background: #111; border: 1px solid #22c55e; border-radius: 8px; margin-top: 8px;
+}
+.audio-loaded .name { flex: 1; font-size: 13px; color: #22c55e; }
+.audio-loaded .remove { color: #ef4444; cursor: pointer; font-size: 18px; border: none; background: none; }
+.audio-loaded audio { width: 100%; margin-top: 6px; }
+.hidden { display: none !important; }
+
+.mode-tabs { display: flex; gap: 8px; margin: 10px 0; }
+.mode-tab {
+  flex: 1; padding: 10px; border: 2px solid #333; border-radius: 10px;
+  background: #1a1a2e; color: #aaa; text-align: center; cursor: pointer;
+  font-size: 13px; font-weight: 600; transition: all 0.2s;
+}
+.mode-tab.active { border-color: #8b5cf6; color: #fff; background: #1e1b4b; }
+.mode-tab span { display: block; font-size: 10px; color: #666; margin-top: 2px; font-weight: 400; }
+.mode-tab.active span { color: #a78bfa; }
+
+.style-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.style-btn {
+  padding: 8px 4px; border: 1px solid #333; border-radius: 8px;
+  background: #111; color: #ccc; font-size: 12px; cursor: pointer;
+  text-align: center; transition: all 0.15s;
+}
+.style-btn.selected { border-color: #8b5cf6; background: #2e1065; color: #e9d5ff; }
+
+.action-btn {
+  width: 100%; padding: 14px; border: none; border-radius: 12px;
+  background: linear-gradient(135deg, #7c3aed, #a855f7); color: #fff;
+  font-size: 16px; font-weight: 700; cursor: pointer; margin: 8px 0;
+  transition: opacity 0.2s;
+}
+.action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.action-btn.secondary {
+  background: #1a1a2e; border: 2px solid #7c3aed; font-size: 13px;
+  padding: 10px; margin: 6px 0;
+}
+
+.status-bar {
+  text-align: center; padding: 10px; color: #a78bfa; font-size: 13px;
+  display: none;
+}
+.status-bar.show { display: block; }
+
+.progress-bar {
+  width: 100%; height: 6px; background: #222; border-radius: 3px;
+  margin: 8px 0; overflow: hidden; display: none;
+}
+.progress-bar.show { display: block; }
+.progress-fill {
+  height: 100%; background: linear-gradient(90deg, #7c3aed, #a855f7);
+  border-radius: 3px; transition: width 0.3s;
+  width: 0%;
+}
+
+/* SCENE LIST */
+.scene-list { margin: 12px 0; }
+.scene-item {
+  display: flex; gap: 10px; padding: 10px;
+  background: #111; border: 1px solid #222; border-radius: 8px; margin: 6px 0;
+  align-items: flex-start;
+}
+.scene-num {
+  min-width: 24px; height: 24px; border-radius: 50%;
+  background: #7c3aed; color: #fff; font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.scene-text { flex: 1; font-size: 12px; color: #ccc; line-height: 1.4; }
+.scene-status { font-size: 11px; color: #666; white-space: nowrap; }
+.scene-status.done { color: #22c55e; }
+.scene-status.working { color: #f59e0b; }
+
+/* VIDEO PLAYER */
+.video-player {
+  background: #000; border-radius: 12px; overflow: hidden;
+  position: relative; aspect-ratio: 9/16; max-height: 70vh;
+  margin: 12px 0; display: none;
+}
+.video-player.show { display: block; }
+.video-player img, .video-player video {
+  width: 100%; height: 100%; object-fit: cover;
+  position: absolute; top: 0; left: 0;
+  transition: opacity 0.8s ease-in-out;
+}
+.video-player .lyrics-overlay {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  padding: 20px 16px 30px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.85));
+  color: #fff; font-size: 16px; text-align: center;
+  font-weight: 500; line-height: 1.5;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+}
+.video-controls {
+  display: flex; gap: 8px; margin: 8px 0;
+}
+.v-ctrl-btn {
+  flex: 1; padding: 10px; border: 1px solid #333; border-radius: 8px;
+  background: #111; color: #ccc; font-size: 12px; cursor: pointer;
+  text-align: center; font-weight: 600;
+}
+.v-ctrl-btn.primary { border-color: #7c3aed; color: #a78bfa; }
+
+.cost-note { font-size: 11px; color: #666; text-align: center; margin: 4px 0; }
+</style>
+</head>
+<body>
+
+<div class="mv-page">
+  <div class="mv-header">
+    <h1>Music Video Maker</h1>
+    <p>AI creates visuals from your lyrics, synced to your song</p>
+  </div>
+
+  <!-- STEP 1: AUDIO -->
+  <div class="section-card" id="step1">
+    <div class="section-label">Step 1: Your Song</div>
+    <div class="file-upload-area" onclick="document.getElementById('audioFile').click()">
+      <p>Tap to upload your song</p>
+      <div class="hint">MP3, WAV, or audio file</div>
+      <input type="file" id="audioFile" accept="audio/*" onchange="handleAudioUpload(this)">
+    </div>
+    <div id="audioLoaded" class="hidden">
+      <div class="audio-loaded">
+        <span class="name" id="audioName">Song loaded</span>
+        <button class="remove" onclick="removeAudio()">X</button>
+      </div>
+      <audio id="songAudio" controls preload="metadata" style="width:100%; margin-top:8px;"></audio>
+    </div>
+  </div>
+
+  <!-- STEP 2: LYRICS -->
+  <div class="section-card" id="step2">
+    <div class="section-label">Step 2: Lyrics</div>
+    <textarea class="text-input" id="lyricsInput" rows="8" placeholder="Paste your song lyrics here...&#10;&#10;Or enter the song title and artist below and let AI find them"></textarea>
+    <div style="display:flex; gap:8px; margin-top:8px;">
+      <input type="text" class="text-input" id="songLookup" placeholder="Song title - Artist name" style="flex:1;">
+      <button class="action-btn secondary" style="width:auto; margin:0; padding:10px 16px;" onclick="lookupLyrics()">AI Lyrics</button>
+    </div>
+  </div>
+
+  <!-- STEP 3: VISUAL STYLE -->
+  <div class="section-card" id="step3">
+    <div class="section-label">Step 3: Visual Style</div>
+    <div class="style-grid" id="styleGrid">
+      <div class="style-btn selected" onclick="selectStyle(this)" data-val="cinematic, dramatic lighting, movie quality, photorealistic">Cinematic</div>
+      <div class="style-btn" onclick="selectStyle(this)" data-val="anime style, vibrant colors, Japanese animation, detailed">Anime</div>
+      <div class="style-btn" onclick="selectStyle(this)" data-val="comic book art, bold lines, graphic novel, high contrast">Comic Book</div>
+      <div class="style-btn" onclick="selectStyle(this)" data-val="neon noir, dark urban, glowing lights, cyberpunk city">Neon/Cyberpunk</div>
+      <div class="style-btn" onclick="selectStyle(this)" data-val="oil painting, classical art, renaissance style, rich textures">Oil Painting</div>
+      <div class="style-btn" onclick="selectStyle(this)" data-val="abstract art, geometric shapes, bold colors, modern art">Abstract</div>
+      <div class="style-btn" onclick="selectStyle(this)" data-val="90s hip-hop aesthetic, VHS grain, retro urban, vintage street">90s Retro</div>
+      <div class="style-btn" onclick="selectStyle(this)" data-val="dreamy, soft focus, pastel colors, ethereal glow, fantasy">Dreamy</div>
+      <div class="style-btn" onclick="selectStyle(this)" data-val="dark gothic, moody, shadows, dramatic, horror aesthetic">Dark/Gothic</div>
+    </div>
+  </div>
+
+  <!-- STEP 4: MODE -->
+  <div class="section-card" id="step4">
+    <div class="section-label">Step 4: Generation Mode</div>
+    <div class="mode-tabs">
+      <div class="mode-tab active" onclick="selectGenMode('image', this)">
+        Image Slideshow
+        <span>Faster, less credits</span>
+      </div>
+      <div class="mode-tab" onclick="selectGenMode('video', this)">
+        Video Clips
+        <span>5s clips, more credits</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- GENERATE -->
+  <button class="action-btn" id="generateBtn" onclick="startGeneration()">Create Music Video</button>
+  <div class="cost-note" id="costNote">Will generate ~8-12 scenes from your lyrics</div>
+
+  <!-- STATUS -->
+  <div class="status-bar" id="statusBar"></div>
+  <div class="progress-bar" id="progressBar"><div class="progress-fill" id="progressFill"></div></div>
+
+  <!-- SCENE LIST -->
+  <div class="scene-list hidden" id="sceneList"></div>
+
+  <!-- VIDEO PLAYER -->
+  <div class="video-player" id="videoPlayer">
+    <div id="visualContainer"></div>
+    <div class="lyrics-overlay" id="lyricsOverlay"></div>
+  </div>
+  <div class="video-controls hidden" id="videoControls">
+    <button class="v-ctrl-btn primary" onclick="playMusicVideo()">Play Video</button>
+    <button class="v-ctrl-btn" onclick="pauseMusicVideo()">Pause</button>
+    <button class="v-ctrl-btn" onclick="restartMusicVideo()">Restart</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="scripts.js" defer></script>
+<script>
+const VERCEL_API = 'https://8bfr-api.vercel.app';
+const API_TEXT = VERCEL_API + '/api/ai-text';
+const API_VIDEO = VERCEL_API + '/api/video';
+const HEADERS = { 'Content-Type': 'application/json' };
+
+let audioFile = null;
+let audioUrl = null;
+let selectedStyle = 'cinematic, dramatic lighting, movie quality, photorealistic';
+let genMode = 'image';
+let scenes = [];
+let sceneMedia = [];
+let isPlaying = false;
+let playTimer = null;
+let currentSceneIndex = 0;
+
+// ---- AUDIO UPLOAD ----
+function handleAudioUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  audioFile = file;
+  audioUrl = URL.createObjectURL(file);
+  document.getElementById('audioName').textContent = file.name;
+  document.getElementById('audioLoaded').classList.remove('hidden');
+  document.querySelector('.file-upload-area').classList.add('hidden');
+  document.getElementById('songAudio').src = audioUrl;
+}
+
+function removeAudio() {
+  audioFile = null;
+  audioUrl = null;
+  document.getElementById('audioLoaded').classList.add('hidden');
+  document.querySelector('.file-upload-area').classList.remove('hidden');
+  document.getElementById('audioFile').value = '';
+}
+
+// ---- LYRICS LOOKUP ----
+async function lookupLyrics() {
+  const query = document.getElementById('songLookup').value.trim();
+  if (!query) return;
+
+  setStatus('Looking up lyrics for "' + query + '"...');
+
+  try {
+    const resp = await fetch(API_TEXT, {
+      method: 'POST', headers: HEADERS,
+      body: JSON.stringify({
+        model: 'openai', max_tokens: 800,
+        messages: [{
+          role: 'user',
+          content: 'Write realistic, original lyrics inspired by the style and theme of the song "' + query + '". Format with section labels like [Verse 1], [Chorus], etc. Write 3 verses, 2 choruses, and a bridge. These should be ORIGINAL lyrics inspired by the song style, NOT the actual copyrighted lyrics. Output ONLY the lyrics, no explanation.'
+        }]
+      })
+    });
+    const data = await resp.json();
+    const lyrics = data.choices?.[0]?.message?.content || '';
+    document.getElementById('lyricsInput').value = lyrics;
+    setStatus('Lyrics generated - review and edit them if needed');
+  } catch (err) {
+    setStatus('Could not generate lyrics - paste them manually');
+  }
+}
+
+// ---- STYLE SELECTION ----
+function selectStyle(el) {
+  document.querySelectorAll('.style-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedStyle = el.dataset.val;
+}
+
+function selectGenMode(mode, el) {
+  genMode = mode;
+  document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('costNote').textContent = mode === 'image'
+    ? 'Will generate ~8-12 image scenes from your lyrics'
+    : 'Will generate ~6-8 video clips (5s each) - uses more credits';
+}
+
+// ---- GENERATE MUSIC VIDEO ----
+async function startGeneration() {
+  const lyrics = document.getElementById('lyricsInput').value.trim();
+  if (!lyrics) {
+    setStatus('Add lyrics first - paste them or use AI Lyrics');
+    return;
+  }
+
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = true;
+  btn.textContent = 'Creating scenes...';
+
+  // Step 1: Break lyrics into visual scenes using AI
+  setStatus('AI is reading your lyrics and creating visual scenes...');
+  showProgress(5);
+
+  try {
+    const sceneResp = await fetch(API_TEXT, {
+      method: 'POST', headers: HEADERS,
+      body: JSON.stringify({
+        model: 'openai', max_tokens: 600,
+        messages: [{
+          role: 'user',
+          content: 'You are a music video director. Read these lyrics and create a shot list for a music video. For each scene, write a detailed visual description that an AI image/video generator can use. Output ONLY a JSON array of objects with "lyrics" (the lyric line or section) and "visual" (the scene description, be very specific about setting, lighting, mood, camera angle, what is shown). Create 8-10 scenes total. Output valid JSON only, no markdown, no backticks.\n\nLyrics:\n' + lyrics
+        }]
+      })
+    });
+    const sceneData = await sceneResp.json();
+    let sceneText = sceneData.choices?.[0]?.message?.content || '';
+
+    // Clean up JSON
+    sceneText = sceneText.replace(/```json|```/g, '').trim();
+    scenes = JSON.parse(sceneText);
+
+    if (!Array.isArray(scenes) || scenes.length === 0) {
+      throw new Error('No scenes generated');
+    }
+
+    // Show scene list
+    renderSceneList();
+    showProgress(15);
+    setStatus('Got ' + scenes.length + ' scenes - now generating visuals...');
+
+    // Step 2: Generate visuals for each scene
+    sceneMedia = [];
+    for (let i = 0; i < scenes.length; i++) {
+      const scene = scenes[i];
+      const prompt = scene.visual + ', ' + selectedStyle + ', high quality, detailed';
+      const pct = 15 + Math.round((i / scenes.length) * 80);
+      showProgress(pct);
+      setStatus('Generating scene ' + (i + 1) + ' of ' + scenes.length + '...');
+      updateSceneStatus(i, 'working');
+
+      try {
+        const mediaResp = await fetch(API_VIDEO, {
+          method: 'POST', headers: HEADERS,
+          body: JSON.stringify({
+            prompt: prompt,
+            mode: genMode,
+            duration: 5,
+            aspect: '9:16'
+          })
+        });
+
+        if (!mediaResp.ok) throw new Error('Scene ' + (i + 1) + ' failed');
+
+        const blob = await mediaResp.blob();
+        const url = URL.createObjectURL(blob);
+        sceneMedia.push({
+          url: url,
+          type: genMode === 'video' ? 'video' : 'image',
+          lyrics: scene.lyrics
+        });
+        updateSceneStatus(i, 'done');
+      } catch (sceneErr) {
+        console.error('Scene ' + (i + 1) + ' error:', sceneErr);
+        sceneMedia.push({ url: null, type: 'error', lyrics: scene.lyrics });
+        updateSceneStatus(i, 'failed');
+      }
+    }
+
+    showProgress(100);
+    setStatus('Music video ready! Hit Play');
+
+    // Show player
+    document.getElementById('videoPlayer').classList.add('show');
+    document.getElementById('videoControls').classList.remove('hidden');
+
+    // Load first scene
+    showScene(0);
+
+  } catch (err) {
+    console.error('Generation error:', err);
+    setStatus('Error: ' + err.message + ' - check your lyrics and try again');
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Regenerate Video';
+}
+
+// ---- SCENE LIST ----
+function renderSceneList() {
+  const list = document.getElementById('sceneList');
+  list.classList.remove('hidden');
+  list.innerHTML = '';
+  scenes.forEach((scene, i) => {
+    list.innerHTML +=
+      '<div class="scene-item" id="scene-' + i + '">' +
+        '<div class="scene-num">' + (i + 1) + '</div>' +
+        '<div class="scene-text">' + escHtml(scene.lyrics || '').substring(0, 80) + '</div>' +
+        '<div class="scene-status" id="scene-status-' + i + '">waiting</div>' +
+      '</div>';
+  });
+}
+
+function updateSceneStatus(i, status) {
+  const el = document.getElementById('scene-status-' + i);
+  if (!el) return;
+  el.textContent = status === 'done' ? 'ready' : status === 'working' ? 'creating...' : status;
+  el.className = 'scene-status ' + status;
+}
+
+// ---- VIDEO PLAYER ----
+function showScene(index) {
+  if (index < 0 || index >= sceneMedia.length) return;
+  currentSceneIndex = index;
+  const scene = sceneMedia[index];
+  const container = document.getElementById('visualContainer');
+  const overlay = document.getElementById('lyricsOverlay');
+
+  overlay.textContent = scene.lyrics || '';
+
+  if (!scene.url) {
+    container.innerHTML = '<div style="width:100%;height:100%;background:#111;display:flex;align-items:center;justify-content:center;color:#666;">Scene unavailable</div>';
+    return;
+  }
+
+  if (scene.type === 'video') {
+    container.innerHTML = '<video src="' + scene.url + '" autoplay muted loop playsinline style="width:100%;height:100%;object-fit:cover;"></video>';
+  } else {
+    container.innerHTML = '<img src="' + scene.url + '" alt="Scene" style="width:100%;height:100%;object-fit:cover;">';
+  }
+}
+
+function playMusicVideo() {
+  if (sceneMedia.length === 0) return;
+
+  const audio = document.getElementById('songAudio');
+  if (audioUrl) {
+    audio.currentTime = 0;
+    audio.play();
+  }
+
+  isPlaying = true;
+  currentSceneIndex = 0;
+  showScene(0);
+
+  // Calculate time per scene based on audio duration
+  const audioDur = audio.duration || 180;
+  const timePerScene = (audioDur / sceneMedia.length) * 1000;
+
+  clearInterval(playTimer);
+  playTimer = setInterval(() => {
+    currentSceneIndex++;
+    if (currentSceneIndex >= sceneMedia.length) {
+      currentSceneIndex = 0;
+      clearInterval(playTimer);
+      isPlaying = false;
+      audio.pause();
+      setStatus('Video complete');
+      return;
+    }
+    showScene(currentSceneIndex);
+  }, timePerScene);
+}
+
+function pauseMusicVideo() {
+  isPlaying = false;
+  clearInterval(playTimer);
+  const audio = document.getElementById('songAudio');
+  audio.pause();
+}
+
+function restartMusicVideo() {
+  pauseMusicVideo();
+  currentSceneIndex = 0;
+  showScene(0);
+  playMusicVideo();
+}
+
+// ---- HELPERS ----
+function setStatus(msg) {
+  const bar = document.getElementById('statusBar');
+  bar.textContent = msg;
+  bar.classList.toggle('show', !!msg);
+}
+
+function showProgress(pct) {
+  const bar = document.getElementById('progressBar');
+  const fill = document.getElementById('progressFill');
+  bar.classList.add('show');
+  fill.style.width = pct + '%';
+  if (pct >= 100) {
+    setTimeout(() => bar.classList.remove('show'), 2000);
+  }
+}
+
+function escHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str || '';
+  return d.innerHTML;
+}
+</script>
+
+</body>
+</html>
