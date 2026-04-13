@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Members - KidZone</title>
+<link rel="icon" href="assets/images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Work+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--kp:#8b5cf6;--pink:#ec4899;--blue:#3b82f6;--green:#22c55e;--yellow:#eab308;--orange:#f97316;--card:rgba(15,10,35,.85);--text:#f0eaff;--dim:rgba(168,130,255,.7);--border:rgba(139,92,246,.3);}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Work Sans',sans-serif;background:linear-gradient(135deg,#0f0a1a,#1a0533);color:var(--text);min-height:100vh;padding-bottom:90px;}
+.kz-header{background:linear-gradient(135deg,rgba(139,92,246,.15),rgba(236,72,153,.1));border-bottom:2px solid var(--kp);padding:.75rem 1.25rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;backdrop-filter:blur(10px);}
+.kz-header h1{font-family:'Fredoka One',cursive;font-size:1.3rem;color:var(--kp);}
+.container{max-width:600px;margin:0 auto;padding:1.25rem;}
+
+.search-bar{display:flex;gap:.5rem;margin-bottom:1rem;}
+.search-bar input{flex:1;padding:.55rem .85rem;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:.88rem;outline:none;}
+.search-bar input:focus{border-color:var(--kp);}
+
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:1rem;}
+.tab{flex:1;text-align:center;padding:.6rem .3rem;font-weight:600;font-size:.82rem;cursor:pointer;color:var(--dim);border:none;border-bottom:2px solid transparent;background:none;transition:all .2s;}
+.tab.active{color:var(--kp);border-bottom-color:var(--kp);}
+
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-bottom:1.25rem;}
+.stat-box{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:.6rem;text-align:center;}
+.stat-num{font-family:'Fredoka One',cursive;font-size:1.5rem;color:var(--kp);}
+.stat-label{font-size:.7rem;color:var(--dim);}
+
+.member-card{display:flex;gap:.75rem;align-items:center;padding:.75rem;background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:.5rem;transition:all .2s;cursor:pointer;}
+.member-card:hover{border-color:var(--kp);transform:translateY(-1px);}
+.m-avatar{width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,var(--kp),var(--pink));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;border:2px solid var(--yellow);overflow:hidden;}
+.m-avatar img{width:100%;height:100%;object-fit:cover;}
+.m-info{flex:1;min-width:0;}
+.m-name{font-weight:700;font-size:.92rem;display:flex;align-items:center;gap:.3rem;}
+.m-meta{font-size:.75rem;color:var(--dim);margin-top:.15rem;}
+.m-badges{display:flex;gap:.2rem;flex-wrap:wrap;margin-top:.25rem;}
+.m-badge{font-size:.6rem;padding:.1rem .35rem;border-radius:6px;background:rgba(139,92,246,.15);border:1px solid var(--border);color:var(--dim);}
+.m-stats{text-align:right;flex-shrink:0;}
+.m-xp{font-family:'Fredoka One',cursive;font-size:.9rem;color:var(--yellow);}
+.m-coins{font-size:.72rem;color:var(--dim);}
+
+.level-bar{width:60px;height:6px;background:rgba(139,92,246,.15);border-radius:3px;margin-top:.2rem;}
+.level-fill{height:100%;background:linear-gradient(90deg,var(--kp),var(--pink));border-radius:3px;}
+
+.parent-badge{display:inline-block;background:rgba(249,115,22,.15);border:1px solid rgba(249,115,22,.3);color:var(--orange);font-size:.65rem;padding:.1rem .35rem;border-radius:6px;font-weight:700;}
+.verified-badge{display:inline-block;width:14px;height:14px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);position:relative;}
+.verified-badge::after{content:'';position:absolute;top:3px;left:5px;width:4px;height:7px;border:solid #fff;border-width:0 1.5px 1.5px 0;transform:rotate(45deg);}
+
+.empty{text-align:center;padding:2rem;color:var(--dim);font-size:.85rem;}
+.spinner{width:24px;height:24px;border:3px solid rgba(139,92,246,.2);border-top-color:#a855f7;border-radius:50%;animation:spin .7s linear infinite;margin:1rem auto;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* Profile modal */
+.modal{display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.85);align-items:center;justify-content:center;padding:1rem;}
+.modal.show{display:flex;}
+.modal-box{background:rgba(15,10,35,.98);border:1px solid var(--kp);border-radius:16px;padding:1.5rem;max-width:420px;width:100%;max-height:85vh;overflow-y:auto;text-align:center;}
+.mp-avatar{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--kp),var(--pink));display:flex;align-items:center;justify-content:center;font-size:2.5rem;margin:0 auto .75rem;border:3px solid var(--yellow);overflow:hidden;}
+.mp-avatar img{width:100%;height:100%;object-fit:cover;}
+.mp-name{font-family:'Fredoka One',cursive;font-size:1.3rem;color:var(--kp);margin-bottom:.25rem;}
+.mp-stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin:1rem 0;}
+.mp-stat{background:rgba(139,92,246,.08);border-radius:8px;padding:.5rem;}
+.mp-stat-num{font-family:'Fredoka One',cursive;font-size:1.2rem;color:var(--yellow);}
+.mp-stat-label{font-size:.68rem;color:var(--dim);}
+.mp-badges{display:flex;gap:.3rem;flex-wrap:wrap;justify-content:center;margin:.75rem 0;}
+.mp-badge{font-size:.72rem;padding:.2rem .5rem;border-radius:8px;background:rgba(139,92,246,.1);border:1px solid var(--border);color:var(--dim);}
+
+#kidNav{position:fixed;bottom:0;left:0;right:0;z-index:150;background:rgba(15,10,35,.97);border-top:2px solid var(--kp);display:flex;justify-content:space-around;padding:.4rem 0;backdrop-filter:blur(12px);}
+#kidNav a{text-decoration:none;color:rgba(168,130,255,.5);font-size:.65rem;font-weight:600;text-align:center;padding:.3rem .1rem;display:flex;flex-direction:column;align-items:center;gap:.15rem;}
+#kidNav a.active{color:var(--kp);}
+.nav-icon{font-size:1.15rem;}
+</style>
+</head>
+<body>
+<div class="kz-header">
+<a href="kid-zone.html" style="color:var(--dim);text-decoration:none;font-size:.82rem;font-weight:600;">Back</a>
+<h1>KidZone Members</h1>
+<span style="font-size:.8rem;color:var(--dim);" id="memberCount">-</span>
+</div>
+<div class="container">
+
+<div class="stats-row" id="statsRow">
+<div class="stat-box"><div class="stat-num" id="totalKids">-</div><div class="stat-label">Kids</div></div>
+<div class="stat-box"><div class="stat-num" id="totalParents">-</div><div class="stat-label">Parents</div></div>
+<div class="stat-box"><div class="stat-num" id="totalOnline">-</div><div class="stat-label">Active Today</div></div>
+</div>
+
+<div class="search-bar">
+<input type="text" id="searchInput" placeholder="Search kids..." oninput="filterMembers(this.value)">
+</div>
+
+<div class="tabs">
+<button class="tab active" onclick="switchTab('all',this)">All Kids</button>
+<button class="tab" onclick="switchTab('top',this)">Top XP</button>
+<button class="tab" onclick="switchTab('new',this)">New</button>
+<button class="tab" id="myKidsTab" style="display:none;" onclick="switchTab('mine',this)">My Kids</button>
+</div>
+
+<div id="memberList"><div class="spinner"></div></div>
+</div>
+
+<!-- PROFILE MODAL -->
+<div class="modal" id="profileModal">
+<div class="modal-box">
+<button onclick="closeProfile()" style="position:absolute;top:12px;right:16px;background:none;border:none;color:var(--text);font-size:1.2rem;cursor:pointer;">X</button>
+<div class="mp-avatar" id="mpAvatar"></div>
+<div class="mp-name" id="mpName"></div>
+<div id="mpParent" style="font-size:.78rem;color:var(--dim);margin-bottom:.5rem;"></div>
+<div class="mp-stats-grid">
+<div class="mp-stat"><div class="mp-stat-num" id="mpXP">0</div><div class="mp-stat-label">XP</div></div>
+<div class="mp-stat"><div class="mp-stat-num" id="mpCoins">0</div><div class="mp-stat-label">Coins</div></div>
+<div class="mp-stat"><div class="mp-stat-num" id="mpUploads">0</div><div class="mp-stat-label">Uploads</div></div>
+</div>
+<div class="mp-badges" id="mpBadges"></div>
+<div id="mpActivity" style="text-align:left;margin-top:1rem;"></div>
+</div>
+</div>
+
+<!-- KIDZONE NAV -->
+<nav id="kidNav">
+<a href="kid-zone.html"><span class="nav-icon">&#127968;</span>Home</a>
+<a href="kidzone-creators.html"><span class="nav-icon">&#11088;</span>Creators</a>
+<a href="kidzone-studio.html"><span class="nav-icon">&#127929;</span>Studio</a>
+<a href="kidzone-challenges.html"><span class="nav-icon">&#127942;</span>Challenges</a>
+<a href="kidzone-members.html" class="active"><span class="nav-icon">&#128101;</span>Members</a>
+</nav>
+
+<script src="scripts.js" defer></script>
+<script>
+var SUPABASE_URL='https://novbuvwpjnxwwvdekjhr.supabase.co';
+var SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+var db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
+var OWNER_ID='cb556180-f032-4b21-9470-1d786f2664ab';
+var currentUser=null;
+var allKids=[];
+var currentTab='all';
+var isParent=false;
+var isOwner=false;
+
+async function init(){
+  var sess=await db.auth.getSession();
+  if(!sess.data.session){location.href='kids.html';return;}
+  currentUser=sess.data.session.user;
+  isOwner=currentUser.id===OWNER_ID;
+
+  // Check if user is a verified parent
+  var pv=await db.from('parent_verifications').select('status').eq('user_id',currentUser.id).single();
+  isParent=pv.data&&pv.data.status==='approved';
+
+  if(isParent){document.getElementById('myKidsTab').style.display='block';}
+
+  await loadStats();
+  await loadMembers();
+}
+
+async function loadStats(){
+  var kids=await db.from('kid_profiles').select('id',{count:'exact',head:true});
+  var parents=await db.from('parent_verifications').select('id',{count:'exact',head:true}).eq('status','approved');
+
+  // Active today: kids with activity in last 24h
+  var yesterday=new Date(Date.now()-86400000).toISOString();
+  var active=await db.from('kid_profiles').select('id',{count:'exact',head:true}).gte('last_active',yesterday);
+
+  document.getElementById('totalKids').textContent=kids.count||0;
+  document.getElementById('totalParents').textContent=parents.count||0;
+  document.getElementById('totalOnline').textContent=active.count||0;
+  document.getElementById('memberCount').textContent=(kids.count||0)+' members';
+}
+
+async function loadMembers(){
+  var res=await db.from('kid_profiles').select('*').order('xp',{ascending:false});
+  allKids=res.data||[];
+  renderMembers(allKids);
+}
+
+function renderMembers(kids){
+  var list=document.getElementById('memberList');
+  if(!kids.length){
+    list.innerHTML='<div class="empty">No kids found</div>';
+    return;
+  }
+
+  var html='';
+  kids.forEach(function(k){
+    var name=k.kid_display_name||k.display_name||'Kid';
+    var age=k.age||'?';
+    var xp=k.xp||0;
+    var coins=k.coins||0;
+    var level=Math.floor(xp/100)+1;
+    var levelPct=Math.min(100,(xp%100));
+    var badges=(k.badges||[]);
+    var avatarContent=k.avatar_url?'<img src="'+esc(k.avatar_url)+'" alt="">':'&#129490;';
+
+    var badgeHtml='';
+    if(Array.isArray(badges)){
+      badges.slice(0,3).forEach(function(b){
+        badgeHtml+='<span class="m-badge">'+esc(b)+'</span>';
+      });
+      if(badges.length>3)badgeHtml+='<span class="m-badge">+' +(badges.length-3)+'</span>';
+    }
+
+    var isMyKid=isParent&&k.parent_id===currentUser.id;
+
+    html+='<div class="member-card" onclick="openProfile(\''+k.id+'\')">'+
+      '<div class="m-avatar">'+avatarContent+'</div>'+
+      '<div class="m-info">'+
+        '<div class="m-name">'+esc(name)+(isMyKid?' <span class="parent-badge">My Kid</span>':'')+'</div>'+
+        '<div class="m-meta">Age '+age+' | Level '+level+'</div>'+
+        (badgeHtml?'<div class="m-badges">'+badgeHtml+'</div>':'')+
+      '</div>'+
+      '<div class="m-stats">'+
+        '<div class="m-xp">'+xp+' XP</div>'+
+        '<div class="m-coins">'+coins+' coins</div>'+
+        '<div class="level-bar"><div class="level-fill" style="width:'+levelPct+'%"></div></div>'+
+      '</div>'+
+    '</div>';
+  });
+  list.innerHTML=html;
+}
+
+function filterMembers(query){
+  var q=query.toLowerCase();
+  var filtered=allKids.filter(function(k){
+    var name=(k.kid_display_name||k.display_name||'').toLowerCase();
+    return name.indexOf(q)!==-1;
+  });
+  renderMembers(filtered);
+}
+
+function switchTab(tab,el){
+  currentTab=tab;
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+  el.classList.add('active');
+
+  var sorted=allKids.slice();
+  if(tab==='top'){
+    sorted.sort(function(a,b){return(b.xp||0)-(a.xp||0);});
+  } else if(tab==='new'){
+    sorted.sort(function(a,b){return new Date(b.created_at)-new Date(a.created_at);});
+  } else if(tab==='mine'){
+    sorted=sorted.filter(function(k){return k.parent_id===currentUser.id;});
+  }
+  renderMembers(sorted);
+}
+
+async function openProfile(kidId){
+  var kid=allKids.find(function(k){return k.id===kidId;});
+  if(!kid)return;
+
+  var name=kid.kid_display_name||kid.display_name||'Kid';
+  document.getElementById('mpAvatar').innerHTML=kid.avatar_url?'<img src="'+esc(kid.avatar_url)+'" alt="">':'&#129490;';
+  document.getElementById('mpName').textContent=name;
+  document.getElementById('mpXP').textContent=kid.xp||0;
+  document.getElementById('mpCoins').textContent=kid.coins||0;
+
+  // Get upload count
+  var uploads=await db.from('kid_uploads').select('id',{count:'exact',head:true}).eq('kid_id',kidId);
+  document.getElementById('mpUploads').textContent=uploads.count||0;
+
+  // Parent info
+  if(kid.parent_id){
+    var parent=await db.from('profiles').select('username,display_name').eq('user_id',kid.parent_id).single();
+    if(parent.data){
+      document.getElementById('mpParent').textContent='Parent: '+(parent.data.display_name||parent.data.username);
+    }
+  } else {
+    document.getElementById('mpParent').textContent='';
+  }
+
+  // Badges
+  var badges=kid.badges||[];
+  var badgeHtml='';
+  if(Array.isArray(badges)){
+    badges.forEach(function(b){
+      badgeHtml+='<span class="mp-badge">'+esc(b)+'</span>';
+    });
+  }
+  document.getElementById('mpBadges').innerHTML=badgeHtml||'<span style="color:var(--dim);font-size:.78rem;">No badges yet</span>';
+
+  // Recent activity
+  var activity=await db.from('kid_uploads').select('title,type,created_at').eq('kid_id',kidId).order('created_at',{ascending:false}).limit(5);
+  var actHtml='<div style="font-weight:700;font-size:.85rem;color:var(--kp);margin-bottom:.5rem;">Recent Activity</div>';
+  if(activity.data&&activity.data.length){
+    activity.data.forEach(function(a){
+      actHtml+='<div style="font-size:.8rem;color:var(--dim);padding:.25rem 0;border-bottom:1px solid rgba(139,92,246,.08);">'+esc(a.title||a.type||'Upload')+' <span style="font-size:.68rem;">'+timeAgo(a.created_at)+'</span></div>';
+    });
+  } else {
+    actHtml+='<div style="font-size:.8rem;color:var(--dim);">No activity yet</div>';
+  }
+  document.getElementById('mpActivity').innerHTML=actHtml;
+
+  document.getElementById('profileModal').classList.add('show');
+}
+
+function closeProfile(){
+  document.getElementById('profileModal').classList.remove('show');
+}
+document.getElementById('profileModal').addEventListener('click',function(e){if(e.target===this)closeProfile();});
+
+function timeAgo(d){if(!d)return'';var s=Math.floor((Date.now()-new Date(d))/1000);if(s<60)return'now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';}
+function esc(s){if(!s)return'';var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+
+// NAV OVERRIDE
+(function(){
+  setTimeout(function(){
+    var h=document.querySelector('.hamburger-menu,.ham-menu,#hamburgerMenu,[class*=hamburger]');
+    if(h)h.remove();
+    document.querySelectorAll('nav').forEach(function(n){if(n.id!=='kidNav')n.remove();});
+    document.querySelectorAll('.avatar-bubble,.chat-bubble-float,[onclick*=hideAvatarBubbles]').forEach(function(e){e.remove();});
+    var a=document.querySelector('button[style*="position:fixed"][style*="top:80px"]');
+    if(a)a.remove();
+  },500);
+  var p=location.pathname.split('/').pop()||'';
+  document.querySelectorAll('#kidNav a').forEach(function(a){if(a.getAttribute('href')===p)a.classList.add('active');});
+})();
+
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+</script>
+</body>
+</html>
