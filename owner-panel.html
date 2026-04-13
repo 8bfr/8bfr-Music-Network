@@ -87,6 +87,9 @@
             <button class="tab" onclick="switchTab('stories',this)">Stories</button>
             <button class="tab" onclick="switchTab('reports',this)">Reports</button>
             <button class="tab" onclick="switchTab('settings',this)">Settings</button>
+            <button class="tab" onclick="location.href='owner-kidzone.html'" style="color:#eab308;">KidZone</button>
+            <button class="tab" onclick="location.href='owner-monitor.html'">DMs</button>
+            <button class="tab" onclick="location.href='owner-users.html'">Members</button>
         </div>
 
         <!-- USERS PANEL -->
@@ -228,18 +231,28 @@
         loadStories();
     })();
 
-    // Stats - accurate counts
+    // Stats - accurate counts with visible error reporting
     window.loadStats = async function() {
+        // Total Users
         try {
             var u = await db.from('profiles').select('user_id', { count: 'exact', head: true });
             var el = document.getElementById('statUsers');
-            if (el) el.textContent = (u.count !== null && u.count !== undefined) ? u.count : (u.error ? 'ERR' : '0');
-            if (u.error) console.warn('Stats users error:', u.error.message);
+            if (u.error) {
+                console.warn('Stats users error:', u.error.message);
+                if (el) el.textContent = 'RLS?';
+                if (el) el.title = u.error.message;
+            } else {
+                if (el) el.textContent = u.count || 0;
+            }
         } catch(e) { console.warn('Stats users:', e); }
 
+        // Role and verification breakdown
         try {
             var r = await db.from('profiles').select('role,badges,verified_artist');
-            var d = r.data || [];
+            if (r.error) {
+                console.warn('Stats roles error:', r.error.message);
+            } else {
+                var d = r.data || [];
 
             // Verified Artists: verified_artist=true AND role is artist or has artist badge
             var verifiedArtists = d.filter(function(p) {
@@ -269,6 +282,7 @@
             var el1 = document.getElementById('statArtists'); if (el1) el1.textContent = artists;
             var el2 = document.getElementById('statBeatmakers'); if (el2) el2.textContent = beatmakers;
             var el3 = document.getElementById('statFans'); if (el3) el3.textContent = fans;
+            }
         } catch(e) { console.warn('Role count error:', e); }
 
         // Songs (not beats)
