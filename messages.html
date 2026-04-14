@@ -102,8 +102,8 @@ function loadTab(tab){
 }
 
 // ★ FIXED: Notifications now show who accepted + link to profile
-var NOTIF_NAMES={follow:'New Follower',like:'Post Liked',comment:'New Comment',purchase:'New Purchase',system:'System Update',tip:'Coin Tip',reshare:'Post Reshared',friend_request:'Friend Request',friend_accepted:'Friend Accepted',verification:'Verification Update',badge:'New Badge',mention:'You were mentioned'};
-var NOTIF_ICONS={follow:'👤',like:'❤️',comment:'💬',purchase:'🛒',system:'📢',tip:'🪙',reshare:'🔁',friend_request:'🤝',friend_accepted:'🎉',verification:'✅',badge:'🏅',mention:'@'};
+var NOTIF_NAMES={follow:'New Follower',like:'Post Liked',comment:'New Comment',purchase:'New Purchase',system:'System Update',tip:'Coin Tip',reshare:'Post Reshared',friend_request:'Friend Request',friend_accepted:'Friend Accepted',verification:'Verification Update',badge:'New Badge',mention:'You were mentioned',parent_verified:'Parent Verification Approved',parent_rejected:'Parent Verification Update',parent_verification_request:'New Parent Verification'};
+var NOTIF_ICONS={follow:'👤',like:'&#10084;',comment:'&#128172;',purchase:'&#128722;',system:'&#128226;',tip:'&#129689;',reshare:'&#128257;',friend_request:'&#129309;',friend_accepted:'&#127881;',verification:'&#9989;',badge:'&#127941;',mention:'@',parent_verified:'&#128119;',parent_rejected:'&#128119;',parent_verification_request:'&#128119;'};
 
 async function loadNotifications(){
   var box=document.getElementById('content');
@@ -113,14 +113,35 @@ async function loadNotifications(){
     if(r.error)throw r.error;
     var data=r.data||[];
     if(!data.length){
-      box.innerHTML='<div class="empty"><div>🔔</div><h3>No notifications yet</h3><p style="font-size:.85rem;color:var(--dim);">Follow alerts, tips, purchases, and system messages will appear here.</p></div>';
+      box.innerHTML='<div class="empty"><div>&#128276;</div><h3>No notifications yet</h3><p style="font-size:.85rem;color:var(--dim);">Follow alerts, tips, purchases, and system messages will appear here.</p></div>';
       return;
     }
+
+    // Resolve missing names
+    var missingIds=[];
+    data.forEach(function(n){
+      var m=n.metadata||{};
+      if(m.from_id&&!m.from_name)missingIds.push(m.from_id);
+    });
+    if(missingIds.length){
+      missingIds=[...new Set(missingIds)];
+      var pr=await db.from('profiles').select('user_id,display_name,username').in('user_id',missingIds);
+      var nameMap={};
+      if(pr.data)pr.data.forEach(function(p){nameMap[p.user_id]=p.display_name||p.username||'User';});
+      data.forEach(function(n){
+        var m=n.metadata||{};
+        if(m.from_id&&!m.from_name&&nameMap[m.from_id]){
+          m.from_name=nameMap[m.from_id];
+          if(!m.link)m.link='profile.html?id='+m.from_id;
+          n.metadata=m;
+        }
+      });
+    }
+
     box.innerHTML=data.map(function(n){
-      var icon=NOTIF_ICONS[n.notif_type]||'🔔';
+      var icon=NOTIF_ICONS[n.notif_type]||'&#128276;';
       var unread=!n.is_read?' style="border-left:3px solid var(--primary);"':'';
       
-      // ★ Build display title — show WHO for friend_accepted
       var displayTitle=NOTIF_NAMES[n.notif_type]||n.notif_type;
       if(n.notif_type==='friend_accepted'&&n.metadata&&n.metadata.from_name){
         displayTitle=n.metadata.from_name+' accepted your friend request!';
@@ -128,11 +149,16 @@ async function loadNotifications(){
       if(n.notif_type==='friend_request'&&n.metadata&&n.metadata.from_name){
         displayTitle=n.metadata.from_name+' sent a friend request';
       }
+      if(n.notif_type==='follow'&&n.metadata&&n.metadata.from_name){
+        displayTitle=n.metadata.from_name+' started following you';
+      }
+      if(n.notif_type==='like'&&n.metadata&&n.metadata.from_name){
+        displayTitle=n.metadata.from_name+' liked your post';
+      }
       
-      // ★ Build link — link to acceptor/requester profile
       var notifLink='#';
       if(n.metadata&&n.metadata.link) notifLink=n.metadata.link;
-      else if((n.notif_type==='friend_accepted'||n.notif_type==='friend_request')&&n.metadata&&n.metadata.from_id) notifLink='profile.html?id='+n.metadata.from_id;
+      else if((n.notif_type==='friend_accepted'||n.notif_type==='friend_request'||n.notif_type==='follow')&&n.metadata&&n.metadata.from_id) notifLink='profile.html?id='+n.metadata.from_id;
       
       var clickAction=notifLink!=='#'?'onclick="markRead(\''+n.id+'\');location.href=\''+notifLink+'\';"':'onclick="markRead(\''+n.id+'\')"';
       
@@ -142,7 +168,7 @@ async function loadNotifications(){
         '</div>';
     }).join('');
   }catch(e){
-    box.innerHTML='<div class="empty"><div>🔔</div><h3>No notifications yet</h3></div>';
+    box.innerHTML='<div class="empty"><div>&#128276;</div><h3>No notifications yet</h3></div>';
   }
 }
 
