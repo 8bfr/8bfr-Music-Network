@@ -80,6 +80,9 @@ var ICONS={
   mention:{icon:'@',bg:'rgba(124,58,237,.15)'},
   story_view:{icon:'*',bg:'rgba(168,85,247,.12)'},
   parent_verify:{icon:'P',bg:'rgba(139,92,246,.12)'},
+  parent_verified:{icon:'P',bg:'rgba(34,197,94,.12)'},
+  parent_rejected:{icon:'P',bg:'rgba(239,68,68,.12)'},
+  parent_verification_request:{icon:'P',bg:'rgba(249,115,22,.12)'},
   dm:{icon:'DM',bg:'rgba(0,217,255,.12)'},
   direct_message:{icon:'DM',bg:'rgba(0,217,255,.12)'},
   referral:{icon:'+',bg:'rgba(34,197,94,.12)'},
@@ -118,6 +121,30 @@ async function loadNotifications(){
       .limit(50);
     if(r.error)throw r.error;
     allNotifs=r.data||[];
+
+    // Resolve missing names: if from_id exists but from_name is missing, look it up
+    var missingIds=[];
+    allNotifs.forEach(function(n){
+      var m=n.metadata||{};
+      if(m.from_id&&!m.from_name)missingIds.push(m.from_id);
+    });
+    if(missingIds.length){
+      missingIds=[...new Set(missingIds)];
+      var pr=await db.from('profiles').select('user_id,display_name,username').in('user_id',missingIds);
+      var nameMap={};
+      if(pr.data)pr.data.forEach(function(p){nameMap[p.user_id]=p.display_name||p.username||'User';});
+      allNotifs.forEach(function(n){
+        var m=n.metadata||{};
+        if(m.from_id&&!m.from_name&&nameMap[m.from_id]){
+          m.from_name=nameMap[m.from_id];
+          if(!m.link)m.link='profile.html?id='+m.from_id;
+          if(!m.message&&n.notif_type==='friend_accepted')m.message=m.from_name+' accepted your friend request!';
+          if(!m.message&&n.notif_type==='friend_request')m.message=m.from_name+' sent you a friend request!';
+          n.metadata=m;
+        }
+      });
+    }
+
     var unreadCount=allNotifs.filter(function(n){return !n.is_read;}).length;
     var badge=document.getElementById('allBadge');
     if(badge){
@@ -218,6 +245,21 @@ function renderList(){
         title=meta.title||'Chat moderation action';
         preview=meta.body||meta.message||'';
         link=meta.link||'owner-monitor.html';
+        break;
+      case 'parent_verified':
+        title='Parent Verification Approved';
+        preview=meta.message||'You can now manage your children in KidZone.';
+        link=meta.link||'kidzone_parent.html';
+        break;
+      case 'parent_rejected':
+        title='Parent Verification Update';
+        preview=meta.message||'Your verification was not approved.';
+        link=meta.link||'kidzone_parent.html';
+        break;
+      case 'parent_verification_request':
+        title='New Parent Verification Request';
+        preview=meta.message||'A parent has submitted verification.';
+        link=meta.link||'owner-kidzone.html';
         break;
       case 'referral':
         title=(fromName||'Someone')+' joined via your invite!';
