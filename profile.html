@@ -397,8 +397,11 @@
     }catch(e){}
   };
   window.resharePost=async function(id){
-    if(!currentUser){alert('Sign in');return;}if(!confirm('Reshare to your profile?'))return;
-    try{var op=allPosts.find(function(p){return p.id===id;});
+    if(!currentUser){alert('Sign in');return;}
+    var op=allPosts.find(function(p){return p.id===id;});
+    if(op&&(op.is_private||op.hidden)){alert('Private posts cannot be reshared.');return;}
+    if(!confirm('Reshare to your profile?'))return;
+    try{
     await db.from('posts').insert({user_id:currentUser.id,text:op?op.text:null,media:op?op.media:null,media_type:op?op.media_type:null,reshared_from:id,likes:0,shares:0,favorites:0,reshares:0});
     if(op){op.reshares=(op.reshares||0)+1;await db.from('posts').update({reshares:op.reshares}).eq('id',id);}
     alert('Reshared!');}catch(e){alert(e.message);}
@@ -406,6 +409,7 @@
   window.sharePost=function(id){var url=location.origin+'/feed.html?post='+id;if(navigator.share)navigator.share({title:'8BFR Post',url:url}).catch(function(){});else navigator.clipboard.writeText(url).then(function(){alert('Link copied!');}).catch(function(){alert(url);});};
   window.addToStory=async function(id){
     if(!currentUser){alert('Sign in');return;}var p=allPosts.find(function(x){return x.id===id;});if(!p)return;
+    if(p.is_private||p.hidden){alert('Private posts cannot be added to your story.');return;}
     try{await db.from('stories').insert({user_id:currentUser.id,text:p.text||null,media_url:p.media||null,media_type:p.media?'image':null,background_color:'#7c3aed',views:0,expires_at:new Date(Date.now()+24*3600000).toISOString()});alert('Added to story!');}catch(e){alert(e.message);}
   };
   window.toggleComments=async function(id){var el=document.getElementById('comments-'+id);if(!el)return;if(el.style.display==='none'){el.style.display='block';loadComments(id);}else el.style.display='none';};
@@ -881,9 +885,9 @@
         var ids=allPosts.map(function(p){return p.id;});
         if(ids.length){
           var lkr=await db.from('post_likes').select('post_id').eq('user_id',currentUser.id).in('post_id',ids);
-          var fvr=await db.from('post_favorites').select('post_id').eq('user_id',currentUser.id).in('post_id',ids);
+          var fvr=await db.from('favorites').select('target_id').eq('user_id',currentUser.id).eq('target_type','post').in('target_id',ids);
           var likedSet={};(lkr.data||[]).forEach(function(x){likedSet[x.post_id]=true;});
-          var favSet={};(fvr.data||[]).forEach(function(x){favSet[x.post_id]=true;});
+          var favSet={};(fvr.data||[]).forEach(function(x){favSet[x.target_id]=true;});
           allPosts.forEach(function(p){p._liked=!!likedSet[p.id];p._favorited=!!favSet[p.id];});
         }
       }
@@ -910,8 +914,8 @@
       // Load user's favorited posts (for Favorites tab)
       if(currentUser&&(isOwnProfile||uid===currentUser.id)){
         try{
-          var favR=await db.from('post_favorites').select('post_id').eq('user_id',uid).order('created_at',{ascending:false}).limit(50);
-          var favIds=(favR.data||[]).map(function(x){return x.post_id;});
+          var favR=await db.from('favorites').select('target_id').eq('user_id',uid).eq('target_type','post').order('created_at',{ascending:false}).limit(50);
+          var favIds=(favR.data||[]).map(function(x){return x.target_id;});
           if(favIds.length){
             var fp=await db.from('posts').select('id,text,media,media_type,likes,shares,favorites,reshares,reshared_from,comment_count,created_at,hidden,pinned,is_private,user_id').in('id',favIds);
             window._favoritedPosts=fp.data||[];
@@ -948,7 +952,7 @@
     // Filter posts based on active tab
     if(activeProfileTab==='posts'){
       filteredPosts=allPosts.filter(function(p){
-        if(!isOwnProfile&&(p.hidden||p.is_private))return false;
+        if(p.hidden||p.is_private)return false;
         if(!p.reshared_from)return true;return false;
       });
       // Sort: pinned first, then by date
