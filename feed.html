@@ -187,7 +187,10 @@ async function loadPosts() {
 
   try {
     const { data: posts, error } = await sb.from('posts')
-      .select('*, profiles!posts_user_id_fkey(username, avatar_url, is_verified)')
+      .select('id,user_id,text,media,media_type,likes,shares,favorites,comment_count,created_at,is_private,hidden,pinned,reshared_from,algorithm_score')
+      .eq('is_private', false)
+      .eq('hidden', false)
+      .order('algorithm_score', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false })
       .range(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE - 1);
 
@@ -217,65 +220,76 @@ function renderPosts(posts, replace) {
   const container = document.getElementById('feedContainer');
   if (replace) container.innerHTML = '';
 
-  posts.forEach((post, i) => {
-    const profile = post.profiles || {};
-    const username = profile.username || 'User';
-    const avatar = profile.avatar_url || '';
-    const verified = profile.is_verified || false;
-    const timeAgo = getTimeAgo(post.created_at);
-    const globalIndex = (replace ? 0 : allPosts.length - posts.length) + i + 1;
+  // Fetch profiles for all post authors
+  const uids = [...new Set(posts.map(p => p.user_id).filter(Boolean))];
+  sb.from('profiles').select('user_id,username,display_name,avatar_url,is_verified,verified_artist').in('user_id', uids).then(function(pr) {
+    const profileMap = {};
+    (pr.data || []).forEach(function(p) { profileMap[p.user_id] = p; });
 
-    let mediaHtml = '';
-    if (post.image_url) {
-      mediaHtml = '<img class="post-media" src="' + post.image_url + '" alt="Post image" loading="lazy">';
-    }
-    if (post.audio_url || post.song_url) {
-      const audioSrc = post.audio_url || post.song_url;
-      mediaHtml += '<audio class="post-audio" controls preload="none" src="' + audioSrc + '"></audio>';
-    }
-    if (post.video_url) {
-      mediaHtml += '<video class="post-media" controls preload="none" playsinline src="' + post.video_url + '"></video>';
-    }
+    posts.forEach((post, i) => {
+      if (post.is_private || post.hidden) return;
+      const profile = profileMap[post.user_id] || {};
+      const username = profile.display_name || profile.username || 'User';
+      const avatar = profile.avatar_url || '';
+      const verified = profile.is_verified || profile.verified_artist || false;
+      const timeAgo = getTimeAgo(post.created_at);
+      const globalIndex = (replace ? 0 : allPosts.length - posts.length) + i + 1;
 
-    const badgeHtml = verified ? '<span class="post-badge" title="Verified"></span>' : '';
+      let mediaHtml = '';
+      if (post.media && (post.media_type === 'photo' || post.media_type === 'image')) {
+        mediaHtml = '<img class="post-media" src="' + post.media + '" alt="Post" loading="lazy">';
+      }
+      if (post.media && post.media_type === 'audio') {
+        mediaHtml += '<audio class="post-audio" controls preload="none" src="' + post.media + '"></audio>';
+      }
+      if (post.media && post.media_type === 'video') {
+        var yt = post.media.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+        if (yt) {
+          mediaHtml += '<div style="position:relative;padding-bottom:56.25%;border-radius:8px;overflow:hidden;margin:6px 0;"><iframe src="https://www.youtube.com/embed/' + yt[1] + '" style="position:absolute;inset:0;width:100%;height:100%;border:none;" allowfullscreen></iframe></div>';
+        } else {
+          mediaHtml += '<video class="post-media" controls preload="none" playsinline src="' + post.media + '"></video>';
+        }
+      }
 
-    const div = document.createElement('div');
-    div.className = 'feed-post';
-    div.innerHTML =
-      '<span class="post-counter">' + globalIndex + '</span>' +
-      '<div class="post-card">' +
-        '<div class="post-header">' +
-          (avatar ? '<img class="post-avatar" src="' + avatar + '" alt="">' : '<div class="post-avatar"></div>') +
-          '<div class="post-user">' +
-            '<div class="post-username">' + escHtml(username) + badgeHtml + '</div>' +
-            '<div class="post-time">' + timeAgo + '</div>' +
+      const badgeHtml = verified ? '<span class="post-badge" title="Verified"></span>' : '';
+
+      const div = document.createElement('div');
+      div.className = 'feed-post';
+      div.innerHTML =
+        '<span class="post-counter">' + globalIndex + '</span>' +
+        '<div class="post-card">' +
+          '<div class="post-header">' +
+            (avatar ? '<img class="post-avatar" src="' + avatar + '" alt="">' : '<div class="post-avatar"></div>') +
+            '<div class="post-user">' +
+              '<div class="post-username">' + escHtml(username) + badgeHtml + '</div>' +
+              '<div class="post-time">' + timeAgo + '</div>' +
+            '</div>' +
           '</div>' +
-        '</div>' +
-        '<div class="post-body">' +
-          (post.content ? '<p class="post-text">' + escHtml(post.content) + '</p>' : '') +
-          mediaHtml +
-        '</div>' +
-        '<div class="post-actions">' +
-          '<button class="post-action-btn" onclick="likePost(\'' + post.id + '\', this)">' +
-            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>' +
-            '<span>' + (post.like_count || 0) + '</span>' +
-          '</button>' +
-          '<button class="post-action-btn" onclick="commentPost(\'' + post.id + '\')">' +
-            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>' +
-            '<span>' + (post.comment_count || 0) + '</span>' +
-          '</button>' +
-          '<button class="post-action-btn" onclick="sharePost(\'' + post.id + '\')">' +
-            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>' +
-            '<span>Share</span>' +
-          '</button>' +
-        '</div>' +
-      '</div>';
+          '<div class="post-body">' +
+            (post.text ? '<p class="post-text">' + escHtml(post.text) + '</p>' : '') +
+            mediaHtml +
+          '</div>' +
+          '<div class="post-actions">' +
+            '<button class="post-action-btn" onclick="likePost(\'' + post.id + '\', this)">' +
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>' +
+              '<span>' + (post.likes || 0) + '</span>' +
+            '</button>' +
+            '<button class="post-action-btn" onclick="commentPost(\'' + post.id + '\')">' +
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>' +
+              '<span>' + (post.comment_count || 0) + '</span>' +
+            '</button>' +
+            '<button class="post-action-btn" onclick="sharePost(\'' + post.id + '\')">' +
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>' +
+              '<span>Share</span>' +
+            '</button>' +
+          '</div>' +
+        '</div>';
 
-    container.appendChild(div);
+      container.appendChild(div);
+    });
+
+    setupMediaObserver();
   });
-
-  // Auto-pause videos/audio when scrolling away
-  setupMediaObserver();
 }
 
 function showEmptyFeed() {
