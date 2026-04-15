@@ -1,110 +1,356 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PAGE TITLE — 8BFR</title>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tournaments - 8BFR</title>
 <link rel="icon" href="assets/images/favicon.png">
-<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-body{background:linear-gradient(#0b0014,#000);color:#eae6ff;font-family:system-ui;margin:0}
-.card{border:1px solid rgba(124,58,237,.35);background:#0c0618;border-radius:14px;box-shadow:0 0 20px rgba(124,58,237,.18);padding:16px}
-.btn{display:inline-block;background:#120327;border:1px solid rgba(124,58,237,.6);color:#eae6ff;padding:.4rem .7rem;border-radius:.6rem;text-decoration:none}
-.btn:hover{background:#190536}
+:root{--primary:#7c3aed;--dark:#0b0014;--card:#0c0618;--text:#eae6ff;--dim:#a855f7;--border:rgba(124,58,237,.35);--green:#22c55e;--yellow:#eab308;--red:#ef4444;--cyan:#00d9ff;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Work Sans',sans-serif;background:linear-gradient(#0b0014,#000);color:var(--text);min-height:100vh;padding-bottom:80px;}
+.header{background:rgba(15,0,30,.95);border-bottom:2px solid var(--primary);padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;}
+.header h1{font-family:'Bebas Neue',cursive;font-size:1.5rem;color:var(--primary);}
+.container{max-width:600px;margin:0 auto;padding:1.25rem;}
+.coin-pill{background:rgba(234,179,8,.12);border:1px solid rgba(234,179,8,.3);color:var(--yellow);padding:.3rem .7rem;border-radius:20px;font-size:.82rem;font-weight:700;}
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:1.25rem;}
+.tab{flex:1;text-align:center;padding:.65rem;font-weight:600;font-size:.82rem;cursor:pointer;color:rgba(234,230,255,.5);border:none;border-bottom:2px solid transparent;background:none;transition:all .2s;}
+.tab.active{color:var(--primary);border-bottom-color:var(--primary);}
+.t-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:1rem;transition:all .2s;}
+.t-card:hover{border-color:var(--primary);}
+.t-status{display:inline-block;padding:.2rem .6rem;border-radius:6px;font-size:.68rem;font-weight:700;text-transform:uppercase;}
+.st-open{background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.3);}
+.st-active{background:rgba(234,179,8,.15);color:var(--yellow);border:1px solid rgba(234,179,8,.3);}
+.st-completed{background:rgba(124,58,237,.15);color:var(--dim);border:1px solid var(--border);}
+.t-head{padding:1rem 1.1rem .5rem;display:flex;justify-content:space-between;align-items:flex-start;}
+.t-title{font-weight:800;font-size:1rem;}
+.t-body{padding:0 1.1rem 1rem;}
+.t-meta{display:flex;gap:1rem;font-size:.78rem;color:var(--dim);margin:.5rem 0;flex-wrap:wrap;}
+.t-meta b{color:var(--text);}
+.t-prize{display:flex;gap:.5rem;margin:.5rem 0;font-size:.78rem;}
+.t-prize span{padding:.2rem .5rem;border-radius:6px;font-weight:700;}
+.t-1st{background:rgba(234,179,8,.12);color:var(--yellow);border:1px solid rgba(234,179,8,.3);}
+.t-2nd{background:rgba(192,192,192,.1);color:#c0c0c0;border:1px solid rgba(192,192,192,.2);}
+.t-3rd{background:rgba(205,127,50,.1);color:#cd7f32;border:1px solid rgba(205,127,50,.2);}
+.t-actions{display:flex;gap:.5rem;margin-top:.75rem;}
+.btn{padding:.5rem 1rem;border-radius:8px;border:none;cursor:pointer;font-weight:600;font-size:.85rem;transition:all .2s;}
+.btn-join{background:var(--green);color:#fff;}
+.btn-play{background:var(--primary);color:#fff;}
+.btn-view{background:rgba(124,58,237,.15);border:1px solid var(--border);color:var(--text);}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.players-bar{display:flex;gap:.3rem;margin:.5rem 0;align-items:center;}
+.players-bar .dot{width:8px;height:8px;border-radius:50%;background:var(--primary);}
+.players-bar .count{font-size:.75rem;color:var(--dim);}
+.empty{text-align:center;padding:3rem;color:var(--dim);}
+.spinner{width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;margin:2rem auto;}
+@keyframes spin{to{transform:rotate(360deg);}}
+/* Leaderboard */
+.lb-row{display:flex;align-items:center;gap:.6rem;padding:.6rem .8rem;border-bottom:1px solid rgba(124,58,237,.08);}
+.lb-row:last-child{border:none;}
+.lb-rank{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.78rem;flex-shrink:0;}
+.lb-1{background:rgba(234,179,8,.2);color:var(--yellow);border:1px solid rgba(234,179,8,.4);}
+.lb-2{background:rgba(192,192,192,.15);color:#c0c0c0;border:1px solid rgba(192,192,192,.3);}
+.lb-3{background:rgba(205,127,50,.15);color:#cd7f32;border:1px solid rgba(205,127,50,.3);}
+.lb-def{background:rgba(124,58,237,.1);color:var(--dim);border:1px solid var(--border);}
+.lb-name{flex:1;font-weight:600;font-size:.88rem;}
+.lb-score{font-family:'Bebas Neue',cursive;font-size:1.1rem;color:var(--yellow);}
+/* Owner create */
+.form-group{margin-bottom:.6rem;}
+.form-group label{display:block;font-size:.78rem;color:var(--dim);margin-bottom:.25rem;font-weight:600;}
+.form-input{width:100%;padding:.55rem .75rem;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.88rem;outline:none;font-family:inherit;}
+.form-input:focus{border-color:var(--primary);}
+select.form-input{cursor:pointer;}
+.modal{display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.85);align-items:center;justify-content:center;padding:1rem;}
+.modal.show{display:flex;}
+.modal-box{background:rgba(12,6,24,.98);border:1px solid var(--primary);border-radius:16px;padding:1.5rem;max-width:480px;width:100%;max-height:85vh;overflow-y:auto;}
 </style>
 </head>
 <body>
-<header class="px-4 py-4 bg-[rgba(15,0,30,.9)] border-b border-purple-500/40">
-  <div class="max-w-4xl mx-auto flex items-center justify-between">
-    <a href="index.html" class="btn">← Home</a>
-    <h1 class="text-lg font-bold">PAGE TITLE</h1>
-    <span></span>
-  </div>
-</header>
+<div class="header">
+<a href="game-hub.html" style="color:var(--dim);text-decoration:none;font-weight:600;font-size:.85rem;">Games</a>
+<h1>Tournaments</h1>
+<span class="coin-pill" id="coinBal">0 coins</span>
+</div>
+<div class="container">
+<div class="tabs">
+<button class="tab active" onclick="switchTab('open',this)">Open</button>
+<button class="tab" onclick="switchTab('active',this)">Active</button>
+<button class="tab" onclick="switchTab('completed',this)">Results</button>
+<button class="tab" onclick="switchTab('my',this)">My Tournaments</button>
+</div>
+<div id="createBtn" style="display:none;margin-bottom:1rem;"><button class="btn btn-play" onclick="openCreateModal()" style="width:100%;">+ Create Tournament</button></div>
+<div id="tournamentList"><div class="spinner"></div></div>
+</div>
 
-<main class="max-w-4xl mx-auto px-4 py-6">
-  <div class="card">
-    <p>This is a placeholder for <b>PAGE TITLE</b>. You can design this later.</p>
-  </div>
-</main>
+<!-- CREATE MODAL -->
+<div class="modal" id="createModal">
+<div class="modal-box">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+<h2 style="font-family:'Bebas Neue',cursive;color:var(--primary);margin:0;">Create Tournament</h2>
+<button onclick="closeCreate()" style="background:none;border:none;color:var(--text);font-size:1.3rem;cursor:pointer;">X</button>
+</div>
+<div class="form-group"><label>Title</label><input class="form-input" id="ctTitle" placeholder="e.g. Beat Tap Championship"></div>
+<div class="form-group"><label>Game</label><select class="form-input" id="ctGame">
+<option value="beatTap">Beat Tap</option>
+<option value="musicMemory">Music Memory</option>
+<option value="musicTrivia">Music Trivia</option>
+<option value="wordUnscramble">Word Unscramble</option>
+<option value="guessGenre">Guess Genre</option>
+<option value="bpmChallenge">BPM Challenge</option>
+<option value="lyricsFinish">Lyrics Finish</option>
+<option value="numberRush">Number Rush</option>
+<option value="colorMatch">Color Match</option>
+</select></div>
+<div style="display:flex;gap:.5rem;">
+<div class="form-group" style="flex:1;"><label>Entry Fee (coins)</label><input class="form-input" id="ctFee" type="number" value="10" min="1"></div>
+<div class="form-group" style="flex:1;"><label>Max Players</label><input class="form-input" id="ctMax" type="number" value="20" min="4"></div>
+</div>
+<div style="display:flex;gap:.5rem;">
+<div class="form-group" style="flex:1;"><label>Start</label><input class="form-input" id="ctStart" type="datetime-local"></div>
+<div class="form-group" style="flex:1;"><label>End</label><input class="form-input" id="ctEnd" type="datetime-local"></div>
+</div>
+<div style="background:rgba(124,58,237,.06);border:1px solid var(--border);border-radius:8px;padding:.75rem;margin:.75rem 0;font-size:.78rem;color:var(--dim);">
+<b style="color:var(--text);">Prize Split:</b> 1st: 50% | 2nd: 30% | 3rd: 15% | Site: 5%<br>
+Entry fees pool together. Example: 20 players x 10 coins = 200 pool<br>
+1st: 100 | 2nd: 60 | 3rd: 30 | Site: 10
+</div>
+<button class="btn btn-join" onclick="createTournament()" id="ctBtn" style="width:100%;margin-top:.5rem;">Create Tournament</button>
+<div id="ctMsg" style="margin-top:.5rem;font-size:.82rem;text-align:center;"></div>
+</div>
+</div>
 
-<script src="scripts.js?v=6" defer></script>
-  <!-- ADD THIS SCRIPT TO EVERY PAGE (except index.html where you want it always shown) -->
-<!-- Place it right before the closing </body> tag -->
-
+<script src="scripts.js" defer></script>
 <script>
-// Avatar & Bubble Toggle System
-(function() {
-    // Create toggle button
-    const toggleBtn = document.createElement('button');
-    toggleBtn.id = 'avatarToggle';
-    toggleBtn.innerHTML = '👁️';
-    toggleBtn.title = 'Toggle Avatar/Bubbles';
-    toggleBtn.style.cssText = `
-        position: fixed;
-        top: 80px;
-        right: 20px;
-        z-index: 9999;
-        background: rgba(124, 58, 237, 0.9);
-        border: 2px solid rgba(124, 58, 237, 1);
-        color: white;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.5);
-        transition: all 0.3s ease;
-    `;
-    
-    toggleBtn.addEventListener('mouseenter', function() {
-        this.style.transform = 'scale(1.1)';
-    });
-    
-    toggleBtn.addEventListener('mouseleave', function() {
-        this.style.transform = 'scale(1)';
-    });
-    
-    document.body.appendChild(toggleBtn);
-    
-    // Load saved preference
-    let isHidden = localStorage.getItem('hideAvatarBubbles') === 'true';
-    
-    function updateVisibility() {
-        const elementsToToggle = [
-            document.getElementById('homeAvatarSwitcher'),
-            ...document.querySelectorAll('[id*="bubble"]'),
-            ...document.querySelectorAll('[class*="bubble"]'),
-            ...document.querySelectorAll('[id*="avatar"][id*="switcher"]')
-        ];
-        
-        elementsToToggle.forEach(el => {
-            if (el) {
-                el.style.display = isHidden ? 'none' : '';
-            }
-        });
-        
-        toggleBtn.innerHTML = isHidden ? '👁️‍🗨️' : '👁️';
-        toggleBtn.title = isHidden ? 'Show Avatar/Bubbles' : 'Hide Avatar/Bubbles';
-    }
-    
-    toggleBtn.addEventListener('click', function() {
-        isHidden = !isHidden;
-        localStorage.setItem('hideAvatarBubbles', isHidden);
-        updateVisibility();
-    });
-    
-    // Apply on load
-    updateVisibility();
-    
-    // Watch for dynamically added elements
-    const observer = new MutationObserver(updateVisibility);
-    observer.observe(document.body, { childList: true, subtree: true });
-})();
-</script>
+var SUPABASE_URL='https://novbuvwpjnxwwvdekjhr.supabase.co';
+var SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+var db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+var OWNER_ID='cb556180-f032-4b21-9470-1d786f2664ab';
+var currentUser=null,userCoins=0,activeTab='open',allTournaments=[];
+var GAME_NAMES={beatTap:'Beat Tap',musicMemory:'Music Memory',musicTrivia:'Music Trivia',wordUnscramble:'Word Unscramble',guessGenre:'Guess Genre',bpmChallenge:'BPM Challenge',lyricsFinish:'Lyrics Finish',numberRush:'Number Rush',colorMatch:'Color Match'};
 
+async function init(){
+  var s=await db.auth.getSession();
+  if(!s.data.session){location.href='login.html?return=game-tournaments.html';return;}
+  currentUser=s.data.session.user;
+  // Check if owner
+  if(currentUser.id===OWNER_ID){document.getElementById('createBtn').style.display='block';}
+  // Load coins
+  var ct=await db.from('coin_transactions').select('amount').eq('user_id',currentUser.id);
+  userCoins=(ct.data||[]).reduce(function(a,t){return a+t.amount;},0);
+  document.getElementById('coinBal').textContent=userCoins+' coins';
+  loadTournaments();
+}
+
+function switchTab(tab,btn){
+  activeTab=tab;
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+  if(btn)btn.classList.add('active');
+  renderList();
+}
+
+async function loadTournaments(){
+  var r=await db.from('tournaments').select('*').order('created_at',{ascending:false});
+  allTournaments=r.data||[];
+  // Load entry counts
+  for(var i=0;i<allTournaments.length;i++){
+    var t=allTournaments[i];
+    var ec=await db.from('tournament_entries').select('user_id',{count:'exact',head:true}).eq('tournament_id',t.id);
+    t._entries=ec.count||0;
+    // Check if current user joined
+    var me=await db.from('tournament_entries').select('best_score').eq('tournament_id',t.id).eq('user_id',currentUser.id).maybeSingle();
+    t._joined=!!me.data;
+    t._myScore=me.data?me.data.best_score:0;
+  }
+  renderList();
+}
+
+function renderList(){
+  var el=document.getElementById('tournamentList');
+  var list=allTournaments;
+  if(activeTab==='open')list=list.filter(function(t){return t.status==='open';});
+  else if(activeTab==='active')list=list.filter(function(t){return t.status==='active';});
+  else if(activeTab==='completed')list=list.filter(function(t){return t.status==='completed';});
+  else if(activeTab==='my')list=list.filter(function(t){return t._joined;});
+
+  if(!list.length){
+    el.innerHTML='<div class="empty"><div style="font-size:3rem;margin-bottom:.75rem;">&#127942;</div><p>No '+activeTab+' tournaments'+(activeTab==='open'?' yet. Check back soon!':'.')+'</p></div>';
+    return;
+  }
+
+  el.innerHTML=list.map(function(t){
+    var stClass=t.status==='open'?'st-open':t.status==='active'?'st-active':'st-completed';
+    var gameName=GAME_NAMES[t.game_id]||t.game_id;
+    var pool=t.prize_pool||0;
+    var p1=Math.floor(pool*(t.first_pct||50)/100);
+    var p2=Math.floor(pool*(t.second_pct||30)/100);
+    var p3=Math.floor(pool*(t.third_pct||15)/100);
+    var timeInfo='';
+    if(t.start_time)timeInfo+=formatDate(t.start_time);
+    if(t.end_time)timeInfo+=' - '+formatDate(t.end_time);
+
+    var actions='';
+    if(t.status==='open'&&!t._joined){
+      actions='<button class="btn btn-join" onclick="joinTournament(\''+t.id+'\','+t.entry_fee+')">Join ('+t.entry_fee+' coins)</button>';
+    }else if(t.status==='open'&&t._joined){
+      actions='<span style="color:var(--green);font-size:.82rem;font-weight:600;">Joined - waiting to start</span>';
+    }else if(t.status==='active'&&t._joined){
+      actions='<button class="btn btn-play" onclick="playTournament(\''+t.id+'\',\''+t.game_id+'\')">Play Now</button>';
+      if(t._myScore>0)actions+=' <span style="font-size:.78rem;color:var(--yellow);margin-left:.5rem;">Best: '+t._myScore+'</span>';
+    }else if(t.status==='active'&&!t._joined){
+      actions='<span style="color:var(--dim);font-size:.82rem;">Registration closed</span>';
+    }else if(t.status==='completed'){
+      actions='<button class="btn btn-view" onclick="viewResults(\''+t.id+'\')">View Results</button>';
+    }
+
+    // Owner controls
+    var ownerCtrl='';
+    if(currentUser.id===OWNER_ID){
+      if(t.status==='open')ownerCtrl='<button class="btn btn-play" onclick="startTournament(\''+t.id+'\')" style="font-size:.72rem;padding:.3rem .6rem;">Start</button>';
+      if(t.status==='active')ownerCtrl='<button class="btn btn-view" onclick="endTournament(\''+t.id+'\')" style="font-size:.72rem;padding:.3rem .6rem;">End + Award</button>';
+    }
+
+    return '<div class="t-card">'+
+      '<div class="t-head"><div><div class="t-title">'+esc(t.title)+'</div><div style="font-size:.78rem;color:var(--cyan);margin-top:.15rem;">'+gameName+'</div></div><span class="t-status '+stClass+'">'+t.status+'</span></div>'+
+      '<div class="t-body">'+
+        '<div class="t-meta"><span>Entry: <b>'+t.entry_fee+' coins</b></span><span>Pool: <b>'+pool+' coins</b></span><span>Players: <b>'+t._entries+'/'+(t.max_players||50)+'</b></span></div>'+
+        (timeInfo?'<div style="font-size:.72rem;color:var(--dim);">'+timeInfo+'</div>':'')+
+        '<div class="t-prize"><span class="t-1st">1st: '+p1+'</span><span class="t-2nd">2nd: '+p2+'</span><span class="t-3rd">3rd: '+p3+'</span></div>'+
+        '<div class="t-actions">'+actions+' '+ownerCtrl+'</div>'+
+      '</div></div>';
+  }).join('');
+}
+
+// JOIN
+async function joinTournament(id,fee){
+  if(userCoins<fee){alert('Not enough coins. You have '+userCoins+', need '+fee+'.');return;}
+  if(!confirm('Join for '+fee+' coins?'))return;
+  // Deduct coins
+  await db.from('coin_transactions').insert({user_id:currentUser.id,amount:-fee,type:'tournament_entry',description:'Tournament entry fee'});
+  userCoins-=fee;
+  document.getElementById('coinBal').textContent=userCoins+' coins';
+  // Add to entries
+  await db.from('tournament_entries').insert({tournament_id:id,user_id:currentUser.id});
+  // Update prize pool
+  var t=allTournaments.find(function(x){return x.id===id;});
+  var newPool=(t?t.prize_pool:0)+fee;
+  await db.from('tournaments').update({prize_pool:newPool}).eq('id',id);
+  loadTournaments();
+}
+
+// PLAY - opens game-hub with tournament mode
+function playTournament(tournamentId,gameId){
+  // Store tournament context and redirect to game-hub
+  sessionStorage.setItem('tournament_id',tournamentId);
+  sessionStorage.setItem('tournament_game',gameId);
+  location.href='game-hub.html?tournament='+tournamentId+'&game='+gameId;
+}
+
+// VIEW RESULTS
+async function viewResults(id){
+  var entries=await db.from('tournament_entries').select('user_id,best_score').eq('tournament_id',id).order('best_score',{ascending:false}).limit(20);
+  var data=entries.data||[];
+  if(!data.length){alert('No entries.');return;}
+  // Get usernames
+  var uids=data.map(function(e){return e.user_id;});
+  var pr=await db.from('profiles').select('user_id,display_name,username').in('user_id',uids);
+  var nameMap={};(pr.data||[]).forEach(function(p){nameMap[p.user_id]=p.display_name||p.username||'User';});
+
+  var html='<div style="font-family:\'Bebas Neue\',cursive;font-size:1.2rem;color:var(--primary);margin-bottom:.75rem;">Results</div>';
+  data.forEach(function(e,i){
+    var rankClass=i===0?'lb-1':i===1?'lb-2':i===2?'lb-3':'lb-def';
+    var name=nameMap[e.user_id]||'Player';
+    var medal=i===0?' [1st Place]':i===1?' [2nd Place]':i===2?' [3rd Place]':'';
+    html+='<div class="lb-row"><div class="lb-rank '+rankClass+'">'+(i+1)+'</div><div class="lb-name">'+esc(name)+medal+'</div><div class="lb-score">'+e.best_score+'</div></div>';
+  });
+  html+='<button class="btn btn-view" onclick="this.closest(\'.modal\').classList.remove(\'show\')" style="width:100%;margin-top:1rem;">Close</button>';
+  var modal=document.getElementById('createModal');
+  modal.querySelector('.modal-box').innerHTML=html;
+  modal.classList.add('show');
+}
+
+// OWNER: START TOURNAMENT
+async function startTournament(id){
+  if(!confirm('Start this tournament? Players can now submit scores.'))return;
+  await db.from('tournaments').update({status:'active',start_time:new Date().toISOString()}).eq('id',id);
+  loadTournaments();
+}
+
+// OWNER: END TOURNAMENT + AWARD PRIZES
+async function endTournament(id){
+  if(!confirm('End tournament and award prizes to top 3?'))return;
+  var t=allTournaments.find(function(x){return x.id===id;});
+  if(!t)return;
+  // Get top 3
+  var entries=await db.from('tournament_entries').select('user_id,best_score').eq('tournament_id',id).order('best_score',{ascending:false}).limit(3);
+  var top=entries.data||[];
+  var pool=t.prize_pool||0;
+  var siteCut=Math.floor(pool*(t.site_cut_pct||5)/100);
+  var p1=Math.floor(pool*(t.first_pct||50)/100);
+  var p2=Math.floor(pool*(t.second_pct||30)/100);
+  var p3=Math.floor(pool*(t.third_pct||15)/100);
+  // Award coins
+  var updates={status:'completed',end_time:new Date().toISOString()};
+  if(top[0]){
+    await db.from('coin_transactions').insert({user_id:top[0].user_id,amount:p1,type:'tournament_prize',description:'1st place - '+t.title});
+    await db.from('notifications').insert({recipient_id:top[0].user_id,notif_type:'badge',metadata:{message:'You won 1st place in '+t.title+'! +'+p1+' coins',link:'game-tournaments.html'},is_read:false});
+    updates.winner_1=top[0].user_id;
+  }
+  if(top[1]){
+    await db.from('coin_transactions').insert({user_id:top[1].user_id,amount:p2,type:'tournament_prize',description:'2nd place - '+t.title});
+    await db.from('notifications').insert({recipient_id:top[1].user_id,notif_type:'badge',metadata:{message:'You won 2nd place in '+t.title+'! +'+p2+' coins',link:'game-tournaments.html'},is_read:false});
+    updates.winner_2=top[1].user_id;
+  }
+  if(top[2]){
+    await db.from('coin_transactions').insert({user_id:top[2].user_id,amount:p3,type:'tournament_prize',description:'3rd place - '+t.title});
+    await db.from('notifications').insert({recipient_id:top[2].user_id,notif_type:'badge',metadata:{message:'You won 3rd place in '+t.title+'! +'+p3+' coins',link:'game-tournaments.html'},is_read:false});
+    updates.winner_3=top[2].user_id;
+  }
+  // Site cut goes to owner
+  if(siteCut>0){
+    await db.from('coin_transactions').insert({user_id:OWNER_ID,amount:siteCut,type:'tournament_site_cut',description:'Site cut - '+t.title});
+  }
+  await db.from('tournaments').update(updates).eq('id',id);
+  alert('Tournament ended! Prizes awarded.');
+  loadTournaments();
+}
+
+// CREATE TOURNAMENT (owner only)
+function openCreateModal(){
+  document.getElementById('createModal').querySelector('.modal-box').innerHTML=document.getElementById('createModal').querySelector('.modal-box').innerHTML;
+  document.getElementById('createModal').classList.add('show');
+  // Set default times
+  var now=new Date();var later=new Date(now.getTime()+86400000);
+  document.getElementById('ctStart').value=now.toISOString().slice(0,16);
+  document.getElementById('ctEnd').value=later.toISOString().slice(0,16);
+}
+function closeCreate(){document.getElementById('createModal').classList.remove('show');}
+document.getElementById('createModal').addEventListener('click',function(e){if(e.target===this)closeCreate();});
+
+async function createTournament(){
+  var title=document.getElementById('ctTitle').value.trim();
+  if(!title){document.getElementById('ctMsg').textContent='Enter a title';return;}
+  var btn=document.getElementById('ctBtn');btn.disabled=true;btn.textContent='Creating...';
+  var r=await db.from('tournaments').insert({
+    title:title,
+    game_id:document.getElementById('ctGame').value,
+    entry_fee:parseInt(document.getElementById('ctFee').value)||10,
+    max_players:parseInt(document.getElementById('ctMax').value)||20,
+    start_time:document.getElementById('ctStart').value?new Date(document.getElementById('ctStart').value).toISOString():null,
+    end_time:document.getElementById('ctEnd').value?new Date(document.getElementById('ctEnd').value).toISOString():null,
+    prize_pool:0,status:'open',created_by:currentUser.id,
+    site_cut_pct:5,first_pct:50,second_pct:30,third_pct:15
+  });
+  if(r.error){document.getElementById('ctMsg').textContent='Error: '+r.error.message;}
+  else{closeCreate();loadTournaments();}
+  btn.disabled=false;btn.textContent='Create Tournament';
+}
+
+function formatDate(d){if(!d)return'';var dt=new Date(d);return dt.toLocaleDateString()+' '+dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});}
+function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
+function timeAgo(d){var s=Math.floor((Date.now()-new Date(d))/1000);if(s<60)return'now';if(s<3600)return Math.floor(s/60)+'m';if(s<86400)return Math.floor(s/3600)+'h';return Math.floor(s/86400)+'d';}
+
+init();
+</script>
 </body>
 </html>
