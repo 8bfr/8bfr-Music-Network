@@ -200,8 +200,22 @@ const SB = window.supabase.createClient(
 );
 let currentUser = null, currentProfile = null;
 let gameTimers = [];
+let currentGameId = null;
+let tournamentId = null;
+let tournamentGame = null;
 const todayKey = 'game_coins_' + new Date().toDateString();
 let coinsEarnedToday = parseInt(localStorage.getItem(todayKey) || '0');
+
+// Check for tournament mode from URL or sessionStorage
+(function(){
+  var params = new URLSearchParams(location.search);
+  tournamentId = params.get('tournament') || sessionStorage.getItem('tournament_id') || null;
+  tournamentGame = params.get('game') || sessionStorage.getItem('tournament_game') || null;
+  if (tournamentId && tournamentGame) {
+    sessionStorage.setItem('tournament_id', tournamentId);
+    sessionStorage.setItem('tournament_game', tournamentGame);
+  }
+})();
 
 async function init() {
   const { data: { session } } = await SB.auth.getSession().catch(() => ({ data:{} }));
@@ -215,13 +229,22 @@ async function init() {
   }
   const max = 50;
   document.getElementById('dailyStatus').textContent = coinsEarnedToday + '/' + max + ' coins earned today';
+
+  // Auto-launch game if in tournament mode
+  if (tournamentId && tournamentGame && currentUser) {
+    var banner = document.createElement('div');
+    banner.style.cssText = 'background:rgba(234,179,8,.12);border:1px solid rgba(234,179,8,.3);border-radius:10px;padding:.75rem 1rem;margin:0 1rem 1rem;text-align:center;font-size:.85rem;color:#eab308;font-weight:600;';
+    banner.innerHTML = 'TOURNAMENT MODE - Your best score counts! <a href="game-tournaments.html" style="color:#a855f7;margin-left:.5rem;">Back to Tournament</a>';
+    document.querySelector('.game-grid').parentElement.insertBefore(banner, document.querySelector('.game-grid'));
+    setTimeout(function(){ launchGame(tournamentGame); }, 500);
+  }
 }
 
-async function awardCoins(amount) {
+async function awardCoins(amount, gameScore) {
   if (!currentUser) return;
   const max = 50;
   const canEarn = Math.min(amount, max - coinsEarnedToday);
-  if (canEarn <= 0) { showToast('Daily coin limit reached! Come back tomorrow 🎉'); return; }
+  if (canEarn <= 0) { showToast('Daily coin limit reached! Come back tomorrow'); return; }
 
   try {
     await SB.from('profiles').update({ coins: (currentProfile?.coins||0) + canEarn }).eq('user_id', currentUser.id);
@@ -231,8 +254,49 @@ async function awardCoins(amount) {
     localStorage.setItem(todayKey, coinsEarnedToday);
     document.getElementById('coinBalance').textContent = (currentProfile?.coins||0).toLocaleString();
     document.getElementById('dailyStatus').textContent = coinsEarnedToday + '/50 coins earned today';
-    showToast('+' + canEarn + ' 🪙 coins added!');
+    showToast('+' + canEarn + ' coins added!');
   } catch(e) { console.warn('Coin award failed:', e); }
+
+  // Submit score to leaderboard and tournament
+  if (gameScore !== undefined && currentGameId) {
+    submitScore(gameScore, currentGameId);
+  }
+}
+
+async function submitScore(score, gameId) {
+  if (!currentUser || !gameId) return;
+  try {
+    // Save to global leaderboard
+    await SB.from('game_leaderboard').insert({
+      user_id: currentUser.id,
+      game_id: gameId,
+      score: score,
+      played_at: new Date().toISOString()
+    });
+
+    // If in tournament mode, save tournament score
+    if (tournamentId && tournamentGame === gameId) {
+      await SB.from('tournament_scores').insert({
+        tournament_id: tournamentId,
+        user_id: currentUser.id,
+        game_id: gameId,
+        score: score
+      });
+      // Update best score in tournament entry
+      var entry = await SB.from('tournament_entries')
+        .select('best_score')
+        .eq('tournament_id', tournamentId)
+        .eq('user_id', currentUser.id)
+        .maybeSingle();
+      if (entry.data && score > (entry.data.best_score || 0)) {
+        await SB.from('tournament_entries')
+          .update({ best_score: score, attempts: (entry.data.attempts || 0) + 1 })
+          .eq('tournament_id', tournamentId)
+          .eq('user_id', currentUser.id);
+        showToast('New tournament best: ' + score + '!');
+      }
+    }
+  } catch(e) { console.warn('Score submit:', e); }
 }
 
 function showToast(msg) {
@@ -247,6 +311,7 @@ function clearGameTimers() { gameTimers.forEach(clearTimeout); gameTimers.forEac
 
 function launchGame(gameId) {
   if (!currentUser) { if (confirm('Log in to play and earn coins!')) location.href='login.html?return=games.html'; return; }
+  currentGameId = gameId;
   clearGameTimers();
   document.getElementById('gameModal').style.display = 'flex';
   const games = {
@@ -340,7 +405,7 @@ function endBeatTap(score) {
     <div style="color:#f59e0b;font-weight:700;">+${coins} 🪙 coins earned!</div>
     <button class="play-btn" onclick="launchGame('beatTap')">Play Again</button>
   </div>`;
-  awardCoins(coins);
+  awardCoins(coins, score);
 }
 
 // ── MEMORY GAME ────────────────────────────────────────────────────────
@@ -399,7 +464,7 @@ function endMemory(moves, ms) {
     <div style="color:#f59e0b;font-weight:700;margin:.5rem 0;">+${coins} 🪙 coins!</div>
     <button class="play-btn" onclick="launchGame('musicMemory')">Play Again</button>
   </div>`;
-  awardCoins(coins);
+  awardCoins(coins, score);
 }
 
 // ── TRIVIA ─────────────────────────────────────────────────────────────
@@ -456,7 +521,7 @@ function endTrivia(score, total) {
     <div style="color:#f59e0b;font-weight:700;">+${coins} 🪙 coins!</div>
     <button class="play-btn" onclick="launchGame('musicTrivia')">Play Again</button>
   </div>`;
-  awardCoins(coins);
+  awardCoins(coins, score);
 }
 
 // ── WORD SCRAMBLE ─────────────────────────────────────────────────────
@@ -503,7 +568,7 @@ function endWordScramble(score,total) {
     <div style="color:#f59e0b;font-weight:700;">+${coins} 🪙</div>
     <button class="play-btn" onclick="launchGame('wordUnscramble')">Play Again</button>
   </div>`;
-  awardCoins(coins);
+  awardCoins(coins, score);
 }
 
 // ── GENRE GUESSER ────────────────────────────────────────────────────
@@ -545,7 +610,7 @@ function endGuessGenre(score) {
     <div style="color:#f59e0b;font-weight:700;">+${coins} 🪙</div>
     <button class="play-btn" onclick="launchGame('guessGenre')">Play Again</button>
   </div>`;
-  awardCoins(coins);
+  awardCoins(coins, score);
 }
 
 // ── NUMBER RUSH ────────────────────────────────────────────────────────
@@ -582,7 +647,7 @@ function endNumberRush(ms) {
     <div style="color:#f59e0b;font-weight:700;">+${coins} 🪙</div>
     <button class="play-btn" onclick="launchGame('numberRush')">Play Again</button>
   </div>`;
-  awardCoins(coins);
+  awardCoins(coins, score);
 }
 
 // ── PLACEHOLDER GAMES ──────────────────────────────────────────────────
@@ -603,7 +668,7 @@ function initBPM() {
     if(tapCount>=8){const avg=(taps[taps.length-1]-taps[0])/(taps.length-1);const bpm=Math.round(60000/avg);
       document.getElementById('bpmResult').innerHTML=`<span style="color:#34d399;">Final: ${bpm} BPM</span>`;
       document.getElementById('tapBtn').textContent='Reset';window.tapBPM=()=>initBPM();
-      awardCoins(2);
+      awardCoins(2, 1);
     }
   };
 }
@@ -616,7 +681,7 @@ function initLyrics() {
   ];
   let qi=0,score=0;
   function showLyric(){
-    if(qi>=qs.length){awardCoins(Math.max(1,score*2));document.getElementById('gameArea').innerHTML=`<div class="result-pop"><div style="font-size:2.5rem;">✍️</div><div style="font-size:1.2rem;font-weight:900;">${score}/${qs.length} correct!</div><div style="color:#f59e0b;">+${Math.max(1,score*2)} 🪙</div><button class="play-btn" onclick="launchGame('lyricsFinish')">Play Again</button></div>`;return;}
+    if(qi>=qs.length){awardCoins(Math.max(1,score*2), score);document.getElementById('gameArea').innerHTML=`<div class="result-pop"><div style="font-size:2.5rem;">✍️</div><div style="font-size:1.2rem;font-weight:900;">${score}/${qs.length} correct!</div><div style="color:#f59e0b;">+${Math.max(1,score*2)} 🪙</div><button class="play-btn" onclick="launchGame('lyricsFinish')">Play Again</button></div>`;return;}
     const q=qs[qi];
     document.getElementById('gameArea').innerHTML=`<div class="score-bar"><span class="score-chip">Q${qi+1}/${qs.length}</span><span class="score-chip">Score: ${score}</span></div>
     <div style="background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.25);border-radius:12px;padding:1rem;text-align:center;font-size:.95rem;line-height:1.8;font-style:italic;margin:.75rem 0;">"${q.lyric}"</div>
@@ -636,7 +701,7 @@ function initColorMatch() {
   const names=['RED','ORANGE','GREEN','BLUE','PURPLE','PINK'];
   let score=0,lives=3,qi=0;
   function nextQ(){
-    if(lives<=0||qi>=12){awardCoins(Math.max(1,Math.floor(score/2)));
+    if(lives<=0||qi>=12){awardCoins(Math.max(1,Math.floor(score/2)), score);
       document.getElementById('gameArea').innerHTML=`<div class="result-pop"><div style="font-size:2.5rem;">🎨</div><div style="font-size:1.2rem;font-weight:900;">Score: ${score}</div><div style="color:#f59e0b;">+${Math.max(1,Math.floor(score/2))} 🪙</div><button class="play-btn" onclick="launchGame('colorMatch')">Play Again</button></div>`;return;}
     const correctI=Math.floor(Math.random()*colors.length);
     const displayI=Math.floor(Math.random()*colors.length);
