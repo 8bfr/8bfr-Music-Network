@@ -133,6 +133,8 @@ var sb=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','
 var OWNER_ID='cb556180-f032-4b21-9470-1d786f2664ab';
 var cu=null,pc={},allP=[],cf='foryou',ld=false,pg=0,PS=15;
 var friendIds=[],followIds=[],myLikes={},myFavs={},myFollows={},adData=[];
+var blockedIds=[]; // users the current user blocked OR was blocked by (filtered from feed; owner is exempt from "blocked-by" half)
+var OWNER_ID='cb556180-f032-4b21-9470-1d786f2664ab';
 var commentPostId=null;
 
 async function init(){
@@ -156,6 +158,17 @@ async function init(){
     // My favs
     var fv=await sb.from('favorites').select('target_id').eq('user_id',cu.id).eq('target_type','post');
     (fv.data||[]).forEach(function(f){myFavs[f.target_id]=true;});
+
+    // ── BLOCKS: users I blocked + users who blocked me ──
+    // Owner (cu.id===OWNER_ID) only respects the "I blocked them" half (sees their stuff if they blocked owner).
+    try{
+      var myBlocks=await sb.from('user_blocks').select('blocked_id').eq('blocker_id',cu.id);
+      (myBlocks.data||[]).forEach(function(b){ if(blockedIds.indexOf(b.blocked_id)===-1) blockedIds.push(b.blocked_id); });
+      if(cu.id!==OWNER_ID){
+        var blockedBy=await sb.from('user_blocks').select('blocker_id').eq('blocked_id',cu.id);
+        (blockedBy.data||[]).forEach(function(b){ if(blockedIds.indexOf(b.blocker_id)===-1) blockedIds.push(b.blocker_id); });
+      }
+    }catch(e){ /* table may not exist yet; fail open */ }
   }
 
   // Ads
@@ -181,6 +194,11 @@ function switchFeed(feed,btn){cf=feed;pg=0;allP=[];document.querySelectorAll('.f
 async function loadFeed(){
   if(ld)return;ld=true;
   var q=sb.from('posts').select('id,user_id,text,media,media_type,likes,comment_count,created_at,is_private,hidden,algorithm_score').eq('is_private',false).eq('hidden',false);
+
+  // Filter out blocked users
+  if(blockedIds.length){
+    q=q.not('user_id','in','('+blockedIds.join(',')+')');
+  }
 
   if(cf==='friends'){
     if(!friendIds.length){showEmpty('Add friends to see their posts');ld=false;return;}
