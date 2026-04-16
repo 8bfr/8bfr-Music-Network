@@ -83,25 +83,32 @@ body{font-family:'Work Sans',sans-serif;background:linear-gradient(#0b0014,#000)
 <script>
 var db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
 var currentUser=null;
-var profileData={};
+var socialLinks={};  // the social_links JSONB object from profiles
 var editingKey=null;
 
 var musicPlatforms=[
-  {key:'spotify_url',name:'Spotify',icon:'<span style="color:#1db954;font-weight:900;">S</span>',hint:'Paste your Spotify artist or profile URL'},
-  {key:'apple_music_url',name:'Apple Music',icon:'<span style="color:#fa233b;font-weight:900;">A</span>',hint:'Paste your Apple Music artist URL'},
-  {key:'soundcloud_url',name:'SoundCloud',icon:'<span style="color:#ff5500;font-weight:900;">SC</span>',hint:'Paste your SoundCloud profile URL'},
-  {key:'beatstars_url',name:'BeatStars',icon:'<span style="color:#00b4d8;font-weight:900;">BS</span>',hint:'Paste your BeatStars profile URL'},
-  {key:'bandlab_url',name:'BandLab',icon:'<span style="color:#dc3545;font-weight:900;">BL</span>',hint:'Paste your BandLab profile URL'},
-  {key:'audiomack_url',name:'Audiomack',icon:'<span style="color:#ffa800;font-weight:900;">AM</span>',hint:'Paste your Audiomack profile URL'}
+  {key:'spotify',name:'Spotify',icon:'<span style="color:#1db954;font-weight:900;">S</span>',hint:'Spotify artist/profile URL or handle'},
+  {key:'apple_music',name:'Apple Music',icon:'<span style="color:#fa233b;font-weight:900;">A</span>',hint:'Apple Music artist URL'},
+  {key:'soundcloud',name:'SoundCloud',icon:'<span style="color:#ff5500;font-weight:900;">SC</span>',hint:'SoundCloud profile URL or handle'},
+  {key:'beatstars',name:'BeatStars',icon:'<span style="color:#00b4d8;font-weight:900;">BS</span>',hint:'BeatStars profile URL or handle'},
+  {key:'bandlab',name:'BandLab',icon:'<span style="color:#dc3545;font-weight:900;">BL</span>',hint:'BandLab profile URL or handle'},
+  {key:'audiomack',name:'Audiomack',icon:'<span style="color:#ffa800;font-weight:900;">AM</span>',hint:'Audiomack profile URL or handle'},
+  {key:'tidal',name:'Tidal',icon:'<span style="color:#00ffff;font-weight:900;">TD</span>',hint:'Tidal artist URL or handle'},
+  {key:'deezer',name:'Deezer',icon:'<span style="color:#a238ff;font-weight:900;">DZ</span>',hint:'Deezer artist URL'},
+  {key:'pandora',name:'Pandora',icon:'<span style="color:#224099;font-weight:900;">PD</span>',hint:'Pandora artist URL'},
+  {key:'amazon_music',name:'Amazon Music',icon:'<span style="color:#25d1da;font-weight:900;">AZ</span>',hint:'Amazon Music artist URL or handle'},
+  {key:'youtube_music',name:'YouTube Music',icon:'<span style="color:#ff0000;font-weight:900;">YM</span>',hint:'YouTube Music URL or handle'}
 ];
 
 var socialPlatforms=[
-  {key:'youtube_url',name:'YouTube',icon:'<span style="color:#ff0000;font-weight:900;">YT</span>',hint:'Paste your YouTube channel URL'},
-  {key:'instagram_url',name:'Instagram',icon:'<span style="color:#e1306c;font-weight:900;">IG</span>',hint:'Paste your Instagram profile URL'},
-  {key:'twitter_url',name:'X / Twitter',icon:'<span style="font-weight:900;">X</span>',hint:'Paste your X/Twitter profile URL'},
-  {key:'tiktok_url',name:'TikTok',icon:'<span style="color:#69C9D0;font-weight:900;">TT</span>',hint:'Paste your TikTok profile URL'},
-  {key:'discord_url',name:'Discord',icon:'<span style="color:#5865f2;font-weight:900;">DC</span>',hint:'Paste your Discord invite or profile URL'},
-  {key:'twitch_url',name:'Twitch',icon:'<span style="color:#9146ff;font-weight:900;">TV</span>',hint:'Paste your Twitch channel URL'}
+  {key:'youtube',name:'YouTube',icon:'<span style="color:#ff0000;font-weight:900;">YT</span>',hint:'YouTube channel URL or @handle'},
+  {key:'instagram',name:'Instagram',icon:'<span style="color:#e1306c;font-weight:900;">IG</span>',hint:'Instagram profile URL or handle'},
+  {key:'twitter',name:'X / Twitter',icon:'<span style="font-weight:900;">X</span>',hint:'X/Twitter profile URL or handle'},
+  {key:'tiktok',name:'TikTok',icon:'<span style="color:#69C9D0;font-weight:900;">TT</span>',hint:'TikTok profile URL or handle'},
+  {key:'discord',name:'Discord',icon:'<span style="color:#5865f2;font-weight:900;">DC</span>',hint:'Discord invite URL'},
+  {key:'twitch',name:'Twitch',icon:'<span style="color:#9146ff;font-weight:900;">TV</span>',hint:'Twitch channel URL or handle'},
+  {key:'facebook',name:'Facebook',icon:'<span style="color:#1877f2;font-weight:900;">FB</span>',hint:'Facebook profile/page URL'},
+  {key:'threads',name:'Threads',icon:'<span style="font-weight:900;">@</span>',hint:'Threads @handle or URL'}
 ];
 
 async function init(){
@@ -111,8 +118,10 @@ async function init(){
   }catch(e){}
   if(currentUser){
     try{
-      var r=await db.from('profiles').select('*').eq('user_id',currentUser.id).single();
-      profileData=r.data||{};
+      var r=await db.from('profiles').select('social_links').eq('user_id',currentUser.id).maybeSingle();
+      if(r.data&&r.data.social_links&&typeof r.data.social_links==='object'){
+        socialLinks=r.data.social_links;
+      }
     }catch(e){}
   }
   renderGrid('musicGrid',musicPlatforms);
@@ -121,13 +130,15 @@ async function init(){
 
 function renderGrid(elId,platforms){
   var el=document.getElementById(elId);
+  if(!el)return;
   el.innerHTML=platforms.map(function(p){
-    var url=profileData[p.key]||'';
-    var connected=!!url;
+    var val=socialLinks[p.key]||'';
+    var connected=!!val;
+    var url=toUrl(p.key,val);
     var statusHtml=connected
       ?'<div class="int-status connected">Connected</div>'
-      :(currentUser?'<div class="int-status not-connected">Click to add</div>':'<div class="int-status not-connected">Login to add</div>');
-    var visitLink=connected?'<a href="'+url+'" target="_blank" onclick="event.stopPropagation();" style="display:inline-block;margin-top:.35rem;font-size:.7rem;color:#4ade80;text-decoration:underline;">Visit</a>':'';
+      :(currentUser?'<div class="int-status not-connected">Click to add</div>':'<div class="int-status not-connected">Log in to add</div>');
+    var visitLink=connected&&url?'<a href="'+esc(url)+'" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="display:inline-block;margin-top:.35rem;font-size:.7rem;color:#4ade80;text-decoration:underline;">Visit</a>':'';
     var cls='int-card'+(connected?' is-connected':'');
     var safeHint=p.hint.replace(/'/g,'');
     return '<div class="'+cls+'" onclick="openLinkModal(\''+p.key+'\',\''+p.name+'\',\''+safeHint+'\')">'+
@@ -137,13 +148,45 @@ function renderGrid(elId,platforms){
   }).join('');
 }
 
+// Convert raw value to a visitable URL
+// If it's already a URL, use as-is. If it's just a handle, build the platform URL.
+function toUrl(key,val){
+  if(!val)return '';
+  if(/^https?:\/\//i.test(val))return val;
+  var handle=val.replace(/^@/,'');
+  var patterns={
+    spotify:'https://open.spotify.com/artist/'+handle,
+    apple_music:'https://music.apple.com/artist/'+handle,
+    soundcloud:'https://soundcloud.com/'+handle,
+    beatstars:'https://www.beatstars.com/'+handle,
+    bandlab:'https://www.bandlab.com/'+handle,
+    audiomack:'https://audiomack.com/'+handle,
+    tidal:'https://tidal.com/browse/artist/'+handle,
+    deezer:'https://www.deezer.com/us/artist/'+handle,
+    pandora:'https://www.pandora.com/artist/'+handle,
+    amazon_music:'https://music.amazon.com/artists/'+handle,
+    youtube_music:'https://music.youtube.com/channel/'+handle,
+    youtube:'https://youtube.com/@'+handle,
+    instagram:'https://instagram.com/'+handle,
+    twitter:'https://twitter.com/'+handle,
+    tiktok:'https://tiktok.com/@'+handle,
+    discord:'https://discord.gg/'+handle,
+    twitch:'https://twitch.tv/'+handle,
+    facebook:'https://facebook.com/'+handle,
+    threads:'https://threads.net/@'+handle
+  };
+  return patterns[key]||('https://'+handle);
+}
+
+function esc(s){if(!s)return'';var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+
 function openLinkModal(key,name,hint){
   if(!currentUser){alert('Log in to add links.');return;}
   editingKey=key;
   document.getElementById('lmTitle').textContent=name;
   document.getElementById('lmHint').textContent=hint;
-  document.getElementById('lmUrl').value=profileData[key]||'';
-  document.getElementById('lmRemove').style.display=profileData[key]?'inline-block':'none';
+  document.getElementById('lmUrl').value=socialLinks[key]||'';
+  document.getElementById('lmRemove').style.display=socialLinks[key]?'inline-block':'none';
   document.getElementById('linkModal').classList.add('show');
 }
 
@@ -151,21 +194,15 @@ function closeLinkModal(){document.getElementById('linkModal').classList.remove(
 
 async function saveLink(){
   if(!editingKey||!currentUser)return;
-  var url=document.getElementById('lmUrl').value.trim();
-  if(url&&!url.startsWith('http')){url='https://'+url;}
-  var update={};
-  update[editingKey]=url||null;
+  var val=document.getElementById('lmUrl').value.trim();
+  // Build updated social_links object
+  var updated=Object.assign({},socialLinks);
+  if(val){updated[editingKey]=val;}
+  else{delete updated[editingKey];}
   try{
-    var {error}=await db.from('profiles').update(update).eq('user_id',currentUser.id);
-    if(error){
-      if(error.message&&error.message.indexOf('column')!==-1){
-        alert('This platform is not set up yet. Please run the integration SQL in Supabase first.');
-      }else{
-        alert('Error saving: '+error.message);
-      }
-      return;
-    }
-    profileData[editingKey]=url||null;
+    var {error}=await db.from('profiles').update({social_links:updated}).eq('user_id',currentUser.id);
+    if(error){alert('Error saving: '+error.message);return;}
+    socialLinks=updated;
     renderGrid('musicGrid',musicPlatforms);
     renderGrid('socialGrid',socialPlatforms);
     closeLinkModal();
@@ -175,12 +212,12 @@ async function saveLink(){
 async function removeLink(){
   if(!editingKey||!currentUser)return;
   if(!confirm('Remove this link?'))return;
-  var update={};
-  update[editingKey]=null;
+  var updated=Object.assign({},socialLinks);
+  delete updated[editingKey];
   try{
-    var {error}=await db.from('profiles').update(update).eq('user_id',currentUser.id);
+    var {error}=await db.from('profiles').update({social_links:updated}).eq('user_id',currentUser.id);
     if(error){alert('Error: '+error.message);return;}
-    profileData[editingKey]=null;
+    socialLinks=updated;
     renderGrid('musicGrid',musicPlatforms);
     renderGrid('socialGrid',socialPlatforms);
     closeLinkModal();
