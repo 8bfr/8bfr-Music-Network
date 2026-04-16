@@ -72,15 +72,15 @@
     .badge-editor-btn:hover{background:rgba(124,58,237,0.25);color:#eae6ff;}
     .badge-editor-btn.active{background:rgba(124,58,237,0.3);border-color:#a855f7;color:#a855f7;font-weight:600;}
     /* ── PROFILE CONTENT TABS ── */
-    .profile-tabs{display:flex;gap:0;border-bottom:1px solid rgba(124,58,237,0.3);margin-bottom:1rem;overflow-x:auto;scrollbar-width:none;}
+    .profile-tabs{display:flex;gap:0;border-bottom:2px solid rgba(124,58,237,0.4);margin-top:2.5rem;margin-bottom:1.25rem;overflow-x:auto;scrollbar-width:none;padding-top:0.5rem;}
     .profile-tabs::-webkit-scrollbar{display:none;}
-    .profile-tab{flex-shrink:0;padding:0.7rem 0.85rem;font-weight:600;font-size:0.8rem;cursor:pointer;color:rgba(234,230,255,0.45);border-bottom:2px solid transparent;background:none;border-top:none;border-left:none;border-right:none;transition:all 0.2s;white-space:nowrap;}
-    .profile-tab.active{color:#a855f7;border-bottom-color:#a855f7;}
-    .profile-tab:hover{color:rgba(234,230,255,0.7);}
+    .profile-tab{flex-shrink:0;padding:0.95rem 1.1rem;font-weight:800;font-size:0.95rem;cursor:pointer;color:rgba(234,230,255,0.85);border-bottom:3px solid transparent;background:none;border-top:none;border-left:none;border-right:none;transition:all 0.2s;white-space:nowrap;letter-spacing:0.02em;}
+    .profile-tab.active{color:#c084fc;border-bottom-color:#a855f7;background:rgba(124,58,237,0.08);}
+    .profile-tab:hover{color:#eae6ff;}
     /* Post grid */
     .post-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;}
-    .post-thumb{aspect-ratio:1;border-radius:6px;overflow:hidden;cursor:pointer;position:relative;background:rgba(124,58,237,0.15);}
-    .post-thumb img{width:100%;height:100%;object-fit:cover;}
+    .post-thumb{aspect-ratio:1/1;min-height:110px;border-radius:6px;overflow:hidden;cursor:pointer;position:relative;background:rgba(124,58,237,0.15);display:block;}
+    .post-thumb img,.post-thumb video{width:100%!important;height:100%!important;object-fit:cover!important;object-position:center center!important;display:block;position:absolute;inset:0;}
     .post-thumb-text{width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:0.5rem;font-size:0.75rem;text-align:center;color:rgba(234,230,255,0.8);line-height:1.4;}
     .post-thumb:hover::after{content:'';position:absolute;inset:0;background:rgba(124,58,237,0.3);}
     .post-thumb .pin-badge{position:absolute;top:4px;right:4px;font-size:0.6rem;background:rgba(124,58,237,0.8);padding:2px 5px;border-radius:8px;z-index:1;}
@@ -138,6 +138,14 @@
     .post-manage-menu.show{display:block;}
     .post-manage-menu button{display:block;width:100%;text-align:left;background:none;border:none;color:#eae6ff;padding:0.4rem 0.6rem;font-size:0.75rem;cursor:pointer;border-radius:4px;}
     .post-manage-menu button:hover{background:rgba(124,58,237,0.2);}
+
+    /* Hide floating avatar switcher and page-up button on profile page */
+    #avatar-switcher-wrap, .avatar-switcher, #avatarSwitcher, .avatar-toggle, .floating-avatar,
+    #pageUp, #page-up, .page-up-btn, .scroll-top-btn, #scrollTopBtn, .back-to-top {
+      display: none !important;
+      visibility: hidden !important;
+      pointer-events: none !important;
+    }
   </style>
 </head>
 <body>
@@ -490,6 +498,29 @@
         }else{showError('Profile not found.');return;}
       }
       profileData=pr.data;
+
+      // ── STEALTH BLOCK CHECK ──
+      // If viewer is not the profile owner AND target has blocked viewer,
+      // show "Profile not found" (unless viewer is owner/admin/mod).
+      if(!isOwnProfile && currentUser){
+        var viewerIsStaff = currentUser.id===OWNER_ID;
+        if(!viewerIsStaff){
+          try{
+            var me = await db.from('profiles').select('role').eq('user_id',currentUser.id).maybeSingle();
+            if(me.data && ['owner','co-owner','admin','mod','moderator'].indexOf(me.data.role)!==-1) viewerIsStaff = true;
+          }catch(e){}
+        }
+        if(!viewerIsStaff){
+          try{
+            var bk = await db.from('user_blocks').select('id').eq('blocker_id',profileData.user_id).eq('blocked_id',currentUser.id).limit(1);
+            if(bk.data && bk.data.length>0){
+              showError('Profile not found.');
+              return;
+            }
+          }catch(e){/* table may not exist yet; fail open */}
+        }
+      }
+
       // Expose data for patch scripts
       window._8bfr={userId:currentUser?currentUser.id:null,role:profileData.role,badges:Array.isArray(profileData.badges)?profileData.badges:[],isOwner:profileData.role==='owner',isCoOwner:profileData.role==='co-owner',isOwnProfile:isOwnProfile};
       document.getElementById('pageTitle').textContent=isOwnProfile?'👤 My Profile':'👤 '+(profileData.display_name||profileData.username);
@@ -612,6 +643,8 @@
       h+='<button class="btn btn-ghost" onclick="openTipModal(\''+profileData.user_id+'\',\''+esc(profileData.display_name||profileData.username||'').replace(/'/g,'')+'\')">Tip</button>';
       if(isMusic) h+='<button class="btn btn-ghost" onclick="location.href=\'dm.html?user='+profileData.user_id+'\'">Collab</button>';
       h+='<button class="btn btn-ghost" onclick="shareProfile()">Share</button>';
+      // Block button (hidden by default; checkRel() reveals/hides based on target role)
+      h+='<button class="btn btn-ghost" id="blockBtn" onclick="toggleBlock()" style="display:none;color:#fca5a5;border-color:rgba(239,68,68,.4);">Block</button>';
       // Owner can edit other users' profiles
       if(currentUser&&currentUser.id===OWNER_ID&&!isOwnProfile){
         h+='<button class="btn btn-ghost" onclick="openOwnerEditModal()" style="color:#fbbf24;border-color:rgba(251,191,36,.4);">Owner Edit</button>';
@@ -1024,7 +1057,59 @@
       }
       if(fr.error)console.warn('Friend check error:',fr.error.message);
     }catch(e){console.warn('Friend check:',e);}
+
+    // Check block status + reveal Block button (unless target is staff)
+    try{
+      var bbtn=document.getElementById('blockBtn');
+      if(bbtn){
+        var targetRole=profileData.role;
+        var targetIsStaff=(tid===OWNER_ID)||['owner','co-owner','admin','mod','moderator'].indexOf(targetRole)!==-1;
+        if(targetIsStaff){
+          bbtn.style.display='none';
+        }else{
+          bbtn.style.display='';
+          var br=await db.from('user_blocks').select('id').eq('blocker_id',currentUser.id).eq('blocked_id',tid).limit(1);
+          if(br.data&&br.data.length>0){
+            bbtn.textContent='Unblock';
+            bbtn.dataset.blocked='1';
+          }else{
+            bbtn.textContent='Block';
+            bbtn.dataset.blocked='0';
+          }
+        }
+      }
+    }catch(e){console.warn('Block check:',e);}
   }
+
+  window.toggleBlock=async function(){
+    if(!currentUser||!profileData)return;
+    var btn=document.getElementById('blockBtn');
+    var tid=profileData.user_id;
+    var isBlocked=btn&&btn.dataset.blocked==='1';
+    if(isBlocked){
+      if(!confirm('Unblock '+(profileData.display_name||profileData.username)+'? They will be able to see your content and message you again.'))return;
+      try{
+        var r=await db.from('user_blocks').delete().eq('blocker_id',currentUser.id).eq('blocked_id',tid);
+        if(r.error){alert('Error: '+r.error.message);return;}
+        btn.textContent='Block';
+        btn.dataset.blocked='0';
+        alert('User unblocked.');
+      }catch(e){alert('Error: '+e.message);}
+    }else{
+      if(!confirm('Block '+(profileData.display_name||profileData.username)+'?\n\nThey will no longer see your posts, messages, or profile. You will not see theirs either (unless you are owner/admin).'))return;
+      try{
+        var r=await db.from('user_blocks').insert({blocker_id:currentUser.id,blocked_id:tid});
+        if(r.error){alert('Error: '+r.error.message);return;}
+        btn.textContent='Unblock';
+        btn.dataset.blocked='1';
+        alert('User blocked.');
+        // Cleanup: unfollow + unfriend both ways
+        try{await db.from('follows').delete().or('and(follower_id.eq.'+currentUser.id+',following_id.eq.'+tid+'),and(follower_id.eq.'+tid+',following_id.eq.'+currentUser.id+')');}catch(e){}
+        try{await db.from('friends').delete().or('and(user_id.eq.'+currentUser.id+',friend_id.eq.'+tid+'),and(user_id.eq.'+tid+',friend_id.eq.'+currentUser.id+')');}catch(e){}
+      }catch(e){alert('Error: '+e.message);}
+    }
+  };
+
   window.toggleFollow=async function(){
     if(!currentUser||!profileData)return;
     var btn=document.getElementById('followBtn'),tid=profileData.user_id;
