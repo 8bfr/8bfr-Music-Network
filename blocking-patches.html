@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Blocking Filter - Patch Snippets for dm.html / notifications.html</title>
+<style>
+body{font-family:-apple-system,system-ui,sans-serif;background:#0c0618;color:#eae6ff;padding:1rem;max-width:900px;margin:0 auto;line-height:1.5;}
+h1{color:#a855f7;}
+h2{color:#c084fc;border-bottom:1px solid rgba(124,58,237,.4);padding-bottom:.4rem;margin-top:2rem;}
+h3{color:#fbbf24;margin-top:1.5rem;}
+pre{background:#1a0d2e;border:1px solid rgba(124,58,237,.4);border-radius:8px;padding:.9rem;overflow-x:auto;font-size:.82rem;line-height:1.45;color:#e0d4ff;}
+code{background:rgba(124,58,237,.2);padding:2px 6px;border-radius:4px;color:#fcd34d;}
+.note{background:rgba(251,191,36,.1);border-left:3px solid #fbbf24;padding:.7rem 1rem;border-radius:4px;margin:.75rem 0;}
+.ok{color:#4ade80;}
+</style>
+</head>
+<body>
+
+<h1>Blocking Filter — Patch Snippets</h1>
+
+<div class="note">
+<b>Deploy order:</b> (1) Run <code>user-blocks.sql</code> in Supabase first, (2) deploy new <code>profile.html</code>, (3) deploy new <code>feed.html</code> (already patched), (4) apply snippets below to <code>dm.html</code> and <code>notifications.html</code>.
+</div>
+
+<p>OWNER_ID constant used everywhere: <code>cb556180-f032-4b21-9470-1d786f2664ab</code></p>
+
+<h2>1. dm.html — block filter for message list + inbox</h2>
+
+<h3>Step 1: Add blockedIds state at the top of your script</h3>
+<pre>var OWNER_ID='cb556180-f032-4b21-9470-1d786f2664ab';
+var blockedIds=[]; // users to hide from DM inbox and search</pre>
+
+<h3>Step 2: Load blocks right after you load the current user</h3>
+<pre>// After you have currentUser (cu / currentUser / user), add:
+if(currentUser){
+  try{
+    var mb=await sb.from('user_blocks').select('blocked_id').eq('blocker_id',currentUser.id);
+    (mb.data||[]).forEach(function(b){ if(blockedIds.indexOf(b.blocked_id)===-1) blockedIds.push(b.blocked_id); });
+    if(currentUser.id!==OWNER_ID){
+      var bb=await sb.from('user_blocks').select('blocker_id').eq('blocked_id',currentUser.id);
+      (bb.data||[]).forEach(function(b){ if(blockedIds.indexOf(b.blocker_id)===-1) blockedIds.push(b.blocker_id); });
+    }
+  }catch(e){}
+}</pre>
+
+<h3>Step 3: Filter the DM inbox query</h3>
+<p>Wherever you query <code>direct_messages</code> to build the inbox list, add the block filter:</p>
+<pre>// BEFORE:
+var r = await sb.from('direct_messages')
+  .select('*')
+  .or('sender_id.eq.'+cu.id+',receiver_id.eq.'+cu.id)
+  .order('created_at',{ascending:false});
+
+// AFTER (add the .not filter for each side):
+var q = sb.from('direct_messages')
+  .select('*')
+  .or('sender_id.eq.'+cu.id+',receiver_id.eq.'+cu.id)
+  .order('created_at',{ascending:false});
+if(blockedIds.length){
+  q = q.not('sender_id','in','('+blockedIds.join(',')+')')
+       .not('receiver_id','in','('+blockedIds.join(',')+')');
+}
+var r = await q;</pre>
+
+<h3>Step 4: Block sending to blocked users (defensive)</h3>
+<p>Before inserting a new DM, check:</p>
+<pre>// Right before sb.from('direct_messages').insert(...)
+if(blockedIds.indexOf(receiverId)!==-1){
+  alert('You cannot message this user.');
+  return;
+}</pre>
+
+<h3>Step 5: Filter user picker / search</h3>
+<p>If you have a "start new message" user search, filter results client-side:</p>
+<pre>// After you get search results
+results = (results||[]).filter(function(u){
+  return blockedIds.indexOf(u.user_id)===-1;
+});</pre>
+
+<h2>2. notifications.html — hide notifications from blocked users</h2>
+
+<h3>Step 1: Same blockedIds loader as above</h3>
+<p>Add the same <code>OWNER_ID</code>, <code>blockedIds</code> variable and the loader block right after you get the current user.</p>
+
+<h3>Step 2: Filter the notifications query</h3>
+<pre>// BEFORE:
+var r = await sb.from('notifications')
+  .select('*')
+  .eq('user_id', cu.id)
+  .order('created_at',{ascending:false});
+
+// AFTER:
+var q = sb.from('notifications')
+  .select('*')
+  .eq('user_id', cu.id)
+  .order('created_at',{ascending:false});
+if(blockedIds.length){
+  // Hide notifications triggered by blocked users
+  q = q.not('from_user_id','in','('+blockedIds.join(',')+')');
+}
+var r = await q;</pre>
+
+<p class="note"><b>Note:</b> If your notifications table uses a different column name (<code>actor_id</code>, <code>sender_id</code>, <code>source_user_id</code>), replace <code>from_user_id</code> with the correct column name. Check with: <br><code>SELECT column_name FROM information_schema.columns WHERE table_name='notifications';</code></p>
+
+<h2>3. Comments on feed posts — hide comments from blocked users</h2>
+
+<p>In <code>feed.html</code> (and any other page that loads comments), find your comments query and add the filter. The pattern is the same:</p>
+
+<pre>// Anywhere you load comments:
+var q = sb.from('comments').select('*').eq('post_id', postId).order('created_at');
+if(blockedIds.length){
+  q = q.not('user_id','in','('+blockedIds.join(',')+')');
+}
+var r = await q;</pre>
+
+<h2>4. Optional: use the SQL helper function instead</h2>
+
+<p>If you prefer server-side filtering, you can call <code>get_blocked_user_ids()</code>:</p>
+
+<pre>var bl = await sb.rpc('get_blocked_user_ids', { uid: cu.id });
+var blockedIds = (bl.data||[]).map(function(r){ return r.user_id; });</pre>
+
+<p>This handles the owner-exception automatically. Use <i>either</i> this approach <i>or</i> the two-query client-side approach — not both.</p>
+
+<h2 class="ok">✓ Done</h2>
+<p>With these changes, a blocked user is invisible across:</p>
+<ul>
+<li>Profile page (shows "Profile not found")</li>
+<li>Main feed, Following feed, Friends feed</li>
+<li>Direct messages (inbox + sending)</li>
+<li>Notifications</li>
+<li>Comments on posts</li>
+</ul>
+<p>Owner (<code>cb556180-f032-4b21-9470-1d786f2664ab</code>) bypasses the "blocked-by" direction — sees content from users who blocked the owner, but owner's blocks on others are fully enforced.</p>
+
+</body>
+</html>
