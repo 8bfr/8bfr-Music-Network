@@ -46,13 +46,26 @@ const db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co'
 let allAuthors=[];
 async function init(){
   var OWNER_ID='cb556180-f032-4b21-9470-1d786f2664ab';
-  var{data}=await db.from('profiles').select('*').order('algorithm_points',{ascending:false}).limit(200);
-  var writingRoles=['author','blogger','journalist','educator','podcaster','songwriter','owner','co-owner'];
-  allAuthors=(data||[]).filter(function(p){
-    var b=p.badges||[];
-    return p.user_id===OWNER_ID||writingRoles.indexOf(p.role)!==-1||b.some(function(x){return writingRoles.indexOf(x)!==-1;});
-  });
-  render(allAuthors);
+  try{
+    var resp=await db.from('profiles').select('user_id,username,display_name,avatar_url,bio,role,badges,tags,algorithm_points,verified_artist').order('algorithm_points',{ascending:false,nullsFirst:false}).limit(200);
+    if(resp.error){
+      document.getElementById('authorList').innerHTML='<div class="empty"><div style="font-size:2.5rem;margin-bottom:.5rem;">⚠️</div>Error loading authors: '+esc(resp.error.message)+'</div>';
+      return;
+    }
+    var data=resp.data||[];
+    var writingRoles=['author','blogger','journalist','educator','podcaster','songwriter','writer','poet','owner','co-owner'];
+    allAuthors=data.filter(function(p){
+      var b=Array.isArray(p.badges)?p.badges:[];
+      var t=Array.isArray(p.tags)?p.tags:[];
+      return p.user_id===OWNER_ID
+        || writingRoles.indexOf(p.role)!==-1
+        || b.some(function(x){return writingRoles.indexOf(x)!==-1;})
+        || t.some(function(x){return writingRoles.indexOf(x)!==-1;});
+    });
+    render(allAuthors);
+  }catch(e){
+    document.getElementById('authorList').innerHTML='<div class="empty"><div style="font-size:2.5rem;margin-bottom:.5rem;">⚠️</div>Error: '+esc(e.message||String(e))+'</div>';
+  }
 }
 function render(authors){
   var el=document.getElementById('authorList');
