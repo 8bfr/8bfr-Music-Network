@@ -71,7 +71,7 @@
   <button class="room-tab active" onclick="switchRoom('general',this)">🌐 General</button>
   <button class="room-tab" onclick="switchRoom('music',this)">🎵 Music Talk</button>
   <button class="room-tab" onclick="switchRoom('beats',this)">🎚️ Beat Lab</button>
-  <button class="room-tab" onclick="switchRoom('collab',this)">🤝 Collab</button>
+  <button class="room-tab" id="collabTab" onclick="switchRoom('collab',this)" title="Music industry members only">🤝 Collab <span id="collabLock" style="font-size:.7rem;opacity:.7;">🔒</span></button>
   <button class="room-tab" onclick="switchRoom('hype',this)">🔥 Hype</button>
 </div>
 
@@ -112,6 +112,29 @@ let channel = null, presenceChannel = null;
 let isStaff = false, isMuted = false;
 let ctxTarget = null;
 
+// Music industry roles/badges that can enter the Collab chatroom
+const MUSIC_INDUSTRY_ROLES = [
+  'artist','beatmaker','producer','songwriter','engineer','audio_engineer',
+  'dj','singer','musician','rapper','label','manager','promoter',
+  'videographer','photographer','filmmaker','dancer','choreographer',
+  'journalist','blogger','podcaster','distributor','brand_ambassador',
+  'influencer','mentor','educator'
+];
+
+function canEnterCollab(profile) {
+  if (!profile) return false;
+  // Staff always has access
+  if (['owner','co-owner','cofounder','admin','mod'].indexOf(profile.role) !== -1) return true;
+  // Music role
+  if (MUSIC_INDUSTRY_ROLES.indexOf(profile.role) !== -1) return true;
+  // Music badge in badges array
+  const badges = Array.isArray(profile.badges) ? profile.badges : [];
+  if (badges.some(b => MUSIC_INDUSTRY_ROLES.indexOf(b) !== -1)) return true;
+  // Verified artist check
+  if (profile.verified_artist === true) return true;
+  return false;
+}
+
 const ROLE_BADGES = {
   owner:     '<span class="role-badge rb-owner">👑 Owner</span>',
   'co-owner':'<span class="role-badge rb-cofounder">🎖️ Co-Owner</span>',
@@ -129,6 +152,28 @@ async function init() {
     const { data: profile } = await SB.from('profiles').select('*').eq('user_id', currentUser.id).single();
     currentProfile = profile || { username: currentUser.email?.split('@')[0] || 'User', role: 'fan' };
     isStaff = ['owner','co-owner','cofounder','admin','mod'].includes(currentProfile.role);
+
+    // Unlock Collab tab for musicians + staff
+    if (canEnterCollab(currentProfile)) {
+      const lock = document.getElementById('collabLock');
+      if (lock) lock.style.display = 'none';
+      const tab = document.getElementById('collabTab');
+      if (tab) tab.title = 'Music industry chatroom';
+    }
+
+    // If URL has ?room=X, auto-switch (with gate check for collab)
+    const urlRoom = new URLSearchParams(location.search).get('room');
+    if (urlRoom && ['general','music','beats','collab','hype'].indexOf(urlRoom) !== -1) {
+      if (urlRoom === 'collab' && !canEnterCollab(currentProfile)) {
+        // Silently stay on general, but let init run its course
+      } else {
+        currentRoom = urlRoom;
+        document.querySelectorAll('.room-tab').forEach(t => t.classList.remove('active'));
+        const tabBtn = Array.from(document.querySelectorAll('.room-tab')).find(t => t.getAttribute('onclick') && t.getAttribute('onclick').indexOf("'"+urlRoom+"'") !== -1);
+        if (tabBtn) tabBtn.classList.add('active');
+      }
+    }
+
     const { data: mute } = await SB.from('chat_mutes').select('expires_at').eq('user_id', currentUser.id).maybeSingle();
     isMuted = !!mute && (!mute.expires_at || new Date(mute.expires_at) > new Date());
     if (isMuted) document.getElementById('mutedNotice').style.display = 'block';
@@ -269,6 +314,11 @@ const EDGE_BASE = 'https://novbuvwpjnxwwvdekjhr.supabase.co/functions/v1';
 
 async function sendMsg() {
   if (isMuted) return;
+  // Double-check collab gate on send (defense in depth)
+  if (currentRoom === 'collab' && !canEnterCollab(currentProfile)) {
+    alert('🔒 The Collab chatroom is for music industry members only.');
+    return;
+  }
   const input = document.getElementById('msgInput');
   const text = input.value.trim();
   if (!text || !currentUser) return;
@@ -320,6 +370,11 @@ function showSendError(msg) {
 }
 
 window.switchRoom = function(room, btn) {
+  // Gate: Collab room requires music industry role/badge/verified artist
+  if (room === 'collab' && !canEnterCollab(currentProfile)) {
+    alert('🔒 The Collab chatroom is for music industry members.\n\nThis includes artists, beatmakers, producers, songwriters, engineers, DJs, singers, rappers, labels, managers, promoters, videographers, photographers, dancers, choreographers, and more.\n\nUpdate your profile role or add a music industry badge to join.');
+    return;
+  }
   currentRoom = room;
   document.querySelectorAll('.room-tab').forEach(t => t.classList.remove('active'));
   if (btn) btn.classList.add('active');
