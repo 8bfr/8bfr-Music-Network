@@ -1,6 +1,11 @@
 // ═══════════════════════════════════════════════════════
 // 8BFR GLOBAL PERKS CHECK
 // ═══════════════════════════════════════════════════════
+// Load persistent radio player on every page
+(function(){var s=document.createElement('script');s.src='radio-player.js';s.defer=true;document.head.appendChild(s);})();
+
+
+
 (function(){
   var OWNER_ID = 'cb556180-f032-4b21-9470-1d786f2664ab';
   var PERK_ROLES = ['owner','co-owner'];
