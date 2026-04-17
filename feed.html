@@ -2,38 +2,51 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
 <title>Feed - 8BFR Music Network</title>
 <link rel="stylesheet" href="styles.css">
 <style>
 html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#000;color:#fff;font-family:'Work Sans',system-ui,sans-serif;}
 
-/* Top bar */
-.feed-top{position:fixed;top:0;left:0;right:0;z-index:300;padding:8px 12px;display:flex;align-items:center;gap:8px;background:linear-gradient(rgba(0,0,0,.7),transparent);pointer-events:none;}
+/* Kill floating avatar + page-up + bottom nav on feed (conflicts with TikTok-style UI) */
+#avatar-switcher-wrap,.avatar-switcher,#avatarSwitcher,.avatar-toggle,.floating-avatar,
+#avatarToggle,[id="avatarToggle"],[onclick*="hideAvatarBubbles"],
+#pageUp,#page-up,.page-up-btn,.scroll-top-btn,#scrollTopBtn,.back-to-top,
+.bottom-nav,.bottomNav,#bottomNav{display:none!important;visibility:hidden!important;pointer-events:none!important;}
+
+/* Top bar - pushed below status bar / notch */
+.feed-top{position:fixed;top:env(safe-area-inset-top,0px);left:0;right:0;z-index:300;padding:10px 12px 6px;display:flex;align-items:center;gap:8px;background:linear-gradient(rgba(0,0,0,.75),transparent);pointer-events:none;}
 .feed-top>*{pointer-events:auto;}
 .search-box{flex:1;display:flex;align-items:center;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:20px;padding:6px 12px;}
 .search-box input{flex:1;background:none;border:none;color:#fff;font-size:.82rem;outline:none;}
 .search-box input::placeholder{color:rgba(255,255,255,.35);}
 .ai-btn{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);border:none;color:#fff;font-size:.75rem;font-weight:800;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
 
-/* Tabs */
-.feed-tabs{position:fixed;top:46px;left:0;right:0;z-index:250;display:flex;gap:0;padding:0 16px;background:linear-gradient(rgba(0,0,0,.5),transparent);}
-.feed-tab{padding:8px 12px;font-size:.78rem;font-weight:700;color:rgba(255,255,255,.4);cursor:pointer;border:none;border-bottom:2px solid transparent;background:none;transition:all .2s;}
+/* Tabs - pushed down below top bar with more space so they don't overlap status bar */
+.feed-tabs{position:fixed;top:calc(env(safe-area-inset-top,0px) + 58px);left:0;right:0;z-index:250;display:flex;gap:0;padding:6px 16px;background:linear-gradient(rgba(0,0,0,.6),transparent);}
+.feed-tab{padding:10px 14px;font-size:.88rem;font-weight:700;color:rgba(255,255,255,.55);cursor:pointer;border:none;border-bottom:3px solid transparent;background:none;transition:all .2s;text-shadow:0 1px 2px rgba(0,0,0,0.6);}
 .feed-tab.active{color:#fff;border-bottom-color:#fff;}
 
 /* Feed */
 .feed-container{position:fixed;top:0;bottom:0;left:0;right:0;overflow-y:scroll;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;}
 
 /* Post */
-.feed-post{scroll-snap-align:start;scroll-snap-stop:always;height:100vh;height:100dvh;position:relative;background:#000;}
-/* Media fills the 9:16 viewport. object-fit:cover for images/video on mobile (portrait) ensures no cutoff + no black bars. */
-.post-media-wrap{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#000;overflow:hidden;position:relative;}
-.post-media-wrap img{width:100%;height:100%;object-fit:cover;object-position:center center;background:#000;display:block;}
-.post-media-wrap video{width:100%;height:100%;object-fit:cover;object-position:center center;background:#000;display:block;}
-.post-media-wrap iframe{width:100%;height:100%;border:none;display:block;}
-.post-media-wrap audio{width:85%;max-width:350px;}
-.post-text-only{width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:30px;padding-bottom:180px;font-size:1.1rem;line-height:1.7;text-align:center;background:linear-gradient(135deg,#0b0014,#1a0533);overflow-y:auto;}
-.post-text-only > div{max-width:100%;word-wrap:break-word;overflow-wrap:break-word;white-space:pre-wrap;}
+.feed-post{scroll-snap-align:start;scroll-snap-stop:always;height:100vh;height:100dvh;position:relative;background:#000;overflow:hidden;}
+
+/* SMART MEDIA FIT:
+   - Blurred background fills the whole viewport using the same image (no black bars, no off-screen)
+   - Foreground image uses object-fit:contain so nothing gets cropped
+   - Works for every aspect ratio: 9:16 portrait, 1:1 square, 4:5, 16:9 landscape, weird sizes all fit perfectly */
+.post-media-wrap{width:100%;height:100%;position:relative;background:#000;overflow:hidden;}
+.post-media-bg{position:absolute;inset:0;background-size:cover;background-position:center;filter:blur(32px) brightness(0.55) saturate(1.3);transform:scale(1.15);z-index:0;}
+.post-media-fg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:1;}
+.post-media-fg img,.post-media-fg video{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;}
+.post-media-wrap iframe{position:absolute;inset:0;width:100%;height:100%;border:none;z-index:1;}
+.post-media-wrap audio{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:85%;max-width:350px;z-index:1;}
+
+/* Text-only posts: properly contained within viewport with room for UI */
+.post-text-only{width:100%;height:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;padding:100px 24px 220px;font-size:1.1rem;line-height:1.7;text-align:center;background:linear-gradient(135deg,#0b0014,#1a0533);}
+.post-text-only > div{max-width:100%;max-height:100%;overflow-y:auto;word-wrap:break-word;overflow-wrap:break-word;white-space:pre-wrap;-webkit-overflow-scrolling:touch;}
 
 /* Skeleton loader (shown while first batch of posts loads) */
 .feed-skeleton{scroll-snap-align:start;height:100vh;height:100dvh;background:linear-gradient(135deg,#0b0014,#1a0533);position:relative;display:flex;align-items:center;justify-content:center;}
@@ -192,11 +205,14 @@ async function init(){
   var fc=document.getElementById('feedContainer');
   fc.addEventListener('scroll',function(){if(this.scrollTop+this.clientHeight>=this.scrollHeight-600&&!ld)loadFeed();});
 
-  // Suppress avatar toggle on feed
-  setTimeout(function(){
-    var avt=document.querySelector('[id="avatarToggle"],[onclick*="hideAvatarBubbles"]');
-    if(avt)avt.style.display='none';
-  },600);
+  // Suppress scripts.js UI that overlaps TikTok-style feed (avatar toggle, page-up, bottom nav)
+  // CSS handles it on load; this handles late injection too
+  var killSelectors='#avatar-switcher-wrap,.avatar-switcher,#avatarSwitcher,.avatar-toggle,.floating-avatar,#avatarToggle,[id="avatarToggle"],[onclick*="hideAvatarBubbles"],#pageUp,#page-up,.page-up-btn,.scroll-top-btn,#scrollTopBtn,.back-to-top,.bottom-nav,.bottomNav,#bottomNav';
+  function killOverlays(){document.querySelectorAll(killSelectors).forEach(function(el){el.style.display='none';el.style.visibility='hidden';el.style.pointerEvents='none';});}
+  killOverlays();
+  setTimeout(killOverlays,300);
+  setTimeout(killOverlays,1000);
+  setTimeout(killOverlays,2500);
 
   // Enter to submit comment
   document.getElementById('cpInput').addEventListener('keydown',function(e){if(e.key==='Enter')submitComment();});
@@ -268,21 +284,41 @@ function renderPosts(posts,replace){
     var loadMode=(gi<3)?'eager':'lazy';
     var vidPreload=(gi<2)?'metadata':'none';
 
-    // Media
-    var mWrap=document.createElement('div');
-    var hasM=false,mHtml='';
-    if(post.media&&(post.media_type==='photo'||post.media_type==='image')){
-      mHtml='<img src="'+esc(post.media)+'" alt="" loading="'+loadMode+'" fetchpriority="'+(gi===0?'high':'auto')+'">';hasM=true;
-    }else if(post.media&&post.media_type==='video'){
-      var yt=post.media.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-      if(yt){mHtml='<iframe src="https://www.youtube.com/embed/'+yt[1]+'?rel=0&modestbranding=1" allowfullscreen loading="'+loadMode+'"></iframe>';}
-      else{mHtml='<video src="'+esc(post.media)+'" controls playsinline preload="'+vidPreload+'"></video>';}
-      hasM=true;
-    }else if(post.media&&post.media_type==='audio'){
-      mHtml='<audio src="'+esc(post.media)+'" controls preload="none"></audio>';hasM=true;
+    // Determine media type - use explicit media_type, or detect from URL extension if missing
+    var mType=post.media_type;
+    if(post.media && !mType){
+      var u=post.media.toLowerCase();
+      if(/\.(jpg|jpeg|png|gif|webp|avif|svg)(\?|$)/i.test(u))mType='image';
+      else if(/\.(mp4|webm|mov|m4v)(\?|$)/i.test(u)||/youtube\.com|youtu\.be/.test(u))mType='video';
+      else if(/\.(mp3|wav|ogg|m4a|aac)(\?|$)/i.test(u))mType='audio';
     }
 
-    if(hasM){mWrap.className='post-media-wrap';mWrap.innerHTML=mHtml;}
+    // Media - build smart-fit structure (blurred bg + contained fg)
+    var mWrap=document.createElement('div');
+    var hasM=false,mInner='';
+    if(post.media&&(mType==='photo'||mType==='image')){
+      var safeUrl=esc(post.media);
+      mInner='<div class="post-media-bg" style="background-image:url(\''+safeUrl.replace(/'/g,"\\'")+'\')"></div>'+
+             '<div class="post-media-fg"><img src="'+safeUrl+'" alt="" loading="'+loadMode+'" fetchpriority="'+(gi===0?'high':'auto')+'"></div>';
+      hasM=true;
+    }else if(post.media&&mType==='video'){
+      var yt=post.media.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+      if(yt){
+        var ytId=yt[1];
+        mInner='<div class="post-media-bg" style="background-image:url(\'https://img.youtube.com/vi/'+ytId+'/hqdefault.jpg\')"></div>'+
+               '<iframe src="https://www.youtube.com/embed/'+ytId+'?rel=0&modestbranding=1" allowfullscreen loading="'+loadMode+'"></iframe>';
+      }else{
+        mInner='<div class="post-media-bg" style="background-color:#111"></div>'+
+               '<div class="post-media-fg"><video src="'+esc(post.media)+'" controls playsinline preload="'+vidPreload+'"></video></div>';
+      }
+      hasM=true;
+    }else if(post.media&&mType==='audio'){
+      mInner='<div class="post-media-bg" style="background:linear-gradient(135deg,#0b0014,#1a0533)"></div>'+
+             '<audio src="'+esc(post.media)+'" controls preload="none"></audio>';
+      hasM=true;
+    }
+
+    if(hasM){mWrap.className='post-media-wrap';mWrap.innerHTML=mInner;}
     else{mWrap.className='post-text-only';mWrap.innerHTML='<div>'+esc(post.text||'')+'</div>';}
     div.appendChild(mWrap);
 
