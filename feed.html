@@ -25,13 +25,25 @@ html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#000;color:#
 .feed-container{position:fixed;top:0;bottom:0;left:0;right:0;overflow-y:scroll;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;}
 
 /* Post */
-.feed-post{scroll-snap-align:start;scroll-snap-stop:always;height:100vh;position:relative;background:#000;}
-.post-media-wrap{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#000;overflow:hidden;}
-.post-media-wrap img{width:100%;height:100%;object-fit:contain;background:#000;}
-.post-media-wrap video{width:100%;height:100%;object-fit:contain;background:#000;}
-.post-media-wrap iframe{width:100%;height:100%;border:none;}
+.feed-post{scroll-snap-align:start;scroll-snap-stop:always;height:100vh;height:100dvh;position:relative;background:#000;}
+/* Media fills the 9:16 viewport. object-fit:cover for images/video on mobile (portrait) ensures no cutoff + no black bars. */
+.post-media-wrap{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#000;overflow:hidden;position:relative;}
+.post-media-wrap img{width:100%;height:100%;object-fit:cover;object-position:center center;background:#000;display:block;}
+.post-media-wrap video{width:100%;height:100%;object-fit:cover;object-position:center center;background:#000;display:block;}
+.post-media-wrap iframe{width:100%;height:100%;border:none;display:block;}
 .post-media-wrap audio{width:85%;max-width:350px;}
-.post-text-only{width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:30px;font-size:1.05rem;line-height:1.7;text-align:center;background:linear-gradient(135deg,#0b0014,#1a0533);}
+.post-text-only{width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:30px;padding-bottom:180px;font-size:1.1rem;line-height:1.7;text-align:center;background:linear-gradient(135deg,#0b0014,#1a0533);overflow-y:auto;}
+.post-text-only > div{max-width:100%;word-wrap:break-word;overflow-wrap:break-word;white-space:pre-wrap;}
+
+/* Skeleton loader (shown while first batch of posts loads) */
+.feed-skeleton{scroll-snap-align:start;height:100vh;height:100dvh;background:linear-gradient(135deg,#0b0014,#1a0533);position:relative;display:flex;align-items:center;justify-content:center;}
+.skel-shimmer{position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(168,85,247,0.08),transparent);background-size:200% 100%;animation:skelShimmer 1.4s infinite;}
+@keyframes skelShimmer{0%{background-position:200% 0;}100%{background-position:-200% 0;}}
+.skel-icon{width:72px;height:72px;border-radius:50%;background:rgba(168,85,247,0.15);display:flex;align-items:center;justify-content:center;font-size:2rem;z-index:1;animation:skelPulse 1.4s infinite;}
+@keyframes skelPulse{0%,100%{opacity:0.5;transform:scale(1);}50%{opacity:1;transform:scale(1.08);}}
+.skel-info{position:absolute;bottom:100px;left:14px;right:60px;display:flex;flex-direction:column;gap:8px;z-index:1;}
+.skel-line{height:12px;background:rgba(255,255,255,0.12);border-radius:6px;}
+.skel-line.sk-w1{width:40%;}.skel-line.sk-w2{width:75%;}.skel-line.sk-w3{width:60%;}
 
 /* Bottom info overlay */
 .post-info{position:absolute;bottom:0;left:0;right:60px;padding:14px;background:linear-gradient(transparent,rgba(0,0,0,.8));z-index:10;}
@@ -43,8 +55,8 @@ html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#000;color:#
 .pi-badge::after{content:'';position:absolute;top:2.5px;left:4.5px;width:3.5px;height:6px;border:solid #fff;border-width:0 1.5px 1.5px 0;transform:rotate(45deg);}
 .pi-follow{padding:2px 10px;border-radius:4px;background:#ff2d55;color:#fff;font-size:.7rem;font-weight:700;border:none;cursor:pointer;margin-left:6px;}
 .pi-follow.following{background:rgba(255,255,255,.15);color:rgba(255,255,255,.6);}
-.pi-text{font-size:.82rem;color:rgba(255,255,255,.9);line-height:1.5;max-height:2.6em;overflow:hidden;margin-bottom:4px;}
-.pi-text.expanded{max-height:none;}
+.pi-text{font-size:.85rem;color:rgba(255,255,255,.95);line-height:1.5;max-height:4.5em;overflow:hidden;margin-bottom:4px;word-wrap:break-word;overflow-wrap:break-word;text-shadow:0 1px 3px rgba(0,0,0,0.9);}
+.pi-text.expanded{max-height:50vh;overflow-y:auto;}
 .pi-more{color:#a855f7;font-size:.72rem;cursor:pointer;font-weight:600;}
 .pi-sound{display:flex;align-items:center;gap:6px;font-size:.72rem;color:rgba(255,255,255,.5);margin-top:4px;}
 .pi-sound-icon{animation:spinDisc 3s linear infinite;}
@@ -138,42 +150,43 @@ var OWNER_ID='cb556180-f032-4b21-9470-1d786f2664ab';
 var commentPostId=null;
 
 async function init(){
+  // ── INSTANT UI: Show skeleton loaders before ANY network calls so page never looks empty ──
+  showSkeletons(3);
+
   var s=await sb.auth.getSession();
   if(s.data&&s.data.session)cu=s.data.session.user;
 
-  // Preload profiles
-  var ap=await sb.from('profiles').select('user_id,username,display_name,avatar_url,verified_artist');
+  // ── Parallel kickoff: profiles + social data + feed all at once ──
+  var profPromise=sb.from('profiles').select('user_id,username,display_name,avatar_url,verified_artist');
+
+  var socialPromises=[];
+  if(cu){
+    socialPromises.push(sb.from('friends').select('user_id,friend_id').or('user_id.eq.'+cu.id+',friend_id.eq.'+cu.id).eq('status','accepted'));
+    socialPromises.push(sb.from('follows').select('following_id').eq('follower_id',cu.id));
+    socialPromises.push(sb.from('post_likes').select('post_id').eq('user_id',cu.id));
+    socialPromises.push(sb.from('favorites').select('target_id').eq('user_id',cu.id).eq('target_type','post'));
+    socialPromises.push(sb.from('user_blocks').select('blocked_id').eq('blocker_id',cu.id));
+    if(cu.id!==OWNER_ID){
+      socialPromises.push(sb.from('user_blocks').select('blocker_id').eq('blocked_id',cu.id));
+    }
+  }
+
+  // Wait for profiles (needed for post rendering) + social (needed for block filter)
+  var ap=await profPromise;
   if(ap.data)ap.data.forEach(function(p){pc[p.user_id]=p;});
 
   if(cu){
-    // Friends
-    var fr=await sb.from('friends').select('user_id,friend_id').or('user_id.eq.'+cu.id+',friend_id.eq.'+cu.id).eq('status','accepted');
-    (fr.data||[]).forEach(function(f){var fid=f.user_id===cu.id?f.friend_id:f.user_id;friendIds.push(fid);});
-    // Following
-    var fo=await sb.from('follows').select('following_id').eq('follower_id',cu.id);
-    (fo.data||[]).forEach(function(f){followIds.push(f.following_id);myFollows[f.following_id]=true;});
-    // My likes
-    var lk=await sb.from('post_likes').select('post_id').eq('user_id',cu.id);
-    (lk.data||[]).forEach(function(l){myLikes[l.post_id]=true;});
-    // My favs
-    var fv=await sb.from('favorites').select('target_id').eq('user_id',cu.id).eq('target_type','post');
-    (fv.data||[]).forEach(function(f){myFavs[f.target_id]=true;});
-
-    // ── BLOCKS: users I blocked + users who blocked me ──
-    // Owner (cu.id===OWNER_ID) only respects the "I blocked them" half (sees their stuff if they blocked owner).
-    try{
-      var myBlocks=await sb.from('user_blocks').select('blocked_id').eq('blocker_id',cu.id);
-      (myBlocks.data||[]).forEach(function(b){ if(blockedIds.indexOf(b.blocked_id)===-1) blockedIds.push(b.blocked_id); });
-      if(cu.id!==OWNER_ID){
-        var blockedBy=await sb.from('user_blocks').select('blocker_id').eq('blocked_id',cu.id);
-        (blockedBy.data||[]).forEach(function(b){ if(blockedIds.indexOf(b.blocker_id)===-1) blockedIds.push(b.blocker_id); });
-      }
-    }catch(e){ /* table may not exist yet; fail open */ }
+    var results=await Promise.all(socialPromises);
+    (results[0]?.data||[]).forEach(function(f){var fid=f.user_id===cu.id?f.friend_id:f.user_id;friendIds.push(fid);});
+    (results[1]?.data||[]).forEach(function(f){followIds.push(f.following_id);myFollows[f.following_id]=true;});
+    (results[2]?.data||[]).forEach(function(l){myLikes[l.post_id]=true;});
+    (results[3]?.data||[]).forEach(function(f){myFavs[f.target_id]=true;});
+    (results[4]?.data||[]).forEach(function(b){if(blockedIds.indexOf(b.blocked_id)===-1)blockedIds.push(b.blocked_id);});
+    if(results[5])(results[5]?.data||[]).forEach(function(b){if(blockedIds.indexOf(b.blocker_id)===-1)blockedIds.push(b.blocker_id);});
   }
 
-  // Ads
-  var adR=await sb.from('ads').select('*').eq('status','approved').limit(5);
-  adData=adR.data||[];
+  // Ads (parallel with the feed load below)
+  sb.from('ads').select('*').eq('status','approved').limit(5).then(function(r){adData=r.data||[];});
 
   loadFeed();
   var fc=document.getElementById('feedContainer');
@@ -251,15 +264,19 @@ function renderPosts(posts,replace){
 
     var div=document.createElement('div');div.className='feed-post';
 
+    // Eager-load first 3 posts (no lazy), lazy-load the rest
+    var loadMode=(gi<3)?'eager':'lazy';
+    var vidPreload=(gi<2)?'metadata':'none';
+
     // Media
     var mWrap=document.createElement('div');
     var hasM=false,mHtml='';
     if(post.media&&(post.media_type==='photo'||post.media_type==='image')){
-      mHtml='<img src="'+esc(post.media)+'" alt="" loading="lazy">';hasM=true;
+      mHtml='<img src="'+esc(post.media)+'" alt="" loading="'+loadMode+'" fetchpriority="'+(gi===0?'high':'auto')+'">';hasM=true;
     }else if(post.media&&post.media_type==='video'){
       var yt=post.media.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-      if(yt){mHtml='<iframe src="https://www.youtube.com/embed/'+yt[1]+'?rel=0&modestbranding=1" allowfullscreen></iframe>';}
-      else{mHtml='<video src="'+esc(post.media)+'" controls playsinline preload="none"></video>';}
+      if(yt){mHtml='<iframe src="https://www.youtube.com/embed/'+yt[1]+'?rel=0&modestbranding=1" allowfullscreen loading="'+loadMode+'"></iframe>';}
+      else{mHtml='<video src="'+esc(post.media)+'" controls playsinline preload="'+vidPreload+'"></video>';}
       hasM=true;
     }else if(post.media&&post.media_type==='audio'){
       mHtml='<audio src="'+esc(post.media)+'" controls preload="none"></audio>';hasM=true;
@@ -466,6 +483,15 @@ async function submitComment(){
 
 // ---- HELPERS ----
 function showEmpty(msg){document.getElementById('feedContainer').innerHTML='<div class="empty-feed"><h2>'+msg+'</h2></div>';}
+function showSkeletons(n){
+  var c=document.getElementById('feedContainer');
+  if(!c)return;
+  var h='';
+  for(var i=0;i<n;i++){
+    h+='<div class="feed-skeleton"><div class="skel-shimmer"></div><div class="skel-icon">'+(i===0?'🎵':i===1?'🎤':'🎧')+'</div><div class="skel-info"><div class="skel-line sk-w1"></div><div class="skel-line sk-w2"></div><div class="skel-line sk-w3"></div></div></div>';
+  }
+  c.innerHTML=h;
+}
 function setupObs(){var o=new IntersectionObserver(function(es){es.forEach(function(e){e.target.querySelectorAll('audio,video').forEach(function(m){if(!e.isIntersecting&&!m.paused)m.pause();});});},{root:document.getElementById('feedContainer'),threshold:0.5});document.querySelectorAll('.feed-post').forEach(function(p){o.observe(p);});}
 function timeAgo(d){var s=Math.floor((Date.now()-new Date(d))/1000);if(s<60)return'now';if(s<3600)return Math.floor(s/60)+'m';if(s<86400)return Math.floor(s/3600)+'h';return Math.floor(s/86400)+'d';}
 function esc(s){if(!s)return'';var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
