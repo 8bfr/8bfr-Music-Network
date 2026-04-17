@@ -8,7 +8,9 @@
 <style>
 html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#000;color:#fff;font-family:'Work Sans',system-ui,sans-serif;}
 
-/* Kill floating avatar + page-up + bottom nav on feed (conflicts with TikTok-style UI) */
+/* Kill floating avatar + page-up + bubble stack on feed (conflicts with TikTok-style UI).
+   Real IDs from scripts.js: #carrieWrap (avatar), #bubble-top-single (page-up), #bubbleStack (top bubbles) */
+#carrieWrap,#bubble-top-single,#bubbleStack,
 #avatar-switcher-wrap,.avatar-switcher,#avatarSwitcher,.avatar-toggle,.floating-avatar,
 #avatarToggle,[id="avatarToggle"],[onclick*="hideAvatarBubbles"],
 #pageUp,#page-up,.page-up-btn,.scroll-top-btn,#scrollTopBtn,.back-to-top,
@@ -41,7 +43,8 @@ html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#000;color:#
 .post-media-bg{position:absolute;inset:0;background-size:cover;background-position:center;filter:blur(32px) brightness(0.55) saturate(1.3);transform:scale(1.15);z-index:0;}
 .post-media-fg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:1;}
 .post-media-fg img,.post-media-fg video{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;}
-.post-media-wrap iframe{position:absolute;inset:0;width:100%;height:100%;border:none;z-index:1;}
+/* YouTube iframe sits centered, 16:9 natural aspect, blurred bg fills rest */
+.post-media-fg iframe{width:100%;aspect-ratio:16/9;max-height:100%;border:none;display:block;}
 .post-media-wrap audio{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:85%;max-width:350px;z-index:1;}
 
 /* Text-only posts: properly contained within viewport with room for UI */
@@ -58,11 +61,11 @@ html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#000;color:#
 .skel-line{height:12px;background:rgba(255,255,255,0.12);border-radius:6px;}
 .skel-line.sk-w1{width:40%;}.skel-line.sk-w2{width:75%;}.skel-line.sk-w3{width:60%;}
 
-/* Bottom info overlay */
-.post-info{position:absolute;bottom:0;left:0;right:60px;padding:14px;background:linear-gradient(transparent,rgba(0,0,0,.8));z-index:10;}
-.pi-user{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+/* Bottom info overlay - right margin clears the 60px action column (+14px breathing room) */
+.post-info{position:absolute;bottom:0;left:0;right:74px;padding:14px 4px 14px 14px;background:linear-gradient(transparent,rgba(0,0,0,.8));z-index:10;max-width:calc(100% - 78px);}
+.pi-user{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;}
 .pi-avatar{width:32px;height:32px;border-radius:50%;background:#333;object-fit:cover;border:2px solid rgba(255,255,255,.3);flex-shrink:0;cursor:pointer;}
-.pi-name{font-weight:700;font-size:.88rem;cursor:pointer;}
+.pi-name{font-weight:700;font-size:.88rem;cursor:pointer;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .pi-name:hover{text-decoration:underline;}
 .pi-badge{display:inline-block;width:13px;height:13px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);vertical-align:middle;margin-left:3px;position:relative;}
 .pi-badge::after{content:'';position:absolute;top:2.5px;left:4.5px;width:3.5px;height:6px;border:solid #fff;border-width:0 1.5px 1.5px 0;transform:rotate(45deg);}
@@ -205,9 +208,9 @@ async function init(){
   var fc=document.getElementById('feedContainer');
   fc.addEventListener('scroll',function(){if(this.scrollTop+this.clientHeight>=this.scrollHeight-600&&!ld)loadFeed();});
 
-  // Suppress scripts.js UI that overlaps TikTok-style feed (avatar toggle, page-up, bottom nav)
-  // CSS handles it on load; this handles late injection too
-  var killSelectors='#avatar-switcher-wrap,.avatar-switcher,#avatarSwitcher,.avatar-toggle,.floating-avatar,#avatarToggle,[id="avatarToggle"],[onclick*="hideAvatarBubbles"],#pageUp,#page-up,.page-up-btn,.scroll-top-btn,#scrollTopBtn,.back-to-top,.bottom-nav,.bottomNav,#bottomNav';
+  // Suppress scripts.js UI that overlaps TikTok-style feed
+  // Real IDs: #carrieWrap, #bubble-top-single, #bubbleStack
+  var killSelectors='#carrieWrap,#bubble-top-single,#bubbleStack,#avatar-switcher-wrap,.avatar-switcher,#avatarSwitcher,.avatar-toggle,.floating-avatar,#avatarToggle,[id="avatarToggle"],[onclick*="hideAvatarBubbles"],#pageUp,#page-up,.page-up-btn,.scroll-top-btn,#scrollTopBtn,.back-to-top,.bottom-nav,.bottomNav,#bottomNav';
   function killOverlays(){document.querySelectorAll(killSelectors).forEach(function(el){el.style.display='none';el.style.visibility='hidden';el.style.pointerEvents='none';});}
   killOverlays();
   setTimeout(killOverlays,300);
@@ -286,40 +289,69 @@ function renderPosts(posts,replace){
 
     // Determine media type - use explicit media_type, or detect from URL extension if missing
     var mType=post.media_type;
-    if(post.media && !mType){
-      var u=post.media.toLowerCase();
+    var mediaUrl=post.media;
+
+    // If no media column set, try to extract a URL from the post text
+    if(!mediaUrl && post.text){
+      var urlMatch=post.text.match(/https?:\/\/[^\s<>"']+/i);
+      if(urlMatch){
+        var candidate=urlMatch[0];
+        // Only treat as media if it's actually a media URL
+        if(/youtube\.com|youtu\.be|spotify\.com|soundcloud\.com|bandcamp\.com|\.(jpg|jpeg|png|gif|webp|avif|mp4|webm|mov|mp3|wav|m4a|ogg)(\?|$)/i.test(candidate)){
+          mediaUrl=candidate;
+        }
+      }
+    }
+
+    if(mediaUrl && !mType){
+      var u=mediaUrl.toLowerCase();
       if(/\.(jpg|jpeg|png|gif|webp|avif|svg)(\?|$)/i.test(u))mType='image';
       else if(/\.(mp4|webm|mov|m4v)(\?|$)/i.test(u)||/youtube\.com|youtu\.be/.test(u))mType='video';
       else if(/\.(mp3|wav|ogg|m4a|aac)(\?|$)/i.test(u))mType='audio';
+      else if(/spotify\.com|soundcloud\.com|bandcamp\.com/.test(u))mType='embed';
     }
 
     // Media - build smart-fit structure (blurred bg + contained fg)
     var mWrap=document.createElement('div');
     var hasM=false,mInner='';
-    if(post.media&&(mType==='photo'||mType==='image')){
-      var safeUrl=esc(post.media);
+    if(mediaUrl&&(mType==='photo'||mType==='image')){
+      var safeUrl=esc(mediaUrl);
       mInner='<div class="post-media-bg" style="background-image:url(\''+safeUrl.replace(/'/g,"\\'")+'\')"></div>'+
              '<div class="post-media-fg"><img src="'+safeUrl+'" alt="" loading="'+loadMode+'" fetchpriority="'+(gi===0?'high':'auto')+'"></div>';
       hasM=true;
-    }else if(post.media&&mType==='video'){
-      var yt=post.media.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    }else if(mediaUrl&&mType==='video'){
+      var yt=mediaUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
       if(yt){
         var ytId=yt[1];
         mInner='<div class="post-media-bg" style="background-image:url(\'https://img.youtube.com/vi/'+ytId+'/hqdefault.jpg\')"></div>'+
-               '<iframe src="https://www.youtube.com/embed/'+ytId+'?rel=0&modestbranding=1" allowfullscreen loading="'+loadMode+'"></iframe>';
+               '<div class="post-media-fg"><iframe src="https://www.youtube.com/embed/'+ytId+'?rel=0&modestbranding=1&playsinline=1" allowfullscreen loading="'+loadMode+'"></iframe></div>';
       }else{
         mInner='<div class="post-media-bg" style="background-color:#111"></div>'+
-               '<div class="post-media-fg"><video src="'+esc(post.media)+'" controls playsinline preload="'+vidPreload+'"></video></div>';
+               '<div class="post-media-fg"><video src="'+esc(mediaUrl)+'" controls playsinline preload="'+vidPreload+'"></video></div>';
       }
       hasM=true;
-    }else if(post.media&&mType==='audio'){
+    }else if(mediaUrl&&mType==='audio'){
       mInner='<div class="post-media-bg" style="background:linear-gradient(135deg,#0b0014,#1a0533)"></div>'+
-             '<audio src="'+esc(post.media)+'" controls preload="none"></audio>';
+             '<audio src="'+esc(mediaUrl)+'" controls preload="none"></audio>';
       hasM=true;
+    }else if(mediaUrl&&mType==='embed'){
+      // Spotify / SoundCloud / Bandcamp embed
+      var embedSrc='';var bgColor='#0b0014';
+      var sp=mediaUrl.match(/open\.spotify\.com\/(track|album|playlist|episode|show)\/([a-zA-Z0-9]+)/);
+      var sc=/soundcloud\.com/.test(mediaUrl);
+      var bc=/bandcamp\.com/.test(mediaUrl);
+      if(sp){embedSrc='https://open.spotify.com/embed/'+sp[1]+'/'+sp[2];bgColor='#191414';}
+      else if(sc){embedSrc='https://w.soundcloud.com/player/?url='+encodeURIComponent(mediaUrl)+'&color=%23ff5500&auto_play=false';bgColor='#111';}
+      else if(bc){embedSrc=mediaUrl;bgColor='#1da0c3';}
+      if(embedSrc){
+        mInner='<div class="post-media-bg" style="background:'+bgColor+'"></div>'+
+               '<div class="post-media-fg"><iframe src="'+esc(embedSrc)+'" allow="autoplay;encrypted-media" loading="'+loadMode+'"></iframe></div>';
+        hasM=true;
+      }
     }
 
     if(hasM){mWrap.className='post-media-wrap';mWrap.innerHTML=mInner;}
-    else{mWrap.className='post-text-only';mWrap.innerHTML='<div>'+esc(post.text||'')+'</div>';}
+    else{mWrap.className='post-text-only';mWrap.innerHTML='<div>'+linkify(post.text||'')+'</div>';}
     div.appendChild(mWrap);
 
     // Bottom info
@@ -346,17 +378,24 @@ function renderPosts(posts,replace){
     }
     info.appendChild(userRow);
 
-    // Text
+    // Text caption (shown below name; strip the media URL if it was extracted from text)
     if(hasM&&post.text){
       var txt=document.createElement('div');txt.className='pi-text';
       var full=post.text;
-      txt.textContent=full.length>100?full.substring(0,100)+'...':full;
-      if(full.length>100){
-        var more=document.createElement('span');more.className='pi-more';more.textContent=' more';
-        more.onclick=function(){txt.textContent=full;txt.classList.add('expanded');more.style.display='none';};
-        txt.appendChild(more);
+      // If we pulled media URL out of the text, remove it from the displayed caption to avoid duplication
+      if(mediaUrl && full.indexOf(mediaUrl)!==-1 && !post.media){
+        full=full.replace(mediaUrl,'').trim();
       }
-      info.appendChild(txt);
+      if(full){
+        var short=full.length>100?full.substring(0,100)+'...':full;
+        txt.innerHTML=linkify(short);
+        if(full.length>100){
+          var more=document.createElement('span');more.className='pi-more';more.textContent=' more';
+          more.onclick=function(e){e.stopPropagation();txt.innerHTML=linkify(full);txt.classList.add('expanded');};
+          txt.appendChild(more);
+        }
+        info.appendChild(txt);
+      }
     }
 
     // Sound credit (if media is from the user's songs table)
@@ -531,6 +570,13 @@ function showSkeletons(n){
 function setupObs(){var o=new IntersectionObserver(function(es){es.forEach(function(e){e.target.querySelectorAll('audio,video').forEach(function(m){if(!e.isIntersecting&&!m.paused)m.pause();});});},{root:document.getElementById('feedContainer'),threshold:0.5});document.querySelectorAll('.feed-post').forEach(function(p){o.observe(p);});}
 function timeAgo(d){var s=Math.floor((Date.now()-new Date(d))/1000);if(s<60)return'now';if(s<3600)return Math.floor(s/60)+'m';if(s<86400)return Math.floor(s/3600)+'h';return Math.floor(s/86400)+'d';}
 function esc(s){if(!s)return'';var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function linkify(s){
+  if(!s)return'';
+  var escaped=esc(s);
+  return escaped.replace(/(https?:\/\/[^\s<>"']+)/gi,function(url){
+    return '<a href="'+url+'" target="_blank" rel="noopener" style="color:#c084fc;text-decoration:underline;word-break:break-all;" onclick="event.stopPropagation();">'+url+'</a>';
+  });
+}
 init();
 </script>
 </body>
