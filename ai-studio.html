@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>🤖 AI Studio — 8BFR Music Network</title>
+<link rel="icon" href="assets/images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Work Sans',system-ui,sans-serif;background:linear-gradient(#0b0014,#000);color:#eae6ff;min-height:100vh;padding-bottom:80px;}
+
+/* Header */
+.hdr{background:rgba(15,0,30,0.95);border-bottom:1px solid rgba(124,58,237,0.5);padding:1rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;backdrop-filter:blur(10px);}
+.hdr a{color:#a855f7;text-decoration:none;font-weight:600;font-size:0.95rem;}
+.hdr h1{font-family:'Bebas Neue',cursive;font-size:1.5rem;color:#eae6ff;letter-spacing:1px;}
+
+/* Category nav (horizontal scrolling tabs) */
+.cat-nav{display:flex;gap:0.5rem;overflow-x:auto;padding:0.75rem 1rem;background:rgba(12,6,24,0.6);border-bottom:1px solid rgba(124,58,237,0.2);scrollbar-width:none;-webkit-overflow-scrolling:touch;position:sticky;top:57px;z-index:49;}
+.cat-nav::-webkit-scrollbar{display:none;}
+.cat-btn{flex-shrink:0;padding:0.5rem 1rem;border-radius:10px;background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.35);color:#eae6ff;font-size:0.82rem;font-weight:700;cursor:pointer;white-space:nowrap;transition:all 0.15s;}
+.cat-btn:hover{background:rgba(124,58,237,0.25);}
+.cat-btn.active{background:#7c3aed;border-color:#7c3aed;color:#fff;box-shadow:0 0 12px rgba(124,58,237,0.5);}
+
+/* Main grid */
+.main{max-width:1100px;margin:1.25rem auto;padding:0 1rem;}
+.cat-title{font-family:'Bebas Neue',cursive;font-size:1.6rem;color:#a855f7;letter-spacing:1.5px;margin-bottom:0.25rem;display:flex;align-items:center;gap:0.5rem;}
+.cat-sub{color:rgba(234,230,255,0.6);font-size:0.85rem;margin-bottom:1.25rem;}
+.tools-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0.85rem;margin-bottom:2rem;}
+.tool{background:rgba(12,6,24,0.85);border:1px solid rgba(124,58,237,0.35);border-radius:14px;padding:1rem;cursor:pointer;transition:all 0.2s;display:flex;flex-direction:column;gap:0.4rem;position:relative;overflow:hidden;}
+.tool:hover{border-color:#a855f7;transform:translateY(-2px);box-shadow:0 8px 24px rgba(124,58,237,0.25);}
+.tool-icon{font-size:1.75rem;}
+.tool-name{font-weight:800;font-size:0.98rem;color:#eae6ff;}
+.tool-desc{font-size:0.78rem;color:rgba(234,230,255,0.65);line-height:1.4;}
+.tool-badge{position:absolute;top:8px;right:8px;font-size:0.62rem;font-weight:800;padding:2px 7px;border-radius:999px;}
+.badge-music{background:rgba(168,85,247,0.25);color:#c084fc;border:1px solid rgba(168,85,247,0.4);}
+.badge-pro{background:rgba(234,179,8,0.2);color:#fbbf24;border:1px solid rgba(234,179,8,0.4);}
+.badge-new{background:rgba(52,211,153,0.2);color:#4ade80;border:1px solid rgba(52,211,153,0.4);}
+.badge-beta{background:rgba(239,68,68,0.18);color:#fca5a5;border:1px solid rgba(239,68,68,0.35);}
+
+/* Tool modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:1000;display:none;align-items:flex-end;justify-content:center;padding:0;animation:fadeIn 0.2s;}
+.modal-overlay.show{display:flex;}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+@keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+.modal{background:rgba(12,6,24,0.98);border-top:1px solid rgba(124,58,237,0.5);border-radius:20px 20px 0 0;padding:1.25rem;max-width:680px;width:100%;max-height:92vh;overflow-y:auto;animation:slideUp 0.25s ease;-webkit-overflow-scrolling:touch;}
+@media(min-width:640px){.modal{margin:auto;border-radius:20px;max-height:90vh;}.modal-overlay{align-items:center;padding:1rem;}}
+.modal-grip{width:40px;height:4px;background:rgba(168,85,247,0.4);border-radius:2px;margin:0 auto 1rem;}
+.modal-header{display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;padding-bottom:0.75rem;border-bottom:1px solid rgba(124,58,237,0.25);}
+.modal-icon{font-size:2rem;}
+.modal-name{font-weight:800;font-size:1.15rem;flex:1;}
+.modal-close{background:none;border:none;color:rgba(234,230,255,0.6);font-size:1.5rem;cursor:pointer;width:32px;height:32px;border-radius:50%;}
+.modal-close:hover{background:rgba(124,58,237,0.2);color:#eae6ff;}
+
+/* Form */
+.field{margin-bottom:0.85rem;}
+.field label{display:block;font-size:0.82rem;font-weight:700;color:#a855f7;margin-bottom:0.35rem;}
+.field label .req{color:#ef4444;}
+.field input[type=text],.field input[type=number],.field select,.field textarea{width:100%;padding:0.65rem 0.85rem;background:rgba(0,0,0,0.4);border:1px solid rgba(124,58,237,0.35);border-radius:8px;color:#eae6ff;font-size:0.92rem;outline:none;font-family:inherit;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:#a855f7;box-shadow:0 0 0 3px rgba(124,58,237,0.2);}
+.field textarea{min-height:90px;resize:vertical;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;}
+.btn{background:#7c3aed;color:#fff;border:none;padding:0.75rem 1.25rem;border-radius:10px;font-weight:800;font-size:0.92rem;cursor:pointer;transition:background 0.15s;font-family:inherit;width:100%;}
+.btn:hover{background:#6d28d9;}
+.btn:disabled{opacity:0.6;cursor:not-allowed;}
+.btn-ghost{background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.4);color:#eae6ff;}
+
+/* Result area */
+.result{margin-top:1rem;padding:1rem;background:rgba(124,58,237,0.05);border:1px solid rgba(124,58,237,0.25);border-radius:10px;white-space:pre-wrap;word-wrap:break-word;font-size:0.9rem;line-height:1.55;color:#eae6ff;display:none;max-height:400px;overflow-y:auto;}
+.result.show{display:block;}
+.result-actions{display:flex;gap:0.5rem;margin-top:0.75rem;flex-wrap:wrap;}
+.result-actions button{flex:1;min-width:100px;padding:0.5rem 0.85rem;font-size:0.8rem;}
+.spinner{width:24px;height:24px;border:3px solid rgba(124,58,237,0.2);border-top-color:#a855f7;border-radius:50%;animation:spin 0.7s linear infinite;display:inline-block;vertical-align:middle;margin-right:0.5rem;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-text{color:rgba(168,85,247,0.8);font-weight:600;font-size:0.88rem;}
+.error-msg{background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);color:#fca5a5;padding:0.75rem 1rem;border-radius:8px;font-size:0.85rem;margin-top:0.75rem;}
+.success-msg{background:rgba(52,211,153,0.12);border:1px solid rgba(52,211,153,0.35);color:#4ade80;padding:0.6rem 0.9rem;border-radius:8px;font-size:0.82rem;margin-top:0.5rem;}
+
+/* Search bar */
+.search-bar{margin-bottom:1rem;}
+.search-bar input{width:100%;padding:0.75rem 1rem;background:rgba(12,6,24,0.8);border:1px solid rgba(124,58,237,0.35);border-radius:12px;color:#eae6ff;font-size:0.95rem;outline:none;}
+.search-bar input:focus{border-color:#a855f7;}
+
+/* Info card about OpenAI credits */
+.intro-card{background:linear-gradient(135deg,rgba(124,58,237,0.12),rgba(168,85,247,0.05));border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:1rem 1.25rem;margin-bottom:1.25rem;}
+.intro-card h3{font-size:1rem;font-weight:800;margin-bottom:0.35rem;}
+.intro-card p{font-size:0.83rem;color:rgba(234,230,255,0.75);line-height:1.5;}
+
+/* Empty state */
+.empty{text-align:center;padding:3rem 1rem;color:rgba(168,85,247,0.6);font-size:0.9rem;}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <a href="index.html">← Home</a>
+  <h1>🤖 AI Studio</h1>
+  <div style="width:60px;"></div>
+</div>
+
+<div class="cat-nav" id="catNav"></div>
+
+<main class="main">
+  <div class="search-bar">
+    <input type="text" id="searchInput" placeholder="🔎 Search tools..." autocomplete="off">
+  </div>
+
+  <div class="intro-card">
+    <h3>💡 All AI tools, one place</h3>
+    <p>Music-themed tools are first. Every tool is powered by GPT-5.4 with a free fallback so it keeps working even when our primary provider hiccups.</p>
+  </div>
+
+  <div id="toolsContainer"></div>
+</main>
+
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal();">
+  <div class="modal" id="modal">
+    <div class="modal-grip"></div>
+    <div class="modal-header">
+      <div class="modal-icon" id="mIcon">🤖</div>
+      <div class="modal-name" id="mName">Tool</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div id="mFields"></div>
+    <button class="btn" id="mRun" onclick="runTool()">✨ Generate</button>
+    <div class="result" id="mResult"></div>
+  </div>
+</div>
+
+<script>
+// ─── AI Tool Definitions ────────────────────────────────────────────
+// Each tool has: id, name, icon, desc, category, badges, system, fields, tier
+// system = instruction to the AI
+// fields = array of {name, label, type, placeholder, required, options}
+// tier = 'nano' | 'mini' | 'full'
+//
+// Categories ordered music-themed FIRST
+
+var CATEGORIES = [
+  { id:'music',    name:'🎵 Music',            icon:'🎵' },
+  { id:'writing',  name:'✍️ Writing',          icon:'✍️' },
+  { id:'social',   name:'📱 Social Media',     icon:'📱' },
+  { id:'video',    name:'🎬 Video',            icon:'🎬' },
+  { id:'image',    name:'🎨 Image',            icon:'🎨' },
+  { id:'business', name:'💼 Business',         icon:'💼' },
+  { id:'general',  name:'🤖 General',          icon:'🤖' }
+];
+
+var TOOLS = [
+  // ─── MUSIC ───
+  { id:'lyric-writer', cat:'music', icon:'🎤', name:'Lyric Writer', desc:'Full song lyrics in any style or mood', badges:['music'], tier:'mini',
+    system:'You are an expert songwriter. Write compelling, original song lyrics with proper verse/chorus/bridge structure. Include section labels like [Verse 1], [Chorus], etc.',
+    fields:[
+      {name:'topic',label:'Topic / theme',type:'textarea',placeholder:'e.g. Lost love, hometown pride, hustle...',required:true},
+      {name:'genre',label:'Genre',type:'select',options:['Hip-Hop','R&B','Pop','Rock','Country','EDM','Indie','Gospel','Trap','Afrobeats','Latin','Reggae','Jazz','Folk']},
+      {name:'mood',label:'Mood',type:'select',options:['Uplifting','Sad','Angry','Romantic','Reflective','Party','Aggressive','Hopeful','Nostalgic','Triumphant']},
+      {name:'extra',label:'Extra instructions (optional)',type:'text',placeholder:'e.g. Rhyme AABB, include reference to rain'}
+    ],
+    buildPrompt: function(v){ return 'Write original song lyrics about: '+v.topic+'\nGenre: '+(v.genre||'Hip-Hop')+'\nMood: '+(v.mood||'Reflective')+(v.extra?'\nAdditional guidance: '+v.extra:'')+'\n\nStructure with [Verse 1], [Chorus], [Verse 2], [Chorus], [Bridge], [Chorus]. Make it emotionally resonant with strong imagery and unique metaphors.'; }
+  },
+  { id:'song-creator', cat:'music', icon:'🎶', name:'Song Creator', desc:'Full concept: title, lyrics, and structure', badges:['music'], tier:'mini',
+    system:'You are a music producer and songwriter. Create complete song concepts with title, genre guidance, lyrical structure, and production notes.',
+    fields:[
+      {name:'idea',label:'Core idea / story',type:'textarea',placeholder:'What is the song about?',required:true},
+      {name:'style',label:'Desired style',type:'text',placeholder:'e.g. Drake-style melodic rap, 80s synth-pop'},
+      {name:'length',label:'Target length',type:'select',options:['Short (2:30)','Standard (3:30)','Long (4:30)']}
+    ],
+    buildPrompt: function(v){ return 'Create a complete song concept.\nIdea: '+v.idea+'\nStyle: '+(v.style||'open')+'\nLength: '+(v.length||'Standard')+'\n\nProvide: 1) Song title (3 options), 2) Brief concept paragraph, 3) Full lyrics with section tags, 4) Production notes (tempo, key suggestion, instrument ideas).'; }
+  },
+  { id:'beat-ideas', cat:'music', icon:'🥁', name:'Beat Ideas', desc:'Drum patterns, tempo, and production blueprint', badges:['music'], tier:'nano',
+    system:'You are a beat maker and music producer. Give practical, actionable beat creation advice.',
+    fields:[
+      {name:'genre',label:'Genre',type:'select',options:['Trap','Hip-Hop','Drill','Boom Bap','R&B','Afrobeats','Reggaeton','UK Drill','Phonk','Jersey Club','Latin','Pop'],required:true},
+      {name:'vibe',label:'Vibe / mood',type:'text',placeholder:'e.g. Dark, melodic, aggressive, chill'},
+      {name:'bpm',label:'BPM preference',type:'text',placeholder:'e.g. 140 or any'}
+    ],
+    buildPrompt: function(v){ return 'Give me a detailed beat creation blueprint:\nGenre: '+v.genre+'\nVibe: '+(v.vibe||'any')+'\nBPM: '+(v.bpm||'suggest one')+'\n\nProvide: 1) Suggested BPM + time signature, 2) Drum pattern (kick/snare/hi-hat placement), 3) 808 pattern suggestions, 4) Melody instrument ideas, 5) Mixing tips specific to this style, 6) 2-3 reference songs in this style.'; }
+  },
+  { id:'rhyme-finder', cat:'music', icon:'📝', name:'Rhyme Finder', desc:'Perfect and slant rhymes for any word', badges:['music'], tier:'nano',
+    system:'You are a rhyme dictionary and wordsmith. Give practical rhymes ordered by usefulness for songwriting.',
+    fields:[
+      {name:'word',label:'Word to rhyme',type:'text',placeholder:'e.g. struggle',required:true},
+      {name:'count',label:'How many',type:'select',options:['10','20','30','50']}
+    ],
+    buildPrompt: function(v){ return 'Find rhymes for "'+v.word+'". Give me '+(v.count||'20')+' options, organized into: PERFECT RHYMES, NEAR RHYMES (slant), MULTI-SYLLABLE RHYMES. Prioritize rhymes useful for songwriting over obscure ones.'; }
+  },
+  { id:'beat-blueprint', cat:'music', icon:'🎛️', name:'Beat Blueprint', desc:'Detailed DAW-ready production plan', badges:['music','pro'], tier:'mini',
+    system:'You are an expert music producer with decades of DAW experience. Write detailed, technically accurate production blueprints.',
+    fields:[
+      {name:'reference',label:'Reference song or artist',type:'text',placeholder:'e.g. "Rockstar by Post Malone"',required:true},
+      {name:'daw',label:'Your DAW',type:'select',options:['FL Studio','Ableton','Logic Pro','Pro Tools','Studio One','BandLab','GarageBand','Any']}
+    ],
+    buildPrompt: function(v){ return 'Write a detailed DAW blueprint to recreate a beat in the style of: '+v.reference+'\nDAW: '+(v.daw||'Any')+'\n\nCover: 1) Project setup (BPM, key, time sig), 2) Drum layer recipe (kick processing, snare layers, hats), 3) Bass/808 approach with specific plugin suggestions, 4) Melody/harmony production, 5) Mix & master chain, 6) Arrangement structure bar-by-bar for 3:00 song.'; }
+  },
+  { id:'music-expert', cat:'music', icon:'🎓', name:'Music Expert', desc:'Ask any music theory or industry question', badges:['music'], tier:'mini',
+    system:'You are a music educator and industry veteran. Answer questions about music theory, history, production, and the music business accurately and in an approachable way.',
+    fields:[
+      {name:'question',label:'Your question',type:'textarea',placeholder:'e.g. Why does the I-V-vi-IV progression work so well?',required:true}
+    ],
+    buildPrompt: function(v){ return v.question; }
+  },
+
+  // ─── WRITING ───
+  { id:'author-proofread', cat:'writing', icon:'📖', name:'Proofreader', desc:'Check grammar, spelling, flow', badges:[], tier:'mini',
+    system:'You are a professional copy editor. Proofread the text. Show the corrected version AND a bulleted list of what you changed and why.',
+    fields:[
+      {name:'text',label:'Paste your text',type:'textarea',placeholder:'Paste anything - chapter, email, post...',required:true}
+    ],
+    buildPrompt: function(v){ return 'Proofread this text for grammar, spelling, punctuation, and flow. Show the corrected version, then a numbered list of what you changed and why:\n\n'+v.text; }
+  },
+  { id:'author-rewrite', cat:'writing', icon:'✏️', name:'Rewriter', desc:'Rewrite text in a different tone', badges:[], tier:'mini',
+    system:'You are a skilled writer who can adapt voice and tone. Rewrite while preserving the core meaning.',
+    fields:[
+      {name:'text',label:'Original text',type:'textarea',required:true},
+      {name:'tone',label:'New tone',type:'select',options:['More formal','More casual','More professional','More friendly','More persuasive','More concise','More emotional','More humorous','More confident','Gen-Z style','Boomer-friendly']}
+    ],
+    buildPrompt: function(v){ return 'Rewrite this text to be '+(v.tone||'better')+', preserving the core meaning:\n\n'+v.text; }
+  },
+  { id:'translator', cat:'writing', icon:'🌐', name:'Translator', desc:'Translate between any languages', badges:[], tier:'nano',
+    system:'You are a professional translator. Translate accurately while preserving tone and cultural context.',
+    fields:[
+      {name:'text',label:'Text to translate',type:'textarea',required:true},
+      {name:'lang',label:'Target language',type:'select',options:['English','Spanish','French','German','Italian','Portuguese','Japanese','Korean','Chinese (Simplified)','Chinese (Traditional)','Arabic','Russian','Hindi','Turkish','Dutch','Swedish','Polish']}
+    ],
+    buildPrompt: function(v){ return 'Translate this into '+(v.lang||'English')+', keeping natural tone and any cultural references appropriate:\n\n'+v.text; }
+  },
+  { id:'author-expand', cat:'writing', icon:'📚', name:'Expand / Continue', desc:'Continue a scene or expand a paragraph', badges:[], tier:'mini',
+    system:'You are a skilled fiction writer. Continue the provided text naturally, matching voice, style, and pacing.',
+    fields:[
+      {name:'text',label:'Text to continue',type:'textarea',required:true},
+      {name:'direction',label:'Direction (optional)',type:'text',placeholder:'e.g. Introduce a new character, escalate tension'}
+    ],
+    buildPrompt: function(v){ return 'Continue this text, matching the existing voice, style, and pacing. Write 2-3 paragraphs.'+(v.direction?'\nDirection: '+v.direction:'')+'\n\nText:\n'+v.text; }
+  },
+  { id:'author-summarize', cat:'writing', icon:'📋', name:'Summarizer', desc:'TL;DR for long text', badges:[], tier:'nano',
+    system:'You are concise and accurate. Summarize without losing key information.',
+    fields:[
+      {name:'text',label:'Long text',type:'textarea',required:true},
+      {name:'length',label:'Summary length',type:'select',options:['One sentence','Three sentences','Bulleted (5 bullets)','One paragraph','Detailed (multiple paragraphs)']}
+    ],
+    buildPrompt: function(v){ return 'Summarize as: '+(v.length||'One paragraph')+'\n\nText:\n'+v.text; }
+  },
+
+  // ─── SOCIAL MEDIA ───
+  { id:'post-generator', cat:'social', icon:'📱', name:'Post Generator', desc:'Captions for any platform', badges:[], tier:'nano',
+    system:'You are a social media expert. Write engaging, platform-appropriate posts with natural tone.',
+    fields:[
+      {name:'topic',label:'What is the post about?',type:'textarea',required:true},
+      {name:'platform',label:'Platform',type:'select',options:['Instagram','TikTok','Twitter/X','Facebook','LinkedIn','Threads','8BFR','Reddit','YouTube']},
+      {name:'cta',label:'Call to action (optional)',type:'text',placeholder:'e.g. Link in bio, Comment your thoughts'}
+    ],
+    buildPrompt: function(v){ return 'Write a social media post.\nPlatform: '+(v.platform||'Instagram')+'\nTopic: '+v.topic+(v.cta?'\nCall to action: '+v.cta:'')+'\n\nMake it engaging for this specific platform. Include hashtags where appropriate. Keep tone natural, not salesy.'; }
+  },
+  { id:'hashtag-generator', cat:'social', icon:'#️⃣', name:'Hashtag Generator', desc:'Trending hashtags for your niche', badges:[], tier:'nano',
+    system:'You know social media discovery trends deeply. Give actionable hashtag strategies.',
+    fields:[
+      {name:'topic',label:'Content topic',type:'text',required:true},
+      {name:'platform',label:'Platform',type:'select',options:['Instagram','TikTok','Twitter/X','YouTube','LinkedIn']}
+    ],
+    buildPrompt: function(v){ return 'Generate hashtag strategy for '+(v.platform||'Instagram')+' about: '+v.topic+'\n\nProvide: 5 HIGH-VOLUME tags (1M+ uses), 10 MEDIUM-VOLUME niche tags, 5 LOW-VOLUME specific tags. Include a mix for maximum reach.'; }
+  },
+  { id:'bio-writer', cat:'social', icon:'👤', name:'Bio Writer', desc:'Profile bios that convert', badges:[], tier:'nano',
+    system:'You write profile bios that are compelling, clear, and within platform character limits.',
+    fields:[
+      {name:'who',label:'Who are you / what do you do?',type:'textarea',required:true},
+      {name:'platform',label:'Platform',type:'select',options:['Instagram (150 chars)','Twitter/X (160 chars)','TikTok (80 chars)','LinkedIn (220 chars)','8BFR (200 chars)','YouTube (1000 chars)']},
+      {name:'style',label:'Style',type:'select',options:['Professional','Fun/playful','Minimalist','Bold/confident','Mysterious','Emoji-heavy']}
+    ],
+    buildPrompt: function(v){ return 'Write 5 different bio options for '+(v.platform||'Instagram')+', '+(v.style||'Professional')+' style.\nAbout me: '+v.who+'\n\nStay within the character limit. Number them 1-5.'; }
+  },
+  { id:'caption-writer', cat:'social', icon:'💬', name:'Caption Writer', desc:'Compelling captions for photos/videos', badges:[], tier:'nano',
+    system:'You write scroll-stopping captions that encourage engagement.',
+    fields:[
+      {name:'describe',label:'Describe the photo/video',type:'textarea',required:true},
+      {name:'vibe',label:'Caption vibe',type:'select',options:['Funny','Inspirational','Poetic','Short & punchy','Storytelling','Question to audience']}
+    ],
+    buildPrompt: function(v){ return 'Write 3 caption options, '+(v.vibe||'short & punchy')+' vibe, for this content:\n'+v.describe; }
+  },
+
+  // ─── VIDEO ───
+  { id:'video-concept', cat:'video', icon:'🎬', name:'Video Concept', desc:'Script outline and shot ideas', badges:[], tier:'mini',
+    system:'You are a video content strategist. Create actionable video concepts with hooks, structure, and shot ideas.',
+    fields:[
+      {name:'topic',label:'Video topic',type:'textarea',required:true},
+      {name:'platform',label:'Platform',type:'select',options:['TikTok (9:16, 60s)','Instagram Reels (9:16, 90s)','YouTube Shorts (9:16, 60s)','YouTube (16:9, 8-10 min)','YouTube (16:9, 15+ min)']},
+      {name:'goal',label:'Goal',type:'select',options:['Educate','Entertain','Sell','Build community','Go viral']}
+    ],
+    buildPrompt: function(v){ return 'Create a video concept.\nPlatform: '+(v.platform||'TikTok')+'\nGoal: '+(v.goal||'Entertain')+'\nTopic: '+v.topic+'\n\nProvide: 1) 3 hook options (first 3 seconds), 2) Full outline/script with timestamps, 3) B-roll/shot suggestions, 4) Caption + hashtags.'; }
+  },
+  { id:'video-blueprint', cat:'video', icon:'🎥', name:'Video Blueprint', desc:'Full production plan with editing cues', badges:['pro'], tier:'mini',
+    system:'You are a video director and editor. Write technically detailed production plans.',
+    fields:[
+      {name:'topic',label:'Video idea',type:'textarea',required:true},
+      {name:'length',label:'Target length',type:'select',options:['Under 60s','1-3 min','3-8 min','8-15 min','15+ min']}
+    ],
+    buildPrompt: function(v){ return 'Write a full video production blueprint.\nTopic: '+v.topic+'\nLength: '+(v.length||'1-3 min')+'\n\nInclude: Pre-production (shot list, gear), Script with timecodes, Editing/transitions notes, Music/SFX suggestions, Thumbnail concept, Title options.'; }
+  },
+
+  // ─── IMAGE ───
+  { id:'image-prompt', cat:'image', icon:'🎨', name:'AI Image Prompt Builder', desc:'Write prompts for Midjourney/DALL-E/SD', badges:[], tier:'nano',
+    system:'You are an expert at writing AI image generation prompts. Structure prompts for maximum quality.',
+    fields:[
+      {name:'idea',label:'What do you want to generate?',type:'textarea',required:true},
+      {name:'style',label:'Art style',type:'select',options:['Photorealistic','Cinematic','Anime','Oil painting','Watercolor','3D render','Pixel art','Minimalist','Vintage film','Cyberpunk','Studio Ghibli','Comic book']}
+    ],
+    buildPrompt: function(v){ return 'Write a detailed AI image generation prompt for: '+v.idea+'\nStyle: '+(v.style||'Photorealistic')+'\n\nProvide: 1) Main prompt (structured keywords), 2) Negative prompt, 3) Recommended aspect ratio and settings.'; }
+  },
+  { id:'album-cover-concept', cat:'image', icon:'💿', name:'Album Cover Concept', desc:'Visual concept for your song/album', badges:['music'], tier:'nano',
+    system:'You are a visual art director for music. Describe compelling album cover concepts with visual detail.',
+    fields:[
+      {name:'song',label:'Song/album title',type:'text',required:true},
+      {name:'artist',label:'Artist name',type:'text'},
+      {name:'genre',label:'Genre',type:'text',placeholder:'e.g. Dark trap, indie folk'},
+      {name:'mood',label:'Mood/theme',type:'textarea',placeholder:'What should it feel like?'}
+    ],
+    buildPrompt: function(v){ return 'Design an album cover concept.\nTitle: '+v.song+'\nArtist: '+(v.artist||'')+'\nGenre: '+(v.genre||'')+'\nMood: '+(v.mood||'')+'\n\nProvide: 1) 3 distinct visual concepts, 2) For each - color palette, central image, typography style, composition notes, 3) AI image prompt ready to use.'; }
+  },
+
+  // ─── BUSINESS ───
+  { id:'email-writer', cat:'business', icon:'✉️', name:'Email Writer', desc:'Professional or casual emails', badges:[], tier:'nano',
+    system:'You write clear, effective emails appropriate to the context.',
+    fields:[
+      {name:'purpose',label:'What is this email about?',type:'textarea',required:true},
+      {name:'recipient',label:'Who is it to?',type:'text',placeholder:'e.g. Potential client, my boss, a fan'},
+      {name:'tone',label:'Tone',type:'select',options:['Formal','Professional','Friendly','Casual','Apologetic','Assertive','Grateful']}
+    ],
+    buildPrompt: function(v){ return 'Write an email.\nPurpose: '+v.purpose+'\nTo: '+(v.recipient||'general')+'\nTone: '+(v.tone||'Professional')+'\n\nInclude subject line and sign-off.'; }
+  },
+  { id:'pitch-writer', cat:'business', icon:'🎯', name:'Pitch Writer', desc:'One-page pitches or cold outreach', badges:[], tier:'mini',
+    system:'You write compelling, concise pitches that get responses.',
+    fields:[
+      {name:'what',label:'What are you pitching?',type:'textarea',required:true},
+      {name:'audience',label:'Who is the audience?',type:'text',required:true},
+      {name:'goal',label:'Goal of the pitch',type:'text',placeholder:'e.g. Schedule a meeting, get investment'}
+    ],
+    buildPrompt: function(v){ return 'Write a pitch.\nProduct/idea: '+v.what+'\nAudience: '+v.audience+'\nGoal: '+(v.goal||'open a conversation')+'\n\nMake it concise, specific, and compelling. No fluff.'; }
+  },
+  { id:'business-plan', cat:'business', icon:'📊', name:'Mini Business Plan', desc:'One-page plan for any idea', badges:['pro'], tier:'mini',
+    system:'You are a strategic business advisor. Write concise, actionable business plans.',
+    fields:[
+      {name:'idea',label:'Business idea',type:'textarea',required:true}
+    ],
+    buildPrompt: function(v){ return 'Write a one-page business plan for: '+v.idea+'\n\nInclude: 1) Problem, 2) Solution, 3) Target customer, 4) Revenue model, 5) Go-to-market strategy, 6) Main risks, 7) First 90 days plan.'; }
+  },
+
+  // ─── GENERAL ───
+  { id:'ai-chat', cat:'general', icon:'🤖', name:'AI Chat', desc:'Ask anything - general purpose chat', badges:[], tier:'nano',
+    system:'You are a helpful, friendly assistant.',
+    fields:[
+      {name:'message',label:'Your message',type:'textarea',required:true}
+    ],
+    buildPrompt: function(v){ return v.message; }
+  },
+  { id:'explain-like-5', cat:'general', icon:'👶', name:'Explain Like I\'m 5', desc:'Complex topics made simple', badges:[], tier:'nano',
+    system:'You explain complex topics in simple, clear language suitable for a child to understand.',
+    fields:[
+      {name:'topic',label:'What do you want explained?',type:'textarea',required:true}
+    ],
+    buildPrompt: function(v){ return 'Explain this like I\'m 5 years old, using simple words and easy analogies:\n\n'+v.topic; }
+  },
+  { id:'brainstorm', cat:'general', icon:'💡', name:'Brainstormer', desc:'Generate ideas for anything', badges:[], tier:'nano',
+    system:'You generate creative, diverse, actionable ideas.',
+    fields:[
+      {name:'prompt',label:'What do you need ideas for?',type:'textarea',required:true},
+      {name:'count',label:'How many ideas?',type:'select',options:['5','10','15','25']}
+    ],
+    buildPrompt: function(v){ return 'Generate '+(v.count||'10')+' diverse creative ideas for: '+v.prompt+'\n\nNumber them and briefly explain each one.'; }
+  }
+];
+
+// ─── Render ────────────────────────────────────────────────────
+var activeCategory = 'all';
+var currentTool = null;
+
+function renderNav() {
+  var nav = document.getElementById('catNav');
+  var html = '<button class="cat-btn'+(activeCategory==='all'?' active':'')+'" onclick="setCategory(\'all\')">All Tools</button>';
+  CATEGORIES.forEach(function(c){
+    html += '<button class="cat-btn'+(activeCategory===c.id?' active':'')+'" onclick="setCategory(\''+c.id+'\')">'+c.name+'</button>';
+  });
+  nav.innerHTML = html;
+}
+
+function setCategory(id) {
+  activeCategory = id;
+  renderNav();
+  renderTools();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+window.setCategory = setCategory;
+
+function renderTools() {
+  var container = document.getElementById('toolsContainer');
+  var q = (document.getElementById('searchInput').value || '').toLowerCase();
+
+  var html = '';
+  CATEGORIES.forEach(function(cat){
+    if (activeCategory !== 'all' && activeCategory !== cat.id) return;
+
+    var catTools = TOOLS.filter(function(t){
+      if (t.cat !== cat.id) return false;
+      if (!q) return true;
+      return (t.name + ' ' + t.desc).toLowerCase().indexOf(q) !== -1;
+    });
+    if (!catTools.length) return;
+
+    html += '<h2 class="cat-title">'+cat.name+'</h2>';
+    html += '<div class="cat-sub">'+catTools.length+' tools</div>';
+    html += '<div class="tools-grid">';
+    catTools.forEach(function(t){
+      var badges = (t.badges||[]).map(function(b){
+        return '<span class="tool-badge badge-'+b+'">'+b.toUpperCase()+'</span>';
+      }).join('');
+      html += '<div class="tool" onclick="openTool(\''+t.id+'\')">' +
+              badges +
+              '<div class="tool-icon">'+t.icon+'</div>' +
+              '<div class="tool-name">'+t.name+'</div>' +
+              '<div class="tool-desc">'+t.desc+'</div>' +
+              '</div>';
+    });
+    html += '</div>';
+  });
+
+  if (!html) {
+    html = '<div class="empty">No tools match your search.</div>';
+  }
+  container.innerHTML = html;
+}
+
+function openTool(id) {
+  var tool = TOOLS.find(function(t){return t.id===id;});
+  if (!tool) return;
+  currentTool = tool;
+
+  document.getElementById('mIcon').textContent = tool.icon;
+  document.getElementById('mName').textContent = tool.name;
+
+  var fieldsHtml = '';
+  tool.fields.forEach(function(f){
+    var req = f.required ? '<span class="req">*</span>' : '';
+    fieldsHtml += '<div class="field"><label>'+f.label+' '+req+'</label>';
+    if (f.type === 'textarea') {
+      fieldsHtml += '<textarea data-name="'+f.name+'" placeholder="'+(f.placeholder||'')+'"'+(f.required?' required':'')+'></textarea>';
+    } else if (f.type === 'select') {
+      fieldsHtml += '<select data-name="'+f.name+'"><option value="">Choose...</option>';
+      (f.options||[]).forEach(function(o){ fieldsHtml += '<option value="'+o+'">'+o+'</option>'; });
+      fieldsHtml += '</select>';
+    } else {
+      fieldsHtml += '<input type="text" data-name="'+f.name+'" placeholder="'+(f.placeholder||'')+'"'+(f.required?' required':'')+'>';
+    }
+    fieldsHtml += '</div>';
+  });
+
+  document.getElementById('mFields').innerHTML = fieldsHtml;
+  document.getElementById('mResult').innerHTML = '';
+  document.getElementById('mResult').classList.remove('show');
+  document.getElementById('mRun').disabled = false;
+  document.getElementById('mRun').textContent = '✨ Generate';
+
+  document.getElementById('modalOverlay').classList.add('show');
+}
+window.openTool = openTool;
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('show');
+  currentTool = null;
+}
+window.closeModal = closeModal;
+
+async function runTool() {
+  if (!currentTool) return;
+
+  // Collect field values
+  var values = {};
+  var missing = false;
+  currentTool.fields.forEach(function(f){
+    var el = document.querySelector('#mFields [data-name="'+f.name+'"]');
+    var val = el ? el.value.trim() : '';
+    values[f.name] = val;
+    if (f.required && !val) missing = true;
+  });
+  if (missing) {
+    showError('Please fill in all required fields (marked with *)');
+    return;
+  }
+
+  var prompt = currentTool.buildPrompt(values);
+
+  // UI: loading state
+  var runBtn = document.getElementById('mRun');
+  runBtn.disabled = true;
+  runBtn.textContent = 'Generating...';
+
+  var resultEl = document.getElementById('mResult');
+  resultEl.classList.add('show');
+  resultEl.innerHTML = '<div class="loading-text"><span class="spinner"></span>Working on it...</div>';
+
+  try {
+    var res = await fetch('https://8bfr-api.vercel.app/api/openai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [
+          { role: 'system', content: currentTool.system },
+          { role: 'user', content: prompt }
+        ],
+        tier: currentTool.tier || 'nano',
+        max_tokens: 1200
+      })
+    });
+    var data = await res.json();
+
+    if (data.error) {
+      showError(data.error + (data.attempts ? ' — ' + JSON.stringify(data.attempts).slice(0,300) : ''));
+      runBtn.disabled = false;
+      runBtn.textContent = '✨ Generate';
+      return;
+    }
+
+    var text = data.text || '(No response)';
+    var provider = data.provider || 'ai';
+    var modelUsed = data.model || '';
+
+    var actionsHtml = '<div class="result-actions">' +
+      '<button class="btn btn-ghost" onclick="copyResult()">📋 Copy</button>' +
+      '<button class="btn btn-ghost" onclick="regenerateResult()">🔄 Regenerate</button>' +
+      '<button class="btn btn-ghost" onclick="shareResult()">🔗 Share</button>' +
+      '</div>' +
+      '<div style="font-size:0.7rem;color:rgba(168,85,247,0.5);margin-top:0.5rem;">via '+provider+' / '+modelUsed+'</div>';
+
+    resultEl.innerHTML = '<div id="resultText">'+escapeHtml(text)+'</div>' + actionsHtml;
+    window._lastResult = text;
+
+    runBtn.disabled = false;
+    runBtn.textContent = '✨ Generate Again';
+
+  } catch (e) {
+    showError('Network error: ' + (e.message || e));
+    runBtn.disabled = false;
+    runBtn.textContent = '✨ Generate';
+  }
+}
+window.runTool = runTool;
+
+function showError(msg) {
+  document.getElementById('mResult').classList.add('show');
+  document.getElementById('mResult').innerHTML = '<div class="error-msg">⚠️ '+escapeHtml(msg)+'</div>';
+}
+
+function escapeHtml(s) {
+  if (!s) return '';
+  var d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+window.copyResult = function() {
+  if (!window._lastResult) return;
+  navigator.clipboard.writeText(window._lastResult).then(function(){
+    var el = document.getElementById('mResult');
+    var existing = el.querySelector('.success-msg');
+    if (existing) existing.remove();
+    el.insertAdjacentHTML('beforeend', '<div class="success-msg">✓ Copied to clipboard</div>');
+    setTimeout(function(){
+      var m = el.querySelector('.success-msg');
+      if (m) m.remove();
+    }, 2000);
+  });
+};
+
+window.regenerateResult = function() {
+  runTool();
+};
+
+window.shareResult = function() {
+  if (!window._lastResult) return;
+  if (window.Share && window.Share.open) {
+    window.Share.open({
+      type: 'custom',
+      url: 'https://8bfr.com/ai-studio.html',
+      title: currentTool ? (currentTool.name + ' on 8BFR AI Studio') : 'AI-generated on 8BFR',
+      description: window._lastResult.slice(0, 160)
+    });
+  } else if (navigator.share) {
+    navigator.share({ text: window._lastResult, url: 'https://8bfr.com/ai-studio.html' });
+  } else {
+    navigator.clipboard.writeText(window._lastResult);
+    alert('Copied to clipboard!');
+  }
+};
+
+// Search
+document.getElementById('searchInput').addEventListener('input', function() {
+  renderTools();
+});
+
+// Close modal on escape
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Escape' && document.getElementById('modalOverlay').classList.contains('show')) {
+    closeModal();
+  }
+});
+
+// Initial render
+renderNav();
+renderTools();
+</script>
+
+<script src="scripts.js" defer></script>
+</body>
+</html>
