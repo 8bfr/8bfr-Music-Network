@@ -276,7 +276,7 @@
                     '<div class="artist">' + esc(s.artist || 'Unknown') + '</div>' +
                     '<div class="stats"><span>&#9654; ' + fmt(s.play_count || 0) + '</span>' +
                     '<span class="' + (likedSongs[s.id] ? 'liked-heart' : '') + '" style="cursor:pointer;' + (likedSongs[s.id] ? 'color:#f472b6;' : '') + '" onclick="event.stopPropagation();toggleLike(\'' + s.id + '\',this)">' + (likedSongs[s.id] ? '&#9829;' : '&#9825;') + '</span>' +
-                    '<span style="cursor:pointer;" onclick="event.stopPropagation();shareSong(\'' + esc(s.title).replace(/'/g,'') + '\',\'' + esc(s.artist || '').replace(/'/g,'') + '\')">&#128279;</span>' +
+                    '<span style="cursor:pointer;" onclick="event.stopPropagation();shareSong(\'' + s.id + '\',\'' + esc(s.title).replace(/'/g,'') + '\',\'' + esc(s.artist || '').replace(/'/g,'') + '\',\'' + esc(s.cover_art||'').replace(/'/g,'') + '\')">&#128279;</span>' +
                     '</div>' +
                     '</div></div>';
             });
@@ -297,7 +297,7 @@
                     '<div class="row-stats"><span>▶ ' + fmt(s.play_count || 0) + '</span></div>' +
                     '<div class="row-actions">' +
                     '<button class="action-btn" onclick="toggleLike(\'' + s.id + '\',this)" title="Like" style="' + (likedSongs[s.id] ? 'color:#f472b6;border-color:#f472b6;' : '') + '">' + (likedSongs[s.id] ? '&#9829;' : '&#9825;') + '</button>' +
-                    '<button class="action-btn" onclick="shareSong(\'' + esc(s.title).replace(/'/g,'') + '\',\'' + esc(s.artist || '').replace(/'/g,'') + '\')" title="Share">&#128279;</button>' +
+                    '<button class="action-btn" onclick="shareSong(\'' + s.id + '\',\'' + esc(s.title).replace(/'/g,'') + '\',\'' + esc(s.artist || '').replace(/'/g,'') + '\',\'' + esc(s.cover_art||'').replace(/'/g,'') + '\')" title="Share">&#128279;</button>' +
                     '</div>' +
                     '<button class="row-play" onclick="playSongAtIndex(' + i + ')">▶</button>' +
                     '</div>';
@@ -393,10 +393,16 @@
         } catch(e) { console.log('Like error:', e); }
     }
 
-    function shareSong(title, artist) {
-        var text = 'Check out "' + title + '" by ' + (artist || 'Unknown') + ' on 8BFR Music Network! #8BFR';
-        if (navigator.share) navigator.share({ title: title, text: text, url: location.href });
-        else navigator.clipboard.writeText(text).then(function(){ alert('Link copied!'); });
+    function shareSong(id, title, artist, cover) {
+        var desc = 'Listen to "' + title + '" by ' + (artist || 'Unknown') + ' on 8BFR';
+        if (window.Share) {
+            Share.song(id, title + ' — ' + (artist || 'Unknown'), desc, cover || '');
+        } else {
+            // Fallback while share-kit.js loads
+            var text = desc + ' #8BFR';
+            if (navigator.share) navigator.share({ title: title, text: text, url: 'https://8bfr.com/song.html?id='+id }).catch(function(){});
+            else navigator.clipboard.writeText('https://8bfr.com/song.html?id='+id).then(function(){ alert('Link copied!'); });
+        }
     }
 
     function fmt(n) { return n >= 1000000 ? (n/1000000).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(1)+'K' : n.toString(); }
