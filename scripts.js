@@ -1,8 +1,10 @@
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 // 8BFR GLOBAL PERKS CHECK
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 // Load persistent radio player on every page
 (function(){var s=document.createElement('script');s.src='radio-player.js';s.defer=true;document.head.appendChild(s);})();
+// Load capture/screenshot protection on every page
+(function(){var s=document.createElement('script');s.src='capture-protect.js';s.defer=true;document.head.appendChild(s);})();
 
 
 
@@ -217,7 +219,7 @@ body.menu-open #pageWrap{ margin-right:280px; }\
 #fab svg{ display:block; }\
 #menu-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.25); backdrop-filter:blur(2px); z-index:9990; opacity:0; pointer-events:none; transition:opacity .2s ease; }\
 #menu-backdrop.open{ opacity:1; pointer-events:auto; }\
-#menu{ position:fixed; top:72px; right:0; width:min(92vw,280px); max-height:calc(100vh - 80px); overflow-y:scroll; overflow-x:hidden; z-index:9998; transform:translateX(115%); transition:transform .25s ease; backdrop-filter:blur(12px); background:var(--glass); border:1px solid var(--ring); border-radius:14px 0 0 14px; box-shadow:0 14px 32px rgba(0,0,0,.6); padding:8px 7px 60px; -webkit-overflow-scrolling:touch; }\
+#menu{ position:fixed; top:72px; right:0; width:min(92vw,280px); max-height:calc(100vh - 80px); max-height:calc(100dvh - 80px); overflow-y:auto; overflow-x:hidden; z-index:9998; transform:translateX(115%); transition:transform .25s ease; backdrop-filter:blur(12px); background:var(--glass); border:1px solid var(--ring); border-radius:14px 0 0 14px; box-shadow:0 14px 32px rgba(0,0,0,.6); padding:8px 7px 120px; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; touch-action:pan-y; }\
 #menu.open{ transform:translateX(0); }\
 #menu h2{ font-size:.85rem; text-transform:uppercase; letter-spacing:.12em; opacity:.9; margin:2px 6px 4px; }\
 .menu-group{ margin:4px 0 6px; padding:4px 4px 6px; border-radius:10px; border:1px solid rgba(139,92,246,.48); background:rgba(10,2,26,.85); }\
@@ -498,9 +500,17 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
     var menu = document.getElementById("menu");
     var backdrop = document.getElementById("menu-backdrop");
     var menuTimer = null;
+    var savedScrollY = 0;
 
     function openMenu() {
       if (!menu || !backdrop) return;
+      // Lock body scroll so the page underneath doesn't scroll while menu is open
+      savedScrollY = window.scrollY || window.pageYOffset || 0;
+      document.body.style.position = 'fixed';
+      document.body.style.top = '-' + savedScrollY + 'px';
+      document.body.style.left = '0';
+      document.body.style.right = '0';
+      document.body.style.width = '100%';
       menu.classList.add("open"); backdrop.classList.add("open");
       document.body.classList.add("menu-open"); resetMenuTimer();
       var cw = document.getElementById("carrieWrap");
@@ -512,6 +522,13 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
       if (!menu || !backdrop) return;
       menu.classList.remove("open"); backdrop.classList.remove("open");
       document.body.classList.remove("menu-open"); clearTimeout(menuTimer); menuTimer = null;
+      // Restore body scroll
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      document.body.style.width = '';
+      window.scrollTo(0, savedScrollY);
       var cw = document.getElementById("carrieWrap");
       var bs = document.getElementById("bubble-top-single");
       if (cw) { cw.style.right = "16px"; cw.style.left = ""; cw.style.top = ""; cw.style.bottom = ""; }
