@@ -1,276 +1,343 @@
-// api/share.js
 // ═══════════════════════════════════════════════════════════
-// 8BFR SHARE PREVIEW SERVICE
+// 8BFR SHARE KIT
 // ═══════════════════════════════════════════════════════════
-// Server-renders Open Graph meta tags for social media previews.
-// Deploy to Vercel at /api/share.js - accessible at:
-//   https://8bfr-api.vercel.app/api/share?type=post&id=<uuid>
-//   https://8bfr-api.vercel.app/api/share?type=song&id=<uuid>
-//   https://8bfr-api.vercel.app/api/share?type=profile&id=<uuid>
-//   https://8bfr-api.vercel.app/api/share?type=playlist&id=<uuid>
+// Universal share modal for any content type.
 //
-// - Scrapers (FB, Twitter, WhatsApp, Discord, iMessage, Slack, etc.)
-//   get HTML with real OG tags pre-filled from Supabase data.
-// - Real browsers get instantly redirected to the actual page on 8bfr.com.
+// USAGE from any page:
+//   window.Share.open({
+//     type: 'post' | 'song' | 'profile' | 'playlist' | 'page' | 'group' | 'custom',
+//     id: '...',           // content ID
+//     title: '...',        // display title
+//     description: '...',  // preview text
+//     image: '...',        // optional preview image URL
+//     url: '...'           // optional - auto-built from type+id if omitted
+//   });
+//
+// Auto-builds correct URL for each content type:
+//   post     -> https://8bfr.com/post.html?id=<id>
+//   song     -> https://8bfr.com/song.html?id=<id>
+//   profile  -> https://8bfr.com/profile.html?id=<id>
+//   playlist -> https://8bfr.com/playlist-details.html?id=<id>
+//   page     -> https://8bfr.com/page.html?id=<id>
+//   group    -> https://8bfr.com/group.html?id=<id>
 // ═══════════════════════════════════════════════════════════
 
-const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
-
-// Scraper User-Agent patterns — if any match, we serve HTML with OG tags
-// If none match, we assume it's a human and redirect to the real page
-const SCRAPER_UA = /facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|TelegramBot|Slackbot|Discordbot|bingbot|Googlebot|Applebot|SkypeUriPreview|pinterest|vkshare|redditbot|Snapchat|tumblr|embed|preview|curl|wget|Mastodon|fedi|Bluesky|Threads|SocialFlow/i;
-
-function escapeHtml(s) {
-  if (!s) return '';
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-async function supabaseQuery(table, params) {
-  const qs = Object.entries(params).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
-  const url = `${SUPABASE_URL}/rest/v1/${table}?${qs}`;
-  const res = await fetch(url, {
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`
-    }
-  });
-  if (!res.ok) return null;
-  const data = await res.json();
-  return Array.isArray(data) && data.length ? data[0] : null;
-}
-
-async function getPost(id) {
-  const post = await supabaseQuery('posts', {
-    select: 'id,user_id,text,media,media_type,likes,comment_count,reshares,is_private,hidden,created_at',
-    id: `eq.${id}`,
-    limit: 1
-  });
-  if (!post || post.is_private || post.hidden) return null;
-  const author = post.user_id ? await supabaseQuery('profiles', {
-    select: 'user_id,username,display_name,avatar_url,verified_artist',
-    user_id: `eq.${post.user_id}`,
-    limit: 1
-  }) : null;
-
-  // Build OG image - prefer post media, fallback to YouTube thumbnail, fallback to 8bfr logo
-  let ogImage = '';
-  if (post.media) {
-    if (post.media_type === 'image' || post.media_type === 'photo' || /\.(jpg|jpeg|png|gif|webp)/i.test(post.media)) {
-      ogImage = post.media;
-    } else {
-      const yt = post.media.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/);
-      if (yt) ogImage = `https://img.youtube.com/vi/${yt[1]}/maxresdefault.jpg`;
-    }
-  }
-  // Also check text field for YouTube URL
-  if (!ogImage && post.text) {
-    const yt = post.text.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/);
-    if (yt) ogImage = `https://img.youtube.com/vi/${yt[1]}/maxresdefault.jpg`;
-  }
-
-  const authorName = author ? (author.display_name || author.username || 'User') : 'Someone';
-  const title = `${authorName} on 8BFR Music Network`;
-  const description = (post.text || 'Check out this post on 8BFR Music Network').substring(0, 280);
-
-  return {
-    title,
-    description,
-    image: ogImage || 'https://8bfr.com/assets/final-image.jpg',
-    canonical: `https://8bfr.com/post.html?id=${id}`,
-    type: 'article',
-    author: authorName
-  };
-}
-
-async function getSong(id) {
-  const song = await supabaseQuery('songs', {
-    select: 'id,title,artist,cover_art,song_url,explicit,uploaded_by,dummy_id',
-    id: `eq.${id}`,
-    limit: 1
-  });
-  if (!song) return null;
-
-  let artist = song.artist || 'Unknown';
-  if (!song.artist && song.uploaded_by) {
-    const p = await supabaseQuery('profiles', {
-      select: 'username,display_name',
-      user_id: `eq.${song.uploaded_by}`,
-      limit: 1
-    });
-    if (p) artist = p.display_name || p.username || 'Unknown';
-  }
-
-  const title = `${song.title || 'Song'} — ${artist}`;
-  const description = `Listen to "${song.title}" by ${artist} on 8BFR Music Network. Stream free with unlimited play.`;
-
-  return {
-    title,
-    description,
-    image: song.cover_art || 'https://8bfr.com/assets/final-image.jpg',
-    canonical: `https://8bfr.com/song.html?id=${id}`,
-    type: 'music.song',
-    audioUrl: song.song_url
-  };
-}
-
-async function getProfile(id) {
-  const profile = await supabaseQuery('profiles', {
-    select: 'user_id,username,display_name,avatar_url,bio,role,verified_artist',
-    user_id: `eq.${id}`,
-    limit: 1
-  });
-  if (!profile) return null;
-
-  const name = profile.display_name || profile.username || 'User';
-  const title = `${name} on 8BFR Music Network`;
-  const description = profile.bio ? profile.bio.substring(0, 280) : `Follow ${name} on 8BFR - music, artists, community.`;
-
-  return {
-    title,
-    description,
-    image: profile.avatar_url || 'https://8bfr.com/assets/final-image.jpg',
-    canonical: `https://8bfr.com/profile.html?id=${id}`,
-    type: 'profile'
-  };
-}
-
-async function getPlaylist(id) {
-  const playlist = await supabaseQuery('playlists', {
-    select: 'id,name,description,cover_url,user_id,visibility',
-    id: `eq.${id}`,
-    limit: 1
-  });
-  if (!playlist) return null;
-
-  return {
-    title: `${playlist.name || 'Playlist'} on 8BFR`,
-    description: playlist.description || 'A music playlist on 8BFR Music Network',
-    image: playlist.cover_url || 'https://8bfr.com/assets/final-image.jpg',
-    canonical: `https://8bfr.com/playlist-details.html?id=${id}`,
-    type: 'music.playlist'
-  };
-}
-
-function renderHTML(meta, opts = {}) {
-  const t = escapeHtml(meta.title);
-  const d = escapeHtml(meta.description);
-  const img = escapeHtml(meta.image);
-  const url = escapeHtml(meta.canonical);
-  const type = escapeHtml(meta.type || 'website');
-
-  return `<!DOCTYPE html>
-<html lang="en" prefix="og: https://ogp.me/ns#">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${t}</title>
-<link rel="icon" href="https://8bfr.com/assets/images/favicon.png">
-
-<!-- Open Graph (Facebook, LinkedIn, WhatsApp, iMessage, Discord, Slack) -->
-<meta property="og:type" content="${type}">
-<meta property="og:title" content="${t}">
-<meta property="og:description" content="${d}">
-<meta property="og:image" content="${img}">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta property="og:url" content="${url}">
-<meta property="og:site_name" content="8BFR Music Network">
-
-<!-- Twitter / X -->
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="${t}">
-<meta name="twitter:description" content="${d}">
-<meta name="twitter:image" content="${img}">
-<meta name="twitter:site" content="@8bfr">
-
-<!-- Canonical -->
-<link rel="canonical" href="${url}">
-
-<!-- Fallback redirect for browsers that somehow don't run JS -->
-<meta http-equiv="refresh" content="2; url=${url}">
-
-<style>
-*{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:system-ui,-apple-system,sans-serif;background:linear-gradient(#0b0014,#000);color:#eae6ff;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem;text-align:center;}
-.box{max-width:520px;}
-.cover{width:100%;max-width:380px;aspect-ratio:1;border-radius:16px;background:linear-gradient(135deg,#7c3aed,#a855f7);overflow:hidden;margin:0 auto 1.5rem;display:flex;align-items:center;justify-content:center;font-size:4rem;}
-.cover img{width:100%;height:100%;object-fit:cover;}
-h1{font-size:1.4rem;font-weight:800;margin-bottom:.5rem;color:#eae6ff;}
-.desc{color:rgba(234,230,255,.75);font-size:.95rem;margin-bottom:1.5rem;line-height:1.55;}
-.btn{display:inline-block;background:#7c3aed;color:#fff;padding:.75rem 1.5rem;border-radius:10px;font-weight:700;text-decoration:none;font-size:.95rem;box-shadow:0 8px 20px rgba(124,58,237,.4);}
-.btn:hover{background:#6d28d9;}
-.note{margin-top:1rem;font-size:.78rem;color:rgba(168,85,247,.6);}
-.spinner{width:32px;height:32px;border:3px solid rgba(124,58,237,.25);border-top-color:#a855f7;border-radius:50%;animation:spin .7s linear infinite;margin:.75rem auto 0;}
-@keyframes spin{to{transform:rotate(360deg);}}
-</style>
-</head>
-<body>
-<div class="box">
-<div class="cover"><img src="${img}" alt="${t}" onerror="this.parentNode.innerHTML='🎵';"></div>
-<h1>${t}</h1>
-<div class="desc">${d}</div>
-<a href="${url}" class="btn" id="openBtn">Open on 8BFR →</a>
-<div class="note">Redirecting…</div>
-<div class="spinner"></div>
-</div>
-
-<script>
-// Instant redirect for real browsers (scrapers don't run JS, so they just see the OG tags above)
 (function(){
-  var url=${JSON.stringify(meta.canonical)};
-  // Tiny delay so the OG meta parser (in case the scraper does run JS like some chat apps) gets a chance
-  setTimeout(function(){ window.location.replace(url); }, 50);
+  if (window.Share) return;
+
+  // Direct 8bfr.com URLs - used only for in-app display (e.g. Copy Link shows clean URL)
+  var DIRECT_BASE = 'https://8bfr.com';
+  var DIRECT_MAP = {
+    post:     '/post.html?id=',
+    song:     '/song.html?id=',
+    profile:  '/profile.html?id=',
+    playlist: '/playlist-details.html?id=',
+    page:     '/page.html?id=',
+    group:    '/group.html?id='
+  };
+
+  // Vercel share endpoint - serves Open Graph tags to scrapers, redirects humans
+  // This is the URL we ACTUALLY share because it gives proper previews.
+  // post/song/profile/playlist are supported on Vercel; page/group fall back to direct.
+  var SHARE_API = 'https://8bfr-api.vercel.app/api/share';
+  var SHARE_API_TYPES = { post:1, song:1, profile:1, playlist:1 };
+
+  function buildDirectUrl(opts) {
+    if (opts.url) return opts.url;
+    var path = DIRECT_MAP[opts.type];
+    if (!path) return location.href;
+    return DIRECT_BASE + path + encodeURIComponent(opts.id || '');
+  }
+
+  function buildShareUrl(opts) {
+    // For post/song/profile/playlist -> use Vercel share API (gets OG previews)
+    // For page/group/custom -> use direct URL (no preview API yet for those types)
+    if (opts.url) return opts.url;
+    if (SHARE_API_TYPES[opts.type] && opts.id) {
+      return SHARE_API + '?type=' + opts.type + '&id=' + encodeURIComponent(opts.id);
+    }
+    return buildDirectUrl(opts);
+  }
+
+  // Kept for backward compatibility
+  function buildUrl(opts) { return buildShareUrl(opts); }
+
+  function esc(s) {
+    if (!s) return '';
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  // ────────── STYLES ──────────
+  function injectStyles() {
+    if (document.getElementById('8bfrShareStyles')) return;
+    var style = document.createElement('style');
+    style.id = '8bfrShareStyles';
+    style.textContent = '' +
+      '#shareModal{position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.85);display:none;align-items:flex-end;justify-content:center;padding:0;animation:shareFadeIn .2s ease;}' +
+      '#shareModal.show{display:flex;}' +
+      '@keyframes shareFadeIn{from{opacity:0;}to{opacity:1;}}' +
+      '@keyframes shareSlideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}' +
+      '.share-sheet{background:rgba(12,6,24,0.98);border-top:1px solid rgba(124,58,237,0.5);border-radius:20px 20px 0 0;padding:1.25rem 1.25rem 2rem;max-width:520px;width:100%;max-height:85vh;overflow-y:auto;animation:shareSlideUp .25s ease;-webkit-overflow-scrolling:touch;}' +
+      '@media(min-width:640px){.share-sheet{margin-bottom:auto;margin-top:auto;border-radius:20px;max-height:90vh;}#shareModal{align-items:center;}}' +
+      '.share-grip{width:40px;height:4px;background:rgba(168,85,247,0.4);border-radius:2px;margin:0 auto 1rem;}' +
+      '.share-head{display:flex;align-items:center;gap:0.75rem;margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:1px solid rgba(124,58,237,0.2);}' +
+      '.share-preview-img{width:60px;height:60px;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#a855f7);flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:1.5rem;}' +
+      '.share-preview-img img{width:100%;height:100%;object-fit:cover;}' +
+      '.share-preview-info{flex:1;min-width:0;}' +
+      '.share-preview-title{font-weight:800;font-size:0.95rem;color:#eae6ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
+      '.share-preview-desc{font-size:0.78rem;color:rgba(168,85,247,0.75);margin-top:0.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
+      '.share-close{background:none;border:none;color:rgba(234,230,255,0.6);font-size:1.5rem;cursor:pointer;width:32px;height:32px;border-radius:50%;flex-shrink:0;transition:background 0.15s;}' +
+      '.share-close:hover{background:rgba(124,58,237,0.2);color:#eae6ff;}' +
+      '.share-url-row{display:flex;gap:0.5rem;margin-bottom:1.25rem;}' +
+      '.share-url{flex:1;padding:0.6rem 0.85rem;background:rgba(0,0,0,0.4);border:1px solid rgba(124,58,237,0.35);border-radius:8px;color:#eae6ff;font-size:0.82rem;outline:none;font-family:ui-monospace,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
+      '.share-copy-btn{background:#7c3aed;color:#fff;border:none;padding:0 1rem;border-radius:8px;font-weight:700;font-size:0.85rem;cursor:pointer;flex-shrink:0;transition:background 0.15s;}' +
+      '.share-copy-btn:hover{background:#6d28d9;}' +
+      '.share-copy-btn.copied{background:#059669;}' +
+      '.share-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0.75rem;margin-bottom:1.25rem;}' +
+      '@media(min-width:420px){.share-grid{grid-template-columns:repeat(5,1fr);}}' +
+      '.share-btn{display:flex;flex-direction:column;align-items:center;gap:0.35rem;padding:0.6rem 0.25rem;border-radius:12px;background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.25);cursor:pointer;text-decoration:none;color:#eae6ff;font-size:0.7rem;font-weight:600;transition:all 0.15s;}' +
+      '.share-btn:hover{background:rgba(124,58,237,0.2);border-color:rgba(124,58,237,0.5);transform:translateY(-1px);}' +
+      '.share-btn-icon{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:800;color:#fff;}' +
+      '.si-native{background:linear-gradient(135deg,#7c3aed,#a855f7);}' +
+      '.si-x{background:#000;}' +
+      '.si-fb{background:#1877f2;}' +
+      '.si-wa{background:#25d366;}' +
+      '.si-msgr{background:linear-gradient(135deg,#0078ff,#00c6ff,#ff0099);}' +
+      '.si-tg{background:#26a5e4;}' +
+      '.si-sms{background:#34d399;}' +
+      '.si-email{background:#ef4444;}' +
+      '.si-reddit{background:#ff4500;}' +
+      '.si-linkedin{background:#0a66c2;}' +
+      '.si-qr{background:#eab308;color:#000 !important;}' +
+      '.share-qr-modal{display:none;position:fixed;inset:0;z-index:1000000;background:rgba(0,0,0,0.92);align-items:center;justify-content:center;padding:1rem;}' +
+      '.share-qr-modal.show{display:flex;}' +
+      '.share-qr-box{background:#fff;padding:1.5rem;border-radius:16px;text-align:center;max-width:320px;width:100%;}' +
+      '.share-qr-box h3{color:#0c0618;font-size:1rem;font-weight:800;margin-bottom:0.75rem;}' +
+      '.share-qr-box img{width:100%;max-width:260px;height:auto;border-radius:8px;}' +
+      '.share-qr-box p{color:#666;font-size:0.75rem;margin-top:0.5rem;word-break:break-all;}' +
+      '.share-qr-close{margin-top:1rem;background:#7c3aed;color:#fff;border:none;padding:0.5rem 1.25rem;border-radius:8px;font-weight:700;cursor:pointer;}' +
+      '.share-toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:rgba(52,211,153,0.95);color:#0c0618;padding:0.65rem 1.25rem;border-radius:10px;font-weight:700;font-size:0.85rem;z-index:1000001;opacity:0;transition:opacity 0.25s;pointer-events:none;}' +
+      '.share-toast.show{opacity:1;}';
+    document.head.appendChild(style);
+  }
+
+  // ────────── BUILD MODAL ──────────
+  function buildModal() {
+    if (document.getElementById('shareModal')) return;
+    injectStyles();
+    var modal = document.createElement('div');
+    modal.id = 'shareModal';
+    modal.innerHTML =
+      '<div class="share-sheet">' +
+        '<div class="share-grip"></div>' +
+        '<div class="share-head">' +
+          '<div class="share-preview-img" id="sharePreviewImg">🔗</div>' +
+          '<div class="share-preview-info">' +
+            '<div class="share-preview-title" id="sharePreviewTitle">Share</div>' +
+            '<div class="share-preview-desc" id="sharePreviewDesc"></div>' +
+          '</div>' +
+          '<button class="share-close" onclick="Share.close()">✕</button>' +
+        '</div>' +
+        '<div class="share-url-row">' +
+          '<input class="share-url" id="shareUrl" readonly onclick="this.select();">' +
+          '<button class="share-copy-btn" id="shareCopyBtn" onclick="Share.copyLink()">Copy</button>' +
+        '</div>' +
+        '<div class="share-grid" id="shareGrid"></div>' +
+      '</div>';
+    modal.addEventListener('click', function(e){ if (e.target === modal) Share.close(); });
+    document.body.appendChild(modal);
+
+    // QR modal
+    var qr = document.createElement('div');
+    qr.id = 'shareQrModal';
+    qr.className = 'share-qr-modal';
+    qr.innerHTML =
+      '<div class="share-qr-box">' +
+        '<h3>Scan to open</h3>' +
+        '<img id="shareQrImg" alt="QR code">' +
+        '<p id="shareQrUrl"></p>' +
+        '<button class="share-qr-close" onclick="Share.closeQr()">Close</button>' +
+      '</div>';
+    qr.addEventListener('click', function(e){ if (e.target === qr) Share.closeQr(); });
+    document.body.appendChild(qr);
+
+    // Toast
+    var toast = document.createElement('div');
+    toast.id = 'shareToast';
+    toast.className = 'share-toast';
+    document.body.appendChild(toast);
+  }
+
+  function showToast(msg) {
+    var t = document.getElementById('shareToast');
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._hideTimer);
+    t._hideTimer = setTimeout(function(){ t.classList.remove('show'); }, 2000);
+  }
+
+  // ────────── PLATFORM BUTTONS ──────────
+  function buildButtons(opts, url, text) {
+    var encUrl = encodeURIComponent(url);
+    var encText = encodeURIComponent(text);
+    var encTitle = encodeURIComponent(opts.title || '8BFR Music Network');
+
+    var buttons = [];
+
+    // Native share (if supported — mobile usually, desktop Safari)
+    if (navigator.share) {
+      buttons.push({
+        label: 'Share', icon: 'si-native', content: '📤',
+        onclick: 'Share.nativeShare()'
+      });
+    }
+
+    buttons = buttons.concat([
+      { label: 'X', icon: 'si-x', content: '𝕏',
+        href: 'https://twitter.com/intent/tweet?text=' + encText + '&url=' + encUrl },
+      { label: 'Facebook', icon: 'si-fb', content: 'f',
+        href: 'https://www.facebook.com/sharer/sharer.php?u=' + encUrl },
+      { label: 'WhatsApp', icon: 'si-wa', content: 'W',
+        href: 'https://wa.me/?text=' + encText + '%20' + encUrl },
+      { label: 'Messenger', icon: 'si-msgr', content: 'M',
+        href: 'https://www.facebook.com/dialog/send?link=' + encUrl + '&app_id=8bfr&redirect_uri=' + encUrl },
+      { label: 'Telegram', icon: 'si-tg', content: '✈',
+        href: 'https://t.me/share/url?url=' + encUrl + '&text=' + encText },
+      { label: 'SMS', icon: 'si-sms', content: '💬',
+        href: 'sms:?body=' + encText + '%20' + encUrl },
+      { label: 'Email', icon: 'si-email', content: '@',
+        href: 'mailto:?subject=' + encTitle + '&body=' + encText + '%20' + encUrl },
+      { label: 'Reddit', icon: 'si-reddit', content: 'R',
+        href: 'https://reddit.com/submit?url=' + encUrl + '&title=' + encTitle },
+      { label: 'LinkedIn', icon: 'si-linkedin', content: 'in',
+        href: 'https://www.linkedin.com/sharing/share-offsite/?url=' + encUrl },
+      { label: 'QR Code', icon: 'si-qr', content: '▦',
+        onclick: 'Share.showQr()' }
+    ]);
+
+    var html = '';
+    buttons.forEach(function(b){
+      if (b.href) {
+        html += '<a class="share-btn" href="' + b.href + '" target="_blank" rel="noopener">' +
+                  '<div class="share-btn-icon ' + b.icon + '">' + b.content + '</div>' +
+                  '<span>' + b.label + '</span>' +
+                '</a>';
+      } else {
+        html += '<button class="share-btn" onclick="' + b.onclick + '">' +
+                  '<div class="share-btn-icon ' + b.icon + '">' + b.content + '</div>' +
+                  '<span>' + b.label + '</span>' +
+                '</button>';
+      }
+    });
+    document.getElementById('shareGrid').innerHTML = html;
+  }
+
+  // ────────── PUBLIC API ──────────
+  var currentShare = null;
+
+  window.Share = {
+    open: function(opts) {
+      opts = opts || {};
+      buildModal();
+      currentShare = opts;
+
+      var shareUrl = buildShareUrl(opts);    // has OG previews (Vercel)
+      var displayUrl = buildDirectUrl(opts);  // clean URL for Copy Link field
+      var title = opts.title || '8BFR Music Network';
+      var description = opts.description || 'Check this out on 8BFR!';
+      var text = opts.shareText || ('🎵 ' + title);
+
+      // Fill preview
+      document.getElementById('sharePreviewTitle').textContent = title;
+      document.getElementById('sharePreviewDesc').textContent = description.length > 80 ? description.substring(0,80)+'...' : description;
+
+      var imgEl = document.getElementById('sharePreviewImg');
+      if (opts.image) {
+        imgEl.innerHTML = '<img src="' + esc(opts.image) + '" alt="" onerror="this.parentNode.innerHTML=\'🔗\';">';
+      } else {
+        var fallbackIcons = { post:'📰', song:'🎵', profile:'👤', playlist:'📀', page:'📄', group:'👥' };
+        imgEl.innerHTML = fallbackIcons[opts.type] || '🔗';
+      }
+
+      // Display the CLEAN url but stash the PREVIEW url for social buttons
+      document.getElementById('shareUrl').value = displayUrl;
+      document.getElementById('shareUrl').dataset.shareUrl = shareUrl;
+      document.getElementById('shareCopyBtn').textContent = 'Copy';
+      document.getElementById('shareCopyBtn').classList.remove('copied');
+
+      buildButtons(opts, shareUrl, text);
+
+      document.getElementById('shareModal').classList.add('show');
+    },
+
+    close: function() {
+      var m = document.getElementById('shareModal');
+      if (m) m.classList.remove('show');
+      currentShare = null;
+    },
+
+    copyLink: function() {
+      var input = document.getElementById('shareUrl');
+      var btn = document.getElementById('shareCopyBtn');
+      if (!input) return;
+      // Use the preview-enabled URL if we stashed one, else fall back to displayed
+      var url = input.dataset.shareUrl || input.value;
+
+      function success(){
+        btn.textContent = '✓ Copied';
+        btn.classList.add('copied');
+        showToast('📋 Link copied! Social previews will work when shared.');
+        setTimeout(function(){ btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2500);
+      }
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(success).catch(function(){
+          // Fallback - temporarily swap displayed value to the share url
+          var orig = input.value; input.value = url;
+          input.select(); document.execCommand('copy'); success();
+          input.value = orig;
+        });
+      } else {
+        var orig = input.value; input.value = url;
+        input.select(); document.execCommand('copy'); success();
+        input.value = orig;
+      }
+    },
+
+    nativeShare: function() {
+      if (!currentShare || !navigator.share) return;
+      var url = buildShareUrl(currentShare);
+      var title = currentShare.title || '8BFR Music Network';
+      var text = currentShare.description || ('Check this out on 8BFR!');
+      navigator.share({ title: title, text: text, url: url }).then(function(){
+        Share.close();
+      }).catch(function(e){
+        if (e.name !== 'AbortError') showToast('Share failed — try another option');
+      });
+    },
+
+    showQr: function() {
+      if (!currentShare) return;
+      var url = buildShareUrl(currentShare);
+      var qrSrc = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=' + encodeURIComponent(url) + '&bgcolor=ffffff&color=7c3aed&qzone=1';
+      document.getElementById('shareQrImg').src = qrSrc;
+      document.getElementById('shareQrUrl').textContent = url;
+      document.getElementById('shareQrModal').classList.add('show');
+    },
+
+    closeQr: function() {
+      document.getElementById('shareQrModal').classList.remove('show');
+    },
+
+    // Quick shortcuts for common types (fewer lines to write in calling code)
+    post:     function(id, title, description, image){ Share.open({type:'post',     id:id, title:title, description:description, image:image}); },
+    song:     function(id, title, description, image){ Share.open({type:'song',     id:id, title:title, description:description, image:image}); },
+    profile:  function(id, title, description, image){ Share.open({type:'profile',  id:id, title:title, description:description, image:image}); },
+    playlist: function(id, title, description, image){ Share.open({type:'playlist', id:id, title:title, description:description, image:image}); },
+    page:     function(id, title, description, image){ Share.open({type:'page',     id:id, title:title, description:description, image:image}); },
+    group:    function(id, title, description, image){ Share.open({type:'group',    id:id, title:title, description:description, image:image}); }
+  };
 })();
-</script>
-</body>
-</html>`;
-}
-
-export default async function handler(req, res) {
-  const { type, id } = req.query;
-
-  // CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  if (req.method === 'OPTIONS') return res.status(200).end();
-
-  if (!type || !id) {
-    return res.status(400).send('Missing type or id parameter. Usage: /api/share?type=post&id=<uuid>');
-  }
-
-  try {
-    let meta = null;
-    switch (type) {
-      case 'post':     meta = await getPost(id); break;
-      case 'song':     meta = await getSong(id); break;
-      case 'profile':  meta = await getProfile(id); break;
-      case 'playlist': meta = await getPlaylist(id); break;
-      default: return res.status(400).send('Unknown type. Valid: post, song, profile, playlist');
-    }
-
-    if (!meta) {
-      // Not found - still return 200 with generic OG so the shared link at least shows SOMETHING
-      meta = {
-        title: '8BFR Music Network',
-        description: 'Discover music, artists, and community on 8BFR.',
-        image: 'https://8bfr.com/assets/final-image.jpg',
-        canonical: 'https://8bfr.com',
-        type: 'website'
-      };
-    }
-
-    // Cache at the CDN edge for 5 min - enough for scrapers to re-fetch updated posts
-    res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=3600');
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    return res.status(200).send(renderHTML(meta));
-  } catch (e) {
-    console.error('Share handler error:', e);
-    return res.status(500).send('Share service error: ' + (e.message || 'unknown'));
-  }
-}
