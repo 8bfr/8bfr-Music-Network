@@ -5,6 +5,8 @@
 (function(){var s=document.createElement('script');s.src='radio-player.js';s.defer=true;document.head.appendChild(s);})();
 // Load capture/screenshot protection on every page
 (function(){var s=document.createElement('script');s.src='capture-protect.js';s.defer=true;document.head.appendChild(s);})();
+// Load unified share kit on every page
+(function(){var s=document.createElement('script');s.src='share-kit.js';s.defer=true;document.head.appendChild(s);})();
 
 
 
