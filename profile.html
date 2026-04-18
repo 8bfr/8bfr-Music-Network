@@ -414,7 +414,15 @@
     if(op){op.reshares=(op.reshares||0)+1;await db.from('posts').update({reshares:op.reshares}).eq('id',id);}
     alert('Reshared!');}catch(e){alert(e.message);}
   };
-  window.sharePost=function(id){var url=location.origin+'/feed.html?post='+id;if(navigator.share)navigator.share({title:'8BFR Post',url:url}).catch(function(){});else navigator.clipboard.writeText(url).then(function(){alert('Link copied!');}).catch(function(){alert(url);});};
+  window.sharePost=function(id){
+    var p=allPosts?allPosts.find(function(x){return x.id===id;}):null;
+    var authorName=(profileData&&(profileData.display_name||profileData.username))||'User';
+    var title=authorName+' on 8BFR';
+    var desc=p&&p.text?p.text.substring(0,160):'Check out this post';
+    var img=p&&p.media_type==='image'?p.media:(p&&p.media_type==='video'&&p.media?(p.media.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)?'https://img.youtube.com/vi/'+RegExp.$1+'/hqdefault.jpg':''):'');
+    if(window.Share){Share.post(id,title,desc,img);}
+    else{var url='https://8bfr.com/post.html?id='+id;if(navigator.share)navigator.share({title:title,url:url}).catch(function(){});else navigator.clipboard.writeText(url).then(function(){alert('Link copied!');}).catch(function(){alert(url);});}
+  };
   window.addToStory=async function(id){
     if(!currentUser){alert('Sign in');return;}var p=allPosts.find(function(x){return x.id===id;});if(!p)return;
     if(p.is_private||p.hidden){alert('Private posts cannot be added to your story.');return;}
@@ -1779,25 +1787,28 @@ document.getElementById('tipModal').addEventListener('click',function(e){if(e.ta
 })();
 
 function shareProfile(){
-    var name=profileData?profileData.display_name||profileData.username||'':'';
-    var url=window.location.href;
-    var text='Check out '+name+' on 8BFR Music Network! '+url;
-    if(navigator.share){
-        navigator.share({title:name+' on 8BFR',text:text,url:url}).catch(function(){});
-    }else{
-        navigator.clipboard.writeText(text).then(function(){alert('Profile link copied!');}).catch(function(){
-            var ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();alert('Profile link copied!');
-        });
+    if(!profileData)return;
+    var name=profileData.display_name||profileData.username||'User';
+    var desc=profileData.bio||('Check out '+name+' on 8BFR');
+    if(window.Share){
+        Share.profile(profileData.user_id, name+' on 8BFR', desc, profileData.avatar_url||'');
+    } else {
+        var url='https://8bfr.com/profile.html?id='+profileData.user_id;
+        var text='Check out '+name+' on 8BFR Music Network! '+url;
+        if(navigator.share){navigator.share({title:name+' on 8BFR',text:text,url:url}).catch(function(){});}
+        else{navigator.clipboard.writeText(text).then(function(){alert('Profile link copied!');}).catch(function(){alert(url);});}
     }
 }
 
 function shareSongFromProfile(title,artist){
-    var text='Check out "'+title+'" by '+(artist||'Unknown')+' on 8BFR Music Network!';
-    var url=window.location.href;
-    if(navigator.share){
-        navigator.share({title:title,text:text,url:url}).catch(function(){});
-    }else{
-        navigator.clipboard.writeText(text+' '+url).then(function(){alert('Song link copied!');}).catch(function(){});
+    if(window.Share){
+        // Song ID not available at this callsite - fall back to title/artist share
+        Share.open({type:'custom',url:location.href,title:title+' — '+(artist||'Unknown'),description:'Listen on 8BFR'});
+    } else {
+        var text='Check out "'+title+'" by '+(artist||'Unknown')+' on 8BFR Music Network!';
+        var url=window.location.href;
+        if(navigator.share){navigator.share({title:title,text:text,url:url}).catch(function(){});}
+        else{navigator.clipboard.writeText(text+' '+url).then(function(){alert('Song link copied!');}).catch(function(){});}
     }
 }
 
