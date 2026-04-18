@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Capture Overrides — 8BFR Owner Panel</title>
+<link rel="icon" href="assets/images/favicon.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Work Sans',system-ui,sans-serif;background:linear-gradient(#0b0014,#000);color:#eae6ff;min-height:100vh;padding-bottom:80px;}
+.header{background:rgba(15,0,30,0.9);border-bottom:1px solid rgba(124,58,237,0.5);padding:1rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
+.header a{color:#a855f7;text-decoration:none;font-weight:600;}
+.header h1{font-size:1.1rem;font-weight:800;}
+main{max-width:720px;margin:1.5rem auto;padding:0 1rem;}
+.card{background:rgba(12,6,24,0.85);border:1px solid rgba(124,58,237,0.4);border-radius:16px;padding:1.5rem;margin-bottom:1.25rem;}
+.card h2{color:#a855f7;font-size:1.15rem;font-weight:800;margin-bottom:0.5rem;}
+.info-box{background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.25);border-radius:10px;padding:.85rem 1rem;font-size:.85rem;color:rgba(234,230,255,.85);line-height:1.55;margin-bottom:1rem;}
+.form-group{margin-bottom:1rem;}
+.form-group label{display:block;font-size:0.82rem;font-weight:700;color:#a855f7;margin-bottom:0.35rem;}
+.form-input{width:100%;padding:0.6rem 0.85rem;background:rgba(0,0,0,0.3);border:1px solid rgba(124,58,237,.4);border-radius:8px;color:#eae6ff;font-size:0.9rem;outline:none;font-family:inherit;}
+.form-input:focus{border-color:#a855f7;}
+.form-input[list]{cursor:pointer;}
+.btn{background:#7c3aed;color:#fff;border:none;padding:0.65rem 1.25rem;border-radius:8px;font-weight:700;font-size:0.9rem;cursor:pointer;}
+.btn:hover{background:#6d28d9;}
+.btn-ghost{background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.4);color:#eae6ff;}
+.btn-red{background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#fca5a5;}
+.btn-red:hover{background:rgba(239,68,68,0.3);}
+.row{display:flex;align-items:center;justify-content:space-between;padding:0.85rem 0;border-bottom:1px solid rgba(124,58,237,0.15);gap:0.75rem;flex-wrap:wrap;}
+.row:last-child{border-bottom:none;}
+.row-info{flex:1;min-width:180px;}
+.row-name{font-weight:700;font-size:0.95rem;}
+.row-meta{font-size:0.75rem;color:rgba(168,85,247,0.75);margin-top:0.15rem;}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.68rem;font-weight:700;margin-left:0.35rem;}
+.tag-permanent{background:rgba(239,68,68,0.2);color:#fca5a5;border:1px solid rgba(239,68,68,0.4);}
+.tag-temporary{background:rgba(52,211,153,0.15);color:#4ade80;border:1px solid rgba(52,211,153,0.4);}
+.tag-expired{background:rgba(168,85,247,0.15);color:#a855f7;opacity:0.6;}
+.empty{text-align:center;padding:2rem 1rem;color:rgba(168,85,247,0.6);font-size:0.9rem;}
+.spinner{width:28px;height:28px;border:3px solid rgba(124,58,237,0.2);border-top-color:#a855f7;border-radius:50%;animation:spin 0.7s linear infinite;margin:1.5rem auto;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(52,211,153,0.95);color:#0c0618;padding:0.7rem 1.4rem;border-radius:10px;font-weight:700;font-size:0.88rem;z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none;}
+.toast.show{opacity:1;}
+.toast.error{background:rgba(239,68,68,0.95);color:#fff;}
+.quick-btns{display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.5rem;}
+.quick-btn{padding:0.45rem 0.85rem;border-radius:8px;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.4);color:#eae6ff;font-size:0.8rem;font-weight:600;cursor:pointer;}
+.quick-btn:hover{background:rgba(124,58,237,0.3);}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a href="owner-panel.html">← Panel</a>
+  <h1>🔓 Capture Overrides</h1>
+  <div style="width:60px;"></div>
+</div>
+
+<main>
+  <div id="gate" style="display:none;" class="card">
+    <div style="text-align:center;padding:2rem 1rem;">
+      <h2>🔒 Owner Access Required</h2>
+      <p style="margin-top:0.75rem;color:rgba(168,85,247,0.75);">Only the site owner can manage capture overrides.</p>
+    </div>
+  </div>
+
+  <div id="mainContent" style="display:none;">
+    <div class="card">
+      <h2>About Capture Protection</h2>
+      <div class="info-box">
+        By default, <b>all regular users</b> are blocked from right-click, DevTools, drag-save, and get warnings when they try to screenshot or record. This protects creator music, photos, and videos from casual theft.
+        <br><br>
+        <b>Staff (owner/co-owner/admin/mod/g7) are always exempt.</b> Grant overrides here for specific users who need temporary access — e.g. for promo, podcasts, or official reviews.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>➕ Grant New Override</h2>
+      <div class="form-group">
+        <label>User</label>
+        <input type="text" class="form-input" id="userSearch" list="userList" placeholder="Type username or display name...">
+        <datalist id="userList"></datalist>
+      </div>
+      <div class="form-group">
+        <label>Duration</label>
+        <div class="quick-btns">
+          <button class="quick-btn" onclick="setDuration(60)">1 hour</button>
+          <button class="quick-btn" onclick="setDuration(360)">6 hours</button>
+          <button class="quick-btn" onclick="setDuration(1440)">1 day</button>
+          <button class="quick-btn" onclick="setDuration(10080)">7 days</button>
+          <button class="quick-btn" onclick="setDuration(43200)">30 days</button>
+          <button class="quick-btn" onclick="setDuration(0)">Permanent</button>
+        </div>
+        <input type="text" class="form-input" id="durationDisplay" readonly style="margin-top:0.5rem;" value="Choose duration above">
+        <input type="hidden" id="durationMinutes" value="">
+      </div>
+      <div class="form-group">
+        <label>Reason (optional)</label>
+        <input type="text" class="form-input" id="reason" placeholder="e.g. Podcast interview, promo campaign...">
+      </div>
+      <button class="btn" onclick="grantOverride()">🔓 Grant Override</button>
+    </div>
+
+    <div class="card">
+      <h2>🗂️ Active Overrides</h2>
+      <div id="overridesList"><div class="spinner"></div></div>
+    </div>
+  </div>
+</main>
+
+<div id="toast" class="toast"></div>
+
+<script>
+var OWNER_ID='cb556180-f032-4b21-9470-1d786f2664ab';
+var STAFF_ROLES=['owner','co-owner','admin'];
+var db=supabase.createClient(
+  'https://novbuvwpjnxwwvdekjhr.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0'
+);
+
+var currentUser=null;
+var allUsers=[];
+var userLookup={}; // username+display -> user_id
+
+function showToast(msg,isError){
+  var t=document.getElementById('toast');
+  t.textContent=msg;
+  t.classList.toggle('error',!!isError);
+  t.classList.add('show');
+  setTimeout(function(){t.classList.remove('show');},2500);
+}
+
+function esc(s){if(!s)return'';var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+
+async function init(){
+  var s=await db.auth.getSession();
+  if(!s.data.session){ document.getElementById('gate').style.display='block'; return; }
+  currentUser=s.data.session.user;
+
+  var isOwner=currentUser.id===OWNER_ID;
+  if(!isOwner){
+    var pr=await db.from('profiles').select('role').eq('user_id',currentUser.id).maybeSingle();
+    if(!pr.data || STAFF_ROLES.indexOf(pr.data.role)===-1){
+      document.getElementById('gate').style.display='block';
+      return;
+    }
+  }
+  document.getElementById('mainContent').style.display='block';
+
+  // Load all users for the dropdown
+  var allR=await db.from('profiles').select('user_id,username,display_name,role').order('username');
+  allUsers=allR.data||[];
+  var list=document.getElementById('userList');
+  list.innerHTML=allUsers.map(function(u){
+    var label=(u.display_name||u.username||'Unknown')+' (@'+(u.username||'user')+')';
+    userLookup[label]=u.user_id;
+    return '<option value="'+esc(label)+'">';
+  }).join('');
+
+  loadOverrides();
+}
+
+window.setDuration=function(mins){
+  document.getElementById('durationMinutes').value=mins;
+  var labels={0:'Permanent',60:'1 hour',360:'6 hours',1440:'1 day',10080:'7 days',43200:'30 days'};
+  document.getElementById('durationDisplay').value=labels[mins]||(mins+' minutes');
+};
+
+window.grantOverride=async function(){
+  var searchVal=document.getElementById('userSearch').value.trim();
+  var userId=userLookup[searchVal];
+  if(!userId){
+    // Try matching by exact username
+    var match=allUsers.find(function(u){return u.username===searchVal || u.display_name===searchVal;});
+    if(match) userId=match.user_id;
+  }
+  if(!userId){ showToast('Select a user from the dropdown',true); return; }
+
+  var durStr=document.getElementById('durationMinutes').value;
+  if(durStr===''){ showToast('Choose a duration',true); return; }
+  var mins=parseInt(durStr,10);
+  var expiresAt=null;
+  if(mins>0){
+    expiresAt=new Date(Date.now()+mins*60000).toISOString();
+  }
+  var reason=document.getElementById('reason').value.trim()||null;
+
+  // Upsert (replaces existing override for this user)
+  var r=await db.from('capture_overrides').upsert({
+    user_id:userId,
+    expires_at:expiresAt,
+    granted_by:currentUser.id,
+    reason:reason
+  },{onConflict:'user_id'});
+
+  if(r.error){ showToast('Error: '+r.error.message,true); return; }
+
+  showToast('✅ Override granted');
+  document.getElementById('userSearch').value='';
+  document.getElementById('reason').value='';
+  document.getElementById('durationMinutes').value='';
+  document.getElementById('durationDisplay').value='Choose duration above';
+  loadOverrides();
+};
+
+async function loadOverrides(){
+  var el=document.getElementById('overridesList');
+  el.innerHTML='<div class="spinner"></div>';
+
+  var r=await db.from('capture_overrides').select('*').order('created_at',{ascending:false});
+  if(r.error){ el.innerHTML='<div class="empty">Error loading overrides: '+esc(r.error.message)+'</div>'; return; }
+
+  var overrides=r.data||[];
+  if(!overrides.length){ el.innerHTML='<div class="empty">No active overrides. All non-staff users are blocked from capturing content.</div>'; return; }
+
+  // Fetch profiles for these users
+  var uids=overrides.map(function(o){return o.user_id;});
+  var pr=await db.from('profiles').select('user_id,username,display_name,avatar_url').in('user_id',uids);
+  var profMap={};
+  (pr.data||[]).forEach(function(p){profMap[p.user_id]=p;});
+
+  var now=new Date();
+  el.innerHTML=overrides.map(function(o){
+    var p=profMap[o.user_id]||{};
+    var name=p.display_name||p.username||'Unknown';
+    var expires=o.expires_at?new Date(o.expires_at):null;
+    var expired=expires && expires<now;
+    var tag='';
+    var remaining='';
+    if(!expires){ tag='<span class="tag tag-permanent">Permanent</span>'; }
+    else if(expired){ tag='<span class="tag tag-expired">Expired</span>'; }
+    else {
+      var msLeft=expires-now;
+      var daysLeft=Math.floor(msLeft/(1000*60*60*24));
+      var hoursLeft=Math.floor((msLeft%(1000*60*60*24))/(1000*60*60));
+      var minsLeft=Math.floor((msLeft%(1000*60*60))/(1000*60));
+      if(daysLeft>0) remaining=daysLeft+'d '+hoursLeft+'h left';
+      else if(hoursLeft>0) remaining=hoursLeft+'h '+minsLeft+'m left';
+      else remaining=minsLeft+'m left';
+      tag='<span class="tag tag-temporary">'+remaining+'</span>';
+    }
+    return '<div class="row">'+
+      '<div class="row-info">'+
+        '<div class="row-name">'+esc(name)+tag+'</div>'+
+        '<div class="row-meta">@'+esc(p.username||'user')+(o.reason?' • '+esc(o.reason):'')+'</div>'+
+        '<div class="row-meta" style="opacity:0.6;">Granted '+new Date(o.created_at).toLocaleDateString()+'</div>'+
+      '</div>'+
+      '<button class="btn btn-red" onclick="revokeOverride(\''+o.user_id+'\',\''+esc(name).replace(/\x27/g,"\\'")+'\')">🗑️ Revoke</button>'+
+    '</div>';
+  }).join('');
+}
+
+window.revokeOverride=async function(userId,name){
+  if(!confirm('Revoke capture override for '+name+'?'))return;
+  var r=await db.from('capture_overrides').delete().eq('user_id',userId);
+  if(r.error){ showToast('Error: '+r.error.message,true); return; }
+  showToast('✅ Override revoked');
+  loadOverrides();
+};
+
+init();
+</script>
+<script src="scripts.js" defer></script>
+</body>
+</html>
