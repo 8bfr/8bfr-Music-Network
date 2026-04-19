@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>🔗 Link Tools — 8BFR Music Network</title>
+<link rel="icon" href="assets/images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Work Sans',system-ui,sans-serif;background:linear-gradient(#0b0014,#000);color:#eae6ff;min-height:100vh;padding-bottom:100px;}
+.hdr{background:rgba(15,0,30,0.95);border-bottom:1px solid rgba(124,58,237,0.5);padding:1rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;backdrop-filter:blur(10px);}
+.hdr a{color:#a855f7;text-decoration:none;font-weight:600;font-size:0.95rem;}
+.hdr h1{font-family:'Bebas Neue',cursive;font-size:1.5rem;color:#eae6ff;letter-spacing:1px;}
+.main{max-width:800px;margin:1.25rem auto;padding:0 1rem;}
+.banner{background:linear-gradient(135deg,rgba(6,182,212,0.12),rgba(124,58,237,0.15));border:1px solid rgba(124,58,237,0.4);border-radius:16px;padding:1.25rem 1.5rem;margin-bottom:1.25rem;}
+.banner h2{font-family:'Bebas Neue',cursive;font-size:1.85rem;color:#fff;letter-spacing:1.5px;margin-bottom:.35rem;}
+.banner p{color:rgba(234,230,255,0.85);font-size:0.92rem;line-height:1.55;}
+.tabs{display:flex;gap:.4rem;margin-bottom:1rem;overflow-x:auto;scrollbar-width:none;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{flex-shrink:0;padding:.55rem 1rem;background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.35);border-radius:10px;color:#eae6ff;font-size:0.85rem;font-weight:700;cursor:pointer;white-space:nowrap;}
+.tab.active{background:#7c3aed;border-color:#7c3aed;color:#fff;}
+.card{background:rgba(12,6,24,0.85);border:1px solid rgba(124,58,237,0.35);border-radius:14px;padding:1.25rem;margin-bottom:1rem;}
+.field{margin-bottom:.85rem;}
+.field label{display:block;font-size:0.82rem;font-weight:700;color:#a855f7;margin-bottom:.35rem;}
+.field input[type=text],.field input[type=url],.field select,.field textarea{width:100%;padding:.7rem .9rem;background:rgba(0,0,0,0.4);border:1px solid rgba(124,58,237,0.35);border-radius:10px;color:#eae6ff;font-size:0.95rem;outline:none;font-family:inherit;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:#a855f7;}
+.hint{font-size:0.75rem;color:rgba(234,230,255,0.55);margin-top:.3rem;}
+.btn{background:#7c3aed;color:#fff;border:none;padding:.75rem 1.2rem;border-radius:10px;font-weight:800;font-size:0.95rem;cursor:pointer;font-family:inherit;width:100%;display:flex;align-items:center;justify-content:center;gap:.4rem;}
+.btn:hover{background:#6d28d9;}
+.btn:disabled{opacity:0.6;cursor:not-allowed;}
+.btn-ghost{background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.4);color:#eae6ff;}
+.btn-sm{padding:.4rem .75rem;font-size:0.8rem;}
+.hidden{display:none;}
+.signed-out{background:linear-gradient(135deg,rgba(251,191,36,0.1),rgba(236,72,153,0.1));border:1px solid rgba(251,191,36,0.3);color:#fcd34d;padding:1rem 1.25rem;border-radius:10px;font-size:0.88rem;margin-bottom:1rem;}
+.signed-out a{color:#fbbf24;font-weight:700;text-decoration:underline;}
+.result{margin-top:1rem;padding:1.15rem;background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.3);border-radius:10px;display:none;}
+.result.show{display:block;}
+.short-url-row{display:flex;gap:.5rem;align-items:center;margin-bottom:.6rem;padding:.6rem .8rem;background:rgba(0,0,0,0.35);border-radius:8px;}
+.short-url-row code{flex:1;font-family:monospace;color:#fcd34d;font-size:0.88rem;word-break:break-all;}
+.platform-section{margin-top:1rem;padding:1rem;background:rgba(0,0,0,0.25);border:1px solid rgba(124,58,237,0.2);border-radius:10px;}
+.platform-section h3{font-size:0.88rem;color:#c084fc;margin-bottom:.6rem;display:flex;align-items:center;gap:.4rem;}
+.platform-row{background:rgba(0,0,0,0.3);padding:.65rem .85rem;border-radius:8px;margin-bottom:.5rem;display:flex;align-items:center;justify-content:space-between;gap:.5rem;}
+.platform-row .lbl{font-size:0.72rem;color:#a855f7;font-weight:700;min-width:90px;}
+.platform-row .val{flex:1;font-family:monospace;color:#eae6ff;font-size:0.82rem;word-break:break-all;}
+.platform-row .copy{padding:.3rem .65rem;background:#7c3aed;color:#fff;border:none;border-radius:6px;font-size:0.72rem;font-weight:700;cursor:pointer;}
+.platform-row .copy.done{background:#10b981;}
+.qr-block{margin-top:.75rem;text-align:center;}
+.qr-block img{max-width:200px;border-radius:8px;background:#fff;padding:8px;}
+.my-links{display:grid;gap:.5rem;margin-top:1rem;}
+.link-item{background:rgba(0,0,0,0.35);border:1px solid rgba(124,58,237,0.25);border-radius:10px;padding:.8rem 1rem;display:flex;align-items:center;justify-content:space-between;gap:.6rem;flex-wrap:wrap;}
+.link-item .info{flex:1;min-width:0;}
+.link-item .title{font-weight:700;font-size:0.95rem;}
+.link-item .code{font-family:monospace;color:#fcd34d;font-size:0.82rem;}
+.link-item .target{font-size:0.72rem;color:rgba(234,230,255,0.55);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.link-item .stats{font-size:0.75rem;color:#a855f7;font-weight:700;}
+.link-item .actions{display:flex;gap:.35rem;}
+.link-item .actions button{padding:.35rem .65rem;font-size:0.72rem;border-radius:6px;border:1px solid rgba(124,58,237,0.35);background:rgba(124,58,237,0.15);color:#eae6ff;cursor:pointer;font-weight:700;}
+.link-item .actions button:hover{background:rgba(124,58,237,0.3);}
+.link-item .actions .del{border-color:rgba(239,68,68,0.35);color:#fca5a5;}
+.link-item .actions .del:hover{background:rgba(239,68,68,0.2);}
+.stats-card{background:rgba(0,0,0,0.3);border-radius:10px;padding:1rem;margin-top:.75rem;}
+.stats-pill{display:inline-block;padding:.3rem .7rem;background:rgba(124,58,237,0.2);border-radius:999px;font-size:0.78rem;margin-right:.4rem;margin-bottom:.4rem;font-weight:700;}
+.tiktok-guide{background:linear-gradient(135deg,rgba(6,182,212,0.08),rgba(236,72,153,0.08));border:1px solid rgba(6,182,212,0.25);border-radius:10px;padding:1rem;font-size:0.85rem;line-height:1.6;}
+.tiktok-guide h3{color:#67e8f9;margin-bottom:.5rem;font-size:1rem;}
+.tiktok-guide ul{margin:.5rem 0 .5rem 1.25rem;}
+.tiktok-guide code{background:rgba(124,58,237,0.2);padding:2px 8px;border-radius:4px;color:#fcd34d;font-family:monospace;font-size:0.85rem;}
+.error-msg{background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);color:#fca5a5;padding:.7rem 1rem;border-radius:8px;font-size:0.85rem;margin-top:.5rem;}
+.success-msg{background:rgba(52,211,153,0.12);border:1px solid rgba(52,211,153,0.35);color:#4ade80;padding:.55rem .9rem;border-radius:8px;font-size:0.82rem;margin-top:.5rem;}
+.empty{text-align:center;padding:2rem 1rem;color:rgba(168,85,247,0.6);font-size:0.88rem;}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <a href="ai-studio.html">← AI Studio</a>
+  <h1>🔗 Link Tools</h1>
+  <div style="width:80px;"></div>
+</div>
+
+<main class="main">
+  <div class="banner">
+    <h2>Smart Link Router</h2>
+    <p>Create branded short links on your own domain. Track clicks by platform. Format for TikTok, Instagram, Twitter — each one differently.</p>
+  </div>
+
+  <div id="signedOutMsg" class="hidden">
+    <div class="signed-out">🔒 <a href="login.html">Sign in</a> to create and manage your short links.</div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-tab="create" onclick="switchTab(this)">➕ Create</button>
+    <button class="tab" data-tab="mine" onclick="switchTab(this)">📋 My Links</button>
+    <button class="tab" data-tab="tiktok" onclick="switchTab(this)">📱 TikTok Guide</button>
+  </div>
+
+  <!-- ═══ CREATE TAB ═══ -->
+  <div class="tab-panel" id="tab-create">
+    <div class="card">
+      <div class="field">
+        <label>🎯 Destination URL <span style="color:#ef4444">*</span></label>
+        <input type="url" id="targetUrl" placeholder="https://8bfr.com/profile.html?user=8BFR" value="https://8bfr.com">
+        <div class="hint">Any URL — your profile, a song, a playlist, external site, etc.</div>
+      </div>
+
+      <div class="field">
+        <label>📝 Title (optional — for your records)</label>
+        <input type="text" id="linkTitle" placeholder="e.g. My TikTok Bio Link">
+      </div>
+
+      <div class="field">
+        <label>🔤 Custom code (optional — 3-30 chars, letters/numbers/hyphens)</label>
+        <input type="text" id="customCode" placeholder="e.g. music or my-profile (leave blank for random)">
+        <div class="hint">If blank, we'll generate a random 6-letter code</div>
+      </div>
+
+      <div class="field">
+        <label>📱 Primary platform (optional — helps with tracking)</label>
+        <select id="platform">
+          <option value="">Multi-platform / general</option>
+          <option value="tiktok">TikTok</option>
+          <option value="instagram">Instagram</option>
+          <option value="twitter">Twitter / X</option>
+          <option value="facebook">Facebook</option>
+          <option value="youtube">YouTube</option>
+          <option value="linktree">Linktree</option>
+          <option value="email">Email</option>
+          <option value="sms">SMS / text message</option>
+          <option value="qr">QR code / print</option>
+        </select>
+      </div>
+
+      <button class="btn" id="createBtn" onclick="createLink()">🚀 Create Short Link</button>
+
+      <div id="createResult" class="result"></div>
+      <div id="errorBox"></div>
+    </div>
+  </div>
+
+  <!-- ═══ MY LINKS TAB ═══ -->
+  <div class="tab-panel hidden" id="tab-mine">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;">
+        <div style="font-weight:800;font-size:1rem;">Your short links</div>
+        <button class="btn btn-ghost btn-sm" style="width:auto;" onclick="loadMyLinks()">🔄 Refresh</button>
+      </div>
+      <div id="myLinksList" class="my-links"><div class="empty">Loading...</div></div>
+    </div>
+  </div>
+
+  <!-- ═══ TIKTOK GUIDE TAB ═══ -->
+  <div class="tab-panel hidden" id="tab-tiktok">
+    <div class="card">
+      <div class="tiktok-guide">
+        <h3>📱 Why TikTok might block 8bfr.com specifically</h3>
+        <p>Since you're on a Business Account with 13k+ followers, the account-level barrier is fine. The block is domain-level — TikTok's filter doesn't recognize <code>8bfr.com</code> as a trusted domain yet.</p>
+
+        <h3 style="margin-top:1rem;">🔧 Workarounds to try (in this order):</h3>
+        <ul>
+          <li><strong>Try variations:</strong> <code>www.8bfr.com</code>, then <code>https://www.8bfr.com</code>, then <code>http://8bfr.com</code>. TikTok treats these as different domains.</li>
+          <li><strong>Subdomain:</strong> Ask me to set up <code>go.8bfr.com</code> or <code>app.8bfr.com</code> on Cloudflare — TikTok often allows subdomains when the apex is blocked.</li>
+          <li><strong>Linktree as a middleman (what you're doing now):</strong> Put your Linktree URL in TikTok. On Linktree, feature <em>one prominent link</em> to 8bfr.com titled "🎵 8BFR Music Network — Main Site". You can't force auto-redirect, but you can make it the first, biggest button.</li>
+          <li><strong>Report the block to TikTok:</strong> Support → Report a Problem → "Website link isn't accepted" → provide your domain. Takes 1-3 weeks but it does get resolved.</li>
+          <li><strong>Use a subdomain short link:</strong> <code>go.8bfr.com/x</code> is often accepted where <code>8bfr.com</code> is not.</li>
+        </ul>
+
+        <h3 style="margin-top:1rem;">💡 Meanwhile — best workflow:</h3>
+        <ul>
+          <li>Keep Linktree as your TikTok bio link</li>
+          <li>On Linktree, top link goes to <code>8bfr.com</code></li>
+          <li>In your TikTok videos: say "8bfr.com" out loud + put it as text overlay</li>
+          <li>In video captions: write "go to 8bfr.com" — captions accept plain text even when bio doesn't</li>
+          <li>In pinned comments: repeat the URL — comments ALWAYS accept any text</li>
+        </ul>
+
+        <h3 style="margin-top:1rem;">🔬 Test if it's truly blocked:</h3>
+        <p>Create a test link right now: paste <code>https://www.8bfr.com</code> (with www) as a new TikTok bio link. If it accepts, the block is apex-only and you can use subdomain routing. If both fail, it's a full domain flag.</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+var SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+var API = 'https://8bfr-api.vercel.app';
+var SHORT_LINK_API = API + '/api/short-link';
+var SHORT_URL_BASE = 'https://8bfr.com/l/';
+
+var sb = null, currentUser = null;
+
+async function init(){
+  try {
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+    var { data } = await sb.auth.getUser();
+    if (data && data.user) {
+      currentUser = data.user;
+      document.getElementById('signedOutMsg').classList.add('hidden');
+    } else {
+      document.getElementById('signedOutMsg').classList.remove('hidden');
+      document.getElementById('createBtn').disabled = true;
+    }
+  } catch(e){ console.error('init:', e); }
+}
+
+window.switchTab = function(el) {
+  var tab = el.dataset.tab;
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+  el.classList.add('active');
+  document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.add('hidden'); });
+  document.getElementById('tab-' + tab).classList.remove('hidden');
+  if (tab === 'mine') loadMyLinks();
+};
+
+// ─── CREATE ───
+window.createLink = async function() {
+  if (!currentUser) { showError('Sign in first.'); return; }
+  var targetUrl = document.getElementById('targetUrl').value.trim();
+  var title = document.getElementById('linkTitle').value.trim();
+  var customCode = document.getElementById('customCode').value.trim();
+  var platform = document.getElementById('platform').value;
+
+  if (!targetUrl) { showError('Enter a destination URL.'); return; }
+  if (!/^https?:\/\//.test(targetUrl)) targetUrl = 'https://' + targetUrl;
+
+  var btn = document.getElementById('createBtn');
+  btn.disabled = true;
+  btn.textContent = 'Creating...';
+  clearError();
+
+  try {
+    var res = await fetch(SHORT_LINK_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'create',
+        user_id: currentUser.id,
+        target_url: targetUrl,
+        title: title || null,
+        custom_code: customCode || null,
+        platform: platform || null
+      })
+    });
+    var data = await res.json();
+    if (!res.ok || !data.ok) { showError(data.error || 'Failed'); return; }
+    renderCreateResult(data, targetUrl, title);
+  } catch(e){
+    showError('Failed: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🚀 Create Short Link';
+  }
+};
+
+function renderCreateResult(data, targetUrl, title) {
+  var shortUrl = SHORT_URL_BASE + data.code;
+  var encodedShort = encodeURIComponent(shortUrl);
+  var encodedTitle = encodeURIComponent(title || 'Check this out on 8BFR');
+
+  // Platform-specific formatted versions
+  var variants = [
+    { icon:'📱', label:'TikTok bio', value: shortUrl, note:'Best case — plain short URL. If blocked, use bare "8bfr.com" as text + this URL in video captions.' },
+    { icon:'📷', label:'Instagram bio', value: shortUrl, note:'Also works on Instagram posts and stories.' },
+    { icon:'🐦', label:'Twitter/X', value: shortUrl, note:'Under 280 chars leaves room for captions.' },
+    { icon:'📘', label:'Facebook', value: shortUrl, note:'Facebook will pull a preview automatically.' },
+    { icon:'💬', label:'WhatsApp / SMS', value: shortUrl, note:'Short enough for texting.' },
+    { icon:'✉️', label:'Email', value: shortUrl, note:'Works anywhere email links are accepted.' },
+    { icon:'🔲', label:'Plain text (bare)', value: '8bfr.com/l/' + data.code, note:'No protocol — useful for print, QR, verbal.' }
+  ];
+
+  var html = '<div style="font-size:0.82rem;color:#a855f7;font-weight:700;margin-bottom:.5rem;">✨ Short link created!</div>' +
+    '<div class="short-url-row"><code>' + shortUrl + '</code><button class="copy btn-sm" onclick="copyToClipboard(\'' + shortUrl + '\',this)">Copy</button></div>';
+
+  html += '<div class="platform-section"><h3>📱 Formats for each platform</h3>';
+  variants.forEach(function(v){
+    var escVal = v.value.replace(/'/g, "\\'");
+    html += '<div class="platform-row">' +
+      '<span class="lbl">' + v.icon + ' ' + v.label + '</span>' +
+      '<span class="val">' + v.value + '</span>' +
+      '<button class="copy" onclick="copyToClipboard(\'' + escVal + '\',this)">Copy</button>' +
+      '</div>' +
+      '<div style="font-size:0.72rem;color:rgba(168,85,247,0.7);margin:0 0 .55rem .5rem;">' + v.note + '</div>';
+  });
+  html += '</div>';
+
+  // QR code for the short link
+  html += '<div class="qr-block">' +
+    '<div style="font-size:0.8rem;color:#c084fc;font-weight:700;margin-bottom:.4rem;">🔳 QR code</div>' +
+    '<img src="https://quickchart.io/qr?text=' + encodedShort + '&size=300&margin=2&ecLevel=H" alt="QR code" crossorigin="anonymous">' +
+    '<div style="margin-top:.5rem;"><button class="btn btn-ghost btn-sm" style="width:auto;display:inline-block;" onclick="downloadQR(\'' + data.code + '\',\'' + encodedShort + '\')">⬇️ Download QR</button></div>' +
+    '</div>';
+
+  var r = document.getElementById('createResult');
+  r.classList.add('show');
+  r.innerHTML = html;
+}
+
+window.copyToClipboard = function(text, btn) {
+  navigator.clipboard.writeText(text).then(function(){
+    var orig = btn.textContent;
+    btn.textContent = '✓ Copied';
+    btn.classList.add('done');
+    setTimeout(function(){ btn.textContent = orig; btn.classList.remove('done'); }, 1500);
+  }).catch(function(){
+    alert('Copy failed. Long-press to copy manually: ' + text);
+  });
+};
+
+window.downloadQR = async function(code, encoded){
+  try {
+    var res = await fetch('https://quickchart.io/qr?text=' + encoded + '&size=600&margin=4&ecLevel=H');
+    var blob = await res.blob();
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = '8bfr-qr-' + code + '.png';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch(e){ alert('Download failed: ' + e.message); }
+};
+
+// ─── LIST ───
+async function loadMyLinks() {
+  if (!currentUser) { document.getElementById('myLinksList').innerHTML = '<div class="empty">Sign in to see your links</div>'; return; }
+  document.getElementById('myLinksList').innerHTML = '<div class="empty">Loading...</div>';
+  try {
+    var res = await fetch(SHORT_LINK_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'list', user_id: currentUser.id })
+    });
+    var data = await res.json();
+    if (!data.ok) { document.getElementById('myLinksList').innerHTML = '<div class="empty">Error loading links</div>'; return; }
+    if (!data.links.length) { document.getElementById('myLinksList').innerHTML = '<div class="empty">No short links yet. Create your first one!</div>'; return; }
+
+    var html = '';
+    data.links.forEach(function(link){
+      var shortUrl = SHORT_URL_BASE + link.code;
+      html += '<div class="link-item">' +
+        '<div class="info">' +
+        (link.title ? '<div class="title">' + escapeHtml(link.title) + '</div>' : '') +
+        '<div class="code">' + shortUrl + '</div>' +
+        '<div class="target">→ ' + escapeHtml(link.target_url) + '</div>' +
+        '</div>' +
+        '<div class="stats">' + (link.clicks || 0) + ' clicks</div>' +
+        '<div class="actions">' +
+        '<button onclick="copyToClipboard(\'' + shortUrl + '\',this)">Copy</button>' +
+        '<button onclick="viewStats(\'' + link.code + '\')">Stats</button>' +
+        '<button class="del" onclick="deleteLink(\'' + link.code + '\')">Delete</button>' +
+        '</div>' +
+        '</div>';
+    });
+    document.getElementById('myLinksList').innerHTML = html;
+  } catch(e){
+    document.getElementById('myLinksList').innerHTML = '<div class="empty">Error: ' + e.message + '</div>';
+  }
+}
+window.loadMyLinks = loadMyLinks;
+
+window.deleteLink = async function(code) {
+  if (!confirm('Delete this short link? Existing /l/' + code + ' URLs will stop working.')) return;
+  try {
+    await fetch(SHORT_LINK_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', user_id: currentUser.id, code: code })
+    });
+    loadMyLinks();
+  } catch(e){ alert('Delete failed: ' + e.message); }
+};
+
+window.viewStats = async function(code) {
+  try {
+    var res = await fetch(SHORT_LINK_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'stats', user_id: currentUser.id, code: code })
+    });
+    var data = await res.json();
+    if (!data.ok) { alert('Stats failed: ' + data.error); return; }
+
+    var msg = 'Total clicks: ' + data.total_clicks + '\n\nBy platform:\n';
+    Object.keys(data.by_platform).forEach(function(p){
+      msg += '  ' + p + ': ' + data.by_platform[p] + '\n';
+    });
+    if (data.recent && data.recent.length) {
+      msg += '\nRecent clicks:\n';
+      data.recent.slice(0,10).forEach(function(c){
+        msg += '  ' + (c.platform || 'unknown') + ' - ' + new Date(c.created_at).toLocaleString() + '\n';
+      });
+    }
+    alert(msg);
+  } catch(e){ alert('Error: ' + e.message); }
+};
+
+// ─── UTILS ───
+function showError(msg){ document.getElementById('errorBox').innerHTML = '<div class="error-msg">' + escapeHtml(msg) + '</div>'; }
+function clearError(){ document.getElementById('errorBox').innerHTML = ''; }
+function escapeHtml(s){ if(!s)return''; var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+init();
+</script>
+
+<script src="scripts.js" defer></script>
+</body>
+</html>
