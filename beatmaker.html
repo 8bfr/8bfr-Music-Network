@@ -320,7 +320,7 @@
 
   <!-- GENERATE -->
   <button class="generate-btn" id="genBtn" onclick="generateBeat()">Generate</button>
-  <div class="cost-note">Uses Pollinations AI credits per generation</div>
+  <div class="cost-note">MusicGen AI via Replicate — counts toward your monthly beat limit</div>
 
   <!-- STATUS -->
   <div class="status-bar" id="statusBar"></div>
@@ -352,9 +352,19 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const VERCEL_API = 'https://8bfr-api.vercel.app';
-const POLLINATIONS_AUDIO = VERCEL_API + '/api/music';
-const POLLINATIONS_TEXT = VERCEL_API + '/api/ai-text';
+const BEAT_GEN = VERCEL_API + '/api/beat-gen';        // NEW: MusicGen via Replicate
+const AI_TEXT  = VERCEL_API + '/api/openai';           // NEW: working OpenAI gateway
 const POLL_HEADERS = { 'Content-Type': 'application/json' };
+
+const OWNER_ID = 'cb556180-f032-4b21-9470-1d786f2664ab';
+
+// Get current signed-in user id for tier checking
+async function getUserId() {
+  try {
+    const { data } = await sb.auth.getUser();
+    return (data && data.user && data.user.id) || null;
+  } catch (e) { return null; }
+}
 
 let currentMode = 'beat';
 let selectedGenres = [];
@@ -503,11 +513,11 @@ async function analyzeReference() {
   resDiv.textContent = 'Analyzing "' + ref + '"...';
 
   try {
-    const resp = await fetch(POLLINATIONS_TEXT, {
+    const resp = await fetch(AI_TEXT, {
       method: 'POST',
       headers: POLL_HEADERS,
       body: JSON.stringify({
-        model: 'openai',
+        tier: 'nano',
         max_tokens: 200,
         messages: [{
           role: 'user',
@@ -516,7 +526,7 @@ async function analyzeReference() {
       })
     });
     const data = await resp.json();
-    const analysis = data.choices?.[0]?.message?.content || '';
+    const analysis = data.text || data.choices?.[0]?.message?.content || '';
     refAnalysis = analysis;
     resDiv.textContent = 'Style profile: ' + analysis;
 
@@ -562,12 +572,12 @@ async function aiOptimizePrompt() {
   btn.disabled = true;
 
   try {
-    const resp = await fetch(POLLINATIONS_TEXT, {
+    const resp = await fetch(AI_TEXT, {
       method: 'POST',
       headers: POLL_HEADERS,
       body: JSON.stringify({
-        model: 'openai',
-        max_tokens: 150,
+        tier: 'nano',
+        max_tokens: 200,
         messages: [{
           role: 'user',
           content: 'You are a music AI prompt engineer. Convert this casual description into an optimized music generation prompt. Be specific about instruments, tempo, mood, and production style. Output ONLY the optimized prompt, nothing else. Keep under 80 words. Description: "' + desc + '"'
@@ -575,7 +585,7 @@ async function aiOptimizePrompt() {
       })
     });
     const data = await resp.json();
-    const optimized = data.choices?.[0]?.message?.content || desc;
+    const optimized = data.text || data.choices?.[0]?.message?.content || desc;
     document.getElementById('userDesc').value = optimized;
     updatePromptPreview();
   } catch (err) {
@@ -601,12 +611,12 @@ async function generateAiLyrics() {
   btn.disabled = true;
 
   try {
-    const resp = await fetch(POLLINATIONS_TEXT, {
+    const resp = await fetch(AI_TEXT, {
       method: 'POST',
       headers: POLL_HEADERS,
       body: JSON.stringify({
-        model: 'openai',
-        max_tokens: 500,
+        tier: 'mini',
+        max_tokens: 600,
         messages: [{
           role: 'user',
           content: 'Write song lyrics for a ' + genre + ' song with a ' + mood + ' feel. Topic: ' + desc + '. Format with [Verse 1], [Chorus], [Verse 2], [Chorus], [Bridge], [Outro]. Keep it 16-24 lines total. Output ONLY the lyrics with section labels, no explanation.'
@@ -614,7 +624,7 @@ async function generateAiLyrics() {
       })
     });
     const data = await resp.json();
-    const lyrics = data.choices?.[0]?.message?.content || '';
+    const lyrics = data.text || data.choices?.[0]?.message?.content || '';
     aiGeneratedLyrics = lyrics;
     document.getElementById('aiLyricsResult').value = lyrics;
     document.getElementById('generatedLyrics').style.display = 'block';
@@ -643,6 +653,12 @@ async function generateBeat() {
     return;
   }
 
+  const userId = await getUserId();
+  if (!userId) {
+    setStatus('You must be signed in to generate beats. Sign in and try again.');
+    return;
+  }
+
   currentPrompt = prompt;
   const duration = parseInt(document.getElementById('durSlider').value);
   const isInstrumental = currentMode === 'beat' || currentMode === 'sfx';
@@ -650,46 +666,64 @@ async function generateBeat() {
   const btn = document.getElementById('genBtn');
   btn.disabled = true;
   btn.textContent = 'Generating...';
-  setStatus('Sending to AI... this may take 20-60 seconds');
+  setStatus('Sending to AI... this may take 30-60 seconds');
 
   try {
-    const resp = await fetch(POLLINATIONS_AUDIO, {
+    const resp = await fetch(BEAT_GEN, {
       method: 'POST',
       headers: POLL_HEADERS,
       body: JSON.stringify({
-        model: 'elevenmusic',
-        input: prompt,
-        duration: duration,
-        instrumental: isInstrumental
+        user_id: userId,
+        prompt: prompt,
+        duration: Math.min(Math.max(duration || 15, 5), 30)  // MusicGen: 5-30s
       })
     });
 
-    if (!resp.ok) {
-      throw new Error('API returned status ' + resp.status);
+    const data = await resp.json();
+
+    if (!resp.ok || !data.ok) {
+      // Friendly tier-limit messaging
+      if (data.code === 'UPGRADE_REQUIRED') {
+        setStatus('Beat generator requires a paid plan. Upgrade at /pricing.html');
+        return;
+      }
+      if (data.code === 'LIMIT_REACHED') {
+        setStatus('Monthly limit reached (' + data.used + '/' + data.limit + '). Wait until next month or upgrade your plan.');
+        return;
+      }
+      throw new Error(data.error || 'Generation failed (status ' + resp.status + ')');
     }
 
-    // Get the audio as a blob
-    const blob = await resp.blob();
+    // Fetch the audio from the returned URL and turn into a blob for download
+    const audioUrl = data.audio_url;
+    const audioResp = await fetch(audioUrl);
+    if (!audioResp.ok) throw new Error('Could not fetch generated audio');
+    const blob = await audioResp.blob();
     currentAudioBlob = blob;
 
-    // Create object URL for playback
-    const audioUrl = URL.createObjectURL(blob);
+    // Playback
+    const localUrl = URL.createObjectURL(blob);
     const audio = document.getElementById('beatAudio');
-    audio.src = audioUrl;
+    audio.src = localUrl;
     audio.load();
 
-    // Show player
+    // Player labels
     const genreText = selectedGenres.join(', ') || 'Custom';
     const moodText = selectedMoods.join(', ') || '';
     document.getElementById('playerTitle').textContent = genreText + ' ' + (currentMode === 'sfx' ? 'Sound Effect' : 'Beat');
     document.getElementById('playerSub').textContent = (moodText ? moodText + ' | ' : '') + duration + 's | ' + document.getElementById('bpmSlider').value + ' BPM';
     document.getElementById('playerCard').classList.add('show');
 
-    setStatus('');
+    // Tier + usage readout
+    if (data.usage) {
+      setStatus('Done — ' + data.usage.tier.toUpperCase() + ' tier, ' + data.usage.used + '/' + data.usage.limit + ' used this month');
+    } else {
+      setStatus('Done!');
+    }
     btn.textContent = 'Generate Another';
   } catch (err) {
     console.error('Generate error:', err);
-    setStatus('Generation failed: ' + err.message + ' - try again');
+    setStatus('Generation failed: ' + err.message + ' — try again');
   }
   btn.disabled = false;
 }
