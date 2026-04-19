@@ -30,11 +30,13 @@
         <div class="card">
             <h2 style="color: var(--primary); margin-bottom: 1rem;">Create New Coupon</h2>
             <div class="form-group"><label>Code</label><input id="code" placeholder="SAVE2DOLLARS"></div>
+
             <div class="form-group">
                 <label>Discount Amount ($)</label>
                 <input type="number" id="discount" step="0.01" min="0.01" max="30.00" placeholder="Enter dollar amount (e.g. 3.50)">
                 <p style="font-size: 0.75rem; color: #a855f7; margin-top: 0.25rem;">Enter any amount from $0.01 to $30.00</p>
             </div>
+
             <div class="form-group">
                 <label>Or quick-set a FREE code for a plan:</label>
                 <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
@@ -46,9 +48,21 @@
                     <button type="button" class="btn" onclick="document.getElementById('discount').value='30.00'" style="font-size:0.8rem;">Feat 30d ($30)</button>
                 </div>
             </div>
-            <div class="form-group"><label>Max Uses (leave empty for unlimited)</label><input id="maxUses" type="number" placeholder="100"></div>
+
+            <div class="form-group">
+                <label>Max Uses (leave empty for unlimited)</label>
+                <input id="maxUses" type="number" placeholder="100">
+            </div>
+
+            <!-- NEW FIELD -->
+            <div class="form-group">
+                <label>Max Uses Per User (optional)</label>
+                <input id="maxUsesPerUser" type="number" placeholder="1 = each user can use once">
+            </div>
+
             <button class="btn" onclick="createCoupon()">Create Coupon</button>
         </div>
+
         <div class="card">
             <h2 style="color: var(--primary); margin-bottom: 1rem;">Active Coupons</h2>
             <div id="coupons">Loading...</div>
@@ -57,7 +71,7 @@
 
     <script>
         const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
+        const SUPABASE_ANON_KEY = 'YOUR_KEY';
         const s = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         async function init() {
@@ -81,16 +95,12 @@
                     return;
                 }
 
-                if (!data || data.length === 0) {
-                    document.getElementById('coupons').innerHTML = '<p style="color:#a855f7;">No coupons yet. Create one above!</p>';
-                    return;
-                }
-
                 document.getElementById('coupons').innerHTML = data.map(function(c) {
                     return '<div class="coupon-item">' +
                         '<div>' +
                             '<strong>' + c.code + '</strong> - $' + parseFloat(c.discount_amount).toFixed(2) + ' off' +
                             ' | Uses: ' + (c.uses || 0) + (c.max_uses ? '/' + c.max_uses : '/∞') +
+                            (c.max_uses_per_user ? ' | Per User: ' + c.max_uses_per_user : '') +
                         '</div>' +
                         '<button class="btn" style="background:#ff0044;" onclick="deleteCoupon(\'' + c.id + '\')">Delete</button>' +
                     '</div>';
@@ -104,58 +114,36 @@
             var code = document.getElementById('code').value.trim().toUpperCase();
             var discount = parseFloat(document.getElementById('discount').value);
             var maxUses = document.getElementById('maxUses').value.trim();
+            var maxUsesPerUser = document.getElementById('maxUsesPerUser').value.trim();
 
-            if (!code) {
-                alert('Please enter a coupon code');
-                return;
-            }
+            if (!code) { alert('Please enter a coupon code'); return; }
+            if (!discount || discount <= 0 || discount > 30) { alert('Enter $0.01 - $30'); return; }
 
-            if (!discount || discount <= 0 || discount > 30) {
-                alert('Please enter a discount amount between $0.01 and $30.00');
-                return;
-            }
+            var result = await s.from('discount_codes').insert({
+                code: code,
+                discount_amount: discount,
+                max_uses: maxUses ? parseInt(maxUses) : null,
+                max_uses_per_user: maxUsesPerUser ? parseInt(maxUsesPerUser) : null,
+                uses: 0
+            });
 
-            try {
-                var result = await s.from('discount_codes').insert({
-                    code: code,
-                    discount_amount: discount,
-                    max_uses: maxUses ? parseInt(maxUses) : null,
-                    uses: 0
-                }).select();
+            if (result.error) { alert(result.error.message); return; }
 
-                if (result.error) {
-                    alert('Error: ' + result.error.message);
-                    return;
-                }
+            document.getElementById('code').value = '';
+            document.getElementById('discount').value = '';
+            document.getElementById('maxUses').value = '';
+            document.getElementById('maxUsesPerUser').value = '';
 
-                alert('Coupon created: ' + code);
-                document.getElementById('code').value = '';
-                document.getElementById('discount').value = '';
-                document.getElementById('maxUses').value = '';
-                loadCoupons();
-            } catch (error) {
-                alert('Error: ' + error.message);
-            }
+            loadCoupons();
         }
 
         async function deleteCoupon(id) {
             if (!confirm('Delete this coupon?')) return;
-            try {
-                var result = await s.from('discount_codes').delete().eq('id', id);
-                if (result.error) {
-                    alert('Error: ' + result.error.message);
-                    return;
-                }
-                alert('Coupon deleted');
-                loadCoupons();
-            } catch (error) {
-                alert('Error: ' + error.message);
-            }
+            await s.from('discount_codes').delete().eq('id', id);
+            loadCoupons();
         }
 
         init();
     </script>
-
-    
 </body>
 </html>
