@@ -1,1114 +1,1187 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Owner Studio - 8BFR</title>
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        :root { --primary: #7c3aed; --dark: #0b0014; --dark-card: #0c0618; --text: #eae6ff; --text-dim: #a855f7; --border: rgba(124,58,237,.35); --green: #00ff88; --cyan: #00d9ff; --warn: #f59e0b; }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Work Sans', sans-serif; background: linear-gradient(#0b0014,#000); color: var(--text); min-height: 100vh; padding-bottom: 80px; }
-        .header { background: rgba(15,0,30,.9); border-bottom: 2px solid var(--primary); padding: 1.5rem 2rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; flex-wrap: wrap; gap: 0.5rem; backdrop-filter: blur(12px); }
-        .header h1 { font-family: 'Bebas Neue', cursive; font-size: 2rem; color: var(--primary); }
-        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
-        .card { background: var(--dark-card); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
-        .section-title { color: var(--primary); margin-bottom: 1rem; font-family: 'Bebas Neue', cursive; font-size: 1.5rem; }
-        .tools-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
-        .tool-card { background: var(--dark); border: 1px solid var(--border); padding: 1rem; border-radius: 8px; cursor: pointer; transition: all 0.3s; }
-        .tool-card:hover { border-color: var(--primary); transform: translateY(-2px); }
-        .tool-card.active { border-color: var(--primary); background: rgba(124,58,237,0.15); box-shadow: 0 0 15px rgba(124,58,237,0.3); }
-        .tool-card h3 { color: var(--primary); margin-bottom: 0.5rem; font-size: 0.95rem; }
-        .tool-card p { font-size: 0.8rem; color: var(--text-dim); }
-        .badge-real { display: inline-block; background: rgba(0,255,136,0.15); color: var(--green); font-size: 0.65rem; padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: 700; margin-top: 0.3rem; }
-        .badge-brief { display: inline-block; background: rgba(124,58,237,0.15); color: var(--text-dim); font-size: 0.65rem; padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: 700; margin-top: 0.3rem; }
-        .badge-converter { display: inline-block; background: rgba(0,217,255,0.15); color: var(--cyan); font-size: 0.65rem; padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: 700; margin-top: 0.3rem; }
-        .btn { background: var(--primary); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.2s; }
-        .btn:hover { background: #6d28d9; }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .btn-outline { background: rgba(124,58,237,0.2); border: 1px solid var(--border); color: var(--text); }
-        .btn-green { background: rgba(0,255,136,0.2); border: 1px solid rgba(0,255,136,0.4); color: var(--green); }
-        .btn-cyan { background: rgba(0,217,255,0.2); border: 1px solid rgba(0,217,255,0.4); color: var(--cyan); }
-        textarea, input[type="text"], input[type="number"], select { width: 100%; padding: 0.75rem; background: var(--dark); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit; font-size: 0.95rem; }
-        textarea { min-height: 120px; margin: 0.75rem 0; resize: vertical; }
-        textarea:focus, input:focus, select:focus { outline: none; border-color: var(--primary); }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem; }
-        .form-group { margin-bottom: 0.75rem; }
-        .form-group label { display: block; font-size: 0.82rem; color: var(--text-dim); margin-bottom: 0.35rem; font-weight: 600; }
-        .result-box { background: rgba(124,58,237,0.1); border: 1px solid var(--border); padding: 1.25rem; border-radius: 8px; margin-top: 1rem; min-height: 100px; line-height: 1.7; white-space: pre-wrap; font-size: 0.95rem; }
-        .spinner { width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; vertical-align: middle; margin-right: 0.5rem; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .chat-link { display: flex; align-items: center; gap: 1rem; padding: 1.25rem; background: var(--dark); border: 1px solid var(--border); border-radius: 12px; text-decoration: none; color: var(--text); transition: all 0.3s; }
-        .chat-link:hover { border-color: var(--primary); background: rgba(124,58,237,0.1); transform: translateY(-2px); }
-        .chat-link .icon { font-size: 2.5rem; flex-shrink: 0; }
-        .chat-link h3 { color: var(--primary); font-size: 1.1rem; margin-bottom: 0.25rem; }
-        .chat-link p { font-size: 0.85rem; color: var(--text-dim); margin: 0; line-height: 1.4; }
-        .cover-preview { margin-top: 1rem; text-align: center; }
-        .cover-preview img { max-width: 400px; width: 100%; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.5); }
-        .warn-box { margin-top: 0.75rem; padding: 0.6rem 1rem; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); border-radius: 8px; font-size: 0.82rem; color: var(--warn); }
-        .upload-zone { border: 2px dashed var(--border); border-radius: 10px; padding: 1.5rem; text-align: center; cursor: pointer; transition: all 0.3s; background: rgba(124,58,237,0.05); }
-        .upload-zone:hover { border-color: var(--primary); background: rgba(124,58,237,0.1); }
-        .upload-zone input[type="file"] { display: none; }
-        .upload-zone .drop-text { color: var(--text-dim); font-size: 0.9rem; }
-        .upload-zone .drop-icon { font-size: 2rem; margin-bottom: 0.5rem; }
-        .preview-strip { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; }
-        .preview-strip img { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); }
-        .tab-bar { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
-        .tab-btn { padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--border); background: var(--dark); color: var(--text-dim); cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.2s; }
-        .tab-btn:hover { border-color: var(--primary); }
-        .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
-        canvas { border-radius: 8px; max-width: 100%; }
-        .meme-controls { display: grid; gap: 0.75rem; margin: 1rem 0; }
-        .color-row { display: flex; gap: 0.75rem; align-items: center; }
-        .color-row input[type="color"] { width: 40px; height: 35px; border: none; background: none; cursor: pointer; }
-        .format-options { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.75rem 0; }
-        .format-opt { padding: 0.5rem 1rem; border-radius: 6px; border: 1px solid var(--border); background: var(--dark); color: var(--text-dim); cursor: pointer; font-size: 0.85rem; transition: all 0.2s; }
-        .format-opt:hover, .format-opt.selected { border-color: var(--cyan); color: var(--cyan); background: rgba(0,217,255,0.1); }
-        @media (max-width: 600px) {
-            .form-row { grid-template-columns: 1fr; }
-            .tools-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
-            .container { padding: 1rem; }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>🤖 AI Studio — 8BFR Music Network</title>
+<link rel="icon" href="assets/images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Work Sans',system-ui,sans-serif;background:linear-gradient(#0b0014,#000);color:#eae6ff;min-height:100vh;padding-bottom:80px;}
+.hdr{background:rgba(15,0,30,0.95);border-bottom:1px solid rgba(124,58,237,0.5);padding:1rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;backdrop-filter:blur(10px);}
+.hdr a{color:#a855f7;text-decoration:none;font-weight:600;font-size:0.95rem;}
+.hdr h1{font-family:'Bebas Neue',cursive;font-size:1.5rem;color:#eae6ff;letter-spacing:1px;}
+.carrie-bar{background:linear-gradient(135deg,rgba(236,72,153,0.15),rgba(168,85,247,0.12));border-bottom:1px solid rgba(236,72,153,0.35);padding:0.75rem 1rem;display:flex;align-items:center;gap:0.75rem;}
+.carrie-btn{background:linear-gradient(135deg,#ec4899,#a855f7);color:#fff;padding:0.6rem 1.15rem;border-radius:10px;border:none;font-weight:800;font-size:0.9rem;text-decoration:none;display:inline-flex;align-items:center;gap:0.5rem;box-shadow:0 4px 14px rgba(236,72,153,0.3);}
+.carrie-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(236,72,153,0.45);}
+.carrie-info{flex:1;min-width:0;}
+.carrie-title{font-weight:800;font-size:0.95rem;}
+.carrie-sub{font-size:0.75rem;color:rgba(234,230,255,0.7);}
+.cat-nav{display:flex;gap:0.5rem;overflow-x:auto;padding:0.75rem 1rem;background:rgba(12,6,24,0.6);border-bottom:1px solid rgba(124,58,237,0.2);scrollbar-width:none;-webkit-overflow-scrolling:touch;position:sticky;top:57px;z-index:49;}
+.cat-nav::-webkit-scrollbar{display:none;}
+.cat-btn{flex-shrink:0;padding:0.5rem 1rem;border-radius:10px;background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.35);color:#eae6ff;font-size:0.82rem;font-weight:700;cursor:pointer;white-space:nowrap;}
+.cat-btn:hover{background:rgba(124,58,237,0.25);}
+.cat-btn.active{background:#7c3aed;border-color:#7c3aed;color:#fff;box-shadow:0 0 12px rgba(124,58,237,0.5);}
+.main{max-width:1100px;margin:1.25rem auto;padding:0 1rem;}
+.cat-title{font-family:'Bebas Neue',cursive;font-size:1.6rem;color:#a855f7;letter-spacing:1.5px;margin-bottom:0.25rem;}
+.cat-sub{color:rgba(234,230,255,0.6);font-size:0.85rem;margin-bottom:1.25rem;}
+.tools-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0.85rem;margin-bottom:2rem;}
+.tool{background:rgba(12,6,24,0.85);border:1px solid rgba(124,58,237,0.35);border-radius:14px;padding:1rem;cursor:pointer;transition:all 0.2s;display:flex;flex-direction:column;gap:0.4rem;position:relative;}
+.tool:hover{border-color:#a855f7;transform:translateY(-2px);box-shadow:0 8px 24px rgba(124,58,237,0.25);}
+.tool-icon{font-size:1.75rem;}
+.tool-name{font-weight:800;font-size:0.98rem;}
+.tool-desc{font-size:0.78rem;color:rgba(234,230,255,0.65);line-height:1.4;}
+.tool-badge{position:absolute;top:8px;right:8px;font-size:0.62rem;font-weight:800;padding:2px 7px;border-radius:999px;}
+.badge-music{background:rgba(168,85,247,0.25);color:#c084fc;border:1px solid rgba(168,85,247,0.4);}
+.badge-pro{background:rgba(234,179,8,0.2);color:#fbbf24;border:1px solid rgba(234,179,8,0.4);}
+.badge-tool{background:rgba(6,182,212,0.18);color:#67e8f9;border:1px solid rgba(6,182,212,0.35);}
+.badge-fun{background:rgba(236,72,153,0.18);color:#f9a8d4;border:1px solid rgba(236,72,153,0.35);}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:1000;display:none;align-items:flex-end;justify-content:center;padding:0;}
+.modal-overlay.show{display:flex;}
+@keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+.modal{background:rgba(12,6,24,0.98);border-top:1px solid rgba(124,58,237,0.5);border-radius:20px 20px 0 0;padding:1.25rem;max-width:680px;width:100%;max-height:92vh;overflow-y:auto;animation:slideUp 0.25s ease;-webkit-overflow-scrolling:touch;}
+@media(min-width:640px){.modal{margin:auto;border-radius:20px;max-height:90vh;}.modal-overlay{align-items:center;padding:1rem;}}
+.modal-grip{width:40px;height:4px;background:rgba(168,85,247,0.4);border-radius:2px;margin:0 auto 1rem;}
+.modal-header{display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;padding-bottom:0.75rem;border-bottom:1px solid rgba(124,58,237,0.25);}
+.modal-icon{font-size:2rem;}
+.modal-name{font-weight:800;font-size:1.15rem;flex:1;}
+.modal-close{background:none;border:none;color:rgba(234,230,255,0.6);font-size:1.5rem;cursor:pointer;width:32px;height:32px;border-radius:50%;}
+.modal-close:hover{background:rgba(124,58,237,0.2);color:#eae6ff;}
+.field{margin-bottom:0.85rem;}
+.field label{display:block;font-size:0.82rem;font-weight:700;color:#a855f7;margin-bottom:0.35rem;}
+.field label .req{color:#ef4444;}
+.field input[type=text],.field input[type=number],.field input[type=url],.field select,.field textarea{width:100%;padding:0.65rem 0.85rem;background:rgba(0,0,0,0.4);border:1px solid rgba(124,58,237,0.35);border-radius:8px;color:#eae6ff;font-size:0.92rem;outline:none;font-family:inherit;}
+.field input[type=color]{width:100%;height:42px;border:1px solid rgba(124,58,237,0.35);border-radius:8px;background:transparent;cursor:pointer;}
+.field input[type=file]{width:100%;padding:0.5rem;background:rgba(0,0,0,0.3);border:1px dashed rgba(124,58,237,0.5);border-radius:8px;color:#eae6ff;font-size:0.85rem;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:#a855f7;}
+.field textarea{min-height:90px;resize:vertical;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;}
+.btn{background:#7c3aed;color:#fff;border:none;padding:0.75rem 1.25rem;border-radius:10px;font-weight:800;font-size:0.92rem;cursor:pointer;font-family:inherit;width:100%;}
+.btn:hover{background:#6d28d9;}
+.btn:disabled{opacity:0.6;cursor:not-allowed;}
+.btn-ghost{background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.4);color:#eae6ff;}
+.btn-sm{padding:0.45rem 0.85rem;font-size:0.8rem;}
+.preset-row{display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.5rem;}
+.preset{padding:0.35rem 0.7rem;background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.35);border-radius:6px;color:#eae6ff;font-size:0.72rem;font-weight:700;cursor:pointer;}
+.preset:hover,.preset.selected{background:#7c3aed;border-color:#7c3aed;color:#fff;}
+.result{margin-top:1rem;padding:1rem;background:rgba(124,58,237,0.05);border:1px solid rgba(124,58,237,0.25);border-radius:10px;white-space:pre-wrap;word-wrap:break-word;font-size:0.9rem;line-height:1.55;display:none;max-height:500px;overflow-y:auto;}
+.result.show{display:block;}
+.result img,.result canvas,.result video,.result audio{max-width:100%;border-radius:8px;margin-top:0.5rem;display:block;}
+.result-actions{display:flex;gap:0.5rem;margin-top:0.75rem;flex-wrap:wrap;}
+.result-actions button{flex:1;min-width:100px;padding:0.5rem 0.85rem;font-size:0.8rem;}
+.spinner{width:24px;height:24px;border:3px solid rgba(124,58,237,0.2);border-top-color:#a855f7;border-radius:50%;animation:spin 0.7s linear infinite;display:inline-block;vertical-align:middle;margin-right:0.5rem;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-text{color:rgba(168,85,247,0.8);font-weight:600;font-size:0.88rem;}
+.error-msg{background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);color:#fca5a5;padding:0.75rem 1rem;border-radius:8px;font-size:0.85rem;margin-top:0.75rem;}
+.success-msg{background:rgba(52,211,153,0.12);border:1px solid rgba(52,211,153,0.35);color:#4ade80;padding:0.6rem 0.9rem;border-radius:8px;font-size:0.82rem;margin-top:0.5rem;}
+.search-bar{margin-bottom:1rem;}
+.search-bar input{width:100%;padding:0.75rem 1rem;background:rgba(12,6,24,0.8);border:1px solid rgba(124,58,237,0.35);border-radius:12px;color:#eae6ff;font-size:0.95rem;outline:none;}
+.empty{text-align:center;padding:3rem 1rem;color:rgba(168,85,247,0.6);font-size:0.9rem;}
+.gif-strip{display:flex;gap:0.3rem;overflow-x:auto;padding:0.4rem 0;margin-top:0.4rem;}
+.gif-strip img{width:60px;height:60px;object-fit:cover;border-radius:6px;flex-shrink:0;}
+</style>
 </head>
 <body>
-    <div class="header">
-        <h1>🎨 Owner Studio</h1>
-        <a href="owner-panel.html" style="color: var(--text); text-decoration: none; font-weight: 600;">← Back to Panel</a>
+
+<div class="hdr">
+  <a href="index.html">← Home</a>
+  <h1>🤖 AI Studio</h1>
+  <div style="width:60px;"></div>
+</div>
+
+<div class="carrie-bar">
+  <div class="carrie-info">
+    <div class="carrie-title">💜 Chat with Carrie</div>
+    <div class="carrie-sub">Your personal 8BFR avatar & style guide</div>
+  </div>
+  <a href="carrie.html" class="carrie-btn">Open Carrie →</a>
+</div>
+
+<div class="cat-nav" id="catNav"></div>
+
+<main class="main">
+  <div class="search-bar">
+    <input type="text" id="searchInput" placeholder="🔎 Search tools..." autocomplete="off">
+  </div>
+
+  <div id="toolsContainer"></div>
+</main>
+
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal();">
+  <div class="modal" id="modal">
+    <div class="modal-grip"></div>
+    <div class="modal-header">
+      <div class="modal-icon" id="mIcon">🤖</div>
+      <div class="modal-name" id="mName">Tool</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
     </div>
-    <div class="container">
+    <div id="mFields"></div>
+    <button class="btn" id="mRun" onclick="runTool()">✨ Generate</button>
+    <div class="result" id="mResult"></div>
+  </div>
+</div>
 
-        <!-- AI CHATS -->
-        <div class="card">
-            <h2 class="section-title">💬 AI Assistants</h2>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
-                <a href="ai-chat.html" class="chat-link">
-                    <div class="icon">🤖</div>
-                    <div><h3>General AI Chat</h3><p>Ask anything — coding, business, ideas, writing, advice</p></div>
-                </a>
-                <a href="ai-music-expert.html" class="chat-link">
-                    <div class="icon">🎓</div>
-                    <div><h3>Music Expert AI</h3><p>Tips, tricks, theory, production, mixing, marketing, industry knowledge</p></div>
-                </a>
-            </div>
-        </div>
+<script>
+// ═══════════════════════════════════════════════════════════
+// 8BFR AI STUDIO — unified tool hub
+// ═══════════════════════════════════════════════════════════
+var API = 'https://8bfr-api.vercel.app/api/openai';
+var IMG_GEN = 'https://image.pollinations.ai/prompt/'; // free image generation
 
-        <!-- AI GENERATOR TOOLS -->
-        <div class="card">
-            <h2 class="section-title">🛠️ AI Generator Tools</h2>
-            <div class="tools-grid">
-                <div class="tool-card" id="tool-lyrics" onclick="selectTool('lyrics')"><h3>✍️ Lyrics Generator</h3><p>Generate song lyrics in any style</p><span class="badge-real">✅ REAL OUTPUT</span></div>
-                <div class="tool-card" id="tool-post" onclick="selectTool('post')"><h3>📝 Post Generator</h3><p>Create social media posts</p><span class="badge-real">✅ REAL OUTPUT</span></div>
-                <div class="tool-card" id="tool-cover" onclick="selectTool('cover')"><h3>🎨 Album Cover</h3><p>Cover art with artist name overlay</p><span class="badge-real">✅ REAL IMAGE</span></div>
-                <div class="tool-card" id="tool-song" onclick="selectTool('song')"><h3>🎤 Song Creator</h3><p>Full song structure + lyrics</p><span class="badge-real">✅ REAL OUTPUT</span></div>
-                <div class="tool-card" id="tool-beats" onclick="selectTool('beats')"><h3>🎵 Beat Ideas</h3><p>Production concepts & blueprints</p><span class="badge-brief">📋 CREATIVE BRIEF</span></div>
-                <div class="tool-card" id="tool-video" onclick="selectTool('video')"><h3>🎬 Video Concept</h3><p>Music video storyboards & ideas</p><span class="badge-brief">📋 CREATIVE BRIEF</span></div>
-            </div>
-        </div>
+var CATEGORIES = [
+  { id:'music',      name:'🎵 Music' },
+  { id:'creative',   name:'🎨 Creative Tools' },
+  { id:'media',      name:'🎬 Media Tools' },
+  { id:'writing',    name:'✍️ Writing' },
+  { id:'social',     name:'📱 Social Media' },
+  { id:'video',      name:'🎥 Video' },
+  { id:'fun',        name:'😂 Fun & Games' },
+  { id:'business',   name:'💼 Business' },
+  { id:'general',    name:'🤖 General' }
+];
 
-        <!-- CONVERTER & CREATOR TOOLS -->
-        <div class="card">
-            <h2 class="section-title">🔄 Converters & Creators</h2>
-            <div class="tools-grid">
-                <div class="tool-card" id="tool-imgconvert" onclick="selectTool('imgconvert')"><h3>🖼️ Image Converter</h3><p>PNG ↔ JPG ↔ WebP + resize</p><span class="badge-converter">🔄 CONVERTER</span></div>
-                <div class="tool-card" id="tool-audioextract" onclick="selectTool('audioextract')"><h3>🎧 Audio Extractor</h3><p>Pull audio from video files</p><span class="badge-converter">🔄 CONVERTER</span></div>
-                <div class="tool-card" id="tool-meme" onclick="selectTool('meme')"><h3>😂 Meme Creator</h3><p>Add text to any image</p><span class="badge-real">✅ REAL IMAGE</span></div>
-                <div class="tool-card" id="tool-gif" onclick="selectTool('gif')"><h3>🎞️ GIF Creator</h3><p>Make animated GIFs from images</p><span class="badge-real">✅ REAL IMAGE</span></div>
-                <div class="tool-card" id="tool-qr" onclick="selectTool('qr')"><h3>📱 QR Code</h3><p>Generate QR codes for promo links</p><span class="badge-real">✅ REAL IMAGE</span></div>
-                <div class="tool-card" id="tool-resize" onclick="selectTool('resize')"><h3>📐 Image Resizer</h3><p>Resize for socials, banners, avatars</p><span class="badge-converter">🔄 CONVERTER</span></div>
-            </div>
-        </div>
+// ─── TOOL LIBRARY ────────────────────────────────────────────
+// Each tool can be 'ai' (text AI) or 'client' (browser-side interactive)
+var TOOLS = [
+  // ═══ MUSIC (text AI) ═══
+  { id:'lyric-writer', cat:'music', type:'ai', icon:'🎤', name:'Lyric Writer', desc:'Full song lyrics any style/mood', badges:['music'], tier:'mini',
+    system:'You are an expert songwriter. Write compelling, original song lyrics with proper verse/chorus/bridge structure. Include section labels like [Verse 1], [Chorus], etc.',
+    fields:[
+      {name:'topic',label:'Topic / theme',type:'textarea',placeholder:'e.g. Lost love, hometown pride, hustle...',required:true},
+      {name:'genre',label:'Genre',type:'select',options:['Hip-Hop','R&B','Pop','Rock','Country','EDM','Indie','Gospel','Trap','Afrobeats','Latin','Reggae','Jazz','Folk']},
+      {name:'mood',label:'Mood',type:'select',options:['Uplifting','Sad','Angry','Romantic','Reflective','Party','Aggressive','Hopeful','Nostalgic','Triumphant']},
+      {name:'extra',label:'Extra instructions (optional)',type:'text',placeholder:'e.g. Rhyme AABB, reference to rain'}
+    ],
+    buildPrompt:function(v){return 'Write original song lyrics about: '+v.topic+'\nGenre: '+(v.genre||'Hip-Hop')+'\nMood: '+(v.mood||'Reflective')+(v.extra?'\nAdditional: '+v.extra:'')+'\n\nStructure with [Verse 1], [Chorus], [Verse 2], [Chorus], [Bridge], [Chorus]. Make it emotionally resonant with strong imagery.';}
+  },
+  { id:'song-creator', cat:'music', type:'ai', icon:'🎶', name:'Song Creator', desc:'Title, lyrics, production notes', badges:['music'], tier:'mini',
+    system:'You are a music producer and songwriter. Create complete song concepts.',
+    fields:[
+      {name:'idea',label:'Core idea / story',type:'textarea',required:true},
+      {name:'style',label:'Desired style',type:'text',placeholder:'e.g. Drake-style melodic rap'},
+      {name:'length',label:'Target length',type:'select',options:['Short (2:30)','Standard (3:30)','Long (4:30)']}
+    ],
+    buildPrompt:function(v){return 'Create a complete song concept.\nIdea: '+v.idea+'\nStyle: '+(v.style||'open')+'\nLength: '+(v.length||'Standard')+'\n\nProvide: 1) Song title (3 options), 2) Brief concept, 3) Full lyrics with section tags, 4) Production notes (tempo, key, instruments).';}
+  },
+  { id:'beat-ideas', cat:'music', type:'ai', icon:'🥁', name:'Beat Ideas', desc:'Drum patterns + production blueprint', badges:['music'], tier:'nano',
+    system:'You are a beat maker. Give practical, actionable beat creation advice.',
+    fields:[
+      {name:'genre',label:'Genre',type:'select',options:['Trap','Hip-Hop','Drill','Boom Bap','R&B','Afrobeats','Reggaeton','UK Drill','Phonk','Jersey Club','Latin','Pop'],required:true},
+      {name:'vibe',label:'Vibe / mood',type:'text',placeholder:'e.g. Dark, melodic'},
+      {name:'bpm',label:'BPM preference',type:'text',placeholder:'e.g. 140 or any'}
+    ],
+    buildPrompt:function(v){return 'Give me a detailed beat creation blueprint:\nGenre: '+v.genre+'\nVibe: '+(v.vibe||'any')+'\nBPM: '+(v.bpm||'suggest one')+'\n\nProvide: BPM + time sig, drum pattern, 808 pattern, melody ideas, mixing tips, 2-3 reference songs.';}
+  },
+  { id:'beat-blueprint', cat:'music', type:'ai', icon:'🎛️', name:'Beat Blueprint', desc:'DAW-ready production plan', badges:['music','pro'], tier:'mini',
+    system:'You are an expert music producer with decades of DAW experience.',
+    fields:[
+      {name:'reference',label:'Reference song/artist',type:'text',required:true},
+      {name:'daw',label:'Your DAW',type:'select',options:['FL Studio','Ableton','Logic Pro','Pro Tools','Studio One','BandLab','GarageBand','Any']}
+    ],
+    buildPrompt:function(v){return 'Write a detailed DAW blueprint to recreate a beat in style of: '+v.reference+'\nDAW: '+(v.daw||'Any')+'\n\nCover: project setup, drum recipe, bass/808, melody, mix chain, arrangement bar-by-bar.';}
+  },
+  { id:'rhyme-finder', cat:'music', type:'ai', icon:'📝', name:'Rhyme Finder', desc:'Perfect & slant rhymes', badges:['music'], tier:'nano',
+    system:'You are a rhyme dictionary for songwriters.',
+    fields:[
+      {name:'word',label:'Word to rhyme',type:'text',required:true},
+      {name:'count',label:'How many',type:'select',options:['10','20','30','50']}
+    ],
+    buildPrompt:function(v){return 'Find rhymes for "'+v.word+'". Give '+(v.count||'20')+' options organized as: PERFECT RHYMES, NEAR RHYMES (slant), MULTI-SYLLABLE RHYMES.';}
+  },
+  { id:'music-expert', cat:'music', type:'ai', icon:'🎓', name:'Music Expert', desc:'Ask any music theory/industry question', badges:['music'], tier:'mini',
+    system:'You are a music educator and industry veteran.',
+    fields:[{name:'question',label:'Your question',type:'textarea',required:true}],
+    buildPrompt:function(v){return v.question;}
+  },
+  { id:'mastering-concept', cat:'music', type:'ai', icon:'🎚️', name:'Mastering Guide', desc:'Step-by-step mastering advice', badges:['music','pro'], tier:'mini',
+    system:'You are a mastering engineer. Give practical, specific mastering guidance.',
+    fields:[
+      {name:'genre',label:'Genre',type:'text',required:true},
+      {name:'issues',label:'Current issues (optional)',type:'textarea',placeholder:'e.g. Mix sounds muddy, lacks loudness'}
+    ],
+    buildPrompt:function(v){return 'Mastering advice for a '+v.genre+' track.'+(v.issues?' Issues: '+v.issues:'')+'\n\nProvide: EQ recommendations, compression/limiting settings, stereo imaging tips, target LUFS, reference tracks.';}
+  },
+  { id:'rap-name', cat:'music', type:'ai', icon:'🎭', name:'Rap Name Generator', desc:'Stage names that stick', badges:['music','fun'], tier:'nano',
+    system:'You create memorable, unique rap/artist stage names.',
+    fields:[
+      {name:'vibe',label:'Vibe you want',type:'text',placeholder:'e.g. Dark, luxury, street, mysterious',required:true},
+      {name:'style',label:'Name style',type:'select',options:['Classic (one word)','Lil/Young style','Two-word compound','With number/symbol','Luxury brand feel']}
+    ],
+    buildPrompt:function(v){return 'Generate 10 unique rap/artist stage names. Vibe: '+v.vibe+'. Style: '+(v.style||'Any')+'. For each include a 1-line brand note.';}
+  },
 
-        <!-- DYNAMIC TOOL PANEL -->
-        <div id="toolPanel" class="card" style="display: none;">
-            <h2 class="section-title" id="toolTitle">Tool</h2>
-            <p id="toolHint" style="font-size:0.85rem;color:var(--text-dim);margin-bottom:0.5rem;"></p>
-            <div id="toolBody"></div>
-            <div class="warn-box">⚠️ <strong>Save your output!</strong> Results are not saved — copy text or download images before leaving this page.</div>
-            <div id="result" class="result-box" style="display: none;"></div>
-            <div id="coverPreview" class="cover-preview" style="display:none;"></div>
-        </div>
+  // ═══ CREATIVE (client-side interactive) ═══
+  { id:'album-cover', cat:'creative', type:'client', handler:'albumCover', icon:'💿', name:'Album Cover Generator', desc:'AI-generated cover with text burned in', badges:['tool','music'],
+    fields:[
+      {name:'artist',label:'Artist name',type:'text',required:true,id:'coverArtist'},
+      {name:'title',label:'Song/album title',type:'text',id:'coverTitle'},
+      {name:'featured',label:'Featured artist (optional)',type:'text',id:'coverFeatured'},
+      {name:'textPos',label:'Text position',type:'select',options:['bottom','top','center','none'],id:'coverTextPos'},
+      {name:'prompt',label:'Visual style description',type:'textarea',placeholder:'e.g. Dark neon city at night, rain reflections',required:true,id:'coverPrompt'}
+    ]
+  },
+  { id:'qr-code', cat:'creative', type:'client', handler:'qrCode', icon:'📱', name:'QR Code Generator', desc:'Branded QR codes for promo', badges:['tool'],
+    fields:[
+      {name:'text',label:'URL or text',type:'text',required:true,id:'qrText'},
+      {name:'size',label:'Size (px)',type:'select',options:['200','300','400','500','800'],id:'qrSize'},
+      {name:'fg',label:'Foreground color',type:'color',id:'qrFg',value:'#000000'},
+      {name:'bg',label:'Background color',type:'color',id:'qrBg',value:'#ffffff'}
+    ]
+  },
+  { id:'meme-creator', cat:'creative', type:'client', handler:'meme', icon:'😂', name:'Meme Creator', desc:'Top/bottom text on any image', badges:['tool','fun'],
+    fields:[
+      {name:'image',label:'Upload image',type:'file',accept:'image/*',required:true,id:'memeImg'},
+      {name:'top',label:'Top text',type:'text',id:'memeTop'},
+      {name:'bottom',label:'Bottom text',type:'text',id:'memeBottom'},
+      {name:'fontSize',label:'Font size',type:'number',value:'48',id:'memeFontSize'},
+      {name:'color',label:'Text color',type:'color',value:'#ffffff',id:'memeColor'},
+      {name:'outline',label:'Outline color',type:'color',value:'#000000',id:'memeOutline'}
+    ]
+  },
+  { id:'gif-creator', cat:'creative', type:'client', handler:'gif', icon:'🎞️', name:'GIF Creator', desc:'Animated GIF from images', badges:['tool'],
+    fields:[
+      {name:'images',label:'Select 2+ images (hold Ctrl/Cmd)',type:'file',accept:'image/*',multiple:true,required:true,id:'gifFiles'},
+      {name:'delay',label:'Frame delay (ms)',type:'number',value:'500',id:'gifDelay'},
+      {name:'width',label:'Output width (px)',type:'number',value:'480',id:'gifWidth'}
+    ]
+  },
 
-        <!-- INFO -->
-        <div class="card" style="border-color:rgba(0,217,255,0.3);background:rgba(0,217,255,0.05);">
-            <h2 style="color:var(--cyan);font-family:'Bebas Neue',cursive;font-size:1.3rem;">ℹ️ About Studio Tools</h2>
-            <div style="font-size:0.9rem;line-height:1.7;color:var(--text-dim);">
-                <p style="margin-bottom:0.5rem;"><strong style="color:var(--text);">AI Generators:</strong></p>
-                <p>✅ <strong>Lyrics, Posts, Song Creator</strong> — Full text you can use immediately</p>
-                <p>✅ <strong>Album Cover</strong> — Generates a real image with artist name baked in</p>
-                <p>📋 <strong>Beat Ideas / Video Concepts</strong> — Detailed blueprints (actual generation requires premium services)</p>
-                <p style="margin-top:0.75rem;"><strong style="color:var(--text);">Converters & Creators:</strong></p>
-                <p>🔄 <strong>Image Converter</strong> — Convert between PNG, JPG, WebP formats instantly</p>
-                <p>🎧 <strong>Audio Extractor</strong> — Extract audio track from video files (MP4, WebM, MOV)</p>
-                <p>😂 <strong>Meme / GIF Creator</strong> — Make memes and animated GIFs from your images</p>
-                <p>📱 <strong>QR Code / Resizer</strong> — Promo QR codes and social-ready image sizing</p>
-                <p style="margin-top:0.75rem;padding:0.75rem;background:rgba(124,58,237,0.1);border-radius:8px;border-left:3px solid var(--primary);">
-                    <strong style="color:var(--text);">💎 Future Premium:</strong> Beat generation (Suno/Udio), video generation (Runway/Pika), and extended AI chat coming in premium tier.
-                </p>
-                <p style="margin-top:0.75rem;color:rgba(234,230,255,0.4);font-size:0.8rem;">AI: Groq + Pollinations (free tier) · Converters: 100% client-side (your files never leave your device)</p>
-            </div>
-        </div>
-    </div>
+  // ═══ MEDIA TOOLS ═══
+  { id:'image-resizer', cat:'media', type:'client', handler:'resizer', icon:'📐', name:'Image Resizer', desc:'Resize + aspect ratio presets', badges:['tool'],
+    fields:[
+      {name:'image',label:'Upload image',type:'file',accept:'image/*',required:true,id:'resizeImg'},
+      {name:'preset',label:'Aspect ratio preset',type:'preset',id:'resizePreset',options:[
+        {label:'TikTok/Reels (1080×1920)',w:1080,h:1920},
+        {label:'8BFR Feed (1080×1920)',w:1080,h:1920},
+        {label:'Instagram Post (1080×1080)',w:1080,h:1080},
+        {label:'Instagram Story (1080×1920)',w:1080,h:1920},
+        {label:'YouTube Thumb (1280×720)',w:1280,h:720},
+        {label:'YouTube Banner (2560×1440)',w:2560,h:1440},
+        {label:'Twitter/X Header (1500×500)',w:1500,h:500},
+        {label:'Facebook Cover (820×312)',w:820,h:312},
+        {label:'Album Cover (1024×1024)',w:1024,h:1024},
+        {label:'Avatar (400×400)',w:400,h:400}
+      ]},
+      {name:'w',label:'Width (px)',type:'number',id:'resizeW'},
+      {name:'h',label:'Height (px)',type:'number',id:'resizeH'}
+    ]
+  },
+  { id:'image-converter', cat:'media', type:'client', handler:'converter', icon:'🔄', name:'Image Converter', desc:'PNG / JPG / WebP conversion', badges:['tool'],
+    fields:[
+      {name:'image',label:'Upload image',type:'file',accept:'image/*',required:true,id:'convertImg'},
+      {name:'format',label:'Convert to',type:'select',options:['png','jpeg','webp'],id:'convertFmt'},
+      {name:'quality',label:'Quality (%)',type:'number',value:'90',id:'imgQuality'},
+      {name:'scale',label:'Scale (%)',type:'number',value:'100',id:'imgScale'}
+    ]
+  },
+  { id:'audio-extractor', cat:'media', type:'client', handler:'audioExtract', icon:'🎧', name:'Audio Extractor', desc:'Pull audio from video files', badges:['tool'],
+    fields:[
+      {name:'video',label:'Upload video',type:'file',accept:'video/*',required:true,id:'vidFile'},
+      {name:'format',label:'Output format',type:'select',options:['wav','webm'],id:'audioFmt'}
+    ]
+  },
+  { id:'video-cutter', cat:'media', type:'client', handler:'videoCut', icon:'✂️', name:'Video Trimmer', desc:'Trim video to a clip', badges:['tool'],
+    fields:[
+      {name:'video',label:'Upload video',type:'file',accept:'video/*',required:true,id:'trimFile'},
+      {name:'start',label:'Start time (seconds)',type:'number',value:'0',id:'trimStart'},
+      {name:'end',label:'End time (seconds)',type:'number',value:'10',id:'trimEnd'}
+    ]
+  },
 
-    <script src="scripts.js" defer></script>
-    <script>
-    const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0';
-    const s = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  // ═══ WRITING ═══
+  { id:'proofread', cat:'writing', type:'ai', icon:'📖', name:'Proofreader', desc:'Grammar, spelling, flow check', tier:'mini',
+    system:'You are a professional copy editor. Show corrected version AND list of changes.',
+    fields:[{name:'text',label:'Paste your text',type:'textarea',required:true}],
+    buildPrompt:function(v){return 'Proofread this for grammar, spelling, punctuation, flow. Show corrected version then numbered list of changes:\n\n'+v.text;}
+  },
+  { id:'rewrite', cat:'writing', type:'ai', icon:'✏️', name:'Rewriter', desc:'Change tone or style', tier:'mini',
+    system:'You adapt voice and tone while preserving meaning.',
+    fields:[
+      {name:'text',label:'Original text',type:'textarea',required:true},
+      {name:'tone',label:'New tone',type:'select',options:['More formal','More casual','More professional','More friendly','More persuasive','More concise','More emotional','More humorous','More confident','Gen-Z style']}
+    ],
+    buildPrompt:function(v){return 'Rewrite this to be '+(v.tone||'better')+':\n\n'+v.text;}
+  },
+  { id:'translator', cat:'writing', type:'ai', icon:'🌐', name:'Translator', desc:'Any language pair', tier:'nano',
+    system:'You are a professional translator preserving tone and cultural context.',
+    fields:[
+      {name:'text',label:'Text to translate',type:'textarea',required:true},
+      {name:'lang',label:'Target language',type:'select',options:['English','Spanish','French','German','Italian','Portuguese','Japanese','Korean','Chinese (Simplified)','Arabic','Russian','Hindi','Turkish']}
+    ],
+    buildPrompt:function(v){return 'Translate into '+(v.lang||'English')+':\n\n'+v.text;}
+  },
+  { id:'expand', cat:'writing', type:'ai', icon:'📚', name:'Expand/Continue', desc:'Continue a scene or paragraph', tier:'mini',
+    system:'You continue text matching existing voice, style, pacing.',
+    fields:[
+      {name:'text',label:'Text to continue',type:'textarea',required:true},
+      {name:'direction',label:'Direction (optional)',type:'text'}
+    ],
+    buildPrompt:function(v){return 'Continue this text matching style. Write 2-3 paragraphs.'+(v.direction?'\nDirection: '+v.direction:'')+'\n\n'+v.text;}
+  },
+  { id:'summarize', cat:'writing', type:'ai', icon:'📋', name:'Summarizer', desc:'TL;DR for long text', tier:'nano',
+    system:'You summarize concisely without losing key info.',
+    fields:[
+      {name:'text',label:'Long text',type:'textarea',required:true},
+      {name:'length',label:'Summary length',type:'select',options:['One sentence','Three sentences','Bulleted (5 bullets)','One paragraph','Detailed']}
+    ],
+    buildPrompt:function(v){return 'Summarize as: '+(v.length||'One paragraph')+'\n\n'+v.text;}
+  },
+  { id:'headline', cat:'writing', type:'ai', icon:'🎯', name:'Headline Generator', desc:'Catchy headlines', tier:'nano',
+    system:'You write compelling headlines.',
+    fields:[{name:'topic',label:'Topic/content',type:'textarea',required:true}],
+    buildPrompt:function(v){return 'Generate 10 catchy headlines for: '+v.topic;}
+  },
+  { id:'story-starter', cat:'writing', type:'ai', icon:'📖', name:'Story Starter', desc:'Opening paragraphs for stories', tier:'mini',
+    system:'You write gripping story openings.',
+    fields:[
+      {name:'genre',label:'Genre',type:'select',options:['Thriller','Romance','Sci-Fi','Fantasy','Horror','Mystery','Literary','YA','Memoir']},
+      {name:'setting',label:'Setting/concept',type:'textarea',required:true}
+    ],
+    buildPrompt:function(v){return 'Write 3 different compelling opening paragraphs for a '+(v.genre||'Literary')+' story: '+v.setting;}
+  },
+  { id:'poetry', cat:'writing', type:'ai', icon:'🌹', name:'Poetry Helper', desc:'Poems in any form', tier:'mini',
+    system:'You are a skilled poet.',
+    fields:[
+      {name:'topic',label:'Subject',type:'textarea',required:true},
+      {name:'form',label:'Form',type:'select',options:['Free verse','Haiku','Sonnet','Limerick','Spoken word','Rhyming couplets']}
+    ],
+    buildPrompt:function(v){return 'Write a '+(v.form||'Free verse')+' poem about: '+v.topic;}
+  },
 
-    let currentTool = '';
-    let currentCoverUrl = '';
-    let memeCanvas, memeCtx, memeImg;
-    let gifFrames = [];
+  // ═══ SOCIAL MEDIA ═══
+  { id:'post-generator', cat:'social', type:'ai', icon:'📱', name:'Post Generator', desc:'Captions for any platform', tier:'nano',
+    system:'You are a social media expert.',
+    fields:[
+      {name:'topic',label:'Post about?',type:'textarea',required:true},
+      {name:'platform',label:'Platform',type:'select',options:['Instagram','TikTok','Twitter/X','Facebook','LinkedIn','Threads','8BFR','Reddit','YouTube']},
+      {name:'cta',label:'Call to action',type:'text'}
+    ],
+    buildPrompt:function(v){return 'Social media post.\nPlatform: '+(v.platform||'Instagram')+'\nTopic: '+v.topic+(v.cta?'\nCTA: '+v.cta:'')+'\n\nEngaging, platform-appropriate, include hashtags.';}
+  },
+  { id:'hashtag-gen', cat:'social', type:'ai', icon:'#️⃣', name:'Hashtag Generator', desc:'Trending hashtags', tier:'nano',
+    system:'You know social discovery trends.',
+    fields:[
+      {name:'topic',label:'Content topic',type:'text',required:true},
+      {name:'platform',label:'Platform',type:'select',options:['Instagram','TikTok','Twitter/X','YouTube','LinkedIn']}
+    ],
+    buildPrompt:function(v){return 'Hashtag strategy for '+(v.platform||'Instagram')+' about: '+v.topic+'\n\n5 HIGH-VOLUME, 10 MEDIUM niche, 5 LOW specific tags.';}
+  },
+  { id:'bio-writer', cat:'social', type:'ai', icon:'👤', name:'Bio Writer', desc:'Profile bios that convert', tier:'nano',
+    system:'You write compelling bios within character limits.',
+    fields:[
+      {name:'who',label:'Who you are / what you do',type:'textarea',required:true},
+      {name:'platform',label:'Platform',type:'select',options:['Instagram (150)','Twitter/X (160)','TikTok (80)','LinkedIn (220)','8BFR (200)','YouTube (1000)']},
+      {name:'style',label:'Style',type:'select',options:['Professional','Fun/playful','Minimalist','Bold','Mysterious','Emoji-heavy']}
+    ],
+    buildPrompt:function(v){return 'Write 5 bio options for '+(v.platform||'Instagram')+', '+(v.style||'Professional')+' style.\nAbout: '+v.who+'\nStay within char limit. Number them.';}
+  },
+  { id:'caption', cat:'social', type:'ai', icon:'💬', name:'Caption Writer', desc:'Scroll-stopping captions', tier:'nano',
+    system:'You write captions that drive engagement.',
+    fields:[
+      {name:'describe',label:'Describe photo/video',type:'textarea',required:true},
+      {name:'vibe',label:'Caption vibe',type:'select',options:['Funny','Inspirational','Poetic','Short & punchy','Storytelling','Question']}
+    ],
+    buildPrompt:function(v){return 'Write 3 captions, '+(v.vibe||'short & punchy')+' vibe, for:\n'+v.describe;}
+  },
+  { id:'reply-writer', cat:'social', type:'ai', icon:'↩️', name:'Reply Writer', desc:'Smart replies to comments/DMs', tier:'nano',
+    system:'You write appropriate, authentic replies.',
+    fields:[
+      {name:'msg',label:'Message you received',type:'textarea',required:true},
+      {name:'tone',label:'Your reply tone',type:'select',options:['Friendly','Professional','Witty','Apologetic','Grateful','Firm but polite','Flirty']}
+    ],
+    buildPrompt:function(v){return 'Give me 3 reply options, '+(v.tone||'Friendly')+' tone:\n\n'+v.msg;}
+  },
 
-    /* ═══════════════ AUTH CHECK ═══════════════ */
-    async function init() {
-        try {
-            const { data: { session } } = await s.auth.getSession();
-            if (!session) { location.href = 'login.html?return=owner-studio.html'; return; }
-            const { data: profile } = await s.from('profiles').select('role').eq('user_id', session.user.id).single();
-            if (!profile || (profile.role !== 'owner' && profile.role !== 'co-owner')) { alert('Owner/Co-Owner access only.'); location.href = 'feed.html'; return; }
-        } catch (error) { console.error('Init error:', error); }
+  // ═══ VIDEO ═══
+  { id:'video-concept', cat:'video', type:'ai', icon:'🎬', name:'Video Concept', desc:'Script + shot ideas', tier:'mini',
+    system:'You create actionable video concepts with hooks and shot ideas.',
+    fields:[
+      {name:'topic',label:'Video topic',type:'textarea',required:true},
+      {name:'platform',label:'Platform',type:'select',options:['TikTok (9:16, 60s)','Instagram Reels (9:16, 90s)','YouTube Shorts (9:16, 60s)','YouTube (16:9, 8-10 min)','YouTube (16:9, 15+ min)']},
+      {name:'goal',label:'Goal',type:'select',options:['Educate','Entertain','Sell','Build community','Go viral']}
+    ],
+    buildPrompt:function(v){return 'Video concept.\nPlatform: '+(v.platform||'TikTok')+'\nGoal: '+(v.goal||'Entertain')+'\nTopic: '+v.topic+'\n\nProvide: 3 hooks, full script with timestamps, B-roll ideas, caption + hashtags.';}
+  },
+  { id:'video-blueprint', cat:'video', type:'ai', icon:'🎥', name:'Video Blueprint', desc:'Full production plan', badges:['pro'], tier:'mini',
+    system:'You are a video director and editor.',
+    fields:[
+      {name:'topic',label:'Video idea',type:'textarea',required:true},
+      {name:'length',label:'Length',type:'select',options:['Under 60s','1-3 min','3-8 min','8-15 min','15+ min']}
+    ],
+    buildPrompt:function(v){return 'Video production blueprint.\nTopic: '+v.topic+'\nLength: '+(v.length||'1-3 min')+'\n\nPre-prod, script with timecodes, editing/transitions, music/SFX, thumbnail, titles.';}
+  },
+  { id:'music-video-storyboard', cat:'video', type:'ai', icon:'🎞️', name:'Music Video Storyboard', desc:'Scene-by-scene for your song', badges:['music','pro'], tier:'mini',
+    system:'You create music video concepts with detailed scene breakdowns.',
+    fields:[
+      {name:'lyrics',label:'Song lyrics or concept',type:'textarea',required:true},
+      {name:'budget',label:'Budget level',type:'select',options:['DIY/phone','Low (<$500)','Mid ($500-5k)','High ($5k+)']}
+    ],
+    buildPrompt:function(v){return 'Music video storyboard.\nBudget: '+(v.budget||'DIY')+'\nLyrics/concept:\n'+v.lyrics+'\n\nProvide: concept, 8-12 scenes with shots/locations/transitions, wardrobe, B-roll, editing style.';}
+  },
+
+  // ═══ FUN & GAMES ═══
+  { id:'roast', cat:'fun', type:'ai', icon:'🔥', name:'Roast Generator', desc:'Light-hearted roasts', badges:['fun'], tier:'nano',
+    system:'You write light, playful roasts that tease without being mean-spirited. Keep them clever and PG-13.',
+    fields:[{name:'target',label:'Who/what to roast',type:'textarea',required:true}],
+    buildPrompt:function(v){return 'Write 5 light, clever, playful roasts about: '+v.target+'\nKeep it PG-13, funny not mean.';}
+  },
+  { id:'pickup', cat:'fun', type:'ai', icon:'💕', name:'Pickup Line', desc:'Smooth openers', badges:['fun'], tier:'nano',
+    system:'You write creative pickup lines.',
+    fields:[
+      {name:'context',label:'Context about them',type:'text',placeholder:'e.g. Loves hip-hop, studies art',required:true},
+      {name:'vibe',label:'Vibe',type:'select',options:['Smooth','Funny','Cheesy','Sweet','Witty','Music-themed']}
+    ],
+    buildPrompt:function(v){return 'Write 5 '+(v.vibe||'Smooth')+' pickup lines for someone who: '+v.context;}
+  },
+  { id:'would-you', cat:'fun', type:'ai', icon:'🤔', name:'Would You Rather', desc:'Tough choice questions', badges:['fun'], tier:'nano',
+    system:'You create fun, tough "would you rather" questions.',
+    fields:[
+      {name:'theme',label:'Theme',type:'text',placeholder:'e.g. Music industry, food, travel',required:true},
+      {name:'count',label:'How many',type:'select',options:['5','10','20']}
+    ],
+    buildPrompt:function(v){return 'Create '+(v.count||'10')+' "Would You Rather..." questions about: '+v.theme+'\nMake them genuinely tough to choose between.';}
+  },
+  { id:'artist-lookup', cat:'fun', type:'ai', icon:'🔍', name:'Artist Info', desc:'Quick artist facts & stats', badges:['music','fun'], tier:'nano',
+    system:'You know music artists broadly. Give accurate info or clearly say if unsure.',
+    fields:[{name:'artist',label:'Artist name',type:'text',required:true}],
+    buildPrompt:function(v){return 'Give me info on: '+v.artist+'\n\nInclude: genre, origin, notable songs, career highlights, interesting facts. If unsure about any detail, say so.';}
+  },
+
+  // ═══ BUSINESS ═══
+  { id:'email', cat:'business', type:'ai', icon:'✉️', name:'Email Writer', desc:'Professional or casual emails', tier:'nano',
+    system:'You write clear, effective emails.',
+    fields:[
+      {name:'purpose',label:'Email about?',type:'textarea',required:true},
+      {name:'recipient',label:'Recipient',type:'text'},
+      {name:'tone',label:'Tone',type:'select',options:['Formal','Professional','Friendly','Casual','Apologetic','Assertive','Grateful']}
+    ],
+    buildPrompt:function(v){return 'Email.\nPurpose: '+v.purpose+'\nTo: '+(v.recipient||'general')+'\nTone: '+(v.tone||'Professional')+'\n\nSubject line + sign-off.';}
+  },
+  { id:'pitch', cat:'business', type:'ai', icon:'🎯', name:'Pitch Writer', desc:'Cold outreach & pitches', tier:'mini',
+    system:'You write compelling, concise pitches.',
+    fields:[
+      {name:'what',label:'What are you pitching?',type:'textarea',required:true},
+      {name:'audience',label:'Audience',type:'text',required:true},
+      {name:'goal',label:'Pitch goal',type:'text'}
+    ],
+    buildPrompt:function(v){return 'Pitch.\nProduct: '+v.what+'\nAudience: '+v.audience+'\nGoal: '+(v.goal||'open a conversation');}
+  },
+  { id:'business-plan', cat:'business', type:'ai', icon:'📊', name:'Mini Business Plan', desc:'One-pager for any idea', badges:['pro'], tier:'mini',
+    system:'You are a strategic business advisor.',
+    fields:[{name:'idea',label:'Business idea',type:'textarea',required:true}],
+    buildPrompt:function(v){return 'One-page business plan for: '+v.idea+'\n\n1) Problem, 2) Solution, 3) Target customer, 4) Revenue, 5) Go-to-market, 6) Risks, 7) First 90 days.';}
+  },
+
+  // ═══ GENERAL ═══
+  { id:'ai-chat', cat:'general', type:'ai', icon:'🤖', name:'AI Chat', desc:'Ask anything', tier:'nano',
+    system:'You are a helpful, friendly assistant.',
+    fields:[{name:'message',label:'Your message',type:'textarea',required:true}],
+    buildPrompt:function(v){return v.message;}
+  },
+  { id:'eli5', cat:'general', type:'ai', icon:'👶', name:"Explain Like I'm 5", desc:'Complex topics made simple', tier:'nano',
+    system:'You explain things simply for kids.',
+    fields:[{name:'topic',label:'What to explain',type:'textarea',required:true}],
+    buildPrompt:function(v){return 'Explain like I\'m 5 with simple words and analogies:\n\n'+v.topic;}
+  },
+  { id:'brainstorm', cat:'general', type:'ai', icon:'💡', name:'Brainstormer', desc:'Ideas for anything', tier:'nano',
+    system:'You generate creative, diverse, actionable ideas.',
+    fields:[
+      {name:'prompt',label:'Need ideas for?',type:'textarea',required:true},
+      {name:'count',label:'How many',type:'select',options:['5','10','15','25']}
+    ],
+    buildPrompt:function(v){return 'Generate '+(v.count||'10')+' diverse creative ideas for: '+v.prompt+'\nNumber them and briefly explain each.';}
+  }
+];
+
+// ─── RENDERING ─────────────────────────────────────────────
+var activeCategory='all', currentTool=null;
+
+function renderNav(){
+  var nav=document.getElementById('catNav');
+  var html='<button class="cat-btn'+(activeCategory==='all'?' active':'')+'" onclick="setCategory(\'all\')">All Tools</button>';
+  CATEGORIES.forEach(function(c){
+    html+='<button class="cat-btn'+(activeCategory===c.id?' active':'')+'" onclick="setCategory(\''+c.id+'\')">'+c.name+'</button>';
+  });
+  nav.innerHTML=html;
+}
+function setCategory(id){activeCategory=id;renderNav();renderTools();window.scrollTo({top:0,behavior:'smooth'});}
+window.setCategory=setCategory;
+
+function renderTools(){
+  var container=document.getElementById('toolsContainer');
+  var q=(document.getElementById('searchInput').value||'').toLowerCase();
+  var html='';
+  CATEGORIES.forEach(function(cat){
+    if(activeCategory!=='all'&&activeCategory!==cat.id)return;
+    var catTools=TOOLS.filter(function(t){
+      if(t.cat!==cat.id)return false;
+      if(!q)return true;
+      return (t.name+' '+t.desc).toLowerCase().indexOf(q)!==-1;
+    });
+    if(!catTools.length)return;
+    html+='<h2 class="cat-title">'+cat.name+'</h2>';
+    html+='<div class="cat-sub">'+catTools.length+' tool'+(catTools.length===1?'':'s')+'</div>';
+    html+='<div class="tools-grid">';
+    catTools.forEach(function(t){
+      var badges=(t.badges||[]).map(function(b){return '<span class="tool-badge badge-'+b+'">'+b.toUpperCase()+'</span>';}).join('');
+      html+='<div class="tool" onclick="openTool(\''+t.id+'\')">' +badges+
+            '<div class="tool-icon">'+t.icon+'</div>'+
+            '<div class="tool-name">'+t.name+'</div>'+
+            '<div class="tool-desc">'+t.desc+'</div></div>';
+    });
+    html+='</div>';
+  });
+  if(!html)html='<div class="empty">No tools match your search.</div>';
+  container.innerHTML=html;
+}
+
+function openTool(id){
+  var tool=TOOLS.find(function(t){return t.id===id;});
+  if(!tool)return;
+  currentTool=tool;
+  document.getElementById('mIcon').textContent=tool.icon;
+  document.getElementById('mName').textContent=tool.name;
+  var fieldsHtml='';
+  tool.fields.forEach(function(f){
+    var req=f.required?'<span class="req">*</span>':'';
+    var id=f.id||f.name;
+    fieldsHtml+='<div class="field"><label>'+f.label+' '+req+'</label>';
+    if(f.type==='textarea'){
+      fieldsHtml+='<textarea id="'+id+'" data-name="'+f.name+'" placeholder="'+(f.placeholder||'')+'"'+(f.required?' required':'')+'></textarea>';
+    } else if(f.type==='select'){
+      fieldsHtml+='<select id="'+id+'" data-name="'+f.name+'"><option value="">Choose...</option>';
+      (f.options||[]).forEach(function(o){fieldsHtml+='<option value="'+o+'">'+o+'</option>';});
+      fieldsHtml+='</select>';
+    } else if(f.type==='color'){
+      fieldsHtml+='<input type="color" id="'+id+'" data-name="'+f.name+'" value="'+(f.value||'#000000')+'">';
+    } else if(f.type==='file'){
+      fieldsHtml+='<input type="file" id="'+id+'" data-name="'+f.name+'" accept="'+(f.accept||'*')+'"'+(f.multiple?' multiple':'')+(f.required?' required':'')+' onchange="handleFilePreview(this,\''+id+'\')">';
+      fieldsHtml+='<div id="'+id+'Preview" style="margin-top:0.5rem;"></div>';
+    } else if(f.type==='number'){
+      fieldsHtml+='<input type="number" id="'+id+'" data-name="'+f.name+'" value="'+(f.value||'')+'" placeholder="'+(f.placeholder||'')+'">';
+    } else if(f.type==='preset'){
+      fieldsHtml+='<div class="preset-row" id="'+id+'Row">';
+      (f.options||[]).forEach(function(o,idx){
+        fieldsHtml+='<button type="button" class="preset" data-w="'+o.w+'" data-h="'+o.h+'" onclick="applyPreset(this,\''+id+'\')">'+o.label+'</button>';
+      });
+      fieldsHtml+='</div><input type="hidden" id="'+id+'" data-name="'+f.name+'">';
+    } else {
+      fieldsHtml+='<input type="text" id="'+id+'" data-name="'+f.name+'" placeholder="'+(f.placeholder||'')+'"'+(f.required?' required':'')+'>';
+    }
+    fieldsHtml+='</div>';
+  });
+  document.getElementById('mFields').innerHTML=fieldsHtml;
+  document.getElementById('mResult').innerHTML='';
+  document.getElementById('mResult').classList.remove('show');
+  document.getElementById('mRun').disabled=false;
+  document.getElementById('mRun').textContent=tool.type==='client'?'🚀 Create':'✨ Generate';
+  document.getElementById('modalOverlay').classList.add('show');
+}
+window.openTool=openTool;
+
+function closeModal(){
+  document.getElementById('modalOverlay').classList.remove('show');
+  currentTool=null;
+}
+window.closeModal=closeModal;
+
+// Preset button -> fill W/H for resizer
+window.applyPreset=function(btn,presetId){
+  btn.parentNode.querySelectorAll('.preset').forEach(function(b){b.classList.remove('selected');});
+  btn.classList.add('selected');
+  var w=btn.dataset.w,h=btn.dataset.h;
+  document.getElementById(presetId).value=w+'x'+h;
+  // If there are w/h inputs, fill them
+  var wEl=document.getElementById('resizeW'),hEl=document.getElementById('resizeH');
+  if(wEl)wEl.value=w;
+  if(hEl)hEl.value=h;
+};
+
+// File preview (show thumbnail for images, file info otherwise)
+window.handleFilePreview=function(input,id){
+  var preview=document.getElementById(id+'Preview');
+  if(!preview||!input.files||!input.files.length){preview.innerHTML='';return;}
+  var files=Array.from(input.files);
+  if(input.multiple){
+    // GIF strip preview
+    var stripHtml='<div class="gif-strip">';
+    files.forEach(function(f){
+      var url=URL.createObjectURL(f);
+      stripHtml+='<img src="'+url+'" alt="">';
+    });
+    stripHtml+='</div><div style="font-size:0.75rem;color:rgba(168,85,247,0.7);">'+files.length+' files selected</div>';
+    preview.innerHTML=stripHtml;
+  } else {
+    var f=files[0];
+    if(f.type.startsWith('image/')){
+      var url=URL.createObjectURL(f);
+      preview.innerHTML='<img src="'+url+'" style="max-width:200px;max-height:150px;border-radius:8px;"><div style="font-size:0.75rem;color:rgba(168,85,247,0.7);">'+f.name+' ('+(f.size/1024).toFixed(1)+' KB)</div>';
+    } else if(f.type.startsWith('video/')){
+      var url=URL.createObjectURL(f);
+      preview.innerHTML='<video src="'+url+'" controls style="max-width:100%;max-height:200px;border-radius:8px;"></video><div style="font-size:0.75rem;color:rgba(168,85,247,0.7);">'+f.name+' ('+(f.size/(1024*1024)).toFixed(1)+' MB)</div>';
+    } else {
+      preview.innerHTML='<div style="font-size:0.82rem;">'+f.name+' ('+(f.size/1024).toFixed(1)+' KB)</div>';
+    }
+  }
+};
+
+function collectValues(){
+  var values={};
+  var missing=false;
+  currentTool.fields.forEach(function(f){
+    var id=f.id||f.name;
+    var el=document.getElementById(id);
+    if(f.type==='file'){
+      values[f.name]=el&&el.files?el.files:null;
+      if(f.required&&(!el||!el.files||!el.files.length))missing=true;
+    } else {
+      var val=el?(el.value||'').trim():'';
+      values[f.name]=val;
+      if(f.required&&!val)missing=true;
+    }
+  });
+  return {values:values,missing:missing};
+}
+
+function showResult(html){
+  var r=document.getElementById('mResult');
+  r.classList.add('show');
+  r.innerHTML=html;
+}
+function showError(msg){
+  showResult('<div class="error-msg">⚠️ '+esc(msg)+'</div>');
+}
+function showLoading(msg){
+  showResult('<div class="loading-text"><span class="spinner"></span>'+esc(msg||'Working...')+'</div>');
+}
+function esc(s){if(!s)return'';var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+
+// MAIN DISPATCH — runs either AI text tool or client-side tool
+async function runTool(){
+  if(!currentTool)return;
+  var c=collectValues();
+  if(c.missing){showError('Please fill in all required fields (*)');return;}
+
+  var btn=document.getElementById('mRun');
+  btn.disabled=true;
+  btn.textContent='Working...';
+
+  try {
+    if(currentTool.type==='ai'){
+      await runAiTool(c.values);
+    } else if(currentTool.type==='client'){
+      await CLIENT_HANDLERS[currentTool.handler](c.values);
+    }
+  } catch(e){
+    showError('Error: '+(e.message||e));
+  }
+
+  btn.disabled=false;
+  btn.textContent=currentTool.type==='client'?'🚀 Create Again':'✨ Generate Again';
+}
+window.runTool=runTool;
+
+async function runAiTool(values){
+  var prompt=currentTool.buildPrompt(values);
+  showLoading('Generating...');
+
+  var res=await fetch(API,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      messages:[
+        {role:'system',content:currentTool.system},
+        {role:'user',content:prompt}
+      ],
+      tier:currentTool.tier||'nano',
+      max_tokens:1200
+    })
+  });
+  var data=await res.json();
+  if(data.error){
+    showError(data.error+(data.attempts?' — '+JSON.stringify(data.attempts).slice(0,200):''));
+    return;
+  }
+  var text=data.text||'(No response)';
+  window._lastResult=text;
+
+  var actions='<div class="result-actions">'+
+    '<button class="btn btn-ghost btn-sm" onclick="copyResult()">📋 Copy</button>'+
+    '<button class="btn btn-ghost btn-sm" onclick="runTool()">🔄 Regenerate</button>'+
+    '<button class="btn btn-ghost btn-sm" onclick="shareAiResult()">🔗 Share</button></div>';
+
+  var providerTag='<div style="font-size:0.7rem;color:rgba(168,85,247,0.5);margin-top:0.5rem;">via '+(data.provider||'ai')+'</div>';
+  showResult('<div>'+esc(text)+'</div>'+actions+providerTag);
+}
+
+window.copyResult=function(){
+  if(!window._lastResult)return;
+  navigator.clipboard.writeText(window._lastResult).then(function(){
+    var r=document.getElementById('mResult');
+    var ex=r.querySelector('.success-msg');if(ex)ex.remove();
+    r.insertAdjacentHTML('beforeend','<div class="success-msg">✓ Copied</div>');
+    setTimeout(function(){var m=r.querySelector('.success-msg');if(m)m.remove();},2000);
+  });
+};
+
+window.shareAiResult=function(){
+  if(!window._lastResult)return;
+  if(window.Share&&window.Share.open){
+    window.Share.open({type:'custom',url:'https://8bfr.com/ai-studio.html',title:currentTool?currentTool.name+' on 8BFR':'AI-generated on 8BFR',description:window._lastResult.slice(0,160)});
+  } else if(navigator.share){
+    navigator.share({text:window._lastResult,url:'https://8bfr.com/ai-studio.html'});
+  } else {
+    navigator.clipboard.writeText(window._lastResult);
+    alert('Copied!');
+  }
+};
+
+// Load scripts dynamically
+function loadScript(url){
+  return new Promise(function(resolve,reject){
+    var s=document.createElement('script');
+    s.src=url;s.onload=resolve;s.onerror=reject;
+    document.head.appendChild(s);
+  });
+}
+function loadImage(src){
+  return new Promise(function(resolve,reject){
+    var img=new Image();
+    img.onload=function(){resolve(img);};
+    img.onerror=reject;
+    img.crossOrigin='anonymous';
+    img.src=src;
+  });
+}
+
+// ═══ CLIENT-SIDE TOOL HANDLERS ═══
+var CLIENT_HANDLERS={
+
+  // ── ALBUM COVER ──
+  albumCover: async function(v){
+    var artist=v.artist||'',title=v.title||'',featured=v.featured||'',pos=v.textPos||'bottom',prompt=v.prompt||'';
+    showLoading('Step 1: Enhancing prompt with AI...');
+
+    // Step 1: ask AI to enhance prompt
+    var imgPrompt=prompt;
+    try {
+      var aiRes=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({input:'Create a concise vivid image generation prompt (visual only, no explanation) for an album cover: '+prompt+'. Artist: '+artist+(title?' Title: '+title:'')+'. Make it cinematic.',tier:'nano'})});
+      var aiData=await aiRes.json();
+      if(aiData.text)imgPrompt=aiData.text.replace(/\n/g,' ').substring(0,400);
+    } catch(e){/* use original prompt */}
+
+    showLoading('Step 2: Generating image (10-30s)...');
+    var baseUrl=IMG_GEN+encodeURIComponent(imgPrompt+', album cover art, high quality, professional, square')+'?width=1024&height=1024&nologo=true&seed='+Date.now();
+
+    var img=await loadImage(baseUrl);
+    var canvas=document.createElement('canvas');
+    canvas.width=1024;canvas.height=1024;
+    var ctx=canvas.getContext('2d');
+    ctx.drawImage(img,0,0,1024,1024);
+
+    if(pos!=='none'&&(artist||title)){
+      var barHeight=featured?180:(title?140:90);
+      var barY=pos==='top'?0:pos==='center'?(1024-barHeight)/2:1024-barHeight;
+      ctx.fillStyle='rgba(0,0,0,0.55)';
+      ctx.fillRect(0,barY,1024,barHeight);
+      ctx.textAlign='center';
+      ctx.fillStyle='#fff';ctx.strokeStyle='#000';ctx.lineWidth=3;
+      ctx.font='bold 64px "Bebas Neue", Impact, sans-serif';
+      var textY=barY+60;
+      if(artist){ctx.strokeText(artist.toUpperCase(),512,textY);ctx.fillText(artist.toUpperCase(),512,textY);}
+      if(title){
+        ctx.font='bold 42px "Bebas Neue", Impact, sans-serif';
+        ctx.fillStyle='#c4b5fd';textY+=55;
+        ctx.strokeText(title.toUpperCase(),512,textY);ctx.fillText(title.toUpperCase(),512,textY);
+      }
+      if(featured){
+        ctx.font='28px "Work Sans", sans-serif';
+        ctx.fillStyle='#a78bfa';ctx.lineWidth=2;textY+=42;
+        ctx.strokeText('feat. '+featured,512,textY);ctx.fillText('feat. '+featured,512,textY);
+      }
     }
 
-    /* ═══════════════ TOOL CONFIG ═══════════════ */
-    const toolConfig = {
-        lyrics: { title: '✍️ Lyrics Generator', hint: 'Describe the mood, genre, theme. Be specific for better results.' },
-        beats: { title: '🎵 Beat Ideas', hint: 'Describe the vibe — creates a detailed production blueprint.' },
-        cover: { title: '🎨 Album Cover Generator', hint: 'Describe the image, add artist name and featured artists to burn into the cover.' },
-        video: { title: '🎬 Video Concept', hint: 'Describe the song and vision — get a storyboard plan.' },
-        post: { title: '📝 Post Generator', hint: 'What platform and topic? Gets ready-to-paste posts.' },
-        song: { title: '🎤 Song Creator', hint: 'Describe the full song — get complete lyrics with structure.' },
-        imgconvert: { title: '🖼️ Image Converter', hint: 'Upload an image and convert between PNG, JPG, and WebP formats.' },
-        audioextract: { title: '🎧 Audio Extractor', hint: 'Upload a video file to extract the audio track.' },
-        meme: { title: '😂 Meme Creator', hint: 'Upload an image, add top/bottom text to create a meme.' },
-        gif: { title: '🎞️ GIF Creator', hint: 'Upload multiple images to create an animated GIF.' },
-        qr: { title: '📱 QR Code Generator', hint: 'Enter a URL or text to generate a QR code for promo.' },
-        resize: { title: '📐 Image Resizer', hint: 'Upload an image and resize it for different social platforms.' }
+    var dataUrl=canvas.toDataURL('image/png');
+    window._lastImageUrl=dataUrl;
+    showResult('<img src="'+dataUrl+'" alt="Album cover">'+
+      '<div class="result-actions">'+
+      '<button class="btn btn-sm" onclick="downloadImage(\'album-cover-8bfr.png\')">⬇️ Download</button>'+
+      '<button class="btn btn-ghost btn-sm" onclick="runTool()">🔄 Try Again</button>'+
+      '</div>'+
+      '<div style="font-size:0.75rem;color:rgba(168,85,247,0.7);margin-top:0.5rem;">Enhanced prompt: '+esc(imgPrompt)+'</div>');
+  },
+
+  // ── QR CODE ──
+  qrCode: async function(v){
+    var text=v.text,size=parseInt(v.size)||300,fg=v.fg||'#000000',bg=v.bg||'#ffffff';
+    showLoading('Generating QR code...');
+    if(!window.QRCode){await loadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js');}
+    var container=document.createElement('div');
+    container.style.display='none';
+    document.body.appendChild(container);
+    new QRCode(container,{text:text,width:size,height:size,colorDark:fg,colorLight:bg,correctLevel:QRCode.CorrectLevel.H});
+    // Wait for render
+    await new Promise(function(r){setTimeout(r,300);});
+    var img=container.querySelector('img')||container.querySelector('canvas');
+    if(!img){document.body.removeChild(container);showError('QR generation failed.');return;}
+    var outCanvas=document.createElement('canvas');
+    outCanvas.width=size;outCanvas.height=size;
+    var ctx=outCanvas.getContext('2d');
+    if(img.tagName==='CANVAS'){ctx.drawImage(img,0,0,size,size);}
+    else {
+      var tmp=new Image();
+      tmp.src=img.src;
+      await new Promise(function(r){tmp.onload=r;});
+      ctx.drawImage(tmp,0,0,size,size);
+    }
+    document.body.removeChild(container);
+    var dataUrl=outCanvas.toDataURL('image/png');
+    window._lastImageUrl=dataUrl;
+    showResult('<img src="'+dataUrl+'" alt="QR code" style="max-width:300px;background:#fff;padding:8px;border-radius:8px;">'+
+      '<div class="result-actions"><button class="btn btn-sm" onclick="downloadImage(\'qr-8bfr.png\')">⬇️ Download</button></div>');
+  },
+
+  // ── MEME ──
+  meme: async function(v){
+    var files=v.image;
+    if(!files||!files[0]){showError('Upload an image first.');return;}
+    var url=URL.createObjectURL(files[0]);
+    var img=new Image();
+    await new Promise(function(r,rej){img.onload=r;img.onerror=rej;img.src=url;});
+    var canvas=document.createElement('canvas');
+    canvas.width=img.width;canvas.height=img.height;
+    var ctx=canvas.getContext('2d');
+    ctx.drawImage(img,0,0);
+    var fontSize=parseInt(v.fontSize)||48;
+    ctx.font='bold '+fontSize+'px Impact, sans-serif';
+    ctx.textAlign='center';
+    ctx.fillStyle=v.color||'#ffffff';
+    ctx.strokeStyle=v.outline||'#000000';
+    ctx.lineWidth=Math.max(2,fontSize/12);
+    ctx.lineJoin='round';
+    function wrapLines(ctx,text,maxW){
+      var words=text.split(' '),lines=[],current='';
+      words.forEach(function(w){
+        var test=current?current+' '+w:w;
+        if(ctx.measureText(test).width>maxW&&current){lines.push(current);current=w;}
+        else current=test;
+      });
+      if(current)lines.push(current);
+      return lines;
+    }
+    if(v.top){
+      var lines=wrapLines(ctx,v.top.toUpperCase(),canvas.width-40);
+      lines.forEach(function(line,i){
+        var y=fontSize+10+i*(fontSize+5);
+        ctx.strokeText(line,canvas.width/2,y);
+        ctx.fillText(line,canvas.width/2,y);
+      });
+    }
+    if(v.bottom){
+      var lines=wrapLines(ctx,v.bottom.toUpperCase(),canvas.width-40);
+      var startY=canvas.height-(lines.length*(fontSize+5))-10+fontSize;
+      lines.forEach(function(line,i){
+        var y=startY+i*(fontSize+5);
+        ctx.strokeText(line,canvas.width/2,y);
+        ctx.fillText(line,canvas.width/2,y);
+      });
+    }
+    var dataUrl=canvas.toDataURL('image/png');
+    window._lastImageUrl=dataUrl;
+    showResult('<img src="'+dataUrl+'" alt="Meme">'+
+      '<div class="result-actions">'+
+      '<button class="btn btn-sm" onclick="downloadImage(\'meme-8bfr.png\')">⬇️ Download</button>'+
+      '</div>');
+  },
+
+  // ── GIF (canvas-based, no worker so no CORS issues) ──
+  gif: async function(v){
+    var files=v.images;
+    if(!files||files.length<2){showError('Upload at least 2 images.');return;}
+    var delay=parseInt(v.delay)||500;
+    var width=parseInt(v.width)||480;
+
+    showLoading('Loading '+files.length+' frames...');
+    // Load all images
+    var imgs=[];
+    for(var i=0;i<files.length;i++){
+      var url=URL.createObjectURL(files[i]);
+      var img=new Image();
+      await new Promise(function(r,rej){img.onload=r;img.onerror=rej;img.src=url;});
+      imgs.push(img);
+    }
+    // Calculate height from first image
+    var ratio=imgs[0].height/imgs[0].width;
+    var height=Math.round(width*ratio);
+
+    // Load gif.js WITHOUT worker (fixes the CORS issue)
+    if(!window.GIF){await loadScript('https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js');}
+
+    showLoading('Encoding GIF frames...');
+    var gif=new GIF({
+      workers:0,            // No workers = no CORS issue
+      quality:10,
+      width:width,
+      height:height
+    });
+
+    for(var i=0;i<imgs.length;i++){
+      var canvas=document.createElement('canvas');
+      canvas.width=width;canvas.height=height;
+      var ctx=canvas.getContext('2d');
+      ctx.drawImage(imgs[i],0,0,width,height);
+      gif.addFrame(canvas,{delay:delay,copy:true});
+    }
+
+    await new Promise(function(resolve,reject){
+      gif.on('finished',function(blob){
+        var url=URL.createObjectURL(blob);
+        window._lastBlobUrl=url;
+        window._lastBlob=blob;
+        showResult('<img src="'+url+'" alt="GIF">'+
+          '<div class="result-actions">'+
+          '<button class="btn btn-sm" onclick="downloadBlob(\'animation-8bfr.gif\')">⬇️ Download GIF</button>'+
+          '</div>'+
+          '<div style="font-size:0.75rem;color:rgba(168,85,247,0.7);margin-top:0.5rem;">'+width+'×'+height+' • '+files.length+' frames • '+(blob.size/1024).toFixed(1)+' KB</div>');
+        resolve();
+      });
+      gif.render();
+    });
+  },
+
+  // ── IMAGE RESIZER ──
+  resizer: async function(v){
+    var files=v.image;
+    if(!files||!files[0]){showError('Upload an image first.');return;}
+    var w=parseInt(v.w)||parseInt(document.getElementById('resizeW').value);
+    var h=parseInt(v.h)||parseInt(document.getElementById('resizeH').value);
+    if(!w||!h){showError('Pick a preset or enter width and height.');return;}
+
+    showLoading('Resizing...');
+    var url=URL.createObjectURL(files[0]);
+    var img=new Image();
+    await new Promise(function(r,rej){img.onload=r;img.onerror=rej;img.src=url;});
+    var canvas=document.createElement('canvas');
+    canvas.width=w;canvas.height=h;
+    var ctx=canvas.getContext('2d');
+    // Cover-fit: fill entire canvas, crop overflow
+    var srcRatio=img.width/img.height,dstRatio=w/h;
+    var sx=0,sy=0,sw=img.width,sh=img.height;
+    if(srcRatio>dstRatio){sw=img.height*dstRatio;sx=(img.width-sw)/2;}
+    else {sh=img.width/dstRatio;sy=(img.height-sh)/2;}
+    ctx.drawImage(img,sx,sy,sw,sh,0,0,w,h);
+    var dataUrl=canvas.toDataURL('image/png');
+    window._lastImageUrl=dataUrl;
+    // Get size
+    var byteStr=atob(dataUrl.split(',')[1]);
+    showResult('<img src="'+dataUrl+'" alt="Resized">'+
+      '<div class="result-actions">'+
+      '<button class="btn btn-sm" onclick="downloadImage(\'resized-'+w+'x'+h+'.png\')">⬇️ Download</button>'+
+      '</div>'+
+      '<div style="font-size:0.75rem;color:rgba(168,85,247,0.7);margin-top:0.5rem;">Resized to '+w+'×'+h+' • '+(byteStr.length/1024).toFixed(1)+' KB</div>');
+  },
+
+  // ── IMAGE CONVERTER ──
+  converter: async function(v){
+    var files=v.image;
+    if(!files||!files[0]){showError('Upload an image first.');return;}
+    var fmt=(v.format||'png').toLowerCase();
+    var quality=(parseInt(v.quality)||90)/100;
+    var scale=(parseInt(v.scale)||100)/100;
+
+    showLoading('Converting...');
+    var url=URL.createObjectURL(files[0]);
+    var img=new Image();
+    await new Promise(function(r,rej){img.onload=r;img.onerror=rej;img.src=url;});
+    var canvas=document.createElement('canvas');
+    canvas.width=Math.round(img.width*scale);
+    canvas.height=Math.round(img.height*scale);
+    var ctx=canvas.getContext('2d');
+    ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    var mime=fmt==='jpeg'?'image/jpeg':fmt==='webp'?'image/webp':'image/png';
+    var ext=fmt==='jpeg'?'jpg':fmt;
+    var blob=await new Promise(function(r){canvas.toBlob(r,mime,quality);});
+    var outUrl=URL.createObjectURL(blob);
+    window._lastBlobUrl=outUrl;
+    window._lastBlob=blob;
+    showResult('<img src="'+outUrl+'" alt="Converted">'+
+      '<div class="result-actions">'+
+      '<button class="btn btn-sm" onclick="downloadBlob(\'converted.'+ext+'\')">⬇️ Download</button>'+
+      '</div>'+
+      '<div style="font-size:0.75rem;color:rgba(168,85,247,0.7);margin-top:0.5rem;">'+ext.toUpperCase()+' • '+canvas.width+'×'+canvas.height+' • '+(blob.size/1024).toFixed(1)+' KB</div>');
+  },
+
+  // ── AUDIO EXTRACTOR ──
+  audioExtract: async function(v){
+    var files=v.video;
+    if(!files||!files[0]){showError('Upload a video first.');return;}
+    var fmt=v.format||'wav';
+
+    showLoading('Extracting audio (may take a moment)...');
+    var arrayBuffer=await files[0].arrayBuffer();
+    var audioContext=new (window.AudioContext||window.webkitAudioContext)();
+    var audioBuffer;
+    try {
+      audioBuffer=await audioContext.decodeAudioData(arrayBuffer);
+    } catch(e){
+      showError('Could not decode audio from this video. MP4 and WebM formats work best.');
+      return;
+    }
+
+    var blob;
+    if(fmt==='wav'){
+      blob=audioBufferToWav(audioBuffer);
+    } else {
+      // WebM - use a fresh approach: render to offline context and MediaRecorder
+      try {
+        blob=await audioBufferToWebm(audioBuffer);
+      } catch(e){
+        // Fall back to WAV
+        blob=audioBufferToWav(audioBuffer);
+        fmt='wav';
+      }
+    }
+    var url=URL.createObjectURL(blob);
+    window._lastBlobUrl=url;
+    window._lastBlob=blob;
+    showResult('<audio src="'+url+'" controls style="width:100%;"></audio>'+
+      '<div class="result-actions">'+
+      '<button class="btn btn-sm" onclick="downloadBlob(\'audio-8bfr.'+fmt+'\')">⬇️ Download</button>'+
+      '</div>'+
+      '<div style="font-size:0.75rem;color:rgba(168,85,247,0.7);margin-top:0.5rem;">'+fmt.toUpperCase()+' • '+(blob.size/(1024*1024)).toFixed(2)+' MB</div>');
+  },
+
+  // ── VIDEO TRIMMER (simple - uses HTMLVideoElement + MediaRecorder) ──
+  videoCut: async function(v){
+    var files=v.video;
+    if(!files||!files[0]){showError('Upload a video first.');return;}
+    var start=parseFloat(v.start)||0;
+    var end=parseFloat(v.end)||10;
+    if(end<=start){showError('End time must be greater than start.');return;}
+
+    showLoading('Trimming video — this uses your browser, please wait...');
+    var videoUrl=URL.createObjectURL(files[0]);
+    var video=document.createElement('video');
+    video.src=videoUrl;
+    video.muted=true;
+    await new Promise(function(r,rej){video.onloadedmetadata=r;video.onerror=rej;});
+    if(end>video.duration)end=video.duration;
+
+    // Capture using MediaRecorder on canvas + audio track
+    var canvas=document.createElement('canvas');
+    canvas.width=video.videoWidth;canvas.height=video.videoHeight;
+    var ctx=canvas.getContext('2d');
+    var canvasStream=canvas.captureStream(30);
+    // Try to include audio
+    try {
+      var audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+      var src=audioCtx.createMediaElementSource(video);
+      var dest=audioCtx.createMediaStreamDestination();
+      src.connect(dest);
+      src.connect(audioCtx.destination);
+      dest.stream.getAudioTracks().forEach(function(t){canvasStream.addTrack(t);});
+    } catch(e){/* audio skipped */}
+
+    var chunks=[];
+    var recorder=new MediaRecorder(canvasStream,{mimeType:'video/webm'});
+    recorder.ondataavailable=function(e){if(e.data.size>0)chunks.push(e.data);};
+
+    var doneResolve;
+    var donePromise=new Promise(function(r){doneResolve=r;});
+    recorder.onstop=function(){
+      var blob=new Blob(chunks,{type:'video/webm'});
+      var url=URL.createObjectURL(blob);
+      window._lastBlobUrl=url;window._lastBlob=blob;
+      showResult('<video src="'+url+'" controls style="width:100%;"></video>'+
+        '<div class="result-actions"><button class="btn btn-sm" onclick="downloadBlob(\'trimmed-8bfr.webm\')">⬇️ Download</button></div>'+
+        '<div style="font-size:0.75rem;color:rgba(168,85,247,0.7);margin-top:0.5rem;">'+(end-start).toFixed(1)+'s • '+(blob.size/(1024*1024)).toFixed(2)+' MB</div>');
+      doneResolve();
     };
 
-    /* ═══════════════ TOOL SELECTION ═══════════════ */
-    function selectTool(tool) {
-        currentTool = tool;
-        currentCoverUrl = '';
-        gifFrames = [];
-        const cfg = toolConfig[tool] || {};
-        document.querySelectorAll('.tool-card').forEach(c => c.classList.remove('active'));
-        const el = document.getElementById('tool-' + tool);
-        if (el) el.classList.add('active');
-        document.getElementById('toolTitle').textContent = cfg.title || tool;
-        document.getElementById('toolHint').textContent = cfg.hint || '';
-        document.getElementById('toolPanel').style.display = 'block';
-        document.getElementById('result').style.display = 'none';
-        document.getElementById('coverPreview').style.display = 'none';
+    video.currentTime=start;
+    await new Promise(function(r){video.onseeked=r;});
+    recorder.start();
+    video.play();
+    var drawInterval=setInterval(function(){
+      ctx.drawImage(video,0,0);
+      if(video.currentTime>=end){
+        clearInterval(drawInterval);
+        video.pause();
+        setTimeout(function(){recorder.stop();},100);
+      }
+    },33);
+    await donePromise;
+  }
+};
 
-        const body = document.getElementById('toolBody');
-        body.innerHTML = getToolHTML(tool);
-        document.getElementById('toolPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+// ─── UTILITIES ────────────────────────────────────
+function audioBufferToWav(buffer){
+  var numChannels=buffer.numberOfChannels,sampleRate=buffer.sampleRate,format=1,bitDepth=16;
+  var length=buffer.length*numChannels*(bitDepth/8);
+  var out=new ArrayBuffer(44+length),view=new DataView(out);
+  function writeString(offset,str){for(var i=0;i<str.length;i++)view.setUint8(offset+i,str.charCodeAt(i));}
+  writeString(0,'RIFF');view.setUint32(4,36+length,true);writeString(8,'WAVE');
+  writeString(12,'fmt ');view.setUint32(16,16,true);view.setUint16(20,format,true);
+  view.setUint16(22,numChannels,true);view.setUint32(24,sampleRate,true);
+  view.setUint32(28,sampleRate*numChannels*(bitDepth/8),true);
+  view.setUint16(32,numChannels*(bitDepth/8),true);view.setUint16(34,bitDepth,true);
+  writeString(36,'data');view.setUint32(40,length,true);
+  var offset=44,channels=[];
+  for(var i=0;i<numChannels;i++)channels.push(buffer.getChannelData(i));
+  for(var i=0;i<buffer.length;i++){
+    for(var ch=0;ch<numChannels;ch++){
+      var sample=Math.max(-1,Math.min(1,channels[ch][i]));
+      view.setInt16(offset,sample<0?sample*0x8000:sample*0x7FFF,true);
+      offset+=2;
     }
-
-    function getToolHTML(tool) {
-        switch(tool) {
-            /* ── AI TEXT TOOLS ── */
-            case 'lyrics': return aiTextUI('e.g. Write a dark trap verse about rising from nothing, Wu-Tang style, with internal rhymes...');
-            case 'post': return aiTextUI('e.g. Instagram caption for a new single drop, hype tone, include hashtags...');
-            case 'song': return aiTextUI('e.g. Full rap song, 3 verses + hook, about discipline, aggressive delivery...');
-            case 'beats': return aiTextUI('e.g. 82 BPM boom-bap beat with piano chops, heavy bass, martial arts movie sample...');
-            case 'video': return aiTextUI('e.g. Music video for a hype anthem — warehouse setting, crew shots, slow-mo, smoke...');
-
-            /* ── ALBUM COVER (FIXED) ── */
-            case 'cover': return `
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Artist Name *</label>
-                        <input type="text" id="coverArtist" placeholder="e.g. 8BFR, DJ Nova, etc.">
-                    </div>
-                    <div class="form-group">
-                        <label>Album / Single Title</label>
-                        <input type="text" id="coverTitle" placeholder="e.g. Rise Up, Dark Side, etc.">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Featured Artists (comma separated)</label>
-                    <input type="text" id="coverFeatured" placeholder="e.g. Lil Vibe, MC Storm">
-                </div>
-                <div class="form-group">
-                    <label>Text Position</label>
-                    <select id="coverTextPos">
-                        <option value="bottom">Bottom (default)</option>
-                        <option value="top">Top</option>
-                        <option value="center">Center</option>
-                        <option value="none">No text overlay (bake into AI prompt only)</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Describe the visual style</label>
-                    <textarea id="prompt" placeholder="e.g. Dark cyberpunk album cover with neon purple glow, a hooded figure, city skyline at night, rain..." style="min-height:100px;"></textarea>
-                </div>
-                <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
-                    <button class="btn" id="generateBtn" onclick="generateCover()">🚀 Generate Cover</button>
-                    <button class="btn btn-outline" id="downloadBtn" onclick="downloadCover()" style="display:none;">💾 Download</button>
-                </div>`;
-
-            /* ── IMAGE CONVERTER ── */
-            case 'imgconvert': return `
-                <div class="upload-zone" onclick="document.getElementById('imgFile').click()">
-                    <input type="file" id="imgFile" accept="image/*" onchange="previewConvertImg(this)">
-                    <div class="drop-icon">🖼️</div>
-                    <div class="drop-text">Click to upload image</div>
-                </div>
-                <div id="imgPreviewBox" style="display:none;text-align:center;margin:1rem 0;">
-                    <img id="imgPreview" style="max-width:300px;border-radius:8px;border:1px solid var(--border);">
-                    <p id="imgInfo" style="font-size:0.82rem;color:var(--text-dim);margin-top:0.5rem;"></p>
-                </div>
-                <div class="form-group">
-                    <label>Convert to:</label>
-                    <div class="format-options">
-                        <div class="format-opt selected" onclick="selectFormat(this,'png')">PNG</div>
-                        <div class="format-opt" onclick="selectFormat(this,'jpeg')">JPG</div>
-                        <div class="format-opt" onclick="selectFormat(this,'webp')">WebP</div>
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Quality (JPG/WebP only)</label>
-                        <input type="number" id="imgQuality" value="90" min="10" max="100" step="5">
-                    </div>
-                    <div class="form-group">
-                        <label>Scale %</label>
-                        <input type="number" id="imgScale" value="100" min="10" max="300" step="10">
-                    </div>
-                </div>
-                <button class="btn btn-cyan" onclick="convertImage()">🔄 Convert & Download</button>`;
-
-            /* ── AUDIO EXTRACTOR ── */
-            case 'audioextract': return `
-                <div class="upload-zone" onclick="document.getElementById('vidFile').click()">
-                    <input type="file" id="vidFile" accept="video/*" onchange="previewVideo(this)">
-                    <div class="drop-icon">🎬</div>
-                    <div class="drop-text">Click to upload video (MP4, WebM, MOV)</div>
-                </div>
-                <div id="vidPreviewBox" style="display:none;margin:1rem 0;">
-                    <video id="vidPreview" controls style="max-width:100%;max-height:250px;border-radius:8px;"></video>
-                    <p id="vidInfo" style="font-size:0.82rem;color:var(--text-dim);margin-top:0.5rem;"></p>
-                </div>
-                <div class="form-group">
-                    <label>Output format:</label>
-                    <div class="format-options">
-                        <div class="format-opt selected" onclick="selectAudioFmt(this,'wav')">WAV</div>
-                        <div class="format-opt" onclick="selectAudioFmt(this,'webm')">WebM Audio</div>
-                    </div>
-                </div>
-                <p style="font-size:0.8rem;color:var(--text-dim);margin:0.5rem 0;">WAV = highest quality, larger file. WebM = smaller file. All processing happens on your device.</p>
-                <button class="btn btn-cyan" onclick="extractAudio()">🎧 Extract Audio</button>
-                <div id="audioResult" style="display:none;margin-top:1rem;padding:1rem;background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.3);border-radius:8px;">
-                    <audio id="audioPlayer" controls style="width:100%;"></audio>
-                    <button class="btn btn-green" onclick="downloadExtractedAudio()" style="margin-top:0.75rem;">💾 Download Audio</button>
-                </div>`;
-
-            /* ── MEME CREATOR ── */
-            case 'meme': return `
-                <div class="upload-zone" onclick="document.getElementById('memeFile').click()">
-                    <input type="file" id="memeFile" accept="image/*" onchange="loadMemeImage(this)">
-                    <div class="drop-icon">😂</div>
-                    <div class="drop-text">Click to upload base image</div>
-                </div>
-                <div class="meme-controls">
-                    <div class="form-group">
-                        <label>Top Text</label>
-                        <input type="text" id="memeTop" placeholder="TOP TEXT" oninput="drawMeme()">
-                    </div>
-                    <div class="form-group">
-                        <label>Bottom Text</label>
-                        <input type="text" id="memeBottom" placeholder="BOTTOM TEXT" oninput="drawMeme()">
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Font Size</label>
-                            <input type="number" id="memeFontSize" value="48" min="16" max="120" oninput="drawMeme()">
-                        </div>
-                        <div class="form-group">
-                            <label>Font</label>
-                            <select id="memeFont" onchange="drawMeme()">
-                                <option value="Impact">Impact (Classic)</option>
-                                <option value="'Bebas Neue'">Bebas Neue</option>
-                                <option value="Arial Black">Arial Black</option>
-                                <option value="Comic Sans MS">Comic Sans</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="color-row">
-                        <label style="font-size:0.82rem;color:var(--text-dim);font-weight:600;">Text Color</label>
-                        <input type="color" id="memeColor" value="#ffffff" oninput="drawMeme()">
-                        <label style="font-size:0.82rem;color:var(--text-dim);font-weight:600;">Outline</label>
-                        <input type="color" id="memeOutline" value="#000000" oninput="drawMeme()">
-                    </div>
-                </div>
-                <div style="text-align:center;margin:1rem 0;">
-                    <canvas id="memeCanvas" style="max-width:100%;border:1px solid var(--border);display:none;"></canvas>
-                </div>
-                <button class="btn btn-green" onclick="downloadMeme()">💾 Download Meme</button>`;
-
-            /* ── GIF CREATOR ── */
-            case 'gif': return `
-                <div class="upload-zone" onclick="document.getElementById('gifFiles').click()">
-                    <input type="file" id="gifFiles" accept="image/*" multiple onchange="loadGifFrames(this)">
-                    <div class="drop-icon">🎞️</div>
-                    <div class="drop-text">Click to upload images (select multiple)<br><span style="font-size:0.8rem;">Images will play in order as GIF frames</span></div>
-                </div>
-                <div id="gifPreviewStrip" class="preview-strip"></div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Frame Delay (ms)</label>
-                        <input type="number" id="gifDelay" value="500" min="50" max="5000" step="50">
-                    </div>
-                    <div class="form-group">
-                        <label>Output Width (px)</label>
-                        <input type="number" id="gifWidth" value="480" min="100" max="1200">
-                    </div>
-                </div>
-                <p id="gifStatus" style="font-size:0.85rem;color:var(--text-dim);margin:0.5rem 0;">Upload at least 2 images to create a GIF.</p>
-                <button class="btn btn-green" onclick="createGif()">🎞️ Create GIF</button>
-                <div id="gifResult" style="display:none;text-align:center;margin-top:1rem;">
-                    <img id="gifOutput" style="max-width:100%;border-radius:8px;border:1px solid var(--border);">
-                </div>`;
-
-            /* ── QR CODE ── */
-            case 'qr': return `
-                <div class="form-group">
-                    <label>URL or Text</label>
-                    <input type="text" id="qrText" placeholder="https://8bfr.com/your-page">
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Size (px)</label>
-                        <input type="number" id="qrSize" value="300" min="100" max="1000" step="50">
-                    </div>
-                    <div class="form-group">
-                        <label>Color</label>
-                        <div class="color-row">
-                            <input type="color" id="qrFg" value="#7c3aed">
-                            <span style="font-size:0.82rem;color:var(--text-dim);">Foreground</span>
-                            <input type="color" id="qrBg" value="#0b0014">
-                            <span style="font-size:0.82rem;color:var(--text-dim);">Background</span>
-                        </div>
-                    </div>
-                </div>
-                <button class="btn" onclick="generateQR()">📱 Generate QR Code</button>
-                <div id="qrResult" style="display:none;text-align:center;margin-top:1rem;">
-                    <canvas id="qrCanvas"></canvas>
-                    <br><button class="btn btn-green" onclick="downloadQR()" style="margin-top:0.75rem;">💾 Download QR</button>
-                </div>`;
-
-            /* ── IMAGE RESIZER ── */
-            case 'resize': return `
-                <div class="upload-zone" onclick="document.getElementById('resizeFile').click()">
-                    <input type="file" id="resizeFile" accept="image/*" onchange="previewResizeImg(this)">
-                    <div class="drop-icon">📐</div>
-                    <div class="drop-text">Click to upload image</div>
-                </div>
-                <div id="resizePreviewBox" style="display:none;text-align:center;margin:1rem 0;">
-                    <img id="resizePreview" style="max-width:200px;border-radius:8px;border:1px solid var(--border);">
-                    <p id="resizeInfo" style="font-size:0.82rem;color:var(--text-dim);margin-top:0.5rem;"></p>
-                </div>
-                <div class="form-group">
-                    <label>Quick Presets:</label>
-                    <div class="format-options">
-                        <div class="format-opt" onclick="setResize(1080,1080,this)">Instagram Post<br><span style="font-size:0.7rem;">1080×1080</span></div>
-                        <div class="format-opt" onclick="setResize(1080,1920,this)">IG Story/Reel<br><span style="font-size:0.7rem;">1080×1920</span></div>
-                        <div class="format-opt" onclick="setResize(1500,500,this)">Twitter Banner<br><span style="font-size:0.7rem;">1500×500</span></div>
-                        <div class="format-opt" onclick="setResize(400,400,this)">Avatar<br><span style="font-size:0.7rem;">400×400</span></div>
-                    </div>
-                    <div class="format-options" style="margin-top:0.5rem;">
-                        <div class="format-opt" onclick="setResize(2560,1440,this)">YouTube Banner<br><span style="font-size:0.7rem;">2560×1440</span></div>
-                        <div class="format-opt" onclick="setResize(1280,720,this)">YouTube Thumb<br><span style="font-size:0.7rem;">1280×720</span></div>
-                        <div class="format-opt" onclick="setResize(820,312,this)">Facebook Cover<br><span style="font-size:0.7rem;">820×312</span></div>
-                        <div class="format-opt" onclick="setResize(1024,1024,this)">Album Cover<br><span style="font-size:0.7rem;">1024×1024</span></div>
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Width (px)</label>
-                        <input type="number" id="resizeW" value="1080" min="10" max="4096">
-                    </div>
-                    <div class="form-group">
-                        <label>Height (px)</label>
-                        <input type="number" id="resizeH" value="1080" min="10" max="4096">
-                    </div>
-                </div>
-                <button class="btn btn-cyan" onclick="resizeImage()">📐 Resize & Download</button>`;
-
-            default: return '<p>Unknown tool.</p>';
-        }
-    }
-
-    /* ── Shared AI text input ── */
-    function aiTextUI(placeholder) {
-        return `
-            <textarea id="prompt" placeholder="${placeholder}"></textarea>
-            <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
-                <button class="btn" id="generateBtn" onclick="generateAI()">🚀 Generate</button>
-                <button class="btn btn-outline" onclick="copyResult()">📋 Copy Result</button>
-            </div>`;
-    }
-
-    /* ═══════════════════════════════════════════════════
-       AI TEXT GENERATION (Lyrics, Posts, Songs, etc.)
-       ═══════════════════════════════════════════════════ */
-    async function generateAI() {
-        const prompt = document.getElementById('prompt').value.trim();
-        if (!prompt) { alert('Enter a prompt first.'); return; }
-        const resultDiv = document.getElementById('result');
-        const btn = document.getElementById('generateBtn');
-        btn.disabled = true; btn.textContent = 'Generating...';
-        resultDiv.style.display = 'block';
-        resultDiv.innerHTML = '<div class="spinner"></div> Generating...';
-
-        try {
-            const response = await fetch('https://8bfr-api.vercel.app/api/openai', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ input: prompt, tool: currentTool })
-            });
-            if (!response.ok) {
-                const errorText = await response.text();
-                resultDiv.innerHTML = '<p style="color:#ff4466;"><strong>API Error (' + response.status + ')</strong></p><p style="font-size:0.85rem;color:var(--text-dim);margin-top:0.5rem;">' + errorText.substring(0, 500) + '</p>';
-                return;
-            }
-            const data = await response.json();
-            if (data.status === 'success' || data.response || data.result) {
-                const content = data.response || data.result || JSON.stringify(data, null, 2);
-                resultDiv.innerHTML = content.replace(/\n/g, '<br>');
-            } else {
-                resultDiv.innerHTML = '<p style="color:#ff4466;">Error: ' + (data.error || data.message || 'Unknown') + '</p>';
-            }
-        } catch (error) {
-            resultDiv.innerHTML = '<p style="color:#ff4466;"><strong>Network Error:</strong> ' + error.message + '</p>';
-        } finally {
-            btn.disabled = false; btn.textContent = '🚀 Generate';
-        }
-    }
-
-    function copyResult() {
-        const r = document.getElementById('result');
-        if (!r || r.style.display === 'none') { alert('Nothing to copy yet.'); return; }
-        navigator.clipboard.writeText(r.innerText).then(() => alert('✅ Copied!')).catch(() => {
-            const t = document.createElement('textarea'); t.value = r.innerText; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); alert('✅ Copied!');
-        });
-    }
-
-    /* ═══════════════════════════════════════════════════
-       ALBUM COVER GENERATOR (FIXED — artist name + featured)
-       ═══════════════════════════════════════════════════ */
-    async function generateCover() {
-        const artist = document.getElementById('coverArtist').value.trim();
-        const title = document.getElementById('coverTitle').value.trim();
-        const featured = document.getElementById('coverFeatured').value.trim();
-        const textPos = document.getElementById('coverTextPos').value;
-        const prompt = document.getElementById('prompt').value.trim();
-
-        if (!artist) { alert('Enter an artist name.'); return; }
-        if (!prompt) { alert('Describe the visual style for the cover.'); return; }
-
-        const resultDiv = document.getElementById('result');
-        const coverDiv = document.getElementById('coverPreview');
-        const btn = document.getElementById('generateBtn');
-        const dlBtn = document.getElementById('downloadBtn');
-
-        btn.disabled = true; btn.textContent = 'Generating...';
-        resultDiv.style.display = 'block';
-        coverDiv.style.display = 'none';
-        dlBtn.style.display = 'none';
-
-        try {
-            /* Step 1: Enhance prompt with AI */
-            resultDiv.innerHTML = '<div class="spinner"></div> Step 1: Enhancing description with AI...';
-            let imagePrompt = prompt;
-            const fullTitle = title ? (featured ? `${title} (feat. ${featured})` : title) : '';
-            const textNote = textPos === 'none' ? '' : `. Include stylized text "${artist}" and "${fullTitle}" as part of the album cover design`;
-
-            try {
-                const aiRes = await fetch('https://8bfr-api.vercel.app/api/openai', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        input: `Create a concise, vivid image generation prompt (only the visual description, no explanations) for this album cover: ${prompt}. Artist: ${artist}. ${fullTitle ? 'Title: ' + fullTitle + '.' : ''} ${textNote}`,
-                        tool: 'cover'
-                    })
-                });
-                if (aiRes.ok) {
-                    const aiData = await aiRes.json();
-                    if (aiData.response) imagePrompt = aiData.response.replace(/\n/g, ' ').substring(0, 500);
-                }
-            } catch(e) { /* use original */ }
-
-            /* Step 2: Generate base image */
-            resultDiv.innerHTML = '<div class="spinner"></div> Step 2: Generating image (10-30 seconds)...';
-            const encodedPrompt = encodeURIComponent(imagePrompt + ', album cover art, high quality, professional, square format');
-            const baseUrl = 'https://image.pollinations.ai/prompt/' + encodedPrompt + '?width=1024&height=1024&nologo=true&seed=' + Date.now();
-
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            img.onload = function() {
-                /* Step 3: Burn text onto image */
-                if (textPos !== 'none') {
-                    resultDiv.innerHTML = '<div class="spinner"></div> Step 3: Burning text onto cover...';
-                    const canvas = document.createElement('canvas');
-                    canvas.width = 1024; canvas.height = 1024;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, 1024, 1024);
-
-                    /* Semi-transparent bar behind text */
-                    const barHeight = featured ? 180 : 140;
-                    let barY = textPos === 'top' ? 0 : textPos === 'center' ? (1024 - barHeight) / 2 : 1024 - barHeight;
-                    ctx.fillStyle = 'rgba(0,0,0,0.55)';
-                    ctx.fillRect(0, barY, 1024, barHeight);
-
-                    /* Artist name */
-                    ctx.textAlign = 'center';
-                    ctx.fillStyle = '#ffffff';
-                    ctx.strokeStyle = '#000000';
-                    ctx.lineWidth = 3;
-
-                    ctx.font = 'bold 64px "Bebas Neue", Impact, sans-serif';
-                    let textY = barY + 60;
-                    ctx.strokeText(artist.toUpperCase(), 512, textY);
-                    ctx.fillText(artist.toUpperCase(), 512, textY);
-
-                    /* Title */
-                    if (title) {
-                        ctx.font = 'bold 42px "Bebas Neue", Impact, sans-serif';
-                        ctx.fillStyle = '#c4b5fd';
-                        textY += 55;
-                        ctx.strokeText(title.toUpperCase(), 512, textY);
-                        ctx.fillText(title.toUpperCase(), 512, textY);
-                    }
-
-                    /* Featured */
-                    if (featured) {
-                        ctx.font = '28px "Work Sans", sans-serif';
-                        ctx.fillStyle = '#a78bfa';
-                        ctx.lineWidth = 2;
-                        textY += 42;
-                        const featText = 'feat. ' + featured;
-                        ctx.strokeText(featText, 512, textY);
-                        ctx.fillText(featText, 512, textY);
-                    }
-
-                    currentCoverUrl = canvas.toDataURL('image/png');
-                    coverDiv.innerHTML = '<img src="' + currentCoverUrl + '" alt="Generated Album Cover"><p style="margin-top:0.75rem;font-size:0.85rem;color:var(--text-dim);">Artist name and title burned into the image</p>';
-                } else {
-                    currentCoverUrl = baseUrl;
-                    coverDiv.innerHTML = '<img src="' + currentCoverUrl + '" alt="Generated Album Cover"><p style="margin-top:0.75rem;font-size:0.85rem;color:var(--text-dim);">Text not overlaid — add in your editor</p>';
-                }
-
-                coverDiv.style.display = 'block';
-                dlBtn.style.display = 'inline-block';
-                resultDiv.innerHTML = '✅ <strong>Cover generated!</strong>\n\n<strong>Artist:</strong> ' + artist + (title ? '\n<strong>Title:</strong> ' + title : '') + (featured ? '\n<strong>Feat:</strong> ' + featured : '') + '\n\n<strong>Enhanced prompt:</strong>\n' + imagePrompt + '\n\n💡 Not happy? Edit and generate again.';
-                btn.disabled = false; btn.textContent = '🚀 Generate Cover';
-            };
-            img.onerror = function() {
-                resultDiv.innerHTML = '<p style="color:#ff4466;">Image generation failed. Try a simpler description or try again.</p>';
-                btn.disabled = false; btn.textContent = '🚀 Generate Cover';
-            };
-            img.src = baseUrl;
-        } catch(e) {
-            resultDiv.innerHTML = '<p style="color:#ff4466;">Error: ' + e.message + '</p>';
-            btn.disabled = false; btn.textContent = '🚀 Generate Cover';
-        }
-    }
-
-    function downloadCover() {
-        if (!currentCoverUrl) return;
-        const a = document.createElement('a');
-        a.href = currentCoverUrl;
-        a.download = 'album-cover-8bfr.png';
-        if (currentCoverUrl.startsWith('data:')) {
-            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        } else {
-            a.target = '_blank'; document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        }
-    }
-
-    /* ═══════════════════════════════════════════════════
-       IMAGE CONVERTER
-       ═══════════════════════════════════════════════════ */
-    let convertFormat = 'png';
-    let convertImgData = null;
-
-    function selectFormat(el, fmt) {
-        convertFormat = fmt;
-        el.parentElement.querySelectorAll('.format-opt').forEach(e => e.classList.remove('selected'));
-        el.classList.add('selected');
-    }
-
-    function previewConvertImg(input) {
-        const file = input.files[0]; if (!file) return;
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            convertImgData = e.target.result;
-            document.getElementById('imgPreview').src = convertImgData;
-            document.getElementById('imgPreviewBox').style.display = 'block';
-            const img = new Image();
-            img.onload = function() {
-                document.getElementById('imgInfo').textContent = `${file.name} — ${img.width}×${img.height} — ${(file.size / 1024).toFixed(1)} KB`;
-            };
-            img.src = convertImgData;
-        };
-        reader.readAsDataURL(file);
-    }
-
-    function convertImage() {
-        if (!convertImgData) { alert('Upload an image first.'); return; }
-        const quality = parseInt(document.getElementById('imgQuality').value) / 100;
-        const scale = parseInt(document.getElementById('imgScale').value) / 100;
-        const img = new Image();
-        img.onload = function() {
-            const canvas = document.createElement('canvas');
-            canvas.width = Math.round(img.width * scale);
-            canvas.height = Math.round(img.height * scale);
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            const mime = convertFormat === 'jpeg' ? 'image/jpeg' : convertFormat === 'webp' ? 'image/webp' : 'image/png';
-            const ext = convertFormat === 'jpeg' ? 'jpg' : convertFormat;
-            canvas.toBlob(function(blob) {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url; a.download = 'converted.' + ext;
-                document.body.appendChild(a); a.click(); document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                const resultDiv = document.getElementById('result');
-                resultDiv.style.display = 'block';
-                resultDiv.innerHTML = '✅ Converted to <strong>' + ext.toUpperCase() + '</strong> — ' + canvas.width + '×' + canvas.height + ' — ' + (blob.size / 1024).toFixed(1) + ' KB';
-            }, mime, quality);
-        };
-        img.src = convertImgData;
-    }
-
-    /* ═══════════════════════════════════════════════════
-       AUDIO EXTRACTOR (client-side via Web Audio API)
-       ═══════════════════════════════════════════════════ */
-    let audioFmt = 'wav';
-    let extractedBlob = null;
-
-    function selectAudioFmt(el, fmt) {
-        audioFmt = fmt;
-        el.parentElement.querySelectorAll('.format-opt').forEach(e => e.classList.remove('selected'));
-        el.classList.add('selected');
-    }
-
-    function previewVideo(input) {
-        const file = input.files[0]; if (!file) return;
-        const url = URL.createObjectURL(file);
-        document.getElementById('vidPreview').src = url;
-        document.getElementById('vidPreviewBox').style.display = 'block';
-        document.getElementById('vidInfo').textContent = `${file.name} — ${(file.size / (1024 * 1024)).toFixed(1)} MB`;
-    }
-
-    async function extractAudio() {
-        const fileInput = document.getElementById('vidFile');
-        if (!fileInput.files[0]) { alert('Upload a video first.'); return; }
-        const file = fileInput.files[0];
-        const resultDiv = document.getElementById('result');
-        resultDiv.style.display = 'block';
-        resultDiv.innerHTML = '<div class="spinner"></div> Extracting audio — this may take a moment...';
-
-        try {
-            const arrayBuffer = await file.arrayBuffer();
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-
-            let blob;
-            if (audioFmt === 'wav') {
-                blob = audioBufferToWav(audioBuffer);
-            } else {
-                /* WebM via MediaRecorder */
-                blob = await audioBufferToWebm(audioBuffer);
-            }
-
-            extractedBlob = blob;
-            const url = URL.createObjectURL(blob);
-            document.getElementById('audioPlayer').src = url;
-            document.getElementById('audioResult').style.display = 'block';
-            resultDiv.innerHTML = '✅ Audio extracted — ' + (blob.size / (1024 * 1024)).toFixed(2) + ' MB (' + audioFmt.toUpperCase() + ')';
-        } catch (err) {
-            resultDiv.innerHTML = '<p style="color:#ff4466;"><strong>Error:</strong> ' + err.message + '</p><p style="font-size:0.82rem;color:var(--text-dim);margin-top:0.5rem;">Try a different video format. MP4 and WebM work best in browsers.</p>';
-        }
-    }
-
-    function audioBufferToWav(buffer) {
-        const numChannels = buffer.numberOfChannels;
-        const sampleRate = buffer.sampleRate;
-        const format = 1; // PCM
-        const bitDepth = 16;
-        let length = buffer.length * numChannels * (bitDepth / 8);
-        let out = new ArrayBuffer(44 + length);
-        let view = new DataView(out);
-        function writeString(offset, str) { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); }
-        writeString(0, 'RIFF');
-        view.setUint32(4, 36 + length, true);
-        writeString(8, 'WAVE');
-        writeString(12, 'fmt ');
-        view.setUint32(16, 16, true);
-        view.setUint16(20, format, true);
-        view.setUint16(22, numChannels, true);
-        view.setUint32(24, sampleRate, true);
-        view.setUint32(28, sampleRate * numChannels * (bitDepth / 8), true);
-        view.setUint16(32, numChannels * (bitDepth / 8), true);
-        view.setUint16(34, bitDepth, true);
-        writeString(36, 'data');
-        view.setUint32(40, length, true);
-        let offset = 44;
-        const channels = [];
-        for (let i = 0; i < numChannels; i++) channels.push(buffer.getChannelData(i));
-        for (let i = 0; i < buffer.length; i++) {
-            for (let ch = 0; ch < numChannels; ch++) {
-                let sample = Math.max(-1, Math.min(1, channels[ch][i]));
-                view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
-                offset += 2;
-            }
-        }
-        return new Blob([out], { type: 'audio/wav' });
-    }
-
-    function audioBufferToWebm(audioBuffer) {
-        return new Promise((resolve, reject) => {
-            const offlineCtx = new OfflineAudioContext(audioBuffer.numberOfChannels, audioBuffer.length, audioBuffer.sampleRate);
-            const source = offlineCtx.createBufferSource();
-            source.buffer = audioBuffer;
-            const dest = offlineCtx.createMediaStreamDestination ? null : null;
-
-            /* Fallback: just use WAV if MediaRecorder not available for audio */
-            resolve(audioBufferToWav(audioBuffer));
-        });
-    }
-
-    function downloadExtractedAudio() {
-        if (!extractedBlob) return;
-        const ext = audioFmt === 'wav' ? 'wav' : 'webm';
-        const url = URL.createObjectURL(extractedBlob);
-        const a = document.createElement('a'); a.href = url; a.download = 'extracted-audio.' + ext;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }
-
-    /* ═══════════════════════════════════════════════════
-       MEME CREATOR
-       ═══════════════════════════════════════════════════ */
-    function loadMemeImage(input) {
-        const file = input.files[0]; if (!file) return;
-        memeImg = new Image();
-        memeImg.onload = function() {
-            memeCanvas = document.getElementById('memeCanvas');
-            memeCanvas.style.display = 'block';
-            memeCanvas.width = memeImg.width;
-            memeCanvas.height = memeImg.height;
-            memeCtx = memeCanvas.getContext('2d');
-            drawMeme();
-        };
-        memeImg.src = URL.createObjectURL(file);
-    }
-
-    function drawMeme() {
-        if (!memeCtx || !memeImg) return;
-        const c = memeCanvas;
-        memeCtx.clearRect(0, 0, c.width, c.height);
-        memeCtx.drawImage(memeImg, 0, 0);
-
-        const fontSize = parseInt(document.getElementById('memeFontSize').value) || 48;
-        const font = document.getElementById('memeFont').value;
-        const color = document.getElementById('memeColor').value;
-        const outline = document.getElementById('memeOutline').value;
-        const topText = (document.getElementById('memeTop').value || '').toUpperCase();
-        const bottomText = (document.getElementById('memeBottom').value || '').toUpperCase();
-
-        memeCtx.font = `bold ${fontSize}px ${font}`;
-        memeCtx.textAlign = 'center';
-        memeCtx.fillStyle = color;
-        memeCtx.strokeStyle = outline;
-        memeCtx.lineWidth = Math.max(2, fontSize / 12);
-        memeCtx.lineJoin = 'round';
-
-        if (topText) {
-            wrapMemeText(memeCtx, topText, c.width / 2, fontSize + 10, c.width - 40, fontSize);
-        }
-        if (bottomText) {
-            const lines = getWrappedLines(memeCtx, bottomText, c.width - 40);
-            let startY = c.height - (lines.length * (fontSize + 5)) - 10 + fontSize;
-            lines.forEach((line, i) => {
-                const y = startY + i * (fontSize + 5);
-                memeCtx.strokeText(line, c.width / 2, y);
-                memeCtx.fillText(line, c.width / 2, y);
-            });
-        }
-    }
-
-    function wrapMemeText(ctx, text, x, y, maxW, fontSize) {
-        const lines = getWrappedLines(ctx, text, maxW);
-        lines.forEach((line, i) => {
-            const ly = y + i * (fontSize + 5);
-            ctx.strokeText(line, x, ly);
-            ctx.fillText(line, x, ly);
-        });
-    }
-
-    function getWrappedLines(ctx, text, maxW) {
-        const words = text.split(' ');
-        const lines = [];
-        let current = '';
-        words.forEach(word => {
-            const test = current ? current + ' ' + word : word;
-            if (ctx.measureText(test).width > maxW && current) {
-                lines.push(current);
-                current = word;
-            } else { current = test; }
-        });
-        if (current) lines.push(current);
-        return lines;
-    }
-
-    function downloadMeme() {
-        if (!memeCanvas) { alert('Create a meme first.'); return; }
-        memeCanvas.toBlob(function(blob) {
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a'); a.href = url; a.download = 'meme-8bfr.png';
-            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        });
-    }
-
-    /* ═══════════════════════════════════════════════════
-       GIF CREATOR (using canvas frame capture)
-       ═══════════════════════════════════════════════════ */
-    function loadGifFrames(input) {
-        gifFrames = [];
-        const strip = document.getElementById('gifPreviewStrip');
-        strip.innerHTML = '';
-        const files = Array.from(input.files);
-        if (files.length < 2) {
-            document.getElementById('gifStatus').textContent = 'Need at least 2 images. You selected ' + files.length + '.';
-            return;
-        }
-        document.getElementById('gifStatus').textContent = 'Loading ' + files.length + ' frames...';
-        let loaded = 0;
-        files.forEach((file, i) => {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                gifFrames[i] = e.target.result;
-                const img = document.createElement('img');
-                img.src = e.target.result;
-                img.title = 'Frame ' + (i + 1);
-                strip.appendChild(img);
-                loaded++;
-                if (loaded === files.length) {
-                    document.getElementById('gifStatus').textContent = '✅ ' + files.length + ' frames loaded. Ready to create GIF!';
-                }
-            };
-            reader.readAsDataURL(file);
-        });
-    }
-
-    async function createGif() {
-        if (gifFrames.length < 2) { alert('Upload at least 2 images.'); return; }
-        const delay = parseInt(document.getElementById('gifDelay').value) || 500;
-        const outWidth = parseInt(document.getElementById('gifWidth').value) || 480;
-        const statusEl = document.getElementById('gifStatus');
-        statusEl.textContent = 'Creating GIF...';
-        const resultDiv = document.getElementById('result');
-        resultDiv.style.display = 'block';
-        resultDiv.innerHTML = '<div class="spinner"></div> Encoding GIF frames...';
-
-        try {
-            /* Load GIF.js from CDN */
-            if (!window.GIF) {
-                await loadScript('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js');
-            }
-
-            /* Calculate height from first image aspect ratio */
-            const firstImg = await loadImage(gifFrames[0]);
-            const ratio = firstImg.height / firstImg.width;
-            const outHeight = Math.round(outWidth * ratio);
-
-            const gif = new GIF({
-                workers: 2,
-                quality: 10,
-                width: outWidth,
-                height: outHeight,
-                workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js'
-            });
-
-            for (let i = 0; i < gifFrames.length; i++) {
-                statusEl.textContent = 'Processing frame ' + (i + 1) + '/' + gifFrames.length + '...';
-                const img = await loadImage(gifFrames[i]);
-                const canvas = document.createElement('canvas');
-                canvas.width = outWidth; canvas.height = outHeight;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, outWidth, outHeight);
-                gif.addFrame(canvas, { delay: delay, copy: true });
-            }
-
-            gif.on('finished', function(blob) {
-                const url = URL.createObjectURL(blob);
-                document.getElementById('gifOutput').src = url;
-                document.getElementById('gifResult').style.display = 'block';
-                statusEl.textContent = '✅ GIF created! ' + (blob.size / 1024).toFixed(1) + ' KB';
-                resultDiv.innerHTML = '✅ GIF created — ' + outWidth + '×' + outHeight + ' — ' + gifFrames.length + ' frames @ ' + delay + 'ms';
-
-                /* Auto download */
-                const a = document.createElement('a'); a.href = url; a.download = 'animation-8bfr.gif';
-                document.body.appendChild(a); a.click(); document.body.removeChild(a);
-            });
-
-            gif.render();
-        } catch (err) {
-            resultDiv.innerHTML = '<p style="color:#ff4466;">GIF creation failed: ' + err.message + '</p>';
-            statusEl.textContent = 'Error creating GIF.';
-        }
-    }
-
-    function loadImage(src) {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => resolve(img);
-            img.onerror = reject;
-            img.src = src;
-        });
-    }
-
-    function loadScript(url) {
-        return new Promise((resolve, reject) => {
-            const s = document.createElement('script');
-            s.src = url; s.onload = resolve; s.onerror = reject;
-            document.head.appendChild(s);
-        });
-    }
-
-    /* ═══════════════════════════════════════════════════
-       QR CODE GENERATOR
-       ═══════════════════════════════════════════════════ */
-    async function generateQR() {
-        const text = document.getElementById('qrText').value.trim();
-        if (!text) { alert('Enter a URL or text.'); return; }
-        const size = parseInt(document.getElementById('qrSize').value) || 300;
-        const fg = document.getElementById('qrFg').value;
-        const bg = document.getElementById('qrBg').value;
-
-        /* Load QRCode library */
-        if (!window.QRCode) {
-            await loadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js');
-        }
-
-        const container = document.createElement('div');
-        container.style.display = 'none';
-        document.body.appendChild(container);
-
-        new QRCode(container, {
-            text: text,
-            width: size,
-            height: size,
-            colorDark: fg,
-            colorLight: bg,
-            correctLevel: QRCode.CorrectLevel.H
-        });
-
-        /* QRCode.js renders after a tiny delay */
-        setTimeout(() => {
-            const img = container.querySelector('img') || container.querySelector('canvas');
-            if (img) {
-                const canvas = document.getElementById('qrCanvas');
-                canvas.width = size; canvas.height = size;
-                const ctx = canvas.getContext('2d');
-                if (img.tagName === 'CANVAS') {
-                    ctx.drawImage(img, 0, 0, size, size);
-                } else {
-                    const tmpImg = new Image();
-                    tmpImg.onload = function() { ctx.drawImage(tmpImg, 0, 0, size, size); };
-                    tmpImg.src = img.src;
-                }
-                document.getElementById('qrResult').style.display = 'block';
-            }
-            document.body.removeChild(container);
-        }, 300);
-    }
-
-    function downloadQR() {
-        const canvas = document.getElementById('qrCanvas');
-        canvas.toBlob(function(blob) {
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a'); a.href = url; a.download = 'qr-code-8bfr.png';
-            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        });
-    }
-
-    /* ═══════════════════════════════════════════════════
-       IMAGE RESIZER
-       ═══════════════════════════════════════════════════ */
-    let resizeImgData = null;
-
-    function previewResizeImg(input) {
-        const file = input.files[0]; if (!file) return;
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            resizeImgData = e.target.result;
-            document.getElementById('resizePreview').src = resizeImgData;
-            document.getElementById('resizePreviewBox').style.display = 'block';
-            const img = new Image();
-            img.onload = function() {
-                document.getElementById('resizeInfo').textContent = `Original: ${img.width}×${img.height}`;
-            };
-            img.src = resizeImgData;
-        };
-        reader.readAsDataURL(file);
-    }
-
-    function setResize(w, h, el) {
-        document.getElementById('resizeW').value = w;
-        document.getElementById('resizeH').value = h;
-        document.querySelectorAll('#toolBody .format-opt').forEach(e => e.classList.remove('selected'));
-        el.classList.add('selected');
-    }
-
-    function resizeImage() {
-        if (!resizeImgData) { alert('Upload an image first.'); return; }
-        const w = parseInt(document.getElementById('resizeW').value);
-        const h = parseInt(document.getElementById('resizeH').value);
-        const img = new Image();
-        img.onload = function() {
-            const canvas = document.createElement('canvas');
-            canvas.width = w; canvas.height = h;
-            const ctx = canvas.getContext('2d');
-            /* Cover-fit: fill the entire canvas, crop overflow */
-            const srcRatio = img.width / img.height;
-            const dstRatio = w / h;
-            let sx = 0, sy = 0, sw = img.width, sh = img.height;
-            if (srcRatio > dstRatio) {
-                sw = img.height * dstRatio;
-                sx = (img.width - sw) / 2;
-            } else {
-                sh = img.width / dstRatio;
-                sy = (img.height - sh) / 2;
-            }
-            ctx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
-            canvas.toBlob(function(blob) {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a'); a.href = url; a.download = 'resized-' + w + 'x' + h + '.png';
-                document.body.appendChild(a); a.click(); document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                const resultDiv = document.getElementById('result');
-                resultDiv.style.display = 'block';
-                resultDiv.innerHTML = '✅ Resized to <strong>' + w + '×' + h + '</strong> — ' + (blob.size / 1024).toFixed(1) + ' KB';
-            }, 'image/png');
-        };
-        img.src = resizeImgData;
-    }
-
-    /* ═══════════════ INIT ═══════════════ */
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-    else init();
-    </script>
-
-    
+  }
+  return new Blob([out],{type:'audio/wav'});
+}
+
+async function audioBufferToWebm(buffer){
+  var ac=new (window.AudioContext||window.webkitAudioContext)();
+  var src=ac.createBufferSource();src.buffer=buffer;
+  var dest=ac.createMediaStreamDestination();
+  src.connect(dest);
+  var chunks=[];
+  var recorder=new MediaRecorder(dest.stream,{mimeType:'audio/webm'});
+  recorder.ondataavailable=function(e){if(e.data.size>0)chunks.push(e.data);};
+  return new Promise(function(resolve){
+    recorder.onstop=function(){resolve(new Blob(chunks,{type:'audio/webm'}));};
+    recorder.start();src.start();
+    setTimeout(function(){recorder.stop();src.stop();},buffer.duration*1000+100);
+  });
+}
+
+// ─── DOWNLOAD HELPERS ────────────────────────────
+window.downloadImage=function(filename){
+  if(!window._lastImageUrl)return;
+  var a=document.createElement('a');
+  a.href=window._lastImageUrl;
+  a.download=filename;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+};
+window.downloadBlob=function(filename){
+  if(!window._lastBlobUrl)return;
+  var a=document.createElement('a');
+  a.href=window._lastBlobUrl;
+  a.download=filename;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+};
+
+// ─── INIT ────────────────────────────────────────
+document.getElementById('searchInput').addEventListener('input',renderTools);
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'&&document.getElementById('modalOverlay').classList.contains('show'))closeModal();
+});
+
+renderNav();
+renderTools();
+</script>
+
+<script src="scripts.js" defer></script>
 </body>
 </html>
