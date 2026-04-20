@@ -216,7 +216,7 @@
 #menuStripeText{ position:absolute; top:50%; left:50%; transform:translate(-50%,-50%) rotate(-90deg); font-size:.75rem; letter-spacing:.35em; text-transform:uppercase; color:#a855f7; opacity:.9; }\
 body.menu-open #menuStripe{ display:block; }\
 body.menu-open #pageWrap{ margin-right:280px; }\
-#fab{ position:fixed; top:10px; right:14px; z-index:9999; width:56px; height:56px; border-radius:9999px; display:grid; place-items:center; background:radial-gradient(120% 120% at 30% 20%,rgba(124,58,237,.60),rgba(10,10,20,.80)); border:1px solid rgba(124,58,237,.60); box-shadow:0 0 14px rgba(124,58,237,.40),0 0 18px rgba(0,217,255,.25) inset; cursor:pointer; transition:filter .2s ease; }\
+#fab{ position:fixed; top:4px; right:6px; z-index:9999; width:48px; height:48px; border-radius:9999px; display:grid; place-items:center; background:radial-gradient(120% 120% at 30% 20%,rgba(124,58,237,.60),rgba(10,10,20,.80)); border:1px solid rgba(124,58,237,.60); box-shadow:0 0 6px rgba(124,58,237,.35),0 0 8px rgba(0,217,255,.18) inset; cursor:pointer; transition:filter .2s ease; }\
 #fab:hover{ filter:brightness(1.1); }\
 #fab svg{ display:block; }\
 #menu-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.25); backdrop-filter:blur(2px); z-index:9990; opacity:0; pointer-events:none; transition:opacity .2s ease; }\
@@ -241,7 +241,7 @@ body.menu-open #pageWrap{ margin-right:280px; }\
 @keyframes networkLabelAlt{ 0%,45%{opacity:0;} 55%,100%{opacity:1;} }\
 .menu-chip-ai{ background:linear-gradient(135deg,rgba(124,58,237,.4),rgba(0,217,255,.2)) !important; border-color:rgba(0,217,255,.6) !important; color:#00d9ff !important; font-weight:700 !important; }\
 .menu-chip-ai:hover{ background:linear-gradient(135deg,rgba(124,58,237,.6),rgba(0,217,255,.35)) !important; box-shadow:0 0 12px rgba(0,217,255,.4); }\
-#bubbleStack{ position:fixed; top:0; left:0; right:0; z-index:9989; display:flex; flex-direction:row; align-items:center; gap:4px; padding:6px 74px 6px 12px; background:rgba(10,2,26,.92); border-bottom:1px solid rgba(124,58,237,.4); backdrop-filter:blur(10px); overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch; }\
+#bubbleStack{ position:fixed; top:0; left:0; right:0; z-index:9989; display:flex; flex-direction:row; align-items:center; gap:4px; padding:6px 60px 6px 12px; background:rgba(10,2,26,.92); border-bottom:1px solid rgba(124,58,237,.4); backdrop-filter:blur(10px); overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch; }\
 body{ padding-top:52px !important; }\
 #bubbleStack::-webkit-scrollbar{ display:none; }\
 .bubble-row{ display:flex; flex-direction:column; align-items:center; gap:1px; flex-shrink:0; }\
