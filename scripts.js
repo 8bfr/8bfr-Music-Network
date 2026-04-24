@@ -917,3 +917,47 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
     }
   } catch(e) { console.warn("[ds] auto-inject failed:", e); }
 })();
+
+// ═══ AUTO-INJECT COPYRIGHT FOOTER ═══
+// Adds a tiny copyright line at the bottom of every page (if not already present)
+(function() {
+  function addCopyright() {
+    try {
+      if (document.getElementById('_8bfr_copyright')) return;
+      // Skip on landing page (has its own footer) and themes/owner-discounts (have their own footer context)
+      var p = window.location.pathname || '';
+      if (/landing\.html|signup\.html|login\.html/i.test(p)) return;
+
+      var el = document.createElement('div');
+      el.id = '_8bfr_copyright';
+      el.style.cssText = 'position:relative;text-align:center;padding:1.25rem 1rem 4rem;font-size:0.7rem;color:rgba(234,230,255,0.35);font-family:system-ui,sans-serif;letter-spacing:0.3px;line-height:1.5;';
+      el.innerHTML = '\u00A9 8BFR Music Network \u00B7 <a href="https://8bfr.com" style="color:rgba(168,85,247,0.6);text-decoration:none;">8bfr.com</a> \u00B7 James J. Siburt \u2014 Founder, CEO, CFO, Developer, Owner';
+      document.body.appendChild(el);
+    } catch(e) {}
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', addCopyright);
+  } else {
+    addCopyright();
+  }
+})();
+
+// ═══ DEAD PAGE REDIRECTS ═══
+// Old placeholder pages forward to their live equivalents
+(function() {
+  var p = (window.location.pathname || '').toLowerCase();
+  // These were placeholder pages that never got built - redirect to the real tool
+  var redirects = {
+    '/lyric-ai.html':  'ai-studio.html',
+    '/lyrics-ai.html': 'ai-studio.html',
+    '/song-ai.html':   'ai-studio.html',
+    '/voice-ai.html':  'ai-studio.html',
+    '/producer-ai.html': 'ai-studio.html'
+  };
+  for (var key in redirects) {
+    if (p.indexOf(key) !== -1) {
+      window.location.replace(redirects[key]);
+      break;
+    }
+  }
+})();
