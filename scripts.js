@@ -458,7 +458,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
   <div class="bubble-row"><button class="bubble" id="bubble-donate" title="Donate"><span>&#x1F49C;</span></button><span class="bubble-label">Donate</span></div>\
   <div class="bubble-row"><button class="bubble" id="bubble-footer" title="Go to footer"><span>&#x2B07;&#xFE0F;</span></button><span class="bubble-label">Footer</span></div>\
   <div class="bubble-row"><button class="bubble" id="bubble-theme" title="Light / Dark"><span>&#x262F;&#xFE0F;</span></button><span class="bubble-label">Theme</span></div>\
-  <div class="bubble-row"><button class="bubble" id="bubble-theme-random" title="Random theme"><span>&#x1F500;</span></button><span class="bubble-label">Random</span></div>\
+  <div class="bubble-row"><button class="bubble" id="bubble-themes" title="Browse themes"><span>&#x1F3A8;</span></button><span class="bubble-label">Themes</span></div>\
   <div class="bubble-row"><button class="bubble" id="bubble-stream" title="Stream 8BFR"><span>&#x1F3A7;</span></button><span class="bubble-label">Stream</span></div>\
 </div>\
 <button class="bubble" id="bubble-top-single"><span>&#x2B06;&#xFE0F;</span></button>\
@@ -734,7 +734,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
     var footerBtn = document.getElementById("bubble-footer");
     var topBtn = document.getElementById("bubble-top-single");
     var themeBtn = document.getElementById("bubble-theme");
-    var themeRandomBtn = document.getElementById("bubble-theme-random");
+    var themesBtn = document.getElementById("bubble-themes");
     var streamBtn = document.getElementById("bubble-stream");
 
     if (contact) { contact.addEventListener("click", function() { window.location.href = "contact.html"; }); }
@@ -742,20 +742,52 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
     if (footerBtn) { footerBtn.addEventListener("click", function() { window.scrollTo({top:document.body.scrollHeight,behavior:"smooth"}); }); }
     if (topBtn) { topBtn.addEventListener("click", function() { window.scrollTo({top:0,behavior:"smooth"}); }); }
 
-    var themes = [
-      { name:"dark", bg:"linear-gradient(#0b0014,#000000)", color:"#eae6ff" },
-      { name:"light", bg:"#f5f5ff", color:"#111827" },
-      { name:"neon", bg:"radial-gradient(circle at 0% 0%, #00f5ff 0, #12001e 40%, #000 100%)", color:"#e0f2fe" },
-      { name:"sunset", bg:"linear-gradient(135deg,#ff7a18,#af002d 60%,#000 100%)", color:"#fff7ed" },
-      { name:"ocean", bg:"linear-gradient(135deg,#0f172a,#0369a1,#0b0014)", color:"#e0f2fe" }
-    ];
+    // ── NEW THEME SYSTEM ── uses data-theme attribute + design-system.css CSS variables
+    // Themes defined in design-system.css: default (dark), light, neon, sunset, ocean, forest, royal, crimson, monochrome, rose
+    var THEME_KEY = "8bfr-theme-v2";
 
-    function applyTheme(name) { var t = themes.filter(function(x){return x.name===name;})[0]; if (!t) return; document.body.style.background = t.bg; document.body.style.color = t.color; try { localStorage.setItem("8bfr-theme", name); } catch(e){} }
-    function getCurrentTheme() { try { return localStorage.getItem("8bfr-theme") || "dark"; } catch(e) { return "dark"; } }
+    function applyTheme(name) {
+      if (!name || name === "dark" || name === "default") {
+        document.body.removeAttribute("data-theme");
+      } else {
+        document.body.setAttribute("data-theme", name);
+      }
+      try { localStorage.setItem(THEME_KEY, name || "dark"); } catch(e){}
+    }
+
+    function getCurrentTheme() {
+      try { return localStorage.getItem(THEME_KEY) || "dark"; } catch(e) { return "dark"; }
+    }
+
+    // Apply saved theme on load
     applyTheme(getCurrentTheme());
 
-    if (themeBtn) { themeBtn.addEventListener("click", function() { applyTheme(getCurrentTheme() === "light" ? "dark" : "light"); }); }
-    if (themeRandomBtn) { themeRandomBtn.addEventListener("click", function() { var cur = getCurrentTheme(); var pool = themes.map(function(t){return t.name;}).filter(function(n){return n!==cur;}); applyTheme(pool[Math.floor(Math.random()*pool.length)]); }); }
+    // Light/Dark toggle — cycles between saved dark theme and light
+    if (themeBtn) {
+      themeBtn.addEventListener("click", function() {
+        var current = getCurrentTheme();
+        if (current === "light") {
+          // Going back to dark - restore saved dark theme or default
+          var savedDark = (function(){ try { return localStorage.getItem("8bfr-theme-dark-saved"); } catch(e) { return null; } })();
+          applyTheme(savedDark || "dark");
+        } else {
+          // Going to light - save current dark theme choice
+          try { localStorage.setItem("8bfr-theme-dark-saved", current); } catch(e){}
+          applyTheme("light");
+        }
+      });
+    }
+
+    // Themes bubble - opens themes browser page
+    if (themesBtn) {
+      themesBtn.addEventListener("click", function() {
+        window.location.href = "themes.html";
+      });
+    }
+
+    // Expose for the themes page to call
+    window.__applyTheme = applyTheme;
+    window.__getCurrentTheme = getCurrentTheme;
     if (streamBtn) { streamBtn.addEventListener("click", function() { window.open("https://open.spotify.com/artist/127tw52iDXr7BvgB0IGG2x?si=Ja3kOaL5S36QWOUS6yvnsA","_blank","noopener"); }); }
 
     // Notification bell badge
@@ -852,4 +884,36 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
 
   if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", injectGlobalUI); }
   else { injectGlobalUI(); }
+})();
+
+// ═══ AUTO-INJECT DESIGN SYSTEM STYLESHEET ═══
+// Loads design-system.css on every page that includes scripts.js so themes work everywhere
+(function() {
+  try {
+    if (!document.querySelector('link[href*="design-system.css"]')) {
+      var l = document.createElement("link");
+      l.rel = "stylesheet";
+      l.href = "design-system.css";
+      document.head.appendChild(l);
+    }
+    // Apply saved theme as early as possible (minimize flash)
+    var t = null;
+    try { t = localStorage.getItem("8bfr-theme-v2") || localStorage.getItem("8bfr-theme"); } catch(e){}
+    if (t && t !== "dark" && t !== "default") {
+      document.body && document.body.setAttribute("data-theme", t);
+      // Also ensure it applies even if body isn't ready yet
+      if (!document.body) {
+        document.addEventListener("DOMContentLoaded", function(){
+          document.body.setAttribute("data-theme", t);
+        });
+      }
+    }
+    // Apply saved avatar size preference
+    var a = null;
+    try { a = localStorage.getItem("8bfr-avatar-size"); } catch(e){}
+    if (a) {
+      if (document.body) document.body.setAttribute("data-avatar-size", a);
+      else document.addEventListener("DOMContentLoaded", function(){ document.body.setAttribute("data-avatar-size", a); });
+    }
+  } catch(e) { console.warn("[ds] auto-inject failed:", e); }
 })();
