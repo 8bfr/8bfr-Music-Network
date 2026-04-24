@@ -67,7 +67,36 @@
       const { data: song, error } = await db.from('songs').select('id, title, artist, cover_art, song_url, price, uploaded_by').eq('id', songId).single();
       if (error || !song) { loading.style.display = 'none'; noSong.style.display = 'block'; return; }
 
-      const price = parseFloat(song.price) || 0;
+      const originalPrice = parseFloat(song.price) || 0;
+      let price = originalPrice;
+      let discountInfo = null;
+
+      // Check for active discount on this song
+      try {
+        const { data: discounts } = await db.from('song_discounts')
+          .select('discount_type, discount_value, expires_at, starts_at')
+          .eq('song_id', songId)
+          .eq('active', true)
+          .limit(1);
+        if (discounts && discounts.length) {
+          const d = discounts[0];
+          const now = new Date();
+          const started = !d.starts_at || new Date(d.starts_at) <= now;
+          const notExpired = !d.expires_at || new Date(d.expires_at) > now;
+          if (started && notExpired) {
+            if (d.discount_type === 'free') {
+              price = 0;
+            } else if (d.discount_type === 'percent') {
+              price = Math.max(0, originalPrice * (1 - (parseFloat(d.discount_value) || 0) / 100));
+            } else if (d.discount_type === 'fixed') {
+              price = Math.max(0, originalPrice - (parseFloat(d.discount_value) || 0));
+            }
+            if (price !== originalPrice) {
+              discountInfo = { type: d.discount_type, value: d.discount_value, savings: originalPrice - price };
+            }
+          }
+        }
+      } catch(e) { /* discount lookup failed - fall back to original price */ }
 
       // Get artist profile
       let artistProfile = {};
@@ -89,8 +118,32 @@
       const cover = song.cover_art || 'assets/images/default_post.jpg';
       const artistName = artistProfile.display_name || artistProfile.username || song.artist || 'Unknown';
 
+      // Helper: render the price with optional discount badge + original strikethrough
+      function priceDisplay(color, size) {
+        color = color || '#f59e0b';
+        size = size || '1.1rem';
+        if (discountInfo) {
+          const badge = discountInfo.type === 'free' ? 'FREE'
+                      : discountInfo.type === 'percent' ? `${parseFloat(discountInfo.value)}% OFF`
+                      : `$${parseFloat(discountInfo.value).toFixed(2)} OFF`;
+          return `<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+            <span style="color:${color};font-weight:700;font-size:${size};">$${price.toFixed(2)}</span>
+            <span style="color:#6b7280;text-decoration:line-through;font-size:0.85rem;">$${originalPrice.toFixed(2)}</span>
+            <span style="background:#ef4444;color:#fff;padding:0.15rem 0.5rem;border-radius:999px;font-size:0.7rem;font-weight:800;letter-spacing:0.5px;">${badge}</span>
+          </div>`;
+        }
+        return `<p style="color:${color};font-weight:700;font-size:${size};">$${price.toFixed(2)}</p>`;
+      }
+
       if (price === 0) {
-        // Free song
+        // Free song (or free via discount)
+        const freeLabel = (discountInfo && originalPrice > 0)
+          ? `<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+              <span style="color:#22c55e;font-weight:700;font-size:1.1rem;">FREE</span>
+              <span style="color:#6b7280;text-decoration:line-through;font-size:0.85rem;">$${originalPrice.toFixed(2)}</span>
+              <span style="background:#22c55e;color:#06220f;padding:0.15rem 0.5rem;border-radius:999px;font-size:0.7rem;font-weight:800;letter-spacing:0.5px;">PROMO</span>
+            </div>`
+          : `<p style="color:#22c55e;font-weight:700;font-size:1.1rem;">FREE</p>`;
         content.innerHTML = `
           <div class="card">
             <div style="display:flex;gap:1rem;align-items:center;margin-bottom:1.5rem;">
@@ -98,7 +151,7 @@
               <div>
                 <h2 style="font-size:1.2rem;font-weight:700;">${song.title || 'Untitled'}</h2>
                 <p style="color:#a855f7;font-size:0.9rem;">${artistName}</p>
-                <p style="color:#22c55e;font-weight:700;font-size:1.1rem;">FREE</p>
+                ${freeLabel}
               </div>
             </div>
             ${song.song_url ? `
@@ -133,7 +186,7 @@
               <div style="text-align:left;">
                 <h2 style="font-size:1.2rem;font-weight:700;">${song.title || 'Untitled'}</h2>
                 <p style="color:#a855f7;font-size:0.9rem;">${artistName}</p>
-                <p style="color:#f59e0b;font-weight:700;font-size:1.1rem;">$${price.toFixed(2)}</p>
+                ${priceDisplay('#f59e0b', '1.1rem')}
               </div>
             </div>
             <p style="color:#a855f7;margin-bottom:1rem;">Log in to purchase this song.</p>
@@ -151,7 +204,7 @@
             <div>
               <h2 style="font-size:1.2rem;font-weight:700;">${song.title || 'Untitled'}</h2>
               <p style="color:#a855f7;font-size:0.9rem;">${artistName} ${artistProfile.verified_artist ? '<span style="color:#00d9ff;">✓</span>' : ''}</p>
-              <p style="color:#f59e0b;font-weight:700;font-size:1.3rem;">$${price.toFixed(2)}</p>
+              ${priceDisplay('#f59e0b', '1.3rem')}
             </div>
           </div>
           ${song.song_url ? `<div style="margin-bottom:1rem;"><p style="font-size:0.8rem;color:#a855f7;margin-bottom:0.5rem;">Preview:</p><audio controls src="${song.song_url}" preload="none" style="width:100%;"></audio></div>` : ''}
