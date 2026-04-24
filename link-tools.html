@@ -141,9 +141,14 @@ body{font-family:'Work Sans',system-ui,sans-serif;background:linear-gradient(#0b
   <!-- ═══ MY LINKS TAB ═══ -->
   <div class="tab-panel hidden" id="tab-mine">
     <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:.5rem;">
         <div style="font-weight:800;font-size:1rem;">Your short links</div>
-        <button class="btn btn-ghost btn-sm" style="width:auto;" onclick="loadMyLinks()">🔄 Refresh</button>
+        <div style="display:flex;gap:.35rem;flex-wrap:wrap;">
+          <button class="btn btn-ghost btn-sm" style="width:auto;" onclick="loadMyLinks()">🔄 Refresh</button>
+          <button class="btn btn-ghost btn-sm" style="width:auto;" onclick="copyAllLinks()">📋 Copy All</button>
+          <button class="btn btn-ghost btn-sm" style="width:auto;" onclick="downloadLinksCSV()">⬇️ Download CSV</button>
+          <button class="btn btn-ghost btn-sm" style="width:auto;" onclick="downloadLinksText()">📄 Download TXT</button>
+        </div>
       </div>
       <div id="myLinksList" class="my-links"><div class="empty">Loading...</div></div>
     </div>
@@ -320,6 +325,8 @@ window.downloadQR = async function(code, encoded){
 };
 
 // ─── LIST ───
+var _cachedLinks = [];
+
 async function loadMyLinks() {
   if (!currentUser) { document.getElementById('myLinksList').innerHTML = '<div class="empty">Sign in to see your links</div>'; return; }
   document.getElementById('myLinksList').innerHTML = '<div class="empty">Loading...</div>';
@@ -331,10 +338,11 @@ async function loadMyLinks() {
     });
     var data = await res.json();
     if (!data.ok) { document.getElementById('myLinksList').innerHTML = '<div class="empty">Error loading links</div>'; return; }
-    if (!data.links.length) { document.getElementById('myLinksList').innerHTML = '<div class="empty">No short links yet. Create your first one!</div>'; return; }
+    _cachedLinks = data.links || [];
+    if (!_cachedLinks.length) { document.getElementById('myLinksList').innerHTML = '<div class="empty">No short links yet. Create your first one!</div>'; return; }
 
     var html = '';
-    data.links.forEach(function(link){
+    _cachedLinks.forEach(function(link){
       var shortUrl = SHORT_URL_BASE + link.code;
       html += '<div class="link-item">' +
         '<div class="info">' +
@@ -356,6 +364,77 @@ async function loadMyLinks() {
   }
 }
 window.loadMyLinks = loadMyLinks;
+
+// ── BULK ACTIONS ──
+window.copyAllLinks = function() {
+  if (!_cachedLinks.length) { alert('Load your links first — none to copy.'); return; }
+  var text = _cachedLinks.map(function(l){
+    var line = SHORT_URL_BASE + l.code;
+    if (l.title) line = l.title + ': ' + line;
+    return line;
+  }).join('\n');
+  navigator.clipboard.writeText(text).then(function(){
+    alert('✓ Copied ' + _cachedLinks.length + ' link(s) to clipboard!');
+  }).catch(function(){
+    // Fallback: show them in a prompt for manual copy
+    prompt('Copy these links:', text);
+  });
+};
+
+window.downloadLinksCSV = function() {
+  if (!_cachedLinks.length) { alert('Load your links first — none to export.'); return; }
+  var header = 'Code,Short URL,Target URL,Title,Platform,Clicks,Created';
+  var rows = _cachedLinks.map(function(l){
+    var fields = [
+      l.code,
+      SHORT_URL_BASE + l.code,
+      l.target_url || '',
+      l.title || '',
+      l.platform || '',
+      l.clicks || 0,
+      l.created_at || ''
+    ];
+    // Escape CSV: wrap in quotes, escape embedded quotes
+    return fields.map(function(f){
+      var s = String(f);
+      if (s.indexOf(',') !== -1 || s.indexOf('"') !== -1 || s.indexOf('\n') !== -1) {
+        return '"' + s.replace(/"/g, '""') + '"';
+      }
+      return s;
+    }).join(',');
+  }).join('\n');
+  var csv = header + '\n' + rows;
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = '8bfr-links-' + new Date().toISOString().slice(0,10) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+window.downloadLinksText = function() {
+  if (!_cachedLinks.length) { alert('Load your links first — none to export.'); return; }
+  var lines = ['8BFR Short Links Export', '='.repeat(40), 'Exported: ' + new Date().toLocaleString(), 'Total: ' + _cachedLinks.length + ' links', ''];
+  _cachedLinks.forEach(function(l){
+    lines.push((l.title || '(untitled)'));
+    lines.push('  ' + SHORT_URL_BASE + l.code);
+    lines.push('  → ' + l.target_url);
+    lines.push('  ' + (l.clicks || 0) + ' clicks' + (l.platform ? ' · ' + l.platform : ''));
+    lines.push('');
+  });
+  var blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = '8bfr-links-' + new Date().toISOString().slice(0,10) + '.txt';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
 
 window.deleteLink = async function(code) {
   if (!confirm('Delete this short link? Existing /l/' + code + ' URLs will stop working.')) return;
