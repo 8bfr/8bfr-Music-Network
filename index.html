@@ -1,6 +1,71 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!--
+═══════════════════════════════════════════════════════════════════
+INDEX.HTML REDIRECT SNIPPET
+Paste this <script> block in the <head> of your existing index.html
+BEFORE the closing </head> tag.
+
+WHAT IT DOES:
+- If user is NOT signed in → redirect to landing.html (marketing page)
+- If user IS signed in → stay on index.html (their home feed)
+- Skips redirect if they arrived via "?nolanding=1" (escape hatch)
+
+PASTE THIS INTO INDEX.HTML:
+═══════════════════════════════════════════════════════════════════
+-->
+
+<script>
+(function() {
+  // Skip redirect if user has explicitly asked to stay (escape hatch)
+  if (window.location.search.indexOf('nolanding=1') !== -1) return;
+
+  // Only run on the actual homepage, not subroutes
+  var path = window.location.pathname;
+  if (path !== '/' && path !== '/index.html' && path !== '/index') return;
+
+  // Fast path: if we already know they're logged in via localStorage, skip the auth check
+  // Supabase stores the session in localStorage under this key
+  var hasSession = false;
+  try {
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (k && k.indexOf('supabase.auth.token') !== -1) { hasSession = true; break; }
+      if (k && k.indexOf('sb-') === 0 && k.indexOf('-auth-token') !== -1) {
+        // sb-<project>-auth-token — has real session data
+        var val = localStorage.getItem(k);
+        if (val && val.length > 20) { hasSession = true; break; }
+      }
+    }
+  } catch(e) {}
+
+  // If no session found, redirect now BEFORE the page renders (no flash)
+  if (!hasSession) {
+    window.location.replace('landing.html');
+  }
+  // If session exists, let the page render normally — if the session turns out to be
+  // expired, your existing auth guards will handle the login redirect
+})();
+</script>
+
+<!--
+═══════════════════════════════════════════════════════════════════
+DEPLOYMENT:
+1. Open index.html in your editor
+2. Find the <head> section
+3. Paste the <script> block above (just the <script>...</script> part)
+   anywhere in the <head>, ideally RIGHT AFTER the opening <head> tag
+   so it runs before anything else loads
+4. Save + commit + push
+
+TESTING:
+- Sign out → visit 8bfr.com → should go straight to landing.html
+- Sign in → visit 8bfr.com → should show your feed as normal
+- If something goes wrong, visit 8bfr.com/index.html?nolanding=1 to bypass
+═══════════════════════════════════════════════════════════════════
+-->
+
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>8BFR Music Network — Create • Connect • Collab</title>
