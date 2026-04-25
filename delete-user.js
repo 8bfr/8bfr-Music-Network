@@ -1,8 +1,13 @@
 const { createClient } = require("@supabase/supabase-js");
 
+// Service role key MUST come from environment variable - never hardcode
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error("SUPABASE_SERVICE_ROLE_KEY environment variable is required");
+}
+
 const supabaseAdmin = createClient(
   "https://novbuvwpjnxwwvdekjhr.supabase.co",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MTE4OTE4NSwiZXhwIjoyMDc2NzY1MTg1fQ.xR8vRdMIlW2TVSIjyrtKZ-a5LIqH5L5sIYPRnufhaT0"
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 const OWNER_ID = "cb556180-f032-4b21-9470-1d786f2664ab";
