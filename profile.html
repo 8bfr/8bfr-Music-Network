@@ -485,7 +485,28 @@
   window.switchProfileTab=function(tab){
     activeProfileTab=tab;
     document.querySelectorAll('.profile-tab').forEach(function(t){t.classList.toggle('active',t.dataset.tab===tab);});
-    renderPostGrid();
+    // Show/hide content sections
+    var ms=document.getElementById('musicSection');
+    var bs=document.getElementById('beatsSection');
+    var tc=document.getElementById('tabContent');
+    if(tab==='music'){
+      if(ms)ms.style.display='';
+      if(bs)bs.style.display='none';
+      if(tc)tc.style.display='none';
+      // Re-render songs filtered to NOT beats
+      if(typeof loadSongs==='function'&&profileData)loadSongs(profileData.user_id);
+    } else if(tab==='beats'){
+      if(ms)ms.style.display='none';
+      if(bs)bs.style.display='';
+      if(tc)tc.style.display='none';
+      // Render beats
+      if(typeof loadBeats==='function'&&profileData)loadBeats(profileData.user_id);
+    } else {
+      if(ms)ms.style.display='none';
+      if(bs)bs.style.display='none';
+      if(tc)tc.style.display='';
+      renderPostGrid();
+    }
   };
 
   /* ── INIT ── */
@@ -676,9 +697,10 @@
 
     /* ── PROFILE CONTENT TABS ── */
     h+='<div class="profile-tabs">';
-    // Music tab first for music profiles
+    // Music + Beats tabs first for music profiles
     if(isMusic){
       h+='<button class="profile-tab active" data-tab="music" onclick="switchProfileTab(\'music\')">🎵 Music</button>';
+      h+='<button class="profile-tab" data-tab="beats" onclick="switchProfileTab(\'beats\')">🎹 Beats</button>';
       h+='<button class="profile-tab" data-tab="posts" onclick="switchProfileTab(\'posts\')">📝 Posts</button>';
     } else {
       h+='<button class="profile-tab active" data-tab="posts" onclick="switchProfileTab(\'posts\')">📝 Posts</button>';
@@ -791,6 +813,17 @@
       h+='<div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;"><button class="btn" onclick="saveProfile()">💾 Save</button><button class="btn btn-ghost" onclick="toggleEditPanel()">Cancel</button><span id="saveN" style="font-size:.85rem;"></span></div></div>';
     }
 
+
+    /* Beats section (for beats tab) — hidden by default */
+    if(isMusic){
+      h+='<div id="beatsSection" style="display:none;">';
+      if(isOwnProfile){
+        h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;"><h2 style="margin:0;color:#a855f7;">🎹 My Beats</h2><span style="font-size:0.75rem;color:rgba(234,230,255,0.5);">Use Music tab → Upload → set type to Beat</span></div>';
+      }
+      h+='<div id="beatList"><div class="spinner"></div></div>';
+      h+='</div>';
+    }
+
     document.getElementById('profileContent').innerHTML=h;
 
     // ── Check bio overflow and show "more" button ──
@@ -896,7 +929,7 @@
   /* ── SONGS ── */
   async function loadSongs(uid){
     var el=document.getElementById('songList');if(!el)return;
-    try{var sr=await db.from('songs').select('id,title,artist,cover_art,song_url,watermarked_url,explicit,price,is_beat,sold,producer,featured_artist,lyrics').eq('uploaded_by',uid).is('dummy_id',null).order('created_at',{ascending:false});
+    try{var sr=await db.from('songs').select('id,title,artist,cover_art,song_url,watermarked_url,explicit,price,is_beat,sold,producer,featured_artist,lyrics').eq('uploaded_by',uid).eq('is_beat',false).is('dummy_id',null).order('created_at',{ascending:false});
     var songs=sr.data||[];
     if(!songs.length){el.innerHTML='<div style="text-align:center;padding:2rem;color:rgba(168,85,247,0.5);">No songs yet.</div>';return;}
     el.innerHTML=songs.map(function(s){
@@ -912,7 +945,32 @@
       var shareBtn='<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();shareSongFromProfile(\''+esc(s.title||'Untitled').replace(/'/g,'')+'\',\''+esc(s.artist||'').replace(/'/g,'')+'\')" style="flex-shrink:0;padding:0.3rem 0.6rem;font-size:0.72rem;">Share</button>';
       var playUrl=s.song_url;
       if(s.is_beat&&s.watermarked_url&&!isOwnProfile)playUrl=s.watermarked_url;
-      return '<div class="song-row" id="s-'+s.id+'"'+(s.sold?' style="opacity:0.6;"':'')+'><div class="song-cover">'+cv+'</div><div class="song-info"><div class="song-title">'+esc(s.title||'Untitled')+(s.explicit?' 🔞':'')+pt+soldBadge+'</div><div class="song-meta">'+esc(s.artist||'')+credits+'</div>'+(playUrl&&!s.sold?'<audio controls src="'+playUrl+'" preload="metadata" style="height:32px;margin-top:6px;"></audio>':'')+'</div>'+shareBtn+buyBtn+soldBtn+del+'</div>';
+      return '<div class="song-row" id="s-'+s.id+'"'+(s.sold?' style="opacity:0.6;"':'')+'><div class="song-cover">'+cv+'</div><div class="song-info"><div class="song-title">'+esc(s.title||'Untitled')+(s.explicit?' 🔞':'')+pt+soldBadge+'</div><div class="song-meta">'+esc(s.artist||'')+credits+'</div>'+(playUrl?'<audio controls src="'+playUrl+'" preload="metadata" style="height:32px;margin-top:6px;"></audio>':'')+'</div>'+shareBtn+buyBtn+soldBtn+del+'</div>';
+    }).join('');}catch(e){el.innerHTML='<div style="color:#ef4444;">'+e.message+'</div>';}
+  }
+
+  async function loadBeats(uid){
+    var el=document.getElementById('beatList');if(!el)return;
+    try{var sr=await db.from('songs').select('id,title,artist,cover_art,song_url,watermarked_url,explicit,price,is_beat,sold,producer,featured_artist,lyrics,bpm,music_key,license_url').eq('uploaded_by',uid).eq('is_beat',true).is('dummy_id',null).order('created_at',{ascending:false});
+    var beats=sr.data||[];
+    if(!beats.length){el.innerHTML='<div style="text-align:center;padding:2rem;color:rgba(168,85,247,0.5);">No beats yet.</div>';return;}
+    el.innerHTML=beats.map(function(s){
+      var cv=s.cover_art?'<img src="'+s.cover_art+'" onerror="this.parentNode.textContent=\'🎹\'">':'🎹';
+      var del=isOwnProfile?'<button class="btn btn-red btn-sm" onclick="delSong(\''+s.id+'\')">🗑️</button>':'';
+      var soldBtn=isOwnProfile&&!s.sold?'<button class="btn btn-sm" style="background:#d97706;font-size:0.7rem;padding:0.25rem 0.6rem;" onclick="markSold(\''+s.id+'\',this)">Mark Sold</button>':'';
+      var soldBadge=s.sold?'<span style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#ef4444;padding:0.15rem 0.5rem;border-radius:12px;font-size:0.7rem;font-weight:700;margin-left:0.4rem;">SOLD</span>':'';
+      var pr=parseFloat(s.price)||0;
+      var pt=pr>0&&!s.sold?'<span style="color:#4ade80;font-size:0.8rem;margin-left:0.4rem;">$'+pr.toFixed(2)+'</span>':'';
+      var buyBtn=pr>0&&!s.sold?'<button class="btn btn-sm btn-green" onclick="event.stopPropagation();location.href=\'checkout.html?song='+s.id+'&price='+pr+'\'" style="flex-shrink:0;padding:0.3rem 0.7rem;font-size:0.75rem;">💰 Buy</button>':'';
+      var bpmInfo=(s.bpm||s.music_key)?'<span style="font-size:0.7rem;color:rgba(168,85,247,0.5);margin-left:0.3rem;">'+(s.bpm?s.bpm+' BPM':'')+(s.bpm&&s.music_key?' • ':'')+(s.music_key||'')+'</span>':'';
+      var credits='';
+      if(s.featured_artist)credits+=' ft. '+esc(s.featured_artist);
+      if(s.producer)credits+='<span style="font-size:0.7rem;color:rgba(168,85,247,0.5);margin-left:0.3rem;">prod. '+esc(s.producer)+'</span>';
+      var shareBtn='<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();shareSongFromProfile(\''+esc(s.title||'Untitled').replace(/'/g,'')+'\',\''+esc(s.artist||'').replace(/'/g,'')+'\')" style="flex-shrink:0;padding:0.3rem 0.6rem;font-size:0.72rem;">Share</button>';
+      // For beats: ALWAYS prefer watermarked version (even owner hears tag for testing)
+      var playUrl=s.watermarked_url||s.song_url;
+      var previewBadge=s.watermarked_url?'<span style="font-size:0.65rem;color:#fbbf24;margin-left:0.3rem;">🔒 tagged preview</span>':'';
+      return '<div class="song-row" id="s-'+s.id+'"'+(s.sold?' style="opacity:0.6;"':'')+'><div class="song-cover">'+cv+'</div><div class="song-info"><div class="song-title">'+esc(s.title||'Untitled')+(s.explicit?' 🔞':'')+pt+soldBadge+previewBadge+'</div><div class="song-meta">'+esc(s.artist||'')+credits+bpmInfo+'</div>'+(playUrl?'<audio controls src="'+playUrl+'" preload="metadata" style="height:32px;margin-top:6px;width:100%;"></audio>':'')+'</div>'+shareBtn+buyBtn+soldBtn+del+'</div>';
     }).join('');}catch(e){el.innerHTML='<div style="color:#ef4444;">'+e.message+'</div>';}
   }
 
@@ -1320,15 +1378,12 @@
               n.innerHTML='<span style="color:#a855f7;">Watermarking beat... '+pct+'%</span>';
             }
           });
-          // Upload watermarked version
           n.innerHTML='<span style="color:#a855f7;">Uploading watermarked beat...</span>';
           var wmPath=currentUser.id+'/watermarked/'+Date.now()+'-'+af.name.replace(/[^a-zA-Z0-9.-]/g,'-').replace(/\.[^/.]+$/,'')+'.mp3';
           var wmUp=await db.storage.from('songs').upload(wmPath,wmBlob,{contentType:'audio/mpeg'});
           if(wmUp.error)throw new Error(wmUp.error.message);
           var wmUrl=db.storage.from('songs').getPublicUrl(wmPath).data.publicUrl;
-          // Save URL on the song row
           await db.from('songs').update({watermarked_url:wmUrl}).eq('id',ir.data.id);
-          var tagN=window.WM.tagCount(0,{interval:30,firstTagAt:12}); // approx
           n.innerHTML='<span style="color:#4ade80;">Beat watermarked!</span>';
         }catch(wmErr){
           console.error('Watermark error:',wmErr);
