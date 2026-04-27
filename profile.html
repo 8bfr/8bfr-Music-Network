@@ -496,11 +496,18 @@
       // Re-render songs filtered to NOT beats
       if(typeof loadSongs==='function'&&profileData)loadSongs(profileData.user_id);
     } else if(tab==='beats'){
+      console.log('[switchProfileTab] beats tab clicked. ms:', ms, 'bs:', bs, 'tc:', tc, 'profileData:', !!profileData);
       if(ms)ms.style.display='none';
       if(bs)bs.style.display='';
+      else console.warn('[switchProfileTab] beatsSection element does not exist!');
       if(tc)tc.style.display='none';
       // Render beats
-      if(typeof window.loadBeats==='function'&&profileData)window.loadBeats(profileData.user_id);
+      if(typeof window.loadBeats==='function'&&profileData){
+        console.log('[switchProfileTab] calling loadBeats for', profileData.user_id);
+        window.loadBeats(profileData.user_id);
+      } else {
+        console.warn('[switchProfileTab] cannot call loadBeats. function?', typeof window.loadBeats, 'profile?', !!profileData);
+      }
     } else {
       if(ms)ms.style.display='none';
       if(bs)bs.style.display='none';
@@ -948,15 +955,48 @@
       var playUrl=s.song_url;
       if(s.is_beat&&s.watermarked_url&&!isOwnProfile)playUrl=s.watermarked_url;
       return '<div class="song-row" id="s-'+s.id+'"'+(s.sold?' style="opacity:0.6;"':'')+'><div class="song-cover" style="cursor:pointer;" onclick="location.href=\'beats-store.html#beat-'+s.id+'\'" title="View in beat store">'+cv+'</div><div class="song-info"><div class="song-title">'+esc(s.title||'Untitled')+(s.explicit?' 🔞':'')+pt+soldBadge+'</div><div class="song-meta">'+esc(s.artist||'')+credits+'</div>'+(playUrl?'<audio controls src="'+playUrl+'" preload="metadata" style="height:32px;margin-top:6px;"></audio>':'')+'</div>'+shareBtn+buyBtn+soldBtn+del+'</div>';
-    }).join('');}catch(e){el.innerHTML='<div style="color:#ef4444;">'+e.message+'</div>';}
+    }).join('');
+    dbg('Render complete. Setting innerHTML...');
+    el.innerHTML=renderedHtml;
+    }catch(e){
+      dbg('CAUGHT ERROR: '+e.message);
+      el.innerHTML+='<div style="color:#ef4444;">'+e.message+'</div>';
+    }
   }
 
   window.loadBeats = async function(uid){
-    var el=document.getElementById('beatList');if(!el)return;
-    try{var sr=await db.from('songs').select('id,title,artist,cover_art,song_url,watermarked_url,explicit,price,is_beat,sold,producer,featured_artist,lyrics,bpm,music_key,license_url').eq('uploaded_by',uid).eq('is_beat',true).is('dummy_id',null).order('created_at',{ascending:false});
+    var dbg = function(msg){
+      var el=document.getElementById('beatList');
+      if(el){
+        var line='<div style="font-family:monospace;font-size:.7rem;color:#fbbf24;background:rgba(0,0,0,.3);padding:.3rem;border-left:3px solid #fbbf24;margin:.2rem 0;">'+msg+'</div>';
+        el.innerHTML=(el.dataset.debugStarted?el.innerHTML:'')+line;
+        el.dataset.debugStarted='1';
+      }
+      console.log('[loadBeats]', msg);
+    };
+    var el=document.getElementById('beatList');
+    if(!el){alert('beatList element NOT in DOM');return;}
+    el.innerHTML='';el.dataset.debugStarted='';
+    dbg('called with uid: '+uid);
+    dbg('beatList element OK');
+    try{
+    dbg('Running query...');
+    var sr=await db.from('songs').select('id,title,artist,cover_art,song_url,watermarked_url,explicit,price,is_beat,sold,producer,featured_artist,lyrics,bpm,music_key,license_url').eq('uploaded_by',uid).eq('is_beat',true).is('dummy_id',null).order('created_at',{ascending:false});
+    if(sr.error){dbg('DB ERROR: '+sr.error.message);return;}
     var beats=sr.data||[];
-    if(!beats.length){el.innerHTML='<div style="text-align:center;padding:2rem;color:rgba(168,85,247,0.5);">No beats yet.</div>';return;}
-    el.innerHTML=beats.map(function(s){
+    dbg('Query OK. Beats returned: '+beats.length);
+    if(beats.length>0){
+      dbg('First beat: title='+JSON.stringify(beats[0].title)+' is_beat='+beats[0].is_beat+' sold='+beats[0].sold);
+      dbg('Song URL ends: ...'+(beats[0].song_url||'').slice(-30));
+      dbg('WM URL ends: ...'+(beats[0].watermarked_url||'').slice(-30));
+    }
+    if(!beats.length){
+      var existing=el.innerHTML;
+      el.innerHTML=existing+'<div style="text-align:center;padding:2rem;color:rgba(168,85,247,0.5);">No beats yet.</div>';
+      return;
+    }
+    dbg('Building beat HTML...');
+    var renderedHtml=beats.map(function(s){
       var cv=s.cover_art?'<img src="'+s.cover_art+'" onerror="this.parentNode.textContent=\'🎹\'">':'🎹';
       var del=isOwnProfile?'<button class="btn btn-red btn-sm" onclick="delSong(\''+s.id+'\')">🗑️</button>':'';
       var soldBtn=isOwnProfile&&!s.sold?'<button class="btn btn-sm" style="background:#d97706;font-size:0.7rem;padding:0.25rem 0.6rem;" onclick="markSold(\''+s.id+'\',this)">Mark Sold</button>':'';
@@ -974,7 +1014,13 @@
       var playUrl=s.watermarked_url||s.song_url;
       var previewBadge=s.watermarked_url?'<span style="font-size:0.65rem;color:#fbbf24;margin-left:0.3rem;">🔒 tagged preview</span>':'';
       return '<div class="song-row" id="s-'+s.id+'"'+(s.sold?' style="opacity:0.6;"':'')+'><div class="song-cover" style="cursor:pointer;" onclick="location.href=\'beats-store.html#beat-'+s.id+'\'" title="View in beat store">'+cv+'</div><div class="song-info"><div class="song-title">'+esc(s.title||'Untitled')+(s.explicit?' 🔞':'')+pt+soldBadge+previewBadge+'</div><div class="song-meta">'+esc(s.artist||'')+credits+bpmInfo+'</div>'+(playUrl?'<audio controls src="'+playUrl+'" preload="metadata" style="height:32px;margin-top:6px;width:100%;"></audio>':'')+'</div>'+shareBtn+storeBtn+buyBtn+soldBtn+del+'</div>';
-    }).join('');}catch(e){el.innerHTML='<div style="color:#ef4444;">'+e.message+'</div>';}
+    }).join('');
+    dbg('Render complete. Setting innerHTML...');
+    el.innerHTML=renderedHtml;
+    }catch(e){
+      dbg('CAUGHT ERROR: '+e.message);
+      el.innerHTML+='<div style="color:#ef4444;">'+e.message+'</div>';
+    }
   }
 
   /* ── POSTS ── */
