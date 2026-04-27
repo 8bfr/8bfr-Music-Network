@@ -961,3 +961,19 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
     }
   }
 })();
+
+// ═══ ERUDA MOBILE DEVTOOLS ═══
+// Add ?eruda=1 to any URL to load mobile devtools (Console, Elements, Network, etc.)
+// Useful for debugging on phones where you can't open desktop DevTools.
+(function () {
+  try {
+    if (location.search.indexOf('eruda') === -1) return;
+    var s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/eruda';
+    s.onload = function () {
+      try { eruda.init(); } catch (e) { console.error('Eruda init failed:', e); }
+    };
+    s.onerror = function () { console.warn('Eruda CDN failed to load'); };
+    document.body.appendChild(s);
+  } catch (e) {}
+})();
