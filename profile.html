@@ -500,7 +500,7 @@
       if(bs)bs.style.display='';
       if(tc)tc.style.display='none';
       // Render beats
-      if(typeof loadBeats==='function'&&profileData)loadBeats(profileData.user_id);
+      if(typeof window.loadBeats==='function'&&profileData)window.loadBeats(profileData.user_id);
     } else {
       if(ms)ms.style.display='none';
       if(bs)bs.style.display='none';
@@ -951,7 +951,7 @@
     }).join('');}catch(e){el.innerHTML='<div style="color:#ef4444;">'+e.message+'</div>';}
   }
 
-  async function loadBeats(uid){
+  window.loadBeats = async function(uid){
     var el=document.getElementById('beatList');if(!el)return;
     try{var sr=await db.from('songs').select('id,title,artist,cover_art,song_url,watermarked_url,explicit,price,is_beat,sold,producer,featured_artist,lyrics,bpm,music_key,license_url').eq('uploaded_by',uid).eq('is_beat',true).is('dummy_id',null).order('created_at',{ascending:false});
     var beats=sr.data||[];
@@ -1592,7 +1592,6 @@ document.getElementById('tipModal').addEventListener('click',function(e){if(e.ta
     // Force music section to exist for owner/co-owner
     var ms = document.getElementById('musicSection');
     if (tab === 'music' && !ms) {
-      // Create music section if it doesn't exist
       var tc = document.getElementById('tabContent');
       if (tc) {
         var section = document.createElement('div');
@@ -1600,6 +1599,18 @@ document.getElementById('tipModal').addEventListener('click',function(e){if(e.ta
         section.style.display = 'none';
         section.innerHTML = buildMusicSection();
         tc.parentNode.insertBefore(section, tc.nextSibling);
+      }
+    }
+    // Force beats section to exist if needed
+    var bs = document.getElementById('beatsSection');
+    if (tab === 'beats' && !bs) {
+      var tc2 = document.getElementById('tabContent');
+      if (tc2) {
+        var bsec = document.createElement('div');
+        bsec.id = 'beatsSection';
+        bsec.style.display = 'none';
+        bsec.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;"><h2 style="margin:0;color:#a855f7;">🎹 My Beats</h2><button class="btn btn-sm" onclick="openBeatUpload()" style="background:#a855f7;color:#fff;">+ Upload Beat</button></div><div style="font-size:0.72rem;color:rgba(234,230,255,0.5);margin-bottom:1rem;">Beats automatically get a voice tag every 30 seconds in previews. Buyers receive the clean version.</div><div id="beatList"><div class="spinner"></div></div>';
+        tc2.parentNode.insertBefore(bsec, tc2.nextSibling);
       }
     }
     if (origSwitch) origSwitch(tab);
@@ -1632,6 +1643,14 @@ document.getElementById('tipModal').addEventListener('click',function(e){if(e.ta
         musicBtn.onclick = function() { window.switchProfileTab('music'); };
         tabs.appendChild(musicBtn);
 
+        // Also add Beats tab right after Music
+        var beatsBtn = document.createElement('button');
+        beatsBtn.className = 'profile-tab';
+        beatsBtn.dataset.tab = 'beats';
+        beatsBtn.textContent = '🎹 Beats';
+        beatsBtn.onclick = function() { window.switchProfileTab('beats'); };
+        tabs.appendChild(beatsBtn);
+
         // Create music section if missing — only include upload form if viewing OWN profile
         if (!document.getElementById('musicSection')) {
           var tc = document.getElementById('tabContent');
@@ -1641,6 +1660,20 @@ document.getElementById('tipModal').addEventListener('click',function(e){if(e.ta
             section.style.display = 'none';
             section.innerHTML = isViewingOwnProfile ? buildMusicSection() : buildMusicSectionReadOnly();
             tc.parentNode.insertBefore(section, tc.nextSibling);
+          }
+        }
+
+        // Create beats section if missing
+        if (!document.getElementById('beatsSection')) {
+          var tc2 = document.getElementById('tabContent');
+          if (tc2) {
+            var bs = document.createElement('div');
+            bs.id = 'beatsSection';
+            bs.style.display = 'none';
+            bs.innerHTML = isViewingOwnProfile
+              ? '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;"><h2 style="margin:0;color:#a855f7;">🎹 My Beats</h2><button class="btn btn-sm" onclick="openBeatUpload()" style="background:#a855f7;color:#fff;">+ Upload Beat</button></div><div style="font-size:0.72rem;color:rgba(234,230,255,0.5);margin-bottom:1rem;">Beats automatically get a voice tag every 30 seconds in previews. Buyers receive the clean version.</div><div id="beatList"><div class="spinner"></div></div>'
+              : '<div style="margin-bottom:1rem;"><h2 style="margin:0;color:#a855f7;">🎹 Beats</h2></div><div id="beatList"><div class="spinner"></div></div>';
+            tc2.parentNode.insertBefore(bs, tc2.nextSibling);
           }
         }
       }
