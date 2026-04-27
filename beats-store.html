@@ -243,7 +243,7 @@
             // ★ FIXED: use cover_art not cover_url
             var cover = b.cover_art ? '<img src="' + esc(b.cover_art) + '" alt="">' : '🎹';
 
-            html += '<div class="beat-card">' +
+            html += '<div class="beat-card" id="beat-' + b.id + '">' +
                 '<div class="beat-top">' +
                 '<div class="beat-art" onclick="playBeat(' + i + ')">' + cover + '<div class="play-icon">▶</div></div>' +
                 '<div class="beat-info">' +
@@ -266,23 +266,38 @@
         });
         html += '</div>';
         container.innerHTML = html;
+        scrollToHashBeat();
+    }
+
+
+    // Handle deep-link anchors like beats-store.html#beat-{uuid}
+    function scrollToHashBeat() {
+        if (!window.location.hash) return;
+        var id = window.location.hash.replace('#', '');
+        // Wait a tick for render to finish
+        setTimeout(function() {
+            var el = document.getElementById(id);
+            if (!el) return;
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Highlight the beat card briefly
+            el.style.transition = 'box-shadow 0.4s ease, transform 0.4s ease';
+            el.style.boxShadow = '0 0 0 3px #a855f7, 0 0 30px rgba(168, 85, 247, 0.5)';
+            el.style.transform = 'scale(1.02)';
+            setTimeout(function() {
+                el.style.boxShadow = '';
+                el.style.transform = '';
+            }, 2200);
+        }, 200);
     }
 
     /* ═══ AUDIO ═══ */
-    var PREVIEW_LIMIT = 30; // seconds — beats preview stops after this
+    // No artificial preview limit — beats are watermarked, the voice tag IS the protection
 
     function setupAudio() {
         audio.addEventListener('timeupdate', function() {
             if (audio.duration) {
                 document.getElementById('progressFill').style.width = (audio.currentTime / audio.duration * 100) + '%';
                 document.getElementById('timeDisplay').textContent = fmtTime(audio.currentTime) + ' / ' + fmtTime(audio.duration);
-                // Preview limit — stop at 30 seconds
-                if (audio.currentTime >= PREVIEW_LIMIT) {
-                    audio.pause();
-                    audio.currentTime = 0;
-                    document.getElementById('playBtn').textContent = '▶';
-                    document.getElementById('timeDisplay').textContent = 'Preview ended';
-                }
             }
         });
         audio.addEventListener('play', function() { document.getElementById('playBtn').textContent = '⏸'; });
