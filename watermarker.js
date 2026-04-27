@@ -7,8 +7,8 @@
   var TAG_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co/storage/v1/object/public/audio/watermark/8bfr-tag.mp3';
   var DEFAULT_OPTS = {
     interval: 30,
-    tagVolume: 2.0,     // 0-1: max voice tag volume
-    duckLevel: 1.0,    // beat drops to 15% during tag (very aggressive duck)
+    tagVolume: 1.0,     // 0-1: max voice tag volume
+    duckLevel: -3.0,    // beat drops to 15% during tag (very aggressive duck)
     tagBoost: 2.0,      // amplify the voice tag itself by 60% (with clipping protection)
     fadeMs: 150,
     bitrate: 192,
