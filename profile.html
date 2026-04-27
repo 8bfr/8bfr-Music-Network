@@ -147,6 +147,10 @@
       pointer-events: none !important;
     }
   </style>
+
+  <!-- Beat watermarker (client-side mixing via Web Audio API) -->
+  <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+  <script src="watermarker.js" defer></script>
 </head>
 <body>
   <header style="padding:1rem;background:rgba(15,0,30,0.9);border-bottom:1px solid rgba(124,58,237,0.5);position:sticky;top:0;z-index:100;">
@@ -1304,19 +1308,34 @@
       }).select('id').single();
       if(ir.error)throw new Error(ir.error.message);
 
-      // Auto-watermark beats
-      if(isBeat&&ir.data&&ir.data.id){
-        n.innerHTML='<span style="color:#a855f7;">Watermarking beat...</span>';
+      // Auto-watermark beats (client-side mixing via Web Audio API)
+      if(isBeat&&ir.data&&ir.data.id&&window.WM){
+        n.innerHTML='<span style="color:#a855f7;">Watermarking beat... 0%</span>';
         try{
-          var wmRes=await fetch('https://8bfr-api.vercel.app/api/watermark',{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({audio_url:su,song_id:ir.data.id,user_id:currentUser.id})
+          var wmBlob=await window.WM.watermarkBeat(af,{
+            interval:30,
+            tagVolume:0.55,
+            firstTagAt:12,
+            onProgress:function(pct){
+              n.innerHTML='<span style="color:#a855f7;">Watermarking beat... '+pct+'%</span>';
+            }
           });
-          var wmData=await wmRes.json();
-          if(wmData.success){n.innerHTML='<span style="color:#4ade80;">Beat watermarked! ('+wmData.tags_applied+' tags)</span>';}
-          else{n.innerHTML='<span style="color:#fbbf24;">Uploaded but watermark failed: '+(wmData.error||'unknown')+'</span>';}
-        }catch(wmErr){n.innerHTML='<span style="color:#fbbf24;">Uploaded but watermark unavailable</span>';console.log('Watermark:',wmErr);}
+          // Upload watermarked version
+          n.innerHTML='<span style="color:#a855f7;">Uploading watermarked beat...</span>';
+          var wmPath=currentUser.id+'/watermarked/'+Date.now()+'-'+af.name.replace(/[^a-zA-Z0-9.-]/g,'-').replace(/\.[^/.]+$/,'')+'.mp3';
+          var wmUp=await db.storage.from('songs').upload(wmPath,wmBlob,{contentType:'audio/mpeg'});
+          if(wmUp.error)throw new Error(wmUp.error.message);
+          var wmUrl=db.storage.from('songs').getPublicUrl(wmPath).data.publicUrl;
+          // Save URL on the song row
+          await db.from('songs').update({watermarked_url:wmUrl}).eq('id',ir.data.id);
+          var tagN=window.WM.tagCount(0,{interval:30,firstTagAt:12}); // approx
+          n.innerHTML='<span style="color:#4ade80;">Beat watermarked!</span>';
+        }catch(wmErr){
+          console.error('Watermark error:',wmErr);
+          n.innerHTML='<span style="color:#fbbf24;">Uploaded but watermark unavailable: '+(wmErr.message||'unknown')+'</span>';
+        }
+      }else if(isBeat&&!window.WM){
+        n.innerHTML='<span style="color:#fbbf24;">Uploaded but watermarker not loaded</span>';
       }
 
       // If album mode, upload additional tracks
