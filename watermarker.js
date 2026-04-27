@@ -7,11 +7,12 @@
   var TAG_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co/storage/v1/object/public/audio/watermark/8bfr-tag.mp3';
   var DEFAULT_OPTS = {
     interval: 30,
-    tagVolume: 0.85,    // 0-1: voice tag volume (0.85 = loud, clearly audible)
-    duckLevel: 0.4,     // 0-1: how much to lower beat during tag (0.4 = 40%, 0.3 = quieter)
-    fadeMs: 200,        // fade in/out per tag in milliseconds
+    tagVolume: 1.0,     // 0-1: max voice tag volume
+    duckLevel: 0.15,    // beat drops to 15% during tag (very aggressive duck)
+    tagBoost: 1.6,      // amplify the voice tag itself by 60% (with clipping protection)
+    fadeMs: 150,
     bitrate: 192,
-    firstTagAt: 12,
+    firstTagAt: 8,      // first tag earlier
     onProgress: null
   };
 
@@ -80,18 +81,17 @@
           var outIdx = insertSample + i;
           if (outIdx >= totalSamples) break;
 
-          // Tag fade envelope (0 -> tagVolume -> 0)
-          var tagEnv = opts.tagVolume;
+          // Tag fade envelope (0 -> tagVolume -> 0) with boost
+          var tagEnv = opts.tagVolume * (opts.tagBoost || 1.0);
           if (i < fadeSamples) {
             tagEnv *= (i / fadeSamples);
           } else if (i > tagSamples - fadeSamples) {
             tagEnv *= ((tagSamples - i) / fadeSamples);
           }
 
-          // Duck the beat under the tag (40% of original volume during tag)
-          // Same fade shape so it's smooth
+          // Duck the beat dramatically during tag
           var beatGain = 1.0;
-          var duckTarget = opts.duckLevel; // e.g. 0.4 = duck to 40%
+          var duckTarget = opts.duckLevel;
           if (i < fadeSamples) {
             beatGain = 1.0 - ((1.0 - duckTarget) * (i / fadeSamples));
           } else if (i > tagSamples - fadeSamples) {
