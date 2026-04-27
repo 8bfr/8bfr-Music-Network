@@ -8,8 +8,8 @@
   var DEFAULT_OPTS = {
     interval: 30,
     tagVolume: 1.0,     // 0-1: max voice tag volume
-    duckLevel: 0.50,    // beat drops to 15% during tag (very aggressive duck)
-    tagBoost: 6.0,      // amplify the voice tag itself by 60% (with clipping protection)
+    duckLevel: 0.75,    // beat drops to 15% during tag (very aggressive duck)
+    tagBoost: 10.0,      // amplify the voice tag itself by 60% (with clipping protection)
     fadeMs: 150,
     bitrate: 192,
     firstTagAt: 8,      // first tag earlier
