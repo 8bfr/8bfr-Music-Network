@@ -1,36 +1,18 @@
-/* watermarker.js — 8BFR client-side beat watermarker
- *
- * Uses Web Audio API to mix a cached voice tag onto an uploaded beat
- * at regular intervals. Outputs MP3 (via lamejs) ready for upload.
- *
- * Usage in profile.html:
- *
- *   <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
- *   <script src="watermarker.js" defer></script>
- *
- *   var beatFile = inputElement.files[0];
- *   var watermarked = await window.WM.watermarkBeat(beatFile, {
- *     interval: 30,    // tag every 30 seconds
- *     tagVolume: 0.55, // 55% volume
- *     onProgress: function(pct) { console.log(pct + '%'); }
- *   });
- *   // watermarked is a Blob you can upload to Supabase
+/* watermarker.js — 8BFR client-side beat watermarker (v2)
+ * Direct buffer-level mixing (more reliable than OfflineAudioContext)
  */
-
 (function () {
   'use strict';
 
   var TAG_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co/storage/v1/object/public/audio/watermark/8bfr-tag.mp3';
   var DEFAULT_OPTS = {
-    interval: 30,        // seconds between tags
-    tagVolume: 0.55,     // 0-1, voice tag volume
-    fadeMs: 150,         // fade in/out per tag to avoid pops
-    bitrate: 192,        // MP3 output bitrate (kbps)
-    firstTagAt: 12,      // first tag appears after this many seconds
-    onProgress: null     // callback(percent)
+    interval: 30,
+    tagVolume: 0.55,
+    fadeMs: 200,
+    bitrate: 192,
+    firstTagAt: 12,
+    onProgress: null
   };
-
-  // ─── HELPERS ───────────────────────────────────────────────────
 
   function fileToArrayBuffer(file) {
     return new Promise(function (resolve, reject) {
@@ -42,104 +24,100 @@
   }
 
   function urlToArrayBuffer(url) {
-    return fetch(url, { cache: 'force-cache' })
-      .then(function (r) {
-        if (!r.ok) throw new Error('Failed to load tag: ' + r.status);
-        return r.arrayBuffer();
-      });
+    return fetch(url, { cache: 'no-cache' }).then(function (r) {
+      if (!r.ok) throw new Error('Failed to load tag: HTTP ' + r.status);
+      return r.arrayBuffer();
+    });
   }
 
   function decode(ctx, buf) {
     return new Promise(function (resolve, reject) {
-      ctx.decodeAudioData(buf, resolve, reject);
+      ctx.decodeAudioData(buf.slice(0), resolve, reject);
     });
   }
 
-  // Apply fade-in / fade-out envelope to AudioBuffer in place
-  function applyFade(audioBuffer, fadeSec, sampleRate) {
-    var fadeSamples = Math.floor(fadeSec * sampleRate);
-    var totalSamples = audioBuffer.length;
-    if (fadeSamples * 2 >= totalSamples) fadeSamples = Math.floor(totalSamples / 2);
-
-    for (var ch = 0; ch < audioBuffer.numberOfChannels; ch++) {
-      var data = audioBuffer.getChannelData(ch);
-      // Fade in
-      for (var i = 0; i < fadeSamples; i++) {
-        data[i] *= (i / fadeSamples);
-      }
-      // Fade out
-      for (var j = 0; j < fadeSamples; j++) {
-        var idx = totalSamples - 1 - j;
-        if (idx >= 0) data[idx] *= (j / fadeSamples);
-      }
-    }
-  }
-
-  // Mix tag onto beat: returns new AudioBuffer
-  function mixBuffers(beatBuffer, tagBuffer, opts) {
+  /**
+   * Direct buffer mixing — copies beat samples to output, then ADDS tag samples
+   * at each insertion point with fade in/out.
+   */
+  function mixBuffersDirect(beatBuffer, tagBuffer, opts, onProgress) {
     var sampleRate = beatBuffer.sampleRate;
-    var numChannels = beatBuffer.numberOfChannels;
+    var numChannels = Math.min(beatBuffer.numberOfChannels, 2);
     var totalSamples = beatBuffer.length;
-    var beatDurationSec = beatBuffer.duration;
 
-    // Create empty output buffer same size as beat
-    var ctx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(
-      numChannels, totalSamples, sampleRate
-    );
+    var AudioCtx = window.AudioContext || window.webkitAudioContext;
+    var tempCtx = new AudioCtx();
+    var output = tempCtx.createBuffer(numChannels, totalSamples, sampleRate);
+    tempCtx.close();
 
-    // 1. Add the beat at full volume
-    var beatSrc = ctx.createBufferSource();
-    beatSrc.buffer = beatBuffer;
-    beatSrc.connect(ctx.destination);
-    beatSrc.start(0);
-
-    // 2. Add the voice tag at intervals
-    var tagDuration = tagBuffer.duration;
-    var t = opts.firstTagAt;
-
-    while (t + tagDuration < beatDurationSec) {
-      var tagSrc = ctx.createBufferSource();
-      tagSrc.buffer = tagBuffer;
-
-      var gain = ctx.createGain();
-      gain.gain.value = opts.tagVolume;
-
-      // Fade in/out for this tag instance to prevent clicks
-      var fadeSec = opts.fadeMs / 1000;
-      gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(opts.tagVolume, t + fadeSec);
-      gain.gain.setValueAtTime(opts.tagVolume, t + tagDuration - fadeSec);
-      gain.gain.linearRampToValueAtTime(0, t + tagDuration);
-
-      tagSrc.connect(gain);
-      gain.connect(ctx.destination);
-      tagSrc.start(t);
-
-      t += opts.interval;
+    // Copy beat to output at full volume
+    for (var ch = 0; ch < numChannels; ch++) {
+      var srcCh = ch < beatBuffer.numberOfChannels ? ch : 0;
+      output.getChannelData(ch).set(beatBuffer.getChannelData(srcCh));
     }
 
-    return ctx.startRendering();
+    if (onProgress) onProgress(35);
+
+    // Mix tag at each insertion point
+    var tagSamples = tagBuffer.length;
+    var tagDuration = tagBuffer.duration;
+    var fadeSamples = Math.floor((opts.fadeMs / 1000) * sampleRate);
+    if (fadeSamples > tagSamples / 2) fadeSamples = Math.floor(tagSamples / 2);
+
+    var insertSec = opts.firstTagAt;
+    var insertions = 0;
+
+    while (insertSec + tagDuration < beatBuffer.duration) {
+      var insertSample = Math.floor(insertSec * sampleRate);
+
+      for (var c = 0; c < numChannels; c++) {
+        var outData = output.getChannelData(c);
+        var tagSrcCh = c < tagBuffer.numberOfChannels ? c : 0;
+        var tagData = tagBuffer.getChannelData(tagSrcCh);
+
+        for (var i = 0; i < tagSamples; i++) {
+          var outIdx = insertSample + i;
+          if (outIdx >= totalSamples) break;
+
+          var env = opts.tagVolume;
+          if (i < fadeSamples) {
+            env *= (i / fadeSamples);
+          } else if (i > tagSamples - fadeSamples) {
+            env *= ((tagSamples - i) / fadeSamples);
+          }
+
+          var mixed = outData[outIdx] + (tagData[i] * env);
+          if (mixed > 1) mixed = 1;
+          if (mixed < -1) mixed = -1;
+          outData[outIdx] = mixed;
+        }
+      }
+
+      insertions++;
+      insertSec += opts.interval;
+    }
+
+    if (onProgress) onProgress(50);
+    console.log('[watermarker] mixed', insertions, 'tags into', beatBuffer.duration.toFixed(1) + 's beat');
+    return output;
   }
 
-  // Encode AudioBuffer to MP3 Blob using lamejs
   function encodeMp3(audioBuffer, bitrate, onProgress) {
     if (typeof lamejs === 'undefined') {
-      throw new Error('lamejs not loaded - include <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>');
+      throw new Error('lamejs not loaded');
     }
 
     var sampleRate = audioBuffer.sampleRate;
-    var numChannels = Math.min(audioBuffer.numberOfChannels, 2); // MP3 supports max 2 channels
+    var numChannels = Math.min(audioBuffer.numberOfChannels, 2);
     var encoder = new lamejs.Mp3Encoder(numChannels, sampleRate, bitrate);
 
     var leftChannel = audioBuffer.getChannelData(0);
     var rightChannel = numChannels > 1 ? audioBuffer.getChannelData(1) : leftChannel;
-
     var totalLength = leftChannel.length;
-    var blockSize = 1152; // standard MP3 frame size
+    var blockSize = 1152;
     var mp3Data = [];
 
-    // Convert Float32 [-1, 1] to Int16 [-32768, 32767]
-    function float32ToInt16(buffer) {
+    function f32ToI16(buffer) {
       var int16 = new Int16Array(buffer.length);
       for (var i = 0; i < buffer.length; i++) {
         var s = Math.max(-1, Math.min(1, buffer[i]));
@@ -148,8 +126,8 @@
       return int16;
     }
 
-    var leftInt = float32ToInt16(leftChannel);
-    var rightInt = numChannels > 1 ? float32ToInt16(rightChannel) : leftInt;
+    var leftInt = f32ToI16(leftChannel);
+    var rightInt = numChannels > 1 ? f32ToI16(rightChannel) : leftInt;
 
     for (var offset = 0; offset < totalLength; offset += blockSize) {
       var leftChunk = leftInt.subarray(offset, offset + blockSize);
@@ -161,7 +139,7 @@
         mp3buf = encoder.encodeBuffer(leftChunk, rightChunk);
       }
       if (mp3buf.length > 0) mp3Data.push(mp3buf);
-      if (onProgress && offset % (blockSize * 50) === 0) {
+      if (onProgress && offset % (blockSize * 100) === 0) {
         onProgress(50 + Math.floor((offset / totalLength) * 45));
       }
     }
@@ -169,17 +147,9 @@
     var endBuf = encoder.flush();
     if (endBuf.length > 0) mp3Data.push(endBuf);
 
-    return new Blob(mp3Data, { type: 'audio/mp3' });
+    return new Blob(mp3Data, { type: 'audio/mpeg' });
   }
 
-  // ─── PUBLIC API ────────────────────────────────────────────────
-
-  /**
-   * Watermark a beat audio file with the cached "8 B F R" voice tag.
-   * @param {File|Blob} beatFile  The user's uploaded beat
-   * @param {Object} [opts]       Options (interval, tagVolume, onProgress, etc.)
-   * @returns {Promise<Blob>}     MP3 blob ready to upload
-   */
   async function watermarkBeat(beatFile, opts) {
     opts = Object.assign({}, DEFAULT_OPTS, opts || {});
     var report = function (pct) {
@@ -188,13 +158,12 @@
 
     report(5);
 
-    // 1. Create audio context for decoding
     var AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtx) throw new Error('Web Audio API not supported in this browser');
+    if (!AudioCtx) throw new Error('Web Audio API not supported');
     var decodeCtx = new AudioCtx();
 
-    // 2. Load both files in parallel
     report(10);
+
     var beatBufRaw, tagBufRaw;
     try {
       var pair = await Promise.all([
@@ -204,48 +173,44 @@
       beatBufRaw = pair[0];
       tagBufRaw = pair[1];
     } catch (e) {
+      decodeCtx.close();
       throw new Error('Could not load audio files: ' + e.message);
     }
 
-    report(25);
+    report(20);
 
-    // 3. Decode both
     var beatBuffer, tagBuffer;
     try {
-      var decoded = await Promise.all([
-        decode(decodeCtx, beatBufRaw),
-        decode(decodeCtx, tagBufRaw.slice(0)) // .slice copies because decode consumes
-      ]);
-      beatBuffer = decoded[0];
-      tagBuffer = decoded[1];
+      beatBuffer = await decode(decodeCtx, beatBufRaw);
+      tagBuffer = await decode(decodeCtx, tagBufRaw);
     } catch (e) {
+      decodeCtx.close();
       throw new Error('Could not decode audio: ' + e.message);
     }
 
     decodeCtx.close();
-    report(45);
 
-    // 4. Mix
-    var mixed = await mixBuffers(beatBuffer, tagBuffer, opts);
-    report(50);
+    console.log('[watermarker] beat:', beatBuffer.duration.toFixed(1) + 's,',
+                beatBuffer.numberOfChannels + 'ch,', beatBuffer.sampleRate + 'Hz');
+    console.log('[watermarker] tag:', tagBuffer.duration.toFixed(1) + 's,',
+                tagBuffer.numberOfChannels + 'ch,', tagBuffer.sampleRate + 'Hz');
 
-    // 5. Encode to MP3
+    report(30);
+    var mixed = mixBuffersDirect(beatBuffer, tagBuffer, opts, report);
+    report(55);
+
     var blob = encodeMp3(mixed, opts.bitrate, report);
     report(100);
-
+    console.log('[watermarker] done, output:', (blob.size / 1024).toFixed(0) + 'KB');
     return blob;
   }
 
-  /**
-   * Count how many tag insertions a beat will receive (for UI preview).
-   */
   function tagCount(beatDurationSec, opts) {
     opts = Object.assign({}, DEFAULT_OPTS, opts || {});
     if (beatDurationSec <= opts.firstTagAt) return 0;
     return Math.floor((beatDurationSec - opts.firstTagAt) / opts.interval) + 1;
   }
 
-  // Expose globally
   window.WM = {
     watermarkBeat: watermarkBeat,
     tagCount: tagCount,
@@ -253,5 +218,5 @@
     setTagUrl: function (newUrl) { TAG_URL = newUrl; }
   };
 
-  console.log('[watermarker] ready - call window.WM.watermarkBeat(file, opts)');
+  console.log('[watermarker v2] ready');
 })();
