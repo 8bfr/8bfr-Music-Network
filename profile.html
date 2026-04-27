@@ -954,71 +954,16 @@
       var storeBtn='<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();location.href=\'beats-store.html#beat-'+s.id+'\'" style="flex-shrink:0;padding:0.3rem 0.6rem;font-size:0.72rem;color:#a855f7;">View in Store</button>';
       var playUrl=s.song_url;
       if(s.is_beat&&s.watermarked_url&&!isOwnProfile)playUrl=s.watermarked_url;
-      return '<div class="song-row" id="s-'+s.id+'"'+(s.sold?' style="opacity:0.6;"':'')+'><div class="song-cover" style="cursor:pointer;" onclick="location.href=\'beats-store.html#beat-'+s.id+'\'" title="View in beat store">'+cv+'</div><div class="song-info"><div class="song-title">'+esc(s.title||'Untitled')+(s.explicit?' 🔞':'')+pt+soldBadge+'</div><div class="song-meta">'+esc(s.artist||'')+credits+'</div>'+(playUrl?'<audio controls src="'+playUrl+'" preload="metadata" style="height:32px;margin-top:6px;"></audio>':'')+'</div>'+shareBtn+buyBtn+soldBtn+del+'</div>';
-    }).join('');
-    dbg('Render complete. HTML length: '+renderedHtml.length+' chars');
-    dbg('First 200 chars of HTML: '+renderedHtml.substring(0,200).replace(/</g,'&lt;'));
-    dbg('Adding to page now...');
-    // Keep debug visible AND show the rendered beats below
-    var existingDebug=el.innerHTML;
-    el.innerHTML=existingDebug+'<div style="border-top:2px solid #fbbf24;margin-top:.5rem;padding-top:.5rem;"><div style="color:#4ade80;font-size:.7rem;font-family:monospace;">↓ Rendered output below ↓</div></div>'+renderedHtml;
-    dbg('Audio elements after render: '+document.querySelectorAll('#beatList audio').length);
-    dbg('Song-row elements after render: '+document.querySelectorAll('#beatList .song-row').length);
-    var firstRow=document.querySelector('#beatList .song-row');
-    if(firstRow){
-      var rect=firstRow.getBoundingClientRect();
-      dbg('First .song-row rect: w='+Math.round(rect.width)+' h='+Math.round(rect.height)+' top='+Math.round(rect.top));
-      var styles=window.getComputedStyle(firstRow);
-      dbg('First .song-row computed: display='+styles.display+' visibility='+styles.visibility+' opacity='+styles.opacity);
-    } else {
-      dbg('NO .song-row found in beatList');
-    }
-    var firstAudio=document.querySelector('#beatList audio');
-    if(firstAudio){
-      var arect=firstAudio.getBoundingClientRect();
-      dbg('First audio rect: w='+Math.round(arect.width)+' h='+Math.round(arect.height));
-      var astyles=window.getComputedStyle(firstAudio);
-      dbg('First audio computed: display='+astyles.display+' visibility='+astyles.visibility);
-    }
-    }catch(e){
-      dbg('CAUGHT ERROR: '+e.message);
-      el.innerHTML+='<div style="color:#ef4444;">'+e.message+'</div>';
-    }
+      return '<div class="song-row" id="s-'+s.id+'"'+(s.sold?' style="opacity:0.6;"':'')+'><div class="song-cover" style="cursor:pointer;" onclick="location.href=\'beats-store.html#beat-'+s.id+'\'" title="View in beat store">'+cv+'</div><div class="song-info"><div class="song-title">'+esc(s.title||'Untitled')+(s.explicit?' 🔞':'')+pt+soldBadge+'</div><div class="song-meta">'+esc(s.artist||'')+credits+'</div>'+(playUrl?'<audio controls src="'+playUrl+'" preload="metadata" style="display:block;height:36px;margin-top:6px;width:100%;min-width:0;"></audio>':'')+'</div>'+shareBtn+buyBtn+soldBtn+del+'</div>';
+    }).join('');}catch(e){el.innerHTML='<div style="color:#ef4444;">'+e.message+'</div>';}
   }
 
   window.loadBeats = async function(uid){
-    var dbg = function(msg){
-      var el=document.getElementById('beatList');
-      if(el){
-        var line='<div style="font-family:monospace;font-size:.7rem;color:#fbbf24;background:rgba(0,0,0,.3);padding:.3rem;border-left:3px solid #fbbf24;margin:.2rem 0;">'+msg+'</div>';
-        el.innerHTML=(el.dataset.debugStarted?el.innerHTML:'')+line;
-        el.dataset.debugStarted='1';
-      }
-      console.log('[loadBeats]', msg);
-    };
-    var el=document.getElementById('beatList');
-    if(!el){alert('beatList element NOT in DOM');return;}
-    el.innerHTML='';el.dataset.debugStarted='';
-    dbg('called with uid: '+uid);
-    dbg('beatList element OK');
-    try{
-    dbg('Running query...');
-    var sr=await db.from('songs').select('id,title,artist,cover_art,song_url,watermarked_url,explicit,price,is_beat,sold,producer,featured_artist,lyrics,bpm,music_key,license_url').eq('uploaded_by',uid).eq('is_beat',true).is('dummy_id',null).order('created_at',{ascending:false});
-    if(sr.error){dbg('DB ERROR: '+sr.error.message);return;}
+    var el=document.getElementById('beatList');if(!el)return;
+    try{var sr=await db.from('songs').select('id,title,artist,cover_art,song_url,watermarked_url,explicit,price,is_beat,sold,producer,featured_artist,lyrics,bpm,music_key,license_url').eq('uploaded_by',uid).eq('is_beat',true).is('dummy_id',null).order('created_at',{ascending:false});
     var beats=sr.data||[];
-    dbg('Query OK. Beats returned: '+beats.length);
-    if(beats.length>0){
-      dbg('First beat: title='+JSON.stringify(beats[0].title)+' is_beat='+beats[0].is_beat+' sold='+beats[0].sold);
-      dbg('Song URL ends: ...'+(beats[0].song_url||'').slice(-30));
-      dbg('WM URL ends: ...'+(beats[0].watermarked_url||'').slice(-30));
-    }
-    if(!beats.length){
-      var existing=el.innerHTML;
-      el.innerHTML=existing+'<div style="text-align:center;padding:2rem;color:rgba(168,85,247,0.5);">No beats yet.</div>';
-      return;
-    }
-    dbg('Building beat HTML...');
-    var renderedHtml=beats.map(function(s){
+    if(!beats.length){el.innerHTML='<div style="text-align:center;padding:2rem;color:rgba(168,85,247,0.5);">No beats yet.</div>';return;}
+    el.innerHTML=beats.map(function(s){
       var cv=s.cover_art?'<img src="'+s.cover_art+'" onerror="this.parentNode.textContent=\'🎹\'">':'🎹';
       var del=isOwnProfile?'<button class="btn btn-red btn-sm" onclick="delSong(\''+s.id+'\')">🗑️</button>':'';
       var soldBtn=isOwnProfile&&!s.sold?'<button class="btn btn-sm" style="background:#d97706;font-size:0.7rem;padding:0.25rem 0.6rem;" onclick="markSold(\''+s.id+'\',this)">Mark Sold</button>':'';
@@ -1035,36 +980,8 @@
       // For beats: ALWAYS prefer watermarked version (even owner hears tag for testing)
       var playUrl=s.watermarked_url||s.song_url;
       var previewBadge=s.watermarked_url?'<span style="font-size:0.65rem;color:#fbbf24;margin-left:0.3rem;">🔒 tagged preview</span>':'';
-      return '<div class="song-row" id="s-'+s.id+'"'+(s.sold?' style="opacity:0.6;"':'')+'><div class="song-cover" style="cursor:pointer;" onclick="location.href=\'beats-store.html#beat-'+s.id+'\'" title="View in beat store">'+cv+'</div><div class="song-info"><div class="song-title">'+esc(s.title||'Untitled')+(s.explicit?' 🔞':'')+pt+soldBadge+previewBadge+'</div><div class="song-meta">'+esc(s.artist||'')+credits+bpmInfo+'</div>'+(playUrl?'<audio controls src="'+playUrl+'" preload="metadata" style="height:32px;margin-top:6px;width:100%;"></audio>':'')+'</div>'+shareBtn+storeBtn+buyBtn+soldBtn+del+'</div>';
-    }).join('');
-    dbg('Render complete. HTML length: '+renderedHtml.length+' chars');
-    dbg('First 200 chars of HTML: '+renderedHtml.substring(0,200).replace(/</g,'&lt;'));
-    dbg('Adding to page now...');
-    // Keep debug visible AND show the rendered beats below
-    var existingDebug=el.innerHTML;
-    el.innerHTML=existingDebug+'<div style="border-top:2px solid #fbbf24;margin-top:.5rem;padding-top:.5rem;"><div style="color:#4ade80;font-size:.7rem;font-family:monospace;">↓ Rendered output below ↓</div></div>'+renderedHtml;
-    dbg('Audio elements after render: '+document.querySelectorAll('#beatList audio').length);
-    dbg('Song-row elements after render: '+document.querySelectorAll('#beatList .song-row').length);
-    var firstRow=document.querySelector('#beatList .song-row');
-    if(firstRow){
-      var rect=firstRow.getBoundingClientRect();
-      dbg('First .song-row rect: w='+Math.round(rect.width)+' h='+Math.round(rect.height)+' top='+Math.round(rect.top));
-      var styles=window.getComputedStyle(firstRow);
-      dbg('First .song-row computed: display='+styles.display+' visibility='+styles.visibility+' opacity='+styles.opacity);
-    } else {
-      dbg('NO .song-row found in beatList');
-    }
-    var firstAudio=document.querySelector('#beatList audio');
-    if(firstAudio){
-      var arect=firstAudio.getBoundingClientRect();
-      dbg('First audio rect: w='+Math.round(arect.width)+' h='+Math.round(arect.height));
-      var astyles=window.getComputedStyle(firstAudio);
-      dbg('First audio computed: display='+astyles.display+' visibility='+astyles.visibility);
-    }
-    }catch(e){
-      dbg('CAUGHT ERROR: '+e.message);
-      el.innerHTML+='<div style="color:#ef4444;">'+e.message+'</div>';
-    }
+      return '<div class="song-row" id="s-'+s.id+'"'+(s.sold?' style="opacity:0.6;"':'')+'><div class="song-cover" style="cursor:pointer;" onclick="location.href=\'beats-store.html#beat-'+s.id+'\'" title="View in beat store">'+cv+'</div><div class="song-info"><div class="song-title">'+esc(s.title||'Untitled')+(s.explicit?' 🔞':'')+pt+soldBadge+previewBadge+'</div><div class="song-meta">'+esc(s.artist||'')+credits+bpmInfo+'</div>'+(playUrl?'<audio controls src="'+playUrl+'" preload="metadata" style="display:block;height:36px;margin-top:6px;width:100%;min-width:0;"></audio>':'')+'</div>'+shareBtn+storeBtn+buyBtn+soldBtn+del+'</div>';
+    }).join('');}catch(e){el.innerHTML='<div style="color:#ef4444;">'+e.message+'</div>';}
   }
 
   /* ── POSTS ── */
