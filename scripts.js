@@ -34,7 +34,7 @@
       }
       var db = window.supabase.createClient(
         'https://novbuvwpjnxwwvdekjhr.supabase.co',
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0'
+        'sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f'
       );
       db.auth.getSession().then(function(res){
         var session = res.data && res.data.session;
@@ -75,7 +75,7 @@
   if (!track) return;
 
   var SUPABASE_URL = "https://novbuvwpjnxwwvdekjhr.supabase.co";
-  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0";
+  var SUPABASE_ANON_KEY = "sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f";
 
   var defaultAds = [
     { img: "assets/images/ad_banner_1.jpg", url: "ads.html#ad1" },
@@ -160,7 +160,7 @@
 // ========== GLOBAL 8BFR UI (menu, bubbles, avatars, auth gate) ==========
 (function () {
   var SUPABASE_URL = "https://novbuvwpjnxwwvdekjhr.supabase.co";
-  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0";
+  var SUPABASE_ANON_KEY = "sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f";
 
   function loadSupabaseClient(callback) {
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
