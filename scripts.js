@@ -34,7 +34,7 @@
       }
       var db = window.supabase.createClient(
         'https://novbuvwpjnxwwvdekjhr.supabase.co',
-        'sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f'
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0'
       );
       db.auth.getSession().then(function(res){
         var session = res.data && res.data.session;
@@ -75,7 +75,7 @@
   if (!track) return;
 
   var SUPABASE_URL = "https://novbuvwpjnxwwvdekjhr.supabase.co";
-  var SUPABASE_ANON_KEY = "sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f";
+  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0";
 
   var defaultAds = [
     { img: "assets/images/ad_banner_1.jpg", url: "ads.html#ad1" },
@@ -160,7 +160,7 @@
 // ========== GLOBAL 8BFR UI (menu, bubbles, avatars, auth gate) ==========
 (function () {
   var SUPABASE_URL = "https://novbuvwpjnxwwvdekjhr.supabase.co";
-  var SUPABASE_ANON_KEY = "sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f";
+  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0";
 
   function loadSupabaseClient(callback) {
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
@@ -452,6 +452,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
   </div>\
 </nav>\
 <div id="bubbleStack">\
+  <div class="bubble-row"><button class="bubble" id="bubble-profile" title="My Profile" onclick="location.href=\'profile.html\'"><span>&#x1F464;</span></button><span class="bubble-label">Profile</span></div>\
   <div class="bubble-row"><button class="bubble" id="bubble-notif" title="Notifications" onclick="location.href=\'notifications.html\'" style="position:relative;"><span>&#x1F514;</span><span id="bubble-notif-badge" style="position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;font-size:.55rem;font-weight:800;min-width:16px;height:16px;border-radius:8px;display:none;align-items:center;justify-content:center;padding:0 3px;">0</span></button><span class="bubble-label">Notifs</span></div>\
   <div class="bubble-row"><button class="bubble" id="bubble-msgs" title="Messages" onclick="location.href=\'messages.html\'"><span>&#x2709;&#xFE0F;</span></button><span class="bubble-label">Msgs</span></div>\
   <div class="bubble-row"><button class="bubble" id="bubble-contact" title="Contact"><span>&#x1F4EC;</span></button><span class="bubble-label">Contact</span></div>\
