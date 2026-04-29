@@ -171,14 +171,12 @@
 (function () {
   var COINS_KEY     = 'carrieCoins_v1';
   var OWNERSHIP_KEY = 'carrieOwnedItems_v1';
-  var OWNER_EMAIL   = '8bfr.music@gmail.com';
-  var OWNER_PASS    = '197594773839*Ab4444';
-  var USER_EMAIL_K  = 'carrieUserEmail_v1';
-  var USER_PASS_K   = 'carrieUserPassword_v1';
+  var OWNER_USER_ID = 'cb556180-f032-4b21-9470-1d786f2664ab';
 
   var coins      = 0;
   var ownedItems = [];
   var currentCat = 'all';
+  var _isOwnerCached = false;
 
   var balanceEl  = document.getElementById('balanceDisplay');
   var gridEl     = document.getElementById('itemsGrid');
@@ -186,14 +184,28 @@
   var spinner    = document.getElementById('loadingSpinner');
   var content    = document.getElementById('shopContent');
 
-  function isOwnerLS() {
-    return localStorage.getItem(USER_EMAIL_K) === OWNER_EMAIL &&
-           localStorage.getItem(USER_PASS_K)  === OWNER_PASS;
+  // Verify owner via Supabase auth (NOT localStorage which can be spoofed)
+  async function checkOwnerStatus() {
+    try {
+      if (!window.supabase) return false;
+      var SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+      var SUPABASE_KEY = 'sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f';
+      var db = window._8bfrSupabaseClient || window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      var sess = await db.auth.getSession();
+      var user = sess && sess.data && sess.data.session ? sess.data.session.user : null;
+      _isOwnerCached = user && user.id === OWNER_USER_ID;
+    } catch(e) {
+      _isOwnerCached = false;
+    }
+    return _isOwnerCached;
   }
 
   function isOwner() {
-    if (window.CARRIE_SYNC) return window.CARRIE_SYNC.isOwner;
-    return isOwnerLS();
+    // CARRIE_SYNC takes precedence if it has its own owner check
+    if (window.CARRIE_SYNC && typeof window.CARRIE_SYNC.isOwner !== 'undefined') {
+      return window.CARRIE_SYNC.isOwner;
+    }
+    return _isOwnerCached;
   }
 
   function showAlert(msg, type) {
@@ -349,9 +361,12 @@
     render();
   }
 
-  function init() {
+  async function init() {
     // Wait for closet data
     if (!window.CARRIE_CLOSET_ITEMS) { setTimeout(init, 100); return; }
+
+    // Check owner status via Supabase auth (replaces old insecure localStorage check)
+    await checkOwnerStatus();
 
     loadFromLocal();
 
