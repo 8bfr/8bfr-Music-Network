@@ -191,6 +191,13 @@
         </div>
       </div>
 
+      <!-- ★ REFERRAL CODE (optional) -->
+      <div class="field" id="refCodeField">
+        <label for="refCodeInput">🎁 Referral Code <span style="color:rgba(234,230,255,.45);font-weight:400;font-size:.78rem;">(optional)</span></label>
+        <input type="text" id="refCodeInput" placeholder="Enter friend's code for bonus coins" maxlength="12" style="text-transform:uppercase;letter-spacing:.06em;font-weight:600;" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')">
+        <div id="refCodeHint" style="font-size:.72rem;color:rgba(234,230,255,.45);margin-top:.25rem;">Have a friend's code? You both get bonus coins!</div>
+      </div>
+
       <!-- ★ DATE OF BIRTH -->
       <div class="field">
         <label>📅 Date of Birth *</label>
@@ -596,6 +603,18 @@ var generatedCode = '';
 var resendCooldown = 0;
 var refCode = new URLSearchParams(window.location.search).get('ref') || '';
 
+// Auto-fill referral code input from URL on page load
+window.addEventListener('DOMContentLoaded', function() {
+  var input = document.getElementById('refCodeInput');
+  var hint = document.getElementById('refCodeHint');
+  if (refCode && input) {
+    input.value = refCode.toUpperCase();
+    if (hint) {
+      hint.innerHTML = '<span style="color:#22c55e;font-weight:600;">✓ Referral code applied! You\'ll earn bonus coins.</span>';
+    }
+  }
+});
+
 async function sendVerificationCode() {
   // Generate 6-digit code
   generatedCode = '';
@@ -713,11 +732,13 @@ async function verifyCode() {
       // Clean up verification row
       await db.from('email_verifications').delete().eq('user_id', signupUserId);
 
-      // Process referral if signup came from an invite link
+      // Process referral — read CURRENT value of input (which may have been entered manually OR auto-filled from URL)
       var referralResult = null;
-      if (refCode && signupUserId) {
+      var enteredRefCode = (document.getElementById('refCodeInput')?.value || refCode || '').trim().toUpperCase();
+      if (enteredRefCode && signupUserId) {
         try {
-          var refRes = await db.rpc('process_referral', { p_ref_code: refCode, p_new_user_id: signupUserId });
+          console.log('[referral] calling process_referral with code:', enteredRefCode);
+          var refRes = await db.rpc('process_referral', { p_ref_code: enteredRefCode, p_new_user_id: signupUserId });
           console.log('[referral] RPC response:', refRes);
           if (refRes && refRes.data) {
             referralResult = refRes.data;
@@ -727,7 +748,7 @@ async function verifyCode() {
           console.error('[referral] error:', e);
         }
       } else {
-        console.log('[referral] no ref code in URL — skipping. refCode=', refCode, 'signupUserId=', signupUserId);
+        console.log('[referral] no referral code entered — skipping. enteredRefCode=', enteredRefCode, 'signupUserId=', signupUserId);
       }
 
       // Notify owner of new signup
@@ -755,7 +776,7 @@ async function verifyCode() {
       var successMsg = '<span style="color:var(--success);">✅ Verified!</span>';
       if (referralResult && referralResult.success) {
         successMsg += '<br><br><div style="background:rgba(34,197,94,.15);border:2px solid rgba(34,197,94,.5);border-radius:12px;padding:1rem;margin-top:.75rem;"><div style="font-size:1.5rem;">&#127881;</div><div style="font-weight:700;color:var(--success);font-size:1rem;margin:.4rem 0;">Bonus Coins!</div><div style="font-size:.9rem;color:rgba(234,230,255,.85);">You earned <strong style="color:#fbbf24;">+' + (referralResult.new_user_reward || 100) + ' coins</strong> for signing up with a referral code!</div></div>';
-      } else if (refCode && referralResult && !referralResult.success) {
+      } else if (enteredRefCode && referralResult && !referralResult.success) {
         successMsg += '<br><div style="font-size:.78rem;color:rgba(234,230,255,.55);margin-top:.5rem;">Note: ' + (referralResult.error || 'Referral could not be processed') + '</div>';
       }
       document.getElementById('verifyMsg').innerHTML = successMsg;
