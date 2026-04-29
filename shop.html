@@ -346,11 +346,14 @@
   function loadFromLocal() {
     try { ownedItems = JSON.parse(localStorage.getItem(OWNERSHIP_KEY) || '[]'); } catch (e) { ownedItems = []; }
     try { coins = parseInt(localStorage.getItem(COINS_KEY) || '0', 10) || 0; } catch (e) { coins = 0; }
-    if (isOwnerLS()) {
+    // If owner (verified via Supabase auth), grant unlimited coins + everything owned
+    if (_isOwnerCached) {
       coins = 999999;
-      ownedItems = getItems().map(function (i) { return i.id; });
-      localStorage.setItem(COINS_KEY, coins.toString());
-      localStorage.setItem(OWNERSHIP_KEY, JSON.stringify(ownedItems));
+      try {
+        ownedItems = getItems().map(function (i) { return i.id; });
+        localStorage.setItem(COINS_KEY, coins.toString());
+        localStorage.setItem(OWNERSHIP_KEY, JSON.stringify(ownedItems));
+      } catch (e) { console.error('[shop] owner override failed:', e); }
     }
   }
 
@@ -368,28 +371,50 @@
   //
   // Result: page is usable in under a second, even on slow networks.
 
-  async function init() {
-    console.log('[shop] init starting');
+  // HARD SAFETY NET: force-show after 2 seconds no matter what
+  setTimeout(function () {
+    if (spinner && spinner.style.display !== 'none') {
+      console.warn('[shop] HARD SAFETY NET FIRING — forcing showShop after 2s');
+      try { loadFromLocal(); } catch (e) { console.error('[shop] loadFromLocal threw:', e); }
+      try { showShop(); } catch (e) { console.error('[shop] showShop threw:', e); }
+    }
+  }, 2000);
 
-    // Wait for closet data only — without it we have nothing to render
-    // (Max 2 seconds. If it never loads, show error.)
+  async function init() {
+    console.log('[shop] init starting at', new Date().toISOString());
+
+    // Wait for closet data — but only briefly, then show anyway
     var dataWaited = 0;
-    while (!window.CARRIE_CLOSET_ITEMS && dataWaited < 2000) {
+    while (!window.CARRIE_CLOSET_ITEMS && dataWaited < 1500) {
       await new Promise(function (r) { setTimeout(r, 50); });
       dataWaited += 50;
     }
 
-    if (!window.CARRIE_CLOSET_ITEMS) {
-      console.error('[shop] CARRIE_CLOSET_ITEMS never loaded');
-      if (spinner) spinner.innerHTML = '<div style="color:#ef4444;text-align:center;padding:1rem;">Could not load shop items. Please refresh the page.</div>';
-      return;
+    if (window.CARRIE_CLOSET_ITEMS) {
+      console.log('[shop] closet data loaded after', dataWaited, 'ms');
+    } else {
+      console.warn('[shop] closet data missing — showing shop anyway');
     }
 
-    console.log('[shop] closet data ready, showing shop immediately');
+    // SHOW THE SHOP NOW — wrapped so any throw still hides spinner
+    try {
+      console.log('[shop] calling loadFromLocal');
+      loadFromLocal();
+      console.log('[shop] loadFromLocal done. coins=', coins, 'owned=', ownedItems.length);
+    } catch (e) {
+      console.error('[shop] loadFromLocal threw:', e);
+    }
 
-    // Show the shop NOW — using whatever's in localStorage (may be empty/zero on first visit)
-    loadFromLocal();
-    showShop();
+    try {
+      console.log('[shop] calling showShop');
+      showShop();
+      console.log('[shop] showShop done — page should be visible now');
+    } catch (e) {
+      console.error('[shop] showShop threw:', e);
+      // Last resort — manually hide spinner
+      if (spinner) spinner.style.display = 'none';
+      if (content) content.style.display = 'block';
+    }
 
     // Run the rest in the background — Supabase auth + sync
     // When done, refresh the displayed data
