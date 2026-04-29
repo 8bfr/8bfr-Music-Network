@@ -361,28 +361,60 @@
     render();
   }
 
-  async function init() {
-    // Wait for closet data
-    if (!window.CARRIE_CLOSET_ITEMS) { setTimeout(init, 100); return; }
+  // SAFETY NET: force-show the shop after 5 seconds no matter what.
+  // If anything hangs (Supabase, closet data load, etc), at least the page
+  // becomes usable instead of spinning forever.
+  setTimeout(function () {
+    if (spinner && spinner.style.display !== 'none') {
+      console.warn('[shop] safety net firing — forcing showShop after 5s');
+      try { loadFromLocal(); } catch (e) { console.error('[shop] loadFromLocal failed:', e); }
+      try { showShop(); } catch (e) { console.error('[shop] showShop failed:', e); }
+    }
+  }, 5000);
 
-    // Check owner status via Supabase auth (replaces old insecure localStorage check)
-    await checkOwnerStatus();
+  async function init() {
+    console.log('[shop] init starting');
+
+    // Wait for closet data (max 3 seconds, then proceed anyway)
+    var dataWaited = 0;
+    while (!window.CARRIE_CLOSET_ITEMS && dataWaited < 3000) {
+      await new Promise(function (r) { setTimeout(r, 100); });
+      dataWaited += 100;
+    }
+    if (!window.CARRIE_CLOSET_ITEMS) {
+      console.warn('[shop] CARRIE_CLOSET_ITEMS never loaded — proceeding anyway');
+    } else {
+      console.log('[shop] closet data ready');
+    }
+
+    // Check owner status via Supabase auth — wrapped in try so it can't break init
+    try {
+      await checkOwnerStatus();
+      console.log('[shop] owner check done, isOwner=', _isOwnerCached);
+    } catch (e) {
+      console.error('[shop] owner check error:', e);
+      _isOwnerCached = false;
+    }
 
     loadFromLocal();
+    console.log('[shop] loaded from local. coins=', coins, 'owned=', ownedItems.length);
 
-    // carrie-supabase-sync.js runs async — give it up to 3s to finish
-    // then show the shop either way (localStorage is the fallback)
-    var waited = 0;
-    var syncWait = setInterval(function () {
-      waited += 200;
-      var syncDone = window.CARRIE_SYNC !== undefined;
-      if (syncDone || waited >= 3000) {
-        clearInterval(syncWait);
-        // Re-read localStorage in case sync updated it
-        loadFromLocal();
-        showShop();
-      }
-    }, 200);
+    // Wait up to 3s for carrie-supabase-sync.js, then show
+    var syncWaited = 0;
+    while (typeof window.CARRIE_SYNC === 'undefined' && syncWaited < 3000) {
+      await new Promise(function (r) { setTimeout(r, 200); });
+      syncWaited += 200;
+    }
+    if (window.CARRIE_SYNC) {
+      console.log('[shop] CARRIE_SYNC ready');
+      // Re-read localStorage in case sync updated it
+      loadFromLocal();
+    } else {
+      console.warn('[shop] CARRIE_SYNC never loaded — using localStorage only');
+    }
+
+    console.log('[shop] showing shop');
+    showShop();
   }
 
   if (document.readyState === 'loading') {
