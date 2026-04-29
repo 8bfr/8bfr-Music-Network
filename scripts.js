@@ -335,12 +335,8 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
     <div class="menu-group-title">&#x1F916; AI Tools</div>\
     <div class="menu-links">\
       <a href="ai-tools.html" class="menu-chip menu-chip-ai">&#x1F916; AI Tools</a>\
-      <a href="beatmaker.html" class="menu-chip menu-chip-ai">&#x1F3B6; AI Beat Maker</a>\
-      <a href="converter.html" class="menu-chip menu-chip-ai">&#x1F504; File Converter</a>\
-      <a href="mastering.html" class="menu-chip menu-chip-ai">&#x1F3A7; Mastering Studio</a>\
       <a href="https://8bfr.com/producer-ai/index.html" target="_blank" rel="noopener" class="menu-chip menu-chip-ai">&#x1F3B5; Producer AI</a>\
-      <a href="author-hub.html" class="menu-chip menu-chip-ai">&#x1F4DA; Author Hub</a>\
-      <a href="translate.html" class="menu-chip menu-chip-ai">&#x1F310; Translate</a>\
+      <a href="author.html" class="menu-chip menu-chip-ai">&#x1F4DA; Author Hub</a>\
       <a href="ai-studio.html" class="menu-chip menu-chip-ai">&#x1F3B6; AI Studio</a>\
     </div>\
   </div>\
@@ -362,9 +358,8 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
     <div class="menu-links">\
       <a href="shop.html" class="menu-chip">&#x1F6D2; Shop</a>\
       <a href="shop-stickers.html" class="menu-chip">&#x1F3A8; Stickers</a>\
-      <a href="shop-upgrades.html" class="menu-chip">&#x2B06;&#xFE0F; Shop Upgrades</a>\
       <a href="coinshop.html" class="menu-chip">&#x1FA99; Coin Shop</a>\
-      <a href="game-coin-shop.html" class="menu-chip">&#x1F3AE; Game Coin Shop</a>\
+      <a href="game-coin-shop.html" class="menu-chip">&#x1F3AE; Game Shop</a>\
       <a href="upgrades.html" class="menu-chip">&#x1F680; Upgrades</a>\
       <a href="pricing.html" class="menu-chip">&#x1F4B3; Pricing</a>\
     </div>\
@@ -379,7 +374,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
     <div class="menu-group-title">&#x1F9F8; KidZone</div>\
     <div class="menu-links">\
       <a href="kids.html" class="menu-chip">&#x1F9F8; KidZone Gate</a>\
-      <a href="kid-zone.html" class="menu-chip">&#x1F3E0; KidZone Home</a>\
+      <a href="kids-zone.html" class="menu-chip">&#x1F3E0; KidZone Home</a>\
       <a href="kidzone-parent.html" class="menu-chip">&#x1F468; Parent Hub</a>\
       <a href="kidzone-games.html" class="menu-chip">&#x1F3AE; Kids Games</a>\
       <a href="kids-stories.html" class="menu-chip">&#x1F4D6; Kids Stories</a>\
