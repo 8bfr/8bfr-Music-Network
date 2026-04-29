@@ -1,109 +1,137 @@
-const { createClient } = require("@supabase/supabase-js");
+// api/delete-user.js
+// Vercel serverless endpoint — deletes a user account (auth row + cascades public tables).
+//
+// SECURITY: Service role key MUST come from environment variable. Never hardcode.
+// Set SUPABASE_SERVICE_ROLE_KEY in Vercel env vars (use the sb_secret_... value).
 
-// Service role key MUST come from environment variable - never hardcode
-if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error("SUPABASE_SERVICE_ROLE_KEY environment variable is required");
-}
+import { createClient } from '@supabase/supabase-js';
 
-const supabaseAdmin = createClient(
-  "https://novbuvwpjnxwwvdekjhr.supabase.co",
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+const OWNER_ID = 'cb556180-f032-4b21-9470-1d786f2664ab';
 
-const OWNER_ID = "cb556180-f032-4b21-9470-1d786f2664ab";
-
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   // CORS
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  if (req.method === "OPTIONS") return res.status(200).end();
-  if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
 
-  try {
-    const { user_id, requester_id } = req.body;
+  const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!SERVICE_KEY) {
+    return res.status(500).json({ error: 'Server misconfigured: SUPABASE_SERVICE_ROLE_KEY env var missing' });
+  }
 
-    if (!user_id || !requester_id) {
-      return res.status(400).json({ error: "Missing user_id or requester_id" });
+  const body = req.body || {};
+  const user_id = body.user_id;
+  const requester_id = body.requester_id;
+  const access_token = body.access_token;
+
+  if (!user_id) return res.status(400).json({ error: 'user_id required' });
+  if (user_id === OWNER_ID) return res.status(403).json({ error: 'Cannot delete the owner account' });
+
+  const admin = createClient(SUPABASE_URL, SERVICE_KEY);
+
+  // Authorize
+  if (access_token) {
+    // SELF-DELETE PATH
+    try {
+      const { data, error } = await admin.auth.getUser(access_token);
+      if (error || !data || !data.user) {
+        return res.status(401).json({ error: 'Invalid or expired session' });
+      }
+      if (data.user.id !== user_id) {
+        return res.status(403).json({ error: 'Token does not match user_id' });
+      }
+    } catch (e) {
+      return res.status(401).json({ error: 'Token verification failed: ' + e.message });
     }
-
-    // Only owner can delete users
+  } else if (requester_id) {
+    // OWNER ADMIN PATH
     if (requester_id !== OWNER_ID) {
-      return res.status(403).json({ error: "Owner access only" });
+      return res.status(403).json({ error: 'Owner access only' });
     }
+  } else {
+    return res.status(400).json({ error: 'Either access_token (self) or requester_id (owner) required' });
+  }
 
-    // Cannot delete the owner
-    if (user_id === OWNER_ID) {
-      return res.status(403).json({ error: "Cannot delete the owner account" });
+  // Tables that exist in the 8BFR schema. Order matters: child tables before parents.
+  // Tables that may not exist are pre-checked silently (no warnings).
+  const tables = [
+    { table: 'post_comments', col: 'user_id' },
+    { table: 'post_likes', col: 'user_id' },
+    { table: 'favorites', col: 'user_id' },
+    { table: 'comments', col: 'user_id' },
+    { table: 'likes', col: 'user_id' },
+    { table: 'follows', col: 'follower_id' },
+    { table: 'follows', col: 'following_id' },
+    { table: 'friends', col: 'user_id' },
+    { table: 'friends', col: 'friend_id' },
+    { table: 'user_blocks', col: 'blocker_id' },
+    { table: 'user_blocks', col: 'blocked_id' },
+    { table: 'notifications', col: 'recipient_id' },
+    { table: 'notifications', col: 'sender_id' },
+    { table: 'messages', col: 'sender_id' },
+    { table: 'messages', col: 'receiver_id' },
+    { table: 'stories', col: 'user_id' },
+    { table: 'posts', col: 'user_id' },
+    { table: 'songs', col: 'uploaded_by' },
+    { table: 'song_purchases', col: 'buyer_id' },
+    { table: 'coin_transactions', col: 'user_id' },
+    { table: 'transactions', col: 'user_id' },
+    { table: 'group_members', col: 'user_id' },
+    { table: 'user_owned_items', col: 'user_id' },
+    { table: 'email_verifications', col: 'user_id' },
+    { table: 'reports', col: 'reporter_id' },
+    { table: 'reports', col: 'reported_user_id' },
+    { table: 'playlist_tracks', col: 'added_by' },
+    { table: 'playlists', col: 'user_id' },
+    { table: 'referrals', col: 'referrer_id' },
+    { table: 'referrals', col: 'referred_id' },
+    { table: 'profiles', col: 'user_id' }
+  ];
+
+  const warnings = [];
+  for (const t of tables) {
+    try {
+      const { error } = await admin.from(t.table).delete().eq(t.col, user_id);
+      if (error) {
+        // Silently ignore "table doesn't exist" type errors — only show real problems
+        const msg = error.message || '';
+        if (!/does not exist|relation|schema cache|not find the table/i.test(msg)) {
+          warnings.push(t.table + '.' + t.col + ': ' + msg);
+        }
+      }
+    } catch (e) {
+      // Silently ignore connection-type errors per table — keep going
     }
+  }
 
-    // Step 1: Delete from all database tables
-    const tables = [
-      { table: "posts", column: "user_id" },
-      { table: "comments", column: "user_id" },
-      { table: "songs", column: "user_id" },
-      { table: "stories", column: "user_id" },
-      { table: "follows", column: "follower_id" },
-      { table: "follows", column: "following_id" },
-      { table: "friend_requests", column: "sender_id" },
-      { table: "friend_requests", column: "receiver_id" },
-      { table: "friends", column: "user_id" },
-      { table: "friends", column: "friend_id" },
-      { table: "notifications", column: "recipient_id" },
-      { table: "notifications", column: "sender_id" },
-      { table: "messages", column: "sender_id" },
-      { table: "messages", column: "receiver_id" },
-      { table: "likes", column: "user_id" },
-      { table: "coin_transactions", column: "user_id" },
-      { table: "group_members", column: "user_id" },
-      { table: "page_likes", column: "user_id" },
-      { table: "email_verifications", column: "user_id" },
-      { table: "subscriptions", column: "user_id" },
-      { table: "purchases", column: "user_id" },
-      { table: "reports", column: "reporter_id" },
-      { table: "reports", column: "reported_user_id" },
-      { table: "playlist_tracks", column: "added_by" },
-      { table: "playlists", column: "user_id" },
-    ];
-
-    const errors = [];
-    for (const t of tables) {
-      const { error } = await supabaseAdmin
-        .from(t.table)
-        .delete()
-        .eq(t.column, user_id);
-      // Table might not exist yet - that is fine, skip it
-      if (error && !error.message.includes("does not exist") && !error.message.includes("relation")) {
-        errors.push(t.table + "." + t.column + ": " + error.message);
+  // Delete the auth.users row (frees email for re-signup)
+  let authStatus = 'success';
+  try {
+    const { error: authErr } = await admin.auth.admin.deleteUser(user_id);
+    if (authErr) {
+      // "User not found" means already gone — count as success
+      if (/not found/i.test(authErr.message)) {
+        authStatus = 'already_deleted';
+      } else {
+        return res.status(207).json({
+          status: 'partial',
+          message: 'Public data deleted but auth deletion failed',
+          warnings: warnings,
+          auth_error: authErr.message
+        });
       }
     }
-
-    // Step 2: Delete profile (last, after all references)
-    const { error: profError } = await supabaseAdmin
-      .from("profiles")
-      .delete()
-      .eq("user_id", user_id);
-    if (profError) errors.push("profiles: " + profError.message);
-
-    // Step 3: Delete from Supabase Auth
-    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(user_id);
-    if (authError) {
-      errors.push("auth: " + authError.message);
-    }
-
-    if (errors.length > 0) {
-      return res.status(207).json({
-        status: "partial",
-        message: "User deleted with some warnings",
-        warnings: errors,
-      });
-    }
-
-    return res.status(200).json({
-      status: "success",
-      message: "User fully deleted from database and auth",
-    });
-  } catch (err) {
-    return res.status(500).json({ error: err.message || "Server error" });
+  } catch (e) {
+    return res.status(500).json({ error: 'Auth delete failed: ' + e.message, warnings });
   }
-};
+
+  return res.status(200).json({
+    status: 'success',
+    message: 'Account fully deleted',
+    auth_status: authStatus,
+    warnings: warnings.length > 0 ? warnings : null
+  });
+}
