@@ -714,10 +714,20 @@ async function verifyCode() {
       await db.from('email_verifications').delete().eq('user_id', signupUserId);
 
       // Process referral if signup came from an invite link
+      var referralResult = null;
       if (refCode && signupUserId) {
         try {
-          await db.rpc('process_referral', { p_ref_code: refCode, p_new_user_id: signupUserId });
-        } catch(e) { console.log('Referral:', e); }
+          var refRes = await db.rpc('process_referral', { p_ref_code: refCode, p_new_user_id: signupUserId });
+          console.log('[referral] RPC response:', refRes);
+          if (refRes && refRes.data) {
+            referralResult = refRes.data;
+            console.log('[referral] result:', referralResult);
+          }
+        } catch(e) {
+          console.error('[referral] error:', e);
+        }
+      } else {
+        console.log('[referral] no ref code in URL — skipping. refCode=', refCode, 'signupUserId=', signupUserId);
       }
 
       // Notify owner of new signup
@@ -742,7 +752,13 @@ async function verifyCode() {
       } catch(e) { console.log('Owner notify:', e); }
 
       document.getElementById('codeInputs').classList.add('success');
-      document.getElementById('verifyMsg').innerHTML = '<span style="color:var(--success);">✅ Verified!</span>';
+      var successMsg = '<span style="color:var(--success);">✅ Verified!</span>';
+      if (referralResult && referralResult.success) {
+        successMsg += '<br><br><div style="background:rgba(34,197,94,.15);border:2px solid rgba(34,197,94,.5);border-radius:12px;padding:1rem;margin-top:.75rem;"><div style="font-size:1.5rem;">&#127881;</div><div style="font-weight:700;color:var(--success);font-size:1rem;margin:.4rem 0;">Bonus Coins!</div><div style="font-size:.9rem;color:rgba(234,230,255,.85);">You earned <strong style="color:#fbbf24;">+' + (referralResult.new_user_reward || 100) + ' coins</strong> for signing up with a referral code!</div></div>';
+      } else if (refCode && referralResult && !referralResult.success) {
+        successMsg += '<br><div style="font-size:.78rem;color:rgba(234,230,255,.55);margin-top:.5rem;">Note: ' + (referralResult.error || 'Referral could not be processed') + '</div>';
+      }
+      document.getElementById('verifyMsg').innerHTML = successMsg;
 
       // Show success screen
       setTimeout(function() {
