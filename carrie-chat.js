@@ -141,8 +141,8 @@
   const USER_PASSWORD_KEY = "carrieUserPassword_v1";
   const CONVERSATION_ID_KEY = "carrieConversationId_v1";
   
-  const OWNER_EMAIL = "8bfr.music@gmail.com";
-  const OWNER_PASSWORD = "197594773839*Ab4444";
+  const OWNER_USER_ID = "cb556180-f032-4b21-9470-1d786f2664ab";
+  let _isOwnerCached = false; // Cached at startup via Supabase auth check
 
   const chatState = { mode: "casual", messages: [] };
   
@@ -180,11 +180,26 @@
     hair: 60
   };
 
-  // OWNER CHECK
+  // OWNER CHECK — verifies via Supabase auth (cached for sync access)
+  // _isOwnerCached is set by checkOwnerStatusAsync() at startup
   function isOwner() {
-    const userEmail = localStorage.getItem(USER_EMAIL_KEY);
-    const userPassword = localStorage.getItem(USER_PASSWORD_KEY);
-    return userEmail === OWNER_EMAIL && userPassword === OWNER_PASSWORD;
+    return _isOwnerCached === true;
+  }
+
+  // Async owner check using Supabase auth — call at startup, sets _isOwnerCached
+  async function checkOwnerStatusAsync() {
+    try {
+      if (!window.supabase) { _isOwnerCached = false; return false; }
+      const SUPABASE_URL = "https://novbuvwpjnxwwvdekjhr.supabase.co";
+      const SUPABASE_KEY = "sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f";
+      const db = window._8bfrSupabaseClient || window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      const sess = await db.auth.getSession();
+      const user = sess && sess.data && sess.data.session ? sess.data.session.user : null;
+      _isOwnerCached = !!(user && user.id === OWNER_USER_ID);
+    } catch (e) {
+      _isOwnerCached = false;
+    }
+    return _isOwnerCached;
   }
 
   // LOGIN CHECK
@@ -1544,7 +1559,7 @@
   }
 
   // ===== INIT =====
-  function init() {
+  async function init() {
     console.log("🚀 Carrie Chat initializing...");
     
     // Initialize Supabase (optional - works without it)
@@ -1554,6 +1569,9 @@
     } else {
       console.log("ℹ️ Supabase disabled - chat works normally without monitoring");
     }
+    
+    // Check owner status via Supabase auth (replaces old localStorage password check)
+    await checkOwnerStatusAsync();
     
     if (!checkLogin()) return;
 
