@@ -171,12 +171,14 @@
 (function () {
   var COINS_KEY     = 'carrieCoins_v1';
   var OWNERSHIP_KEY = 'carrieOwnedItems_v1';
-  var OWNER_USER_ID = 'cb556180-f032-4b21-9470-1d786f2664ab';
+  var OWNER_EMAIL   = '8bfr.music@gmail.com';
+  var OWNER_PASS    = '197594773839*Ab4444';
+  var USER_EMAIL_K  = 'carrieUserEmail_v1';
+  var USER_PASS_K   = 'carrieUserPassword_v1';
 
   var coins      = 0;
   var ownedItems = [];
   var currentCat = 'all';
-  var _isOwnerCached = false;
 
   var balanceEl  = document.getElementById('balanceDisplay');
   var gridEl     = document.getElementById('itemsGrid');
@@ -184,28 +186,14 @@
   var spinner    = document.getElementById('loadingSpinner');
   var content    = document.getElementById('shopContent');
 
-  // Verify owner via Supabase auth (NOT localStorage which can be spoofed)
-  async function checkOwnerStatus() {
-    try {
-      if (!window.supabase) return false;
-      var SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
-      var SUPABASE_KEY = 'sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f';
-      var db = window._8bfrSupabaseClient || window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-      var sess = await db.auth.getSession();
-      var user = sess && sess.data && sess.data.session ? sess.data.session.user : null;
-      _isOwnerCached = user && user.id === OWNER_USER_ID;
-    } catch(e) {
-      _isOwnerCached = false;
-    }
-    return _isOwnerCached;
+  function isOwnerLS() {
+    return localStorage.getItem(USER_EMAIL_K) === OWNER_EMAIL &&
+           localStorage.getItem(USER_PASS_K)  === OWNER_PASS;
   }
 
   function isOwner() {
-    // CARRIE_SYNC takes precedence if it has its own owner check
-    if (window.CARRIE_SYNC && typeof window.CARRIE_SYNC.isOwner !== 'undefined') {
-      return window.CARRIE_SYNC.isOwner;
-    }
-    return _isOwnerCached;
+    if (window.CARRIE_SYNC) return window.CARRIE_SYNC.isOwner;
+    return isOwnerLS();
   }
 
   function showAlert(msg, type) {
@@ -346,14 +334,9 @@
   function loadFromLocal() {
     try { ownedItems = JSON.parse(localStorage.getItem(OWNERSHIP_KEY) || '[]'); } catch (e) { ownedItems = []; }
     try { coins = parseInt(localStorage.getItem(COINS_KEY) || '0', 10) || 0; } catch (e) { coins = 0; }
-    // If owner (verified via Supabase auth), grant unlimited coins + everything owned
-    if (_isOwnerCached) {
-      coins = 999999;
-      try {
-        ownedItems = getItems().map(function (i) { return i.id; });
-        localStorage.setItem(COINS_KEY, coins.toString());
-        localStorage.setItem(OWNERSHIP_KEY, JSON.stringify(ownedItems));
-      } catch (e) { console.error('[shop] owner override failed:', e); }
+    if (isOwnerLS()) {
+      ownedItems = getItems().map(function (i) { return i.id; });
+      localStorage.setItem(OWNERSHIP_KEY, JSON.stringify(ownedItems));
     }
   }
 
@@ -364,85 +347,25 @@
     render();
   }
 
-  // FAST SHOW STRATEGY:
-  // 1. Show the shop INSTANTLY using localStorage (already cached on first visit, empty on first ever)
-  // 2. Run the auth + Supabase sync in the background
-  // 3. When sync completes, refresh the displayed coins/items
-  //
-  // Result: page is usable in under a second, even on slow networks.
+  function init() {
+    // Wait for closet data
+    if (!window.CARRIE_CLOSET_ITEMS) { setTimeout(init, 100); return; }
 
-  // HARD SAFETY NET: force-show after 2 seconds no matter what
-  setTimeout(function () {
-    if (spinner && spinner.style.display !== 'none') {
-      console.warn('[shop] HARD SAFETY NET FIRING — forcing showShop after 2s');
-      try { loadFromLocal(); } catch (e) { console.error('[shop] loadFromLocal threw:', e); }
-      try { showShop(); } catch (e) { console.error('[shop] showShop threw:', e); }
-    }
-  }, 2000);
+    loadFromLocal();
 
-  async function init() {
-    console.log('[shop] init starting at', new Date().toISOString());
-
-    // Wait for closet data — but only briefly, then show anyway
-    var dataWaited = 0;
-    while (!window.CARRIE_CLOSET_ITEMS && dataWaited < 1500) {
-      await new Promise(function (r) { setTimeout(r, 50); });
-      dataWaited += 50;
-    }
-
-    if (window.CARRIE_CLOSET_ITEMS) {
-      console.log('[shop] closet data loaded after', dataWaited, 'ms');
-    } else {
-      console.warn('[shop] closet data missing — showing shop anyway');
-    }
-
-    // SHOW THE SHOP NOW — wrapped so any throw still hides spinner
-    try {
-      console.log('[shop] calling loadFromLocal');
-      loadFromLocal();
-      console.log('[shop] loadFromLocal done. coins=', coins, 'owned=', ownedItems.length);
-    } catch (e) {
-      console.error('[shop] loadFromLocal threw:', e);
-    }
-
-    try {
-      console.log('[shop] calling showShop');
-      showShop();
-      console.log('[shop] showShop done — page should be visible now');
-    } catch (e) {
-      console.error('[shop] showShop threw:', e);
-      // Last resort — manually hide spinner
-      if (spinner) spinner.style.display = 'none';
-      if (content) content.style.display = 'block';
-    }
-
-    // Run the rest in the background — Supabase auth + sync
-    // When done, refresh the displayed data
-    (async function () {
-      try {
-        await checkOwnerStatus();
-        console.log('[shop] owner check done, isOwner=', _isOwnerCached);
-      } catch (e) {
-        console.error('[shop] owner check error:', e);
-      }
-
-      // Wait for carrie-supabase-sync.js to finish (max 5s)
-      var syncWaited = 0;
-      while (typeof window.CARRIE_SYNC === 'undefined' && syncWaited < 5000) {
-        await new Promise(function (r) { setTimeout(r, 100); });
-        syncWaited += 100;
-      }
-
-      if (window.CARRIE_SYNC) {
-        console.log('[shop] CARRIE_SYNC arrived — refreshing display');
+    // carrie-supabase-sync.js runs async — give it up to 3s to finish
+    // then show the shop either way (localStorage is the fallback)
+    var waited = 0;
+    var syncWait = setInterval(function () {
+      waited += 200;
+      var syncDone = window.CARRIE_SYNC !== undefined;
+      if (syncDone || waited >= 3000) {
+        clearInterval(syncWait);
+        // Re-read localStorage in case sync updated it
         loadFromLocal();
-        // Re-render whatever is currently displayed (coins, items) so updated values show
-        try { updateBalance(); } catch (e) {}
-        try { render(); } catch (e) {}
-      } else {
-        console.warn('[shop] CARRIE_SYNC never loaded — staying on localStorage data');
+        showShop();
       }
-    })();
+    }, 200);
   }
 
   if (document.readyState === 'loading') {
