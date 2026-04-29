@@ -72,15 +72,15 @@
     .badge-editor-btn:hover{background:rgba(124,58,237,0.25);color:#eae6ff;}
     .badge-editor-btn.active{background:rgba(124,58,237,0.3);border-color:#a855f7;color:#a855f7;font-weight:600;}
     /* ── PROFILE CONTENT TABS ── */
-    .profile-tabs{display:flex;gap:0;border-bottom:2px solid rgba(124,58,237,0.4);margin-top:2.5rem;margin-bottom:1.25rem;overflow-x:auto;scrollbar-width:none;padding-top:0.5rem;}
+    .profile-tabs{display:flex;gap:0;border-bottom:1px solid rgba(124,58,237,0.3);margin-bottom:1rem;overflow-x:auto;scrollbar-width:none;}
     .profile-tabs::-webkit-scrollbar{display:none;}
-    .profile-tab{flex-shrink:0;padding:0.95rem 1.1rem;font-weight:800;font-size:0.95rem;cursor:pointer;color:rgba(234,230,255,0.85);border-bottom:3px solid transparent;background:none;border-top:none;border-left:none;border-right:none;transition:all 0.2s;white-space:nowrap;letter-spacing:0.02em;}
-    .profile-tab.active{color:#c084fc;border-bottom-color:#a855f7;background:rgba(124,58,237,0.08);}
-    .profile-tab:hover{color:#eae6ff;}
+    .profile-tab{flex-shrink:0;padding:0.7rem 0.85rem;font-weight:600;font-size:0.8rem;cursor:pointer;color:rgba(234,230,255,0.45);border-bottom:2px solid transparent;background:none;border-top:none;border-left:none;border-right:none;transition:all 0.2s;white-space:nowrap;}
+    .profile-tab.active{color:#a855f7;border-bottom-color:#a855f7;}
+    .profile-tab:hover{color:rgba(234,230,255,0.7);}
     /* Post grid */
     .post-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;}
-    .post-thumb{aspect-ratio:1/1;min-height:110px;border-radius:6px;overflow:hidden;cursor:pointer;position:relative;background:rgba(124,58,237,0.15);display:block;}
-    .post-thumb img,.post-thumb video{width:100%!important;height:100%!important;object-fit:cover!important;object-position:center center!important;display:block;position:absolute;inset:0;}
+    .post-thumb{aspect-ratio:1;border-radius:6px;overflow:hidden;cursor:pointer;position:relative;background:rgba(124,58,237,0.15);}
+    .post-thumb img{width:100%;height:100%;object-fit:cover;}
     .post-thumb-text{width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:0.5rem;font-size:0.75rem;text-align:center;color:rgba(234,230,255,0.8);line-height:1.4;}
     .post-thumb:hover::after{content:'';position:absolute;inset:0;background:rgba(124,58,237,0.3);}
     .post-thumb .pin-badge{position:absolute;top:4px;right:4px;font-size:0.6rem;background:rgba(124,58,237,0.8);padding:2px 5px;border-radius:8px;z-index:1;}
@@ -138,18 +138,7 @@
     .post-manage-menu.show{display:block;}
     .post-manage-menu button{display:block;width:100%;text-align:left;background:none;border:none;color:#eae6ff;padding:0.4rem 0.6rem;font-size:0.75rem;cursor:pointer;border-radius:4px;}
     .post-manage-menu button:hover{background:rgba(124,58,237,0.2);}
-
-    /* Hide just the page-up scroll button on profile (avatar switcher stays visible) */
-    #pageUp, #page-up, .page-up-btn, .scroll-top-btn, #scrollTopBtn, .back-to-top {
-      display: none !important;
-      visibility: hidden !important;
-      pointer-events: none !important;
-    }
   </style>
-
-  <!-- Beat watermarker (client-side mixing via Web Audio API) -->
-  <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
-  <script src="watermarker.js" defer></script>
 </head>
 <body>
   <header style="padding:1rem;background:rgba(15,0,30,0.9);border-bottom:1px solid rgba(124,58,237,0.5);position:sticky;top:0;z-index:100;">
@@ -408,27 +397,15 @@
     }catch(e){}
   };
   window.resharePost=async function(id){
-    if(!currentUser){alert('Sign in');return;}
-    var op=allPosts.find(function(p){return p.id===id;});
-    if(op&&(op.is_private||op.hidden)){alert('Private posts cannot be reshared.');return;}
-    if(!confirm('Reshare to your profile?'))return;
-    try{
+    if(!currentUser){alert('Sign in');return;}if(!confirm('Reshare to your profile?'))return;
+    try{var op=allPosts.find(function(p){return p.id===id;});
     await db.from('posts').insert({user_id:currentUser.id,text:op?op.text:null,media:op?op.media:null,media_type:op?op.media_type:null,reshared_from:id,likes:0,shares:0,favorites:0,reshares:0});
     if(op){op.reshares=(op.reshares||0)+1;await db.from('posts').update({reshares:op.reshares}).eq('id',id);}
     alert('Reshared!');}catch(e){alert(e.message);}
   };
-  window.sharePost=function(id){
-    var p=allPosts?allPosts.find(function(x){return x.id===id;}):null;
-    var authorName=(profileData&&(profileData.display_name||profileData.username))||'User';
-    var title=authorName+' on 8BFR';
-    var desc=p&&p.text?p.text.substring(0,160):'Check out this post';
-    var img=p&&p.media_type==='image'?p.media:(p&&p.media_type==='video'&&p.media?(p.media.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)?'https://img.youtube.com/vi/'+RegExp.$1+'/hqdefault.jpg':''):'');
-    if(window.Share){Share.post(id,title,desc,img);}
-    else{var url='https://8bfr.com/post.html?id='+id;if(navigator.share)navigator.share({title:title,url:url}).catch(function(){});else navigator.clipboard.writeText(url).then(function(){alert('Link copied!');}).catch(function(){alert(url);});}
-  };
+  window.sharePost=function(id){var url=location.origin+'/feed.html?post='+id;if(navigator.share)navigator.share({title:'8BFR Post',url:url}).catch(function(){});else navigator.clipboard.writeText(url).then(function(){alert('Link copied!');}).catch(function(){alert(url);});};
   window.addToStory=async function(id){
     if(!currentUser){alert('Sign in');return;}var p=allPosts.find(function(x){return x.id===id;});if(!p)return;
-    if(p.is_private||p.hidden){alert('Private posts cannot be added to your story.');return;}
     try{await db.from('stories').insert({user_id:currentUser.id,text:p.text||null,media_url:p.media||null,media_type:p.media?'image':null,background_color:'#7c3aed',views:0,expires_at:new Date(Date.now()+24*3600000).toISOString()});alert('Added to story!');}catch(e){alert(e.message);}
   };
   window.toggleComments=async function(id){var el=document.getElementById('comments-'+id);if(!el)return;if(el.style.display==='none'){el.style.display='block';loadComments(id);}else el.style.display='none';};
@@ -484,35 +461,7 @@
   window.switchProfileTab=function(tab){
     activeProfileTab=tab;
     document.querySelectorAll('.profile-tab').forEach(function(t){t.classList.toggle('active',t.dataset.tab===tab);});
-    // Show/hide content sections
-    var ms=document.getElementById('musicSection');
-    var bs=document.getElementById('beatsSection');
-    var tc=document.getElementById('tabContent');
-    if(tab==='music'){
-      if(ms)ms.style.display='';
-      if(bs)bs.style.display='none';
-      if(tc)tc.style.display='none';
-      // Re-render songs filtered to NOT beats
-      if(typeof loadSongs==='function'&&profileData)loadSongs(profileData.user_id);
-    } else if(tab==='beats'){
-      console.log('[switchProfileTab] beats tab clicked. ms:', ms, 'bs:', bs, 'tc:', tc, 'profileData:', !!profileData);
-      if(ms)ms.style.display='none';
-      if(bs)bs.style.display='';
-      else console.warn('[switchProfileTab] beatsSection element does not exist!');
-      if(tc)tc.style.display='none';
-      // Render beats
-      if(typeof window.loadBeats==='function'&&profileData){
-        console.log('[switchProfileTab] calling loadBeats for', profileData.user_id);
-        window.loadBeats(profileData.user_id);
-      } else {
-        console.warn('[switchProfileTab] cannot call loadBeats. function?', typeof window.loadBeats, 'profile?', !!profileData);
-      }
-    } else {
-      if(ms)ms.style.display='none';
-      if(bs)bs.style.display='none';
-      if(tc)tc.style.display='';
-      renderPostGrid();
-    }
+    renderPostGrid();
   };
 
   /* ── INIT ── */
@@ -537,29 +486,6 @@
         }else{showError('Profile not found.');return;}
       }
       profileData=pr.data;
-
-      // ── STEALTH BLOCK CHECK ──
-      // If viewer is not the profile owner AND target has blocked viewer,
-      // show "Profile not found" (unless viewer is owner/admin/mod).
-      if(!isOwnProfile && currentUser){
-        var viewerIsStaff = currentUser.id===OWNER_ID;
-        if(!viewerIsStaff){
-          try{
-            var me = await db.from('profiles').select('role').eq('user_id',currentUser.id).maybeSingle();
-            if(me.data && ['owner','co-owner','admin','mod','moderator'].indexOf(me.data.role)!==-1) viewerIsStaff = true;
-          }catch(e){}
-        }
-        if(!viewerIsStaff){
-          try{
-            var bk = await db.from('user_blocks').select('id').eq('blocker_id',profileData.user_id).eq('blocked_id',currentUser.id).limit(1);
-            if(bk.data && bk.data.length>0){
-              showError('Profile not found.');
-              return;
-            }
-          }catch(e){/* table may not exist yet; fail open */}
-        }
-      }
-
       // Expose data for patch scripts
       window._8bfr={userId:currentUser?currentUser.id:null,role:profileData.role,badges:Array.isArray(profileData.badges)?profileData.badges:[],isOwner:profileData.role==='owner',isCoOwner:profileData.role==='co-owner',isOwnProfile:isOwnProfile};
       document.getElementById('pageTitle').textContent=isOwnProfile?'👤 My Profile':'👤 '+(profileData.display_name||profileData.username);
@@ -626,7 +552,7 @@
     h+='<div style="flex:1;min-width:200px;">';
     h+='<div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;">';
     h+='<h2 style="font-size:1.7rem;font-weight:800;margin-bottom:0.3rem;">'+(p.display_name||p.username||'Unknown')+vH+'</h2>';
-    if(isOwnProfile)h+='<div style="display:flex;gap:.4rem;flex-wrap:wrap;"><button class="btn btn-ghost btn-sm" id="editToggleBtn" onclick="toggleEditPanel()">✏️ Edit Profile</button><a class="btn btn-ghost btn-sm" href="settings.html" style="text-decoration:none;display:inline-block;">⚙️ My Account</a><button class="btn btn-ghost btn-sm" onclick="shareProfile()">Share</button></div>';
+    if(isOwnProfile)h+='<div style="display:flex;gap:.4rem;"><button class="btn btn-ghost btn-sm" id="editToggleBtn" onclick="toggleEditPanel()">Edit Profile</button><button class="btn btn-ghost btn-sm" onclick="shareProfile()">Share</button></div>';
     h+='</div>';
     h+='<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem;flex-wrap:wrap;">';
     h+='<span style="color:#a855f7;font-size:0.9rem;">'+roleDisplay+'</span>'+tierB;
@@ -680,10 +606,8 @@
       h+='<button class="btn btn-ghost" id="friendBtn" onclick="sendFR()">Add Friend</button>';
       h+='<button class="btn btn-ghost" onclick="location.href=\'dm.html?user='+profileData.user_id+'\'">Message</button>';
       h+='<button class="btn btn-ghost" onclick="openTipModal(\''+profileData.user_id+'\',\''+esc(profileData.display_name||profileData.username||'').replace(/'/g,'')+'\')">Tip</button>';
-      if(isMusic) h+='<button class="btn btn-ghost" onclick="openCollabPicker()">🤝 Collab</button>';
+      if(isMusic) h+='<button class="btn btn-ghost" onclick="location.href=\'dm.html?user='+profileData.user_id+'\'">Collab</button>';
       h+='<button class="btn btn-ghost" onclick="shareProfile()">Share</button>';
-      // Block button (hidden by default; checkRel() reveals/hides based on target role)
-      h+='<button class="btn btn-ghost" id="blockBtn" onclick="toggleBlock()" style="display:none;color:#fca5a5;border-color:rgba(239,68,68,.4);">Block</button>';
       // Owner can edit other users' profiles
       if(currentUser&&currentUser.id===OWNER_ID&&!isOwnProfile){
         h+='<button class="btn btn-ghost" onclick="openOwnerEditModal()" style="color:#fbbf24;border-color:rgba(251,191,36,.4);">Owner Edit</button>';
@@ -703,10 +627,9 @@
 
     /* ── PROFILE CONTENT TABS ── */
     h+='<div class="profile-tabs">';
-    // Music + Beats tabs first for music profiles
+    // Music tab first for music profiles
     if(isMusic){
       h+='<button class="profile-tab active" data-tab="music" onclick="switchProfileTab(\'music\')">🎵 Music</button>';
-      h+='<button class="profile-tab" data-tab="beats" onclick="switchProfileTab(\'beats\')">🎹 Beats</button>';
       h+='<button class="profile-tab" data-tab="posts" onclick="switchProfileTab(\'posts\')">📝 Posts</button>';
     } else {
       h+='<button class="profile-tab active" data-tab="posts" onclick="switchProfileTab(\'posts\')">📝 Posts</button>';
@@ -816,20 +739,7 @@
       h+='<div class="form-group"><label>Profile Photo URL</label><div style="display:flex;align-items:center;gap:1rem;"><div id="ePrevAv" style="width:56px;height:56px;border-radius:50%;overflow:hidden;background:rgba(124,58,237,0.2);display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">'+(p.avatar_url?'<img src="'+p.avatar_url+'" style="width:100%;height:100%;object-fit:cover;">':'👤')+'</div><div style="flex:1;"><input class="form-input" type="url" id="eAv" value="'+(p.avatar_url||'')+'" placeholder="https://..." oninput="prevAv()"><div class="hint">Upload at <a href="https://imgbb.com" target="_blank">imgbb.com</a></div></div></div></div>';
       h+='<div class="form-group"><label>Cover Photo URL</label><input class="form-input" type="url" id="eCov" value="'+(p.cover_url||'')+'" placeholder="https://..." oninput="prevCov()"><div class="hint">Wide banner (1200×400)</div></div>';
       if(isMusic)h+='<div class="form-group"><label>PayPal Email</label><input class="form-input" type="email" id="ePP" value="'+(p.paypal_email||'')+'"></div>';
-      h+='<div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;"><button class="btn" onclick="saveProfile()">💾 Save</button><button class="btn btn-ghost" onclick="toggleEditPanel()">Cancel</button><span id="saveN" style="font-size:.85rem;"></span></div>';
-      h+='<div style="border-top:1px solid rgba(239,68,68,0.2);margin-top:1.5rem;padding-top:1rem;"><div style="font-size:0.85rem;color:#fca5a5;font-weight:600;margin-bottom:0.5rem;">⚠️ Danger Zone</div><div style="font-size:0.78rem;color:rgba(234,230,255,0.6);margin-bottom:0.6rem;">Permanently delete your account and all data. This cannot be undone.</div><button class="btn btn-red btn-sm" onclick="deleteMyAccount()">💀 Delete My Account</button></div></div>';
-    }
-
-
-    /* Beats section (for beats tab) — hidden by default */
-    if(isMusic){
-      h+='<div id="beatsSection" style="display:none;">';
-      if(isOwnProfile){
-        h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;"><h2 style="margin:0;color:#a855f7;">🎹 My Beats</h2><button class="btn btn-sm" onclick="openBeatUpload()" style="background:#a855f7;color:#fff;">+ Upload Beat</button></div>';
-        h+='<div style="font-size:0.72rem;color:rgba(234,230,255,0.5);margin-bottom:1rem;">Beats automatically get a voice tag every 30 seconds in previews. Buyers receive the clean version.</div>';
-      }
-      h+='<div id="beatList"><div class="spinner"></div></div>';
-      h+='</div>';
+      h+='<div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;"><button class="btn" onclick="saveProfile()">💾 Save</button><button class="btn btn-ghost" onclick="toggleEditPanel()">Cancel</button><span id="saveN" style="font-size:.85rem;"></span></div></div>';
     }
 
     document.getElementById('profileContent').innerHTML=h;
@@ -937,7 +847,7 @@
   /* ── SONGS ── */
   async function loadSongs(uid){
     var el=document.getElementById('songList');if(!el)return;
-    try{var sr=await db.from('songs').select('id,title,artist,cover_art,song_url,watermarked_url,explicit,price,is_beat,sold,producer,featured_artist,lyrics').eq('uploaded_by',uid).eq('is_beat',false).is('dummy_id',null).order('created_at',{ascending:false});
+    try{var sr=await db.from('songs').select('id,title,artist,cover_art,song_url,watermarked_url,explicit,price,is_beat,sold,producer,featured_artist,lyrics').eq('uploaded_by',uid).is('dummy_id',null).order('created_at',{ascending:false});
     var songs=sr.data||[];
     if(!songs.length){el.innerHTML='<div style="text-align:center;padding:2rem;color:rgba(168,85,247,0.5);">No songs yet.</div>';return;}
     el.innerHTML=songs.map(function(s){
@@ -951,36 +861,9 @@
       if(s.featured_artist)credits+=' ft. '+esc(s.featured_artist);
       if(s.producer)credits+='<span style="font-size:0.7rem;color:rgba(168,85,247,0.5);margin-left:0.3rem;">prod. '+esc(s.producer)+'</span>';
       var shareBtn='<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();shareSongFromProfile(\''+esc(s.title||'Untitled').replace(/'/g,'')+'\',\''+esc(s.artist||'').replace(/'/g,'')+'\')" style="flex-shrink:0;padding:0.3rem 0.6rem;font-size:0.72rem;">Share</button>';
-      var storeBtn='<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();location.href=\'beats-store.html#beat-'+s.id+'\'" style="flex-shrink:0;padding:0.3rem 0.6rem;font-size:0.72rem;color:#a855f7;">View in Store</button>';
       var playUrl=s.song_url;
       if(s.is_beat&&s.watermarked_url&&!isOwnProfile)playUrl=s.watermarked_url;
-      return '<div class="song-row" id="s-'+s.id+'" style="flex-direction:column;align-items:stretch;'+(s.sold?'opacity:0.6;':'')+'"><div style="display:flex;align-items:center;gap:0.75rem;width:100%;"><div class="song-cover" style="cursor:pointer;" onclick="location.href=\'beats-store.html#beat-'+s.id+'\'" title="View in beat store">'+cv+'</div><div class="song-info"><div class="song-title">'+esc(s.title||'Untitled')+(s.explicit?' 🔞':'')+pt+soldBadge+'</div><div class="song-meta">'+esc(s.artist||'')+credits+'</div></div>'+shareBtn+buyBtn+soldBtn+del+'</div>'+(playUrl?'<audio controls src="'+playUrl+'" preload="metadata" style="display:block;width:100%;height:36px;margin-top:0.6rem;"></audio>':'')+'</div>';
-    }).join('');}catch(e){el.innerHTML='<div style="color:#ef4444;">'+e.message+'</div>';}
-  }
-
-  window.loadBeats = async function(uid){
-    var el=document.getElementById('beatList');if(!el)return;
-    try{var sr=await db.from('songs').select('id,title,artist,cover_art,song_url,watermarked_url,explicit,price,is_beat,sold,producer,featured_artist,lyrics,bpm,music_key,license_url').eq('uploaded_by',uid).eq('is_beat',true).is('dummy_id',null).order('created_at',{ascending:false});
-    var beats=sr.data||[];
-    if(!beats.length){el.innerHTML='<div style="text-align:center;padding:2rem;color:rgba(168,85,247,0.5);">No beats yet.</div>';return;}
-    el.innerHTML=beats.map(function(s){
-      var cv=s.cover_art?'<img src="'+s.cover_art+'" onerror="this.parentNode.textContent=\'🎹\'">':'🎹';
-      var del=isOwnProfile?'<button class="btn btn-red btn-sm" onclick="delSong(\''+s.id+'\')">🗑️</button>':'';
-      var soldBtn=isOwnProfile&&!s.sold?'<button class="btn btn-sm" style="background:#d97706;font-size:0.7rem;padding:0.25rem 0.6rem;" onclick="markSold(\''+s.id+'\',this)">Mark Sold</button>':'';
-      var soldBadge=s.sold?'<span style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#ef4444;padding:0.15rem 0.5rem;border-radius:12px;font-size:0.7rem;font-weight:700;margin-left:0.4rem;">SOLD</span>':'';
-      var pr=parseFloat(s.price)||0;
-      var pt=pr>0&&!s.sold?'<span style="color:#4ade80;font-size:0.8rem;margin-left:0.4rem;">$'+pr.toFixed(2)+'</span>':'';
-      var buyBtn=pr>0&&!s.sold?'<button class="btn btn-sm btn-green" onclick="event.stopPropagation();location.href=\'checkout.html?song='+s.id+'&price='+pr+'\'" style="flex-shrink:0;padding:0.3rem 0.7rem;font-size:0.75rem;">💰 Buy</button>':'';
-      var bpmInfo=(s.bpm||s.music_key)?'<span style="font-size:0.7rem;color:rgba(168,85,247,0.5);margin-left:0.3rem;">'+(s.bpm?s.bpm+' BPM':'')+(s.bpm&&s.music_key?' • ':'')+(s.music_key||'')+'</span>':'';
-      var credits='';
-      if(s.featured_artist)credits+=' ft. '+esc(s.featured_artist);
-      if(s.producer)credits+='<span style="font-size:0.7rem;color:rgba(168,85,247,0.5);margin-left:0.3rem;">prod. '+esc(s.producer)+'</span>';
-      var shareBtn='<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();shareSongFromProfile(\''+esc(s.title||'Untitled').replace(/'/g,'')+'\',\''+esc(s.artist||'').replace(/'/g,'')+'\')" style="flex-shrink:0;padding:0.3rem 0.6rem;font-size:0.72rem;">Share</button>';
-      var storeBtn='<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();location.href=\'beats-store.html#beat-'+s.id+'\'" style="flex-shrink:0;padding:0.3rem 0.6rem;font-size:0.72rem;color:#a855f7;">View in Store</button>';
-      // For beats: ALWAYS prefer watermarked version (even owner hears tag for testing)
-      var playUrl=s.watermarked_url||s.song_url;
-      var previewBadge=s.watermarked_url?'<span style="font-size:0.65rem;color:#fbbf24;margin-left:0.3rem;">🔒 tagged preview</span>':'';
-      return '<div class="song-row" id="s-'+s.id+'" style="flex-direction:column;align-items:stretch;'+(s.sold?'opacity:0.6;':'')+'"><div style="display:flex;align-items:center;gap:0.75rem;width:100%;"><div class="song-cover" style="cursor:pointer;" onclick="location.href=\'beats-store.html#beat-'+s.id+'\'" title="View in beat store">'+cv+'</div><div class="song-info"><div class="song-title">'+esc(s.title||'Untitled')+(s.explicit?' 🔞':'')+pt+soldBadge+previewBadge+'</div><div class="song-meta">'+esc(s.artist||'')+credits+bpmInfo+'</div></div>'+shareBtn+storeBtn+buyBtn+soldBtn+del+'</div>'+(playUrl?'<audio controls src="'+playUrl+'" preload="metadata" style="display:block;width:100%;height:36px;margin-top:0.6rem;"></audio>':'')+'</div>';
+      return '<div class="song-row" id="s-'+s.id+'"'+(s.sold?' style="opacity:0.6;"':'')+'><div class="song-cover">'+cv+'</div><div class="song-info"><div class="song-title">'+esc(s.title||'Untitled')+(s.explicit?' 🔞':'')+pt+soldBadge+'</div><div class="song-meta">'+esc(s.artist||'')+credits+'</div>'+(playUrl&&!s.sold?'<audio controls src="'+playUrl+'" preload="metadata" style="height:32px;margin-top:6px;"></audio>':'')+'</div>'+shareBtn+buyBtn+soldBtn+del+'</div>';
     }).join('');}catch(e){el.innerHTML='<div style="color:#ef4444;">'+e.message+'</div>';}
   }
 
@@ -998,9 +881,9 @@
         var ids=allPosts.map(function(p){return p.id;});
         if(ids.length){
           var lkr=await db.from('post_likes').select('post_id').eq('user_id',currentUser.id).in('post_id',ids);
-          var fvr=await db.from('favorites').select('target_id').eq('user_id',currentUser.id).eq('target_type','post').in('target_id',ids);
+          var fvr=await db.from('post_favorites').select('post_id').eq('user_id',currentUser.id).in('post_id',ids);
           var likedSet={};(lkr.data||[]).forEach(function(x){likedSet[x.post_id]=true;});
-          var favSet={};(fvr.data||[]).forEach(function(x){favSet[x.target_id]=true;});
+          var favSet={};(fvr.data||[]).forEach(function(x){favSet[x.post_id]=true;});
           allPosts.forEach(function(p){p._liked=!!likedSet[p.id];p._favorited=!!favSet[p.id];});
         }
       }
@@ -1027,8 +910,8 @@
       // Load user's favorited posts (for Favorites tab)
       if(currentUser&&(isOwnProfile||uid===currentUser.id)){
         try{
-          var favR=await db.from('favorites').select('target_id').eq('user_id',uid).eq('target_type','post').order('created_at',{ascending:false}).limit(50);
-          var favIds=(favR.data||[]).map(function(x){return x.target_id;});
+          var favR=await db.from('post_favorites').select('post_id').eq('user_id',uid).order('created_at',{ascending:false}).limit(50);
+          var favIds=(favR.data||[]).map(function(x){return x.post_id;});
           if(favIds.length){
             var fp=await db.from('posts').select('id,text,media,media_type,likes,shares,favorites,reshares,reshared_from,comment_count,created_at,hidden,pinned,is_private,user_id').in('id',favIds);
             window._favoritedPosts=fp.data||[];
@@ -1065,7 +948,7 @@
     // Filter posts based on active tab
     if(activeProfileTab==='posts'){
       filteredPosts=allPosts.filter(function(p){
-        if(p.hidden||p.is_private)return false;
+        if(!isOwnProfile&&(p.hidden||p.is_private))return false;
         if(!p.reshared_from)return true;return false;
       });
       // Sort: pinned first, then by date
@@ -1137,92 +1020,7 @@
       }
       if(fr.error)console.warn('Friend check error:',fr.error.message);
     }catch(e){console.warn('Friend check:',e);}
-
-    // Check block status + reveal Block button (unless target is staff)
-    try{
-      var bbtn=document.getElementById('blockBtn');
-      if(bbtn){
-        var targetRole=profileData.role;
-        var targetIsStaff=(tid===OWNER_ID)||['owner','co-owner','admin','mod','moderator'].indexOf(targetRole)!==-1;
-        if(targetIsStaff){
-          bbtn.style.display='none';
-        }else{
-          bbtn.style.display='';
-          var br=await db.from('user_blocks').select('id').eq('blocker_id',currentUser.id).eq('blocked_id',tid).limit(1);
-          if(br.data&&br.data.length>0){
-            bbtn.textContent='Unblock';
-            bbtn.dataset.blocked='1';
-          }else{
-            bbtn.textContent='Block';
-            bbtn.dataset.blocked='0';
-          }
-        }
-      }
-    }catch(e){console.warn('Block check:',e);}
   }
-
-  window.toggleBlock=async function(){
-    if(!currentUser||!profileData)return;
-    var btn=document.getElementById('blockBtn');
-    var tid=profileData.user_id;
-    var isBlocked=btn&&btn.dataset.blocked==='1';
-    if(isBlocked){
-      if(!confirm('Unblock '+(profileData.display_name||profileData.username)+'? They will be able to see your content and message you again.'))return;
-      try{
-        var r=await db.from('user_blocks').delete().eq('blocker_id',currentUser.id).eq('blocked_id',tid);
-        if(r.error){alert('Error: '+r.error.message);return;}
-        btn.textContent='Block';
-        btn.dataset.blocked='0';
-        alert('User unblocked.');
-      }catch(e){alert('Error: '+e.message);}
-    }else{
-      if(!confirm('Block '+(profileData.display_name||profileData.username)+'?\n\nThey will no longer see your posts, messages, or profile. You will not see theirs either (unless you are owner/admin).'))return;
-      try{
-        var r=await db.from('user_blocks').insert({blocker_id:currentUser.id,blocked_id:tid});
-        if(r.error){alert('Error: '+r.error.message);return;}
-        btn.textContent='Unblock';
-        btn.dataset.blocked='1';
-        alert('User blocked.');
-        // Cleanup: unfollow + unfriend both ways
-        try{await db.from('follows').delete().or('and(follower_id.eq.'+currentUser.id+',following_id.eq.'+tid+'),and(follower_id.eq.'+tid+',following_id.eq.'+currentUser.id+')');}catch(e){}
-        try{await db.from('friends').delete().or('and(user_id.eq.'+currentUser.id+',friend_id.eq.'+tid+'),and(user_id.eq.'+tid+',friend_id.eq.'+currentUser.id+')');}catch(e){}
-      }catch(e){alert('Error: '+e.message);}
-    }
-  };
-
-  // Collab picker: musician-to-musician collaboration — chatroom or 1-on-1 DM
-  window.openCollabPicker=function(){
-    if(!currentUser){alert('Please log in to start a collab.');return;}
-    if(!profileData)return;
-    var targetName=esc(profileData.display_name||profileData.username||'them');
-    var tid=profileData.user_id;
-    // Build modal
-    var existing=document.getElementById('collabPickerModal');
-    if(existing)existing.remove();
-    var modal=document.createElement('div');
-    modal.id='collabPickerModal';
-    modal.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:1rem;';
-    modal.innerHTML=
-      '<div style="background:rgba(12,6,24,0.98);border:1px solid #a855f7;border-radius:16px;padding:1.5rem;max-width:380px;width:100%;">'+
-        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">'+
-          '<h3 style="font-size:1.15rem;font-weight:800;color:#a855f7;">🤝 Collab with '+targetName+'</h3>'+
-          '<button onclick="document.getElementById(\'collabPickerModal\').remove()" style="background:none;border:none;color:#eae6ff;font-size:1.5rem;cursor:pointer;">✕</button>'+
-        '</div>'+
-        '<p style="font-size:0.88rem;color:rgba(234,230,255,0.7);margin-bottom:1.25rem;line-height:1.5;">Pick how you want to connect:</p>'+
-        '<button onclick="location.href=\'chat.html?room=collab\'" style="display:block;width:100%;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:none;padding:0.9rem 1rem;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;margin-bottom:0.6rem;text-align:left;">'+
-          '<div style="font-size:1rem;margin-bottom:0.2rem;">🎤 Join Collab Chatroom</div>'+
-          '<div style="font-size:0.75rem;opacity:0.85;font-weight:500;">Open chat with other music industry members</div>'+
-        '</button>'+
-        '<button onclick="location.href=\'dm.html?user='+tid+'\'" style="display:block;width:100%;background:rgba(124,58,237,0.2);color:#eae6ff;border:1px solid rgba(124,58,237,0.5);padding:0.9rem 1rem;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;text-align:left;">'+
-          '<div style="font-size:1rem;margin-bottom:0.2rem;">💬 Direct Message</div>'+
-          '<div style="font-size:0.75rem;opacity:0.75;font-weight:500;">1-on-1 private chat with '+targetName+'</div>'+
-        '</button>'+
-        '<p style="font-size:0.7rem;color:rgba(168,85,247,0.6);margin-top:1rem;text-align:center;">The Collab chatroom is open to artists, beatmakers, producers, songwriters, engineers, DJs, singers, rappers, labels, managers, promoters, videographers, photographers, dancers, and more.</p>'+
-      '</div>';
-    modal.onclick=function(e){if(e.target===modal)modal.remove();};
-    document.body.appendChild(modal);
-  };
-
   window.toggleFollow=async function(){
     if(!currentUser||!profileData)return;
     var btn=document.getElementById('followBtn'),tid=profileData.user_id;
@@ -1308,29 +1106,6 @@
     }
   });
   window.toggleUF=function(){var f=document.getElementById('uploadForm');f.style.display=f.style.display==='none'?'block':'none';};
-
-  window.openBeatUpload = function () {
-    // Switch to Music tab so the upload form is visible
-    if (typeof window.switchProfileTab === 'function') {
-      window.switchProfileTab('music');
-    }
-    // Wait a tick for the tab switch to render, then open form + select Beat
-    setTimeout(function () {
-      var form = document.getElementById('uploadForm');
-      if (form) form.style.display = 'block';
-      // Pre-select the Beat radio
-      var beatRadio = document.querySelector('input[name="uType"][value="beat"]');
-      if (beatRadio) {
-        beatRadio.checked = true;
-        beatRadio.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-      // Scroll to the upload form
-      if (form && form.scrollIntoView) {
-        form.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }, 100);
-  };
-
   window.uploadSong=async function(){
     if(!currentUser)return;
     var title=document.getElementById('uT').value.trim();
@@ -1399,31 +1174,19 @@
       }).select('id').single();
       if(ir.error)throw new Error(ir.error.message);
 
-      // Auto-watermark beats (client-side mixing via Web Audio API)
-      if(isBeat&&ir.data&&ir.data.id&&window.WM){
-        n.innerHTML='<span style="color:#a855f7;">Watermarking beat... 0%</span>';
+      // Auto-watermark beats
+      if(isBeat&&ir.data&&ir.data.id){
+        n.innerHTML='<span style="color:#a855f7;">Watermarking beat...</span>';
         try{
-          var wmBlob=await window.WM.watermarkBeat(af,{
-            interval:30,
-            tagVolume:0.55,
-            firstTagAt:12,
-            onProgress:function(pct){
-              n.innerHTML='<span style="color:#a855f7;">Watermarking beat... '+pct+'%</span>';
-            }
+          var wmRes=await fetch('https://8bfr-api.vercel.app/api/watermark',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({audio_url:su,song_id:ir.data.id,user_id:currentUser.id})
           });
-          n.innerHTML='<span style="color:#a855f7;">Uploading watermarked beat...</span>';
-          var wmPath=currentUser.id+'/watermarked/'+Date.now()+'-'+af.name.replace(/[^a-zA-Z0-9.-]/g,'-').replace(/\.[^/.]+$/,'')+'.mp3';
-          var wmUp=await db.storage.from('songs').upload(wmPath,wmBlob,{contentType:'audio/mpeg'});
-          if(wmUp.error)throw new Error(wmUp.error.message);
-          var wmUrl=db.storage.from('songs').getPublicUrl(wmPath).data.publicUrl;
-          await db.from('songs').update({watermarked_url:wmUrl}).eq('id',ir.data.id);
-          n.innerHTML='<span style="color:#4ade80;">Beat watermarked!</span>';
-        }catch(wmErr){
-          console.error('Watermark error:',wmErr);
-          n.innerHTML='<span style="color:#fbbf24;">Uploaded but watermark unavailable: '+(wmErr.message||'unknown')+'</span>';
-        }
-      }else if(isBeat&&!window.WM){
-        n.innerHTML='<span style="color:#fbbf24;">Uploaded but watermarker not loaded</span>';
+          var wmData=await wmRes.json();
+          if(wmData.success){n.innerHTML='<span style="color:#4ade80;">Beat watermarked! ('+wmData.tags_applied+' tags)</span>';}
+          else{n.innerHTML='<span style="color:#fbbf24;">Uploaded but watermark failed: '+(wmData.error||'unknown')+'</span>';}
+        }catch(wmErr){n.innerHTML='<span style="color:#fbbf24;">Uploaded but watermark unavailable</span>';console.log('Watermark:',wmErr);}
       }
 
       // If album mode, upload additional tracks
@@ -1467,48 +1230,6 @@
   });
   window.delSong=async function(id){if(!confirm('Delete?'))return;try{await db.from('songs').delete().eq('id',id).eq('uploaded_by',currentUser.id);var r=document.getElementById('s-'+id);if(r)r.remove();}catch(e){alert(e.message);}};
   window.markSold=async function(id,btn){if(!confirm('Mark this beat as SOLD (exclusive)? It will be hidden from the beat store.'))return;try{await db.from('songs').update({sold:true}).eq('id',id).eq('uploaded_by',currentUser.id);btn.textContent='✓ Sold';btn.disabled=true;btn.style.background='#444';loadSongs(currentUser.id);}catch(e){alert(e.message);}};
-
-  // Delete account — uses 8bfr-api delete-user endpoint
-  window.deleteMyAccount = async function(){
-    if(!currentUser){alert('Not logged in.');return;}
-    if(!confirm('⚠️ DELETE YOUR ENTIRE ACCOUNT?\n\nThis will permanently remove your profile, posts, songs, beats, comments, follows, and all data.\n\nYour email will be released so it can be used to sign up again later.\n\nThis CANNOT be undone.'))return;
-    var typed=prompt('Type DELETE in caps to confirm:');
-    if(typed!=='DELETE'){alert('Cancelled.');return;}
-    if(!confirm('Last chance — really delete your entire account?'))return;
-    try{
-      var sessRes=await db.auth.getSession();
-      var session=sessRes&&sessRes.data?sessRes.data.session:null;
-      if(!session||!session.access_token){
-        alert('Session expired. Please log in again, then retry.');
-        return;
-      }
-      var res=await fetch('https://8bfr-api.vercel.app/api/delete-user',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          user_id:currentUser.id,
-          access_token:session.access_token
-        })
-      });
-      var data=await res.json();
-      if(!res.ok||(data.status&&data.status!=='success')){
-        var msg=data.error||data.message||'Unknown error';
-        var warn=data.warnings?'\n\nWarnings:\n'+data.warnings.join('\n'):'';
-        if(data.status==='partial'){
-          alert('Partial deletion. Some data may remain. '+msg+warn+'\n\nContact support if needed.');
-        }else{
-          alert('Error: '+msg+warn);
-          return;
-        }
-      }
-      try{await db.auth.signOut();}catch(e){}
-      alert('Account deleted. Redirecting...');
-      location.href='index.html';
-    }catch(e){
-      alert('Error deleting account: '+e.message+'\n\nIf the problem persists, contact 8bfr.music@gmail.com.');
-    }
-  };
-
   setTimeout(function(){var s=document.getElementById('loadingSpinner');if(s&&s.style.display!=='none')showError('Timed out.');},8000);
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){init();});
   else init();
@@ -1641,6 +1362,7 @@ document.getElementById('tipModal').addEventListener('click',function(e){if(e.ta
     // Force music section to exist for owner/co-owner
     var ms = document.getElementById('musicSection');
     if (tab === 'music' && !ms) {
+      // Create music section if it doesn't exist
       var tc = document.getElementById('tabContent');
       if (tc) {
         var section = document.createElement('div');
@@ -1648,18 +1370,6 @@ document.getElementById('tipModal').addEventListener('click',function(e){if(e.ta
         section.style.display = 'none';
         section.innerHTML = buildMusicSection();
         tc.parentNode.insertBefore(section, tc.nextSibling);
-      }
-    }
-    // Force beats section to exist if needed
-    var bs = document.getElementById('beatsSection');
-    if (tab === 'beats' && !bs) {
-      var tc2 = document.getElementById('tabContent');
-      if (tc2) {
-        var bsec = document.createElement('div');
-        bsec.id = 'beatsSection';
-        bsec.style.display = 'none';
-        bsec.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;"><h2 style="margin:0;color:#a855f7;">🎹 My Beats</h2><button class="btn btn-sm" onclick="openBeatUpload()" style="background:#a855f7;color:#fff;">+ Upload Beat</button></div><div style="font-size:0.72rem;color:rgba(234,230,255,0.5);margin-bottom:1rem;">Beats automatically get a voice tag every 30 seconds in previews. Buyers receive the clean version.</div><div id="beatList"><div class="spinner"></div></div>';
-        tc2.parentNode.insertBefore(bsec, tc2.nextSibling);
       }
     }
     if (origSwitch) origSwitch(tab);
@@ -1692,14 +1402,6 @@ document.getElementById('tipModal').addEventListener('click',function(e){if(e.ta
         musicBtn.onclick = function() { window.switchProfileTab('music'); };
         tabs.appendChild(musicBtn);
 
-        // Also add Beats tab right after Music
-        var beatsBtn = document.createElement('button');
-        beatsBtn.className = 'profile-tab';
-        beatsBtn.dataset.tab = 'beats';
-        beatsBtn.textContent = '🎹 Beats';
-        beatsBtn.onclick = function() { window.switchProfileTab('beats'); };
-        tabs.appendChild(beatsBtn);
-
         // Create music section if missing — only include upload form if viewing OWN profile
         if (!document.getElementById('musicSection')) {
           var tc = document.getElementById('tabContent');
@@ -1709,20 +1411,6 @@ document.getElementById('tipModal').addEventListener('click',function(e){if(e.ta
             section.style.display = 'none';
             section.innerHTML = isViewingOwnProfile ? buildMusicSection() : buildMusicSectionReadOnly();
             tc.parentNode.insertBefore(section, tc.nextSibling);
-          }
-        }
-
-        // Create beats section if missing
-        if (!document.getElementById('beatsSection')) {
-          var tc2 = document.getElementById('tabContent');
-          if (tc2) {
-            var bs = document.createElement('div');
-            bs.id = 'beatsSection';
-            bs.style.display = 'none';
-            bs.innerHTML = isViewingOwnProfile
-              ? '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;"><h2 style="margin:0;color:#a855f7;">🎹 My Beats</h2><button class="btn btn-sm" onclick="openBeatUpload()" style="background:#a855f7;color:#fff;">+ Upload Beat</button></div><div style="font-size:0.72rem;color:rgba(234,230,255,0.5);margin-bottom:1rem;">Beats automatically get a voice tag every 30 seconds in previews. Buyers receive the clean version.</div><div id="beatList"><div class="spinner"></div></div>'
-              : '<div style="margin-bottom:1rem;"><h2 style="margin:0;color:#a855f7;">🎹 Beats</h2></div><div id="beatList"><div class="spinner"></div></div>';
-            tc2.parentNode.insertBefore(bs, tc2.nextSibling);
           }
         }
       }
@@ -1969,28 +1657,25 @@ document.getElementById('tipModal').addEventListener('click',function(e){if(e.ta
 })();
 
 function shareProfile(){
-    if(!profileData)return;
-    var name=profileData.display_name||profileData.username||'User';
-    var desc=profileData.bio||('Check out '+name+' on 8BFR');
-    if(window.Share){
-        Share.profile(profileData.user_id, name+' on 8BFR', desc, profileData.avatar_url||'');
-    } else {
-        var url='https://8bfr.com/profile.html?id='+profileData.user_id;
-        var text='Check out '+name+' on 8BFR Music Network! '+url;
-        if(navigator.share){navigator.share({title:name+' on 8BFR',text:text,url:url}).catch(function(){});}
-        else{navigator.clipboard.writeText(text).then(function(){alert('Profile link copied!');}).catch(function(){alert(url);});}
+    var name=profileData?profileData.display_name||profileData.username||'':'';
+    var url=window.location.href;
+    var text='Check out '+name+' on 8BFR Music Network! '+url;
+    if(navigator.share){
+        navigator.share({title:name+' on 8BFR',text:text,url:url}).catch(function(){});
+    }else{
+        navigator.clipboard.writeText(text).then(function(){alert('Profile link copied!');}).catch(function(){
+            var ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();alert('Profile link copied!');
+        });
     }
 }
 
 function shareSongFromProfile(title,artist){
-    if(window.Share){
-        // Song ID not available at this callsite - fall back to title/artist share
-        Share.open({type:'custom',url:location.href,title:title+' — '+(artist||'Unknown'),description:'Listen on 8BFR'});
-    } else {
-        var text='Check out "'+title+'" by '+(artist||'Unknown')+' on 8BFR Music Network!';
-        var url=window.location.href;
-        if(navigator.share){navigator.share({title:title,text:text,url:url}).catch(function(){});}
-        else{navigator.clipboard.writeText(text+' '+url).then(function(){alert('Song link copied!');}).catch(function(){});}
+    var text='Check out "'+title+'" by '+(artist||'Unknown')+' on 8BFR Music Network!';
+    var url=window.location.href;
+    if(navigator.share){
+        navigator.share({title:title,text:text,url:url}).catch(function(){});
+    }else{
+        navigator.clipboard.writeText(text+' '+url).then(function(){alert('Song link copied!');}).catch(function(){});
     }
 }
 
