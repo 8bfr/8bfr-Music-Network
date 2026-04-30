@@ -1,6 +1,15 @@
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 // 8BFR GLOBAL PERKS CHECK
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// Load persistent radio player on every page
+(function(){var s=document.createElement('script');s.src='radio-player.js';s.defer=true;document.head.appendChild(s);})();
+// Load capture/screenshot protection on every page
+(function(){var s=document.createElement('script');s.src='capture-protect.js';s.defer=true;document.head.appendChild(s);})();
+// Load unified share kit on every page
+(function(){var s=document.createElement('script');s.src='share-kit.js';s.defer=true;document.head.appendChild(s);})();
+
+
+
 (function(){
   var OWNER_ID = 'cb556180-f032-4b21-9470-1d786f2664ab';
   var PERK_ROLES = ['owner','co-owner'];
@@ -25,7 +34,7 @@
       }
       var db = window.supabase.createClient(
         'https://novbuvwpjnxwwvdekjhr.supabase.co',
-        'sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f'
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0'
       );
       db.auth.getSession().then(function(res){
         var session = res.data && res.data.session;
@@ -66,7 +75,7 @@
   if (!track) return;
 
   var SUPABASE_URL = "https://novbuvwpjnxwwvdekjhr.supabase.co";
-  var SUPABASE_ANON_KEY = "sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f";
+  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0";
 
   var defaultAds = [
     { img: "assets/images/ad_banner_1.jpg", url: "ads.html#ad1" },
@@ -151,7 +160,7 @@
 // ========== GLOBAL 8BFR UI (menu, bubbles, avatars, auth gate) ==========
 (function () {
   var SUPABASE_URL = "https://novbuvwpjnxwwvdekjhr.supabase.co";
-  var SUPABASE_ANON_KEY = "sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f";
+  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0";
 
   function loadSupabaseClient(callback) {
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
@@ -207,12 +216,12 @@
 #menuStripeText{ position:absolute; top:50%; left:50%; transform:translate(-50%,-50%) rotate(-90deg); font-size:.75rem; letter-spacing:.35em; text-transform:uppercase; color:#a855f7; opacity:.9; }\
 body.menu-open #menuStripe{ display:block; }\
 body.menu-open #pageWrap{ margin-right:280px; }\
-#fab{ position:fixed; top:10px; right:14px; z-index:9999; width:56px; height:56px; border-radius:9999px; display:grid; place-items:center; background:radial-gradient(120% 120% at 30% 20%,rgba(124,58,237,.60),rgba(10,10,20,.80)); border:1px solid rgba(124,58,237,.60); box-shadow:0 0 14px rgba(124,58,237,.40),0 0 18px rgba(0,217,255,.25) inset; cursor:pointer; transition:filter .2s ease; }\
+#fab{ position:fixed; top:4px; right:6px; z-index:9999; width:48px; height:48px; border-radius:9999px; display:grid; place-items:center; background:radial-gradient(120% 120% at 30% 20%,rgba(124,58,237,.60),rgba(10,10,20,.80)); border:1px solid rgba(124,58,237,.60); box-shadow:0 0 6px rgba(124,58,237,.35),0 0 8px rgba(0,217,255,.18) inset; cursor:pointer; transition:filter .2s ease; }\
 #fab:hover{ filter:brightness(1.1); }\
 #fab svg{ display:block; }\
 #menu-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.25); backdrop-filter:blur(2px); z-index:9990; opacity:0; pointer-events:none; transition:opacity .2s ease; }\
 #menu-backdrop.open{ opacity:1; pointer-events:auto; }\
-#menu{ position:fixed; top:72px; right:0; width:min(92vw,280px); max-height:calc(100vh - 80px); overflow-y:scroll; overflow-x:hidden; z-index:9998; transform:translateX(115%); transition:transform .25s ease; backdrop-filter:blur(12px); background:var(--glass); border:1px solid var(--ring); border-radius:14px 0 0 14px; box-shadow:0 14px 32px rgba(0,0,0,.6); padding:8px 7px 60px; -webkit-overflow-scrolling:touch; }\
+#menu{ position:fixed; top:72px; right:0; width:min(92vw,280px); max-height:calc(100vh - 80px); max-height:calc(100dvh - 80px); overflow-y:auto; overflow-x:hidden; z-index:9998; transform:translateX(115%); transition:transform .25s ease; backdrop-filter:blur(12px); background:var(--glass); border:1px solid var(--ring); border-radius:14px 0 0 14px; box-shadow:0 14px 32px rgba(0,0,0,.6); padding:8px 7px 120px; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; touch-action:pan-y; }\
 #menu.open{ transform:translateX(0); }\
 #menu h2{ font-size:.85rem; text-transform:uppercase; letter-spacing:.12em; opacity:.9; margin:2px 6px 4px; }\
 .menu-group{ margin:4px 0 6px; padding:4px 4px 6px; border-radius:10px; border:1px solid rgba(139,92,246,.48); background:rgba(10,2,26,.85); }\
@@ -232,7 +241,7 @@ body.menu-open #pageWrap{ margin-right:280px; }\
 @keyframes networkLabelAlt{ 0%,45%{opacity:0;} 55%,100%{opacity:1;} }\
 .menu-chip-ai{ background:linear-gradient(135deg,rgba(124,58,237,.4),rgba(0,217,255,.2)) !important; border-color:rgba(0,217,255,.6) !important; color:#00d9ff !important; font-weight:700 !important; }\
 .menu-chip-ai:hover{ background:linear-gradient(135deg,rgba(124,58,237,.6),rgba(0,217,255,.35)) !important; box-shadow:0 0 12px rgba(0,217,255,.4); }\
-#bubbleStack{ position:fixed; top:0; left:0; right:0; z-index:9989; display:flex; flex-direction:row; align-items:center; gap:4px; padding:6px 74px 6px 12px; background:rgba(10,2,26,.92); border-bottom:1px solid rgba(124,58,237,.4); backdrop-filter:blur(10px); overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch; }\
+#bubbleStack{ position:fixed; top:0; left:0; right:0; z-index:9989; display:flex; flex-direction:row; align-items:center; gap:4px; padding:6px 60px 6px 12px; background:rgba(10,2,26,.92); border-bottom:1px solid rgba(124,58,237,.4); backdrop-filter:blur(10px); overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch; }\
 body{ padding-top:52px !important; }\
 #bubbleStack::-webkit-scrollbar{ display:none; }\
 .bubble-row{ display:flex; flex-direction:column; align-items:center; gap:1px; flex-shrink:0; }\
@@ -319,7 +328,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
       <a href="chat.html" class="menu-chip">&#x1F4AC; Chat</a>\
       <a href="dm.html" class="menu-chip">&#x2709;&#xFE0F; DM</a>\
       <a href="integration.html" class="menu-chip">&#x1F517; Integrations</a>\
-      <a href="referral.html" class="menu-chip">&#x1F381; Invite Friends</a>\
+      <a href="referrals.html" class="menu-chip">&#x1F381; Invite Friends</a>\
     </div>\
   </div>\
   <div class="menu-group collapsed">\
@@ -332,6 +341,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
       <a href="https://8bfr.com/producer-ai/index.html" target="_blank" rel="noopener" class="menu-chip menu-chip-ai">&#x1F3B5; Producer AI</a>\
       <a href="author-hub.html" class="menu-chip menu-chip-ai">&#x1F4DA; Author Hub</a>\
       <a href="translate.html" class="menu-chip menu-chip-ai">&#x1F310; Translate</a>\
+      <a href="ai-studio.html" class="menu-chip menu-chip-ai">&#x1F3B6; AI Studio</a>\
     </div>\
   </div>\
   <div class="menu-group collapsed">\
@@ -442,13 +452,14 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
   </div>\
 </nav>\
 <div id="bubbleStack">\
+  <div class="bubble-row"><button class="bubble" id="bubble-profile" title="My Profile" onclick="location.href=\'profile.html\'"><span>&#x1F464;</span></button><span class="bubble-label">Profile</span></div>\
   <div class="bubble-row"><button class="bubble" id="bubble-notif" title="Notifications" onclick="location.href=\'notifications.html\'" style="position:relative;"><span>&#x1F514;</span><span id="bubble-notif-badge" style="position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;font-size:.55rem;font-weight:800;min-width:16px;height:16px;border-radius:8px;display:none;align-items:center;justify-content:center;padding:0 3px;">0</span></button><span class="bubble-label">Notifs</span></div>\
   <div class="bubble-row"><button class="bubble" id="bubble-msgs" title="Messages" onclick="location.href=\'messages.html\'"><span>&#x2709;&#xFE0F;</span></button><span class="bubble-label">Msgs</span></div>\
   <div class="bubble-row"><button class="bubble" id="bubble-contact" title="Contact"><span>&#x1F4EC;</span></button><span class="bubble-label">Contact</span></div>\
   <div class="bubble-row"><button class="bubble" id="bubble-donate" title="Donate"><span>&#x1F49C;</span></button><span class="bubble-label">Donate</span></div>\
   <div class="bubble-row"><button class="bubble" id="bubble-footer" title="Go to footer"><span>&#x2B07;&#xFE0F;</span></button><span class="bubble-label">Footer</span></div>\
   <div class="bubble-row"><button class="bubble" id="bubble-theme" title="Light / Dark"><span>&#x262F;&#xFE0F;</span></button><span class="bubble-label">Theme</span></div>\
-  <div class="bubble-row"><button class="bubble" id="bubble-theme-random" title="Random theme"><span>&#x1F500;</span></button><span class="bubble-label">Random</span></div>\
+  <div class="bubble-row"><button class="bubble" id="bubble-themes" title="Browse themes"><span>&#x1F3A8;</span></button><span class="bubble-label">Themes</span></div>\
   <div class="bubble-row"><button class="bubble" id="bubble-stream" title="Stream 8BFR"><span>&#x1F3A7;</span></button><span class="bubble-label">Stream</span></div>\
 </div>\
 <button class="bubble" id="bubble-top-single"><span>&#x2B06;&#xFE0F;</span></button>\
@@ -493,9 +504,17 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
     var menu = document.getElementById("menu");
     var backdrop = document.getElementById("menu-backdrop");
     var menuTimer = null;
+    var savedScrollY = 0;
 
     function openMenu() {
       if (!menu || !backdrop) return;
+      // Lock body scroll so the page underneath doesn't scroll while menu is open
+      savedScrollY = window.scrollY || window.pageYOffset || 0;
+      document.body.style.position = 'fixed';
+      document.body.style.top = '-' + savedScrollY + 'px';
+      document.body.style.left = '0';
+      document.body.style.right = '0';
+      document.body.style.width = '100%';
       menu.classList.add("open"); backdrop.classList.add("open");
       document.body.classList.add("menu-open"); resetMenuTimer();
       var cw = document.getElementById("carrieWrap");
@@ -507,6 +526,13 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
       if (!menu || !backdrop) return;
       menu.classList.remove("open"); backdrop.classList.remove("open");
       document.body.classList.remove("menu-open"); clearTimeout(menuTimer); menuTimer = null;
+      // Restore body scroll
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      document.body.style.width = '';
+      window.scrollTo(0, savedScrollY);
       var cw = document.getElementById("carrieWrap");
       var bs = document.getElementById("bubble-top-single");
       if (cw) { cw.style.right = "16px"; cw.style.left = ""; cw.style.top = ""; cw.style.bottom = ""; }
@@ -709,7 +735,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
     var footerBtn = document.getElementById("bubble-footer");
     var topBtn = document.getElementById("bubble-top-single");
     var themeBtn = document.getElementById("bubble-theme");
-    var themeRandomBtn = document.getElementById("bubble-theme-random");
+    var themesBtn = document.getElementById("bubble-themes");
     var streamBtn = document.getElementById("bubble-stream");
 
     if (contact) { contact.addEventListener("click", function() { window.location.href = "contact.html"; }); }
@@ -717,20 +743,52 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
     if (footerBtn) { footerBtn.addEventListener("click", function() { window.scrollTo({top:document.body.scrollHeight,behavior:"smooth"}); }); }
     if (topBtn) { topBtn.addEventListener("click", function() { window.scrollTo({top:0,behavior:"smooth"}); }); }
 
-    var themes = [
-      { name:"dark", bg:"linear-gradient(#0b0014,#000000)", color:"#eae6ff" },
-      { name:"light", bg:"#f5f5ff", color:"#111827" },
-      { name:"neon", bg:"radial-gradient(circle at 0% 0%, #00f5ff 0, #12001e 40%, #000 100%)", color:"#e0f2fe" },
-      { name:"sunset", bg:"linear-gradient(135deg,#ff7a18,#af002d 60%,#000 100%)", color:"#fff7ed" },
-      { name:"ocean", bg:"linear-gradient(135deg,#0f172a,#0369a1,#0b0014)", color:"#e0f2fe" }
-    ];
+    // ── NEW THEME SYSTEM ── uses data-theme attribute + design-system.css CSS variables
+    // Themes defined in design-system.css: default (dark), light, neon, sunset, ocean, forest, royal, crimson, monochrome, rose
+    var THEME_KEY = "8bfr-theme-v2";
 
-    function applyTheme(name) { var t = themes.filter(function(x){return x.name===name;})[0]; if (!t) return; document.body.style.background = t.bg; document.body.style.color = t.color; try { localStorage.setItem("8bfr-theme", name); } catch(e){} }
-    function getCurrentTheme() { try { return localStorage.getItem("8bfr-theme") || "dark"; } catch(e) { return "dark"; } }
+    function applyTheme(name) {
+      if (!name || name === "dark" || name === "default") {
+        document.body.removeAttribute("data-theme");
+      } else {
+        document.body.setAttribute("data-theme", name);
+      }
+      try { localStorage.setItem(THEME_KEY, name || "dark"); } catch(e){}
+    }
+
+    function getCurrentTheme() {
+      try { return localStorage.getItem(THEME_KEY) || "dark"; } catch(e) { return "dark"; }
+    }
+
+    // Apply saved theme on load
     applyTheme(getCurrentTheme());
 
-    if (themeBtn) { themeBtn.addEventListener("click", function() { applyTheme(getCurrentTheme() === "light" ? "dark" : "light"); }); }
-    if (themeRandomBtn) { themeRandomBtn.addEventListener("click", function() { var cur = getCurrentTheme(); var pool = themes.map(function(t){return t.name;}).filter(function(n){return n!==cur;}); applyTheme(pool[Math.floor(Math.random()*pool.length)]); }); }
+    // Light/Dark toggle — cycles between saved dark theme and light
+    if (themeBtn) {
+      themeBtn.addEventListener("click", function() {
+        var current = getCurrentTheme();
+        if (current === "light") {
+          // Going back to dark - restore saved dark theme or default
+          var savedDark = (function(){ try { return localStorage.getItem("8bfr-theme-dark-saved"); } catch(e) { return null; } })();
+          applyTheme(savedDark || "dark");
+        } else {
+          // Going to light - save current dark theme choice
+          try { localStorage.setItem("8bfr-theme-dark-saved", current); } catch(e){}
+          applyTheme("light");
+        }
+      });
+    }
+
+    // Themes bubble - opens themes browser page
+    if (themesBtn) {
+      themesBtn.addEventListener("click", function() {
+        window.location.href = "themes.html";
+      });
+    }
+
+    // Expose for the themes page to call
+    window.__applyTheme = applyTheme;
+    window.__getCurrentTheme = getCurrentTheme;
     if (streamBtn) { streamBtn.addEventListener("click", function() { window.open("https://open.spotify.com/artist/127tw52iDXr7BvgB0IGG2x?si=Ja3kOaL5S36QWOUS6yvnsA","_blank","noopener"); }); }
 
     // Notification bell badge
@@ -827,4 +885,96 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
 
   if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", injectGlobalUI); }
   else { injectGlobalUI(); }
+})();
+
+// ═══ AUTO-INJECT DESIGN SYSTEM STYLESHEET ═══
+// Loads design-system.css on every page that includes scripts.js so themes work everywhere
+(function() {
+  try {
+    if (!document.querySelector('link[href*="design-system.css"]')) {
+      var l = document.createElement("link");
+      l.rel = "stylesheet";
+      l.href = "design-system.css";
+      document.head.appendChild(l);
+    }
+    // Apply saved theme as early as possible (minimize flash)
+    var t = null;
+    try { t = localStorage.getItem("8bfr-theme-v2") || localStorage.getItem("8bfr-theme"); } catch(e){}
+    if (t && t !== "dark" && t !== "default") {
+      document.body && document.body.setAttribute("data-theme", t);
+      // Also ensure it applies even if body isn't ready yet
+      if (!document.body) {
+        document.addEventListener("DOMContentLoaded", function(){
+          document.body.setAttribute("data-theme", t);
+        });
+      }
+    }
+    // Apply saved avatar size preference
+    var a = null;
+    try { a = localStorage.getItem("8bfr-avatar-size"); } catch(e){}
+    if (a) {
+      if (document.body) document.body.setAttribute("data-avatar-size", a);
+      else document.addEventListener("DOMContentLoaded", function(){ document.body.setAttribute("data-avatar-size", a); });
+    }
+  } catch(e) { console.warn("[ds] auto-inject failed:", e); }
+})();
+
+// ═══ AUTO-INJECT COPYRIGHT FOOTER ═══
+// Adds a tiny copyright line at the bottom of every page (if not already present)
+(function() {
+  function addCopyright() {
+    try {
+      if (document.getElementById('_8bfr_copyright')) return;
+      // Skip on landing page (has its own footer) and themes/owner-discounts (have their own footer context)
+      var p = window.location.pathname || '';
+      if (/landing\.html|signup\.html|login\.html/i.test(p)) return;
+
+      var el = document.createElement('div');
+      el.id = '_8bfr_copyright';
+      el.style.cssText = 'position:relative;text-align:center;padding:1.25rem 1rem 4rem;font-size:0.7rem;color:rgba(234,230,255,0.35);font-family:system-ui,sans-serif;letter-spacing:0.3px;line-height:1.5;';
+      el.innerHTML = '\u00A9 8BFR Music Network \u00B7 <a href="https://8bfr.com" style="color:rgba(168,85,247,0.6);text-decoration:none;">8bfr.com</a> \u00B7 James J. Siburt \u2014 Founder, CEO, CFO, Developer, Owner';
+      document.body.appendChild(el);
+    } catch(e) {}
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', addCopyright);
+  } else {
+    addCopyright();
+  }
+})();
+
+// ═══ DEAD PAGE REDIRECTS ═══
+// Old placeholder pages forward to their live equivalents
+(function() {
+  var p = (window.location.pathname || '').toLowerCase();
+  // These were placeholder pages that never got built - redirect to the real tool
+  var redirects = {
+    '/lyric-ai.html':  'ai-studio.html',
+    '/lyrics-ai.html': 'ai-studio.html',
+    '/song-ai.html':   'ai-studio.html',
+    '/voice-ai.html':  'ai-studio.html',
+    '/producer-ai.html': 'ai-studio.html'
+  };
+  for (var key in redirects) {
+    if (p.indexOf(key) !== -1) {
+      window.location.replace(redirects[key]);
+      break;
+    }
+  }
+})();
+
+// ═══ ERUDA MOBILE DEVTOOLS ═══
+// Add ?eruda=1 to any URL to load mobile devtools (Console, Elements, Network, etc.)
+// Useful for debugging on phones where you can't open desktop DevTools.
+(function () {
+  try {
+    if (location.search.indexOf('eruda') === -1) return;
+    var s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/eruda';
+    s.onload = function () {
+      try { eruda.init(); } catch (e) { console.error('Eruda init failed:', e); }
+    };
+    s.onerror = function () { console.warn('Eruda CDN failed to load'); };
+    document.body.appendChild(s);
+  } catch (e) {}
 })();
