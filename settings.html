@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>My Account — 8BFR Music Network</title>
+<title>Settings — 8BFR Music Network</title>
 <link rel="icon" href="assets/images/favicon.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -40,7 +40,7 @@ select.form-input{cursor:pointer;}
 </style>
 </head>
 <body>
-<div class="header"><div class="header-inner"><a href="profile.html">← Profile</a><h1>⚙️ My Account</h1><div style="width:60px;"></div></div></div>
+<div class="header"><div class="header-inner"><a href="profile.html">← Profile</a><h1>⚙️ Settings</h1><div style="width:60px;"></div></div></div>
 <div class="container">
 
 <!-- PAYMENT -->
@@ -228,42 +228,20 @@ async function clearAllData(){
 }
 
 async function deleteAccount(){
-  if(!currentUser){alert('Not logged in.');return;}
-  if(!confirm('⚠️ DELETE YOUR ENTIRE ACCOUNT?\n\nThis will permanently remove your profile, posts, songs, beats, comments, follows, and all data.\n\nYour email will be released so it can be used to sign up again later.\n\nThis CANNOT be undone.'))return;
-  const typed=prompt('Type DELETE in caps to confirm:');
+  if(!confirm('⚠️ DELETE YOUR ENTIRE ACCOUNT?\n\nThis will remove your profile, posts, songs, and all data. This CANNOT be undone.'))return;
+  const typed=prompt('Type "DELETE" to confirm:');
   if(typed!=='DELETE'){alert('Cancelled.');return;}
-  if(!confirm('Last chance — really delete your entire account?'))return;
   try{
-    const{data:{session}}=await db.auth.getSession();
-    if(!session||!session.access_token){
-      alert('Session expired. Please log in again, then retry.');
-      return;
-    }
-    const res=await fetch('https://8bfr-api.vercel.app/api/delete-user',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        user_id:currentUser.id,
-        access_token:session.access_token
-      })
-    });
-    const data=await res.json();
-    if(!res.ok||(data.status&&data.status!=='success')){
-      const msg=data.error||data.message||'Unknown error';
-      const warn=data.warnings?'\n\nWarnings:\n'+data.warnings.join('\n'):'';
-      if(data.status==='partial'){
-        alert('Partial deletion. Some data may remain. '+msg+warn+'\n\nContact support if needed.');
-      }else{
-        alert('Error: '+msg+warn);
-        return;
-      }
-    }
-    try{await db.auth.signOut();}catch(e){}
+    // Delete user data
+    await db.from('posts').delete().eq('user_id',currentUser.id);
+    await db.from('songs').delete().eq('uploaded_by',currentUser.id);
+    await db.from('stories').delete().eq('user_id',currentUser.id);
+    await db.from('profiles').delete().eq('user_id',currentUser.id);
+    // Sign out
+    await db.auth.signOut();
     alert('Account deleted. Redirecting...');
     location.href='index.html';
-  }catch(e){
-    alert('Error deleting account: '+e.message+'\n\nIf the problem persists, contact 8bfr.music@gmail.com.');
-  }
+  }catch(e){alert('Error: '+e.message);}
 }
 
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
