@@ -108,7 +108,7 @@
   <div id="msgBox" class="msg"></div>
 
   <div id="refBanner" style="display:none;margin-bottom:1rem;padding:.75rem 1rem;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.3);border-radius:10px;text-align:center;">
-    <div style="font-size:.85rem;color:#4ade80;font-weight:600;">You were invited! You'll get 25 bonus coins after signing up.</div>
+    <div style="font-size:.85rem;color:#4ade80;font-weight:600;">You were invited! You'll get 100 bonus coins after signing up.</div>
     <div style="font-size:.72rem;color:rgba(74,222,128,.6);margin-top:.2rem;">Referral code: <span id="refCodeDisplay"></span></div>
   </div>
 
@@ -723,17 +723,22 @@ async function verifyCode() {
       await db.from('email_verifications').delete().eq('user_id', signupUserId);
 
       // Process referral if signup came from an invite link
+      var refMsg = '';
       if (refCode && signupUserId) {
         try {
           var refResult = await db.rpc('process_referral', { p_ref_code: refCode, p_new_user_id: signupUserId });
-          if (refResult.data && refResult.data.success) {
-            document.getElementById('refBanner').innerHTML = '<div style="font-size:.85rem;color:#4ade80;font-weight:600;">+25 bonus coins awarded! Welcome to 8BFR!</div>';
+          if (refResult.error) {
+            refMsg = '<div style="margin-top:.5rem;padding:.5rem;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:8px;font-size:.82rem;color:#fbbf24;">Referral error: ' + (refResult.error.message || 'Unknown error') + '</div>';
+          } else if (refResult.data && refResult.data.success) {
+            refMsg = '<div style="margin-top:.5rem;padding:.5rem;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.3);border-radius:8px;font-size:.82rem;color:#4ade80;">+100 bonus coins awarded! Welcome to 8BFR!</div>';
           } else if (refResult.data && refResult.data.error) {
-            document.getElementById('refBanner').innerHTML = '<div style="font-size:.85rem;color:#fbbf24;">Referral: ' + refResult.data.error + '</div>';
+            refMsg = '<div style="margin-top:.5rem;padding:.5rem;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:8px;font-size:.82rem;color:#fbbf24;">Referral: ' + refResult.data.error + '</div>';
+          } else {
+            refMsg = '<div style="margin-top:.5rem;padding:.5rem;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:8px;font-size:.82rem;color:#fbbf24;">Referral processed (check your coins).</div>';
           }
         } catch(e) {
           console.log('Referral error:', e);
-          document.getElementById('refBanner').innerHTML = '<div style="font-size:.85rem;color:#fbbf24;">Referral could not be processed. You can contact the owner.</div>';
+          refMsg = '<div style="margin-top:.5rem;padding:.5rem;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:8px;font-size:.82rem;color:#fca5a5;">Referral failed: ' + (e.message || 'process_referral function may not exist in database') + '</div>';
         }
       }
 
@@ -759,13 +764,13 @@ async function verifyCode() {
       } catch(e) { console.log('Owner notify:', e); }
 
       document.getElementById('codeInputs').classList.add('success');
-      document.getElementById('verifyMsg').innerHTML = '<span style="color:var(--success);">✅ Verified!</span>';
+      document.getElementById('verifyMsg').innerHTML = '<span style="color:var(--success);">Verified!</span>' + refMsg;
 
-      // Show success screen
+      // Show success screen (longer delay if referral message shown)
       setTimeout(function() {
         document.getElementById('verifySection').classList.remove('show');
         document.getElementById('successSection').classList.add('show');
-      }, 1200);
+      }, refMsg ? 3000 : 1200);
     } else {
       document.getElementById('codeInputs').classList.add('error');
       document.getElementById('verifyMsg').innerHTML = '<span style="color:var(--danger);">❌ Wrong code. Try again.</span>';
