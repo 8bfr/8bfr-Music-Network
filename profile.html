@@ -650,7 +650,12 @@
     if(isMusic){
       h+='<div id="musicSection"'+(isMusic?'':' style="display:none;"')+'>';
       if(isOwnProfile){
-        h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;"><h2 style="margin:0;color:#a855f7;">🎵 My Songs</h2><button class="btn btn-sm" onclick="toggleUF()">+ Upload</button></div>';
+        h+='<div style="display:flex;gap:.35rem;margin-bottom:1rem;overflow-x:auto;">';
+        h+='<button class="btn btn-sm" id="mtSongs" onclick="filterMusic(\'songs\')" style="background:#7c3aed;">All Songs</button>';
+        h+='<button class="btn btn-sm" id="mtBeats" onclick="filterMusic(\'beats\')" style="background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.4);color:#a855f7;">Beats</button>';
+        h+='<button class="btn btn-sm" id="mtAlbums" onclick="filterMusic(\'albums\')" style="background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.4);color:#a855f7;">Albums</button>';
+        h+='<button class="btn btn-sm" onclick="toggleUF()" style="margin-left:auto;background:rgba(0,217,255,.15);border:1px solid rgba(0,217,255,.4);color:#00d9ff;">+ Upload</button>';
+        h+='</div>';
         h+='<div id="uploadForm" style="display:none;background:rgba(0,0,0,0.3);border-radius:10px;padding:1.25rem;margin-bottom:1.25rem;border:1px solid rgba(124,58,237,0.25);">';
         // Upload mode toggle
         h+='<div style="display:flex;gap:0.5rem;margin-bottom:1rem;">';
@@ -847,7 +852,7 @@
   /* ── SONGS ── */
   async function loadSongs(uid){
     var el=document.getElementById('songList');if(!el)return;
-    try{var sr=await db.from('songs').select('id,title,artist,cover_art,song_url,watermarked_url,explicit,price,is_beat,sold,producer,featured_artist,lyrics').eq('uploaded_by',uid).is('dummy_id',null).order('created_at',{ascending:false});
+    try{var sr=await db.from('songs').select('id,title,artist,cover_art,song_url,watermarked_url,explicit,price,is_beat,sold,producer,featured_artist,lyrics,type').eq('uploaded_by',uid).is('dummy_id',null).order('created_at',{ascending:false});
     var songs=sr.data||[];
     if(!songs.length){el.innerHTML='<div style="text-align:center;padding:2rem;color:rgba(168,85,247,0.5);">No songs yet.</div>';return;}
     el.innerHTML=songs.map(function(s){
@@ -863,9 +868,42 @@
       var shareBtn='<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();shareSongFromProfile(\''+esc(s.title||'Untitled').replace(/'/g,'')+'\',\''+esc(s.artist||'').replace(/'/g,'')+'\')" style="flex-shrink:0;padding:0.3rem 0.6rem;font-size:0.72rem;">Share</button>';
       var playUrl=s.song_url;
       if(s.is_beat&&s.watermarked_url&&!isOwnProfile)playUrl=s.watermarked_url;
-      return '<div class="song-row" id="s-'+s.id+'"'+(s.sold?' style="opacity:0.6;"':'')+'><div class="song-cover">'+cv+'</div><div class="song-info"><div class="song-title">'+esc(s.title||'Untitled')+(s.explicit?' 🔞':'')+pt+soldBadge+'</div><div class="song-meta">'+esc(s.artist||'')+credits+'</div>'+(playUrl&&!s.sold?'<audio controls src="'+playUrl+'" preload="metadata" style="height:32px;margin-top:6px;"></audio>':'')+'</div>'+shareBtn+buyBtn+soldBtn+del+'</div>';
+      return '<div class="song-row" id="s-'+s.id+'" data-is-beat="'+(s.is_beat?'true':'false')+'" data-is-album="'+((s.type||'')==='album'?'true':'false')+'"'+(s.sold?' style="opacity:0.6;"':'')+'><div class="song-cover">'+cv+'</div><div class="song-info"><div class="song-title">'+esc(s.title||'Untitled')+(s.explicit?' 🔞':'')+(s.is_beat?'<span style="font-size:.65rem;background:rgba(168,85,247,.2);border:1px solid rgba(168,85,247,.4);color:#c084fc;padding:1px 6px;border-radius:4px;margin-left:.4rem;">BEAT</span>':'')+pt+soldBadge+'</div><div class="song-meta">'+esc(s.artist||'')+credits+'</div>'+(playUrl&&!s.sold?'<audio controls src="'+playUrl+'" preload="metadata" style="width:100%;height:36px;margin-top:6px;"></audio>':'')+'</div>'+shareBtn+buyBtn+soldBtn+del+'</div>';
     }).join('');}catch(e){el.innerHTML='<div style="color:#ef4444;">'+e.message+'</div>';}
   }
+
+  var _musicFilter='songs';
+  window.filterMusic=function(f){
+    _musicFilter=f;
+    var btns=['mtSongs','mtBeats','mtAlbums'];
+    btns.forEach(function(id){
+      var b=document.getElementById(id);
+      if(!b)return;
+      if((f==='songs'&&id==='mtSongs')||(f==='beats'&&id==='mtBeats')||(f==='albums'&&id==='mtAlbums')){
+        b.style.background='#7c3aed';b.style.color='#fff';b.style.border='none';
+      }else{
+        b.style.background='rgba(124,58,237,.15)';b.style.color='#a855f7';b.style.border='1px solid rgba(124,58,237,.4)';
+      }
+    });
+    // Filter the song rows
+    var rows=document.querySelectorAll('.song-row');
+    rows.forEach(function(row){
+      var isBeat=row.dataset.isBeat==='true';
+      var isAlbum=row.dataset.isAlbum==='true';
+      if(f==='songs')row.style.display='';
+      else if(f==='beats')row.style.display=isBeat?'':'none';
+      else if(f==='albums')row.style.display=isAlbum?'':'none';
+    });
+    // If beats tab clicked and upload is open, pre-select beat
+    if(f==='beats'){
+      var beatRadio=document.querySelector('input[name="uType"][value="beat"]');
+      if(beatRadio)beatRadio.checked=true;
+    }
+    if(f==='albums'){
+      var albumBtn=document.querySelector('[data-mode="album"]');
+      if(albumBtn)albumBtn.click();
+    }
+  };
 
   /* ── POSTS ── */
   async function loadPosts(uid){
