@@ -535,21 +535,20 @@ async function doSignup() {
     if (data?.user) {
       const spotifyUrl = document.getElementById('spotifyUrl').value.trim();
       try {
-        await db.from('profiles').upsert({
-          user_id: data.user.id,
-          username: username,
-          display_name: displayName,
-          role: selectedRoles[0] || 'fan',
-          badges: selectedRoles,
-          date_of_birth: dob,
-          age_tier: calculatedTier,
-          is_verified: false,
-          coins: 50,
-          spotify_url: spotifyUrl || null,
-          follower_count: 0,
-          following_count: 0
-        }, { onConflict: 'user_id' });
-      } catch(e) { /* trigger may handle this */ }
+        await db.rpc('upsert_profile', {
+          p_data: {
+            user_id: data.user.id,
+            username: username,
+            display_name: displayName,
+            role: selectedRoles[0] || 'fan',
+            badges: selectedRoles,
+            date_of_birth: dob,
+            age_tier: calculatedTier,
+            coins: 50,
+            spotify_url: spotifyUrl || null
+          }
+        });
+      } catch(e) { console.log('Profile create error:', e); }
 
       // ★ If teen — create consent request
       if (calculatedTier === 'teen') {
@@ -730,19 +729,19 @@ async function verifyCode() {
           if (refResult.error) {
             var errDetail = refResult.error.message || refResult.error.details || 'Unknown error';
             refMsg = '<div style="margin-top:.5rem;padding:.5rem;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:8px;font-size:.82rem;color:#fbbf24;">Referral error: ' + errDetail + '</div>';
-            alert('Referral error: ' + errDetail);
+            
           } else if (refResult.data && refResult.data.success) {
             refMsg = '<div style="margin-top:.5rem;padding:.5rem;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.3);border-radius:8px;font-size:.82rem;color:#4ade80;">+100 bonus coins awarded!</div>';
           } else if (refResult.data && refResult.data.error) {
             refMsg = '<div style="margin-top:.5rem;padding:.5rem;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:8px;font-size:.82rem;color:#fbbf24;">Referral: ' + refResult.data.error + '</div>';
-            alert('Referral: ' + refResult.data.error);
+            
           } else {
             refMsg = '<div style="margin-top:.5rem;padding:.5rem;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.3);border-radius:8px;font-size:.82rem;color:#4ade80;">Referral processed.</div>';
           }
         } catch(e) {
           console.log('Referral error:', e);
           refMsg = '<div style="margin-top:.5rem;padding:.5rem;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:8px;font-size:.82rem;color:#fca5a5;">Referral failed: ' + (e.message || 'function may not exist') + '</div>';
-          alert('Referral failed: ' + (e.message || 'process_referral function may not exist in database'));
+          
         }
       }
 
