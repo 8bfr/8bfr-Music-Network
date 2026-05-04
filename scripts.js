@@ -670,21 +670,12 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
     var footerBtn = document.getElementById("bubble-footer");
     var topBtn = document.getElementById("bubble-top-single");
     var themeBtn = document.getElementById("bubble-theme");
-    var themeRandomBtn = document.getElementById("bubble-theme-random");
     var streamBtn = document.getElementById("bubble-stream");
 
     if (contact) { contact.addEventListener("click", function() { window.location.href = "contact.html"; }); }
     if (donate) { donate.addEventListener("click", function() { var d = document.getElementById("donate"); if (d) d.scrollIntoView({behavior:"smooth"}); else window.location.href = "donate.html"; }); }
     if (footerBtn) { footerBtn.addEventListener("click", function() { window.scrollTo({top:document.body.scrollHeight,behavior:"smooth"}); }); }
     if (topBtn) { topBtn.addEventListener("click", function() { window.scrollTo({top:0,behavior:"smooth"}); }); }
-
-    var themes = [
-      { name:"dark", bg:"linear-gradient(#0b0014,#000000)", color:"#eae6ff" },
-      { name:"light", bg:"#f5f5ff", color:"#111827" },
-      { name:"neon", bg:"radial-gradient(circle at 0% 0%, #00f5ff 0, #12001e 40%, #000 100%)", color:"#e0f2fe" },
-      { name:"sunset", bg:"linear-gradient(135deg,#ff7a18,#af002d 60%,#000 100%)", color:"#fff7ed" },
-      { name:"ocean", bg:"linear-gradient(135deg,#0f172a,#0369a1,#0b0014)", color:"#e0f2fe" }
-    ];
 
     function applyTheme(name) {
       if (!name || name === 'dark' || name === 'default') {
@@ -697,13 +688,22 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
     function getCurrentTheme() { try { return localStorage.getItem('8bfr-theme') || 'dark'; } catch(e) { return 'dark'; } }
 
     applyTheme(getCurrentTheme());
-
     window.__applyTheme = applyTheme;
     window.__getCurrentTheme = getCurrentTheme;
-    applyTheme(getCurrentTheme());
 
-    if (themeBtn) { themeBtn.addEventListener("click", function() { applyTheme(getCurrentTheme() === "light" ? "dark" : "light"); }); }
-    if (themeRandomBtn) { themeRandomBtn.addEventListener("click", function() { var cur = getCurrentTheme(); var pool = themes.map(function(t){return t.name;}).filter(function(n){return n!==cur;}); applyTheme(pool[Math.floor(Math.random()*pool.length)]); }); }
+    if (themeBtn) {
+      themeBtn.addEventListener("click", function() {
+        var cur = getCurrentTheme();
+        if (cur === 'light') {
+          var saved = 'dark';
+          try { saved = localStorage.getItem('8bfr-theme-dark-saved') || 'dark'; } catch(e){}
+          applyTheme(saved);
+        } else {
+          try { localStorage.setItem('8bfr-theme-dark-saved', cur); } catch(e){}
+          applyTheme('light');
+        }
+      });
+    }
     if (streamBtn) { streamBtn.addEventListener("click", function() { window.open("https://open.spotify.com/artist/127tw52iDXr7BvgB0IGG2x?si=Ja3kOaL5S36QWOUS6yvnsA","_blank","noopener"); }); }
     var themesBtn = document.getElementById("bubble-themes");
     if (themesBtn) { themesBtn.addEventListener("click", function() { window.location.href = "themes.html"; }); }
