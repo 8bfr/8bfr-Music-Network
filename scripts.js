@@ -370,6 +370,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
     <div class="menu-group-title">Admin / Mod / Owner</div>\
     <div class="menu-links">\
       <a href="owner-panel.html" class="menu-chip">&#x1F451; Owner Panel</a>\
+      <a href="owner-discounts.html" class="menu-chip">&#x1F3F7; Discounts</a>\
       <a href="owner-studio.html" class="menu-chip">&#x1F3A8; Owner Studio</a>\
       <a href="owner-users.html" class="menu-chip">&#x1F465; Manage Users</a>\
       <a href="owner-verifications.html" class="menu-chip">&#x2705; Verifications</a>\
