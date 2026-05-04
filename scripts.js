@@ -685,8 +685,20 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
       { name:"ocean", bg:"linear-gradient(135deg,#0f172a,#0369a1,#0b0014)", color:"#e0f2fe" }
     ];
 
-    function applyTheme(name) { var t = themes.filter(function(x){return x.name===name;})[0]; if (!t) return; document.body.style.background = t.bg; document.body.style.color = t.color; try { localStorage.setItem("8bfr-theme", name); } catch(e){} }
-    function getCurrentTheme() { try { return localStorage.getItem("8bfr-theme") || "dark"; } catch(e) { return "dark"; } }
+    function applyTheme(name) {
+      if (!name || name === 'dark' || name === 'default') {
+        document.body.removeAttribute('data-theme');
+      } else {
+        document.body.setAttribute('data-theme', name);
+      }
+      try { localStorage.setItem('8bfr-theme', name || 'dark'); } catch(e){}
+    }
+    function getCurrentTheme() { try { return localStorage.getItem('8bfr-theme') || 'dark'; } catch(e) { return 'dark'; } }
+
+    applyTheme(getCurrentTheme());
+
+    window.__applyTheme = applyTheme;
+    window.__getCurrentTheme = getCurrentTheme;
     applyTheme(getCurrentTheme());
 
     if (themeBtn) { themeBtn.addEventListener("click", function() { applyTheme(getCurrentTheme() === "light" ? "dark" : "light"); }); }
@@ -783,4 +795,55 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
 
   if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", injectGlobalUI); }
   else { injectGlobalUI(); }
+})();
+
+// ═══ AUTO-INJECT DESIGN SYSTEM STYLESHEET ═══
+(function() {
+  try {
+    if (!document.querySelector('link[href*="design-system.css"]')) {
+      var l = document.createElement("link");
+      l.rel = "stylesheet";
+      l.href = "design-system.css";
+      document.head.appendChild(l);
+    }
+    var t = null;
+    try { t = localStorage.getItem("8bfr-theme"); } catch(e){}
+    if (t && t !== "dark" && t !== "default") {
+      if (document.body) document.body.setAttribute("data-theme", t);
+      else document.addEventListener("DOMContentLoaded", function(){ document.body.setAttribute("data-theme", t); });
+    }
+  } catch(e) {}
+})();
+
+// ═══ AUTO-INJECT COPYRIGHT FOOTER ═══
+(function() {
+  function addCopyright() {
+    try {
+      if (document.getElementById('_8bfr_copyright')) return;
+      var p = window.location.pathname || '';
+      if (/landing\.html|signup\.html|login\.html/i.test(p)) return;
+      var el = document.createElement('div');
+      el.id = '_8bfr_copyright';
+      el.style.cssText = 'position:relative;text-align:center;padding:1.25rem 1rem 4rem;font-size:0.7rem;color:rgba(234,230,255,0.35);font-family:system-ui,sans-serif;letter-spacing:0.3px;line-height:1.5;';
+      el.innerHTML = '\u00A9 8BFR Music Network \u00B7 <a href="https://8bfr.com" style="color:rgba(168,85,247,0.6);text-decoration:none;">8bfr.com</a> \u00B7 James J. Siburt \u2014 Founder, CEO, CFO, Developer, Owner';
+      document.body.appendChild(el);
+    } catch(e) {}
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addCopyright);
+  else addCopyright();
+})();
+
+// ═══ DEAD PAGE REDIRECTS ═══
+(function() {
+  var p = (window.location.pathname || '').toLowerCase();
+  var redirects = {
+    '/lyric-ai.html': 'ai-studio.html',
+    '/lyrics-ai.html': 'ai-studio.html',
+    '/song-ai.html': 'ai-studio.html',
+    '/voice-ai.html': 'ai-studio.html',
+    '/producer-ai.html': 'ai-studio.html'
+  };
+  for (var key in redirects) {
+    if (p.indexOf(key) !== -1) { window.location.replace(redirects[key]); break; }
+  }
 })();
