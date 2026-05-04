@@ -403,11 +403,14 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
   </div>\
 </nav>\
 <div id="bubbleStack">\
-  <div class="bubble-row"><button class="bubble" id="bubble-contact" title="Contact"><span>&#x2709;&#xFE0F;</span></button><span class="bubble-label">Contact</span></div>\
+  <div class="bubble-row"><button class="bubble" id="bubble-profile" title="My Profile" onclick="location.href=\'profile.html\'"><span>&#x1F464;</span></button><span class="bubble-label">Profile</span></div>\
+  <div class="bubble-row"><button class="bubble" id="bubble-notif" title="Notifications" onclick="location.href=\'notifications.html\'" style="position:relative;"><span>&#x1F514;</span><span id="bubble-notif-badge" style="position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;font-size:.55rem;font-weight:800;min-width:16px;height:16px;border-radius:8px;display:none;align-items:center;justify-content:center;padding:0 3px;">0</span></button><span class="bubble-label">Notifs</span></div>\
+  <div class="bubble-row"><button class="bubble" id="bubble-msgs" title="Messages" onclick="location.href=\'messages.html\'"><span>&#x2709;&#xFE0F;</span></button><span class="bubble-label">Msgs</span></div>\
+  <div class="bubble-row"><button class="bubble" id="bubble-contact" title="Contact"><span>&#x1F4EC;</span></button><span class="bubble-label">Contact</span></div>\
   <div class="bubble-row"><button class="bubble" id="bubble-donate" title="Donate"><span>&#x1F49C;</span></button><span class="bubble-label">Donate</span></div>\
   <div class="bubble-row"><button class="bubble" id="bubble-footer" title="Go to footer"><span>&#x2B07;&#xFE0F;</span></button><span class="bubble-label">Footer</span></div>\
   <div class="bubble-row"><button class="bubble" id="bubble-theme" title="Light / Dark"><span>&#x262F;&#xFE0F;</span></button><span class="bubble-label">Theme</span></div>\
-  <div class="bubble-row"><button class="bubble" id="bubble-theme-random" title="Random theme"><span>&#x1F500;</span></button><span class="bubble-label">Random</span></div>\
+  <div class="bubble-row"><button class="bubble" id="bubble-themes" title="Browse themes"><span>&#x1F3A8;</span></button><span class="bubble-label">Themes</span></div>\
   <div class="bubble-row"><button class="bubble" id="bubble-stream" title="Stream 8BFR"><span>&#x1F3A7;</span></button><span class="bubble-label">Stream</span></div>\
 </div>\
 <button class="bubble" id="bubble-top-single"><span>&#x2B06;&#xFE0F;</span></button>\
@@ -689,6 +692,8 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
     if (themeBtn) { themeBtn.addEventListener("click", function() { applyTheme(getCurrentTheme() === "light" ? "dark" : "light"); }); }
     if (themeRandomBtn) { themeRandomBtn.addEventListener("click", function() { var cur = getCurrentTheme(); var pool = themes.map(function(t){return t.name;}).filter(function(n){return n!==cur;}); applyTheme(pool[Math.floor(Math.random()*pool.length)]); }); }
     if (streamBtn) { streamBtn.addEventListener("click", function() { window.open("https://open.spotify.com/artist/127tw52iDXr7BvgB0IGG2x?si=Ja3kOaL5S36QWOUS6yvnsA","_blank","noopener"); }); }
+    var themesBtn = document.getElementById("bubble-themes");
+    if (themesBtn) { themesBtn.addEventListener("click", function() { window.location.href = "themes.html"; }); }
 
     // Notification bell badge
     (function() {
@@ -715,19 +720,58 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
                 ex.textContent = count > 99 ? '99+' : count;
               } else if (ex) { ex.remove(); }
             });
+            var bb = document.getElementById('bubble-notif-badge');
+            if (bb) {
+              if (count > 0) {
+                bb.textContent = count > 99 ? '99+' : count;
+                bb.style.display = 'flex';
+              } else {
+                bb.style.display = 'none';
+              }
+            }
           }
 
           _db.from('notifications').select('*', { count: 'exact', head: true }).eq('recipient_id', _uid).eq('is_read', false).then(function(res) {
             setBellBadge(res.count || 0);
           });
 
+          function showToast(notif) {
+            var existing = document.getElementById('8bfr-toast');
+            if (existing) existing.remove();
+            var meta = notif.metadata || {};
+            var type = notif.notif_type || 'notification';
+            var typeLabels = {follow:'New Follower',like:'Post Liked',comment:'New Comment',reshare:'Reshared',tip:'Coin Tip',dm:'New Message',direct_message:'New Message',friend_request:'Friend Request',friend_accepted:'Friend Accepted',purchase:'New Purchase',badge:'New Badge',referral:'New Referral',system:'System'};
+            var title = typeLabels[type] || 'Notification';
+            var body = meta.from_name ? meta.from_name : '';
+            if (meta.message_preview) body += (body ? ': ' : '') + meta.message_preview;
+            else if (meta.message) body += (body ? ': ' : '') + meta.message;
+            if (!body) body = meta.body || '';
+            var link = meta.link || 'notifications.html';
+            if (type === 'dm' && meta.from_id) link = 'dm.html?user=' + meta.from_id;
+            var toast = document.createElement('div');
+            toast.id = '8bfr-toast';
+            toast.style.cssText = 'position:fixed;top:58px;left:50%;transform:translateX(-50%);z-index:99999;background:rgba(12,6,24,.96);border:1px solid rgba(124,58,237,.6);border-radius:12px;padding:0.6rem 1rem;max-width:min(90vw,360px);cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.6);animation:toastSlide 0.3s ease;display:flex;gap:0.6rem;align-items:center;';
+            toast.innerHTML = '<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:0.82rem;color:#a855f7;">' + title + '</div>' + (body ? '<div style="font-size:0.78rem;color:rgba(234,230,255,.7);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + body.substring(0, 60) + '</div>' : '') + '</div><div style="color:rgba(234,230,255,.3);font-size:0.7rem;cursor:pointer;" onclick="event.stopPropagation();this.parentElement.remove();">X</div>';
+            toast.onclick = function() { toast.remove(); window.location.href = link; };
+            document.body.appendChild(toast);
+            setTimeout(function() { if (toast.parentElement) toast.remove(); }, 6000);
+          }
+
+          if (!document.getElementById('8bfr-toast-css')) {
+            var tcss = document.createElement('style');
+            tcss.id = '8bfr-toast-css';
+            tcss.textContent = '@keyframes toastSlide{from{opacity:0;transform:translateX(-50%) translateY(-20px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}';
+            document.head.appendChild(tcss);
+          }
+
           if (window.location.pathname.indexOf('notifications') === -1) {
             _db.channel('global-notif-bell').on('postgres_changes', {
               event: 'INSERT', schema: 'public', table: 'notifications', filter: 'recipient_id=eq.' + _uid
-            }, function() {
+            }, function(payload) {
               _db.from('notifications').select('*', { count: 'exact', head: true }).eq('recipient_id', _uid).eq('is_read', false).then(function(r2) {
                 setBellBadge(r2.count || 0);
               });
+              if (payload && payload.new) showToast(payload.new);
             }).subscribe();
           }
         });
