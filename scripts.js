@@ -232,7 +232,7 @@ body.menu-open #pageWrap{ margin-right:280px; }\
 @keyframes networkLabelAlt{ 0%,45%{opacity:0;} 55%,100%{opacity:1;} }\
 .menu-chip-ai{ background:linear-gradient(135deg,rgba(124,58,237,.4),rgba(0,217,255,.2)) !important; border-color:rgba(0,217,255,.6) !important; color:#00d9ff !important; font-weight:700 !important; }\
 .menu-chip-ai:hover{ background:linear-gradient(135deg,rgba(124,58,237,.6),rgba(0,217,255,.35)) !important; box-shadow:0 0 12px rgba(0,217,255,.4); }\
-#bubbleStack{ position:fixed; top:0; left:0; right:0; z-index:9989; display:flex; flex-direction:row; align-items:center; gap:4px; padding:6px 74px 6px 12px; background:rgba(10,2,26,.92); border-bottom:1px solid rgba(124,58,237,.4); backdrop-filter:blur(10px); overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch; }\
+#bubbleStack{ position:fixed; top:0; left:0; right:0; z-index:9989; display:flex; flex-direction:row; align-items:center; gap:4px; padding:6px 74px 6px 12px; background:rgba(10,2,26,.92); border-bottom:1px solid rgba(124,58,237,.4); backdrop-filter:blur(10px); overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch; flex-wrap:wrap; }\
 body{ padding-top:52px !important; }\
 #bubbleStack::-webkit-scrollbar{ display:none; }\
 .bubble-row{ display:flex; flex-direction:column; align-items:center; gap:1px; flex-shrink:0; }\
@@ -413,6 +413,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
   <div class="bubble-row"><button class="bubble" id="bubble-theme" title="Light / Dark"><span>&#x262F;&#xFE0F;</span></button><span class="bubble-label">Theme</span></div>\
   <div class="bubble-row"><button class="bubble" id="bubble-themes" title="Browse themes"><span>&#x1F3A8;</span></button><span class="bubble-label">Themes</span></div>\
   <div class="bubble-row"><button class="bubble" id="bubble-stream" title="Stream 8BFR"><span>&#x1F3A7;</span></button><span class="bubble-label">Stream</span></div>\
+  <div class="bubble-row"><button class="bubble" id="bubble-plato" title="Plato Games" onclick="window.open(\'https://platoapp.com/link/20dob1b3am35w\',\'_blank\',\'noopener\')"><span>&#x1F3AE;</span></button><span class="bubble-label">Plato</span></div>\
 </div>\
 <button class="bubble" id="bubble-top-single"><span>&#x2B06;&#xFE0F;</span></button>\
 ';
@@ -835,8 +836,8 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
       if (/landing\.html|signup\.html|login\.html/i.test(p)) return;
       var el = document.createElement('div');
       el.id = '_8bfr_copyright';
-      el.style.cssText = 'position:relative;text-align:center;padding:1.25rem 1rem 4rem;font-size:0.7rem;color:rgba(234,230,255,0.35);font-family:system-ui,sans-serif;letter-spacing:0.3px;line-height:1.5;';
-      el.innerHTML = '\u00A9 8BFR Music Network \u00B7 <a href="https://8bfr.com" style="color:rgba(168,85,247,0.6);text-decoration:none;">8bfr.com</a> \u00B7 James J. Siburt \u2014 Founder, CEO, CFO, Developer, Owner';
+      el.style.cssText = 'position:relative;text-align:center;padding:1.25rem 1rem 4rem;font-size:0.7rem;color:rgba(255,255,255,0.55);font-family:system-ui,sans-serif;letter-spacing:0.3px;line-height:1.5;';
+      el.innerHTML = '\u00A9 8BFR Music Network \u00B7 <a href="https://8bfr.com" style="color:rgba(255,255,255,0.7);text-decoration:none;">8bfr.com</a> \u00B7 <a href="https://platoapp.com/link/20dob1b3am35w" target="_blank" rel="noopener" style="color:rgba(255,255,255,0.7);text-decoration:none;">Plato Games</a> \u00B7 James J. Siburt \u2014 Founder, CEO, CFO, Developer, Owner';
       document.body.appendChild(el);
     } catch(e) {}
   }
