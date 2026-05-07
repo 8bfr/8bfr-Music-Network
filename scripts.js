@@ -372,6 +372,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
     <div class="menu-links">\
       <a href="owner-panel.html" class="menu-chip">&#x1F451; Owner Panel</a>\
       <a href="owner-discounts.html" class="menu-chip">&#x1F3F7; Discounts</a>\
+      <a href="page-editor.html" class="menu-chip">&#x1F4DD; Page Editor</a>\
       <a href="owner-studio.html" class="menu-chip">&#x1F3A8; Owner Studio</a>\
       <a href="owner-users.html" class="menu-chip">&#x1F465; Manage Users</a>\
       <a href="owner-verifications.html" class="menu-chip">&#x2705; Verifications</a>\
@@ -803,12 +804,45 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
 // ═══ AUTO-INJECT DESIGN SYSTEM STYLESHEET ═══
 (function() {
   try {
+    // Design system CSS
     if (!document.querySelector('link[href*="design-system.css"]')) {
       var l = document.createElement("link");
       l.rel = "stylesheet";
       l.href = "design-system.css";
       document.head.appendChild(l);
     }
+    // PWA manifest
+    if (!document.querySelector('link[rel="manifest"]')) {
+      var m = document.createElement("link");
+      m.rel = "manifest";
+      m.href = "manifest.json";
+      document.head.appendChild(m);
+    }
+    // Theme color meta
+    if (!document.querySelector('meta[name="theme-color"]')) {
+      var tc = document.createElement("meta");
+      tc.name = "theme-color";
+      tc.content = "#7c3aed";
+      document.head.appendChild(tc);
+    }
+    // Social share meta tags (og: tags)
+    if (!document.querySelector('meta[property="og:site_name"]')) {
+      var metas = [
+        {property:'og:site_name',content:'8BFR Music Network'},
+        {property:'og:type',content:'website'},
+        {property:'og:image',content:'https://8bfr.com/assets/images/favicon.png'},
+        {name:'twitter:card',content:'summary'},
+        {name:'twitter:site',content:'@8bfr_official'}
+      ];
+      metas.forEach(function(m) {
+        var tag = document.createElement("meta");
+        if (m.property) tag.setAttribute("property", m.property);
+        if (m.name) tag.name = m.name;
+        tag.content = m.content;
+        document.head.appendChild(tag);
+      });
+    }
+    // Apply saved theme
     var t = null;
     try { t = localStorage.getItem("8bfr-theme"); } catch(e){}
     if (t && t !== "dark" && t !== "default") {
