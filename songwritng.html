@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Songwriting Studio -- 8BFR</title>
+<link rel="icon" href="assets/images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--primary:#7c3aed;--card:#110827;--text:#f0ecff;--dim:rgba(255,255,255,.75);--border:rgba(124,58,237,.25);--cyan:#00d9ff;--green:#4ade80;--gold:#fbbf24;--danger:#ef4444;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Work Sans',sans-serif;background:linear-gradient(#080012,#020005);color:var(--text);min-height:100vh;}
+.hdr{background:rgba(8,0,18,.97);border-bottom:2px solid rgba(124,58,237,.6);padding:.75rem 1rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;backdrop-filter:blur(12px);}
+.hdr h1{font-family:'Bebas Neue',cursive;font-size:1.3rem;color:var(--primary);}
+.hdr a{color:var(--dim);text-decoration:none;font-weight:600;font-size:.82rem;}
+.main{display:flex;flex-direction:column;height:calc(100vh - 48px);}
+.toolbar{display:flex;gap:.3rem;padding:.5rem .75rem;background:rgba(8,0,18,.95);border-bottom:1px solid var(--border);flex-wrap:wrap;flex-shrink:0;}
+.tb{padding:.35rem .6rem;border-radius:8px;font-size:.7rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:rgba(124,58,237,.06);color:var(--dim);transition:all .12s;white-space:nowrap;}
+.tb:hover{border-color:var(--primary);background:rgba(124,58,237,.15);}
+.tb.active{background:rgba(124,58,237,.2);border-color:var(--primary);color:var(--text);}
+.tb-sep{width:1px;background:var(--border);margin:0 .15rem;}
+.editor-area{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative;}
+.pad{width:100%;flex:1;background:transparent;border:none;color:var(--text);font-family:'Work Sans',monospace;font-size:.9rem;line-height:1.8;padding:1rem;resize:none;outline:none;overflow-y:auto;}
+.pad::placeholder{color:rgba(255,255,255,.25);}
+.status-bar{display:flex;justify-content:space-between;padding:.3rem .75rem;background:rgba(8,0,18,.95);border-top:1px solid var(--border);font-size:.65rem;color:var(--dim);flex-shrink:0;}
+.panel{position:fixed;bottom:0;left:0;right:0;background:rgba(8,0,18,.98);border-top:2px solid var(--border);max-height:50vh;overflow-y:auto;z-index:90;display:none;padding:1rem;backdrop-filter:blur(16px);}
+.panel.show{display:block;}
+.panel h3{font-family:'Bebas Neue',cursive;font-size:1rem;color:var(--primary);margin-bottom:.5rem;display:flex;justify-content:space-between;align-items:center;}
+.panel-close{background:none;border:none;color:var(--dim);font-size:1rem;cursor:pointer;padding:.2rem .5rem;}
+.fg{margin-bottom:.5rem;}
+.fg label{display:block;font-size:.72rem;color:var(--dim);margin-bottom:.15rem;font-weight:600;}
+.fi{width:100%;padding:.4rem .6rem;background:rgba(124,58,237,.06);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.82rem;outline:none;font-family:inherit;}
+.btn{padding:.45rem .8rem;border-radius:8px;font-weight:700;font-size:.78rem;cursor:pointer;border:none;color:#fff;transition:all .15s;}
+.btn-p{background:var(--primary);}
+.btn-g{background:var(--green);color:#000;}
+.btn-c{background:var(--cyan);color:#000;}
+.result-box{background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:8px;padding:.6rem;margin-top:.4rem;font-size:.82rem;line-height:1.6;white-space:pre-wrap;max-height:200px;overflow-y:auto;}
+.template-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:.4rem;}
+.template-card{background:rgba(124,58,237,.06);border:1px solid var(--border);border-radius:8px;padding:.5rem;cursor:pointer;text-align:center;transition:all .15s;}
+.template-card:hover{border-color:var(--primary);background:rgba(124,58,237,.12);}
+.template-card .t-name{font-weight:700;font-size:.8rem;margin-bottom:.1rem;}
+.template-card .t-desc{font-size:.6rem;color:var(--dim);}
+.rhyme-results{display:flex;flex-wrap:wrap;gap:.25rem;margin-top:.3rem;}
+.rhyme-word{padding:.2rem .45rem;border-radius:6px;font-size:.72rem;background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.2);cursor:pointer;color:var(--text);}
+.rhyme-word:hover{background:rgba(124,58,237,.25);}
+.syl-line{display:flex;justify-content:space-between;padding:.2rem .4rem;border-bottom:1px solid rgba(124,58,237,.08);font-size:.78rem;}
+.syl-count{font-weight:700;color:var(--cyan);min-width:30px;text-align:right;}
+.syl-mismatch{color:var(--danger);}
+.saved-list{max-height:200px;overflow-y:auto;}
+.saved-row{display:flex;justify-content:space-between;align-items:center;padding:.35rem .5rem;border-bottom:1px solid rgba(124,58,237,.08);cursor:pointer;}
+.saved-row:hover{background:rgba(124,58,237,.06);}
+.saved-name{font-weight:600;font-size:.82rem;}
+.saved-date{font-size:.65rem;color:var(--dim);}
+</style>
+</head>
+<body>
+<div class="hdr">
+<a href="owner-studio.html">&larr; Studio</a>
+<h1>Songwriting Studio</h1>
+<a href="#" onclick="openPanel('saved')">My Songs</a>
+</div>
+<div class="main">
+<div class="toolbar">
+<div class="tb" onclick="openPanel('templates')">Templates</div>
+<div class="tb-sep"></div>
+<div class="tb" onclick="openPanel('rhyme')">Rhyme</div>
+<div class="tb" onclick="openPanel('syllable')">Syllables</div>
+<div class="tb" onclick="openPanel('align')">Align</div>
+<div class="tb-sep"></div>
+<div class="tb" onclick="openPanel('ai-rewrite')">AI Rewrite</div>
+<div class="tb" onclick="openPanel('ai-extend')">AI Extend</div>
+<div class="tb" onclick="openPanel('ai-hook')">AI Hook</div>
+<div class="tb-sep"></div>
+<div class="tb" onclick="saveSong()">Save</div>
+<div class="tb" onclick="exportTxt()">Export</div>
+</div>
+<div class="editor-area">
+<textarea class="pad" id="pad" placeholder="Start writing your lyrics here...
+
+Use templates to get started, or just type freely.
+The toolbar above gives you rhyme suggestions, syllable counting, and AI tools without leaving this page."></textarea>
+</div>
+<div class="status-bar">
+<span id="lineCount">0 lines</span>
+<span id="wordCount">0 words</span>
+<span id="charCount">0 chars</span>
+<span id="songTitle" style="cursor:pointer;" onclick="renameSong()">Untitled</span>
+</div>
+</div>
+
+<!-- PANELS -->
+<div class="panel" id="panel-templates">
+<h3>Song Templates <button class="panel-close" onclick="closePanel()">&times;</button></h3>
+<div class="template-grid">
+<div class="template-card" onclick="loadTemplate('verse-chorus')"><div class="t-name">Verse-Chorus</div><div class="t-desc">Standard pop/hip-hop</div></div>
+<div class="template-card" onclick="loadTemplate('verse-hook')"><div class="t-name">Verse-Hook</div><div class="t-desc">Hip-hop with hook</div></div>
+<div class="template-card" onclick="loadTemplate('aaba')"><div class="t-name">AABA</div><div class="t-desc">Classic 32-bar</div></div>
+<div class="template-card" onclick="loadTemplate('freestyle')"><div class="t-name">Freestyle</div><div class="t-desc">16 bars open</div></div>
+<div class="template-card" onclick="loadTemplate('storytelling')"><div class="t-name">Storytelling</div><div class="t-desc">3 verses + outro</div></div>
+<div class="template-card" onclick="loadTemplate('battle')"><div class="t-name">Battle Rap</div><div class="t-desc">3 rounds, 16 bars</div></div>
+<div class="template-card" onclick="loadTemplate('ballad')"><div class="t-name">Ballad</div><div class="t-desc">Verse-Pre-Chorus</div></div>
+<div class="template-card" onclick="loadTemplate('collab')"><div class="t-name">Collab</div><div class="t-desc">2 artists + hook</div></div>
+</div>
+</div>
+
+<div class="panel" id="panel-rhyme">
+<h3>Rhyme Finder <button class="panel-close" onclick="closePanel()">&times;</button></h3>
+<div class="fg"><label>Enter a word</label>
+<div style="display:flex;gap:.3rem;"><input class="fi" id="rhymeWord" placeholder="e.g. flow" onkeydown="if(event.key==='Enter')findRhymes()"><button class="btn btn-p" onclick="findRhymes()">Find</button></div></div>
+<div class="fg"><label>Or tap: auto-rhyme last word of current line</label>
+<button class="btn btn-c" onclick="autoRhyme()">Auto-Rhyme Current Line</button></div>
+<div id="rhymeResults"></div>
+</div>
+
+<div class="panel" id="panel-syllable">
+<h3>Syllable Counter <button class="panel-close" onclick="closePanel()">&times;</button></h3>
+<div id="sylResults"></div>
+<div class="fg" style="margin-top:.5rem;">
+<button class="btn btn-p" onclick="countSyllables()">Analyze Lyrics</button>
+</div>
+</div>
+
+<div class="panel" id="panel-align">
+<h3>Syllable Aligner <button class="panel-close" onclick="closePanel()">&times;</button></h3>
+<div class="fg"><label>Target syllables per line</label>
+<div style="display:flex;gap:.3rem;align-items:center;">
+<input class="fi" id="alignTarget" type="number" value="8" style="width:80px;">
+<button class="btn btn-p" onclick="alignSyllables()">AI Align</button>
+</div></div>
+<div class="fg"><label style="color:var(--gold);">AI will rewrite each line to match the target syllable count while keeping the meaning.</label></div>
+<div id="alignResults"></div>
+</div>
+
+<div class="panel" id="panel-ai-rewrite">
+<h3>AI Rewrite <button class="panel-close" onclick="closePanel()">&times;</button></h3>
+<div class="fg"><label>Select text in the pad, then choose a style:</label></div>
+<div style="display:flex;flex-wrap:wrap;gap:.3rem;">
+<button class="btn btn-p" onclick="aiRewrite('more poetic')">More Poetic</button>
+<button class="btn btn-p" onclick="aiRewrite('more aggressive')">More Aggressive</button>
+<button class="btn btn-p" onclick="aiRewrite('simpler words')">Simpler</button>
+<button class="btn btn-p" onclick="aiRewrite('more emotional')">More Emotional</button>
+<button class="btn btn-p" onclick="aiRewrite('double time flow')">Double Time</button>
+<button class="btn btn-p" onclick="aiRewrite('add internal rhymes')">Add Internal Rhymes</button>
+</div>
+<div id="rewriteResults"></div>
+</div>
+
+<div class="panel" id="panel-ai-extend">
+<h3>AI Extend <button class="panel-close" onclick="closePanel()">&times;</button></h3>
+<div class="fg"><label>AI writes the next 4-8 lines continuing your lyrics</label></div>
+<div style="display:flex;gap:.3rem;">
+<button class="btn btn-g" onclick="aiExtend(4)">+4 Lines</button>
+<button class="btn btn-g" onclick="aiExtend(8)">+8 Lines</button>
+<button class="btn btn-g" onclick="aiExtend(16)">+16 Lines</button>
+</div>
+<div id="extendResults"></div>
+</div>
+
+<div class="panel" id="panel-ai-hook">
+<h3>AI Hook/Chorus <button class="panel-close" onclick="closePanel()">&times;</button></h3>
+<div class="fg"><label>Style</label>
+<select class="fi" id="hookStyle2">
+<option value="catchy">Catchy / Radio</option>
+<option value="melodic">Melodic / Sung</option>
+<option value="chant">Chant / Anthem</option>
+<option value="minimal">Minimal / Repeated</option>
+</select></div>
+<button class="btn btn-g" onclick="aiHook()">Generate Hook</button>
+<div id="hookResults"></div>
+</div>
+
+<div class="panel" id="panel-saved">
+<h3>My Songs <button class="panel-close" onclick="closePanel()">&times;</button></h3>
+<div class="saved-list" id="savedList"></div>
+</div>
+
+<script src="scripts.js" defer></script>
+<script>
+var API_URL='https://8bfr-api.vercel.app/api/openai';
+var pad=document.getElementById('pad');
+var currentTitle='Untitled';
+var SONGS_KEY='8bfr-songwriting-songs';
+
+pad.addEventListener('input',updateCounts);
+updateCounts();
+
+function updateCounts(){
+var text=pad.value;
+var lines=text.split('\n').filter(function(l){return l.trim();}).length;
+var words=text.trim()?text.trim().split(/\s+/).length:0;
+document.getElementById('lineCount').textContent=lines+' lines';
+document.getElementById('wordCount').textContent=words+' words';
+document.getElementById('charCount').textContent=text.length+' chars';
+}
+
+function openPanel(id){
+document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('show');});
+var el=document.getElementById('panel-'+id);
+if(el){el.classList.add('show');if(id==='syllable')countSyllables();if(id==='saved')loadSaved();}
+}
+function closePanel(){document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('show');});}
+
+// TEMPLATES
+var TEMPLATES={
+'verse-chorus':'[Intro]\n\n\n[Verse 1]\n\n\n\n\n\n\n\n\n[Chorus]\n\n\n\n\n\n[Verse 2]\n\n\n\n\n\n\n\n\n[Chorus]\n\n\n\n\n\n[Bridge]\n\n\n\n\n[Chorus]\n\n\n\n\n\n[Outro]\n',
+'verse-hook':'[Intro]\n\n\n[Hook]\n\n\n\n\n[Verse 1]\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n[Hook]\n\n\n\n\n[Verse 2]\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n[Hook]\n\n\n\n\n[Verse 3]\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n[Hook]\n',
+'aaba':'[A Section]\n\n\n\n\n\n\n\n\n[A Section (repeat)]\n\n\n\n\n\n\n\n\n[B Section (Bridge)]\n\n\n\n\n\n\n\n\n[A Section (final)]\n\n\n\n\n\n\n\n',
+'freestyle':'[Freestyle - 16 Bars]\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n',
+'storytelling':'[Verse 1 - Setup]\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n[Verse 2 - Conflict]\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n[Verse 3 - Resolution]\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n[Outro]\n',
+'battle':'[Round 1 - 16 Bars]\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n[Round 2 - 16 Bars]\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n[Round 3 - 16 Bars]\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n',
+'ballad':'[Verse 1]\n\n\n\n\n\n\n\n\n[Pre-Chorus]\n\n\n\n\n[Chorus]\n\n\n\n\n\n[Verse 2]\n\n\n\n\n\n\n\n\n[Pre-Chorus]\n\n\n\n\n[Chorus]\n\n\n\n\n\n[Bridge]\n\n\n\n\n[Chorus]\n',
+'collab':'[Intro]\n\n\n[Hook]\n\n\n\n\n[Verse 1 - Artist 1]\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n[Hook]\n\n\n\n\n[Verse 2 - Artist 2]\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n[Hook]\n\n\n\n\n[Outro]\n'
+};
+
+function loadTemplate(name){
+if(pad.value.trim()&&!confirm('Replace current lyrics with template?'))return;
+pad.value=TEMPLATES[name]||'';
+updateCounts();closePanel();
+}
+
+// SYLLABLE COUNTER
+function countSyl(word){
+word=word.toLowerCase().replace(/[^a-z]/g,'');
+if(!word)return 0;
+if(word.length<=3)return 1;
+word=word.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/,'');
+word=word.replace(/^y/,'');
+var m=word.match(/[aeiouy]{1,2}/g);
+return m?m.length:1;
+}
+
+function countSyllables(){
+var lines=pad.value.split('\n');
+var el=document.getElementById('sylResults');
+var html='';var counts=[];
+lines.forEach(function(line){
+if(!line.trim()||line.trim().startsWith('[')){return;}
+var words=line.trim().split(/\s+/);
+var total=0;words.forEach(function(w){total+=countSyl(w);});
+counts.push(total);
+html+='<div class="syl-line"><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+line.trim().substring(0,50)+'</span><span class="syl-count">'+total+'</span></div>';
+});
+if(counts.length>1){
+var avg=Math.round(counts.reduce(function(a,b){return a+b;},0)/counts.length);
+var min=Math.min.apply(null,counts);
+var max=Math.max.apply(null,counts);
+html='<div style="font-size:.72rem;color:var(--gold);margin-bottom:.4rem;">Avg: '+avg+' | Range: '+min+'-'+max+' syllables per line</div>'+html;
+}
+el.innerHTML=html||'<div style="color:var(--dim);font-size:.8rem;">Write some lyrics first.</div>';
+}
+
+// RHYME FINDER
+async function findRhymes(){
+var word=document.getElementById('rhymeWord').value.trim();
+if(!word){alert('Enter a word.');return;}
+var el=document.getElementById('rhymeResults');
+el.innerHTML='<div style="color:var(--dim);font-size:.78rem;">Finding rhymes...</div>';
+try{
+var res=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({input:'List 30 words that rhyme with "'+word+'". Include perfect rhymes, near rhymes, and slant rhymes. Return ONLY the words separated by commas, nothing else.',tier:'nano',max_tokens:200})});
+var data=await res.json();
+if(data.text){
+var words=data.text.split(/[,\n]+/).map(function(w){return w.trim();}).filter(function(w){return w&&w.length<20;});
+el.innerHTML='<div class="rhyme-results">'+words.map(function(w){return '<span class="rhyme-word" onclick="insertWord(\''+w+'\')">'+w+'</span>';}).join('')+'</div>';
+}
+}catch(e){el.innerHTML='<div style="color:var(--danger);font-size:.78rem;">Error: '+e.message+'</div>';}
+}
+
+function autoRhyme(){
+var text=pad.value;var pos=pad.selectionStart;
+var before=text.substring(0,pos);var lastLine=before.split('\n').pop().trim();
+var lastWord=lastLine.split(/\s+/).pop().replace(/[^a-zA-Z]/g,'');
+if(lastWord){document.getElementById('rhymeWord').value=lastWord;findRhymes();}
+else{alert('Place cursor at end of a line with words.');}
+}
+
+function insertWord(word){
+var pos=pad.selectionStart;
+pad.value=pad.value.substring(0,pos)+word+pad.value.substring(pos);
+pad.selectionStart=pad.selectionEnd=pos+word.length;
+pad.focus();updateCounts();
+}
+
+// AI TOOLS
+async function aiRewrite(style){
+var text=pad.value.substring(pad.selectionStart,pad.selectionEnd);
+if(!text.trim()){text=getCurrentVerse();if(!text){alert('Select text or write a verse first.');return;}}
+var el=document.getElementById('rewriteResults');
+el.innerHTML='<div style="color:var(--dim);font-size:.78rem;">Rewriting...</div>';
+try{
+var res=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({input:'Rewrite these lyrics to be '+style+'. Keep the same meaning and approximately the same number of lines. Return ONLY the rewritten lyrics:\n\n'+text,tier:'nano',max_tokens:500})});
+var data=await res.json();
+el.innerHTML='<div class="result-box">'+escHtml(data.text||'No result')+'</div><button class="btn btn-g" style="margin-top:.3rem;" onclick="replaceSelection(this)">Replace in Pad</button>';
+el._result=data.text;
+}catch(e){el.innerHTML='<div style="color:var(--danger);">Error</div>';}
+}
+
+async function aiExtend(lines){
+var text=pad.value.trim();
+if(!text){alert('Write some lyrics first.');return;}
+var last=text.split('\n').slice(-8).join('\n');
+var el=document.getElementById('extendResults');
+el.innerHTML='<div style="color:var(--dim);font-size:.78rem;">Generating...</div>';
+try{
+var res=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({input:'Continue these lyrics with '+lines+' more lines. Match the rhyme scheme, flow, and theme. Return ONLY the new lines:\n\n'+last,tier:'nano',max_tokens:400})});
+var data=await res.json();
+el.innerHTML='<div class="result-box">'+escHtml(data.text||'')+'</div><button class="btn btn-g" style="margin-top:.3rem;" onclick="appendToPad()">Add to Pad</button>';
+el._result=data.text;
+}catch(e){el.innerHTML='<div style="color:var(--danger);">Error</div>';}
+}
+
+async function aiHook(){
+var text=pad.value.trim();
+if(!text){alert('Write a verse first.');return;}
+var style=document.getElementById('hookStyle2').value;
+var el=document.getElementById('hookResults');
+el.innerHTML='<div style="color:var(--dim);font-size:.78rem;">Creating hook...</div>';
+try{
+var res=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({input:'Based on this verse, write 3 '+style+' hook/chorus options (4-6 lines each). Label them Option 1, 2, 3. Return ONLY the hooks:\n\n'+text.substring(0,500),tier:'mini',max_tokens:600})});
+var data=await res.json();
+el.innerHTML='<div class="result-box">'+escHtml(data.text||'')+'</div><button class="btn btn-g" style="margin-top:.3rem;" onclick="appendToPad()">Add to Pad</button>';
+el._result=data.text;
+}catch(e){el.innerHTML='<div style="color:var(--danger);">Error</div>';}
+}
+
+async function alignSyllables(){
+var target=parseInt(document.getElementById('alignTarget').value)||8;
+var text=pad.value.trim();
+if(!text){alert('Write lyrics first.');return;}
+var el=document.getElementById('alignResults');
+el.innerHTML='<div style="color:var(--dim);font-size:.78rem;">Aligning syllables...</div>';
+try{
+var res=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({input:'Rewrite each line of these lyrics so every line has exactly '+target+' syllables. Keep the meaning and rhyme scheme. Mark syllable count in parentheses after each line. Return ONLY the rewritten lyrics:\n\n'+text,tier:'full',max_tokens:1000})});
+var data=await res.json();
+el.innerHTML='<div class="result-box">'+escHtml(data.text||'')+'</div><button class="btn btn-g" style="margin-top:.3rem;" onclick="replaceAll()">Replace All</button>';
+el._result=data.text;
+}catch(e){el.innerHTML='<div style="color:var(--danger);">Error</div>';}
+}
+
+function replaceSelection(btn){
+var panel=btn.closest('.panel');
+var result=panel?document.getElementById(panel.id.replace('panel-','')+'Results'):null;
+if(result&&result._result){
+var s=pad.selectionStart,e=pad.selectionEnd;
+if(s===e){pad.value=result._result;}
+else{pad.value=pad.value.substring(0,s)+result._result+pad.value.substring(e);}
+updateCounts();closePanel();
+}}
+
+function replaceAll(){
+var panels=document.querySelectorAll('.panel.show');
+panels.forEach(function(p){
+var id=p.id.replace('panel-','');
+var el=document.getElementById(id+'Results')||document.getElementById('alignResults');
+if(el&&el._result){
+var clean=el._result.replace(/\(\d+\s*syl(?:lables?)?\)/gi,'').trim();
+pad.value=clean;updateCounts();
+}});closePanel();
+}
+
+function appendToPad(){
+var panels=document.querySelectorAll('.panel.show');
+panels.forEach(function(p){
+var id=p.id.replace('panel-','');
+var els=['extendResults','hookResults','rewriteResults','alignResults'];
+for(var i=0;i<els.length;i++){
+var el=document.getElementById(els[i]);
+if(el&&el._result){
+pad.value+='\n\n'+el._result;
+updateCounts();closePanel();return;
+}}});
+}
+
+function getCurrentVerse(){
+var text=pad.value;var lines=text.split('\n');
+var verse=[];var inVerse=false;
+for(var i=lines.length-1;i>=0;i--){
+if(lines[i].trim().startsWith('[')){break;}
+if(lines[i].trim())verse.unshift(lines[i]);
+}
+return verse.join('\n');
+}
+
+// SAVE/LOAD
+function saveSong(){
+var songs=JSON.parse(localStorage.getItem(SONGS_KEY)||'[]');
+var exists=songs.findIndex(function(s){return s.title===currentTitle;});
+var entry={title:currentTitle,text:pad.value,saved:new Date().toISOString()};
+if(exists>=0)songs[exists]=entry;else songs.unshift(entry);
+if(songs.length>50)songs=songs.slice(0,50);
+localStorage.setItem(SONGS_KEY,JSON.stringify(songs));
+alert('Saved: '+currentTitle);
+}
+
+function loadSaved(){
+var songs=JSON.parse(localStorage.getItem(SONGS_KEY)||'[]');
+var el=document.getElementById('savedList');
+if(!songs.length){el.innerHTML='<div style="color:var(--dim);font-size:.8rem;padding:1rem;text-align:center;">No saved songs yet. Write and save!</div>';return;}
+el.innerHTML=songs.map(function(s,i){
+return '<div class="saved-row" onclick="loadSong('+i+')"><div><div class="saved-name">'+escHtml(s.title)+'</div><div class="saved-date">'+new Date(s.saved).toLocaleDateString()+'</div></div><button class="btn" style="background:var(--danger);padding:.2rem .5rem;font-size:.65rem;" onclick="event.stopPropagation();deleteSong('+i+')">Del</button></div>';
+}).join('');
+}
+
+function loadSong(i){
+var songs=JSON.parse(localStorage.getItem(SONGS_KEY)||'[]');
+if(songs[i]){
+currentTitle=songs[i].title;
+pad.value=songs[i].text;
+document.getElementById('songTitle').textContent=currentTitle;
+updateCounts();closePanel();
+}}
+
+function deleteSong(i){
+if(!confirm('Delete this song?'))return;
+var songs=JSON.parse(localStorage.getItem(SONGS_KEY)||'[]');
+songs.splice(i,1);
+localStorage.setItem(SONGS_KEY,JSON.stringify(songs));
+loadSaved();
+}
+
+function renameSong(){
+var name=prompt('Song title:',currentTitle);
+if(name&&name.trim()){currentTitle=name.trim();document.getElementById('songTitle').textContent=currentTitle;}
+}
+
+function exportTxt(){
+var blob=new Blob([pad.value],{type:'text/plain'});
+var url=URL.createObjectURL(blob);
+var a=document.createElement('a');a.href=url;a.download=(currentTitle||'lyrics')+'.txt';
+document.body.appendChild(a);a.click();document.body.removeChild(a);
+URL.revokeObjectURL(url);
+}
+
+function escHtml(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+</script>
+</body>
+</html>
