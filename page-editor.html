@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Page Editor -- 8BFR</title>
+<link rel="icon" href="assets/images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--primary:#7c3aed;--card:#110827;--text:#f0ecff;--dim:rgba(255,255,255,.75);--border:rgba(124,58,237,.25);--green:#4ade80;--danger:#ef4444;--gold:#fbbf24;--cyan:#00d9ff;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Work Sans',sans-serif;background:#080012;color:var(--text);height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden;}
+.hdr{background:rgba(8,0,18,.97);border-bottom:2px solid rgba(124,58,237,.6);padding:.5rem .75rem;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
+.hdr h1{font-family:'Bebas Neue',cursive;font-size:1.2rem;color:var(--primary);}
+.hdr a{color:var(--dim);text-decoration:none;font-weight:600;font-size:.78rem;}
+.tabs{display:flex;background:rgba(0,0,0,.3);flex-shrink:0;}
+.tab{flex:1;text-align:center;padding:.4rem;font-weight:700;font-size:.75rem;cursor:pointer;color:var(--dim);border-bottom:2px solid transparent;background:none;border-top:none;border-left:none;border-right:none;}
+.tab.active{color:var(--primary);border-bottom-color:var(--primary);}
+.actions{display:flex;gap:.2rem;padding:.3rem .4rem;background:rgba(0,0,0,.2);flex-shrink:0;flex-wrap:wrap;}
+.ab{padding:.25rem .45rem;border-radius:6px;font-size:.62rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:rgba(124,58,237,.04);color:var(--dim);}
+.ab:active{background:rgba(124,58,237,.2);}
+.ab.g{border-color:rgba(74,222,128,.3);color:var(--green);}
+.ab.y{border-color:rgba(251,191,36,.3);color:var(--gold);}
+.ab.c{border-color:rgba(0,217,255,.3);color:var(--cyan);}
+.view{flex:1;overflow:hidden;position:relative;}
+#codeWrap{width:100%;height:100%;display:flex;flex-direction:column;}
+#codeEditor{flex:1;width:100%;background:transparent;color:#e8d5ff;font-family:Consolas,'Courier New',monospace;font-size:.82rem;line-height:1.7;padding:.6rem;border:none;outline:none;resize:none;tab-size:2;-webkit-text-size-adjust:none;}
+#previewWrap{width:100%;height:100%;display:none;}
+#previewFrame{width:100%;height:100%;border:none;background:#fff;}
+.bar{display:flex;justify-content:space-between;padding:.2rem .5rem;background:rgba(0,0,0,.4);font-size:.58rem;color:var(--dim);flex-shrink:0;}
+.panel{position:fixed;bottom:0;left:0;right:0;background:rgba(8,0,18,.98);border-top:2px solid var(--border);max-height:60vh;overflow-y:auto;z-index:90;display:none;padding:.75rem;backdrop-filter:blur(12px);}
+.panel.show{display:block;}
+.panel h3{font-family:'Bebas Neue',cursive;font-size:.95rem;color:var(--primary);margin-bottom:.4rem;display:flex;justify-content:space-between;}
+.pc{background:none;border:none;color:var(--dim);font-size:1rem;cursor:pointer;}
+.fg{margin-bottom:.4rem;}
+.fg label{display:block;font-size:.68rem;color:var(--dim);margin-bottom:.1rem;font-weight:600;}
+.fi{width:100%;padding:.35rem .5rem;background:rgba(124,58,237,.06);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem;outline:none;font-family:inherit;}
+textarea.fi{resize:vertical;}
+.btn{padding:.4rem .7rem;border-radius:8px;font-weight:700;font-size:.75rem;cursor:pointer;border:none;color:#fff;}
+.btn-p{background:var(--primary);}
+.btn-g{background:var(--green);color:#000;}
+.sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:.25rem;margin-top:.3rem;}
+.sn{padding:.35rem .3rem;border-radius:6px;font-size:.65rem;cursor:pointer;border:1px solid var(--border);background:rgba(124,58,237,.04);color:var(--dim);text-align:center;}
+.sn:active{background:rgba(124,58,237,.15);}
+.prow{display:flex;justify-content:space-between;align-items:center;padding:.4rem .3rem;border-bottom:1px solid rgba(124,58,237,.08);cursor:pointer;}
+.prow:active{background:rgba(124,58,237,.06);}
+</style>
+</head>
+<body>
+<div class="hdr">
+<a href="owner-panel.html">Back</a>
+<h1>Page Editor</h1>
+<span id="fileName" style="font-size:.65rem;color:var(--dim);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" onclick="renamePage()">untitled.html</span>
+</div>
+<div class="tabs">
+<button class="tab active" onclick="showTab('code',this)">Code</button>
+<button class="tab" onclick="showTab('preview',this)">Preview</button>
+</div>
+<div class="actions">
+<div class="ab g" onclick="savePage()">Save</div>
+<div class="ab" onclick="openP('pages')">Open</div>
+<div class="ab" onclick="newPage()">New</div>
+<div class="ab c" onclick="openP('snippets')">Snippets</div>
+<div class="ab y" onclick="openP('ai')">AI Write</div>
+<div class="ab" onclick="openP('publish')">Publish</div>
+<div class="ab" onclick="undoAction()">Undo</div>
+</div>
+<div class="view">
+<div id="codeWrap"><textarea id="codeEditor" spellcheck="false"></textarea></div>
+<div id="previewWrap"><iframe id="previewFrame" sandbox="allow-scripts allow-same-origin"></iframe></div>
+</div>
+<div class="bar">
+<span id="lineInfo">0 lines</span>
+<span id="sizeInfo">0 KB</span>
+</div>
+
+<!-- PANELS -->
+<div class="panel" id="p-snippets">
+<h3>Snippets <button class="pc" onclick="closeP()">X</button></h3>
+<div class="sgrid">
+<div class="sn" onclick="ins('page')">Full Page</div>
+<div class="sn" onclick="ins('card')">Card</div>
+<div class="sn" onclick="ins('hero')">Hero</div>
+<div class="sn" onclick="ins('grid')">Grid</div>
+<div class="sn" onclick="ins('nav')">Nav Bar</div>
+<div class="sn" onclick="ins('form')">Form</div>
+<div class="sn" onclick="ins('button')">Buttons</div>
+<div class="sn" onclick="ins('table')">Table</div>
+<div class="sn" onclick="ins('modal')">Modal</div>
+<div class="sn" onclick="ins('supabase')">Supabase</div>
+<div class="sn" onclick="ins('auth')">Auth Check</div>
+<div class="sn" onclick="ins('fetch')">Fetch Data</div>
+</div>
+</div>
+
+<div class="panel" id="p-pages">
+<h3>Saved Pages <button class="pc" onclick="closeP()">X</button></h3>
+<div id="pageList"></div>
+</div>
+
+<div class="panel" id="p-ai">
+<h3>AI Page Writer <button class="pc" onclick="closeP()">X</button></h3>
+<div class="fg"><label>Describe what you want</label>
+<textarea class="fi" id="aiInput" rows="3" placeholder="e.g. A fan signup page with email field, dark purple 8BFR theme, animated background"></textarea></div>
+<div style="display:flex;gap:.3rem;">
+<button class="btn btn-g" onclick="aiWrite()">Generate</button>
+<button class="btn btn-p" onclick="aiEdit()">Edit Current</button>
+</div>
+<div id="aiMsg" style="font-size:.72rem;color:var(--dim);margin-top:.3rem;"></div>
+</div>
+
+<div class="panel" id="p-publish">
+<h3>Publish <button class="pc" onclick="closeP()">X</button></h3>
+<div class="fg"><label>Filename</label>
+<input class="fi" id="pubName" placeholder="my-page.html"></div>
+<div style="display:flex;gap:.3rem;">
+<button class="btn btn-g" onclick="downloadHTML()">Download</button>
+<button class="btn btn-p" onclick="saveToStorage()">Save to Supabase</button>
+</div>
+<div id="pubMsg" style="font-size:.72rem;color:var(--dim);margin-top:.3rem;"></div>
+</div>
+
+<script>
+var db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f');
+var OWNER_ID='cb556180-f032-4b21-9470-1d786f2664ab';
+var ed=document.getElementById('codeEditor');
+var curFile='untitled.html';
+var PK='8bfr-editor-pages';
+var history=[];
+
+(async function(){
+var s=await db.auth.getSession();
+if(!s.data.session||s.data.session.user.id!==OWNER_ID){
+document.body.innerHTML='<div style="text-align:center;padding:3rem;color:var(--dim);font-size:.9rem;">Owner access only. <a href="index.html" style="color:var(--primary);">Home</a></div>';
+}
+})();
+
+ed.value=defaultPage();
+updateInfo();
+
+ed.addEventListener('input',updateInfo);
+ed.addEventListener('keydown',function(e){
+if(e.key==='Tab'){e.preventDefault();var s=this.selectionStart;this.value=this.value.substring(0,s)+'  '+this.value.substring(this.selectionEnd);this.selectionStart=this.selectionEnd=s+2;}
+});
+
+function showTab(t,btn){
+document.querySelectorAll('.tab').forEach(function(b){b.classList.remove('active');});
+btn.classList.add('active');
+if(t==='code'){document.getElementById('codeWrap').style.display='flex';document.getElementById('previewWrap').style.display='none';}
+else{document.getElementById('codeWrap').style.display='none';document.getElementById('previewWrap').style.display='block';document.getElementById('previewFrame').srcdoc=ed.value;}
+}
+
+function updateInfo(){
+var l=ed.value.split('\n').length;
+document.getElementById('lineInfo').textContent=l+' lines';
+document.getElementById('sizeInfo').textContent=(ed.value.length/1024).toFixed(1)+' KB';
+}
+
+function openP(id){document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('show');});document.getElementById('p-'+id).classList.add('show');if(id==='pages')loadPages();if(id==='publish')document.getElementById('pubName').value=curFile;}
+function closeP(){document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('show');});}
+
+function renamePage(){var n=prompt('Page name:',curFile);if(n&&n.trim()){curFile=n.trim();document.getElementById('fileName').textContent=curFile;}}
+
+function newPage(){
+if(ed.value.trim()&&!confirm('Discard current page?'))return;
+curFile='untitled.html';ed.value=defaultPage();
+document.getElementById('fileName').textContent=curFile;
+updateInfo();
+}
+
+function undoAction(){if(history.length){ed.value=history.pop();updateInfo();}}
+
+function savePage(){
+history.push(ed.value);
+var p=JSON.parse(localStorage.getItem(PK)||'{}');
+p[curFile]={html:ed.value,saved:new Date().toISOString()};
+localStorage.setItem(PK,JSON.stringify(p));
+document.getElementById('lineInfo').textContent='Saved!';
+setTimeout(updateInfo,1500);
+}
+
+function loadPages(){
+var p=JSON.parse(localStorage.getItem(PK)||'{}');
+var el=document.getElementById('pageList');
+var k=Object.keys(p);
+if(!k.length){el.innerHTML='<div style="color:var(--dim);padding:1rem;text-align:center;font-size:.78rem;">No saved pages.</div>';return;}
+el.innerHTML=k.map(function(n){
+return '<div class="prow" onclick="loadP(\''+n.replace(/'/g,'')+'\')"><div><div style="font-weight:600;font-size:.8rem;">'+n+'</div><div style="font-size:.6rem;color:var(--dim);">'+new Date(p[n].saved).toLocaleDateString()+'</div></div><div class="ab" style="color:var(--danger);border-color:rgba(239,68,68,.3);" onclick="event.stopPropagation();delP(\''+n.replace(/'/g,'')+'\')">Del</div></div>';
+}).join('');
+}
+
+window.loadP=function(n){
+var p=JSON.parse(localStorage.getItem(PK)||'{}');
+if(p[n]){history.push(ed.value);curFile=n;ed.value=p[n].html;document.getElementById('fileName').textContent=curFile;updateInfo();closeP();}
+};
+
+window.delP=function(n){
+if(!confirm('Delete '+n+'?'))return;
+var p=JSON.parse(localStorage.getItem(PK)||'{}');delete p[n];
+localStorage.setItem(PK,JSON.stringify(p));loadPages();
+};
+
+// SNIPPETS
+var SNIPS={
+page:'<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width,initial-scale=1">\n<title>Page Title -- 8BFR</title>\n<link rel="icon" href="assets/images/favicon.png">\n<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">\n<style>\n:root{--primary:#7c3aed;--card:#110827;--text:#f0ecff;--dim:rgba(255,255,255,.75);--border:rgba(124,58,237,.25);}\n*{margin:0;padding:0;box-sizing:border-box;}\nbody{font-family:\'Work Sans\',sans-serif;background:linear-gradient(#080012,#020005);color:var(--text);min-height:100vh;padding-bottom:80px;}\n</style>\n</head>\n<body>\n\n<script src="scripts.js" defer><\/script>\n</body>\n</html>',
+card:'<div style="background:var(--card,#110827);border:1px solid rgba(124,58,237,.25);border-radius:14px;padding:1.25rem;margin-bottom:1rem;">\n  <h2 style="font-family:\'Bebas Neue\',cursive;color:#a855f7;margin-bottom:.5rem;">Card Title</h2>\n  <p style="font-size:.85rem;color:rgba(255,255,255,.7);line-height:1.6;">Card content goes here.</p>\n</div>',
+hero:'<div style="text-align:center;padding:3rem 1.5rem;margin-bottom:1.5rem;">\n  <h1 style="font-family:\'Bebas Neue\',cursive;font-size:2.5rem;color:#7c3aed;margin-bottom:.5rem;">Hero Title</h1>\n  <p style="font-size:1rem;color:rgba(255,255,255,.7);max-width:500px;margin:0 auto 1.5rem;">Subtitle text goes here describing the page.</p>\n  <a href="#" style="display:inline-block;padding:.7rem 2rem;background:#7c3aed;color:#fff;border-radius:10px;font-weight:700;text-decoration:none;">Call to Action</a>\n</div>',
+grid:'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;padding:1rem;">\n  <div style="background:#110827;border:1px solid rgba(124,58,237,.25);border-radius:12px;padding:1rem;">Item 1</div>\n  <div style="background:#110827;border:1px solid rgba(124,58,237,.25);border-radius:12px;padding:1rem;">Item 2</div>\n  <div style="background:#110827;border:1px solid rgba(124,58,237,.25);border-radius:12px;padding:1rem;">Item 3</div>\n</div>',
+nav:'<nav style="background:rgba(8,0,18,.97);border-bottom:2px solid #7c3aed;padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;">\n  <a href="index.html" style="font-family:\'Bebas Neue\',cursive;font-size:1.4rem;color:#7c3aed;text-decoration:none;">8BFR</a>\n  <div style="display:flex;gap:1rem;">\n    <a href="#" style="color:rgba(255,255,255,.7);text-decoration:none;font-size:.85rem;">Link 1</a>\n    <a href="#" style="color:rgba(255,255,255,.7);text-decoration:none;font-size:.85rem;">Link 2</a>\n  </div>\n</nav>',
+form:'<div style="max-width:400px;margin:0 auto;padding:1.5rem;">\n  <div style="margin-bottom:.75rem;">\n    <label style="display:block;font-size:.78rem;color:rgba(255,255,255,.7);margin-bottom:.2rem;">Name</label>\n    <input type="text" style="width:100%;padding:.5rem;background:rgba(124,58,237,.06);border:1px solid rgba(124,58,237,.25);border-radius:8px;color:#f0ecff;font-size:.85rem;">\n  </div>\n  <div style="margin-bottom:.75rem;">\n    <label style="display:block;font-size:.78rem;color:rgba(255,255,255,.7);margin-bottom:.2rem;">Email</label>\n    <input type="email" style="width:100%;padding:.5rem;background:rgba(124,58,237,.06);border:1px solid rgba(124,58,237,.25);border-radius:8px;color:#f0ecff;font-size:.85rem;">\n  </div>\n  <button style="width:100%;padding:.6rem;background:#7c3aed;color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;">Submit</button>\n</div>',
+button:'<div style="display:flex;gap:.5rem;flex-wrap:wrap;padding:1rem;">\n  <button style="padding:.6rem 1.2rem;background:#7c3aed;color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;">Primary</button>\n  <button style="padding:.6rem 1.2rem;background:rgba(124,58,237,.12);color:#a855f7;border:1px solid rgba(124,58,237,.35);border-radius:10px;font-weight:700;cursor:pointer;">Outline</button>\n  <button style="padding:.6rem 1.2rem;background:#22c55e;color:#000;border:none;border-radius:10px;font-weight:700;cursor:pointer;">Success</button>\n</div>',
+table:'<div style="overflow-x:auto;padding:1rem;">\n<table style="width:100%;border-collapse:collapse;">\n  <tr style="border-bottom:1px solid rgba(124,58,237,.25);">\n    <th style="text-align:left;padding:.5rem;color:#a855f7;font-size:.82rem;">Column 1</th>\n    <th style="text-align:left;padding:.5rem;color:#a855f7;font-size:.82rem;">Column 2</th>\n    <th style="text-align:left;padding:.5rem;color:#a855f7;font-size:.82rem;">Column 3</th>\n  </tr>\n  <tr style="border-bottom:1px solid rgba(124,58,237,.1);">\n    <td style="padding:.5rem;font-size:.82rem;">Data</td>\n    <td style="padding:.5rem;font-size:.82rem;">Data</td>\n    <td style="padding:.5rem;font-size:.82rem;">Data</td>\n  </tr>\n</table>\n</div>',
+modal:'<div id="myModal" style="position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;z-index:999;padding:1rem;">\n  <div style="background:#110827;border:1px solid rgba(124,58,237,.35);border-radius:14px;padding:1.5rem;max-width:400px;width:100%;">\n    <h2 style="font-family:\'Bebas Neue\',cursive;color:#a855f7;margin-bottom:.5rem;">Modal Title</h2>\n    <p style="font-size:.85rem;color:rgba(255,255,255,.7);margin-bottom:1rem;">Modal content here.</p>\n    <button onclick="document.getElementById(\'myModal\').style.display=\'none\'" style="padding:.5rem 1rem;background:#7c3aed;color:#fff;border:none;border-radius:8px;cursor:pointer;">Close</button>\n  </div>\n</div>',
+supabase:'<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"><\/script>\n<script>\nvar db = window.supabase.createClient(\n  \'https://novbuvwpjnxwwvdekjhr.supabase.co\',\n  \'sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f\'\n);\n<\/script>',
+auth:'// Auth check\n(async function(){\n  var s = await db.auth.getSession();\n  if (!s.data.session) {\n    window.location.href = \'login.html?return=\' + encodeURIComponent(location.pathname);\n    return;\n  }\n  var user = s.data.session.user;\n  console.log(\'Logged in:\', user.id);\n})();',
+fetch:'// Fetch data from Supabase\nasync function loadData() {\n  var { data, error } = await db\n    .from(\'TABLE_NAME\')\n    .select(\'*\')\n    .order(\'created_at\', { ascending: false })\n    .limit(20);\n  if (error) { console.error(error); return; }\n  console.log(data);\n}'
+};
+
+function ins(key){
+var snip=SNIPS[key]||'';
+var pos=ed.selectionStart;
+history.push(ed.value);
+if(key==='page'&&!ed.value.trim()){ed.value=snip;}
+else{ed.value=ed.value.substring(0,pos)+'\n'+snip+'\n'+ed.value.substring(pos);}
+updateInfo();closeP();ed.focus();
+}
+
+// AI
+async function aiWrite(){
+var prompt=document.getElementById('aiInput').value.trim();
+if(!prompt){alert('Describe the page you want.');return;}
+document.getElementById('aiMsg').textContent='Generating page...';
+try{
+var res=await fetch('https://8bfr-api.vercel.app/api/openai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({input:'Create a complete HTML page for: '+prompt+'. Use the 8BFR design style: dark purple background (#080012), purple accent (#7c3aed), font families Bebas Neue and Work Sans from Google Fonts, card background #110827, border rgba(124,58,237,.25), text color #f0ecff. Include a sticky header, responsive design, and add <script src="scripts.js" defer> before </body>. Return ONLY the HTML code, no explanation.',tier:'full',max_tokens:3000})});
+var data=await res.json();
+if(data.text){
+var html=data.text.replace(/^```html?\n?/i,'').replace(/\n?```$/,'');
+history.push(ed.value);
+ed.value=html;updateInfo();
+document.getElementById('aiMsg').textContent='Page generated!';
+}
+}catch(e){document.getElementById('aiMsg').textContent='Error: '+e.message;}
+closeP();
+}
+
+async function aiEdit(){
+var prompt=document.getElementById('aiInput').value.trim();
+if(!prompt||!ed.value.trim()){alert('Need a page and instructions.');return;}
+document.getElementById('aiMsg').textContent='Editing page...';
+try{
+var code=ed.value.substring(0,2000);
+var res=await fetch('https://8bfr-api.vercel.app/api/openai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({input:'Edit this HTML page according to these instructions: '+prompt+'\n\nCurrent HTML (first 2000 chars):\n'+code+'\n\nReturn the COMPLETE updated HTML. No explanation.',tier:'full',max_tokens:3000})});
+var data=await res.json();
+if(data.text){
+var html=data.text.replace(/^```html?\n?/i,'').replace(/\n?```$/,'');
+history.push(ed.value);
+ed.value=html;updateInfo();
+document.getElementById('aiMsg').textContent='Page updated!';
+}
+}catch(e){document.getElementById('aiMsg').textContent='Error: '+e.message;}
+closeP();
+}
+
+// PUBLISH
+function downloadHTML(){
+var name=document.getElementById('pubName').value.trim()||curFile;
+var blob=new Blob([ed.value],{type:'text/html'});
+var url=URL.createObjectURL(blob);
+var a=document.createElement('a');a.href=url;a.download=name;
+document.body.appendChild(a);a.click();document.body.removeChild(a);
+URL.revokeObjectURL(url);
+document.getElementById('pubMsg').textContent='Downloaded: '+name;
+}
+
+async function saveToStorage(){
+var name=document.getElementById('pubName').value.trim()||curFile;
+try{
+var blob=new Blob([ed.value],{type:'text/html'});
+var r=await db.storage.from('pages').upload('custom/'+name,blob,{upsert:true,contentType:'text/html'});
+if(r.error)throw r.error;
+document.getElementById('pubMsg').textContent='Saved to Supabase storage: pages/custom/'+name;
+document.getElementById('pubMsg').style.color='var(--green)';
+}catch(e){
+document.getElementById('pubMsg').textContent='Error: '+e.message+' (Create a "pages" bucket in Supabase Storage first)';
+document.getElementById('pubMsg').style.color='var(--danger)';
+}
+}
+
+function defaultPage(){
+return '<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width,initial-scale=1">\n<title>My Page -- 8BFR</title>\n<link rel="icon" href="assets/images/favicon.png">\n<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">\n<style>\n*{margin:0;padding:0;box-sizing:border-box;}\nbody{font-family:\'Work Sans\',sans-serif;background:linear-gradient(#080012,#020005);color:#f0ecff;min-height:100vh;padding:1.5rem;}\nh1{font-family:\'Bebas Neue\',cursive;color:#7c3aed;font-size:2rem;text-align:center;margin-bottom:1rem;}\n</style>\n</head>\n<body>\n\n<h1>My Page</h1>\n<p style="text-align:center;color:rgba(255,255,255,.7);">Start editing!</p>\n\n<script src="scripts.js" defer><\/script>\n</body>\n</html>';
+}
+</script>
+<script src="scripts.js" defer></script>
+</body>
+</html>
