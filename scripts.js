@@ -316,6 +316,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
     <div class="menu-group-title">&#x1F3AE; Games</div>\
     <div class="menu-links">\
       <a href="games.html" class="menu-chip">&#x1F3AE; Play Games</a>\
+      <a href="multiplayer-games.html" class="menu-chip">&#x1F3B1; Multiplayer Arena</a>\
       <a href="coinshop.html" class="menu-chip">&#x1FA99; Spend Coins</a>\
     </div>\
   </div>\
