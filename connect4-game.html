@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Connect 4 -- 8BFR Games</title>
+<link rel="icon" href="assets/images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Work Sans',sans-serif;background:linear-gradient(#080012,#020005);color:#f0ecff;min-height:100vh;}
+.hdr{background:rgba(8,0,18,.97);border-bottom:2px solid rgba(239,68,68,.6);padding:.75rem 1rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;}
+.hdr h1{font-family:'Bebas Neue',cursive;font-size:1.3rem;color:#ef4444;}
+.hdr a{color:rgba(255,255,255,.7);text-decoration:none;font-weight:600;font-size:.82rem;}
+.container{max-width:500px;margin:0 auto;padding:1rem;}
+.turn-bar{text-align:center;padding:.5rem;font-weight:700;font-size:.9rem;margin-bottom:.75rem;border-radius:10px;}
+.board{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;background:#1e40af;border:3px solid #1e3a8a;border-radius:12px;padding:6px;margin-bottom:1rem;}
+.cell{aspect-ratio:1;border-radius:50%;background:#0c1524;cursor:pointer;transition:all .2s;border:2px solid rgba(30,64,175,.3);}
+.cell:hover{background:rgba(255,255,255,.1);}
+.cell.red{background:#ef4444;border-color:#dc2626;box-shadow:inset 0 -3px 6px rgba(0,0,0,.3);}
+.cell.yellow{background:#fbbf24;border-color:#f59e0b;box-shadow:inset 0 -3px 6px rgba(0,0,0,.3);}
+@keyframes drop{from{transform:translateY(-200px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+.cell.drop{animation:drop .3s ease-out;}
+.btn{padding:.6rem 1rem;border-radius:10px;font-weight:700;font-size:.85rem;cursor:pointer;border:none;color:#fff;width:100%;margin-top:.4rem;}
+.btn-r{background:#ef4444;}
+.btn-g{background:#22c55e;}
+.msg{text-align:center;padding:1rem;font-family:'Bebas Neue',cursive;font-size:1.5rem;border-radius:12px;margin-bottom:1rem;display:none;}
+.msg.show{display:block;}
+.info{font-size:.72rem;color:rgba(255,255,255,.5);text-align:center;margin-top:.5rem;}
+.wager-row{display:flex;gap:.3rem;justify-content:center;margin-bottom:.75rem;flex-wrap:wrap;}
+.wager-btn{padding:.35rem .6rem;border-radius:8px;border:1px solid rgba(251,191,36,.3);background:rgba(251,191,36,.08);color:#fbbf24;font-weight:700;font-size:.75rem;cursor:pointer;}
+.wager-btn.sel{background:rgba(251,191,36,.2);border-color:#fbbf24;}
+.coins-display{text-align:center;font-size:.78rem;color:#fbbf24;font-weight:700;margin-bottom:.4rem;}
+</style>
+</head>
+<body>
+<div class="hdr">
+<a href="multiplayer-games.html">&larr; Games</a>
+<h1>Connect 4</h1>
+<div style="font-size:.72rem;color:#fbbf24;font-weight:700;" id="myCoins">0</div>
+</div>
+<div class="container">
+<div class="coins-display">Wager: <span id="wagerAmt">Free</span></div>
+<div class="wager-row" id="wagerRow">
+<div class="wager-btn sel" onclick="setW(this,0)">Free</div>
+<div class="wager-btn" onclick="setW(this,10)">10</div>
+<div class="wager-btn" onclick="setW(this,25)">25</div>
+<div class="wager-btn" onclick="setW(this,50)">50</div>
+<div class="wager-btn" onclick="setW(this,100)">100</div>
+</div>
+<div class="turn-bar" id="turnBar" style="background:rgba(239,68,68,.15);color:#ef4444;">Your Turn - Drop a chip!</div>
+<div class="board" id="board"></div>
+<div class="msg" id="msg"></div>
+<button class="btn btn-g" onclick="resetGame()">New Game</button>
+<div class="info">Drop chips by tapping a column. Connect 4 in a row (horizontal, vertical, or diagonal) to win!</div>
+</div>
+<script src="scripts.js" defer></script>
+<script>
+var db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f');
+var OWNER_ID='cb556180-f032-4b21-9470-1d786f2664ab';
+var ROWS=6,COLS=7,grid=[],turn='red',gameOver=false,wager=0,myCoins=0,currentUser=null;
+
+(async function(){
+var s=await db.auth.getSession();
+if(s.data.session){
+currentUser=s.data.session.user;
+var p=await db.from('profiles').select('coins').eq('user_id',currentUser.id).single();
+if(p.data){myCoins=currentUser.id===OWNER_ID?999999:(p.data.coins||0);document.getElementById('myCoins').textContent=myCoins.toLocaleString();}
+}
+resetGame();
+})();
+
+function setW(el,amt){if(amt>myCoins&&currentUser&&currentUser.id!==OWNER_ID){alert('Not enough coins.');return;}wager=amt;document.querySelectorAll('.wager-btn').forEach(function(b){b.classList.remove('sel');});el.classList.add('sel');document.getElementById('wagerAmt').textContent=amt>0?amt+' coins':'Free';resetGame();}
+
+function resetGame(){
+grid=[];for(var r=0;r<ROWS;r++){grid[r]=[];for(var c=0;c<COLS;c++)grid[r][c]=null;}
+turn='red';gameOver=false;
+document.getElementById('msg').classList.remove('show');
+document.getElementById('turnBar').style.display='block';
+document.getElementById('turnBar').style.background='rgba(239,68,68,.15)';
+document.getElementById('turnBar').style.color='#ef4444';
+document.getElementById('turnBar').textContent='Your Turn - Drop a chip!';
+renderBoard();
+}
+
+function renderBoard(){
+var html='';
+for(var r=0;r<ROWS;r++){for(var c=0;c<COLS;c++){
+var cls=grid[r][c]?'cell '+grid[r][c]:'cell';
+html+='<div class="'+cls+'" data-col="'+c+'" onclick="dropChip('+c+')"></div>';
+}}
+document.getElementById('board').innerHTML=html;
+}
+
+function dropChip(col){
+if(gameOver||turn!=='red')return;
+var row=getRow(col);
+if(row<0)return;
+grid[row][col]='red';
+renderBoard();
+animateCell(row,col);
+if(checkWin('red')){endGame(true);return;}
+if(isFull()){endGame(null);return;}
+turn='yellow';
+document.getElementById('turnBar').style.background='rgba(251,191,36,.15)';
+document.getElementById('turnBar').style.color='#fbbf24';
+document.getElementById('turnBar').textContent='AI Thinking...';
+setTimeout(aiMove,600);
+}
+
+function aiMove(){
+if(gameOver)return;
+var best=findBestMove();
+var row=getRow(best);
+if(row<0)return;
+grid[row][best]='yellow';
+renderBoard();
+animateCell(row,best);
+if(checkWin('yellow')){endGame(false);return;}
+if(isFull()){endGame(null);return;}
+turn='red';
+document.getElementById('turnBar').style.background='rgba(239,68,68,.15)';
+document.getElementById('turnBar').style.color='#ef4444';
+document.getElementById('turnBar').textContent='Your Turn - Drop a chip!';
+}
+
+function findBestMove(){
+for(var c=0;c<COLS;c++){var r=getRow(c);if(r>=0){grid[r][c]='yellow';if(checkWin('yellow')){grid[r][c]=null;return c;}grid[r][c]=null;}}
+for(var c=0;c<COLS;c++){var r=getRow(c);if(r>=0){grid[r][c]='red';if(checkWin('red')){grid[r][c]=null;return c;}grid[r][c]=null;}}
+if(getRow(3)>=0)return 3;
+var opts=[];for(var c=0;c<COLS;c++){if(getRow(c)>=0)opts.push(c);}
+return opts[Math.floor(Math.random()*opts.length)]||3;
+}
+
+function getRow(col){for(var r=ROWS-1;r>=0;r--){if(!grid[r][col])return r;}return -1;}
+function isFull(){for(var c=0;c<COLS;c++){if(getRow(c)>=0)return false;}return true;}
+
+function checkWin(color){
+for(var r=0;r<ROWS;r++){for(var c=0;c<COLS;c++){
+if(grid[r][c]!==color)continue;
+if(c+3<COLS&&grid[r][c+1]===color&&grid[r][c+2]===color&&grid[r][c+3]===color)return true;
+if(r+3<ROWS&&grid[r+1][c]===color&&grid[r+2][c]===color&&grid[r+3][c]===color)return true;
+if(r+3<ROWS&&c+3<COLS&&grid[r+1][c+1]===color&&grid[r+2][c+2]===color&&grid[r+3][c+3]===color)return true;
+if(r+3<ROWS&&c-3>=0&&grid[r+1][c-1]===color&&grid[r+2][c-2]===color&&grid[r+3][c-3]===color)return true;
+}}return false;
+}
+
+function animateCell(row,col){
+var cells=document.querySelectorAll('.cell');
+var idx=row*COLS+col;
+if(cells[idx])cells[idx].classList.add('drop');
+}
+
+async function endGame(won){
+gameOver=true;
+var el=document.getElementById('msg');
+el.classList.add('show');
+document.getElementById('turnBar').style.display='none';
+if(won===null){
+el.style.background='rgba(251,191,36,.15)';el.style.color='#fbbf24';
+el.textContent='Draw!';
+}else if(won){
+el.style.background='rgba(74,222,128,.15)';el.style.color='#4ade80';
+el.textContent='You Win!'+(wager>0?' +'+wager*2+' coins':'');
+}else{
+el.style.background='rgba(239,68,68,.15)';el.style.color='#ef4444';
+el.textContent='AI Wins!'+(wager>0?' -'+wager+' coins':'');
+}
+if(wager>0&&currentUser&&currentUser.id!==OWNER_ID){
+var change=won?wager:(won===false?-wager:0);
+if(change!==0){
+try{var p=await db.from('profiles').select('coins').eq('user_id',currentUser.id).single();
+if(p.data){await db.from('profiles').update({coins:Math.max(0,(p.data.coins||0)+change)}).eq('user_id',currentUser.id);}}catch(e){}
+}}
+}
+</script>
+</body>
+</html>
