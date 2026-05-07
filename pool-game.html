@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>8-Ball Pool -- 8BFR Games</title>
+<link rel="icon" href="assets/images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/matter-js@0.19.0/build/matter.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Work Sans',sans-serif;background:#0a1a0a;color:#e8f5e9;min-height:100vh;overflow:hidden;touch-action:none;}
+.top-bar{background:rgba(0,20,0,.9);padding:.5rem .75rem;display:flex;justify-content:space-between;align-items:center;position:fixed;top:0;left:0;right:0;z-index:100;}
+.top-bar a{color:#4ade80;text-decoration:none;font-weight:600;font-size:.8rem;}
+.top-bar h1{font-family:'Bebas Neue',cursive;font-size:1.1rem;color:#4ade80;}
+.player-bar{display:flex;justify-content:space-between;align-items:center;padding:.4rem .75rem;background:rgba(0,20,0,.8);position:fixed;top:36px;left:0;right:0;z-index:99;}
+.p-info{display:flex;align-items:center;gap:.4rem;}
+.p-name{font-weight:700;font-size:.78rem;}
+.p-balls{display:flex;gap:.15rem;}
+.p-ball{width:12px;height:12px;border-radius:50%;}
+.p-turn{font-size:.6rem;color:#4ade80;font-weight:700;}
+.wager-display{text-align:center;font-size:.7rem;color:#fbbf24;font-weight:700;}
+#gameCanvas{display:block;margin:0 auto;background:#0a4a2a;border:3px solid #2d1810;touch-action:none;}
+.lobby{position:fixed;inset:0;background:rgba(0,10,0,.95);z-index:200;display:flex;align-items:center;justify-content:center;padding:1rem;}
+.lobby-card{background:#0c1f0c;border:2px solid #22c55e;border-radius:16px;padding:1.5rem;max-width:360px;width:100%;text-align:center;}
+.lobby-card h2{font-family:'Bebas Neue',cursive;font-size:1.5rem;color:#4ade80;margin-bottom:.75rem;}
+.wager-grid{display:flex;gap:.4rem;flex-wrap:wrap;justify-content:center;margin:.75rem 0;}
+.wager-btn{padding:.5rem .8rem;border-radius:10px;border:1px solid rgba(251,191,36,.3);background:rgba(251,191,36,.08);color:#fbbf24;font-weight:700;font-size:.82rem;cursor:pointer;}
+.wager-btn:hover,.wager-btn.sel{background:rgba(251,191,36,.2);border-color:#fbbf24;}
+.btn{padding:.6rem 1.2rem;border-radius:10px;font-weight:700;font-size:.88rem;cursor:pointer;border:none;color:#fff;width:100%;margin-top:.5rem;}
+.btn-green{background:#22c55e;}
+.btn-red{background:#ef4444;}
+.status{font-size:.78rem;color:rgba(255,255,255,.6);margin-top:.5rem;}
+.power-bar{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);width:200px;height:20px;background:rgba(0,0,0,.5);border:1px solid #4ade80;border-radius:10px;overflow:hidden;z-index:100;display:none;}
+.power-fill{height:100%;background:linear-gradient(90deg,#22c55e,#fbbf24,#ef4444);width:50%;transition:width .05s;}
+.msg-overlay{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.85);border:2px solid #4ade80;border-radius:14px;padding:1.25rem 2rem;z-index:300;text-align:center;font-family:'Bebas Neue',cursive;font-size:1.5rem;color:#4ade80;display:none;}
+.game-over{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:400;display:none;align-items:center;justify-content:center;}
+.game-over-card{background:#0c1f0c;border:2px solid #22c55e;border-radius:16px;padding:2rem;max-width:340px;width:90%;text-align:center;}
+.game-over-card h2{font-family:'Bebas Neue',cursive;font-size:2rem;margin-bottom:.5rem;}
+.game-over-card p{font-size:.88rem;color:rgba(255,255,255,.7);margin-bottom:1rem;}
+</style>
+</head>
+<body>
+<div class="top-bar">
+<a href="multiplayer-games.html">&larr; Games</a>
+<h1>&#x1F3B1; 8-Ball Pool</h1>
+<div style="font-size:.72rem;color:#fbbf24;font-weight:700;" id="myCoins">0</div>
+</div>
+<div class="player-bar" id="playerBar" style="display:none;">
+<div class="p-info"><div class="p-name" id="p1Name">Player 1</div><div class="p-turn" id="p1Turn"></div></div>
+<div class="wager-display" id="wagerInfo"></div>
+<div class="p-info"><div class="p-name" id="p2Name">Player 2</div><div class="p-turn" id="p2Turn"></div></div>
+</div>
+<canvas id="gameCanvas"></canvas>
+<div class="power-bar" id="powerBar"><div class="power-fill" id="powerFill"></div></div>
+<div class="msg-overlay" id="msgOverlay"></div>
+<div class="lobby" id="lobby">
+<div class="lobby-card">
+<h2>&#x1F3B1; 8-Ball Pool</h2>
+<p style="font-size:.82rem;color:rgba(255,255,255,.6);margin-bottom:.75rem;">Choose your wager and find an opponent.</p>
+<div style="font-size:.78rem;color:#fbbf24;margin-bottom:.5rem;">Your coins: <span id="lobbyCoins">0</span></div>
+<div class="wager-grid" id="wagerGrid">
+<div class="wager-btn sel" onclick="setWager(this,0)">Free</div>
+<div class="wager-btn" onclick="setWager(this,10)">10</div>
+<div class="wager-btn" onclick="setWager(this,25)">25</div>
+<div class="wager-btn" onclick="setWager(this,50)">50</div>
+<div class="wager-btn" onclick="setWager(this,100)">100</div>
+<div class="wager-btn" onclick="setWager(this,250)">250</div>
+<div class="wager-btn" onclick="setWager(this,500)">500</div>
+</div>
+<button class="btn btn-green" onclick="findMatch()">Find Match</button>
+<button class="btn" style="background:rgba(255,255,255,.1);margin-top:.3rem;" onclick="playAI()">Practice vs AI</button>
+<div class="status" id="lobbyStatus"></div>
+</div>
+</div>
+<div class="game-over" id="gameOver">
+<div class="game-over-card">
+<h2 id="goTitle">Game Over</h2>
+<p id="goMsg"></p>
+<div style="font-size:1.2rem;color:#fbbf24;font-weight:700;margin-bottom:1rem;" id="goCoins"></div>
+<button class="btn btn-green" onclick="location.reload()">Play Again</button>
+<a href="multiplayer-games.html" class="btn" style="background:rgba(255,255,255,.1);margin-top:.3rem;display:block;text-align:center;text-decoration:none;">Back to Games</a>
+</div>
+</div>
+<script>
+var db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f');
+var OWNER_ID='cb556180-f032-4b21-9470-1d786f2664ab';
+var currentUser=null,myCoins=0,wager=0,isMyTurn=false,gameMode='ai',roomId=null,opponentId=null;
+var engine,world,render,cue,balls=[],pockets=[],cueBall=null;
+var aiming=false,aimStart={x:0,y:0},power=0,gameActive=false;
+var myBallType=null,opBallType=null,ballsSunk={solids:0,stripes:0};
+var TABLE_W,TABLE_H,BALL_R,POCKET_R,CUSHION;
+
+(async function(){
+var s=await db.auth.getSession();
+if(!s.data.session){document.getElementById('lobbyStatus').innerHTML='<a href="login.html?return=pool-game.html" style="color:#4ade80;">Log in to play</a>';return;}
+currentUser=s.data.session.user;
+var p=await db.from('profiles').select('coins,username,display_name').eq('user_id',currentUser.id).single();
+if(p.data){
+myCoins=currentUser.id===OWNER_ID?999999:(p.data.coins||0);
+document.getElementById('lobbyCoins').textContent=myCoins.toLocaleString();
+document.getElementById('myCoins').textContent=myCoins.toLocaleString();
+document.getElementById('p1Name').textContent=p.data.display_name||p.data.username||'You';
+}
+})();
+
+function setWager(el,amt){
+if(amt>myCoins&&currentUser.id!==OWNER_ID){alert('Not enough coins.');return;}
+wager=amt;
+document.querySelectorAll('.wager-btn').forEach(function(b){b.classList.remove('sel');});
+el.classList.add('sel');
+}
+
+function playAI(){gameMode='ai';document.getElementById('p2Name').textContent='AI';startGame();}
+
+async function findMatch(){
+if(wager>myCoins&&currentUser.id!==OWNER_ID){alert('Not enough coins.');return;}
+document.getElementById('lobbyStatus').textContent='Searching for opponent...';
+gameMode='pvp';
+try{
+var r=await db.from('game_rooms').select('*').eq('game','pool').eq('status','waiting').eq('wager',wager).neq('player1_id',currentUser.id).limit(1).single();
+if(r.data){
+roomId=r.data.id;opponentId=r.data.player1_id;
+await db.from('game_rooms').update({player2_id:currentUser.id,status:'playing'}).eq('id',roomId);
+isMyTurn=false;
+var op=await db.from('profiles').select('display_name,username').eq('user_id',opponentId).single();
+document.getElementById('p2Name').textContent=(op.data?op.data.display_name||op.data.username:'Opponent');
+startGame();return;
+}
+}catch(e){}
+try{
+var ins=await db.from('game_rooms').insert({game:'pool',player1_id:currentUser.id,status:'waiting',wager:wager}).select().single();
+roomId=ins.data.id;isMyTurn=true;
+document.getElementById('lobbyStatus').textContent='Waiting for opponent... (Room: '+roomId.substring(0,6)+')';
+var ch=db.channel('room-'+roomId);
+ch.on('postgres_changes',{event:'UPDATE',schema:'public',table:'game_rooms',filter:'id=eq.'+roomId},function(payload){
+if(payload.new.status==='playing'){
+opponentId=payload.new.player2_id;
+db.from('profiles').select('display_name,username').eq('user_id',opponentId).single().then(function(op){
+document.getElementById('p2Name').textContent=(op.data?op.data.display_name||op.data.username:'Opponent');
+});
+startGame();ch.unsubscribe();
+}
+}).subscribe();
+}catch(e){document.getElementById('lobbyStatus').textContent='Error: '+e.message;playAI();}
+}
+
+function startGame(){
+document.getElementById('lobby').style.display='none';
+document.getElementById('playerBar').style.display='flex';
+document.getElementById('wagerInfo').textContent=wager>0?'Wager: '+wager+' coins':'Free Play';
+isMyTurn=true;
+initPhysics();
+setupTable();
+rackBalls();
+gameActive=true;
+updateTurnUI();
+requestAnimationFrame(gameLoop);
+}
+
+function initPhysics(){
+var canvas=document.getElementById('gameCanvas');
+var maxW=window.innerWidth;
+var maxH=window.innerHeight-80;
+TABLE_W=Math.min(maxW-10,600);
+TABLE_H=TABLE_W*0.53;
+if(TABLE_H>maxH-20){TABLE_H=maxH-20;TABLE_W=TABLE_H/0.53;}
+canvas.width=TABLE_W;canvas.height=TABLE_H;
+canvas.style.marginTop='72px';
+BALL_R=TABLE_W*0.018;
+POCKET_R=BALL_R*2.2;
+CUSHION=BALL_R*2;
+engine=Matter.Engine.create({gravity:{x:0,y:0}});
+world=engine.world;
+// Cushions
+var cW=CUSHION;
+Matter.World.add(world,[
+Matter.Bodies.rectangle(TABLE_W/2,cW/2,TABLE_W-POCKET_R*4,cW,{isStatic:true,restitution:0.6,friction:0.05,label:'cushion'}),
+Matter.Bodies.rectangle(TABLE_W/2,TABLE_H-cW/2,TABLE_W-POCKET_R*4,cW,{isStatic:true,restitution:0.6,friction:0.05,label:'cushion'}),
+Matter.Bodies.rectangle(cW/2,TABLE_H/2,cW,TABLE_H-POCKET_R*4,{isStatic:true,restitution:0.6,friction:0.05,label:'cushion'}),
+Matter.Bodies.rectangle(TABLE_W-cW/2,TABLE_H/2,cW,TABLE_H-POCKET_R*4,{isStatic:true,restitution:0.6,friction:0.05,label:'cushion'})
+]);
+// Pockets
+var px=[CUSHION,TABLE_W/2,TABLE_W-CUSHION];
+var py=[CUSHION,TABLE_H-CUSHION];
+for(var i=0;i<px.length;i++){for(var j=0;j<py.length;j++){pockets.push({x:px[i],y:py[j]});}}
+// Touch/mouse events
+canvas.addEventListener('mousedown',onAimStart);
+canvas.addEventListener('mousemove',onAimMove);
+canvas.addEventListener('mouseup',onAimEnd);
+canvas.addEventListener('touchstart',function(e){e.preventDefault();onAimStart(e.touches[0]);},{passive:false});
+canvas.addEventListener('touchmove',function(e){e.preventDefault();onAimMove(e.touches[0]);},{passive:false});
+canvas.addEventListener('touchend',function(e){e.preventDefault();onAimEnd();},{passive:false});
+}
+
+var BALL_COLORS=['#fff','#fbbf24','#2563eb','#ef4444','#7c3aed','#f97316','#22c55e','#7f1d1d','#111'];
+var STRIPE_COLORS=['#fbbf24','#2563eb','#ef4444','#7c3aed','#f97316','#22c55e','#7f1d1d'];
+
+function createBall(x,y,num){
+var b=Matter.Bodies.circle(x,y,BALL_R,{restitution:0.9,friction:0.05,frictionAir:0.015,density:0.002,label:'ball-'+num});
+b.ballNum=num;b.sunk=false;
+Matter.World.add(world,b);
+balls.push(b);
+if(num===0)cueBall=b;
+return b;
+}
+
+function rackBalls(){
+balls=[];
+var cx=TABLE_W*0.72,cy=TABLE_H/2;
+var d=BALL_R*2.1;
+var rack=[1,9,2,10,8,11,3,12,6,13,4,14,5,15,7];
+var ri=0;
+for(var row=0;row<5;row++){
+for(var col=0;col<=row;col++){
+var bx=cx+row*d*0.866;
+var by=cy+(col-row/2)*d;
+createBall(bx,by,rack[ri++]);
+}}
+createBall(TABLE_W*0.25,TABLE_H/2,0);
+}
+
+function setupTable(){}
+
+function onAimStart(e){
+if(!gameActive||!isMyTurn||!cueBall||cueBall.sunk)return;
+var r=document.getElementById('gameCanvas').getBoundingClientRect();
+aimStart={x:e.clientX-r.left,y:e.clientY-r.top};
+var dx=aimStart.x-cueBall.position.x,dy=aimStart.y-cueBall.position.y;
+if(Math.sqrt(dx*dx+dy*dy)<BALL_R*5){aiming=true;document.getElementById('powerBar').style.display='block';}
+}
+
+function onAimMove(e){
+if(!aiming)return;
+var r=document.getElementById('gameCanvas').getBoundingClientRect();
+var mx=e.clientX-r.left,my=e.clientY-r.top;
+var dx=mx-cueBall.position.x,dy=my-cueBall.position.y;
+power=Math.min(Math.sqrt(dx*dx+dy*dy)/TABLE_W*100,100);
+document.getElementById('powerFill').style.width=power+'%';
+}
+
+function onAimEnd(){
+if(!aiming)return;
+aiming=false;
+document.getElementById('powerBar').style.display='none';
+if(power<3)return;
+var r=document.getElementById('gameCanvas').getBoundingClientRect();
+var dx=cueBall.position.x-aimStart.x,dy=cueBall.position.y-aimStart.y;
+var dist=Math.sqrt(dx*dx+dy*dy);
+if(dist<1)return;
+var force=power*0.0004;
+Matter.Body.applyForce(cueBall,cueBall.position,{x:dx/dist*force,y:dy/dist*force});
+isMyTurn=false;
+updateTurnUI();
+setTimeout(checkTurnEnd,2000);
+power=0;
+}
+
+function checkTurnEnd(){
+var moving=false;
+for(var i=0;i<balls.length;i++){
+if(!balls[i].sunk){
+var s=Matter.Vector.magnitude(balls[i].velocity);
+if(s>0.3){moving=true;break;}
+}}
+if(moving){setTimeout(checkTurnEnd,500);return;}
+checkPockets();
+if(gameMode==='ai'&&!isMyTurn&&gameActive){
+setTimeout(aiShot,800);
+}
+}
+
+function checkPockets(){
+var sunkThisTurn=[];
+for(var i=0;i<balls.length;i++){
+if(balls[i].sunk)continue;
+for(var j=0;j<pockets.length;j++){
+var dx=balls[i].position.x-pockets[j].x;
+var dy=balls[i].position.y-pockets[j].y;
+if(Math.sqrt(dx*dx+dy*dy)<POCKET_R){
+balls[i].sunk=true;
+sunkThisTurn.push(balls[i].ballNum);
+Matter.World.remove(world,balls[i]);
+break;
+}}}
+// Check cue ball scratch
+if(cueBall&&cueBall.sunk){
+cueBall.sunk=false;
+Matter.Body.setPosition(cueBall,{x:TABLE_W*0.25,y:TABLE_H/2});
+Matter.Body.setVelocity(cueBall,{x:0,y:0});
+Matter.World.add(world,cueBall);
+showMsg('Scratch!');
+isMyTurn=!isMyTurn;
+updateTurnUI();return;
+}
+// Check 8-ball
+if(sunkThisTurn.indexOf(8)!==-1){
+var myRemaining=0;
+for(var i=0;i<balls.length;i++){
+if(!balls[i].sunk&&balls[i].ballNum!==0&&balls[i].ballNum!==8){
+if(myBallType==='solids'&&balls[i].ballNum<8)myRemaining++;
+if(myBallType==='stripes'&&balls[i].ballNum>8)myRemaining++;
+}}
+if(myRemaining===0&&isMyTurn){endGame(true);}
+else{endGame(!isMyTurn);}
+return;
+}
+// Assign ball types on first sink
+if(!myBallType&&sunkThisTurn.length>0){
+var sunkNum=sunkThisTurn[0];
+if(sunkNum>0&&sunkNum<8){myBallType='solids';opBallType='stripes';}
+else if(sunkNum>8){myBallType='stripes';opBallType='solids';}
+}
+// If sunk own ball, keep turn
+var keptTurn=false;
+for(var i=0;i<sunkThisTurn.length;i++){
+var n=sunkThisTurn[i];
+if(myBallType==='solids'&&n>0&&n<8)keptTurn=true;
+if(myBallType==='stripes'&&n>8)keptTurn=true;
+}
+if(!keptTurn)isMyTurn=!isMyTurn;
+updateTurnUI();
+}
+
+function aiShot(){
+if(!gameActive||!cueBall||cueBall.sunk)return;
+var target=null,bestDist=Infinity;
+for(var i=0;i<balls.length;i++){
+if(balls[i].sunk||balls[i].ballNum===0)continue;
+if(balls[i].ballNum===8)continue;
+var dx=balls[i].position.x-cueBall.position.x;
+var dy=balls[i].position.y-cueBall.position.y;
+var d=Math.sqrt(dx*dx+dy*dy);
+if(d<bestDist){bestDist=d;target=balls[i];}
+}
+if(!target){
+for(var i=0;i<balls.length;i++){
+if(!balls[i].sunk&&balls[i].ballNum===8){target=balls[i];break;}
+}}
+if(!target)return;
+var dx=target.position.x-cueBall.position.x;
+var dy=target.position.y-cueBall.position.y;
+var dist=Math.sqrt(dx*dx+dy*dy);
+var force=0.015+Math.random()*0.015;
+dx+=(Math.random()-0.5)*dist*0.15;
+dy+=(Math.random()-0.5)*dist*0.15;
+var d2=Math.sqrt(dx*dx+dy*dy);
+Matter.Body.applyForce(cueBall,cueBall.position,{x:dx/d2*force,y:dy/d2*force});
+isMyTurn=true;
+updateTurnUI();
+setTimeout(checkTurnEnd,2000);
+}
+
+function updateTurnUI(){
+document.getElementById('p1Turn').textContent=isMyTurn?'YOUR TURN':'';
+document.getElementById('p2Turn').textContent=!isMyTurn?(gameMode==='ai'?'AI THINKING...':'THEIR TURN'):'';
+}
+
+function showMsg(text){
+var el=document.getElementById('msgOverlay');
+el.textContent=text;el.style.display='block';
+setTimeout(function(){el.style.display='none';},1500);
+}
+
+async function endGame(won){
+gameActive=false;
+var go=document.getElementById('gameOver');
+go.style.display='flex';
+document.getElementById('goTitle').textContent=won?'You Win!':'You Lose';
+document.getElementById('goTitle').style.color=won?'#4ade80':'#ef4444';
+var prize=won?wager*2:0;
+var msg=won?'Great game!':'Better luck next time.';
+document.getElementById('goMsg').textContent=msg;
+document.getElementById('goCoins').textContent=wager>0?(won?'+'+prize+' coins':'-'+wager+' coins'):'Free Play';
+if(wager>0&&currentUser&&currentUser.id!==OWNER_ID){
+var coinChange=won?wager:-wager;
+try{
+var p=await db.from('profiles').select('coins').eq('user_id',currentUser.id).single();
+if(p.data){
+var newCoins=Math.max(0,(p.data.coins||0)+coinChange);
+await db.from('profiles').update({coins:newCoins}).eq('user_id',currentUser.id);
+}}catch(e){}
+}
+if(roomId){try{await db.from('game_rooms').update({status:'finished',winner_id:won?currentUser.id:opponentId}).eq('id',roomId);}catch(e){}}
+}
+
+function gameLoop(){
+if(!engine)return;
+Matter.Engine.update(engine,1000/60);
+drawTable();
+if(gameActive)requestAnimationFrame(gameLoop);
+}
+
+function drawTable(){
+var canvas=document.getElementById('gameCanvas');
+var ctx=canvas.getContext('2d');
+// Felt
+ctx.fillStyle='#0a6b35';ctx.fillRect(0,0,TABLE_W,TABLE_H);
+// Cushion border
+ctx.fillStyle='#3d1f0c';
+ctx.fillRect(0,0,TABLE_W,CUSHION);ctx.fillRect(0,TABLE_H-CUSHION,TABLE_W,CUSHION);
+ctx.fillRect(0,0,CUSHION,TABLE_H);ctx.fillRect(TABLE_W-CUSHION,0,CUSHION,TABLE_H);
+// Inner felt
+ctx.fillStyle='#0d7a3e';ctx.fillRect(CUSHION,CUSHION,TABLE_W-CUSHION*2,TABLE_H-CUSHION*2);
+// Pockets
+ctx.fillStyle='#000';
+for(var i=0;i<pockets.length;i++){
+ctx.beginPath();ctx.arc(pockets[i].x,pockets[i].y,POCKET_R,0,Math.PI*2);ctx.fill();
+}
+// Balls
+for(var i=0;i<balls.length;i++){
+if(balls[i].sunk)continue;
+var b=balls[i],n=b.ballNum;
+var x=b.position.x,y=b.position.y;
+ctx.beginPath();ctx.arc(x,y,BALL_R,0,Math.PI*2);
+if(n===0){ctx.fillStyle='#fff';}
+else if(n===8){ctx.fillStyle='#111';}
+else if(n<=7){ctx.fillStyle=BALL_COLORS[n]||'#888';}
+else{
+ctx.fillStyle='#fff';ctx.fill();
+ctx.beginPath();
+ctx.arc(x,y,BALL_R,0,Math.PI*2);
+ctx.fillStyle=STRIPE_COLORS[n-9]||'#888';
+}
+ctx.fill();
+ctx.strokeStyle='rgba(0,0,0,.3)';ctx.lineWidth=1;ctx.stroke();
+// Number
+if(n>0){
+ctx.fillStyle=n===8?'#fff':'#000';
+ctx.beginPath();ctx.arc(x,y,BALL_R*0.45,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();
+ctx.fillStyle='#000';ctx.font='bold '+Math.round(BALL_R*0.7)+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+ctx.fillText(n,x,y);
+}
+}
+// Aim line
+if(aiming&&cueBall&&!cueBall.sunk){
+ctx.beginPath();
+ctx.moveTo(cueBall.position.x,cueBall.position.y);
+var dx=cueBall.position.x-aimStart.x,dy=cueBall.position.y-aimStart.y;
+var dist=Math.sqrt(dx*dx+dy*dy);
+if(dist>0){
+ctx.lineTo(cueBall.position.x+dx/dist*TABLE_W*0.4,cueBall.position.y+dy/dist*TABLE_W*0.4);
+}
+ctx.strokeStyle='rgba(255,255,255,.4)';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.stroke();ctx.setLineDash([]);
+// Cue stick
+ctx.beginPath();
+ctx.moveTo(aimStart.x,aimStart.y);
+var cx2=cueBall.position.x-dx/dist*BALL_R*2;
+ctx.lineTo(cx2,cueBall.position.y-dy/dist*BALL_R*2);
+ctx.strokeStyle='#8B4513';ctx.lineWidth=4;ctx.stroke();
+ctx.strokeStyle='#D2691E';ctx.lineWidth=2;ctx.stroke();
+}
+}
+</script>
+<script src="scripts.js" defer></script>
+</body>
+</html>
