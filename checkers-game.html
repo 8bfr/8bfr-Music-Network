@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Checkers -- 8BFR Games</title>
+<link rel="icon" href="assets/images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Work Sans',sans-serif;background:linear-gradient(#080012,#020005);color:#f0ecff;min-height:100vh;}
+.hdr{background:rgba(8,0,18,.97);border-bottom:2px solid rgba(124,45,18,.8);padding:.75rem 1rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;}
+.hdr h1{font-family:'Bebas Neue',cursive;font-size:1.3rem;color:#f97316;}
+.hdr a{color:rgba(255,255,255,.7);text-decoration:none;font-weight:600;font-size:.82rem;}
+.container{max-width:420px;margin:0 auto;padding:1rem;}
+.turn-bar{text-align:center;padding:.5rem;font-weight:700;font-size:.88rem;margin-bottom:.5rem;border-radius:10px;}
+.counts{display:flex;justify-content:space-between;margin-bottom:.5rem;font-size:.78rem;font-weight:600;}
+.board{display:grid;grid-template-columns:repeat(8,1fr);border:3px solid #5c3317;border-radius:8px;overflow:hidden;margin-bottom:1rem;}
+.sq{aspect-ratio:1;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;}
+.sq.light{background:#f5deb3;}
+.sq.dark{background:#8b4513;}
+.sq.dark.highlight{background:rgba(74,222,128,.4);}
+.sq.dark.selected{background:rgba(59,130,246,.4);}
+.piece{width:80%;height:80%;border-radius:50%;border:2px solid rgba(0,0,0,.3);box-shadow:0 2px 4px rgba(0,0,0,.3);}
+.piece.red{background:radial-gradient(circle at 35% 35%,#ff6b6b,#c0392b);}
+.piece.black{background:radial-gradient(circle at 35% 35%,#555,#1a1a1a);}
+.piece.king::after{content:'K';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#fbbf24;font-weight:800;font-size:.7rem;text-shadow:0 1px 2px rgba(0,0,0,.5);}
+.btn{padding:.6rem 1rem;border-radius:10px;font-weight:700;font-size:.85rem;cursor:pointer;border:none;color:#fff;width:100%;margin-top:.4rem;}
+.btn-g{background:#22c55e;}
+.msg{text-align:center;padding:1rem;font-family:'Bebas Neue',cursive;font-size:1.5rem;border-radius:12px;margin-bottom:.5rem;display:none;}
+.msg.show{display:block;}
+.wager-row{display:flex;gap:.3rem;justify-content:center;margin-bottom:.5rem;flex-wrap:wrap;}
+.wager-btn{padding:.3rem .55rem;border-radius:8px;border:1px solid rgba(251,191,36,.3);background:rgba(251,191,36,.08);color:#fbbf24;font-weight:700;font-size:.72rem;cursor:pointer;}
+.wager-btn.sel{background:rgba(251,191,36,.2);border-color:#fbbf24;}
+</style>
+</head>
+<body>
+<div class="hdr">
+<a href="multiplayer-games.html">&larr; Games</a>
+<h1>Checkers</h1>
+<div style="font-size:.72rem;color:#fbbf24;font-weight:700;" id="myCoins">0</div>
+</div>
+<div class="container">
+<div class="wager-row">
+<div class="wager-btn sel" onclick="setW(this,0)">Free</div>
+<div class="wager-btn" onclick="setW(this,10)">10</div>
+<div class="wager-btn" onclick="setW(this,25)">25</div>
+<div class="wager-btn" onclick="setW(this,50)">50</div>
+<div class="wager-btn" onclick="setW(this,100)">100</div>
+</div>
+<div class="turn-bar" id="turnBar" style="background:rgba(239,68,68,.15);color:#ef4444;">Your Turn (Red)</div>
+<div class="counts"><span id="redCount">12 pieces</span><span id="blackCount">12 pieces</span></div>
+<div class="board" id="board"></div>
+<div class="msg" id="msg"></div>
+<button class="btn btn-g" onclick="resetGame()">New Game</button>
+</div>
+<script src="scripts.js" defer></script>
+<script>
+var db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f');
+var OWNER_ID='cb556180-f032-4b21-9470-1d786f2664ab';
+var grid=[],turn='red',selected=null,validMoves=[],over=false,wager=0,myCoins=0,currentUser=null;
+
+(async function(){
+var s=await db.auth.getSession();
+if(s.data.session){currentUser=s.data.session.user;
+var p=await db.from('profiles').select('coins').eq('user_id',currentUser.id).single();
+if(p.data){myCoins=currentUser.id===OWNER_ID?999999:(p.data.coins||0);document.getElementById('myCoins').textContent=myCoins.toLocaleString();}}
+resetGame();
+})();
+
+function setW(el,amt){wager=amt;document.querySelectorAll('.wager-btn').forEach(function(b){b.classList.remove('sel');});el.classList.add('sel');resetGame();}
+
+function resetGame(){
+grid=[];for(var r=0;r<8;r++){grid[r]=[];for(var c=0;c<8;c++){
+grid[r][c]=null;
+if((r+c)%2===1){
+if(r<3)grid[r][c]={color:'black',king:false};
+else if(r>4)grid[r][c]={color:'red',king:false};
+}}}
+turn='red';selected=null;validMoves=[];over=false;
+document.getElementById('msg').classList.remove('show');
+document.getElementById('turnBar').style.display='block';
+render();
+}
+
+function render(){
+var html='';
+for(var r=0;r<8;r++){for(var c=0;c<8;c++){
+var isDark=(r+c)%2===1;
+var isSel=selected&&selected.r===r&&selected.c===c;
+var isValid=validMoves.some(function(m){return m.r===r&&m.c===c;});
+var cls='sq '+(isDark?'dark':'light')+(isSel?' selected':'')+(isValid?' highlight':'');
+var piece='';
+if(grid[r][c]){
+var p=grid[r][c];
+piece='<div class="piece '+p.color+(p.king?' king':'')+'"></div>';
+}
+html+='<div class="'+cls+'" onclick="click2('+r+','+c+')">'+piece+'</div>';
+}}
+document.getElementById('board').innerHTML=html;
+var rc=0,bc=0;
+for(var r=0;r<8;r++){for(var c=0;c<8;c++){if(grid[r][c]){if(grid[r][c].color==='red')rc++;else bc++;}}}
+document.getElementById('redCount').textContent=rc+' pieces';
+document.getElementById('blackCount').textContent=bc+' pieces';
+}
+
+window.click2=function(r,c){
+if(over||turn!=='red')return;
+if(grid[r][c]&&grid[r][c].color==='red'){
+selected={r:r,c:c};
+validMoves=getMoves(r,c);
+render();return;
+}
+if(selected&&validMoves.some(function(m){return m.r===r&&m.c===c;})){
+var move=validMoves.find(function(m){return m.r===r&&m.c===c;});
+doMove(selected.r,selected.c,r,c,move.jumps||[]);
+if(grid[r][c]&&r===0)grid[r][c].king=true;
+selected=null;validMoves=[];
+if(checkWin()){render();return;}
+turn='black';
+document.getElementById('turnBar').textContent='AI Thinking...';
+document.getElementById('turnBar').style.background='rgba(100,100,100,.15)';
+document.getElementById('turnBar').style.color='#aaa';
+render();
+setTimeout(aiMove,500);
+}
+};
+
+function getMoves(r,c){
+var p=grid[r][c];if(!p)return[];
+var moves=[];
+var dirs=p.king?[[-1,-1],[-1,1],[1,-1],[1,1]]:p.color==='red'?[[-1,-1],[-1,1]]:[[1,-1],[1,1]];
+for(var i=0;i<dirs.length;i++){
+var nr=r+dirs[i][0],nc=c+dirs[i][1];
+if(nr>=0&&nr<8&&nc>=0&&nc<8&&!grid[nr][nc])moves.push({r:nr,c:nc,jumps:[]});
+var jr=r+dirs[i][0]*2,jc=c+dirs[i][1]*2;
+if(jr>=0&&jr<8&&jc>=0&&jc<8&&!grid[jr][jc]&&grid[nr]&&grid[nr][nc]&&grid[nr][nc].color!==p.color)
+moves.push({r:jr,c:jc,jumps:[{r:nr,c:nc}]});
+}
+var jumpMoves=moves.filter(function(m){return m.jumps.length>0;});
+if(jumpMoves.length>0)return jumpMoves;
+return moves;
+}
+
+function doMove(fr,fc,tr,tc,jumps){
+grid[tr][tc]=grid[fr][fc];grid[fr][fc]=null;
+for(var i=0;i<jumps.length;i++){grid[jumps[i].r][jumps[i].c]=null;}
+}
+
+function getAllMoves(color){
+var all=[];
+for(var r=0;r<8;r++){for(var c=0;c<8;c++){
+if(grid[r][c]&&grid[r][c].color===color){
+var m=getMoves(r,c);
+m.forEach(function(mv){mv.fr=r;mv.fc=c;all.push(mv);});
+}}}
+var jumps=all.filter(function(m){return m.jumps.length>0;});
+return jumps.length>0?jumps:all;
+}
+
+function aiMove(){
+if(over)return;
+var moves=getAllMoves('black');
+if(!moves.length){endGame(true);return;}
+var best=moves[Math.floor(Math.random()*moves.length)];
+var jumps=moves.filter(function(m){return m.jumps.length>0;});
+if(jumps.length)best=jumps[Math.floor(Math.random()*jumps.length)];
+doMove(best.fr,best.fc,best.r,best.c,best.jumps||[]);
+if(grid[best.r][best.c]&&best.r===7)grid[best.r][best.c].king=true;
+if(checkWin()){render();return;}
+turn='red';
+document.getElementById('turnBar').textContent='Your Turn (Red)';
+document.getElementById('turnBar').style.background='rgba(239,68,68,.15)';
+document.getElementById('turnBar').style.color='#ef4444';
+render();
+}
+
+function checkWin(){
+var rc=0,bc=0;
+for(var r=0;r<8;r++){for(var c=0;c<8;c++){if(grid[r][c]){if(grid[r][c].color==='red')rc++;else bc++;}}}
+if(rc===0){endGame(false);return true;}
+if(bc===0){endGame(true);return true;}
+if(getAllMoves('red').length===0&&turn==='red'){endGame(false);return true;}
+if(getAllMoves('black').length===0&&turn==='black'){endGame(true);return true;}
+return false;
+}
+
+async function endGame(won){
+over=true;
+document.getElementById('turnBar').style.display='none';
+var el=document.getElementById('msg');el.classList.add('show');
+el.style.background=won?'rgba(74,222,128,.15)':'rgba(239,68,68,.15)';
+el.style.color=won?'#4ade80':'#ef4444';
+el.textContent=won?'You Win!'+(wager>0?' +'+wager*2+' coins':''):'AI Wins!'+(wager>0?' -'+wager+' coins':'');
+if(wager>0&&currentUser&&currentUser.id!==OWNER_ID){
+var change=won?wager:-wager;
+try{var p=await db.from('profiles').select('coins').eq('user_id',currentUser.id).single();
+if(p.data){await db.from('profiles').update({coins:Math.max(0,(p.data.coins||0)+change)}).eq('user_id',currentUser.id);}}catch(e){}
+}
+}
+</script>
+</body>
+</html>
