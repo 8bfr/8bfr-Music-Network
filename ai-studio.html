@@ -260,7 +260,6 @@ var TOOLS = [
   // ═══ FULL-PAGE LAUNCHER TOOLS (open in new tab) ═══
   { id:'stem-splitter-launch', cat:'music', type:'link', icon:'🎚️', name:'Stem Splitter', desc:'Separate vocals/drums/bass/other', badges:['music','pro'], url:'stem-splitter.html' },
   { id:'music-video-launch', cat:'music', type:'link', icon:'🎬', name:'Music Video Maker', desc:'AI-generated video clips with your song', badges:['music','pro'], url:'music-video.html' },
-  { id:'beatmaker-launch', cat:'music', type:'link', icon:'🥁', name:'Beatmaker AI', desc:'Generate original beats with AI', badges:['music','pro'], url:'beatmaker.html' },
   { id:'link-tools-launch', cat:'social', type:'link', icon:'🔗', name:'Link Tools', desc:'Short links + QR codes for sharing', badges:['social'], url:'link-tools.html' },
   { id:'master-ai-launch', cat:'music', type:'link', icon:'🎧', name:'Mastering Studio', desc:'Upload + master your songs', badges:['music'], url:'master-ai.html' },
 
@@ -1016,17 +1015,17 @@ var CLIENT_HANDLERS={
     var artist=v.artist||'',title=v.title||'',featured=v.featured||'',pos=v.textPos||'bottom',prompt=v.prompt||'';
     showLoading('Step 1: Enhancing prompt with AI...');
 
-    // Step 1: ask AI to enhance prompt
+    // Step 1: ask AI to enhance prompt - NO TEXT in image
     var imgPrompt=prompt;
     try {
       var aiRes=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({input:'Create a concise vivid image generation prompt (visual only, no explanation) for an album cover: '+prompt+'. Artist: '+artist+(title?' Title: '+title:'')+'. Make it cinematic.',tier:'nano'})});
+        body:JSON.stringify({input:'Create a concise vivid image generation prompt (visual only, no explanation) for an album cover concept: '+prompt+'. CRITICAL: Do NOT include any text, words, letters, or typography. The image must be purely visual with NO text rendered. Just describe the visual scene, colors, mood, and composition.',tier:'nano'})});
       var aiData=await aiRes.json();
       if(aiData.text)imgPrompt=aiData.text.replace(/\n/g,' ').substring(0,400);
     } catch(e){/* use original prompt */}
 
     showLoading('Step 2: Generating image (10-30s)...');
-    var baseUrl=IMG_GEN+encodeURIComponent(imgPrompt+', album cover art, high quality, professional, square')+'?width=1024&height=1024&nologo=true&seed='+Date.now();
+    var baseUrl=IMG_GEN+encodeURIComponent(imgPrompt+', album cover art, high quality, professional, square, no text, no words, no letters, no typography')+'?width=1024&height=1024&nologo=true&seed='+Date.now();
 
     var img=await loadImage(baseUrl);
     var canvas=document.createElement('canvas');
@@ -1035,24 +1034,36 @@ var CLIENT_HANDLERS={
     ctx.drawImage(img,0,0,1024,1024);
 
     if(pos!=='none'&&(artist||title)){
-      var barHeight=featured?180:(title?140:90);
-      var barY=pos==='top'?0:pos==='center'?(1024-barHeight)/2:1024-barHeight;
-      ctx.fillStyle='rgba(0,0,0,0.55)';
-      ctx.fillRect(0,barY,1024,barHeight);
       ctx.textAlign='center';
-      ctx.fillStyle='#fff';ctx.strokeStyle='#000';ctx.lineWidth=3;
-      ctx.font='bold 64px "Bebas Neue", Impact, sans-serif';
-      var textY=barY+60;
-      if(artist){ctx.strokeText(artist.toUpperCase(),512,textY);ctx.fillText(artist.toUpperCase(),512,textY);}
+
+      /* SONG TITLE at TOP */
       if(title){
-        ctx.font='bold 42px "Bebas Neue", Impact, sans-serif';
-        ctx.fillStyle='#c4b5fd';textY+=55;
-        ctx.strokeText(title.toUpperCase(),512,textY);ctx.fillText(title.toUpperCase(),512,textY);
+        ctx.fillStyle='rgba(0,0,0,0.6)';
+        ctx.fillRect(0,0,1024,130);
+        ctx.font='bold 80px "Bebas Neue", Impact, sans-serif';
+        ctx.fillStyle='#ffffff';ctx.strokeStyle='#000000';ctx.lineWidth=5;
+        ctx.strokeText(title.toUpperCase(),512,90);
+        ctx.fillText(title.toUpperCase(),512,90);
       }
+
+      /* ARTIST NAME in MIDDLE - biggest text */
+      if(artist){
+        ctx.fillStyle='rgba(0,0,0,0.5)';
+        ctx.fillRect(0,440,1024,140);
+        ctx.font='bold 100px "Bebas Neue", Impact, sans-serif';
+        ctx.fillStyle='#ffffff';ctx.strokeStyle='#000000';ctx.lineWidth=6;
+        ctx.strokeText(artist.toUpperCase(),512,540);
+        ctx.fillText(artist.toUpperCase(),512,540);
+      }
+
+      /* FEATURED ARTIST at BOTTOM */
       if(featured){
-        ctx.font='28px "Work Sans", sans-serif';
-        ctx.fillStyle='#a78bfa';ctx.lineWidth=2;textY+=42;
-        ctx.strokeText('feat. '+featured,512,textY);ctx.fillText('feat. '+featured,512,textY);
+        ctx.fillStyle='rgba(0,0,0,0.6)';
+        ctx.fillRect(0,900,1024,124);
+        ctx.font='bold 56px "Bebas Neue", Impact, sans-serif';
+        ctx.fillStyle='#c4b5fd';ctx.strokeStyle='#000000';ctx.lineWidth=3;
+        ctx.strokeText(('feat. '+featured).toUpperCase(),512,975);
+        ctx.fillText(('feat. '+featured).toUpperCase(),512,975);
       }
     }
 
@@ -1060,8 +1071,8 @@ var CLIENT_HANDLERS={
     window._lastImageUrl=dataUrl;
     showResult('<img src="'+dataUrl+'" alt="Album cover">'+
       '<div class="result-actions">'+
-      '<button class="btn btn-sm" onclick="downloadImage(\'album-cover-8bfr.png\')">⬇️ Download</button>'+
-      '<button class="btn btn-ghost btn-sm" onclick="runTool()">🔄 Try Again</button>'+
+      '<button class="btn btn-sm" onclick="downloadImage(\'album-cover-8bfr.png\')">Download</button>'+
+      '<button class="btn btn-ghost btn-sm" onclick="runTool()">Try Again</button>'+
       '</div>'+
       '<div style="font-size:0.75rem;color:rgba(168,85,247,0.7);margin-top:0.5rem;">Enhanced prompt: '+esc(imgPrompt)+'</div>');
   },
