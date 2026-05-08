@@ -140,6 +140,10 @@ body{font-family:'Work Sans',sans-serif;background:linear-gradient(#0b0014,#000)
           </div>
         </div>
         <a id="chatPartnerLink" href="#" style="font-size:.75rem;color:var(--dim);text-decoration:none;">View Profile</a>
+        <div style="display:flex;gap:.4rem;margin-left:.5rem;">
+          <button onclick="startCall(false)" style="background:none;border:none;font-size:1.1rem;cursor:pointer;" title="Voice Call">&#x1F4DE;</button>
+          <button onclick="startCall(true)" style="background:none;border:none;font-size:1.1rem;cursor:pointer;" title="Video Call">&#x1F4F9;</button>
+        </div>
       </div>
       <div class="chat-messages" id="chatMessages"></div>
       <div class="typing-indicator" id="typingIndicator"></div>
@@ -399,11 +403,6 @@ async function sendDM(){
   const input=document.getElementById('dmInput');
   const text=input.value.trim();
   if(!text)return;
-
-  // AutoMod check
-  var mod=await checkAutoMod(text,'dm',currentUser.id);
-  if(mod.flagged){alert(mod.warning);}
-
   input.value='';
 
   const{error}=await db.from('direct_messages').insert({
@@ -412,27 +411,7 @@ async function sendDM(){
     message:text
   });
 
-  if(error){console.error('Send error:',error);alert('Failed to send: '+error.message+' (code: '+(error.code||'?')+')');}
-  else{
-    // Immediately render sent message locally for instant feedback
-    renderDM({id:'temp-'+Date.now(),sender_id:currentUser.id,receiver_id:activePartnerId,message:text,is_read:false,created_at:new Date().toISOString()});
-    var box=document.getElementById('chatMessages');
-    box.scrollTop=box.scrollHeight;
-    // Send notification to recipient
-    try{
-      var senderName=currentProfile.display_name||currentProfile.username||'Someone';
-      await db.from('notifications').insert({
-        recipient_id:activePartnerId,
-        notif_type:'dm',
-        metadata:{
-          from_id:currentUser.id,
-          from_name:senderName,
-          message_preview:text.substring(0,80),
-          link:'dm.html?user='+currentUser.id
-        }
-      });
-    }catch(e){/* notification failed, DM still sent */}
-  }
+  if(error){console.error('Send error:',error);alert('Failed to send.');}
 }
 
 /* ═══ TYPING INDICATOR ═══ */
@@ -706,11 +685,38 @@ init();
 })();
 </script>
 
+<div id="callOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:9999;display:none;flex-direction:column;align-items:center;justify-content:center;">
+<video id="remoteVideo" autoplay playsinline style="width:100%;max-height:60vh;object-fit:cover;background:#111;border-radius:12px;"></video>
+<video id="localVideo" autoplay muted playsinline style="position:absolute;top:60px;right:10px;width:100px;height:140px;object-fit:cover;border-radius:10px;border:2px solid rgba(124,58,237,.5);"></video>
+<div id="callStatus" style="font-family:'Bebas Neue',cursive;font-size:1.3rem;color:#a855f7;margin-top:1rem;">Calling...</div>
+<div id="callTimer" style="font-size:.85rem;color:rgba(255,255,255,.6);margin-top:.3rem;"></div>
+<div style="display:flex;gap:1rem;margin-top:1.5rem;">
+<button id="muteBtn" onclick="toggleMute()" style="width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.15);border:none;font-size:1.2rem;cursor:pointer;">&#x1F507;</button>
+<button onclick="endCall()" style="width:50px;height:50px;border-radius:50%;background:#ef4444;border:none;font-size:1.2rem;cursor:pointer;color:#fff;">&#x1F4F5;</button>
+<button id="camToggle" onclick="toggleCam()" style="width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.15);border:none;font-size:1.2rem;cursor:pointer;">&#x1F4F7;</button>
+</div>
+</div>
+<div id="incomingCall" style="position:fixed;top:0;left:0;right:0;background:linear-gradient(rgba(124,58,237,.95),rgba(60,20,120,.95));padding:1.5rem;z-index:10000;display:none;text-align:center;border-radius:0 0 16px 16px;">
+<div style="font-size:1.5rem;">&#x1F4DE;</div>
+<div id="callerName" style="font-family:'Bebas Neue',cursive;font-size:1.3rem;">Incoming Call</div>
+<div id="inCallType" style="font-size:.78rem;color:rgba(255,255,255,.7);margin-bottom:1rem;">Video Call</div>
+<div style="display:flex;gap:1rem;justify-content:center;">
+<button onclick="acceptCall()" style="padding:.6rem 1.5rem;border-radius:30px;background:#22c55e;border:none;color:#fff;font-weight:700;cursor:pointer;">Accept</button>
+<button onclick="declineCall()" style="padding:.6rem 1.5rem;border-radius:30px;background:#ef4444;border:none;color:#fff;font-weight:700;cursor:pointer;">Decline</button>
+</div>
+</div>
 <script>
-window.checkAutoMod=async function(text,contentType,userId){
-  if(!text||text.length<3)return{allowed:true,flagged:false};
-  try{var r=await fetch('https://8bfr-api.vercel.app/api/automod',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:text,content_type:contentType||'message',user_id:userId||''})});var d=await r.json();if(d.flagged)return{allowed:true,flagged:true,severity:d.severity,warning:d.warning_message||'This content may violate community guidelines.'};return{allowed:true,flagged:false};}catch(e){return{allowed:true,flagged:false};}
-};
+var _pc=null,_localStream=null,_callPartner=null,_callActive=false,_callStart=0,_callIv=null,_muted=false,_camOff=false;
+var _ICE=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}];
+function _listenCalls(){if(!currentUser)return;var ch=db.channel('calls-'+currentUser.id);ch.on('broadcast',{event:'offer'},function(p){_callPartner=p.payload.from;document.getElementById('callerName').textContent=(p.payload.name||'Someone')+' calling...';document.getElementById('inCallType').textContent=p.payload.video?'Video Call':'Voice Call';document.getElementById('incomingCall').style.display='block';window._offer=p.payload;}).on('broadcast',{event:'answer'},function(p){if(_pc)_pc.setRemoteDescription(new RTCSessionDescription(p.payload.answer));}).on('broadcast',{event:'ice'},function(p){if(_pc&&p.payload.c)_pc.addIceCandidate(new RTCIceCandidate(p.payload.c));}).on('broadcast',{event:'end'},function(){endCall(true);}).subscribe();}
+window.startCall=async function(video){if(!chatPartnerId)return;_callPartner=chatPartnerId;try{_localStream=await navigator.mediaDevices.getUserMedia({audio:true,video:video});document.getElementById('localVideo').srcObject=_localStream;document.getElementById('localVideo').style.display=video?'block':'none';document.getElementById('callOverlay').style.display='flex';document.getElementById('callStatus').textContent='Calling...';_pc=new RTCPeerConnection({iceServers:_ICE});_localStream.getTracks().forEach(function(t){_pc.addTrack(t,_localStream);});_pc.ontrack=function(e){document.getElementById('remoteVideo').srcObject=e.streams[0];document.getElementById('callStatus').textContent='Connected';_callActive=true;_callStart=Date.now();_callIv=setInterval(_updTimer,1000);};_pc.onicecandidate=function(e){if(e.candidate)db.channel('calls-'+_callPartner).send({type:'broadcast',event:'ice',payload:{c:e.candidate}});};var o=await _pc.createOffer();await _pc.setLocalDescription(o);var nm='';try{var pr=await db.from('profiles').select('display_name,username').eq('user_id',currentUser.id).single();if(pr.data)nm=pr.data.display_name||pr.data.username;}catch(e){}db.channel('calls-'+_callPartner).send({type:'broadcast',event:'offer',payload:{from:currentUser.id,name:nm,video:video,offer:o}});}catch(e){alert('Call failed: '+e.message);endCall(true);}};
+window.acceptCall=async function(){document.getElementById('incomingCall').style.display='none';var d=window._offer;if(!d)return;try{_localStream=await navigator.mediaDevices.getUserMedia({audio:true,video:d.video});document.getElementById('localVideo').srcObject=_localStream;document.getElementById('localVideo').style.display=d.video?'block':'none';document.getElementById('callOverlay').style.display='flex';_pc=new RTCPeerConnection({iceServers:_ICE});_localStream.getTracks().forEach(function(t){_pc.addTrack(t,_localStream);});_pc.ontrack=function(e){document.getElementById('remoteVideo').srcObject=e.streams[0];document.getElementById('callStatus').textContent='Connected';_callActive=true;_callStart=Date.now();_callIv=setInterval(_updTimer,1000);};_pc.onicecandidate=function(e){if(e.candidate)db.channel('calls-'+d.from).send({type:'broadcast',event:'ice',payload:{c:e.candidate}});};await _pc.setRemoteDescription(new RTCSessionDescription(d.offer));var a=await _pc.createAnswer();await _pc.setLocalDescription(a);db.channel('calls-'+d.from).send({type:'broadcast',event:'answer',payload:{answer:a}});}catch(e){alert('Failed: '+e.message);}};
+window.declineCall=function(){document.getElementById('incomingCall').style.display='none';if(window._offer)db.channel('calls-'+window._offer.from).send({type:'broadcast',event:'end',payload:{}});};
+window.endCall=function(remote){if(!remote&&_callPartner)try{db.channel('calls-'+_callPartner).send({type:'broadcast',event:'end',payload:{}});}catch(e){}if(_pc){_pc.close();_pc=null;}if(_localStream){_localStream.getTracks().forEach(function(t){t.stop();});_localStream=null;}document.getElementById('callOverlay').style.display='none';document.getElementById('incomingCall').style.display='none';_callActive=false;clearInterval(_callIv);};
+window.toggleMute=function(){if(!_localStream)return;_muted=!_muted;_localStream.getAudioTracks().forEach(function(t){t.enabled=!_muted;});document.getElementById('muteBtn').style.background=_muted?'rgba(239,68,68,.4)':'rgba(255,255,255,.15)';};
+window.toggleCam=function(){if(!_localStream)return;_camOff=!_camOff;_localStream.getVideoTracks().forEach(function(t){t.enabled=!_camOff;});document.getElementById('camToggle').style.background=_camOff?'rgba(239,68,68,.4)':'rgba(255,255,255,.15)';};
+function _updTimer(){if(!_callActive)return;var s=Math.floor((Date.now()-_callStart)/1000);document.getElementById('callTimer').textContent=Math.floor(s/60)+':'+(s%60<10?'0':'')+(s%60);}
+setTimeout(function(){if(currentUser)_listenCalls();},2000);
 </script>
 
 </body>
