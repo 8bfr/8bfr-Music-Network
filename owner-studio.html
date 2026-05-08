@@ -127,6 +127,8 @@
                 <div class="tool-card" onclick="window.location.href='mastering.html'"><h3>🎚️ Mastering Studio</h3><p>Real-time EQ, compression, A/B preview</p><span class="badge-converter">🔄 TOOL</span></div>
                 <div class="tool-card" onclick="window.location.href='converter.html'"><h3>🔄 File Converter</h3><p>MP3/WAV/FLAC + spatial audio</p><span class="badge-converter">🔄 TOOL</span></div>
                 <div class="tool-card" onclick="window.location.href='songwriting.html'" style="border-color:rgba(251,191,36,.3);"><h3>📝 Songwriting Studio</h3><p>Write lyrics with templates, rhyme finder, syllable tools</p><span class="badge-real">✅ NOTEPAD</span></div>
+                <div class="tool-card" onclick="window.location.href='stem-splitter.html'"><h3>🎚️ Stem Splitter</h3><p>Separate vocals/drums/bass/other</p><span class="badge-converter">🔄 TOOL</span></div>
+                <div class="tool-card" onclick="window.location.href='music-video.html'"><h3>🎬 Music Video Maker</h3><p>AI-generated video clips</p><span class="badge-converter">🔄 TOOL</span></div>
                 <div class="tool-card" id="tool-meme" onclick="selectTool('meme')"><h3>😂 Meme Creator</h3><p>Add text to any image</p><span class="badge-real">✅ REAL IMAGE</span></div>
                 <div class="tool-card" id="tool-gif" onclick="selectTool('gif')"><h3>🎞️ GIF Creator</h3><p>Make animated GIFs from images</p><span class="badge-real">✅ REAL IMAGE</span></div>
                 <div class="tool-card" id="tool-qr" onclick="selectTool('qr')"><h3>📱 QR Code</h3><p>Generate QR codes for promo links</p><span class="badge-real">✅ REAL IMAGE</span></div>
@@ -620,14 +622,13 @@
             resultDiv.innerHTML = '<div class="spinner"></div> Step 1: Enhancing description with AI...';
             let imagePrompt = prompt;
             const fullTitle = title ? (featured ? `${title} (feat. ${featured})` : title) : '';
-            const textNote = textPos === 'none' ? '' : `. Include stylized text "${artist}" and "${fullTitle}" as part of the album cover design`;
 
             try {
                 const aiRes = await fetch('https://8bfr-api.vercel.app/api/openai', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        input: `Create a concise, vivid image generation prompt (only the visual description, no explanations) for this album cover: ${prompt}. Artist: ${artist}. ${fullTitle ? 'Title: ' + fullTitle + '.' : ''} ${textNote}`,
+                        input: `Create a concise, vivid image generation prompt (only the visual description, no explanations) for this album cover concept: ${prompt}. CRITICAL: Do NOT include any text, words, letters, or typography in the image description. The image must be purely visual with NO text rendered. Text will be added as an overlay afterward. Just describe the visual scene, colors, mood, and composition.`,
                         tool: 'cover'
                     })
                 });
@@ -637,9 +638,9 @@
                 }
             } catch(e) { /* use original */ }
 
-            /* Step 2: Generate base image */
+            /* Step 2: Generate base image - explicitly no text */
             resultDiv.innerHTML = '<div class="spinner"></div> Step 2: Generating image (10-30 seconds)...';
-            const encodedPrompt = encodeURIComponent(imagePrompt + ', album cover art, high quality, professional, square format');
+            const encodedPrompt = encodeURIComponent(imagePrompt + ', album cover art, high quality, professional, square format, no text, no words, no letters, no writing, no typography');
             const baseUrl = 'https://image.pollinations.ai/prompt/' + encodedPrompt + '?width=1024&height=1024&nologo=true&seed=' + Date.now();
 
             const img = new Image();
@@ -652,42 +653,42 @@
                     canvas.width = 1024; canvas.height = 1024;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, 1024, 1024);
-
-                    /* Semi-transparent bar behind text */
-                    const barHeight = featured ? 180 : 140;
-                    let barY = textPos === 'top' ? 0 : textPos === 'center' ? (1024 - barHeight) / 2 : 1024 - barHeight;
-                    ctx.fillStyle = 'rgba(0,0,0,0.55)';
-                    ctx.fillRect(0, barY, 1024, barHeight);
-
-                    /* Artist name */
                     ctx.textAlign = 'center';
-                    ctx.fillStyle = '#ffffff';
-                    ctx.strokeStyle = '#000000';
-                    ctx.lineWidth = 3;
 
-                    ctx.font = 'bold 64px "Bebas Neue", Impact, sans-serif';
-                    let textY = barY + 60;
-                    ctx.strokeText(artist.toUpperCase(), 512, textY);
-                    ctx.fillText(artist.toUpperCase(), 512, textY);
-
-                    /* Title */
+                    /* SONG TITLE at TOP */
                     if (title) {
-                        ctx.font = 'bold 42px "Bebas Neue", Impact, sans-serif';
-                        ctx.fillStyle = '#c4b5fd';
-                        textY += 55;
-                        ctx.strokeText(title.toUpperCase(), 512, textY);
-                        ctx.fillText(title.toUpperCase(), 512, textY);
+                        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                        ctx.fillRect(0, 0, 1024, 130);
+                        ctx.font = 'bold 80px "Bebas Neue", Impact, sans-serif';
+                        ctx.fillStyle = '#ffffff';
+                        ctx.strokeStyle = '#000000';
+                        ctx.lineWidth = 5;
+                        ctx.strokeText(title.toUpperCase(), 512, 90);
+                        ctx.fillText(title.toUpperCase(), 512, 90);
                     }
 
-                    /* Featured */
+                    /* ARTIST NAME in MIDDLE - biggest text */
+                    if (artist) {
+                        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                        ctx.fillRect(0, 440, 1024, 140);
+                        ctx.font = 'bold 100px "Bebas Neue", Impact, sans-serif';
+                        ctx.fillStyle = '#ffffff';
+                        ctx.strokeStyle = '#000000';
+                        ctx.lineWidth = 6;
+                        ctx.strokeText(artist.toUpperCase(), 512, 540);
+                        ctx.fillText(artist.toUpperCase(), 512, 540);
+                    }
+
+                    /* FEATURED ARTIST at BOTTOM */
                     if (featured) {
-                        ctx.font = '28px "Work Sans", sans-serif';
-                        ctx.fillStyle = '#a78bfa';
-                        ctx.lineWidth = 2;
-                        textY += 42;
-                        const featText = 'feat. ' + featured;
-                        ctx.strokeText(featText, 512, textY);
-                        ctx.fillText(featText, 512, textY);
+                        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                        ctx.fillRect(0, 900, 1024, 124);
+                        ctx.font = 'bold 56px "Bebas Neue", Impact, sans-serif';
+                        ctx.fillStyle = '#c4b5fd';
+                        ctx.strokeStyle = '#000000';
+                        ctx.lineWidth = 3;
+                        ctx.strokeText(('feat. ' + featured).toUpperCase(), 512, 975);
+                        ctx.fillText(('feat. ' + featured).toUpperCase(), 512, 975);
                     }
 
                     currentCoverUrl = canvas.toDataURL('image/png');
