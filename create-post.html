@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Create Post -- 8BFR</title>
+<link rel="icon" href="assets/images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&family=Pacifico&family=Permanent+Marker&family=Press+Start+2P&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Work Sans',sans-serif;background:#000;color:#fff;height:100vh;height:100dvh;overflow:hidden;touch-action:none;}
+.top{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;justify-content:space-between;align-items:center;padding:.5rem .75rem;background:linear-gradient(rgba(0,0,0,.7),transparent);}
+.top a,.top button{color:#fff;text-decoration:none;font-weight:700;font-size:.82rem;background:none;border:none;cursor:pointer;}
+.top .post-btn{background:#7c3aed;padding:.4rem 1rem;border-radius:20px;font-size:.8rem;}
+.mode-tabs{position:fixed;bottom:80px;left:0;right:0;z-index:90;display:flex;justify-content:center;gap:.3rem;padding:.3rem;}
+.mode-tab{padding:.35rem .7rem;border-radius:20px;font-size:.72rem;font-weight:700;cursor:pointer;background:rgba(255,255,255,.15);color:rgba(255,255,255,.8);border:none;backdrop-filter:blur(8px);}
+.mode-tab.active{background:#7c3aed;color:#fff;}
+.bottom-bar{position:fixed;bottom:0;left:0;right:0;z-index:90;display:flex;align-items:center;justify-content:space-around;padding:.6rem .5rem;background:linear-gradient(transparent,rgba(0,0,0,.8));}
+.rec-btn{width:64px;height:64px;border-radius:50%;border:4px solid #fff;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;}
+.rec-btn .inner{width:48px;height:48px;border-radius:50%;background:#ef4444;transition:all .2s;}
+.rec-btn.recording .inner{width:24px;height:24px;border-radius:6px;}
+.rec-btn.photo .inner{background:#fff;}
+.side-btn{display:flex;flex-direction:column;align-items:center;gap:.15rem;color:#fff;font-size:.55rem;cursor:pointer;background:none;border:none;}
+.side-btn .icon{font-size:1.3rem;}
+.canvas-area{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#000;}
+#preview{width:100%;height:100%;object-fit:cover;}
+#mainCanvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+.pip-view{position:fixed;top:60px;right:10px;width:100px;height:140px;border-radius:12px;overflow:hidden;border:2px solid rgba(255,255,255,.3);z-index:80;display:none;}
+.pip-view video{width:100%;height:100%;object-fit:cover;}
+.timer-display{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Bebas Neue',cursive;font-size:5rem;color:#fff;text-shadow:0 4px 20px rgba(0,0,0,.5);z-index:200;display:none;}
+.duration-bar{position:fixed;top:48px;left:0;right:0;height:4px;background:rgba(255,255,255,.2);z-index:100;}
+.duration-fill{height:100%;background:#ef4444;width:0%;transition:width .1s linear;}
+.time-label{position:fixed;top:52px;right:10px;font-size:.65rem;color:#fff;z-index:100;font-weight:700;}
+.side-tools{position:fixed;right:6px;top:50%;transform:translateY(-50%);z-index:90;display:flex;flex-direction:column;gap:.5rem;}
+.stool{width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,.4);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;border:none;color:#fff;}
+.stool.active{background:rgba(124,58,237,.6);}
+.panel{position:fixed;bottom:0;left:0;right:0;background:rgba(10,0,20,.95);border-top:1px solid rgba(124,58,237,.3);max-height:45vh;overflow-y:auto;z-index:150;display:none;padding:.75rem;backdrop-filter:blur(16px);border-radius:16px 16px 0 0;}
+.panel.show{display:block;}
+.panel h3{font-family:'Bebas Neue',cursive;font-size:.95rem;color:#a855f7;margin-bottom:.4rem;display:flex;justify-content:space-between;}
+.pc{background:none;border:none;color:#fff;font-size:1rem;cursor:pointer;}
+.filter-grid{display:flex;gap:.4rem;overflow-x:auto;padding:.3rem 0;-webkit-overflow-scrolling:touch;}
+.filter-item{flex-shrink:0;width:65px;text-align:center;cursor:pointer;border-radius:8px;padding:.3rem;border:2px solid transparent;}
+.filter-item.active{border-color:#7c3aed;}
+.filter-preview{width:55px;height:55px;border-radius:8px;background:#333;overflow:hidden;}
+.filter-preview img{width:100%;height:100%;object-fit:cover;}
+.filter-name{font-size:.55rem;color:rgba(255,255,255,.7);margin-top:.2rem;}
+.dur-grid{display:flex;gap:.3rem;flex-wrap:wrap;}
+.dur-btn{padding:.35rem .7rem;border-radius:20px;font-size:.72rem;font-weight:700;cursor:pointer;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.2);}
+.dur-btn.active{background:#7c3aed;border-color:#7c3aed;}
+.effect-grid{display:flex;gap:.3rem;overflow-x:auto;padding:.3rem 0;}
+.effect-btn{flex-shrink:0;padding:.4rem .7rem;border-radius:20px;font-size:.68rem;font-weight:600;cursor:pointer;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.15);white-space:nowrap;}
+.effect-btn.active{background:rgba(124,58,237,.3);border-color:#7c3aed;}
+.text-post{position:fixed;inset:0;z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;padding:2rem;}
+.text-post textarea{width:100%;max-width:400px;min-height:200px;background:transparent;border:none;color:#fff;font-size:1.5rem;text-align:center;outline:none;resize:none;font-family:inherit;line-height:1.5;}
+.bg-picker{display:flex;gap:.3rem;margin-top:1rem;}
+.bg-opt{width:36px;height:36px;border-radius:50%;cursor:pointer;border:2px solid transparent;}
+.bg-opt.active{border-color:#fff;box-shadow:0 0 8px rgba(255,255,255,.5);}
+.font-picker{display:flex;gap:.3rem;overflow-x:auto;margin-top:.5rem;padding:.3rem 0;}
+.font-btn{padding:.3rem .6rem;border-radius:8px;font-size:.7rem;cursor:pointer;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.15);white-space:nowrap;}
+.font-btn.active{background:#7c3aed;border-color:#7c3aed;}
+.caption-overlay{position:fixed;bottom:90px;left:10px;right:10px;z-index:80;}
+.caption-input{width:100%;padding:.5rem;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.2);border-radius:10px;color:#fff;font-size:.82rem;outline:none;backdrop-filter:blur(8px);}
+.ai-photo-panel{padding:.5rem;}
+.fi{width:100%;padding:.4rem .6rem;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:8px;color:#fff;font-size:.82rem;outline:none;font-family:inherit;margin-bottom:.4rem;}
+.btn{padding:.45rem .8rem;border-radius:8px;font-weight:700;font-size:.78rem;cursor:pointer;border:none;color:#fff;}
+.btn-p{background:#7c3aed;width:100%;}
+</style>
+</head>
+<body>
+<div class="top">
+<a href="feed.html">X</a>
+<span id="modeLabel" style="font-family:'Bebas Neue',cursive;font-size:1rem;">Camera</span>
+<button class="post-btn" onclick="publishPost()">Post</button>
+</div>
+<div class="duration-bar"><div class="duration-fill" id="durFill"></div></div>
+<div class="time-label" id="timeLabel">0:00</div>
+
+<div class="canvas-area" id="canvasArea">
+<video id="preview" autoplay muted playsinline></video>
+<canvas id="mainCanvas"></canvas>
+</div>
+<div class="pip-view" id="pipView"><video id="pipVideo" autoplay muted playsinline></video></div>
+<div class="timer-display" id="timerDisplay"></div>
+
+<!-- TEXT POST -->
+<div class="text-post" id="textPost">
+<textarea id="textContent" placeholder="Type something..."></textarea>
+<div class="font-picker">
+<div class="font-btn active" onclick="setFont('Work Sans',this)" style="font-family:'Work Sans';">Default</div>
+<div class="font-btn" onclick="setFont('Bebas Neue',this)" style="font-family:'Bebas Neue';">Block</div>
+<div class="font-btn" onclick="setFont('Pacifico',this)" style="font-family:'Pacifico';">Script</div>
+<div class="font-btn" onclick="setFont('Permanent Marker',this)" style="font-family:'Permanent Marker';">Marker</div>
+<div class="font-btn" onclick="setFont('Press Start 2P',this)" style="font-family:'Press Start 2P';font-size:.5rem;">Pixel</div>
+</div>
+<div class="bg-picker" id="bgPicker">
+<div class="bg-opt active" style="background:linear-gradient(135deg,#7c3aed,#ec4899);" onclick="setBg(this,'linear-gradient(135deg,#7c3aed,#ec4899)')"></div>
+<div class="bg-opt" style="background:linear-gradient(135deg,#000,#1a1a2e);" onclick="setBg(this,'linear-gradient(135deg,#000,#1a1a2e)')"></div>
+<div class="bg-opt" style="background:linear-gradient(135deg,#0ea5e9,#22c55e);" onclick="setBg(this,'linear-gradient(135deg,#0ea5e9,#22c55e)')"></div>
+<div class="bg-opt" style="background:linear-gradient(135deg,#f97316,#ef4444);" onclick="setBg(this,'linear-gradient(135deg,#f97316,#ef4444)')"></div>
+<div class="bg-opt" style="background:linear-gradient(135deg,#fbbf24,#f97316);" onclick="setBg(this,'linear-gradient(135deg,#fbbf24,#f97316)')"></div>
+<div class="bg-opt" style="background:#fff;" onclick="setBg(this,'#fff')"></div>
+<div class="bg-opt" style="background:linear-gradient(135deg,#14b8a6,#7c3aed);" onclick="setBg(this,'linear-gradient(135deg,#14b8a6,#7c3aed)')"></div>
+</div>
+</div>
+
+<!-- CAPTION -->
+<div class="caption-overlay" id="captionArea" style="display:none;">
+<input class="caption-input" id="captionInput" placeholder="Add a caption...">
+</div>
+
+<!-- SIDE TOOLS -->
+<div class="side-tools" id="sideTools">
+<button class="stool" onclick="flipCamera()" title="Flip"><span class="icon">&#x1F504;</span></button>
+<button class="stool" id="flashBtn" onclick="toggleFlash()" title="Flash"><span class="icon">&#x26A1;</span></button>
+<button class="stool" onclick="toggleTimer()" title="Timer"><span class="icon">&#x23F1;</span></button>
+<button class="stool" onclick="openPanel('filters')" title="Filters"><span class="icon">&#x2728;</span></button>
+<button class="stool" onclick="openPanel('effects')" title="Effects"><span class="icon">&#x1F3AD;</span></button>
+<button class="stool" onclick="openPanel('duration')" title="Duration"><span class="icon">&#x23F0;</span></button>
+<button class="stool" onclick="togglePiP()" title="PiP"><span class="icon">&#x1F4F1;</span></button>
+<button class="stool" onclick="openPanel('ai')" title="AI Photo"><span class="icon">&#x1F916;</span></button>
+<button class="stool" onclick="toggleCaption()" title="Caption"><span class="icon">&#x1F4AC;</span></button>
+</div>
+
+<!-- MODE TABS -->
+<div class="mode-tabs">
+<button class="mode-tab" onclick="setMode('text',this)">Text</button>
+<button class="mode-tab" onclick="setMode('photo',this)">Photo</button>
+<button class="mode-tab active" onclick="setMode('video',this)">Video</button>
+<button class="mode-tab" onclick="setMode('upload',this)">Upload</button>
+</div>
+
+<!-- BOTTOM BAR -->
+<div class="bottom-bar" id="bottomBar">
+<button class="side-btn" onclick="openGallery()"><span class="icon">&#x1F5BC;</span><span>Gallery</span></button>
+<button class="rec-btn" id="recBtn" onclick="onRecBtn()"><div class="inner"></div></button>
+<button class="side-btn" onclick="flipCamera()"><span class="icon">&#x1F504;</span><span>Flip</span></button>
+</div>
+
+<!-- PANELS -->
+<div class="panel" id="p-filters">
+<h3>Filters <button class="pc" onclick="closePanel()">X</button></h3>
+<div class="filter-grid" id="filterGrid"></div>
+</div>
+
+<div class="panel" id="p-effects">
+<h3>Effects <button class="pc" onclick="closePanel()">X</button></h3>
+<div class="effect-grid">
+<div class="effect-btn active" onclick="setEffect('none',this)">None</div>
+<div class="effect-btn" onclick="setEffect('slow',this)">Slow Mo</div>
+<div class="effect-btn" onclick="setEffect('mirror',this)">Mirror</div>
+<div class="effect-btn" onclick="setEffect('flash',this)">Flash</div>
+<div class="effect-btn" onclick="setEffect('zoom',this)">Zoom Pulse</div>
+<div class="effect-btn" onclick="setEffect('vignette',this)">Vignette</div>
+<div class="effect-btn" onclick="setEffect('glitch',this)">Glitch</div>
+<div class="effect-btn" onclick="setEffect('duotone',this)">Duotone</div>
+<div class="effect-btn" onclick="setEffect('fisheye',this)">Fisheye</div>
+<div class="effect-btn" onclick="setEffect('pixelate',this)">Pixelate</div>
+<div class="effect-btn" onclick="setEffect('shake',this)">Shake</div>
+</div>
+</div>
+
+<div class="panel" id="p-duration">
+<h3>Duration <button class="pc" onclick="closePanel()">X</button></h3>
+<div class="dur-grid">
+<div class="dur-btn" onclick="setDuration(15,this)">15s</div>
+<div class="dur-btn active" onclick="setDuration(60,this)">60s</div>
+<div class="dur-btn" onclick="setDuration(180,this)">3 min</div>
+<div class="dur-btn" onclick="setDuration(600,this)">10 min</div>
+</div>
+</div>
+
+<div class="panel" id="p-ai">
+<h3>AI Photo <button class="pc" onclick="closePanel()">X</button></h3>
+<div class="ai-photo-panel">
+<input class="fi" id="aiPhotoPrompt" placeholder="Describe the image you want...">
+<button class="btn btn-p" onclick="generateAIPhoto()">Generate</button>
+<div id="aiPhotoStatus" style="font-size:.72rem;color:rgba(255,255,255,.5);margin-top:.3rem;"></div>
+</div>
+</div>
+
+<input type="file" id="fileInput" accept="image/*,video/*" style="display:none;" onchange="handleUpload(this)">
+
+<script>
+var db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f');
+var currentUser=null,mode='video',recording=false,mediaRecorder=null,chunks=[];
+var stream=null,pipStream=null,facingMode='environment',flashOn=false,timerSecs=0;
+var maxDuration=60,recordStart=0,durInterval=null;
+var currentFilter='none',currentEffect='none',currentBg='linear-gradient(135deg,#7c3aed,#ec4899)';
+var capturedBlob=null,capturedType='video';
+
+var FILTERS=[
+{name:'None',css:'none'},
+{name:'Warm',css:'sepia(30%) saturate(140%)'},
+{name:'Cool',css:'saturate(80%) hue-rotate(20deg)'},
+{name:'Vintage',css:'sepia(50%) contrast(90%) brightness(105%)'},
+{name:'B&W',css:'grayscale(100%)'},
+{name:'Vivid',css:'saturate(200%) contrast(110%)'},
+{name:'Fade',css:'contrast(80%) brightness(115%) saturate(80%)'},
+{name:'Drama',css:'contrast(150%) brightness(90%)'},
+{name:'Invert',css:'invert(100%)'},
+{name:'Blur',css:'blur(2px)'},
+{name:'Purple',css:'hue-rotate(270deg) saturate(150%)'},
+{name:'Teal',css:'hue-rotate(160deg) saturate(120%)'},
+{name:'Rose',css:'hue-rotate(330deg) saturate(130%)'}
+];
+
+(async function(){
+var s=await db.auth.getSession();
+if(!s.data.session){window.location.href='login.html?return=create-post.html';return;}
+currentUser=s.data.session.user;
+initCamera();
+buildFilters();
+})();
+
+function buildFilters(){
+var g=document.getElementById('filterGrid');
+g.innerHTML=FILTERS.map(function(f,i){
+return '<div class="filter-item'+(i===0?' active':'')+'" onclick="setFilter(\''+f.css+'\',this)"><div class="filter-preview" style="background:#444;filter:'+f.css+';"></div><div class="filter-name">'+f.name+'</div></div>';
+}).join('');
+}
+
+async function initCamera(){
+if(mode==='text'||mode==='upload')return;
+try{
+if(stream){stream.getTracks().forEach(function(t){t.stop();});}
+var constraints={video:{facingMode:facingMode,width:{ideal:1080},height:{ideal:1920}},audio:true};
+stream=await navigator.mediaDevices.getUserMedia(constraints);
+document.getElementById('preview').srcObject=stream;
+}catch(e){console.log('Camera error:',e);}
+}
+
+function flipCamera(){
+facingMode=facingMode==='environment'?'user':'environment';
+initCamera();
+}
+
+function toggleFlash(){
+if(!stream)return;
+var track=stream.getVideoTracks()[0];
+if(!track)return;
+try{
+var caps=track.getCapabilities();
+if(caps.torch){
+flashOn=!flashOn;
+track.applyConstraints({advanced:[{torch:flashOn}]});
+document.getElementById('flashBtn').classList.toggle('active',flashOn);
+}
+}catch(e){}
+}
+
+function toggleTimer(){
+timerSecs=timerSecs===0?3:timerSecs===3?10:0;
+var btn=document.querySelector('.stool[onclick*="toggleTimer"]');
+if(btn)btn.classList.toggle('active',timerSecs>0);
+}
+
+async function togglePiP(){
+var pip=document.getElementById('pipView');
+if(pip.style.display==='block'){
+pip.style.display='none';
+if(pipStream){pipStream.getTracks().forEach(function(t){t.stop();});pipStream=null;}
+return;
+}
+try{
+var otherFacing=facingMode==='environment'?'user':'environment';
+pipStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:otherFacing},audio:false});
+document.getElementById('pipVideo').srcObject=pipStream;
+pip.style.display='block';
+}catch(e){console.log('PiP error:',e);}
+}
+
+function toggleCaption(){
+var c=document.getElementById('captionArea');
+c.style.display=c.style.display==='none'?'block':'none';
+}
+
+function setMode(m,btn){
+mode=m;
+document.querySelectorAll('.mode-tab').forEach(function(t){t.classList.remove('active');});
+if(btn)btn.classList.add('active');
+document.getElementById('modeLabel').textContent=m==='text'?'Text Post':m==='photo'?'Photo':m==='upload'?'Upload':'Video';
+document.getElementById('textPost').style.display=m==='text'?'flex':'none';
+document.getElementById('sideTools').style.display=(m==='video'||m==='photo')?'flex':'none';
+var rb=document.getElementById('recBtn');
+rb.classList.toggle('photo',m==='photo');
+if(m==='text'){
+document.getElementById('textPost').style.background=currentBg;
+if(stream){stream.getTracks().forEach(function(t){t.stop();});stream=null;}
+}else if(m==='upload'){
+if(stream){stream.getTracks().forEach(function(t){t.stop();});stream=null;}
+document.getElementById('preview').srcObject=null;
+}else{
+initCamera();
+}
+}
+
+function setFilter(css,el){
+currentFilter=css;
+document.getElementById('preview').style.filter=css==='none'?'':css;
+document.querySelectorAll('.filter-item').forEach(function(f){f.classList.remove('active');});
+if(el)el.classList.add('active');
+closePanel();
+}
+
+function setEffect(name,el){
+currentEffect=name;
+document.querySelectorAll('.effect-btn').forEach(function(b){b.classList.remove('active');});
+if(el)el.classList.add('active');
+var v=document.getElementById('preview');
+v.style.transform='';
+if(name==='mirror')v.style.transform='scaleX(-1)';
+if(name==='fisheye')v.style.borderRadius='50%';
+else v.style.borderRadius='';
+closePanel();
+}
+
+function setDuration(secs,el){
+maxDuration=secs;
+document.querySelectorAll('.dur-btn').forEach(function(b){b.classList.remove('active');});
+if(el)el.classList.add('active');
+closePanel();
+}
+
+function setFont(font,el){
+document.getElementById('textContent').style.fontFamily=font;
+document.querySelectorAll('.font-btn').forEach(function(b){b.classList.remove('active');});
+if(el)el.classList.add('active');
+}
+
+function setBg(el,bg){
+currentBg=bg;
+document.getElementById('textPost').style.background=bg;
+document.querySelectorAll('.bg-opt').forEach(function(b){b.classList.remove('active');});
+if(el)el.classList.add('active');
+var ta=document.getElementById('textContent');
+ta.style.color=bg==='#fff'?'#000':'#fff';
+}
+
+function openPanel(id){document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('show');});document.getElementById('p-'+id).classList.add('show');}
+function closePanel(){document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('show');});}
+function openGallery(){document.getElementById('fileInput').click();}
+
+function handleUpload(input){
+if(!input.files||!input.files[0])return;
+var file=input.files[0];
+capturedBlob=file;
+capturedType=file.type.startsWith('video')?'video':'image';
+var url=URL.createObjectURL(file);
+if(capturedType==='video'){
+document.getElementById('preview').srcObject=null;
+document.getElementById('preview').src=url;
+document.getElementById('preview').muted=false;
+}else{
+document.getElementById('preview').srcObject=null;
+document.getElementById('preview').poster=url;
+var img=new Image();img.src=url;
+document.getElementById('preview').style.backgroundImage='url('+url+')';
+document.getElementById('preview').style.backgroundSize='cover';
+document.getElementById('preview').style.backgroundPosition='center';
+}
+setMode('upload',document.querySelector('.mode-tab:last-child'));
+}
+
+async function onRecBtn(){
+if(mode==='photo'){
+if(timerSecs>0){await runTimer();}
+takePhoto();
+}else if(mode==='video'){
+if(recording){stopRecording();}
+else{if(timerSecs>0){await runTimer();}startRecording();}
+}else if(mode==='text'){
+captureTextPost();
+}
+}
+
+function runTimer(){
+return new Promise(function(resolve){
+var el=document.getElementById('timerDisplay');
+var count=timerSecs;
+el.style.display='block';
+el.textContent=count;
+var iv=setInterval(function(){
+count--;
+if(count<=0){clearInterval(iv);el.style.display='none';resolve();}
+else{el.textContent=count;}
+},1000);
+});
+}
+
+function takePhoto(){
+var video=document.getElementById('preview');
+var canvas=document.createElement('canvas');
+canvas.width=video.videoWidth||1080;
+canvas.height=video.videoHeight||1920;
+var ctx=canvas.getContext('2d');
+if(currentFilter!=='none')ctx.filter=currentFilter;
+if(currentEffect==='mirror'){ctx.translate(canvas.width,0);ctx.scale(-1,1);}
+ctx.drawImage(video,0,0,canvas.width,canvas.height);
+canvas.toBlob(function(blob){
+capturedBlob=blob;capturedType='image';
+var url=URL.createObjectURL(blob);
+video.srcObject=null;video.poster=url;
+video.style.backgroundImage='url('+url+')';
+video.style.backgroundSize='cover';
+},'image/jpeg',0.92);
+}
+
+function startRecording(){
+if(!stream)return;
+recording=true;chunks=[];
+document.getElementById('recBtn').classList.add('recording');
+try{mediaRecorder=new MediaRecorder(stream,{mimeType:'video/webm;codecs=vp8,opus'});}
+catch(e){try{mediaRecorder=new MediaRecorder(stream);}catch(e2){alert('Recording not supported');return;}}
+mediaRecorder.ondataavailable=function(e){if(e.data.size>0)chunks.push(e.data);};
+mediaRecorder.onstop=function(){
+capturedBlob=new Blob(chunks,{type:'video/webm'});
+capturedType='video';
+};
+mediaRecorder.start(100);
+recordStart=Date.now();
+durInterval=setInterval(updateDuration,100);
+}
+
+function stopRecording(){
+recording=false;
+document.getElementById('recBtn').classList.remove('recording');
+if(mediaRecorder&&mediaRecorder.state!=='inactive')mediaRecorder.stop();
+clearInterval(durInterval);
+document.getElementById('durFill').style.width='0%';
+}
+
+function updateDuration(){
+var elapsed=(Date.now()-recordStart)/1000;
+var pct=Math.min(elapsed/maxDuration*100,100);
+document.getElementById('durFill').style.width=pct+'%';
+var mins=Math.floor(elapsed/60);
+var secs=Math.floor(elapsed%60);
+document.getElementById('timeLabel').textContent=mins+':'+(secs<10?'0':'')+secs;
+if(elapsed>=maxDuration)stopRecording();
+}
+
+function captureTextPost(){
+var text=document.getElementById('textContent').value.trim();
+if(!text){alert('Type something first.');return;}
+var canvas=document.createElement('canvas');
+canvas.width=1080;canvas.height=1920;
+var ctx=canvas.getContext('2d');
+var grad=ctx.createLinearGradient(0,0,1080,1920);
+if(currentBg.includes('gradient')){
+var colors=currentBg.match(/#[a-fA-F0-9]{6}/g)||['#7c3aed','#ec4899'];
+grad.addColorStop(0,colors[0]);grad.addColorStop(1,colors[1]||colors[0]);
+ctx.fillStyle=grad;
+}else{ctx.fillStyle=currentBg;}
+ctx.fillRect(0,0,1080,1920);
+var font=document.getElementById('textContent').style.fontFamily||'Work Sans';
+ctx.font='bold 64px '+font+', sans-serif';
+ctx.fillStyle=currentBg==='#fff'?'#000':'#fff';
+ctx.textAlign='center';ctx.textBaseline='middle';
+var lines=wrapText(ctx,text,900);
+var lineH=80;var startY=960-(lines.length*lineH/2);
+lines.forEach(function(line,i){ctx.fillText(line,540,startY+i*lineH);});
+canvas.toBlob(function(blob){capturedBlob=blob;capturedType='image';},'image/jpeg',0.92);
+}
+
+function wrapText(ctx,text,maxW){
+var words=text.split(' ');var lines=[];var line='';
+for(var i=0;i<words.length;i++){
+var test=line+(line?' ':'')+words[i];
+if(ctx.measureText(test).width>maxW&&line){lines.push(line);line=words[i];}
+else{line=test;}
+}if(line)lines.push(line);return lines;
+}
+
+async function generateAIPhoto(){
+var prompt=document.getElementById('aiPhotoPrompt').value.trim();
+if(!prompt){alert('Describe the image.');return;}
+document.getElementById('aiPhotoStatus').textContent='Generating...';
+try{
+var url='https://image.pollinations.ai/prompt/'+encodeURIComponent(prompt+', high quality photo, 9:16 aspect ratio, no text')+'?width=1080&height=1920&nologo=true&seed='+Date.now();
+var img=new Image();img.crossOrigin='anonymous';
+img.onload=function(){
+var canvas=document.createElement('canvas');canvas.width=1080;canvas.height=1920;
+var ctx=canvas.getContext('2d');ctx.drawImage(img,0,0,1080,1920);
+canvas.toBlob(function(blob){
+capturedBlob=blob;capturedType='image';
+var u=URL.createObjectURL(blob);
+document.getElementById('preview').srcObject=null;
+document.getElementById('preview').style.backgroundImage='url('+u+')';
+document.getElementById('preview').style.backgroundSize='cover';
+document.getElementById('aiPhotoStatus').textContent='Done! Tap Post to share.';
+closePanel();
+},'image/jpeg',0.92);
+};
+img.onerror=function(){document.getElementById('aiPhotoStatus').textContent='Failed to generate.';};
+img.src=url;
+}catch(e){document.getElementById('aiPhotoStatus').textContent='Error: '+e.message;}
+}
+
+async function publishPost(){
+if(!capturedBlob&&mode==='text'){captureTextPost();await new Promise(function(r){setTimeout(r,500);});}
+if(!capturedBlob){alert('Capture or upload something first.');return;}
+var caption=document.getElementById('captionInput')?document.getElementById('captionInput').value.trim():'';
+var btn=document.querySelector('.post-btn');
+btn.textContent='Posting...';btn.disabled=true;
+try{
+var ext=capturedType==='video'?'webm':'jpg';
+var path='posts/'+currentUser.id+'/'+Date.now()+'.'+ext;
+var r=await db.storage.from('posts').upload(path,capturedBlob,{contentType:capturedType==='video'?'video/webm':'image/jpeg',upsert:true});
+if(r.error)throw r.error;
+var pub=db.storage.from('posts').getPublicUrl(path);
+var mediaUrl=pub.data.publicUrl;
+var post={user_id:currentUser.id,text:caption||'',media:mediaUrl,media_type:capturedType,is_private:false};
+var ins=await db.from('posts').insert(post);
+if(ins.error)throw ins.error;
+window.location.href='feed.html';
+}catch(e){
+alert('Post failed: '+e.message);
+btn.textContent='Post';btn.disabled=false;
+}
+}
+</script>
+<script src="scripts.js" defer></script>
+</body>
+</html>
