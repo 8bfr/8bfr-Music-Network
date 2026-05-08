@@ -278,6 +278,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
       <a href="index.html" class="menu-chip">&#x1F3E0; Home</a>\
       <a href="search.html" class="menu-chip menu-chip-network"><span class="menu-label-main">Network</span><span class="menu-label-alt">Search</span></a>\
       <a href="feed.html" class="menu-chip">&#x1F4F0; Community Feed</a>\
+      <a href="create-post.html" class="menu-chip">&#x1F4F7; Create Post</a>\
       <a href="radio.html" class="menu-chip">&#x1F4FB; Radio</a>\
       <a href="live.html" class="menu-chip">&#x1F4E1; Live</a>\
       <a href="stats.html" class="menu-chip">&#x1F4CA; Stats</a>\
@@ -310,6 +311,11 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
     <div class="menu-group-title">&#x1F916; AI Tools</div>\
     <div class="menu-links">\
       <a href="ai-studio.html" class="menu-chip menu-chip-ai">&#x1F916; AI Studio</a>\
+      <a href="mastering.html" class="menu-chip">&#x1F39B; Mastering Studio</a>\
+      <a href="converter.html" class="menu-chip">&#x1F504; File Converter</a>\
+      <a href="stem-splitter.html" class="menu-chip">&#x1F3DA; Stem Splitter</a>\
+      <a href="music-video.html" class="menu-chip">&#x1F3AC; Music Video</a>\
+      <a href="creator-tools.html" class="menu-chip">&#x1F4F8; Creator Tools</a>\
     </div>\
   </div>\
   <div class="menu-group collapsed">\
@@ -374,12 +380,12 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
       <a href="owner-discounts.html" class="menu-chip">&#x1F3F7; Discounts</a>\
       <a href="page-editor.html" class="menu-chip">&#x1F4DD; Page Editor</a>\
       <a href="owner-studio.html" class="menu-chip">&#x1F3A8; Owner Studio</a>\
+      <a href="songwriting.html" class="menu-chip">&#x1F4DD; Songwriting</a>\
       <a href="owner-users.html" class="menu-chip">&#x1F465; Manage Users</a>\
       <a href="owner-verifications.html" class="menu-chip">&#x2705; Verifications</a>\
       <a href="owner-dm-monitor.html" class="menu-chip">&#x1F441; DM Monitor</a>\
       <a href="owner-kidzone.html" class="menu-chip">&#x1F9F8; KidZone Admin</a>\
       <a href="owner-monitor.html" class="menu-chip">&#x1F441; Site Monitor</a>\
-      <a href="admin-panel.html" class="menu-chip">&#x2699;&#xFE0F; Admin Panel</a>\
       <a href="mod-panel.html" class="menu-chip">&#x1F6E1;&#xFE0F; Mod Panel</a>\
     </div>\
   </div>\
