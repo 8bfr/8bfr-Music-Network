@@ -232,7 +232,7 @@ body.menu-open #pageWrap{ margin-right:280px; }\
 @keyframes networkLabelAlt{ 0%,45%{opacity:0;} 55%,100%{opacity:1;} }\
 .menu-chip-ai{ background:linear-gradient(135deg,rgba(124,58,237,.4),rgba(0,217,255,.2)) !important; border-color:rgba(0,217,255,.6) !important; color:#00d9ff !important; font-weight:700 !important; }\
 .menu-chip-ai:hover{ background:linear-gradient(135deg,rgba(124,58,237,.6),rgba(0,217,255,.35)) !important; box-shadow:0 0 12px rgba(0,217,255,.4); }\
-#bubbleStack{ position:fixed; top:0; left:0; right:0; z-index:9989; display:flex; flex-direction:row; align-items:center; gap:4px; padding:6px 74px 6px 12px; background:rgba(10,2,26,.92); border-bottom:1px solid rgba(124,58,237,.4); backdrop-filter:blur(10px); overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch; flex-wrap:wrap; }\
+#bubbleStack{ position:fixed; top:0; left:0; right:0; z-index:9989; display:flex; flex-direction:row; align-items:center; gap:4px; padding:6px 74px 6px 12px; background:rgba(10,2,26,.92); border-bottom:1px solid rgba(124,58,237,.4); backdrop-filter:blur(10px); overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch; }\
 body{ padding-top:52px !important; }\
 #bubbleStack::-webkit-scrollbar{ display:none; }\
 .bubble-row{ display:flex; flex-direction:column; align-items:center; gap:1px; flex-shrink:0; }\
@@ -311,11 +311,6 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
     <div class="menu-group-title">&#x1F916; AI Tools</div>\
     <div class="menu-links">\
       <a href="ai-studio.html" class="menu-chip menu-chip-ai">&#x1F916; AI Studio</a>\
-      <a href="mastering.html" class="menu-chip">&#x1F39B; Mastering Studio</a>\
-      <a href="converter.html" class="menu-chip">&#x1F504; File Converter</a>\
-      <a href="stem-splitter.html" class="menu-chip">&#x1F3DA; Stem Splitter</a>\
-      <a href="music-video.html" class="menu-chip">&#x1F3AC; Music Video</a>\
-      <a href="creator-tools.html" class="menu-chip">&#x1F4F8; Creator Tools</a>\
     </div>\
   </div>\
   <div class="menu-group collapsed">\
