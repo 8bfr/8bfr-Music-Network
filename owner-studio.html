@@ -101,7 +101,8 @@
                 <div class="tool-card" id="tool-lyrics" onclick="selectTool('lyrics')"><h3>✍️ Lyrics Generator</h3><p>Generate song lyrics in any style</p><span class="badge-real">✅ REAL OUTPUT</span></div>
                 <div class="tool-card" id="tool-post" onclick="selectTool('post')"><h3>📝 Post Generator</h3><p>Create social media posts</p><span class="badge-real">✅ REAL OUTPUT</span></div>
                 <div class="tool-card" id="tool-cover" onclick="selectTool('cover')"><h3>🎨 Album Cover</h3><p>Cover art with artist name overlay</p><span class="badge-real">✅ REAL IMAGE</span></div>
-                <div class="tool-card" id="tool-song" onclick="selectTool('song')"><h3>🎤 Song Creator</h3><p>Full song structure + lyrics</p><span class="badge-real">✅ REAL OUTPUT</span></div>
+                <div class="tool-card" id="tool-song" onclick="selectTool('song')"><h3>🎤 Song Creator</h3><p>AI writes lyrics for your song</p><span class="badge-real">✅ LYRICS</span></div>
+                <div class="tool-card" id="tool-songgen" onclick="selectTool('songgen')" style="border-color:rgba(74,222,128,.3);"><h3>🎵 Song Generator</h3><p>Generate actual song with vocals + music</p><span class="badge-real" style="background:rgba(74,222,128,.15);color:#4ade80;">🎵 REAL AUDIO</span></div>
                 <div class="tool-card" id="tool-beats" onclick="selectTool('beats')"><h3>🎵 Beat Ideas</h3><p>Production concepts & blueprints</p><span class="badge-brief">📋 CREATIVE BRIEF</span></div>
                 <div class="tool-card" id="tool-video" onclick="selectTool('video')"><h3>🎬 Video Concept</h3><p>Music video storyboards & ideas</p><span class="badge-brief">📋 CREATIVE BRIEF</span></div>
             </div>
@@ -196,6 +197,7 @@
         video: { title: '🎬 Video Concept', hint: 'Describe the song and vision — get a storyboard plan.' },
         post: { title: '📝 Post Generator', hint: 'What platform and topic? Gets ready-to-paste posts.' },
         song: { title: '🎤 Song Creator', hint: 'Describe the full song — get complete lyrics with structure.' },
+        songgen: { title: '🎵 Song Generator', hint: 'Generate an actual song with AI vocals and music. Owner only.' },
         imgconvert: { title: '🖼️ Image Converter', hint: 'Upload an image and convert between PNG, JPG, and WebP formats.' },
         audioextract: { title: '🎧 Audio Extractor', hint: 'Upload a video file to extract the audio track.' },
         coproducer: { title: '🎤 Co-Producer', hint: 'Paste the featured artist verse. AI analyzes flow and writes matching verses + hook.' },
@@ -233,6 +235,29 @@
             case 'lyrics': return aiTextUI('e.g. Write a dark trap verse about rising from nothing, Wu-Tang style, with internal rhymes...');
             case 'post': return aiTextUI('e.g. Instagram caption for a new single drop, hype tone, include hashtags...');
             case 'song': return aiTextUI('e.g. Full rap song, 3 verses + hook, about discipline, aggressive delivery...');
+
+            case 'songgen': return `
+                <div class="form-group">
+                    <label>Lyrics (paste your lyrics or leave blank for AI to write)</label>
+                    <textarea id="sgLyrics" rows="6" placeholder="Paste your lyrics here. If blank, AI will write them based on your description below."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Song Description (genre, mood, tempo)</label>
+                    <input type="text" id="sgDesc" placeholder="e.g. Aggressive trap song, 140bpm, dark moody vibe">
+                </div>
+                <div style="display:flex;gap:0.5rem;">
+                    <div class="form-group" style="flex:1;">
+                        <label>Voice Type</label>
+                        <select id="sgVoice"><option value="male rap">Male Rap</option><option value="female vocals">Female Vocals</option><option value="male singing">Male Singing</option><option value="female rap">Female Rap</option><option value="auto">Auto</option></select>
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>Duration</label>
+                        <select id="sgDur"><option value="30">30 sec</option><option value="60">1 min</option><option value="120">2 min</option><option value="180" selected>3 min</option></select>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="runSongGen()">🎵 Generate Song</button>
+                <div style="font-size:0.7rem;color:rgba(255,255,255,0.4);margin-top:0.3rem;">Uses Pollinations ACE-Step. Generates real audio with AI vocals.</div>`;
+
             case 'beats': return aiTextUI('e.g. 82 BPM boom-bap beat with piano chops, heavy bass, martial arts movie sample...');
             case 'video': return aiTextUI('e.g. Music video for a hype anthem — warehouse setting, crew shots, slow-mo, smoke...');
 
@@ -1198,6 +1223,64 @@
         };
         img.src = resizeImgData;
     }
+
+    /* ═══════════════ SONG GENERATOR (REAL AUDIO) ═══════════════ */
+
+    window.runSongGen = async function() {
+        var lyrics = document.getElementById('sgLyrics').value.trim();
+        var desc = document.getElementById('sgDesc').value.trim();
+        var voice = document.getElementById('sgVoice').value;
+        var dur = parseInt(document.getElementById('sgDur').value) || 180;
+
+        if (!lyrics && !desc) { alert('Enter lyrics or a description.'); return; }
+
+        var resultDiv = document.getElementById('result');
+        resultDiv.style.display = 'block';
+
+        // Step 1: If no lyrics, generate them with AI
+        if (!lyrics) {
+            resultDiv.innerHTML = '<p class="loading-text"><span class="spinner"></span> Step 1: AI writing lyrics...</p>';
+            try {
+                var lRes = await fetch('https://8bfr-api.vercel.app/api/openai', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({input: 'Write a complete song with [Verse 1], [Chorus], [Verse 2], [Chorus], [Bridge], [Chorus] about: ' + desc + '. Style: ' + voice + '. Make lyrics vivid and rhythmic. Return ONLY the lyrics.', tier: 'full', max_tokens: 1500})
+                });
+                var lData = await lRes.json();
+                if (lData.text) lyrics = lData.text;
+                else if (lData.error) { resultDiv.innerHTML = '<p style="color:#ff4466;">Lyrics error: ' + lData.error + '</p>'; return; }
+            } catch(e) { resultDiv.innerHTML = '<p style="color:#ff4466;">API error: ' + e.message + '. Check your OpenAI API key in Vercel.</p>'; return; }
+        }
+
+        // Step 2: Build Pollinations prompt
+        resultDiv.innerHTML = '<p class="loading-text"><span class="spinner"></span> Step 2: Generating audio with vocals (' + dur + 's)... This may take 30-60 seconds.</p>';
+
+        var prompt = desc ? desc + '. ' : '';
+        prompt += voice + ' vocals. ';
+        prompt += 'Lyrics: ' + lyrics.substring(0, 600);
+
+        try {
+            var url = 'https://gen.pollinations.ai/audio/' + encodeURIComponent(prompt) + '?model=acestep&duration=' + dur;
+            var resp = await fetch(url);
+            if (!resp.ok) {
+                var errText = '';
+                try { errText = await resp.text(); } catch(e2) {}
+                throw new Error('HTTP ' + resp.status + ': ' + errText.substring(0, 200));
+            }
+            var blob = await resp.blob();
+            var audioUrl = URL.createObjectURL(blob);
+
+            resultDiv.innerHTML = '<p style="color:#4ade80;font-weight:700;">Song generated!</p>' +
+                '<audio controls src="' + audioUrl + '" style="width:100%;margin:.5rem 0;"></audio>' +
+                '<div style="display:flex;gap:0.5rem;margin-top:.5rem;">' +
+                '<a href="' + audioUrl + '" download="8bfr-song-' + Date.now() + '.mp3" class="btn btn-green">Download</a>' +
+                '<button class="btn btn-cyan" onclick="runSongGen()">Regenerate</button></div>' +
+                '<details style="margin-top:.5rem;"><summary style="font-size:.72rem;color:rgba(255,255,255,.4);cursor:pointer;">Lyrics used</summary><pre style="font-size:.72rem;white-space:pre-wrap;color:rgba(255,255,255,.5);margin-top:.3rem;">' + escapeHtml(lyrics) + '</pre></details>';
+        } catch(e) {
+            resultDiv.innerHTML = '<p style="color:#ff4466;">Audio generation error: ' + e.message + '</p>' +
+                '<div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-top:.3rem;">If this keeps failing, your Pollinations credits may be expired. Try without the key parameter or purchase more credits.</div>' +
+                '<details style="margin-top:.5rem;"><summary style="font-size:.72rem;color:rgba(255,255,255,.4);cursor:pointer;">Lyrics generated</summary><pre style="font-size:.72rem;white-space:pre-wrap;color:rgba(255,255,255,.5);margin-top:.3rem;">' + escapeHtml(lyrics) + '</pre></details>';
+        }
+    };
 
     /* ═══════════════ CO-PRODUCER SUITE ═══════════════ */
 
