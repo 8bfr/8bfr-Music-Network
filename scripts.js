@@ -27,6 +27,7 @@
         'https://novbuvwpjnxwwvdekjhr.supabase.co',
         'sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f'
       );
+      window._8bfrDb = db;
       db.auth.getSession().then(function(res){
         var session = res.data && res.data.session;
         if(!session || !session.user){ resolve(); return; }
