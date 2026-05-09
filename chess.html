@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chess -- 8BFR Games</title>
+<link rel="icon" href="assets/images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'Work Sans',sans-serif;background:linear-gradient(#080012,#020005);color:#f0ecff;min-height:100vh;}
+.hdr{background:rgba(8,0,18,.97);border-bottom:2px solid rgba(124,58,237,.6);padding:.75rem 1rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;}
+.hdr h1{font-family:'Bebas Neue',cursive;font-size:1.3rem;color:#a855f7;}.hdr a{color:rgba(255,255,255,.7);text-decoration:none;font-weight:600;font-size:.82rem;}
+.container{max-width:420px;margin:0 auto;padding:.75rem;}
+.turn-bar{text-align:center;padding:.4rem;font-weight:700;font-size:.85rem;margin-bottom:.5rem;border-radius:8px;}
+.board{display:grid;grid-template-columns:repeat(8,1fr);border:2px solid #5c3317;border-radius:6px;overflow:hidden;margin-bottom:.75rem;aspect-ratio:1;}
+.sq{display:flex;align-items:center;justify-content:center;font-size:min(5vw,28px);cursor:pointer;aspect-ratio:1;user-select:none;}
+.sq.light{background:#f0d9b5;}.sq.dark{background:#b58863;}
+.sq.selected{background:rgba(124,58,237,.5)!important;}.sq.valid{background:rgba(74,222,128,.4)!important;}
+.wager-row{display:flex;gap:.25rem;justify-content:center;margin-bottom:.5rem;flex-wrap:wrap;}
+.wager-btn{padding:.3rem .5rem;border-radius:8px;border:1px solid rgba(251,191,36,.3);background:rgba(251,191,36,.08);color:#fbbf24;font-weight:700;font-size:.7rem;cursor:pointer;}
+.wager-btn.sel{background:rgba(251,191,36,.2);border-color:#fbbf24;}
+.btn{padding:.5rem .8rem;border-radius:10px;font-weight:700;font-size:.82rem;cursor:pointer;border:none;color:#fff;width:100%;margin-top:.3rem;}.btn-g{background:#22c55e;}
+.msg{text-align:center;padding:.75rem;font-family:'Bebas Neue',cursive;font-size:1.3rem;border-radius:10px;margin-bottom:.5rem;display:none;}.msg.show{display:block;}
+</style>
+</head>
+<body>
+<div class="hdr"><a href="multiplayer-games.html">&larr;</a><h1>Chess</h1><div style="font-size:.7rem;color:#fbbf24;font-weight:700;" id="myCoins">0</div></div>
+<div class="container">
+<div class="wager-row"><div class="wager-btn sel" onclick="setW(this,0)">Free</div><div class="wager-btn" onclick="setW(this,25)">25</div><div class="wager-btn" onclick="setW(this,50)">50</div><div class="wager-btn" onclick="setW(this,100)">100</div></div>
+<div class="turn-bar" id="turnBar" style="background:rgba(255,255,255,.1);">White's Turn</div>
+<div class="board" id="board"></div>
+<div class="msg" id="msg"></div>
+<button class="btn btn-g" onclick="resetGame()">New Game</button>
+</div>
+<script src="scripts.js" defer></script>
+<script>
+var db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f');
+var OWNER_ID='cb556180-f032-4b21-9470-1d786f2664ab';
+var P={K:'&#x2654;',Q:'&#x2655;',R:'&#x2656;',B:'&#x2657;',N:'&#x2658;',P:'&#x2659;',k:'&#x265A;',q:'&#x265B;',r:'&#x265C;',b:'&#x265D;',n:'&#x265E;',p:'&#x265F;'};
+var START='rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR';
+var board=[],turn='w',sel=null,over=false,wager=0,myCoins=0,currentUser=null;
+(async function(){var s=await db.auth.getSession();if(s.data.session){currentUser=s.data.session.user;var p=await db.from('profiles').select('coins').eq('user_id',currentUser.id).single();if(p.data){myCoins=currentUser.id===OWNER_ID?999999:(p.data.coins||0);document.getElementById('myCoins').textContent=myCoins.toLocaleString();}}resetGame();})();
+function setW(el,a){wager=a;document.querySelectorAll('.wager-btn').forEach(function(b){b.classList.remove('sel');});el.classList.add('sel');resetGame();}
+function resetGame(){board=parseFEN(START);turn='w';sel=null;over=false;document.getElementById('msg').classList.remove('show');render();}
+function parseFEN(fen){var b=[];var rows=fen.split('/');for(var r=0;r<8;r++){b[r]=[];var c=0;for(var i=0;i<rows[r].length;i++){var ch=rows[r][i];if(ch>='1'&&ch<='8'){for(var j=0;j<parseInt(ch);j++){b[r][c++]=null;}}else{b[r][c++]=ch;}}}return b;}
+function isWhite(p){return p&&p===p.toUpperCase();}
+function isBlack(p){return p&&p===p.toLowerCase();}
+function render(){
+var html='';
+for(var r=0;r<8;r++){for(var c=0;c<8;c++){
+var light=(r+c)%2===0;var pc=board[r][c];
+var isSel=sel&&sel.r===r&&sel.c===c;
+var isValid=sel&&getValid(sel.r,sel.c).some(function(m){return m.r===r&&m.c===c;});
+html+='<div class="sq '+(light?'light':'dark')+(isSel?' selected':'')+(isValid?' valid':'')+'" onclick="click3('+r+','+c+')">'+(pc?P[pc]:'')+'</div>';
+}}
+document.getElementById('board').innerHTML=html;
+document.getElementById('turnBar').textContent=turn==='w'?'White (You)':'Black (AI)...';
+}
+function getValid(r,c){
+var p=board[r][c];if(!p)return[];var moves=[];var isW=isWhite(p);var type=p.toLowerCase();
+if(type==='p'){
+var dir=isW?-1:1;
+if(r+dir>=0&&r+dir<8&&!board[r+dir][c])moves.push({r:r+dir,c:c});
+if(isW&&r===6&&!board[5][c]&&!board[4][c])moves.push({r:4,c:c});
+if(!isW&&r===1&&!board[2][c]&&!board[3][c])moves.push({r:3,c:c});
+[-1,1].forEach(function(dc){var nr=r+dir,nc=c+dc;if(nr>=0&&nr<8&&nc>=0&&nc<8&&board[nr][nc]&&(isW?isBlack(board[nr][nc]):isWhite(board[nr][nc])))moves.push({r:nr,c:nc});});
+}
+if(type==='n'){[[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]].forEach(function(d){var nr=r+d[0],nc=c+d[1];if(nr>=0&&nr<8&&nc>=0&&nc<8&&!(isW?isWhite(board[nr][nc]):isBlack(board[nr][nc])))moves.push({r:nr,c:nc});});}
+if(type==='k'){for(var dr=-1;dr<=1;dr++){for(var dc=-1;dc<=1;dc++){if(dr===0&&dc===0)continue;var nr=r+dr,nc=c+dc;if(nr>=0&&nr<8&&nc>=0&&nc<8&&!(isW?isWhite(board[nr][nc]):isBlack(board[nr][nc])))moves.push({r:nr,c:nc});}}}
+if(type==='r'||type==='q'){[[0,1],[0,-1],[1,0],[-1,0]].forEach(function(d){for(var i=1;i<8;i++){var nr=r+d[0]*i,nc=c+d[1]*i;if(nr<0||nr>7||nc<0||nc>7)break;if(!board[nr][nc])moves.push({r:nr,c:nc});else{if(isW?isBlack(board[nr][nc]):isWhite(board[nr][nc]))moves.push({r:nr,c:nc});break;}}});}
+if(type==='b'||type==='q'){[[1,1],[1,-1],[-1,1],[-1,-1]].forEach(function(d){for(var i=1;i<8;i++){var nr=r+d[0]*i,nc=c+d[1]*i;if(nr<0||nr>7||nc<0||nc>7)break;if(!board[nr][nc])moves.push({r:nr,c:nc});else{if(isW?isBlack(board[nr][nc]):isWhite(board[nr][nc]))moves.push({r:nr,c:nc});break;}}});}
+return moves;
+}
+window.click3=function(r,c){
+if(over||turn!=='w')return;
+if(board[r][c]&&isWhite(board[r][c])){sel={r:r,c:c};render();return;}
+if(sel){var valid=getValid(sel.r,sel.c);if(valid.some(function(m){return m.r===r&&m.c===c;})){
+doMove(sel.r,sel.c,r,c);sel=null;
+if(checkMate('b')){endGame(true);return;}
+turn='b';render();setTimeout(aiMove,400);
+}else{sel=null;render();}}
+};
+function doMove(fr,fc,tr,tc){
+var p=board[fr][fc];board[tr][tc]=p;board[fr][fc]=null;
+if(p==='P'&&tr===0)board[tr][tc]='Q';
+if(p==='p'&&tr===7)board[tr][tc]='q';
+}
+function aiMove(){
+if(over)return;var best=null,bestScore=-9999;
+for(var r=0;r<8;r++){for(var c=0;c<8;c++){if(board[r][c]&&isBlack(board[r][c])){
+var moves=getValid(r,c);moves.forEach(function(m){
+var captured=board[m.r][m.c];var score=0;
+if(captured){var vals={p:1,n:3,b:3,r:5,q:9,k:100,P:1,N:3,B:3,R:5,Q:9,K:100};score=vals[captured]||0;}
+score+=Math.random()*0.5;
+if(m.r===3||m.r===4)score+=0.3;if(m.c===3||m.c===4)score+=0.2;
+if(score>bestScore){bestScore=score;best={fr:r,fc:c,tr:m.r,tc:m.c};}
+});}}}
+if(!best){endGame(true);return;}
+doMove(best.fr,best.fc,best.tr,best.tc);
+if(checkMate('w')){endGame(false);return;}
+turn='w';render();
+}
+function checkMate(color){
+var hasKing=false;
+for(var r=0;r<8;r++){for(var c=0;c<8;c++){
+var p=board[r][c];if(!p)continue;
+if((color==='w'&&p==='K')||(color==='b'&&p==='k'))hasKing=true;
+}}
+return !hasKing;
+}
+async function endGame(won){
+over=true;var el=document.getElementById('msg');el.classList.add('show');
+el.style.background=won?'rgba(74,222,128,.15)':'rgba(239,68,68,.15)';
+el.style.color=won?'#4ade80':'#ef4444';
+el.textContent=won?'Checkmate! You Win!'+(wager>0?' +'+wager*2+' coins':''):'Checkmate! AI Wins!'+(wager>0?' -'+wager+' coins':'');
+document.getElementById('turnBar').style.display='none';
+if(wager>0&&currentUser&&currentUser.id!==OWNER_ID){var ch=won?wager:-wager;try{var p=await db.from('profiles').select('coins').eq('user_id',currentUser.id).single();if(p.data)await db.from('profiles').update({coins:Math.max(0,(p.data.coins||0)+ch)}).eq('user_id',currentUser.id);}catch(e){}}
+try{await db.rpc('record_game_result',{p_user_id:currentUser.id,p_game:'chess',p_won:won,p_coins:wager});}catch(e){}
+}
+</script>
+</body>
+</html>
