@@ -205,7 +205,7 @@ var scenes = [];
 async function init() {
   try {
     supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-    const { data } = await supabase.auth.getUser();
+    const { data: sess } = await supabase.auth.getSession(); var data = sess.session ? { user: sess.session.user } : {};
     if (data && data.user) {
       currentUser = data.user;
       document.getElementById('signedOutMsg').classList.add('hidden');
@@ -249,14 +249,17 @@ async function checkUsage() {
 
     const count = (usage && usage.length) || 0;
 
-    const LIMITS = { free: 0, vip: 1, 'creator-pro': 3, 'artist-pro': 3, elite: 10, owner: 999 };
-    const limit = LIMITS[tier] || 0;
+    const LIMITS = { free: 1, vip: 3, 'creator-pro': 5, 'artist-pro': 5, elite: 10, owner: 999 };
+    const DUR_LIMITS = { free: 30, vip: 60, 'creator-pro': 60, 'artist-pro': 60, elite: 120, owner: 999 };
+    const limit = LIMITS[tier] || 1;
+    const maxDur = DUR_LIMITS[tier] || 30;
+    window._maxVideoDur = maxDur;
 
     const pill = document.getElementById('usagePill');
     if (tier === 'owner') {
-      pill.textContent = '👑 Owner — unlimited';
-    } else if (limit === 0) {
-      pill.innerHTML = '🔒 Free tier — <a href="pricing.html" style="color:#fbbf24;">upgrade to VIP ($4.99) for 1/mo</a>';
+      pill.textContent = 'Owner -- unlimited';
+    } else if (count >= limit) {
+      pill.innerHTML = 'Limit reached (' + count + '/' + limit + '/mo) -- <a href="pricing.html" style="color:#fbbf24;">upgrade for more</a>';
       disableAll();
     } else {
       pill.textContent = tier.toUpperCase() + ' tier — ' + count + '/' + limit + ' music videos this month';
