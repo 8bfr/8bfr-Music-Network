@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tic-Tac-Toe -- 8BFR Games</title>
+<link rel="icon" href="assets/images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Work Sans',sans-serif;background:linear-gradient(#080012,#020005);color:#f0ecff;min-height:100vh;}
+.hdr{background:rgba(8,0,18,.97);border-bottom:2px solid rgba(37,99,235,.6);padding:.75rem 1rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;}
+.hdr h1{font-family:'Bebas Neue',cursive;font-size:1.3rem;color:#3b82f6;}
+.hdr a{color:rgba(255,255,255,.7);text-decoration:none;font-weight:600;font-size:.82rem;}
+.container{max-width:400px;margin:0 auto;padding:1.5rem 1rem;}
+.score{display:flex;justify-content:center;gap:2rem;margin-bottom:1rem;}
+.score-item{text-align:center;}
+.score-num{font-family:'Bebas Neue',cursive;font-size:2rem;}
+.score-label{font-size:.7rem;color:rgba(255,255,255,.6);}
+.turn-bar{text-align:center;padding:.5rem;font-weight:700;font-size:.88rem;margin-bottom:.75rem;border-radius:10px;}
+.board{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;max-width:300px;margin:0 auto 1rem;}
+.cell{aspect-ratio:1;background:rgba(124,58,237,.08);border:2px solid rgba(124,58,237,.25);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:3rem;font-weight:800;cursor:pointer;transition:all .15s;user-select:none;}
+.cell:hover{background:rgba(124,58,237,.15);border-color:rgba(124,58,237,.5);}
+.cell.x{color:#3b82f6;}
+.cell.o{color:#ef4444;}
+@keyframes pop{from{transform:scale(0);}to{transform:scale(1);}}
+.cell.placed{animation:pop .2s ease-out;}
+.cell.win-cell{background:rgba(74,222,128,.15);border-color:#4ade80;}
+.btn{padding:.6rem 1rem;border-radius:10px;font-weight:700;font-size:.85rem;cursor:pointer;border:none;color:#fff;width:100%;margin-top:.4rem;}
+.btn-p{background:linear-gradient(135deg,#7c3aed,#a855f7);}
+.btn-g{background:#22c55e;}
+.msg{text-align:center;padding:1rem;font-family:'Bebas Neue',cursive;font-size:1.5rem;border-radius:12px;margin-bottom:.5rem;display:none;}
+.msg.show{display:block;}
+.wager-row{display:flex;gap:.3rem;justify-content:center;margin-bottom:.75rem;flex-wrap:wrap;}
+.wager-btn{padding:.35rem .6rem;border-radius:8px;border:1px solid rgba(251,191,36,.3);background:rgba(251,191,36,.08);color:#fbbf24;font-weight:700;font-size:.75rem;cursor:pointer;}
+.wager-btn.sel{background:rgba(251,191,36,.2);border-color:#fbbf24;}
+.coins-display{text-align:center;font-size:.78rem;color:#fbbf24;font-weight:700;margin-bottom:.5rem;}
+.round-info{text-align:center;font-size:.75rem;color:rgba(255,255,255,.5);margin-bottom:.5rem;}
+</style>
+</head>
+<body>
+<div class="hdr">
+<a href="multiplayer-games.html">&larr; Games</a>
+<h1>Tic-Tac-Toe</h1>
+<div style="font-size:.72rem;color:#fbbf24;font-weight:700;" id="myCoins">0</div>
+</div>
+<div class="container">
+<div class="coins-display">Wager: <span id="wagerAmt">Free</span></div>
+<div class="wager-row" id="wagerRow">
+<div class="wager-btn sel" onclick="setW(this,0)">Free</div>
+<div class="wager-btn" onclick="setW(this,10)">10</div>
+<div class="wager-btn" onclick="setW(this,25)">25</div>
+<div class="wager-btn" onclick="setW(this,50)">50</div>
+</div>
+<div class="round-info" id="roundInfo">Best of 3 - Round 1</div>
+<div class="score">
+<div class="score-item"><div class="score-num" id="pScore" style="color:#3b82f6;">0</div><div class="score-label">You (X)</div></div>
+<div class="score-item"><div class="score-num" id="tScore" style="color:rgba(255,255,255,.3);">0</div><div class="score-label">Ties</div></div>
+<div class="score-item"><div class="score-num" id="aScore" style="color:#ef4444;">0</div><div class="score-label">AI (O)</div></div>
+</div>
+<div class="turn-bar" id="turnBar" style="background:rgba(59,130,246,.15);color:#3b82f6;">Your Turn</div>
+<div class="board" id="board"></div>
+<div class="msg" id="msg"></div>
+<button class="btn btn-g" onclick="newRound()">Next Round</button>
+</div>
+<script src="scripts.js" defer></script>
+<script>
+var db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f');
+var OWNER_ID='cb556180-f032-4b21-9470-1d786f2664ab';
+var board=['','','','','','','','',''],turn='X',over=false,wager=0,myCoins=0,currentUser=null;
+var scores={p:0,a:0,t:0},round=1,maxRounds=3;
+
+(async function(){
+var s=await db.auth.getSession();
+if(s.data.session){currentUser=s.data.session.user;
+var p=await db.from('profiles').select('coins').eq('user_id',currentUser.id).single();
+if(p.data){myCoins=currentUser.id===OWNER_ID?999999:(p.data.coins||0);document.getElementById('myCoins').textContent=myCoins.toLocaleString();}}
+newRound();
+})();
+
+function setW(el,amt){if(amt>myCoins&&currentUser&&currentUser.id!==OWNER_ID){alert('Not enough coins.');return;}wager=amt;document.querySelectorAll('.wager-btn').forEach(function(b){b.classList.remove('sel');});el.classList.add('sel');document.getElementById('wagerAmt').textContent=amt>0?amt+' coins':'Free';scores={p:0,a:0,t:0};round=1;newRound();}
+
+function newRound(){
+board=['','','','','','','','',''];turn='X';over=false;
+document.getElementById('msg').classList.remove('show');
+document.getElementById('roundInfo').textContent='Best of '+maxRounds+' - Round '+round;
+document.getElementById('pScore').textContent=scores.p;
+document.getElementById('aScore').textContent=scores.a;
+document.getElementById('tScore').textContent=scores.t;
+document.getElementById('turnBar').style.display='block';
+document.getElementById('turnBar').textContent='Your Turn';
+document.getElementById('turnBar').style.background='rgba(59,130,246,.15)';
+document.getElementById('turnBar').style.color='#3b82f6';
+renderBoard();
+}
+
+function renderBoard(){
+document.getElementById('board').innerHTML=board.map(function(v,i){
+var cls='cell'+(v==='X'?' x placed':'')+(v==='O'?' o placed':'');
+return '<div class="'+cls+'" onclick="play('+i+')">'+(v||'')+'</div>';
+}).join('');
+}
+
+function play(i){
+if(over||board[i]||turn!=='X')return;
+board[i]='X';renderBoard();
+var w=checkWin('X');
+if(w){highlight(w);endRound('You Win!',true);return;}
+if(board.every(function(c){return c;})){endRound('Tie!',null);return;}
+turn='O';
+document.getElementById('turnBar').textContent='AI Thinking...';
+document.getElementById('turnBar').style.background='rgba(239,68,68,.15)';
+document.getElementById('turnBar').style.color='#ef4444';
+setTimeout(aiMove,400);
+}
+
+function aiMove(){
+var best=minimax(board,'O').index;
+board[best]='O';renderBoard();
+var w=checkWin('O');
+if(w){highlight(w);endRound('AI Wins!',false);return;}
+if(board.every(function(c){return c;})){endRound('Tie!',null);return;}
+turn='X';
+document.getElementById('turnBar').textContent='Your Turn';
+document.getElementById('turnBar').style.background='rgba(59,130,246,.15)';
+document.getElementById('turnBar').style.color='#3b82f6';
+}
+
+function minimax(b,player){
+var opp=player==='O'?'X':'O';
+var w=checkWin('O');if(w)return{score:10};
+w=checkWin('X');if(w)return{score:-10};
+var avail=[];for(var i=0;i<9;i++){if(!b[i])avail.push(i);}
+if(!avail.length)return{score:0};
+var moves=[];
+for(var i=0;i<avail.length;i++){
+var idx=avail[i];
+b[idx]=player;
+var result=minimax(b,opp);
+moves.push({index:idx,score:result.score});
+b[idx]='';
+}
+var best;
+if(player==='O'){best=-Infinity;for(var i=0;i<moves.length;i++){if(moves[i].score>best){best=moves[i].score;var bestMove=moves[i];}}}
+else{best=Infinity;for(var i=0;i<moves.length;i++){if(moves[i].score<best){best=moves[i].score;var bestMove=moves[i];}}}
+return bestMove;
+}
+
+var WINS=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+function checkWin(p){for(var i=0;i<WINS.length;i++){if(board[WINS[i][0]]===p&&board[WINS[i][1]]===p&&board[WINS[i][2]]===p)return WINS[i];}return null;}
+function highlight(cells){var all=document.querySelectorAll('.cell');cells.forEach(function(i){all[i].classList.add('win-cell');});}
+
+async function endRound(text,won){
+over=true;
+document.getElementById('turnBar').style.display='none';
+if(won===true)scores.p++;else if(won===false)scores.a++;else scores.t++;
+document.getElementById('pScore').textContent=scores.p;
+document.getElementById('aScore').textContent=scores.a;
+document.getElementById('tScore').textContent=scores.t;
+round++;
+var el=document.getElementById('msg');el.classList.add('show');
+if(scores.p>=2||scores.a>=2||round>maxRounds){
+var seriesWon=scores.p>scores.a;
+el.style.background=seriesWon?'rgba(74,222,128,.15)':'rgba(239,68,68,.15)';
+el.style.color=seriesWon?'#4ade80':'#ef4444';
+el.textContent=seriesWon?'You Win the Series!'+(wager>0?' +'+wager*2+' coins':''):'AI Wins the Series!'+(wager>0?' -'+wager+' coins':'');
+if(wager>0&&currentUser&&currentUser.id!==OWNER_ID){
+var change=seriesWon?wager:-wager;
+try{var p=await db.from('profiles').select('coins').eq('user_id',currentUser.id).single();
+if(p.data){await db.from('profiles').update({coins:Math.max(0,(p.data.coins||0)+change)}).eq('user_id',currentUser.id);}}catch(e){}
+}
+scores={p:0,a:0,t:0};round=1;
+}else{
+el.style.background=won?'rgba(74,222,128,.15)':won===false?'rgba(239,68,68,.15)':'rgba(251,191,36,.15)';
+el.style.color=won?'#4ade80':won===false?'#ef4444':'#fbbf24';
+el.textContent=text+' (Round '+(round-1)+'/'+maxRounds+')';
+}
+}
+</script>
+</body>
+</html>
