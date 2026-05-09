@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Bowling -- 8BFR Games</title><link rel="icon" href="assets/images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'Work Sans',sans-serif;background:#1a0a00;color:#fff;height:100vh;overflow:hidden;touch-action:none;}
+.hdr{background:rgba(0,0,0,.9);border-bottom:2px solid #f97316;padding:.5rem .75rem;display:flex;justify-content:space-between;align-items:center;position:fixed;top:0;left:0;right:0;z-index:100;}
+.hdr h1{font-family:'Bebas Neue',cursive;font-size:1.2rem;color:#f97316;}.hdr a{color:rgba(255,255,255,.7);text-decoration:none;font-size:.8rem;font-weight:600;}
+.scoreboard{position:fixed;top:38px;left:0;right:0;background:rgba(0,0,0,.8);padding:.3rem;z-index:99;display:flex;justify-content:center;gap:.15rem;overflow-x:auto;}
+.frame{background:rgba(249,115,22,.08);border:1px solid rgba(249,115,22,.3);border-radius:4px;padding:.15rem .25rem;text-align:center;min-width:30px;}
+.frame .fn{font-size:.5rem;color:rgba(255,255,255,.4);}.frame .fs{font-family:'Bebas Neue',cursive;font-size:.75rem;color:#f97316;}
+.lane{position:fixed;top:75px;left:0;right:0;bottom:50px;display:flex;align-items:center;justify-content:center;}
+canvas{touch-action:none;}
+.bot{position:fixed;bottom:0;left:0;right:0;padding:.4rem;background:rgba(0,0,0,.9);text-align:center;z-index:90;}
+.info{font-size:.78rem;color:#f97316;}.btn{padding:.4rem .8rem;border-radius:8px;font-weight:700;font-size:.8rem;cursor:pointer;border:none;color:#fff;background:#f97316;}
+</style></head><body>
+<div class="hdr"><a href="multiplayer-games.html">&larr;</a><h1>Bowling</h1><span style="font-size:.7rem;color:#fbbf24;" id="myCoins">0</span></div>
+<div class="scoreboard" id="scoreboard"></div>
+<div class="lane"><canvas id="c"></canvas></div>
+<div class="bot"><div class="info" id="info">Swipe up to roll!</div><button class="btn" id="newBtn" onclick="init()" style="display:none;">New Game</button></div>
+<script src="scripts.js" defer></script>
+<script>
+var db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f');
+var cv,ctx,W,H,pins=[],ball={x:0,y:0,vx:0,vy:0,rolling:false},frame=0,rollInFrame=0,scores=[],frameScores=[],currentUser=null,animId;
+var PIN_R,BALL_R;
+(async function(){var s=await db.auth.getSession();if(s.data.session){currentUser=s.data.session.user;var p=await db.from('profiles').select('coins').eq('user_id',currentUser.id).single();if(p.data)document.getElementById('myCoins').textContent=(p.data.coins||0).toLocaleString();}init();})();
+function init(){
+cv=document.getElementById('c');ctx=cv.getContext('2d');
+W=Math.min(window.innerWidth,400);H=window.innerHeight-130;
+cv.width=W;cv.height=H;PIN_R=W*.02;BALL_R=W*.035;
+frame=0;rollInFrame=0;scores=[];frameScores=[];
+for(var i=0;i<10;i++)scores.push([]);
+document.getElementById('newBtn').style.display='none';
+resetPins();resetBall();renderScoreboard();draw();
+var sx,sy;
+cv.ontouchstart=function(e){e.preventDefault();sx=e.touches[0].clientX;sy=e.touches[0].clientY;};
+cv.ontouchend=function(e){e.preventDefault();if(ball.rolling||frame>=10)return;var ex=e.changedTouches[0].clientX;var ey=e.changedTouches[0].clientY;var dx=ex-sx;var dy=sy-ey;if(dy>30){ball.vx=dx*0.04;ball.vy=-Math.min(dy*0.06,H*0.04);ball.rolling=true;animate();}};
+cv.onmousedown=function(e){sx=e.clientX;sy=e.clientY;};
+cv.onmouseup=function(e){if(ball.rolling||frame>=10)return;var dx=e.clientX-sx;var dy=sy-e.clientY;if(dy>20){ball.vx=dx*0.04;ball.vy=-Math.min(dy*0.06,H*0.04);ball.rolling=true;animate();}};
+}
+function resetPins(){
+pins=[];var startX=W/2;var startY=H*0.15;var gap=PIN_R*3;
+var rows=[[0],[-.5,.5],[-1,0,1],[-1.5,-.5,.5,1.5]];
+for(var r=0;r<rows.length;r++){for(var c=0;c<rows[r].length;c++){pins.push({x:startX+rows[r][c]*gap,y:startY+r*gap,standing:true});}}
+}
+function resetBall(){ball={x:W/2,y:H*0.85,vx:0,vy:0,rolling:false};}
+function draw(){
+ctx.clearRect(0,0,W,H);
+// Lane
+ctx.fillStyle='#8B6914';ctx.fillRect(W*.15,0,W*.7,H);
+ctx.fillStyle='#9B7924';ctx.fillRect(W*.45,0,W*.1,H);
+// Gutters
+ctx.fillStyle='#333';ctx.fillRect(W*.1,0,W*.05,H);ctx.fillRect(W*.85,0,W*.05,H);
+// Pins
+pins.forEach(function(p){if(!p.standing)return;ctx.beginPath();ctx.arc(p.x,p.y,PIN_R,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.strokeStyle='#c00';ctx.lineWidth=1;ctx.stroke();});
+// Knocked pins
+pins.forEach(function(p){if(p.standing)return;ctx.beginPath();ctx.arc(p.x,p.y,PIN_R*.7,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,.2)';ctx.fill();});
+// Ball
+ctx.beginPath();ctx.arc(ball.x,ball.y,BALL_R,0,Math.PI*2);
+ctx.fillStyle='#1a1a1a';ctx.fill();ctx.strokeStyle='#555';ctx.lineWidth=2;ctx.stroke();
+// Ball holes
+ctx.fillStyle='#333';
+ctx.beginPath();ctx.arc(ball.x-BALL_R*.3,ball.y-BALL_R*.2,BALL_R*.15,0,Math.PI*2);ctx.fill();
+ctx.beginPath();ctx.arc(ball.x+BALL_R*.15,ball.y-BALL_R*.3,BALL_R*.15,0,Math.PI*2);ctx.fill();
+}
+function animate(){
+if(!ball.rolling)return;
+ball.x+=ball.vx;ball.y+=ball.vy;ball.vy*=0.99;ball.vx*=0.98;
+// Gutter
+if(ball.x<W*.15||ball.x>W*.85){ball.rolling=false;endRoll(0);return;}
+// Hit pins
+var knocked=0;
+pins.forEach(function(p){if(!p.standing)return;var dx=ball.x-p.x;var dy=ball.y-p.y;if(Math.sqrt(dx*dx+dy*dy)<BALL_R+PIN_R){p.standing=false;knocked++;}});
+draw();
+if(ball.y<-BALL_R||Math.abs(ball.vy)<0.5){ball.rolling=false;endRoll(knocked);return;}
+animId=requestAnimationFrame(animate);
+}
+function endRoll(knocked){
+var standing=pins.filter(function(p){return p.standing;}).length;
+var totalKnocked=10-standing;
+scores[frame].push(totalKnocked-(scores[frame].length>0?scores[frame][0]:0));
+rollInFrame++;
+var isStrike=rollInFrame===1&&standing===0;
+var isSpare=rollInFrame===2&&standing===0;
+document.getElementById('info').textContent=isStrike?'STRIKE!':isSpare?'SPARE!':'Knocked '+scores[frame][scores[frame].length-1]+' pins';
+if(isStrike||rollInFrame>=2||frame>=10){
+frame++;rollInFrame=0;
+if(frame>=10){gameOver();return;}
+resetPins();
+}
+resetBall();renderScoreboard();draw();
+}
+function renderScoreboard(){
+var html='';var total=0;
+for(var i=0;i<10;i++){
+var s=scores[i]||[];var t='';
+if(s[0]===10)t='X';
+else if(s.length>=2&&s[0]+s[1]===10)t=s[0]+'/';
+else t=s.join(' ');
+total+=(s[0]||0)+(s[1]||0);
+html+='<div class="frame'+(i===frame?' style="border-color:#f97316;"':'')+'"><div class="fn">F'+(i+1)+'</div><div class="fs">'+(t||'-')+'</div></div>';
+}
+html+='<div class="frame" style="border-color:#fbbf24;"><div class="fn">Total</div><div class="fs" style="color:#fbbf24;">'+total+'</div></div>';
+document.getElementById('scoreboard').innerHTML=html;
+}
+async function gameOver(){
+var myTotal=0;scores.forEach(function(s){myTotal+=(s[0]||0)+(s[1]||0);});
+// AI score (random 80-200)
+var aiTotal=80+Math.floor(Math.random()*120);
+var won=myTotal>aiTotal;
+document.getElementById('info').textContent=(won?'You Win! ':'AI Wins! ')+'You: '+myTotal+' | AI: '+aiTotal;
+document.getElementById('info').style.color=won?'#4ade80':'#ef4444';
+document.getElementById('newBtn').style.display='inline-block';
+if(currentUser){try{await db.rpc('record_game_result',{p_user_id:currentUser.id,p_game:'bowling',p_won:won,p_coins:0});}catch(e){}}
+}
+</script></body></html>
