@@ -194,8 +194,6 @@ var SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
 var SUPABASE_ANON = 'sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f';
 var API = 'https://8bfr-api.vercel.app';
 
-// Try to get the real anon key from an existing page or from scripts.js
-
 var supabase = null;
 var currentUser = null;
 var audioFile = null;
@@ -204,10 +202,12 @@ var scenes = [];
 
 async function init() {
   try {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-    const { data: sess } = await supabase.auth.getSession(); var data = sess.session ? { user: sess.session.user } : {};
-    if (data && data.user) {
-      currentUser = data.user;
+    // Reuse existing client from scripts.js if available
+    supabase = supabase || window._8bfrDb || window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+    var sess = await supabase.auth.getSession();
+    var user = (sess && sess.data && sess.data.session) ? sess.data.session.user : null;
+    if (user) {
+      currentUser = user;
       document.getElementById('signedOutMsg').classList.add('hidden');
       await checkUsage();
     } else {
@@ -217,8 +217,15 @@ async function init() {
     }
   } catch (e) {
     console.error('init error:', e);
-    document.getElementById('usagePill').textContent = 'Error loading — sign in?';
+    document.getElementById('usagePill').textContent = 'Error: ' + e.message;
   }
+}
+
+// Wait for scripts.js to load first, then init
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', function() { setTimeout(init, 500); });
+} else {
+  setTimeout(init, 500);
 }
 
 async function checkUsage() {
@@ -574,7 +581,26 @@ window.startOver = function() {
   window.scrollTo({top:0,behavior:'smooth'});
 };
 
-init();
+// Wait for shared client from scripts.js, then init
+var _initAttempts = 0;
+function tryInit() {
+  _initAttempts++;
+  if (window._8bfrDb) {
+    supabase = window._8bfrDb;
+    init();
+  } else if (_initAttempts > 10) {
+    // Fallback - create own client
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+    init();
+  } else {
+    setTimeout(tryInit, 300);
+  }
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', function() { setTimeout(tryInit, 200); });
+} else {
+  setTimeout(tryInit, 200);
+}
 </script>
 
 <script src="scripts.js" defer></script>
