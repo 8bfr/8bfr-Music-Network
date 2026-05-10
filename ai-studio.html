@@ -303,19 +303,22 @@ var TOOLS = [
       {name:'bg',label:'Background color',type:'color',id:'qrBg',value:'#ffffff'}
     ]
   },
-  { id:'meme-creator', cat:'creative', type:'client', handler:'meme', icon:'😂', name:'Meme Creator', desc:'Top/bottom text on any image', badges:['tool','fun'],
+  { id:'meme-creator', cat:'creative', type:'client', handler:'meme', icon:'😂', name:'Meme Creator', desc:'Top/bottom text on image or AI generated', badges:['tool','fun'],
     fields:[
-      {name:'image',label:'Upload image',type:'file',accept:'image/*',required:true,id:'memeImg'},
+      {name:'image',label:'Upload image (or use AI below)',type:'file',accept:'image/*',id:'memeImg'},
+      {name:'aiPrompt',label:'OR describe meme image for AI',type:'text',id:'memeAiPrompt',placeholder:'e.g. confused cat looking at math equations'},
       {name:'top',label:'Top text',type:'text',id:'memeTop'},
       {name:'bottom',label:'Bottom text',type:'text',id:'memeBottom'},
-      {name:'fontSize',label:'Font size',type:'number',value:'48',id:'memeFontSize'},
+      {name:'fontSize',label:'Font size',type:'number',value:'80',id:'memeFontSize'},
       {name:'color',label:'Text color',type:'color',value:'#ffffff',id:'memeColor'},
       {name:'outline',label:'Outline color',type:'color',value:'#000000',id:'memeOutline'}
     ]
   },
-  { id:'gif-creator', cat:'creative', type:'client', handler:'gif', icon:'🎞️', name:'GIF Creator', desc:'Animated GIF from images', badges:['tool'],
+  { id:'gif-creator', cat:'creative', type:'client', handler:'gif', icon:'🎞️', name:'GIF Creator', desc:'Animated GIF from images or AI', badges:['tool'],
     fields:[
-      {name:'images',label:'Select 2+ images (hold Ctrl/Cmd)',type:'file',accept:'image/*',multiple:true,required:true,id:'gifFiles'},
+      {name:'images',label:'Select 2+ images (hold Ctrl/Cmd)',type:'file',accept:'image/*',multiple:true,id:'gifFiles'},
+      {name:'aiPrompt',label:'OR describe AI animated GIF',type:'text',id:'gifAiPrompt',placeholder:'e.g. spinning 8BFR logo, dancing cat, bouncing ball'},
+      {name:'aiFrames',label:'AI frames to generate',type:'number',value:'6',id:'gifAiFrames'},
       {name:'delay',label:'Frame delay (ms)',type:'number',value:'500',id:'gifDelay'},
       {name:'width',label:'Output width (px)',type:'number',value:'480',id:'gifWidth'}
     ]
@@ -355,11 +358,9 @@ var TOOLS = [
       {name:'format',label:'Output format',type:'select',options:['wav','webm'],id:'audioFmt'}
     ]
   },
-  { id:'video-cutter', cat:'media', type:'client', handler:'videoCut', icon:'✂️', name:'Video Trimmer', desc:'Trim video to a clip', badges:['tool'],
+  { id:'video-cutter', cat:'media', type:'client', handler:'videoCut', icon:'✂️', name:'Video Trimmer', desc:'Trim video with visual timeline', badges:['tool'],
     fields:[
-      {name:'video',label:'Upload video',type:'file',accept:'video/*',required:true,id:'trimFile'},
-      {name:'start',label:'Start time (seconds)',type:'number',value:'0',id:'trimStart'},
-      {name:'end',label:'End time (seconds)',type:'number',value:'10',id:'trimEnd'}
+      {name:'video',label:'Upload video',type:'file',accept:'video/*',required:true,id:'trimFile'}
     ]
   },
 
@@ -1015,17 +1016,17 @@ var CLIENT_HANDLERS={
     var artist=v.artist||'',title=v.title||'',featured=v.featured||'',pos=v.textPos||'bottom',prompt=v.prompt||'';
     showLoading('Step 1: Enhancing prompt with AI...');
 
-    // Step 1: ask AI to enhance prompt - NO TEXT in image
+    // Step 1: ask AI to enhance prompt
     var imgPrompt=prompt;
     try {
       var aiRes=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({input:'Create a concise vivid image generation prompt (visual only, no explanation) for an album cover concept: '+prompt+'. CRITICAL: Do NOT include any text, words, letters, or typography. The image must be purely visual with NO text rendered. Just describe the visual scene, colors, mood, and composition.',tier:'nano'})});
+        body:JSON.stringify({input:'Create a concise vivid image generation prompt (visual only, no explanation) for an album cover: '+prompt+'. Artist: '+artist+(title?' Title: '+title:'')+'. Make it cinematic.',tier:'nano'})});
       var aiData=await aiRes.json();
       if(aiData.text)imgPrompt=aiData.text.replace(/\n/g,' ').substring(0,400);
     } catch(e){/* use original prompt */}
 
     showLoading('Step 2: Generating image (10-30s)...');
-    var baseUrl=IMG_GEN+encodeURIComponent(imgPrompt+', album cover art, high quality, professional, square, no text, no words, no letters, no typography')+'?width=1024&height=1024&nologo=true&seed='+Date.now();
+    var baseUrl=IMG_GEN+encodeURIComponent(imgPrompt+', album cover art, high quality, professional, square')+'?width=1024&height=1024&nologo=true&seed='+Date.now();
 
     var img=await loadImage(baseUrl);
     var canvas=document.createElement('canvas');
@@ -1034,36 +1035,24 @@ var CLIENT_HANDLERS={
     ctx.drawImage(img,0,0,1024,1024);
 
     if(pos!=='none'&&(artist||title)){
+      var barHeight=featured?180:(title?140:90);
+      var barY=pos==='top'?0:pos==='center'?(1024-barHeight)/2:1024-barHeight;
+      ctx.fillStyle='rgba(0,0,0,0.55)';
+      ctx.fillRect(0,barY,1024,barHeight);
       ctx.textAlign='center';
-
-      /* SONG TITLE at TOP */
+      ctx.fillStyle='#fff';ctx.strokeStyle='#000';ctx.lineWidth=3;
+      ctx.font='bold 64px "Bebas Neue", Impact, sans-serif';
+      var textY=barY+60;
+      if(artist){ctx.strokeText(artist.toUpperCase(),512,textY);ctx.fillText(artist.toUpperCase(),512,textY);}
       if(title){
-        ctx.fillStyle='rgba(0,0,0,0.6)';
-        ctx.fillRect(0,0,1024,130);
-        ctx.font='bold 80px "Bebas Neue", Impact, sans-serif';
-        ctx.fillStyle='#ffffff';ctx.strokeStyle='#000000';ctx.lineWidth=5;
-        ctx.strokeText(title.toUpperCase(),512,90);
-        ctx.fillText(title.toUpperCase(),512,90);
+        ctx.font='bold 42px "Bebas Neue", Impact, sans-serif';
+        ctx.fillStyle='#c4b5fd';textY+=55;
+        ctx.strokeText(title.toUpperCase(),512,textY);ctx.fillText(title.toUpperCase(),512,textY);
       }
-
-      /* ARTIST NAME in MIDDLE - biggest text */
-      if(artist){
-        ctx.fillStyle='rgba(0,0,0,0.5)';
-        ctx.fillRect(0,440,1024,140);
-        ctx.font='bold 100px "Bebas Neue", Impact, sans-serif';
-        ctx.fillStyle='#ffffff';ctx.strokeStyle='#000000';ctx.lineWidth=6;
-        ctx.strokeText(artist.toUpperCase(),512,540);
-        ctx.fillText(artist.toUpperCase(),512,540);
-      }
-
-      /* FEATURED ARTIST at BOTTOM */
       if(featured){
-        ctx.fillStyle='rgba(0,0,0,0.6)';
-        ctx.fillRect(0,900,1024,124);
-        ctx.font='bold 56px "Bebas Neue", Impact, sans-serif';
-        ctx.fillStyle='#c4b5fd';ctx.strokeStyle='#000000';ctx.lineWidth=3;
-        ctx.strokeText(('feat. '+featured).toUpperCase(),512,975);
-        ctx.fillText(('feat. '+featured).toUpperCase(),512,975);
+        ctx.font='28px "Work Sans", sans-serif';
+        ctx.fillStyle='#a78bfa';ctx.lineWidth=2;textY+=42;
+        ctx.strokeText('feat. '+featured,512,textY);ctx.fillText('feat. '+featured,512,textY);
       }
     }
 
@@ -1071,8 +1060,8 @@ var CLIENT_HANDLERS={
     window._lastImageUrl=dataUrl;
     showResult('<img src="'+dataUrl+'" alt="Album cover">'+
       '<div class="result-actions">'+
-      '<button class="btn btn-sm" onclick="downloadImage(\'album-cover-8bfr.png\')">Download</button>'+
-      '<button class="btn btn-ghost btn-sm" onclick="runTool()">Try Again</button>'+
+      '<button class="btn btn-sm" onclick="downloadImage(\'album-cover-8bfr.png\')">⬇️ Download</button>'+
+      '<button class="btn btn-ghost btn-sm" onclick="runTool()">🔄 Try Again</button>'+
       '</div>'+
       '<div style="font-size:0.75rem;color:rgba(168,85,247,0.7);margin-top:0.5rem;">Enhanced prompt: '+esc(imgPrompt)+'</div>');
   },
@@ -1132,21 +1121,33 @@ var CLIENT_HANDLERS={
 
   // ── MEME ──
   meme: async function(v){
+    var img;
     var files=v.image;
-    if(!files||!files[0]){showError('Upload an image first.');return;}
-    var url=URL.createObjectURL(files[0]);
-    var img=new Image();
-    await new Promise(function(r,rej){img.onload=r;img.onerror=rej;img.src=url;});
+    var aiPrompt=(v.aiPrompt||'').trim();
+
+    if(aiPrompt){
+      // AI generate the base image
+      showLoading('AI generating meme image...');
+      var url=IMG_GEN+encodeURIComponent(aiPrompt+', meme format, funny, no text, no words')+'?width=800&height=800&nologo=true&seed='+Date.now();
+      img=await loadImage(url);
+    } else if(files&&files[0]){
+      var url=URL.createObjectURL(files[0]);
+      img=new Image();
+      await new Promise(function(r,rej){img.onload=r;img.onerror=rej;img.src=url;});
+    } else {
+      showError('Upload an image or enter an AI prompt.');return;
+    }
+
     var canvas=document.createElement('canvas');
     canvas.width=img.width;canvas.height=img.height;
     var ctx=canvas.getContext('2d');
     ctx.drawImage(img,0,0);
-    var fontSize=parseInt(v.fontSize)||48;
+    var fontSize=parseInt(v.fontSize)||80;
     ctx.font='bold '+fontSize+'px Impact, sans-serif';
     ctx.textAlign='center';
     ctx.fillStyle=v.color||'#ffffff';
     ctx.strokeStyle=v.outline||'#000000';
-    ctx.lineWidth=Math.max(2,fontSize/12);
+    ctx.lineWidth=Math.max(3,fontSize/8);
     ctx.lineJoin='round';
     function wrapLines(ctx,text,maxW){
       var words=text.split(' '),lines=[],current='';
@@ -1161,16 +1162,16 @@ var CLIENT_HANDLERS={
     if(v.top){
       var lines=wrapLines(ctx,v.top.toUpperCase(),canvas.width-40);
       lines.forEach(function(line,i){
-        var y=fontSize+10+i*(fontSize+5);
+        var y=fontSize+10+i*(fontSize+8);
         ctx.strokeText(line,canvas.width/2,y);
         ctx.fillText(line,canvas.width/2,y);
       });
     }
     if(v.bottom){
       var lines=wrapLines(ctx,v.bottom.toUpperCase(),canvas.width-40);
-      var startY=canvas.height-(lines.length*(fontSize+5))-10+fontSize;
+      var startY=canvas.height-(lines.length*(fontSize+8))-10+fontSize;
       lines.forEach(function(line,i){
-        var y=startY+i*(fontSize+5);
+        var y=startY+i*(fontSize+8);
         ctx.strokeText(line,canvas.width/2,y);
         ctx.fillText(line,canvas.width/2,y);
       });
@@ -1179,25 +1180,39 @@ var CLIENT_HANDLERS={
     window._lastImageUrl=dataUrl;
     showResult('<img src="'+dataUrl+'" alt="Meme">'+
       '<div class="result-actions">'+
-      '<button class="btn btn-sm" onclick="downloadImage(\'meme-8bfr.png\')">⬇️ Download</button>'+
+      '<button class="btn btn-sm" onclick="downloadImage(\'meme-8bfr.png\')">Download</button>'+
+      '<button class="btn btn-ghost btn-sm" onclick="runTool()">Try Again</button>'+
       '</div>');
   },
 
   // ── GIF (uses web worker from same CDN for reliability) ──
   gif: async function(v){
     var files=v.images;
-    if(!files||files.length<2){showError('Upload at least 2 images.');return;}
+    var aiPrompt=(v.aiPrompt||'').trim();
     var delay=parseInt(v.delay)||500;
     var width=parseInt(v.width)||480;
-
-    showLoading('Loading '+files.length+' frames...');
-    // Load all images
     var imgs=[];
-    for(var i=0;i<files.length;i++){
-      var url=URL.createObjectURL(files[i]);
-      var img=new Image();
-      await new Promise(function(r,rej){img.onload=r;img.onerror=rej;img.src=url;});
-      imgs.push(img);
+
+    if(aiPrompt){
+      // AI generate frames
+      var numFrames=Math.min(parseInt(v.aiFrames)||6,10);
+      showLoading('AI generating '+numFrames+' frames...');
+      for(var f=0;f<numFrames;f++){
+        showLoading('Generating frame '+(f+1)+'/'+numFrames+'...');
+        var framePrompt=aiPrompt+', frame '+(f+1)+' of '+numFrames+' animation sequence, step '+(f+1)+', no text';
+        var url=IMG_GEN+encodeURIComponent(framePrompt)+'?width='+width+'&height='+width+'&nologo=true&seed='+(Date.now()+f*100);
+        try{var img=await loadImage(url);imgs.push(img);}catch(e){showError('Frame '+(f+1)+' failed.');return;}
+      }
+    } else if(files&&files.length>=2){
+      showLoading('Loading '+files.length+' frames...');
+      for(var i=0;i<files.length;i++){
+        var url=URL.createObjectURL(files[i]);
+        var img=new Image();
+        await new Promise(function(r,rej){img.onload=r;img.onerror=rej;img.src=url;});
+        imgs.push(img);
+      }
+    } else {
+      showError('Upload at least 2 images or enter an AI prompt.');return;
     }
     // Calculate height from first image
     var ratio=imgs[0].height/imgs[0].width;
@@ -1386,62 +1401,73 @@ var CLIENT_HANDLERS={
   videoCut: async function(v){
     var files=v.video;
     if(!files||!files[0]){showError('Upload a video first.');return;}
-    var start=parseFloat(v.start)||0;
-    var end=parseFloat(v.end)||10;
-    if(end<=start){showError('End time must be greater than start.');return;}
 
-    showLoading('Trimming video — this uses your browser, please wait...');
+    showLoading('Loading video...');
     var videoUrl=URL.createObjectURL(files[0]);
     var video=document.createElement('video');
     video.src=videoUrl;
-    video.muted=true;
+    video.muted=false;
+    video.playsInline=true;
     await new Promise(function(r,rej){video.onloadedmetadata=r;video.onerror=rej;});
-    if(end>video.duration)end=video.duration;
+    var dur=video.duration;
 
-    // Capture using MediaRecorder on canvas + audio track
-    var canvas=document.createElement('canvas');
-    canvas.width=video.videoWidth;canvas.height=video.videoHeight;
-    var ctx=canvas.getContext('2d');
-    var canvasStream=canvas.captureStream(30);
-    // Try to include audio
-    try {
-      var audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-      var src=audioCtx.createMediaElementSource(video);
-      var dest=audioCtx.createMediaStreamDestination();
-      src.connect(dest);
-      src.connect(audioCtx.destination);
-      dest.stream.getAudioTracks().forEach(function(t){canvasStream.addTrack(t);});
-    } catch(e){/* audio skipped */}
+    // Show visual timeline UI
+    showResult(
+      '<video id="trimPreview" src="'+videoUrl+'" controls playsinline style="width:100%;border-radius:8px;margin-bottom:.5rem;"></video>'+
+      '<div style="padding:.5rem 0;">'+
+      '<div style="font-size:.72rem;color:rgba(255,255,255,.5);margin-bottom:.3rem;">Drag sliders to select the part to keep:</div>'+
+      '<div style="position:relative;height:40px;background:rgba(0,0,0,.3);border-radius:8px;overflow:hidden;margin-bottom:.3rem;">'+
+        '<div id="trimHighlight" style="position:absolute;top:0;bottom:0;background:rgba(124,58,237,.3);border:2px solid #a855f7;border-radius:6px;"></div>'+
+        '<input type="range" id="trimStartR" min="0" max="'+dur.toFixed(1)+'" step="0.1" value="0" style="position:absolute;top:0;left:0;right:0;height:40px;opacity:.5;pointer-events:auto;-webkit-appearance:none;background:transparent;">'+
+        '<input type="range" id="trimEndR" min="0" max="'+dur.toFixed(1)+'" step="0.1" value="'+dur.toFixed(1)+'" style="position:absolute;top:0;left:0;right:0;height:40px;opacity:.5;pointer-events:auto;-webkit-appearance:none;background:transparent;">'+
+      '</div>'+
+      '<div style="display:flex;justify-content:space-between;font-size:.72rem;">'+
+        '<span>Start: <b id="trimSV">0.0</b>s</span>'+
+        '<span>Duration: <b id="trimDV">'+dur.toFixed(1)+'</b>s</span>'+
+        '<span>End: <b id="trimEV">'+dur.toFixed(1)+'</b>s</span>'+
+      '</div>'+
+      '</div>'+
+      '<button class="btn btn-primary" onclick="doTrim()" style="margin-top:.3rem;">Trim Video</button>'
+    );
 
-    var chunks=[];
-    var recorder=new MediaRecorder(canvasStream,{mimeType:'video/webm'});
-    recorder.ondataavailable=function(e){if(e.data.size>0)chunks.push(e.data);};
+    // Wire up sliders
+    var rs=document.getElementById('trimStartR');
+    var re=document.getElementById('trimEndR');
+    var hl=document.getElementById('trimHighlight');
+    function updateHL(){
+      var s=parseFloat(rs.value),e=parseFloat(re.value);
+      if(e<s){re.value=s;e=s;}
+      var pctL=(s/dur)*100,pctR=(e/dur)*100;
+      hl.style.left=pctL+'%';hl.style.width=(pctR-pctL)+'%';
+      document.getElementById('trimSV').textContent=s.toFixed(1);
+      document.getElementById('trimEV').textContent=e.toFixed(1);
+      document.getElementById('trimDV').textContent=(e-s).toFixed(1);
+    }
+    rs.oninput=function(){updateHL();document.getElementById('trimPreview').currentTime=parseFloat(rs.value);};
+    re.oninput=function(){updateHL();document.getElementById('trimPreview').currentTime=parseFloat(re.value);};
+    updateHL();
 
-    var doneResolve;
-    var donePromise=new Promise(function(r){doneResolve=r;});
-    recorder.onstop=function(){
-      var blob=new Blob(chunks,{type:'video/webm'});
-      var url=URL.createObjectURL(blob);
-      window._lastBlobUrl=url;window._lastBlob=blob;
-      showResult('<video src="'+url+'" controls style="width:100%;"></video>'+
-        '<div class="result-actions"><button class="btn btn-sm" onclick="downloadBlob(\'trimmed-8bfr.webm\')">⬇️ Download</button></div>'+
-        '<div style="font-size:0.75rem;color:rgba(168,85,247,0.7);margin-top:0.5rem;">'+(end-start).toFixed(1)+'s • '+(blob.size/(1024*1024)).toFixed(2)+' MB</div>');
-      doneResolve();
+    // Trim function
+    window.doTrim=async function(){
+      var start=parseFloat(rs.value),end=parseFloat(re.value);
+      if(end<=start){showError('End must be after start.');return;}
+      showLoading('Trimming '+(end-start).toFixed(1)+'s of video...');
+      var tv=document.createElement('video');tv.src=videoUrl;tv.muted=true;
+      await new Promise(function(r){tv.onloadedmetadata=r;});
+      var canvas=document.createElement('canvas');
+      canvas.width=tv.videoWidth;canvas.height=tv.videoHeight;
+      var ctx=canvas.getContext('2d');
+      var cs=canvas.captureStream(30);
+      try{var ac=new(window.AudioContext||window.webkitAudioContext)();var src=ac.createMediaElementSource(tv);var dest=ac.createMediaStreamDestination();src.connect(dest);src.connect(ac.destination);dest.stream.getAudioTracks().forEach(function(t){cs.addTrack(t);});}catch(e){}
+      var chunks=[];var rec=new MediaRecorder(cs,{mimeType:'video/webm'});
+      rec.ondataavailable=function(e){if(e.data.size>0)chunks.push(e.data);};
+      var done;var dp=new Promise(function(r){done=r;});
+      rec.onstop=function(){var blob=new Blob(chunks,{type:'video/webm'});var url=URL.createObjectURL(blob);window._lastBlobUrl=url;window._lastBlob=blob;showResult('<video src="'+url+'" controls style="width:100%;border-radius:8px;"></video><div class="result-actions"><button class="btn btn-sm" onclick="downloadBlob(\'trimmed-8bfr.webm\')">Download</button></div><div style="font-size:.72rem;color:rgba(168,85,247,.7);margin-top:.3rem;">'+(end-start).toFixed(1)+'s | '+(blob.size/(1024*1024)).toFixed(2)+' MB</div>');done();};
+      tv.currentTime=start;await new Promise(function(r){tv.onseeked=r;});
+      rec.start();tv.play();
+      var di=setInterval(function(){ctx.drawImage(tv,0,0);if(tv.currentTime>=end){clearInterval(di);tv.pause();setTimeout(function(){rec.stop();},100);}},33);
+      await dp;
     };
-
-    video.currentTime=start;
-    await new Promise(function(r){video.onseeked=r;});
-    recorder.start();
-    video.play();
-    var drawInterval=setInterval(function(){
-      ctx.drawImage(video,0,0);
-      if(video.currentTime>=end){
-        clearInterval(drawInterval);
-        video.pause();
-        setTimeout(function(){recorder.stop();},100);
-      }
-    },33);
-    await donePromise;
   }
 };
 
