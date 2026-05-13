@@ -197,7 +197,7 @@ var CATEGORIES = [
 var TOOLS = [
   // ═══ MUSIC (text AI) ═══
   { id:'lyric-writer', cat:'music', type:'ai', icon:'🎤', name:'Lyric Writer', desc:'Full song lyrics any style/mood', badges:['music'], tier:'mini',
-    system:'You are an expert songwriter. Write compelling, ORIGINAL song lyrics (your own words, never copying) with proper verse/chorus/bridge structure. When the user provides a reference artist or song, you MAY and SHOULD match the flow, cadence, rhyme scheme, syllable count per line, vibe, and energy of the reference — this is about stylistic inspiration, NOT copying lyrics or melody. Never refuse a reference-based request; emulating style is legal and expected for creative writing. Include section labels like [Verse 1], [Chorus], [Bridge], [Outro].',
+    system:'You are a legendary ghostwriter with 20+ years in hip-hop, R&B, and all genres. You write RAW, AUTHENTIC lyrics with hard-hitting punchlines, clever wordplay, double entendres, internal rhymes, and real street language. When the user asks for explicit content, dis tracks, or edgy material — DELIVER IT without watering it down. Match the EXACT style of any referenced artist (Too Short, Eminem, Lil Wayne, Kendrick, etc.) including their vocabulary, cadence, and energy level. Never write mild, safe, or generic lyrics. Write like a real artist would — gritty, honest, vivid. Include section labels like [Verse 1], [Chorus], [Bridge], [Outro]. Every bar should hit hard.',
     fields:[
       {name:'topic',label:'Topic / theme',type:'textarea',placeholder:'e.g. Lost love, hometown pride, hustle...',required:true},
       {name:'genre',label:'Genre',type:'select',options:['Hip-Hop','R&B','Pop','Rock','Country','EDM','Indie','Gospel','Trap','Afrobeats','Latin','Reggae','Jazz','Folk']},
@@ -214,7 +214,7 @@ var TOOLS = [
         if(v.refSong)ref+=(v.refArtist?' - ':'')+'song "'+v.refSong+'"';
         ref+='. Study their typical syllable count per bar, rhyme patterns, and delivery style, then write 100% original lyrics that would fit the same flow and energy.';
       }
-      return 'Write original song lyrics about: '+v.topic+'\nGenre: '+(v.genre||'Hip-Hop')+'\nMood: '+(v.mood||'Reflective')+(v.extra?'\nAdditional: '+v.extra:'')+ref+'\n\nStructure with [Verse 1], [Chorus], [Verse 2], [Chorus], [Bridge], [Chorus]. Make it emotionally resonant with strong imagery.';
+      return 'Write raw, authentic song lyrics about: '+v.topic+'\nGenre: '+(v.genre||'Hip-Hop')+'\nMood: '+(v.mood||'Reflective')+(v.extra?'\nAdditional: '+v.extra:'')+ref+'\n\nStructure with [Verse 1], [Chorus], [Verse 2], [Chorus], [Bridge], [Chorus]. Use vivid imagery, hard punchlines, clever wordplay, internal rhymes. Do NOT water it down. Write like a real artist would for a real album. Match the energy and vocabulary of the genre/reference exactly.';
     }
   },
 
@@ -362,6 +362,28 @@ var TOOLS = [
     fields:[
       {name:'video',label:'Upload video',type:'file',accept:'video/*',required:true,id:'trimFile'}
     ]
+  },
+  { id:'video-joiner', cat:'media', type:'client', handler:'videoJoin', icon:'🔗', name:'Video Joiner', desc:'Join multiple videos into one', badges:['tool'],
+    fields:[
+      {name:'videos',label:'Select 2+ videos',type:'file',accept:'video/*',multiple:true,required:true,id:'joinFiles'}
+    ]
+  },
+  { id:'audio-cutter', cat:'media', type:'client', handler:'audioCut', icon:'🎵', name:'Audio Cutter', desc:'Cut/trim MP3 or audio files', badges:['tool'],
+    fields:[
+      {name:'audio',label:'Upload audio',type:'file',accept:'audio/*',required:true,id:'acutFile'}
+    ]
+  },
+  { id:'speed-changer', cat:'media', type:'client', handler:'speedChange', icon:'⚡', name:'Speed Changer', desc:'Speed up or slow down video/audio', badges:['tool'],
+    fields:[
+      {name:'media',label:'Upload video or audio',type:'file',accept:'video/*,audio/*',required:true,id:'speedFile'},
+      {name:'speed',label:'Speed (0.25x to 4x)',type:'number',value:'1.5',id:'speedVal'}
+    ]
+  },
+  { id:'screen-recorder', cat:'media', type:'client', handler:'screenRec', icon:'🖥️', name:'Screen Recorder', desc:'Record your screen', badges:['tool'],
+    fields:[]
+  },
+  { id:'voice-recorder', cat:'media', type:'client', handler:'voiceRec', icon:'🎤', name:'Voice Recorder', desc:'Record voice/audio', badges:['tool'],
+    fields:[]
   },
 
   // ═══ WRITING ═══
@@ -1468,6 +1490,138 @@ var CLIENT_HANDLERS={
       var di=setInterval(function(){ctx.drawImage(tv,0,0);if(tv.currentTime>=end){clearInterval(di);tv.pause();setTimeout(function(){rec.stop();},100);}},33);
       await dp;
     };
+  },
+
+  // VIDEO JOINER
+  videoJoin: async function(v){
+    var files=v.videos;
+    if(!files||files.length<2){showError('Select at least 2 videos.');return;}
+    showLoading('Joining '+files.length+' videos...');
+    var canvas=document.createElement('canvas');var ctx=canvas.getContext('2d');
+    var allChunks=[];
+    for(var i=0;i<files.length;i++){
+      showLoading('Processing video '+(i+1)+'/'+files.length+'...');
+      var url=URL.createObjectURL(files[i]);
+      var vid=document.createElement('video');vid.src=url;vid.muted=true;
+      await new Promise(function(r){vid.onloadedmetadata=r;});
+      if(i===0){canvas.width=vid.videoWidth;canvas.height=vid.videoHeight;}
+      var cs=canvas.captureStream(30);
+      var rec=new MediaRecorder(cs,{mimeType:'video/webm'});
+      var chunks=[];rec.ondataavailable=function(e){if(e.data.size>0)chunks.push(e.data);};
+      var done;var dp=new Promise(function(r){done=r;});
+      rec.onstop=function(){allChunks=allChunks.concat(chunks);done();};
+      vid.currentTime=0;await new Promise(function(r){vid.onseeked=r;});
+      rec.start();vid.play();
+      var di=setInterval(function(){ctx.drawImage(vid,0,0,canvas.width,canvas.height);if(vid.ended||vid.paused){clearInterval(di);rec.stop();}},33);
+      await dp;
+    }
+    var blob=new Blob(allChunks,{type:'video/webm'});var burl=URL.createObjectURL(blob);
+    window._lastBlob=blob;window._lastBlobUrl=burl;
+    showResult('<video src="'+burl+'" controls style="width:100%;border-radius:8px;"></video><div class="result-actions"><button class="btn btn-sm" onclick="downloadBlob(\'joined-8bfr.webm\')">Download</button></div><div style="font-size:.72rem;color:rgba(168,85,247,.7);margin-top:.3rem;">'+files.length+' videos joined | '+(blob.size/(1024*1024)).toFixed(2)+' MB</div>');
+  },
+
+  // AUDIO CUTTER
+  audioCut: async function(v){
+    var files=v.audio;
+    if(!files||!files[0]){showError('Upload an audio file.');return;}
+    showLoading('Loading audio...');
+    var url=URL.createObjectURL(files[0]);
+    var audio=document.createElement('audio');audio.src=url;
+    await new Promise(function(r){audio.onloadedmetadata=r;});
+    var dur=audio.duration;
+    showResult(
+      '<audio id="acPrev" src="'+url+'" controls style="width:100%;margin-bottom:.4rem;"></audio>'+
+      '<div style="font-size:.72rem;color:rgba(255,255,255,.5);margin-bottom:.3rem;">Duration: '+dur.toFixed(1)+'s. Drag sliders to select range:</div>'+
+      '<div style="display:flex;gap:.3rem;align-items:center;margin-bottom:.3rem;">'+
+      '<span style="font-size:.65rem;">Start:</span><input type="range" id="acS" min="0" max="'+dur.toFixed(1)+'" step="0.1" value="0" style="flex:1;" oninput="document.getElementById(\'acSV\').textContent=this.value+\'s\'"><span id="acSV" style="font-size:.65rem;">0s</span></div>'+
+      '<div style="display:flex;gap:.3rem;align-items:center;margin-bottom:.4rem;">'+
+      '<span style="font-size:.65rem;">End:</span><input type="range" id="acE" min="0" max="'+dur.toFixed(1)+'" step="0.1" value="'+dur.toFixed(1)+'" style="flex:1;" oninput="document.getElementById(\'acEV\').textContent=this.value+\'s\'"><span id="acEV" style="font-size:.65rem;">'+dur.toFixed(1)+'s</span></div>'+
+      '<button class="btn btn-primary" onclick="doAudioCut()">Cut Audio</button>'
+    );
+    window._acUrl=url;window._acDur=dur;
+    window.doAudioCut=async function(){
+      var s=parseFloat(document.getElementById('acS').value),e=parseFloat(document.getElementById('acE').value);
+      if(e<=s){showError('End must be after start.');return;}
+      showLoading('Cutting audio...');
+      var ac2=new(window.AudioContext||window.webkitAudioContext)();
+      var resp=await fetch(url);var buf=await resp.arrayBuffer();var decoded=await ac2.decodeAudioData(buf);
+      var sr=decoded.sampleRate,ch=decoded.numberOfChannels;
+      var startSamp=Math.floor(s*sr),endSamp=Math.floor(e*sr),len=endSamp-startSamp;
+      var newBuf=ac2.createBuffer(ch,len,sr);
+      for(var c=0;c<ch;c++){var src=decoded.getChannelData(c);var dst=newBuf.getChannelData(c);for(var i=0;i<len;i++)dst[i]=src[startSamp+i];}
+      var wav=audioBufferToWav(newBuf);var blob=new Blob([wav],{type:'audio/wav'});var burl=URL.createObjectURL(blob);
+      window._lastBlob=blob;window._lastBlobUrl=burl;
+      showResult('<audio src="'+burl+'" controls style="width:100%;"></audio><div class="result-actions"><button class="btn btn-sm" onclick="downloadBlob(\'cut-8bfr.wav\')">Download</button></div><div style="font-size:.72rem;color:rgba(168,85,247,.7);margin-top:.3rem;">'+(e-s).toFixed(1)+'s | '+(blob.size/1024).toFixed(0)+' KB</div>');
+    };
+  },
+
+  // SPEED CHANGER
+  speedChange: async function(v){
+    var files=v.media;
+    if(!files||!files[0]){showError('Upload a file.');return;}
+    var speed=parseFloat(v.speed)||1.5;
+    if(speed<0.25||speed>4){showError('Speed must be 0.25 to 4.');return;}
+    showLoading('Changing speed to '+speed+'x...');
+    var isVid=files[0].type.startsWith('video');
+    var url=URL.createObjectURL(files[0]);
+    if(isVid){
+      var vid=document.createElement('video');vid.src=url;vid.playbackRate=speed;vid.muted=true;
+      await new Promise(function(r){vid.onloadedmetadata=r;});
+      var canvas=document.createElement('canvas');canvas.width=vid.videoWidth;canvas.height=vid.videoHeight;
+      var ctx=canvas.getContext('2d');var cs=canvas.captureStream(30);
+      var chunks=[];var rec=new MediaRecorder(cs,{mimeType:'video/webm'});
+      rec.ondataavailable=function(e){if(e.data.size>0)chunks.push(e.data);};
+      var done;var dp=new Promise(function(r){done=r;});
+      rec.onstop=function(){var blob=new Blob(chunks,{type:'video/webm'});var burl=URL.createObjectURL(blob);window._lastBlob=blob;window._lastBlobUrl=burl;showResult('<video src="'+burl+'" controls style="width:100%;border-radius:8px;"></video><div class="result-actions"><button class="btn btn-sm" onclick="downloadBlob(\'speed-8bfr.webm\')">Download</button></div>');done();};
+      vid.currentTime=0;rec.start();vid.play();
+      var di=setInterval(function(){ctx.drawImage(vid,0,0);if(vid.ended){clearInterval(di);rec.stop();}},33);
+      await dp;
+    }else{
+      var ac2=new(window.AudioContext||window.webkitAudioContext)();
+      var resp=await fetch(url);var buf=await resp.arrayBuffer();var decoded=await ac2.decodeAudioData(buf);
+      var newLen=Math.floor(decoded.length/speed);var newBuf=ac2.createBuffer(decoded.numberOfChannels,newLen,decoded.sampleRate);
+      for(var c=0;c<decoded.numberOfChannels;c++){var src=decoded.getChannelData(c);var dst=newBuf.getChannelData(c);for(var i=0;i<newLen;i++){var si=Math.floor(i*speed);dst[i]=si<src.length?src[si]:0;}}
+      var wav=audioBufferToWav(newBuf);var blob=new Blob([wav],{type:'audio/wav'});var burl=URL.createObjectURL(blob);
+      window._lastBlob=blob;window._lastBlobUrl=burl;
+      showResult('<audio src="'+burl+'" controls style="width:100%;"></audio><div class="result-actions"><button class="btn btn-sm" onclick="downloadBlob(\'speed-8bfr.wav\')">Download</button></div>');
+    }
+  },
+
+  // SCREEN RECORDER
+  screenRec: async function(){
+    try{
+      var stream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});
+      var chunks=[];var rec=new MediaRecorder(stream,{mimeType:'video/webm'});
+      rec.ondataavailable=function(e){if(e.data.size>0)chunks.push(e.data);};
+      rec.onstop=function(){
+        var blob=new Blob(chunks,{type:'video/webm'});var url=URL.createObjectURL(blob);
+        window._lastBlob=blob;window._lastBlobUrl=url;
+        showResult('<video src="'+url+'" controls style="width:100%;border-radius:8px;"></video><div class="result-actions"><button class="btn btn-sm" onclick="downloadBlob(\'screen-8bfr.webm\')">Download</button></div><div style="font-size:.72rem;color:rgba(168,85,247,.7);margin-top:.3rem;">'+(blob.size/(1024*1024)).toFixed(2)+' MB</div>');
+      };
+      rec.start();
+      showResult('<div style="text-align:center;padding:1rem;"><div style="font-size:1.5rem;color:#ef4444;margin-bottom:.5rem;">Recording Screen...</div><button class="btn btn-primary" onclick="window._screenRec.stop();window._screenStream.getTracks().forEach(function(t){t.stop();});">Stop Recording</button></div>');
+      window._screenRec=rec;window._screenStream=stream;
+      stream.getVideoTracks()[0].onended=function(){rec.stop();};
+    }catch(e){showError('Screen recording denied or not supported: '+e.message);}
+  },
+
+  // VOICE RECORDER
+  voiceRec: async function(){
+    try{
+      var stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      var chunks=[];var rec=new MediaRecorder(stream);
+      rec.ondataavailable=function(e){if(e.data.size>0)chunks.push(e.data);};
+      rec.onstop=function(){
+        var blob=new Blob(chunks,{type:'audio/webm'});var url=URL.createObjectURL(blob);
+        window._lastBlob=blob;window._lastBlobUrl=url;
+        showResult('<audio src="'+url+'" controls style="width:100%;"></audio><div class="result-actions"><button class="btn btn-sm" onclick="downloadBlob(\'voice-8bfr.webm\')">Download</button></div><div style="font-size:.72rem;color:rgba(168,85,247,.7);margin-top:.3rem;">'+(blob.size/1024).toFixed(0)+' KB</div>');
+      };
+      window._voiceStart=Date.now();
+      rec.start();
+      showResult('<div style="text-align:center;padding:1rem;"><div style="font-size:2rem;color:#ef4444;margin-bottom:.3rem;">&#x1F534;</div><div style="font-size:1rem;color:#ef4444;font-weight:700;margin-bottom:.5rem;">Recording...</div><div id="voiceTimer" style="font-family:Bebas Neue;font-size:1.5rem;color:#fff;">0:00</div><button class="btn btn-primary" style="margin-top:.5rem;" onclick="window._voiceRec.stop();window._voiceStream.getTracks().forEach(function(t){t.stop();});clearInterval(window._voiceIv);">Stop Recording</button></div>');
+      window._voiceRec=rec;window._voiceStream=stream;
+      window._voiceIv=setInterval(function(){var s=Math.floor((Date.now()-window._voiceStart)/1000);var el=document.getElementById('voiceTimer');if(el)el.textContent=Math.floor(s/60)+':'+(s%60<10?'0':'')+(s%60);},1000);
+    }catch(e){showError('Microphone access denied: '+e.message);}
   }
 };
 
