@@ -3,116 +3,159 @@
 <title>Darts -- 8BFR Games</title><link rel="icon" href="assets/images/favicon.png">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<style>*{margin:0;padding:0;box-sizing:border-box;}#bubbleStack,#_8bfr_copyright,.bubble-row,#carrieWrap,#avatarSwitcher,.global-avatar,.avatar-wrap,#pageUpBtn{display:none!important;}
-body{font-family:'Work Sans',sans-serif;background:#0a0a0a;color:#fff;height:100vh;overflow:hidden;}
-.hdr{background:rgba(0,0,0,.9);border-bottom:2px solid #ef4444;padding:.5rem .75rem;display:flex;justify-content:space-between;align-items:center;position:fixed;top:0;left:0;right:0;z-index:100;}
-.hdr h1{font-family:'Bebas Neue',cursive;font-size:1.2rem;color:#ef4444;}.hdr a{color:rgba(255,255,255,.7);text-decoration:none;font-size:.8rem;font-weight:600;}
-.scores{position:fixed;top:38px;left:0;right:0;display:flex;justify-content:space-around;padding:.3rem;background:rgba(0,0,0,.9);z-index:99;}
-.sc{text-align:center;}.sc .n{font-family:'Bebas Neue',cursive;font-size:1.6rem;}.sc .l{font-size:.6rem;color:rgba(255,255,255,.5);}
-.area{position:fixed;top:75px;left:0;right:0;bottom:60px;display:flex;align-items:center;justify-content:center;}
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+#bubbleStack,#_8bfr_copyright,.bubble-row,#carrieWrap,#avatarSwitcher,.global-avatar,.avatar-wrap,#pageUpBtn{display:none!important;}
+body{font-family:'Work Sans',sans-serif;background:#0a0a0a;color:#fff;height:100vh;overflow:hidden;touch-action:none;}
+.hdr{background:rgba(0,0,0,.9);border-bottom:2px solid #ef4444;padding:.4rem .6rem;display:flex;justify-content:space-between;align-items:center;position:fixed;top:0;left:0;right:70px;z-index:100;height:24px;}
+.hdr h1{font-family:'Bebas Neue',cursive;font-size:1rem;color:#ef4444;}.hdr a{color:#4ade80;text-decoration:none;font-weight:800;font-size:1rem;}
+.scores{position:fixed;top:24px;left:0;right:70px;display:flex;justify-content:space-around;padding:.2rem;background:rgba(0,0,0,.85);z-index:99;font-size:.65rem;height:28px;align-items:center;}
+.sc .n{font-family:'Bebas Neue',cursive;font-size:1.2rem;}.sc .l{font-size:.5rem;color:rgba(255,255,255,.4);}
+.area{position:fixed;top:52px;left:0;right:0;bottom:50px;display:flex;align-items:center;justify-content:center;}
 canvas{touch-action:none;}
-.bot{position:fixed;bottom:0;left:0;right:0;padding:.4rem;background:rgba(0,0,0,.9);text-align:center;z-index:90;}
-.info{font-size:.78rem;color:#4ade80;}.btn{padding:.4rem .8rem;border-radius:8px;font-weight:700;font-size:.8rem;cursor:pointer;border:none;color:#fff;background:#22c55e;display:none;margin-top:.2rem;}
+.bot{position:fixed;bottom:0;left:0;right:0;padding:.5rem;background:rgba(0,0,0,.9);text-align:center;z-index:90;height:50px;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.info{font-size:.72rem;color:#4ade80;font-weight:600;}.sub{font-size:.55rem;color:rgba(255,255,255,.35);}
+.btn{padding:.35rem .7rem;border-radius:8px;font-weight:700;font-size:.75rem;cursor:pointer;border:none;color:#fff;background:#22c55e;display:none;margin-top:.2rem;}
 </style></head><body>
-<div class="hdr"><a href="multiplayer-games.html">&larr;</a><h1>Darts 501</h1><span style="font-size:.7rem;color:#fbbf24;" id="myCoins">0</span></div>
-<div class="scores"><div class="sc"><div class="n" id="s1">501</div><div class="l">You</div></div><div class="sc"><div style="font-size:.7rem;color:rgba(255,255,255,.4);">Throws: <span id="throwsLeft">3</span></div><div id="turnL" style="font-size:.65rem;color:#4ade80;">Your Turn</div></div><div class="sc"><div class="n" id="s2">501</div><div class="l">AI</div></div></div>
+<div class="hdr"><a href="multiplayer-games.html">&larr;</a><h1>Darts 501</h1></div>
+<div class="scores">
+<div class="sc"><div class="n" id="s1">501</div><div class="l">You</div></div>
+<div class="sc"><div style="font-size:.6rem;color:rgba(255,255,255,.3);">Throws: <span id="tl">3</span></div><div id="tL" style="font-size:.55rem;color:#4ade80;">Your Turn</div></div>
+<div class="sc"><div class="n" id="s2">501</div><div class="l">AI</div></div>
+</div>
 <div class="area"><canvas id="c"></canvas></div>
-<div class="bot"><div class="info" id="info">Tap the board to throw!</div><button class="btn" id="newBtn" onclick="init()">New Game</button></div>
+<div class="bot">
+<div class="info" id="info">Swipe UP to throw!</div>
+<div class="sub">Aim by where you start, swipe straight and fast for accuracy</div>
+<button class="btn" id="nb" onclick="init()">New Game</button>
+</div>
 <script src="scripts.js" defer></script>
 <script>
 var db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f');
 var cv,ctx,CX,CY,R,sc=[501,501],turn=0,throws=3,over=false,darts=[],currentUser=null;
+var sx=0,sy=0,swipeActive=false;
 var SEGS=[20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5];
-(async function(){var s=await db.auth.getSession();if(s.data.session){currentUser=s.data.session.user;var p=await db.from('profiles').select('coins').eq('user_id',currentUser.id).single();if(p.data)document.getElementById('myCoins').textContent=(p.data.coins||0).toLocaleString();}init();})();
+(async function(){var s=await db.auth.getSession();if(s.data.session){currentUser=s.data.session.user;}init();})();
+
 function init(){
 cv=document.getElementById('c');ctx=cv.getContext('2d');
-var sz=Math.min(window.innerWidth-10,window.innerHeight-160);
-cv.width=sz;cv.height=sz;CX=sz/2;CY=sz/2;R=sz/2-10;
+var sz=Math.min(window.innerWidth-10,window.innerHeight-140);
+cv.width=sz;cv.height=sz;CX=sz/2;CY=sz/2;R=sz/2-8;
 sc=[501,501];turn=0;throws=3;over=false;darts=[];
-document.getElementById('newBtn').style.display='none';
+document.getElementById('nb').style.display='none';
 document.getElementById('s1').textContent='501';document.getElementById('s2').textContent='501';
-document.getElementById('throwsLeft').textContent='3';document.getElementById('turnL').textContent='Your Turn';
-document.getElementById('info').textContent='Tap the board to throw!';
+document.getElementById('tl').textContent='3';document.getElementById('tL').textContent='Your Turn';
+document.getElementById('info').textContent='Swipe UP to throw!';
 draw();
-cv.onclick=function(e){if(over||turn!==0)return;var r=cv.getBoundingClientRect();throwDart(e.clientX-r.left,e.clientY-r.top);};
-cv.ontouchstart=function(e){e.preventDefault();if(over||turn!==0)return;var t=e.touches[0];var r=cv.getBoundingClientRect();throwDart(t.clientX-r.left,t.clientY-r.top);};
+
+cv.ontouchstart=function(e){e.preventDefault();if(over||turn!==0)return;sx=e.touches[0].clientX;sy=e.touches[0].clientY;swipeActive=true;};
+cv.ontouchmove=function(e){e.preventDefault();};
+cv.ontouchend=function(e){
+e.preventDefault();
+if(!swipeActive||over||turn!==0)return;
+swipeActive=false;
+var ex=e.changedTouches[0].clientX,ey=e.changedTouches[0].clientY;
+var dy=sy-ey,dx=ex-sx;
+if(dy<40){document.getElementById('info').textContent='Swipe UP harder!';return;}
+// Calculate where dart lands based on start position + accuracy
+var r=cv.getBoundingClientRect();
+var aimX=sx-r.left,aimY=sy-r.top;
+// Wobble based on how straight the swipe was (dx) and speed
+var wobble=Math.abs(dx)*0.8+Math.max(0,80-dy)*0.5;
+var landX=aimX+(Math.random()-.5)*wobble;
+var landY=aimY+(Math.random()-.5)*wobble;
+throwDart(landX,landY);
+};
+cv.onmousedown=function(e){if(over||turn!==0)return;sx=e.clientX;sy=e.clientY;swipeActive=true;};
+cv.onmouseup=function(e){
+if(!swipeActive)return;swipeActive=false;
+var dy=sy-e.clientY;if(dy<20)return;
+var r=cv.getBoundingClientRect();
+var wobble=Math.abs(e.clientX-sx)*0.8+Math.max(0,60-dy)*0.5;
+throwDart(sx-r.left+(Math.random()-.5)*wobble,sy-r.top+(Math.random()-.5)*wobble);
+};
 }
-function draw(){
-ctx.clearRect(0,0,cv.width,cv.height);
-// Board
-var colors=['#1a472a','#c0392b'];
-for(var i=0;i<20;i++){
-var a1=(i*18-9)*Math.PI/180-Math.PI/2;
-var a2=((i+1)*18-9)*Math.PI/180-Math.PI/2;
-// Double ring
-ctx.beginPath();ctx.moveTo(CX+Math.cos(a1)*R*.85,CY+Math.sin(a1)*R*.85);
-ctx.arc(CX,CY,R,a1,a2);ctx.lineTo(CX+Math.cos(a2)*R*.85,CY+Math.sin(a2)*R*.85);
-ctx.arc(CX,CY,R*.85,a2,a1,true);ctx.fillStyle=colors[i%2];ctx.fill();ctx.stroke();
-// Single outer
-ctx.beginPath();ctx.moveTo(CX+Math.cos(a1)*R*.55,CY+Math.sin(a1)*R*.55);
-ctx.arc(CX,CY,R*.85,a1,a2);ctx.lineTo(CX+Math.cos(a2)*R*.55,CY+Math.sin(a2)*R*.55);
-ctx.arc(CX,CY,R*.55,a2,a1,true);ctx.fillStyle=colors[(i+1)%2];ctx.fill();ctx.stroke();
-// Triple ring
-ctx.beginPath();ctx.moveTo(CX+Math.cos(a1)*R*.5,CY+Math.sin(a1)*R*.5);
-ctx.arc(CX,CY,R*.55,a1,a2);ctx.lineTo(CX+Math.cos(a2)*R*.5,CY+Math.sin(a2)*R*.5);
-ctx.arc(CX,CY,R*.5,a2,a1,true);ctx.fillStyle=colors[i%2];ctx.fill();ctx.stroke();
-// Single inner
-ctx.beginPath();ctx.moveTo(CX+Math.cos(a1)*R*.15,CY+Math.sin(a1)*R*.15);
-ctx.arc(CX,CY,R*.5,a1,a2);ctx.lineTo(CX+Math.cos(a2)*R*.15,CY+Math.sin(a2)*R*.15);
-ctx.arc(CX,CY,R*.15,a2,a1,true);ctx.fillStyle=colors[(i+1)%2];ctx.fill();ctx.stroke();
+
+function throwDart(x,y){
+var pts=getScore(x,y);
+darts.push({x:x,y:y,p:0,pts:pts});
+var newSc=sc[0]-pts;
+if(newSc<0||newSc===1){document.getElementById('info').textContent='Bust! Score stays at '+sc[0];} // Bust if below 0 or at 1 (can't finish on 1)
+else{sc[0]=newSc;document.getElementById('info').textContent='Hit '+pts+'!'+(pts>=50?' BULLSEYE!':pts>=40?' Nice triple!':'');}
+document.getElementById('s1').textContent=sc[0];
+throws--;document.getElementById('tl').textContent=throws;
+draw();
+if(sc[0]===0){over=true;endG(true);return;}
+if(throws<=0){throws=3;turn=1;document.getElementById('tL').textContent='AI Throwing...';setTimeout(aiTurn,500);}
 }
-// Bullseye
-ctx.beginPath();ctx.arc(CX,CY,R*.15,0,Math.PI*2);ctx.fillStyle='#1a472a';ctx.fill();ctx.stroke();
-ctx.beginPath();ctx.arc(CX,CY,R*.07,0,Math.PI*2);ctx.fillStyle='#c0392b';ctx.fill();ctx.stroke();
-// Numbers
-ctx.fillStyle='#fff';ctx.font='bold '+Math.round(R*.08)+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
-for(var i=0;i<20;i++){var a=(i*18)*Math.PI/180-Math.PI/2;ctx.fillText(SEGS[i],CX+Math.cos(a)*R*.93,CY+Math.sin(a)*R*.93);}
-// Darts
-darts.forEach(function(d){ctx.beginPath();ctx.arc(d.x,d.y,4,0,Math.PI*2);ctx.fillStyle=d.p===0?'#3b82f6':'#ef4444';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.stroke();});
-}
+
 function getScore(x,y){
 var dx=x-CX,dy=y-CY;var dist=Math.sqrt(dx*dx+dy*dy);
-if(dist<R*.07)return 50;// bullseye
-if(dist<R*.15)return 25;// outer bull
-if(dist>R)return 0;// miss
+if(dist<R*.07)return 50;
+if(dist<R*.15)return 25;
+if(dist>R)return 0;
 var angle=Math.atan2(dy,dx)+Math.PI/2;if(angle<0)angle+=Math.PI*2;
 var seg=Math.floor(angle/(Math.PI/10));if(seg>=20)seg=0;
 var num=SEGS[seg];
-if(dist>R*.85)return num*2;// double
-if(dist>R*.5&&dist<R*.55)return num*3;// triple
+if(dist>R*.85)return num*2;
+if(dist>R*.5&&dist<R*.55)return num*3;
 return num;
 }
-function throwDart(x,y){
-// Add randomness
-x+=((Math.random()-.5)*R*.15);y+=((Math.random()-.5)*R*.15);
-var pts=getScore(x,y);
-darts.push({x:x,y:y,p:0});
-sc[0]-=pts;if(sc[0]<0)sc[0]+=pts;// bust
-document.getElementById('s1').textContent=sc[0];
-document.getElementById('info').textContent='Hit '+pts+'!';
-throws--;document.getElementById('throwsLeft').textContent=throws;
-draw();
-if(sc[0]===0){over=true;endG(true);return;}
-if(throws<=0){throws=3;turn=1;document.getElementById('turnL').textContent='AI Throwing...';setTimeout(aiTurn,600);}
-}
+
 function aiTurn(){
 if(over)return;
 for(var i=0;i<3;i++){
-var ax=CX+((Math.random()-.5)*R*.8);
-var ay=CY+((Math.random()-.5)*R*.8);
+// AI aims somewhat at bullseye with randomness
+var ax=CX+(Math.random()-.5)*R*.7;
+var ay=CY+(Math.random()-.5)*R*.7;
 var pts=getScore(ax,ay);
-darts.push({x:ax,y:ay,p:1});
-sc[1]-=pts;if(sc[1]<0)sc[1]+=pts;
+darts.push({x:ax,y:ay,p:1,pts:pts});
+var newSc=sc[1]-pts;
+if(newSc<0||newSc===1){}// AI bust
+else sc[1]=newSc;
 document.getElementById('s2').textContent=sc[1];
 if(sc[1]===0){draw();over=true;endG(false);return;}
 }
-draw();turn=0;document.getElementById('turnL').textContent='Your Turn';
-document.getElementById('throwsLeft').textContent='3';document.getElementById('info').textContent='Your turn! Tap to throw.';
+draw();turn=0;document.getElementById('tL').textContent='Your Turn';
+document.getElementById('tl').textContent='3';throws=3;
+document.getElementById('info').textContent='Swipe UP to throw!';
 }
+
+function draw(){
+ctx.clearRect(0,0,cv.width,cv.height);
+var colors=['#1a472a','#c0392b'];
+for(var i=0;i<20;i++){
+var a1=(i*18-9)*Math.PI/180-Math.PI/2,a2=((i+1)*18-9)*Math.PI/180-Math.PI/2;
+// Double
+ctx.beginPath();ctx.moveTo(CX+Math.cos(a1)*R*.85,CY+Math.sin(a1)*R*.85);ctx.arc(CX,CY,R,a1,a2);ctx.lineTo(CX+Math.cos(a2)*R*.85,CY+Math.sin(a2)*R*.85);ctx.arc(CX,CY,R*.85,a2,a1,true);ctx.fillStyle=colors[i%2];ctx.fill();ctx.strokeStyle='#888';ctx.lineWidth=.5;ctx.stroke();
+// Outer single
+ctx.beginPath();ctx.moveTo(CX+Math.cos(a1)*R*.55,CY+Math.sin(a1)*R*.55);ctx.arc(CX,CY,R*.85,a1,a2);ctx.lineTo(CX+Math.cos(a2)*R*.55,CY+Math.sin(a2)*R*.55);ctx.arc(CX,CY,R*.55,a2,a1,true);ctx.fillStyle=colors[(i+1)%2];ctx.fill();ctx.stroke();
+// Triple
+ctx.beginPath();ctx.moveTo(CX+Math.cos(a1)*R*.5,CY+Math.sin(a1)*R*.5);ctx.arc(CX,CY,R*.55,a1,a2);ctx.lineTo(CX+Math.cos(a2)*R*.5,CY+Math.sin(a2)*R*.5);ctx.arc(CX,CY,R*.5,a2,a1,true);ctx.fillStyle=colors[i%2];ctx.fill();ctx.stroke();
+// Inner single
+ctx.beginPath();ctx.moveTo(CX+Math.cos(a1)*R*.15,CY+Math.sin(a1)*R*.15);ctx.arc(CX,CY,R*.5,a1,a2);ctx.lineTo(CX+Math.cos(a2)*R*.15,CY+Math.sin(a2)*R*.15);ctx.arc(CX,CY,R*.15,a2,a1,true);ctx.fillStyle=colors[(i+1)%2];ctx.fill();ctx.stroke();
+}
+ctx.beginPath();ctx.arc(CX,CY,R*.15,0,Math.PI*2);ctx.fillStyle='#1a472a';ctx.fill();ctx.stroke();
+ctx.beginPath();ctx.arc(CX,CY,R*.07,0,Math.PI*2);ctx.fillStyle='#c0392b';ctx.fill();ctx.stroke();
+ctx.fillStyle='#fff';ctx.font='bold '+Math.round(R*.07)+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+for(var i=0;i<20;i++){var a=(i*18)*Math.PI/180-Math.PI/2;ctx.fillText(SEGS[i],CX+Math.cos(a)*R*.93,CY+Math.sin(a)*R*.93);}
+// Darts
+darts.forEach(function(d){
+ctx.beginPath();ctx.arc(d.x,d.y,3,0,Math.PI*2);
+ctx.fillStyle=d.p===0?'#3b82f6':'#ef4444';ctx.fill();
+ctx.strokeStyle='#fff';ctx.lineWidth=.5;ctx.stroke();
+// Dart tail
+var tailLen=12;
+ctx.beginPath();ctx.moveTo(d.x,d.y);ctx.lineTo(d.x,d.y+tailLen);ctx.strokeStyle=d.p===0?'#60a5fa':'#f87171';ctx.lineWidth=2;ctx.stroke();
+// Fletching
+ctx.beginPath();ctx.moveTo(d.x-3,d.y+tailLen);ctx.lineTo(d.x,d.y+tailLen-4);ctx.lineTo(d.x+3,d.y+tailLen);ctx.fillStyle=d.p===0?'#2563eb':'#dc2626';ctx.fill();
+});
+}
+
 async function endG(won){
-over=true;document.getElementById('info').textContent=won?'You Win!':'AI Wins!';
+over=true;document.getElementById('info').textContent=won?'YOU WIN!':'AI Wins!';
 document.getElementById('info').style.color=won?'#4ade80':'#ef4444';
-document.getElementById('newBtn').style.display='inline-block';
+document.getElementById('nb').style.display='inline-block';
 if(currentUser){try{await db.rpc('record_game_result',{p_user_id:currentUser.id,p_game:'darts',p_won:won,p_coins:0});}catch(e){}}
 }
 </script></body></html>
