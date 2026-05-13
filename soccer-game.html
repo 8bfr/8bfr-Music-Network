@@ -1,0 +1,84 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Pitch Kick -- 8BFR Games</title><link rel="icon" href="assets/images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>*{margin:0;padding:0;box-sizing:border-box;}
+#bubbleStack,#_8bfr_copyright,.bubble-row,#carrieWrap,#avatarSwitcher,.global-avatar,.avatar-wrap,#pageUpBtn{display:none!important;}
+body{font-family:'Work Sans',sans-serif;background:#0a3d0a;color:#fff;height:100vh;overflow:hidden;touch-action:none;}
+.hdr{position:fixed;top:0;left:0;right:70px;z-index:100;display:flex;justify-content:space-between;align-items:center;padding:.15rem .5rem;background:rgba(0,20,0,.9);height:24px;}.hdr a{color:#22c55e;text-decoration:none;font-weight:800;font-size:1rem;}.hdr h1{font-family:'Bebas Neue',cursive;font-size:1rem;color:#22c55e;}
+.scores{position:fixed;top:24px;left:0;right:70px;display:flex;justify-content:space-around;padding:.15rem;background:rgba(0,15,0,.85);font-size:.7rem;height:22px;align-items:center;z-index:99;}
+.area{position:fixed;top:46px;left:0;right:0;bottom:44px;display:flex;align-items:center;justify-content:center;}
+canvas{touch-action:none;}
+.bot{position:fixed;bottom:0;left:0;right:0;height:44px;background:rgba(0,15,0,.85);display:flex;align-items:center;justify-content:center;z-index:99;font-size:.7rem;color:#22c55e;font-weight:600;}
+</style></head><body>
+<div class="hdr"><a href="multiplayer-games.html">&larr;</a><h1>Pitch Kick</h1></div>
+<div class="scores"><span style="color:#4ade80;font-weight:700;">You: <span id="myS">0</span></span><span>Round <span id="rnd">1</span>/5</span><span style="color:#fbbf24;font-weight:700;">AI: <span id="aiS">0</span></span></div>
+<div class="area"><canvas id="c"></canvas></div>
+<div class="bot" id="bb">Swipe to kick! Aim for the corners.</div>
+<script src="scripts.js" defer></script>
+<script>
+var db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f');
+var cv,ctx,W,H,ball,goal,keeper,myS=0,aiS=0,round=1,kicking=false,sx=0,sy=0,currentUser=null;
+(async function(){var s=await db.auth.getSession();if(s.data.session)currentUser=s.data.session.user;init();})();
+function init(){
+cv=document.getElementById('c');ctx=cv.getContext('2d');
+W=Math.min(window.innerWidth,400);H=Math.min(window.innerHeight-115,450);
+cv.width=W;cv.height=H;
+goal={x:W*.15,y:30,w:W*.7,h:60};
+keeper={x:W/2,y:goal.y+goal.h-15,w:40,h:30,targetX:W/2};
+ball={x:W/2,y:H-50,r:12,vx:0,vy:0,active:false};
+draw();
+cv.ontouchstart=function(e){e.preventDefault();sx=e.touches[0].clientX;sy=e.touches[0].clientY;};
+cv.ontouchend=function(e){e.preventDefault();if(kicking)return;var ex=e.changedTouches[0].clientX,ey=e.changedTouches[0].clientY;var dy=sy-ey;if(dy>20){kicking=true;keeper.targetX=goal.x+Math.random()*goal.w;ball.vx=(ex-sx)*.08;ball.vy=-dy*.1;ball.active=true;animate();}};
+}
+function animate(){
+if(!ball.active)return;
+ball.x+=ball.vx;ball.y+=ball.vy;ball.vy+=.15;
+// Keeper moves
+keeper.x+=(keeper.targetX-keeper.x)*.08;
+// Check save
+if(ball.y<keeper.y+keeper.h&&ball.y>keeper.y-10&&ball.x>keeper.x-keeper.w/2&&ball.x<keeper.x+keeper.w/2){
+document.getElementById('bb').textContent='Saved!';ball.active=false;setTimeout(nextRound,800);draw();return;
+}
+// Check goal
+if(ball.y<goal.y+goal.h&&ball.x>goal.x&&ball.x<goal.x+goal.w){
+myS++;document.getElementById('myS').textContent=myS;document.getElementById('bb').textContent='GOAL!';
+ball.active=false;setTimeout(nextRound,800);draw();return;
+}
+if(ball.y<-20||ball.x<-20||ball.x>W+20){document.getElementById('bb').textContent='Miss!';ball.active=false;setTimeout(nextRound,600);return;}
+draw();requestAnimationFrame(animate);
+}
+function nextRound(){
+if(Math.random()>.5){aiS++;document.getElementById('aiS').textContent=aiS;}
+round++;document.getElementById('rnd').textContent=Math.min(round,5);
+if(round>5){endGame();return;}
+kicking=false;ball={x:W/2,y:H-50,r:12,vx:0,vy:0,active:false};keeper.x=W/2;draw();
+document.getElementById('bb').textContent='Swipe to kick!';
+}
+async function endGame(){
+var won=myS>aiS;document.getElementById('bb').textContent=won?'You Win! '+myS+'-'+aiS:'AI Wins! '+aiS+'-'+myS;
+document.getElementById('bb').style.color=won?'#4ade80':'#ef4444';
+if(currentUser)try{await db.rpc('record_game_result',{p_user_id:currentUser.id,p_game:'soccer',p_won:won,p_coins:0});}catch(e){}
+setTimeout(function(){if(confirm('Play again?'))location.reload();},2000);
+}
+function draw(){
+ctx.clearRect(0,0,W,H);
+// Field
+ctx.fillStyle='#2d8f2d';ctx.fillRect(0,0,W,H);
+// Field lines
+ctx.strokeStyle='rgba(255,255,255,.2)';ctx.lineWidth=2;ctx.strokeRect(W*.1,0,W*.8,H*.6);
+ctx.beginPath();ctx.arc(W/2,H*.4,50,0,Math.PI*2);ctx.stroke();
+// Goal
+ctx.fillStyle='rgba(255,255,255,.1)';ctx.fillRect(goal.x,goal.y,goal.w,goal.h);
+ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.strokeRect(goal.x,goal.y,goal.w,goal.h);
+// Net
+for(var i=0;i<10;i++){ctx.beginPath();ctx.moveTo(goal.x+i*goal.w/10,goal.y);ctx.lineTo(goal.x+i*goal.w/10,goal.y+goal.h);ctx.strokeStyle='rgba(255,255,255,.15)';ctx.lineWidth=1;ctx.stroke();}
+// Keeper
+ctx.fillStyle='#fbbf24';ctx.fillRect(keeper.x-keeper.w/2,keeper.y,keeper.w,keeper.h);
+ctx.fillStyle='#000';ctx.fillRect(keeper.x-keeper.w/2+5,keeper.y+5,keeper.w-10,keeper.h-10);
+// Ball
+ctx.beginPath();ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.strokeStyle='#333';ctx.lineWidth=1.5;ctx.stroke();
+// Pentagon pattern
+ctx.beginPath();ctx.arc(ball.x,ball.y,ball.r*.5,0,Math.PI*2);ctx.strokeStyle='#555';ctx.lineWidth=1;ctx.stroke();
+}
+</script></body></html>

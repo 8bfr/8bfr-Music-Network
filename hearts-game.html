@@ -1,0 +1,70 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Heartbreak -- 8BFR Games</title><link rel="icon" href="assets/images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>*{margin:0;padding:0;box-sizing:border-box;}
+#bubbleStack,#_8bfr_copyright,.bubble-row,#carrieWrap,#avatarSwitcher,.global-avatar,.avatar-wrap,#pageUpBtn{display:none!important;}
+body{font-family:'Work Sans',sans-serif;background:linear-gradient(#1a0008,#0a0004);color:#f0ecff;min-height:100vh;}
+.hdr{background:rgba(20,0,8,.97);border-bottom:2px solid #ef4444;padding:.5rem .75rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;}.hdr a{color:#f87171;text-decoration:none;font-weight:700;font-size:.8rem;}.hdr h1{font-family:'Bebas Neue',cursive;font-size:1.2rem;color:#ef4444;}
+.container{max-width:380px;margin:0 auto;padding:.5rem;}
+.scores{display:flex;justify-content:space-around;font-size:.7rem;margin-bottom:.4rem;font-weight:600;}
+.trick{display:flex;justify-content:center;gap:.3rem;margin-bottom:.5rem;min-height:70px;align-items:center;}
+.tcard{width:42px;height:60px;border-radius:5px;border:2px solid rgba(255,255,255,.2);display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;background:#1a1a2e;}
+.hand{display:flex;gap:.12rem;overflow-x:auto;padding:.3rem 0;justify-content:center;flex-wrap:wrap;}
+.hcard{width:38px;height:54px;border-radius:4px;border:2px solid rgba(255,255,255,.15);display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700;font-size:.82rem;cursor:pointer;background:#fff;color:#000;transition:transform .1s;flex-shrink:0;}
+.hcard:active{transform:translateY(-6px);}
+.hcard.playable{border-color:rgba(74,222,128,.5);box-shadow:0 0 4px rgba(74,222,128,.2);}
+.hcard .suit{font-size:.55rem;}
+.info{text-align:center;font-size:.72rem;margin:.3rem 0;color:rgba(255,255,255,.5);}
+.msg{text-align:center;padding:.5rem;font-family:'Bebas Neue',cursive;font-size:1.2rem;border-radius:10px;display:none;margin-top:.3rem;}.msg.show{display:block;}
+</style></head><body>
+<div class="hdr"><a href="multiplayer-games.html">&larr;</a><h1>Heartbreak</h1></div>
+<div class="container">
+<div class="scores"><span style="color:#4ade80;">You: <span id="myP">0</span> pts</span><span style="color:rgba(255,255,255,.4);">Round <span id="rnd">1</span>/13</span><span style="color:#fbbf24;">AI: <span id="aiP">0</span> pts</span></div>
+<div class="info">AI played:</div>
+<div class="trick" id="trick"></div>
+<div class="info" id="info">Play a card. Avoid hearts! Each heart = 1 point. Q of Spades = 13.</div>
+<div class="hand" id="hand"></div>
+<div class="msg" id="msg"></div>
+</div>
+<script src="scripts.js" defer></script>
+<script>
+var db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f');
+var SUITS=['hearts','diamonds','clubs','spades'],RANKS=['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+var SYMS={hearts:'\u2665',diamonds:'\u2666',clubs:'\u2663',spades:'\u2660'};
+var COLS={hearts:'#ef4444',diamonds:'#ef4444',clubs:'#000',spades:'#000'};
+var myHand=[],aiHand=[],myPts=0,aiPts=0,round=1,leadSuit=null,trickCards=[],currentUser=null;
+(async function(){var s=await db.auth.getSession();if(s.data.session)currentUser=s.data.session.user;deal();})();
+function mkDeck(){var d=[];SUITS.forEach(function(s){RANKS.forEach(function(r){d.push({s:s,r:r,v:RANKS.indexOf(r)});});});for(var i=d.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=d[i];d[i]=d[j];d[j]=t;}return d;}
+function deal(){var d=mkDeck();myHand=d.slice(0,13).sort(function(a,b){return a.s===b.s?a.v-b.v:SUITS.indexOf(a.s)-SUITS.indexOf(b.s);});aiHand=d.slice(13,26);trickCards=[];round=1;myPts=0;aiPts=0;render();}
+function render(){
+document.getElementById('rnd').textContent=round;
+document.getElementById('myP').textContent=myPts;document.getElementById('aiP').textContent=aiPts;
+document.getElementById('trick').innerHTML=trickCards.map(function(c){return '<div class="tcard" style="color:'+COLS[c.s]+';">'+c.r+'<span style="font-size:.6rem;">'+SYMS[c.s]+'</span></div>';}).join('');
+document.getElementById('hand').innerHTML=myHand.map(function(c,i){return '<div class="hcard" style="color:'+COLS[c.s]+';" onclick="play('+i+')">'+c.r+'<span class="suit">'+SYMS[c.s]+'</span></div>';}).join('');
+}
+window.play=function(i){
+var card=myHand.splice(i,1)[0];
+// AI plays
+var aiCard=aiHand.splice(Math.floor(Math.random()*aiHand.length),1)[0];
+trickCards=[aiCard,card];
+// Score: hearts=1pt, Q spades=13pt
+var pts=0;
+trickCards.forEach(function(c){if(c.s==='hearts')pts++;if(c.s==='spades'&&c.r==='Q')pts+=13;});
+// Higher card wins trick (simplified)
+var myWins=card.v>aiCard.v;
+if(myWins)myPts+=pts;else aiPts+=pts;
+document.getElementById('info').textContent=myWins?'You won the trick'+(pts>0?' (+'+pts+' pts)':''):'AI won the trick'+(pts>0?' (+'+pts+' pts)':'');
+render();
+round++;
+if(round>13){setTimeout(endGame,800);}
+else{setTimeout(function(){trickCards=[];render();},1200);}
+};
+async function endGame(){
+var won=myPts<aiPts;
+document.getElementById('msg').classList.add('show');
+document.getElementById('msg').textContent=won?'You Win! '+myPts+' vs '+aiPts+' (lower wins)':'AI Wins! '+aiPts+' vs '+myPts;
+document.getElementById('msg').style.background=won?'rgba(74,222,128,.15)':'rgba(239,68,68,.15)';document.getElementById('msg').style.color=won?'#4ade80':'#ef4444';
+if(currentUser)try{await db.rpc('record_game_result',{p_user_id:currentUser.id,p_game:'hearts',p_won:won,p_coins:0});}catch(e){}
+}
+</script></body></html>

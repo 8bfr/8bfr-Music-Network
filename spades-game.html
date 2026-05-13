@@ -1,0 +1,75 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Spade Royale -- 8BFR Games</title><link rel="icon" href="assets/images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>*{margin:0;padding:0;box-sizing:border-box;}
+#bubbleStack,#_8bfr_copyright,.bubble-row,#carrieWrap,#avatarSwitcher,.global-avatar,.avatar-wrap,#pageUpBtn{display:none!important;}
+body{font-family:'Work Sans',sans-serif;background:linear-gradient(#000a1a,#000508);color:#f0ecff;min-height:100vh;}
+.hdr{background:rgba(0,8,20,.97);border-bottom:2px solid #14b8a6;padding:.5rem .75rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;}.hdr a{color:#2dd4bf;text-decoration:none;font-weight:700;font-size:.8rem;}.hdr h1{font-family:'Bebas Neue',cursive;font-size:1.2rem;color:#14b8a6;}
+.container{max-width:380px;margin:0 auto;padding:.5rem;}
+.scores{display:flex;justify-content:space-around;font-size:.7rem;margin-bottom:.4rem;font-weight:600;}
+.bid-area{text-align:center;margin-bottom:.5rem;display:none;}
+.bid-btns{display:flex;gap:.15rem;justify-content:center;flex-wrap:wrap;margin-top:.3rem;}
+.bid-btn{padding:.3rem .5rem;border-radius:6px;background:rgba(20,184,166,.1);border:1px solid rgba(20,184,166,.3);color:#2dd4bf;font-weight:700;font-size:.72rem;cursor:pointer;}
+.bid-btn:active{background:rgba(20,184,166,.2);}
+.trick{display:flex;justify-content:center;gap:.3rem;margin-bottom:.5rem;min-height:70px;align-items:center;}
+.tcard{width:42px;height:60px;border-radius:5px;border:2px solid rgba(255,255,255,.2);display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;background:#1a1a2e;}
+.hand{display:flex;gap:.12rem;overflow-x:auto;padding:.3rem 0;justify-content:center;flex-wrap:wrap;}
+.hcard{width:38px;height:54px;border-radius:4px;border:2px solid rgba(255,255,255,.15);display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700;font-size:.82rem;cursor:pointer;background:#fff;color:#000;transition:transform .1s;flex-shrink:0;}
+.hcard:active{transform:translateY(-6px);}
+.info{text-align:center;font-size:.72rem;margin:.3rem 0;color:rgba(255,255,255,.5);}
+.msg{text-align:center;padding:.5rem;font-family:'Bebas Neue',cursive;font-size:1.2rem;border-radius:10px;display:none;margin-top:.3rem;}.msg.show{display:block;}
+</style></head><body>
+<div class="hdr"><a href="multiplayer-games.html">&larr;</a><h1>Spade Royale</h1></div>
+<div class="container">
+<div class="scores"><span style="color:#4ade80;">You: <span id="myT">0</span> tricks (bid: <span id="myB">?</span>)</span><span style="color:#fbbf24;">AI: <span id="aiT">0</span> tricks</span></div>
+<div class="bid-area" id="bidArea"><div style="font-size:.82rem;font-weight:600;">How many tricks can you win?</div><div class="bid-btns" id="bidBtns"></div></div>
+<div class="trick" id="trick"></div>
+<div class="info" id="info">Bidding phase...</div>
+<div class="hand" id="hand"></div>
+<div class="msg" id="msg"></div>
+</div>
+<script src="scripts.js" defer></script>
+<script>
+var db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f');
+var SUITS=['clubs','diamonds','hearts','spades'],RANKS=['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+var SYMS={hearts:'\u2665',diamonds:'\u2666',clubs:'\u2663',spades:'\u2660'};
+var COLS={hearts:'#ef4444',diamonds:'#ef4444',clubs:'#000',spades:'#000'};
+var myHand=[],aiHand=[],myTricks=0,aiTricks=0,myBid=0,aiBid=0,round=0,phase='bid',trickCards=[],currentUser=null;
+(async function(){var s=await db.auth.getSession();if(s.data.session)currentUser=s.data.session.user;deal();})();
+function mkDeck(){var d=[];SUITS.forEach(function(s){RANKS.forEach(function(r){d.push({s:s,r:r,v:RANKS.indexOf(r)});});});for(var i=d.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=d[i];d[i]=d[j];d[j]=t;}return d;}
+function deal(){var d=mkDeck();myHand=d.slice(0,13).sort(function(a,b){return a.s===b.s?a.v-b.v:SUITS.indexOf(a.s)-SUITS.indexOf(b.s);});aiHand=d.slice(13,26);
+document.getElementById('bidArea').style.display='block';
+var btns='';for(var i=0;i<=13;i++)btns+='<div class="bid-btn" onclick="setBid('+i+')">'+i+'</div>';
+document.getElementById('bidBtns').innerHTML=btns;render();}
+window.setBid=function(b){myBid=b;aiBid=3+Math.floor(Math.random()*4);document.getElementById('myB').textContent=myBid;
+document.getElementById('bidArea').style.display='none';phase='play';document.getElementById('info').textContent='Play a card! Spades are trump.';render();};
+function render(){
+document.getElementById('myT').textContent=myTricks;document.getElementById('aiT').textContent=aiTricks;
+document.getElementById('trick').innerHTML=trickCards.map(function(c){return '<div class="tcard" style="color:'+COLS[c.s]+';">'+c.r+'<span style="font-size:.6rem;">'+SYMS[c.s]+'</span></div>';}).join('');
+document.getElementById('hand').innerHTML=myHand.map(function(c,i){return '<div class="hcard" style="color:'+COLS[c.s]+';" onclick="play('+i+')">'+c.r+'<span style="font-size:.55rem;">'+SYMS[c.s]+'</span></div>';}).join('');
+}
+window.play=function(i){
+if(phase!=='play')return;
+var card=myHand.splice(i,1)[0];
+var aiCard=aiHand.splice(Math.floor(Math.random()*aiHand.length),1)[0];
+trickCards=[card,aiCard];render();
+// Determine winner: spades trump, otherwise higher same-suit wins
+var myVal=card.v+(card.s==='spades'?20:0);
+var aiVal=aiCard.v+(aiCard.s==='spades'?20:0);
+if(card.s!=='spades'&&aiCard.s!=='spades'){if(card.s!==aiCard.s)aiVal=0;}// Different non-trump suits: lead wins
+var myWins=myVal>=aiVal;
+if(myWins)myTricks++;else aiTricks++;
+document.getElementById('info').textContent=(myWins?'You':'AI')+' won the trick!';render();
+round++;
+if(round>=13){setTimeout(endGame,800);}
+else{setTimeout(function(){trickCards=[];render();},1000);}
+};
+async function endGame(){
+var madeBid=myTricks>=myBid;var myScore=madeBid?myBid*10+(myTricks-myBid):-myBid*10;
+document.getElementById('msg').classList.add('show');
+document.getElementById('msg').textContent=madeBid?'Made your bid! +'+myScore+' points':'Missed bid! '+myScore+' points';
+document.getElementById('msg').style.background=madeBid?'rgba(74,222,128,.15)':'rgba(239,68,68,.15)';document.getElementById('msg').style.color=madeBid?'#4ade80':'#ef4444';
+if(currentUser)try{await db.rpc('record_game_result',{p_user_id:currentUser.id,p_game:'spades',p_won:madeBid,p_coins:0});}catch(e){}
+}
+</script></body></html>

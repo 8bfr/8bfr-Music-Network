@@ -1,0 +1,69 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dice Frenzy -- 8BFR Games</title><link rel="icon" href="assets/images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>*{margin:0;padding:0;box-sizing:border-box;}
+#bubbleStack,#_8bfr_copyright,.bubble-row,#carrieWrap,#avatarSwitcher,.global-avatar,.avatar-wrap,#pageUpBtn{display:none!important;}
+body{font-family:'Work Sans',sans-serif;background:linear-gradient(#100020,#050010);color:#f0ecff;min-height:100vh;}
+.hdr{background:rgba(8,0,18,.97);border-bottom:2px solid #6366f1;padding:.5rem .75rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;}.hdr a{color:#818cf8;text-decoration:none;font-weight:700;font-size:.8rem;}.hdr h1{font-family:'Bebas Neue',cursive;font-size:1.2rem;color:#818cf8;}
+.container{max-width:380px;margin:0 auto;padding:.75rem;}
+.dice-row{display:flex;gap:.4rem;justify-content:center;margin-bottom:.75rem;}
+.die{width:48px;height:48px;background:rgba(255,255,255,.95);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:800;color:#1a1a2e;cursor:pointer;border:3px solid transparent;box-shadow:0 2px 8px rgba(0,0,0,.3);}
+.die.held{border-color:#6366f1;box-shadow:0 0 10px rgba(99,102,241,.4);}
+@keyframes roll{0%{transform:rotate(0)}25%{transform:rotate(90deg)}50%{transform:rotate(180deg)}75%{transform:rotate(270deg)}100%{transform:rotate(360deg)}}
+.die.rolling{animation:roll .3s ease;}
+.info{text-align:center;font-size:.75rem;margin-bottom:.4rem;color:rgba(255,255,255,.5);}
+.btn{padding:.45rem .8rem;border-radius:10px;font-weight:700;font-size:.8rem;cursor:pointer;border:none;color:#fff;width:100%;margin-bottom:.3rem;}.btn-p{background:#6366f1;}.btn-g{background:#22c55e;color:#000;}
+.score-grid{display:grid;grid-template-columns:1fr auto;gap:.1rem;font-size:.72rem;}
+.score-row{display:contents;cursor:pointer;}.score-row:hover .sr-name{color:#818cf8;}
+.sr-name{padding:.25rem .4rem;border-bottom:1px solid rgba(99,102,241,.1);}.sr-val{padding:.25rem .4rem;text-align:right;border-bottom:1px solid rgba(99,102,241,.1);font-weight:700;color:#818cf8;}
+.sr-name.used{color:rgba(255,255,255,.3);}.sr-val.used{color:rgba(255,255,255,.3);}
+.total{font-family:'Bebas Neue',cursive;font-size:1.1rem;text-align:center;color:#fbbf24;margin-top:.3rem;}
+</style></head><body>
+<div class="hdr"><a href="multiplayer-games.html">&larr;</a><h1>Dice Frenzy</h1></div>
+<div class="container">
+<div class="info">Rolls left: <span id="rolls">3</span> | Round: <span id="round">1</span>/13</div>
+<div class="dice-row" id="diceRow"></div>
+<button class="btn btn-p" id="rollBtn" onclick="rollDice()">Roll Dice</button>
+<div class="score-grid" id="scoreGrid"></div>
+<div class="total">Total: <span id="total">0</span></div>
+</div>
+<script src="scripts.js" defer></script>
+<script>
+var db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f');
+var dice=[0,0,0,0,0],held=[false,false,false,false,false],rollsLeft=3,round=1;
+var scores={ones:null,twos:null,threes:null,fours:null,fives:null,sixes:null,threeKind:null,fourKind:null,fullHouse:null,smStr:null,lgStr:null,yahtzee:null,chance:null};
+var CATS=[{k:'ones',n:'Ones',fn:function(d){return sum(d,1);}},{k:'twos',n:'Twos',fn:function(d){return sum(d,2);}},{k:'threes',n:'Threes',fn:function(d){return sum(d,3);}},{k:'fours',n:'Fours',fn:function(d){return sum(d,4);}},{k:'fives',n:'Fives',fn:function(d){return sum(d,5);}},{k:'sixes',n:'Sixes',fn:function(d){return sum(d,6);}},{k:'threeKind',n:'3 of a Kind',fn:function(d){return hasN(d,3)?d.reduce(function(a,b){return a+b;},0):0;}},{k:'fourKind',n:'4 of a Kind',fn:function(d){return hasN(d,4)?d.reduce(function(a,b){return a+b;},0):0;}},{k:'fullHouse',n:'Full House',fn:function(d){var c=counts(d);var v=Object.values(c).sort();return(v.join('')==='23')?25:0;}},{k:'smStr',n:'Sm Straight',fn:function(d){var u=[...new Set(d)].sort();var s=u.join('');return(s.indexOf('1234')>-1||s.indexOf('2345')>-1||s.indexOf('3456')>-1)?30:0;}},{k:'lgStr',n:'Lg Straight',fn:function(d){var u=[...new Set(d)].sort().join('');return(u==='12345'||u==='23456')?40:0;}},{k:'yahtzee',n:'YAHTZEE',fn:function(d){return hasN(d,5)?50:0;}},{k:'chance',n:'Chance',fn:function(d){return d.reduce(function(a,b){return a+b;},0);}}];
+var currentUser=null;
+(async function(){var s=await db.auth.getSession();if(s.data.session)currentUser=s.data.session.user;renderDice();renderScores();})();
+function sum(d,n){return d.filter(function(v){return v===n;}).length*n;}
+function counts(d){var c={};d.forEach(function(v){c[v]=(c[v]||0)+1;});return c;}
+function hasN(d,n){var c=counts(d);return Object.values(c).some(function(v){return v>=n;});}
+function renderDice(){document.getElementById('diceRow').innerHTML=dice.map(function(d,i){return '<div class="die'+(held[i]?' held':'')+'" onclick="toggleHold('+i+')">'+(d||'?')+'</div>';}).join('');}
+function renderScores(){document.getElementById('scoreGrid').innerHTML=CATS.map(function(c){var v=scores[c.k];var pot=v===null&&dice[0]>0?c.fn(dice):null;return '<div class="score-row" onclick="pickScore(\''+c.k+'\')"><div class="sr-name'+(v!==null?' used':'')+'">'+c.n+'</div><div class="sr-val'+(v!==null?' used':'')+'">'+(v!==null?v:(pot!==null?'<span style="color:rgba(99,102,241,.5);">'+pot+'</span>':''))+'</div></div>';}).join('');
+var t=0;for(var k in scores)if(scores[k]!==null)t+=scores[k];
+document.getElementById('total').textContent=t;}
+window.rollDice=function(){
+if(rollsLeft<=0)return;rollsLeft--;
+document.getElementById('rolls').textContent=rollsLeft;
+for(var i=0;i<5;i++){if(!held[i])dice[i]=Math.floor(Math.random()*6)+1;}
+renderDice();renderScores();
+// Add rolling animation
+document.querySelectorAll('.die').forEach(function(d,i){if(!held[i])d.classList.add('rolling');setTimeout(function(){d.classList.remove('rolling');},300);});
+};
+window.toggleHold=function(i){if(dice[i]===0)return;held[i]=!held[i];renderDice();};
+window.pickScore=function(k){
+if(scores[k]!==null||dice[0]===0)return;
+scores[k]=CATS.find(function(c){return c.k===k;}).fn(dice);
+round++;document.getElementById('round').textContent=Math.min(round,13);
+dice=[0,0,0,0,0];held=[false,false,false,false,false];rollsLeft=3;
+document.getElementById('rolls').textContent=3;
+renderDice();renderScores();
+if(round>13)endGame();
+};
+async function endGame(){
+var t=0;for(var k in scores)if(scores[k]!==null)t+=scores[k];
+document.getElementById('rollBtn').textContent='Game Over! Score: '+t;document.getElementById('rollBtn').disabled=true;
+if(currentUser)try{await db.rpc('record_game_result',{p_user_id:currentUser.id,p_game:'dice',p_won:t>150,p_coins:0});}catch(e){}
+}
+</script></body></html>

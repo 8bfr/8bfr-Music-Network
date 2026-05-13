@@ -1,0 +1,89 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wild Cards -- 8BFR Games</title><link rel="icon" href="assets/images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>*{margin:0;padding:0;box-sizing:border-box;}
+#bubbleStack,#_8bfr_copyright,.bubble-row,#carrieWrap,#avatarSwitcher,.global-avatar,.avatar-wrap,#pageUpBtn{display:none!important;}
+body{font-family:'Work Sans',sans-serif;background:linear-gradient(#0a001a,#050008);color:#f0ecff;min-height:100vh;}
+.hdr{background:rgba(8,0,18,.97);border-bottom:2px solid #ef4444;padding:.5rem .75rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;}.hdr a{color:#f87171;text-decoration:none;font-weight:700;font-size:.8rem;}.hdr h1{font-family:'Bebas Neue',cursive;font-size:1.2rem;color:#ef4444;}
+.container{max-width:400px;margin:0 auto;padding:.5rem;}
+.opp{text-align:center;font-size:.7rem;color:rgba(255,255,255,.5);margin-bottom:.3rem;}
+.opp-cards{display:flex;justify-content:center;gap:-5px;margin-bottom:.5rem;}
+.card-back{width:28px;height:40px;background:linear-gradient(135deg,#1e3a5f,#2563eb);border-radius:4px;border:1px solid rgba(255,255,255,.15);margin:0 -4px;}
+.pile{display:flex;justify-content:center;align-items:center;gap:.5rem;margin-bottom:.5rem;}
+.draw-pile{width:55px;height:78px;background:linear-gradient(135deg,#1e293b,#334155);border-radius:6px;border:2px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:.6rem;cursor:pointer;color:rgba(255,255,255,.5);font-weight:600;}
+.top-card{width:55px;height:78px;border-radius:6px;border:2px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:800;}
+.my-hand{display:flex;gap:.15rem;overflow-x:auto;padding:.3rem 0;-webkit-overflow-scrolling:touch;}
+.card{width:46px;height:65px;border-radius:5px;border:2px solid rgba(255,255,255,.15);display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;font-size:1rem;cursor:pointer;flex-shrink:0;transition:transform .1s;}
+.card:active{transform:translateY(-8px);}
+.card.playable{border-color:rgba(74,222,128,.5);box-shadow:0 0 6px rgba(74,222,128,.2);}
+.card .val{font-size:.5rem;margin-top:auto;}
+.info{text-align:center;font-size:.72rem;margin:.3rem 0;font-weight:600;}
+.color-pick{display:flex;gap:.3rem;justify-content:center;margin:.3rem 0;display:none;}
+.cpick{width:40px;height:40px;border-radius:50%;cursor:pointer;border:3px solid transparent;}
+.cpick:hover{border-color:#fff;}
+.msg{text-align:center;padding:.5rem;font-family:'Bebas Neue',cursive;font-size:1.2rem;border-radius:10px;display:none;}.msg.show{display:block;}
+</style></head><body>
+<div class="hdr"><a href="multiplayer-games.html">&larr;</a><h1>Wild Cards</h1></div>
+<div class="container">
+<div class="opp">AI has <span id="aiCount">7</span> cards</div>
+<div class="opp-cards" id="aiCards"></div>
+<div class="pile"><div class="draw-pile" onclick="drawCard()">DRAW</div><div class="top-card" id="topCard"></div></div>
+<div class="info" id="info">Your turn - play a matching card!</div>
+<div class="color-pick" id="colorPick"><div class="cpick" style="background:#ef4444;" onclick="pickColor('red')"></div><div class="cpick" style="background:#3b82f6;" onclick="pickColor('blue')"></div><div class="cpick" style="background:#22c55e;" onclick="pickColor('green')"></div><div class="cpick" style="background:#fbbf24;" onclick="pickColor('yellow')"></div></div>
+<div class="my-hand" id="myHand"></div>
+<div class="msg" id="msg"></div>
+</div>
+<script src="scripts.js" defer></script>
+<script>
+var db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f');
+var COLORS=['red','blue','green','yellow'],VALS=['0','1','2','3','4','5','6','7','8','9','Skip','Rev','+2'];
+var CBGS={red:'#ef4444',blue:'#3b82f6',green:'#22c55e',yellow:'#fbbf24',wild:'#1a1a2e'};
+var deck=[],myHand=[],aiHand=[],discard=[],topC=null,myTurn=true,currentUser=null;
+(async function(){var s=await db.auth.getSession();if(s.data.session)currentUser=s.data.session.user;initGame();})();
+function mkDeck(){deck=[];COLORS.forEach(function(c){VALS.forEach(function(v){deck.push({c:c,v:v});deck.push({c:c,v:v});});});for(var i=0;i<4;i++){deck.push({c:'wild',v:'Wild'});deck.push({c:'wild',v:'+4'});}shuffleDeck();}
+function shuffleDeck(){for(var i=deck.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=deck[i];deck[i]=deck[j];deck[j]=t;}}
+function initGame(){mkDeck();myHand=deck.splice(0,7);aiHand=deck.splice(0,7);topC=deck.splice(0,1)[0];while(topC.c==='wild'){deck.push(topC);shuffleDeck();topC=deck.splice(0,1)[0];}discard=[topC];render();}
+function render(){
+document.getElementById('aiCount').textContent=aiHand.length;
+document.getElementById('aiCards').innerHTML=aiHand.map(function(){return '<div class="card-back"></div>';}).join('');
+document.getElementById('topCard').style.background=CBGS[topC.c];document.getElementById('topCard').textContent=topC.v;document.getElementById('topCard').style.color=topC.c==='yellow'?'#000':'#fff';
+document.getElementById('myHand').innerHTML=myHand.map(function(card,i){
+var playable=canPlay(card);
+return '<div class="card'+(playable?' playable':'')+'" style="background:'+CBGS[card.c]+';color:'+(card.c==='yellow'?'#000':'#fff')+';" onclick="playCard('+i+')"><span>'+card.v+'</span></div>';
+}).join('');
+}
+function canPlay(card){return card.c==='wild'||card.c===topC.c||card.v===topC.v;}
+window.playCard=function(i){
+if(!myTurn)return;var card=myHand[i];if(!canPlay(card))return;
+myHand.splice(i,1);topC=card;discard.push(card);
+if(card.v==='+2'){for(var j=0;j<2;j++){if(deck.length)aiHand.push(deck.pop());}}
+if(card.v==='+4'){for(var j=0;j<4;j++){if(deck.length)aiHand.push(deck.pop());}}
+if(card.c==='wild'){document.getElementById('colorPick').style.display='flex';document.getElementById('info').textContent='Pick a color!';render();return;}
+if(myHand.length===0){endGame(true);return;}
+myTurn=false;document.getElementById('info').textContent='AI thinking...';render();setTimeout(aiPlay,600);
+};
+window.pickColor=function(c){topC.c=c;document.getElementById('colorPick').style.display='none';
+if(myHand.length===0){endGame(true);return;}
+myTurn=false;document.getElementById('info').textContent='AI thinking...';render();setTimeout(aiPlay,600);
+};
+window.drawCard=function(){if(!myTurn||deck.length===0)return;myHand.push(deck.pop());render();};
+function aiPlay(){
+var played=false;
+for(var i=0;i<aiHand.length;i++){if(canPlayAI(aiHand[i])){
+var card=aiHand.splice(i,1)[0];topC=card;discard.push(card);
+if(card.c==='wild')topC.c=COLORS[Math.floor(Math.random()*4)];
+if(card.v==='+2'){for(var j=0;j<2;j++){if(deck.length)myHand.push(deck.pop());}}
+if(card.v==='+4'){for(var j=0;j<4;j++){if(deck.length)myHand.push(deck.pop());}}
+played=true;break;}}
+if(!played&&deck.length>0)aiHand.push(deck.pop());
+if(aiHand.length===0){endGame(false);return;}
+myTurn=true;document.getElementById('info').textContent='Your turn!';render();
+}
+function canPlayAI(card){return card.c==='wild'||card.c===topC.c||card.v===topC.v;}
+async function endGame(won){
+document.getElementById('msg').classList.add('show');document.getElementById('msg').textContent=won?'YOU WIN!':'AI WINS!';
+document.getElementById('msg').style.background=won?'rgba(74,222,128,.15)':'rgba(239,68,68,.15)';document.getElementById('msg').style.color=won?'#4ade80':'#ef4444';
+if(currentUser)try{await db.rpc('record_game_result',{p_user_id:currentUser.id,p_game:'wildcards',p_won:won,p_coins:0});}catch(e){}
+}
+</script></body></html>
