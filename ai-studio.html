@@ -400,7 +400,7 @@ var TOOLS = [
       {name:'fontSize',label:'Font size',type:'number',value:'60',id:'taSize'},
       {name:'fontFamily',label:'Font',type:'select',options:['Impact','Bebas Neue','Work Sans','Pacifico','Permanent Marker','Press Start 2P','Arial Black','Courier New'],id:'taFont'},
       {name:'color',label:'Text color',type:'color',value:'#ffffff',id:'taColor'},
-      {name:'bgColor',label:'Background',type:'color',value:'#000000',id:'taBg'},
+      {name:'bgColor',label:'Background',type:'select',options:['Transparent','#000000 Black','#ffffff White','#7c3aed Purple','#ef4444 Red','#2563eb Blue','#22c55e Green','#f97316 Orange'],id:'taBg'},
       {name:'duration',label:'Duration (seconds)',type:'number',value:'3',id:'taDur'}
     ]
   },
@@ -1708,6 +1708,8 @@ var CLIENT_HANDLERS={
     var font=v.fontFamily||'Impact';
     var color=v.color||'#ffffff';
     var bg=v.bgColor||'#000000';
+    var transparent=bg==='Transparent';
+    if(!transparent)bg=bg.split(' ')[0];// extract hex from "# Black" format
     var duration=Math.min(parseFloat(v.duration)||3,10);
     var W=480,H=270,FPS=30,totalFrames=Math.round(duration*FPS);
 
@@ -1723,11 +1725,11 @@ var CLIENT_HANDLERS={
       var blob=new Blob(chunks,{type:'video/webm'});var url=URL.createObjectURL(blob);
       window._lastBlob=blob;window._lastBlobUrl=url;
       showResult(
-        '<video src="'+url+'" autoplay loop muted playsinline style="width:100%;border-radius:8px;"></video>'+
+        '<video src="'+url+'" autoplay loop muted playsinline style="width:100%;border-radius:8px;'+(transparent?'background:repeating-conic-gradient(#808080 0% 25%, transparent 0% 50%) 50% / 20px 20px;':'')+'"></video>'+
         '<div class="result-actions">'+
         '<button class="btn btn-sm" onclick="downloadBlob(\'animated-text-8bfr.webm\')">Download Video</button>'+
         '<button class="btn btn-ghost btn-sm" onclick="runTool()">Try Again</button>'+
-        '</div>'
+        '</div>'+(transparent?'<div style="font-size:.65rem;color:rgba(255,255,255,.4);margin-top:.2rem;">Transparent background - overlay on your video in an editor</div>':'')
       );
       done();
     };
@@ -1735,7 +1737,8 @@ var CLIENT_HANDLERS={
     rec.start();
     var frame=0;
     function renderFrame(){
-      ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+      if(transparent){ctx.clearRect(0,0,W,H);}
+      else{ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);}
       ctx.textAlign='center';ctx.textBaseline='middle';
       var t=frame/totalFrames;// 0 to 1
       var chars=text.split('');
