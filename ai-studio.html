@@ -1715,6 +1715,14 @@ var CLIENT_HANDLERS={
 
     showLoading('Generating '+style+' animation ('+totalFrames+' frames)...');
 
+    // Auto-size canvas for text length
+    var testCanvas=document.createElement('canvas');var tctx=testCanvas.getContext('2d');
+    tctx.font='bold '+fontSize+'px '+font;
+    var testLines=[];var tw=text.split(' '),tl='';
+    for(var w=0;w<tw.length;w++){var tt=tl?(tl+' '+tw[w]):tw[w];if(tctx.measureText(tt).width>460&&tl){testLines.push(tl);tl=tw[w];}else tl=tt;}
+    if(tl)testLines.push(tl);
+    var W=480,H=Math.max(270,testLines.length*fontSize*1.3+80);
+
     var canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;
     var ctx=canvas.getContext('2d');
     var cs=canvas.captureStream(FPS);
@@ -1743,94 +1751,130 @@ var CLIENT_HANDLERS={
       var t=frame/totalFrames;// 0 to 1
       var chars=text.split('');
 
+      // Word wrap helper
+      ctx.font='bold '+fontSize+'px '+font;
+      var maxW=W-20;
+      function wrapLines(txt){
+        var words=txt.split(' '),lines=[],line='';
+        for(var w=0;w<words.length;w++){
+          var test=line?(line+' '+words[w]):words[w];
+          if(ctx.measureText(test).width>maxW&&line){lines.push(line);line=words[w];}
+          else line=test;
+        }
+        if(line)lines.push(line);
+        return lines;
+      }
+      var lines=wrapLines(text);
+      var lineH=fontSize*1.2;
+      var totalH=lines.length*lineH;
+      var startY=H/2-totalH/2+lineH/2;
+
       switch(style){
         case 'Bounce':
           ctx.font='bold '+fontSize+'px '+font;ctx.fillStyle=color;
-          var by=H/2+Math.sin(t*Math.PI*4)*30;
-          ctx.fillText(text,W/2,by);break;
+          var by=Math.sin(t*Math.PI*4)*30;
+          for(var li=0;li<lines.length;li++)ctx.fillText(lines[li],W/2,startY+li*lineH+by);
+          break;
 
         case 'Wave':
-          ctx.font='bold '+fontSize+'px '+font;
-          var startX=W/2-(ctx.measureText(text).width/2);
-          for(var i=0;i<chars.length;i++){
-            var cx2=startX+ctx.measureText(text.substring(0,i)).width+ctx.measureText(chars[i]).width/2;
-            var cy=H/2+Math.sin(t*Math.PI*6+i*.5)*20;
-            ctx.fillStyle=color;ctx.fillText(chars[i],cx2,cy);
+          ctx.font='bold '+fontSize+'px '+font;ctx.fillStyle=color;
+          for(var li=0;li<lines.length;li++){
+            var lchars=lines[li].split('');
+            var lw=ctx.measureText(lines[li]).width;
+            var lx=W/2-lw/2;
+            for(var i=0;i<lchars.length;i++){
+              var cw2=ctx.measureText(lchars[i]).width;
+              var cy=startY+li*lineH+Math.sin(t*Math.PI*6+i*.5+li)*20;
+              ctx.fillText(lchars[i],lx+cw2/2,cy);lx+=cw2;
+            }
           }break;
 
         case 'Typewriter':
           ctx.font='bold '+fontSize+'px '+font;ctx.fillStyle=color;
-          var shown=Math.floor(t*text.length*1.5);
-          var sub=text.substring(0,Math.min(shown,text.length));
-          ctx.fillText(sub,W/2,H/2);
-          if(shown<=text.length&&Math.floor(t*10)%2===0){
-            ctx.fillRect(W/2+ctx.measureText(sub).width/2+2,H/2-fontSize/2,3,fontSize);
-          }break;
+          var allText=lines.join(' ');
+          var shown=Math.floor(t*allText.length*1.5);
+          var charCount=0;
+          for(var li=0;li<lines.length;li++){
+            var lineShown=Math.min(Math.max(shown-charCount,0),lines[li].length);
+            ctx.fillText(lines[li].substring(0,lineShown),W/2,startY+li*lineH);
+            charCount+=lines[li].length+1;
+          }
+          if(Math.floor(t*10)%2===0){ctx.fillRect(W/2+10,startY-fontSize/2,3,fontSize);}
+          break;
 
         case 'Glow':
           var glowSize=10+Math.sin(t*Math.PI*4)*8;
           ctx.shadowColor=color;ctx.shadowBlur=glowSize;
           ctx.font='bold '+fontSize+'px '+font;ctx.fillStyle=color;
-          ctx.fillText(text,W/2,H/2);ctx.fillText(text,W/2,H/2);
+          for(var li=0;li<lines.length;li++){ctx.fillText(lines[li],W/2,startY+li*lineH);ctx.fillText(lines[li],W/2,startY+li*lineH);}
           ctx.shadowBlur=0;break;
 
         case 'Shake':
           var sx2=(Math.random()-.5)*8,sy2=(Math.random()-.5)*8;
           ctx.font='bold '+fontSize+'px '+font;ctx.fillStyle=color;
-          ctx.fillText(text,W/2+sx2,H/2+sy2);break;
+          for(var li=0;li<lines.length;li++)ctx.fillText(lines[li],W/2+sx2,startY+li*lineH+sy2);
+          break;
 
         case 'Zoom In':
           var scale=t*2;if(scale>1)scale=1;
-          var zs=Math.round(fontSize*scale);if(zs<1)zs=1;
+          var zs=Math.max(1,Math.round(fontSize*scale));
           ctx.font='bold '+zs+'px '+font;ctx.fillStyle=color;
           ctx.globalAlpha=Math.min(t*3,1);
-          ctx.fillText(text,W/2,H/2);ctx.globalAlpha=1;break;
+          var zLines=wrapLines(text);var zLineH=zs*1.2;var zStartY=H/2-zLines.length*zLineH/2+zLineH/2;
+          for(var li=0;li<zLines.length;li++)ctx.fillText(zLines[li],W/2,zStartY+li*zLineH);
+          ctx.globalAlpha=1;break;
 
         case 'Spin':
           ctx.save();ctx.translate(W/2,H/2);ctx.rotate(t*Math.PI*4);
           ctx.font='bold '+fontSize+'px '+font;ctx.fillStyle=color;
-          ctx.fillText(text,0,0);ctx.restore();break;
+          for(var li=0;li<lines.length;li++)ctx.fillText(lines[li],0,-totalH/2+li*lineH+lineH/2);
+          ctx.restore();break;
 
         case 'Fade In':
           ctx.globalAlpha=Math.min(t*2,1);
           ctx.font='bold '+fontSize+'px '+font;ctx.fillStyle=color;
-          ctx.fillText(text,W/2,H/2);ctx.globalAlpha=1;break;
+          for(var li=0;li<lines.length;li++)ctx.fillText(lines[li],W/2,startY+li*lineH);
+          ctx.globalAlpha=1;break;
 
         case 'Rainbow':
           ctx.font='bold '+fontSize+'px '+font;
-          var startX2=W/2-(ctx.measureText(text).width/2);
-          for(var i=0;i<chars.length;i++){
-            var hue=((t*360+i*30)%360);
-            ctx.fillStyle='hsl('+hue+',100%,60%)';
-            var cx3=startX2+ctx.measureText(text.substring(0,i)).width+ctx.measureText(chars[i]).width/2;
-            ctx.fillText(chars[i],cx3,H/2);
+          for(var li=0;li<lines.length;li++){
+            var lchars=lines[li].split('');
+            var lw=ctx.measureText(lines[li]).width;
+            var lx=W/2-lw/2;
+            for(var i=0;i<lchars.length;i++){
+              var hue=((t*360+i*30+li*60)%360);
+              ctx.fillStyle='hsl('+hue+',100%,60%)';
+              var cw2=ctx.measureText(lchars[i]).width;
+              ctx.fillText(lchars[i],lx+cw2/2,startY+li*lineH);lx+=cw2;
+            }
           }break;
 
         case 'Glitch':
           ctx.font='bold '+fontSize+'px '+font;ctx.fillStyle=color;
-          ctx.fillText(text,W/2,H/2);
+          for(var li=0;li<lines.length;li++)ctx.fillText(lines[li],W/2,startY+li*lineH);
           if(Math.random()<.3){
-            ctx.fillStyle='#ef4444';ctx.fillText(text,W/2+(Math.random()-.5)*10,H/2+(Math.random()-.5)*6);
-            ctx.fillStyle='#3b82f6';ctx.fillText(text,W/2+(Math.random()-.5)*10,H/2+(Math.random()-.5)*6);
+            ctx.fillStyle='#ef4444';for(var li=0;li<lines.length;li++)ctx.fillText(lines[li],W/2+(Math.random()-.5)*10,startY+li*lineH+(Math.random()-.5)*6);
+            ctx.fillStyle='#3b82f6';for(var li=0;li<lines.length;li++)ctx.fillText(lines[li],W/2+(Math.random()-.5)*10,startY+li*lineH+(Math.random()-.5)*6);
           }break;
 
         case 'Slide In':
-          var slideX=W/2+W*(1-Math.min(t*2,1));
+          var slideX=W*(1-Math.min(t*2,1));
           ctx.font='bold '+fontSize+'px '+font;ctx.fillStyle=color;
-          ctx.fillText(text,slideX,H/2);break;
+          for(var li=0;li<lines.length;li++)ctx.fillText(lines[li],W/2+slideX,startY+li*lineH);
+          break;
 
         case 'Fire':
           ctx.font='bold '+fontSize+'px '+font;
-          var grd=ctx.createLinearGradient(W/2-100,H/2+fontSize/2,W/2-100,H/2-fontSize);
+          var grd=ctx.createLinearGradient(0,startY+totalH,0,startY-fontSize);
           grd.addColorStop(0,'#fbbf24');grd.addColorStop(.5,'#f97316');grd.addColorStop(1,'#ef4444');
-          ctx.fillStyle=grd;ctx.fillText(text,W/2,H/2);
-          // Flame particles
-          for(var p=0;p<5;p++){
-            var fx=W/2+(Math.random()-.5)*ctx.measureText(text).width;
-            var fy=H/2-fontSize/2-Math.random()*20-t*30;
-            var fs=2+Math.random()*4;
+          ctx.fillStyle=grd;
+          for(var li=0;li<lines.length;li++)ctx.fillText(lines[li],W/2,startY+li*lineH);
+          for(var p=0;p<8;p++){
+            var fx=W/2+(Math.random()-.5)*maxW;
+            var fy=startY-Math.random()*20-t*30;
             ctx.fillStyle='rgba(251,191,36,'+(1-Math.random()*.5)+')';
-            ctx.beginPath();ctx.arc(fx,fy,fs,0,Math.PI*2);ctx.fill();
+            ctx.beginPath();ctx.arc(fx,fy,2+Math.random()*4,0,Math.PI*2);ctx.fill();
           }break;
       }
 
