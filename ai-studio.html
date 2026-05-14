@@ -385,6 +385,25 @@ var TOOLS = [
   { id:'voice-recorder', cat:'media', type:'client', handler:'voiceRec', icon:'🎤', name:'Voice Recorder', desc:'Record voice/audio', badges:['tool'],
     fields:[]
   },
+  { id:'green-screen', cat:'media', type:'client', handler:'greenScreen', icon:'🟩', name:'Green Screen', desc:'Remove green/blue background from video or image', badges:['tool'],
+    fields:[
+      {name:'media',label:'Upload photo or video with green/blue background',type:'file',accept:'image/*,video/*',required:true,id:'gsFile'},
+      {name:'keyColor',label:'Key color to remove',type:'select',options:['Green','Blue','White','Custom'],id:'gsColor'},
+      {name:'tolerance',label:'Tolerance (1-100)',type:'number',value:'40',id:'gsTol'},
+      {name:'bgImage',label:'New background image (optional)',type:'file',accept:'image/*',id:'gsBgFile'}
+    ]
+  },
+  { id:'text-animation', cat:'creative', type:'client', handler:'textAnim', icon:'✨', name:'Animated Text', desc:'Create animated text GIFs and videos', badges:['tool','fun'],
+    fields:[
+      {name:'text',label:'Text to animate',type:'text',required:true,id:'taText',placeholder:'e.g. 8BFR MUSIC'},
+      {name:'style',label:'Animation style',type:'select',options:['Bounce','Wave','Typewriter','Glow','Shake','Zoom In','Spin','Fade In','Rainbow','Glitch','Slide In','Fire'],id:'taStyle'},
+      {name:'fontSize',label:'Font size',type:'number',value:'60',id:'taSize'},
+      {name:'fontFamily',label:'Font',type:'select',options:['Impact','Bebas Neue','Work Sans','Pacifico','Permanent Marker','Press Start 2P','Arial Black','Courier New'],id:'taFont'},
+      {name:'color',label:'Text color',type:'color',value:'#ffffff',id:'taColor'},
+      {name:'bgColor',label:'Background',type:'color',value:'#000000',id:'taBg'},
+      {name:'duration',label:'Duration (seconds)',type:'number',value:'3',id:'taDur'}
+    ]
+  },
 
   // ═══ WRITING ═══
   { id:'proofread', cat:'writing', type:'ai', icon:'📖', name:'Proofreader', desc:'Grammar, spelling, flow check', tier:'mini',
@@ -1603,6 +1622,221 @@ var CLIENT_HANDLERS={
       window._screenRec=rec;window._screenStream=stream;
       stream.getVideoTracks()[0].onended=function(){rec.stop();};
     }catch(e){showError('Screen recording denied or not supported: '+e.message);}
+  },
+
+  // VOICE RECORDER
+  // GREEN SCREEN
+  greenScreen: async function(v){
+    var files=v.media;var bgFiles=v.bgImage;
+    if(!files||!files[0]){showError('Upload a photo or video.');return;}
+    var colorKey=v.keyColor||'Green';
+    var tol=parseInt(v.tolerance)||40;
+    var isVideo=files[0].type.startsWith('video');
+    var url=URL.createObjectURL(files[0]);
+
+    // Load optional background
+    var bgImg=null;
+    if(bgFiles&&bgFiles[0]){
+      bgImg=new Image();
+      await new Promise(function(r,rej){bgImg.onload=r;bgImg.onerror=rej;bgImg.src=URL.createObjectURL(bgFiles[0]);});
+    }
+
+    // Key color targets
+    var keyR=0,keyG=200,keyB=0;
+    if(colorKey==='Blue'){keyR=0;keyG=0;keyB=200;}
+    else if(colorKey==='White'){keyR=220;keyG=220;keyB=220;}
+
+    if(!isVideo){
+      showLoading('Removing background...');
+      var img=new Image();
+      await new Promise(function(r,rej){img.onload=r;img.onerror=rej;img.src=url;});
+      var canvas=document.createElement('canvas');canvas.width=img.width;canvas.height=img.height;
+      var ctx=canvas.getContext('2d');
+      if(bgImg)ctx.drawImage(bgImg,0,0,canvas.width,canvas.height);
+      ctx.drawImage(img,0,0);
+      var data=ctx.getImageData(0,0,canvas.width,canvas.height);var d=data.data;
+      for(var i=0;i<d.length;i+=4){
+        var dr=Math.abs(d[i]-keyR),dg=Math.abs(d[i+1]-keyG),db=Math.abs(d[i+2]-keyB);
+        var dist=Math.sqrt(dr*dr+dg*dg+db*db);
+        if(dist<tol*2){d[i+3]=0;} // Make transparent
+        else if(dist<tol*3){d[i+3]=Math.round((dist-tol*2)/(tol)*255);} // Feather edge
+      }
+      ctx.putImageData(data,0,0);
+      if(bgImg){var c2=document.createElement('canvas');c2.width=canvas.width;c2.height=canvas.height;var x2=c2.getContext('2d');x2.drawImage(bgImg,0,0,c2.width,c2.height);x2.drawImage(canvas,0,0);canvas=c2;}
+      var dataUrl=canvas.toDataURL('image/png');
+      window._lastImageUrl=dataUrl;
+      showResult('<img src="'+dataUrl+'" style="max-width:100%;border-radius:8px;"><div class="result-actions"><button class="btn btn-sm" onclick="downloadImage(\'greenscreen-8bfr.png\')">Download</button></div>');
+    } else {
+      showLoading('Processing video green screen... This may take a while.');
+      var vid=document.createElement('video');vid.src=url;vid.muted=true;
+      await new Promise(function(r){vid.onloadedmetadata=r;});
+      var canvas=document.createElement('canvas');canvas.width=vid.videoWidth;canvas.height=vid.videoHeight;
+      var ctx=canvas.getContext('2d');
+      var cs=canvas.captureStream(30);
+      var chunks=[];var rec=new MediaRecorder(cs,{mimeType:'video/webm'});
+      rec.ondataavailable=function(e){if(e.data.size>0)chunks.push(e.data);};
+      var done;var dp=new Promise(function(r){done=r;});
+      rec.onstop=function(){
+        var blob=new Blob(chunks,{type:'video/webm'});var burl=URL.createObjectURL(blob);
+        window._lastBlob=blob;window._lastBlobUrl=burl;
+        showResult('<video src="'+burl+'" controls style="width:100%;border-radius:8px;"></video><div class="result-actions"><button class="btn btn-sm" onclick="downloadBlob(\'greenscreen-8bfr.webm\')">Download</button></div>');
+        done();
+      };
+      vid.currentTime=0;await new Promise(function(r){vid.onseeked=r;});
+      rec.start();vid.play();
+      var di=setInterval(function(){
+        if(bgImg)ctx.drawImage(bgImg,0,0,canvas.width,canvas.height);
+        else{ctx.fillStyle='#000';ctx.fillRect(0,0,canvas.width,canvas.height);}
+        ctx.drawImage(vid,0,0);
+        var data=ctx.getImageData(0,0,canvas.width,canvas.height);var d=data.data;
+        for(var i=0;i<d.length;i+=4){
+          var dr=Math.abs(d[i]-keyR),dg=Math.abs(d[i+1]-keyG),db=Math.abs(d[i+2]-keyB);
+          if(Math.sqrt(dr*dr+dg*dg+db*db)<tol*2){d[i+3]=0;}
+        }
+        ctx.putImageData(data,0,0);
+        if(vid.ended){clearInterval(di);rec.stop();}
+      },33);
+      await dp;
+    }
+  },
+
+  // ANIMATED TEXT
+  textAnim: async function(v){
+    var text=v.text||'HELLO';
+    var style=v.style||'Bounce';
+    var fontSize=parseInt(v.fontSize)||60;
+    var font=v.fontFamily||'Impact';
+    var color=v.color||'#ffffff';
+    var bg=v.bgColor||'#000000';
+    var duration=Math.min(parseFloat(v.duration)||3,10);
+    var W=480,H=270,FPS=30,totalFrames=Math.round(duration*FPS);
+
+    showLoading('Generating '+style+' animation ('+totalFrames+' frames)...');
+
+    var canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;
+    var ctx=canvas.getContext('2d');
+    var cs=canvas.captureStream(FPS);
+    var chunks=[];var rec=new MediaRecorder(cs,{mimeType:'video/webm'});
+    rec.ondataavailable=function(e){if(e.data.size>0)chunks.push(e.data);};
+    var done;var dp=new Promise(function(r){done=r;});
+    rec.onstop=function(){
+      var blob=new Blob(chunks,{type:'video/webm'});var url=URL.createObjectURL(blob);
+      window._lastBlob=blob;window._lastBlobUrl=url;
+      showResult(
+        '<video src="'+url+'" autoplay loop muted playsinline style="width:100%;border-radius:8px;"></video>'+
+        '<div class="result-actions">'+
+        '<button class="btn btn-sm" onclick="downloadBlob(\'animated-text-8bfr.webm\')">Download Video</button>'+
+        '<button class="btn btn-ghost btn-sm" onclick="runTool()">Try Again</button>'+
+        '</div>'
+      );
+      done();
+    };
+
+    rec.start();
+    var frame=0;
+    function renderFrame(){
+      ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      var t=frame/totalFrames;// 0 to 1
+      var chars=text.split('');
+
+      switch(style){
+        case 'Bounce':
+          ctx.font='bold '+fontSize+'px '+font;ctx.fillStyle=color;
+          var by=H/2+Math.sin(t*Math.PI*4)*30;
+          ctx.fillText(text,W/2,by);break;
+
+        case 'Wave':
+          ctx.font='bold '+fontSize+'px '+font;
+          var startX=W/2-(ctx.measureText(text).width/2);
+          for(var i=0;i<chars.length;i++){
+            var cx2=startX+ctx.measureText(text.substring(0,i)).width+ctx.measureText(chars[i]).width/2;
+            var cy=H/2+Math.sin(t*Math.PI*6+i*.5)*20;
+            ctx.fillStyle=color;ctx.fillText(chars[i],cx2,cy);
+          }break;
+
+        case 'Typewriter':
+          ctx.font='bold '+fontSize+'px '+font;ctx.fillStyle=color;
+          var shown=Math.floor(t*text.length*1.5);
+          var sub=text.substring(0,Math.min(shown,text.length));
+          ctx.fillText(sub,W/2,H/2);
+          if(shown<=text.length&&Math.floor(t*10)%2===0){
+            ctx.fillRect(W/2+ctx.measureText(sub).width/2+2,H/2-fontSize/2,3,fontSize);
+          }break;
+
+        case 'Glow':
+          var glowSize=10+Math.sin(t*Math.PI*4)*8;
+          ctx.shadowColor=color;ctx.shadowBlur=glowSize;
+          ctx.font='bold '+fontSize+'px '+font;ctx.fillStyle=color;
+          ctx.fillText(text,W/2,H/2);ctx.fillText(text,W/2,H/2);
+          ctx.shadowBlur=0;break;
+
+        case 'Shake':
+          var sx2=(Math.random()-.5)*8,sy2=(Math.random()-.5)*8;
+          ctx.font='bold '+fontSize+'px '+font;ctx.fillStyle=color;
+          ctx.fillText(text,W/2+sx2,H/2+sy2);break;
+
+        case 'Zoom In':
+          var scale=t*2;if(scale>1)scale=1;
+          var zs=Math.round(fontSize*scale);if(zs<1)zs=1;
+          ctx.font='bold '+zs+'px '+font;ctx.fillStyle=color;
+          ctx.globalAlpha=Math.min(t*3,1);
+          ctx.fillText(text,W/2,H/2);ctx.globalAlpha=1;break;
+
+        case 'Spin':
+          ctx.save();ctx.translate(W/2,H/2);ctx.rotate(t*Math.PI*4);
+          ctx.font='bold '+fontSize+'px '+font;ctx.fillStyle=color;
+          ctx.fillText(text,0,0);ctx.restore();break;
+
+        case 'Fade In':
+          ctx.globalAlpha=Math.min(t*2,1);
+          ctx.font='bold '+fontSize+'px '+font;ctx.fillStyle=color;
+          ctx.fillText(text,W/2,H/2);ctx.globalAlpha=1;break;
+
+        case 'Rainbow':
+          ctx.font='bold '+fontSize+'px '+font;
+          var startX2=W/2-(ctx.measureText(text).width/2);
+          for(var i=0;i<chars.length;i++){
+            var hue=((t*360+i*30)%360);
+            ctx.fillStyle='hsl('+hue+',100%,60%)';
+            var cx3=startX2+ctx.measureText(text.substring(0,i)).width+ctx.measureText(chars[i]).width/2;
+            ctx.fillText(chars[i],cx3,H/2);
+          }break;
+
+        case 'Glitch':
+          ctx.font='bold '+fontSize+'px '+font;ctx.fillStyle=color;
+          ctx.fillText(text,W/2,H/2);
+          if(Math.random()<.3){
+            ctx.fillStyle='#ef4444';ctx.fillText(text,W/2+(Math.random()-.5)*10,H/2+(Math.random()-.5)*6);
+            ctx.fillStyle='#3b82f6';ctx.fillText(text,W/2+(Math.random()-.5)*10,H/2+(Math.random()-.5)*6);
+          }break;
+
+        case 'Slide In':
+          var slideX=W/2+W*(1-Math.min(t*2,1));
+          ctx.font='bold '+fontSize+'px '+font;ctx.fillStyle=color;
+          ctx.fillText(text,slideX,H/2);break;
+
+        case 'Fire':
+          ctx.font='bold '+fontSize+'px '+font;
+          var grd=ctx.createLinearGradient(W/2-100,H/2+fontSize/2,W/2-100,H/2-fontSize);
+          grd.addColorStop(0,'#fbbf24');grd.addColorStop(.5,'#f97316');grd.addColorStop(1,'#ef4444');
+          ctx.fillStyle=grd;ctx.fillText(text,W/2,H/2);
+          // Flame particles
+          for(var p=0;p<5;p++){
+            var fx=W/2+(Math.random()-.5)*ctx.measureText(text).width;
+            var fy=H/2-fontSize/2-Math.random()*20-t*30;
+            var fs=2+Math.random()*4;
+            ctx.fillStyle='rgba(251,191,36,'+(1-Math.random()*.5)+')';
+            ctx.beginPath();ctx.arc(fx,fy,fs,0,Math.PI*2);ctx.fill();
+          }break;
+      }
+
+      frame++;
+      if(frame<=totalFrames){requestAnimationFrame(renderFrame);}
+      else{rec.stop();}
+    }
+    renderFrame();
+    await dp;
   },
 
   // VOICE RECORDER
