@@ -1,0 +1,95 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Space Blaster -- 8BFR Games</title><link rel="icon" href="assets/images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>*{margin:0;padding:0;box-sizing:border-box;}
+#bubbleStack,#_8bfr_copyright,.bubble-row,#carrieWrap,#avatarSwitcher,.global-avatar,.avatar-wrap,#pageUpBtn{display:none!important;}
+body{font-family:'Work Sans',sans-serif;background:#000;color:#fff;height:100vh;overflow:hidden;touch-action:none;}
+.hdr{position:fixed;top:0;left:0;right:70px;z-index:100;display:flex;justify-content:space-between;align-items:center;padding:.1rem .4rem;background:rgba(0,0,0,.95);height:22px;font-size:.55rem;}
+.hdr a{color:#22c55e;text-decoration:none;font-weight:800;font-size:.9rem;}.hdr h1{font-family:'Bebas Neue',cursive;font-size:.85rem;color:#22c55e;}
+.area{position:fixed;top:22px;left:0;right:0;bottom:44px;display:flex;align-items:center;justify-content:center;}
+canvas{touch-action:none;}
+.ctrls{position:fixed;bottom:0;left:0;right:0;height:44px;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:space-between;padding:0 .5rem;z-index:99;}
+.cbtn{width:50px;height:34px;border-radius:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:.9rem;cursor:pointer;color:rgba(255,255,255,.5);}
+.cbtn:active{background:rgba(255,255,255,.2);}
+.cbtn.fire{background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.3);color:#ef4444;width:60px;}
+</style></head><body>
+<div class="hdr"><a href="multiplayer-games.html">&larr;</a><h1>Space Blaster</h1><span style="color:#fbbf24;">Score: <span id="score">0</span></span><span>Lives: <span id="lives">3</span></span></div>
+<div class="area"><canvas id="c"></canvas></div>
+<div class="ctrls">
+<div class="cbtn" ontouchstart="ml=true" ontouchend="ml=false" onclick="shipX-=15">&larr;</div>
+<div class="cbtn fire" ontouchstart="fire()" onclick="fire()">FIRE</div>
+<div class="cbtn" ontouchstart="mr=true" ontouchend="mr=false" onclick="shipX+=15">&rarr;</div>
+</div>
+<script src="scripts.js" defer></script>
+<script>
+var db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f');
+var cv,ctx,W,H,shipX,bullets=[],enemies=[],eBullets=[],score=0,lives=3,level=1,over=false;
+var eDir=1,eSpeed=1,ml=false,mr=false,stars=[],currentUser=null;
+(async function(){var s=await db.auth.getSession();if(s.data.session)currentUser=s.data.session.user;init();})();
+function init(){
+cv=document.getElementById('c');ctx=cv.getContext('2d');
+W=Math.min(window.innerWidth,360);H=Math.min(window.innerHeight-72,500);
+cv.width=W;cv.height=H;shipX=W/2;
+stars=[];for(var i=0;i<50;i++)stars.push({x:Math.random()*W,y:Math.random()*H,s:Math.random()*2+.5});
+spawnWave();
+document.addEventListener('keydown',function(e){if(e.key==='ArrowLeft')ml=true;if(e.key==='ArrowRight')mr=true;if(e.key===' ')fire();});
+document.addEventListener('keyup',function(e){if(e.key==='ArrowLeft')ml=false;if(e.key==='ArrowRight')mr=false;});
+requestAnimationFrame(loop);
+}
+function spawnWave(){
+enemies=[];
+for(var r=0;r<4;r++)for(var c=0;c<8;c++){
+enemies.push({x:30+c*38,y:30+r*30,w:28,h:20,alive:true,type:r});
+}eDir=1;eSpeed=1+level*.3;
+}
+window.fire=function(){if(over)return;bullets.push({x:shipX,y:H-25,vy:-6});};
+function loop(){
+if(over)return;update();draw();requestAnimationFrame(loop);
+}
+function update(){
+if(ml)shipX-=4;if(mr)shipX+=4;
+if(shipX<15)shipX=15;if(shipX>W-15)shipX=W-15;
+// Stars
+stars.forEach(function(s){s.y+=s.s;if(s.y>H)s.y=0;});
+// Bullets
+for(var i=bullets.length-1;i>=0;i--){bullets[i].y+=bullets[i].vy;if(bullets[i].y<0)bullets.splice(i,1);}
+// Enemy bullets
+for(var i=eBullets.length-1;i>=0;i--){eBullets[i].y+=3;if(eBullets[i].y>H){eBullets.splice(i,1);continue;}
+if(Math.abs(eBullets[i].x-shipX)<12&&eBullets[i].y>H-25){eBullets.splice(i,1);lives--;document.getElementById('lives').textContent=lives;if(lives<=0){over=true;endGame();}}}
+// Move enemies
+var hitEdge=false;
+enemies.forEach(function(e){if(!e.alive)return;e.x+=eDir*eSpeed;if(e.x<10||e.x>W-10)hitEdge=true;});
+if(hitEdge){eDir*=-1;enemies.forEach(function(e){e.y+=10;if(e.y>H-50){over=true;endGame();}});}
+// Enemy shoot
+if(Math.random()<.02){var alive=enemies.filter(function(e){return e.alive;});if(alive.length){var e=alive[Math.floor(Math.random()*alive.length)];eBullets.push({x:e.x,y:e.y+e.h});}}
+// Bullet-enemy collision
+for(var i=bullets.length-1;i>=0;i--){for(var j=0;j<enemies.length;j++){
+if(!enemies[j].alive)continue;
+if(bullets[i]&&Math.abs(bullets[i].x-enemies[j].x)<enemies[j].w/2&&Math.abs(bullets[i].y-enemies[j].y)<enemies[j].h/2){
+enemies[j].alive=false;bullets.splice(i,1);score+=(4-enemies[j].type)*10;document.getElementById('score').textContent=score;break;
+}}}
+// Wave clear
+if(enemies.every(function(e){return !e.alive;})){level++;spawnWave();}
+}
+function draw(){
+ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
+stars.forEach(function(s){ctx.fillStyle='rgba(255,255,255,'+(s.s/3)+')';ctx.fillRect(s.x,s.y,1,1);});
+// Ship
+ctx.fillStyle='#22c55e';ctx.beginPath();ctx.moveTo(shipX,H-25);ctx.lineTo(shipX-12,H-10);ctx.lineTo(shipX+12,H-10);ctx.fill();
+ctx.fillStyle='#4ade80';ctx.fillRect(shipX-3,H-20,6,8);
+// Enemies
+enemies.forEach(function(e){if(!e.alive)return;
+var cols=['#ef4444','#f97316','#fbbf24','#a855f7'];
+ctx.fillStyle=cols[e.type];
+if(e.type===0){ctx.fillRect(e.x-e.w/2,e.y-e.h/2,e.w,e.h);ctx.fillStyle='#000';ctx.fillRect(e.x-8,e.y-4,4,4);ctx.fillRect(e.x+4,e.y-4,4,4);}
+else if(e.type===1){ctx.beginPath();ctx.arc(e.x,e.y,e.w/2,0,Math.PI*2);ctx.fill();ctx.fillStyle='#000';ctx.fillRect(e.x-6,e.y-3,3,3);ctx.fillRect(e.x+3,e.y-3,3,3);}
+else{ctx.fillRect(e.x-e.w/2,e.y-e.h/2,e.w,e.h);ctx.fillRect(e.x-e.w/2-4,e.y,4,e.h/2);ctx.fillRect(e.x+e.w/2,e.y,4,e.h/2);}
+});
+// Bullets
+ctx.fillStyle='#4ade80';bullets.forEach(function(b){ctx.fillRect(b.x-1,b.y,2,8);});
+ctx.fillStyle='#ef4444';eBullets.forEach(function(b){ctx.fillRect(b.x-1,b.y,2,6);});
+if(over){ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillRect(0,0,W,H);ctx.fillStyle='#ef4444';ctx.font='bold 20px Bebas Neue';ctx.textAlign='center';ctx.fillText('GAME OVER',W/2,H/2-10);ctx.fillStyle='#fbbf24';ctx.font='14px Work Sans';ctx.fillText('Score: '+score,W/2,H/2+15);}
+}
+async function endGame(){if(currentUser)try{await db.rpc('record_game_result',{p_user_id:currentUser.id,p_game:'spaceblaster',p_won:score>300,p_coins:0});}catch(e){}}
+</script></body></html>

@@ -1,0 +1,143 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Barrel Dodge -- 8BFR Games</title><link rel="icon" href="assets/images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>*{margin:0;padding:0;box-sizing:border-box;}
+#bubbleStack,#_8bfr_copyright,.bubble-row,#carrieWrap,#avatarSwitcher,.global-avatar,.avatar-wrap,#pageUpBtn{display:none!important;}
+body{font-family:'Work Sans',sans-serif;background:#000;color:#fff;height:100vh;overflow:hidden;touch-action:none;}
+.hdr{position:fixed;top:0;left:0;right:70px;z-index:100;display:flex;justify-content:space-between;align-items:center;padding:.1rem .4rem;background:rgba(0,0,0,.95);height:22px;font-size:.55rem;}
+.hdr a{color:#ef4444;text-decoration:none;font-weight:800;font-size:.9rem;}.hdr h1{font-family:'Bebas Neue',cursive;font-size:.85rem;color:#ef4444;}
+.area{position:fixed;top:22px;left:0;right:0;bottom:50px;display:flex;align-items:center;justify-content:center;}
+canvas{touch-action:none;}
+.ctrls{position:fixed;bottom:0;left:0;right:0;height:50px;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:space-around;z-index:99;}
+.cbtn{width:50px;height:38px;border-radius:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;color:rgba(255,255,255,.5);}
+.cbtn:active{background:rgba(255,255,255,.2);}
+</style></head><body>
+<div class="hdr"><a href="multiplayer-games.html">&larr;</a><h1>Barrel Dodge</h1><span style="color:#fbbf24;">Score: <span id="score">0</span></span><span>Lives: <span id="lives">3</span></span></div>
+<div class="area"><canvas id="c"></canvas></div>
+<div class="ctrls">
+<div class="cbtn" ontouchstart="moveL=true" ontouchend="moveL=false" onclick="px-=20">&larr;</div>
+<div class="cbtn" ontouchstart="doJump()" onclick="doJump()">&uarr; JUMP</div>
+<div class="cbtn" ontouchstart="moveR=true" ontouchend="moveR=false" onclick="px+=20">&rarr;</div>
+</div>
+<script src="scripts.js" defer></script>
+<script>
+var db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f');
+var cv,ctx,W,H;
+var px,py,pvx=0,pvy=0,onGround=false,jumping=false;
+var barrels=[],platforms=[],score=0,lives=3,gameOver=false,spawnTimer=0;
+var moveL=false,moveR=false,currentUser=null;
+var GRAVITY=0.4,JUMP=-8,SPEED=3;
+
+(async function(){var s=await db.auth.getSession();if(s.data.session)currentUser=s.data.session.user;init();})();
+
+function init(){
+cv=document.getElementById('c');ctx=cv.getContext('2d');
+W=Math.min(window.innerWidth,360);H=Math.min(window.innerHeight-80,500);
+cv.width=W;cv.height=H;
+// Platforms (ramps)
+platforms=[];
+var ph=16,pw=W-40;
+for(var i=0;i<5;i++){
+var y=H-40-i*80;var x=(i%2===0)?20:20;
+platforms.push({x:x,y:y,w:pw,h:ph,slope:i%2===0?0.03:-0.03});
+}
+px=W/2;py=platforms[0].y-20;
+barrels=[];spawnTimer=0;gameOver=false;score=0;lives=3;
+document.getElementById('score').textContent='0';document.getElementById('lives').textContent='3';
+requestAnimationFrame(loop);
+
+document.addEventListener('keydown',function(e){if(e.key==='ArrowLeft')moveL=true;if(e.key==='ArrowRight')moveR=true;if(e.key==='ArrowUp'||e.key===' ')doJump();});
+document.addEventListener('keyup',function(e){if(e.key==='ArrowLeft')moveL=false;if(e.key==='ArrowRight')moveR=false;});
+}
+
+window.doJump=function(){if(onGround){pvy=JUMP;onGround=false;jumping=true;}};
+
+function loop(){
+if(gameOver)return;
+update();draw();requestAnimationFrame(loop);
+}
+
+function update(){
+// Player movement
+if(moveL)px-=SPEED;if(moveR)px+=SPEED;
+if(px<10)px=10;if(px>W-10)px=W-10;
+pvy+=GRAVITY;py+=pvy;
+// Platform collision
+onGround=false;
+for(var i=0;i<platforms.length;i++){
+var p=platforms[i];
+if(px>p.x&&px<p.x+p.w&&py>=p.y-18&&py<=p.y&&pvy>=0){
+py=p.y-18;pvy=0;onGround=true;break;
+}
+}
+if(py>H){py=platforms[0].y-20;px=W/2;lives--;document.getElementById('lives').textContent=lives;if(lives<=0){gameOver=true;endGame();}}
+
+// Spawn barrels
+spawnTimer++;
+if(spawnTimer>60){spawnTimer=0;barrels.push({x:30,y:platforms[platforms.length-1].y-10,vx:2+Math.random()*2,vy:0,r:8});}
+
+// Move barrels
+for(var i=barrels.length-1;i>=0;i--){
+var b=barrels[i];
+b.vy+=GRAVITY*.5;b.x+=b.vx;b.y+=b.vy;
+// Barrel on platforms
+for(var j=0;j<platforms.length;j++){
+var p=platforms[j];
+if(b.x>p.x&&b.x<p.x+p.w&&b.y>=p.y-b.r&&b.y<=p.y+5&&b.vy>=0){
+b.y=p.y-b.r;b.vy=0;b.vx=p.slope>0?2:-2;// Roll direction based on slope
+}
+}
+if(b.x<-20||b.x>W+20||b.y>H+20){barrels.splice(i,1);score+=10;document.getElementById('score').textContent=score;continue;}
+// Hit player
+if(Math.abs(b.x-px)<12&&Math.abs(b.y-py)<16){
+barrels.splice(i,1);lives--;document.getElementById('lives').textContent=lives;
+px=W/2;py=platforms[0].y-20;
+if(lives<=0){gameOver=true;endGame();}
+}
+// Jump over barrel
+if(jumping&&Math.abs(b.x-px)<20&&py<b.y-15){score+=50;document.getElementById('score').textContent=score;jumping=false;}
+}
+if(onGround)jumping=false;
+}
+
+function draw(){
+ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
+// Platforms
+platforms.forEach(function(p){
+ctx.fillStyle='#8B4513';ctx.fillRect(p.x,p.y,p.w,p.h);
+ctx.fillStyle='#A0522D';
+for(var i=0;i<p.w;i+=20){ctx.fillRect(p.x+i,p.y,10,p.h);}
+});
+// Ladders
+for(var i=0;i<platforms.length-1;i++){
+var x=(i%2===0)?W-50:50;
+ctx.fillStyle='#4ade80';
+ctx.fillRect(x,platforms[i+1].y,4,platforms[i].y-platforms[i+1].y);
+ctx.fillRect(x+14,platforms[i+1].y,4,platforms[i].y-platforms[i+1].y);
+for(var r=0;r<(platforms[i].y-platforms[i+1].y)/12;r++){ctx.fillRect(x,platforms[i+1].y+r*12,18,2);}
+}
+// Player
+ctx.fillStyle='#3b82f6';ctx.fillRect(px-8,py-16,16,16);// body
+ctx.fillStyle='#fbbf24';ctx.fillRect(px-6,py-22,12,8);// head
+ctx.fillStyle='#ef4444';ctx.fillRect(px-6,py-14,12,4);// hat
+// Barrels
+barrels.forEach(function(b){
+ctx.fillStyle='#8B4513';ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();
+ctx.strokeStyle='#D2691E';ctx.lineWidth=2;ctx.stroke();
+ctx.fillStyle='#D2691E';ctx.fillRect(b.x-b.r+2,b.y-2,b.r*2-4,4);
+});
+// Boss at top
+ctx.fillStyle='#7c2d12';ctx.fillRect(20,platforms[platforms.length-1].y-35,30,35);
+ctx.fillStyle='#fbbf24';ctx.beginPath();ctx.arc(35,platforms[platforms.length-1].y-40,12,0,Math.PI*2);ctx.fill();
+// Princess at top
+ctx.fillStyle='#ec4899';ctx.fillRect(W-50,platforms[platforms.length-1].y-30,15,30);
+ctx.fillStyle='#fbbf24';ctx.beginPath();ctx.arc(W-42,platforms[platforms.length-1].y-35,8,0,Math.PI*2);ctx.fill();
+
+if(gameOver){ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillRect(0,0,W,H);ctx.fillStyle='#ef4444';ctx.font='bold 20px Bebas Neue';ctx.textAlign='center';ctx.fillText('GAME OVER',W/2,H/2-10);ctx.fillStyle='#fbbf24';ctx.font='14px Work Sans';ctx.fillText('Score: '+score,W/2,H/2+15);}
+}
+
+async function endGame(){
+if(currentUser)try{await db.rpc('record_game_result',{p_user_id:currentUser.id,p_game:'barreldodge',p_won:score>200,p_coins:0});}catch(e){}
+}
+</script></body></html>

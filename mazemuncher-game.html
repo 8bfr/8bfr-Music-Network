@@ -1,0 +1,186 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Maze Muncher -- 8BFR Games</title><link rel="icon" href="assets/images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>*{margin:0;padding:0;box-sizing:border-box;}
+#bubbleStack,#_8bfr_copyright,.bubble-row,#carrieWrap,#avatarSwitcher,.global-avatar,.avatar-wrap,#pageUpBtn{display:none!important;}
+body{font-family:'Work Sans',sans-serif;background:#000;color:#fff;height:100vh;overflow:hidden;touch-action:none;}
+.hdr{position:fixed;top:0;left:0;right:70px;z-index:100;display:flex;justify-content:space-between;align-items:center;padding:.1rem .4rem;background:rgba(0,0,0,.95);height:22px;font-size:.55rem;}
+.hdr a{color:#fbbf24;text-decoration:none;font-weight:800;font-size:.9rem;}.hdr h1{font-family:'Bebas Neue',cursive;font-size:.85rem;color:#fbbf24;}
+.info{position:fixed;top:22px;left:0;right:70px;z-index:99;display:flex;justify-content:space-between;padding:.1rem .4rem;background:rgba(0,0,0,.9);font-size:.6rem;height:18px;}
+.area{position:fixed;top:40px;left:0;right:0;bottom:60px;display:flex;align-items:center;justify-content:center;}
+canvas{touch-action:none;image-rendering:pixelated;}
+.ctrls{position:fixed;bottom:0;left:0;right:0;height:60px;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;gap:.3rem;z-index:99;}
+.dpad{display:grid;grid-template-columns:repeat(3,38px);grid-template-rows:repeat(3,32px);gap:1px;}
+.dbtn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:.9rem;cursor:pointer;color:rgba(255,255,255,.5);}
+.dbtn:active{background:rgba(255,255,255,.2);}
+.dbtn.blank{background:transparent;border:none;}
+</style></head><body>
+<div class="hdr"><a href="multiplayer-games.html">&larr;</a><h1>Maze Muncher</h1></div>
+<div class="info"><span style="color:#fbbf24;">Score: <span id="score">0</span></span><span>Lives: <span id="lives">3</span></span><span style="color:#4ade80;">Level: <span id="level">1</span></span></div>
+<div class="area"><canvas id="c"></canvas></div>
+<div class="ctrls">
+<div class="dpad">
+<div class="dbtn blank"></div><div class="dbtn" ontouchstart="setDir(0,-1)" onclick="setDir(0,-1)">&uarr;</div><div class="dbtn blank"></div>
+<div class="dbtn" ontouchstart="setDir(-1,0)" onclick="setDir(-1,0)">&larr;</div><div class="dbtn blank"></div><div class="dbtn" ontouchstart="setDir(1,0)" onclick="setDir(1,0)">&rarr;</div>
+<div class="dbtn blank"></div><div class="dbtn" ontouchstart="setDir(0,1)" onclick="setDir(0,1)">&darr;</div><div class="dbtn blank"></div>
+</div>
+</div>
+<script src="scripts.js" defer></script>
+<script>
+var db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f');
+var cv,ctx,T=16,COLS=17,ROWS=21;
+var MAP=[
+'11111111111111111',
+'1........1........1',
+'1.11.111.1.111.11.1',
+'1o11.111.1.111.11o1',
+'1.................1',
+'1.11.1.11111.1.11.1',
+'1....1...1...1....1',
+'11111.111.111.11111',
+'00001.1.....1.10000',
+'11111.1.111.1.11111',
+'.......1GGG1.......',
+'11111.1.111.1.11111',
+'00001.1.....1.10000',
+'11111.1.11111.1.11111',
+'1........1........1',
+'1.11.111.1.111.11.1',
+'1o.1...........1.o1',
+'11.1.1.11111.1.1.11',
+'1....1...1...1....1',
+'1.1111111.1111111.1',
+'1.................1'
+];
+// Simplify - use a fixed 17x21 grid
+var grid=[],dots=0,score=0,lives=3,level=1,gameOver=false;
+var player={x:8,y:15,dx:0,dy:0,ndx:0,ndy:0,mouth:0};
+var ghosts=[{x:7,y:10,dx:1,dy:0,c:'#ef4444'},{x:8,y:10,dx:-1,dy:0,c:'#00d9ff'},{x:9,y:10,dx:0,dy:-1,c:'#f97316'},{x:8,y:9,dx:0,dy:1,c:'#ec4899'}];
+var powerMode=false,powerTimer=0,currentUser=null;
+
+(async function(){var s=await db.auth.getSession();if(s.data.session)currentUser=s.data.session.user;init();})();
+
+function init(){
+cv=document.getElementById('c');ctx=cv.getContext('2d');
+cv.width=COLS*T;cv.height=ROWS*T;
+buildGrid();
+player={x:8,y:15,dx:0,dy:0,ndx:0,ndy:0,mouth:0};
+ghosts=[{x:7,y:10,dx:1,dy:0,c:'#ef4444'},{x:8,y:10,dx:-1,dy:0,c:'#00d9ff'},{x:9,y:10,dx:0,dy:-1,c:'#f97316'},{x:8,y:9,dx:0,dy:1,c:'#ec4899'}];
+powerMode=false;gameOver=false;
+setInterval(update,150);
+
+document.addEventListener('keydown',function(e){
+if(e.key==='ArrowUp')setDir(0,-1);if(e.key==='ArrowDown')setDir(0,1);
+if(e.key==='ArrowLeft')setDir(-1,0);if(e.key==='ArrowRight')setDir(1,0);
+});
+}
+
+function buildGrid(){
+grid=[];dots=0;
+for(var r=0;r<ROWS;r++){grid[r]=[];for(var c=0;c<COLS;c++){
+var ch=(MAP[r]&&MAP[r][c])||'1';
+if(ch==='1')grid[r][c]=1;// wall
+else if(ch==='.')grid[r][c]=2,dots++;// dot
+else if(ch==='o')grid[r][c]=3,dots++;// power pellet
+else if(ch==='G')grid[r][c]=0;// ghost house
+else grid[r][c]=0;// empty
+}}
+}
+
+window.setDir=function(dx,dy){player.ndx=dx;player.ndy=dy;};
+
+function canMove(x,y){return y>=0&&y<ROWS&&x>=0&&x<COLS&&grid[y][x]!==1;}
+
+function update(){
+if(gameOver)return;
+// Try new direction first
+if(canMove(player.x+player.ndx,player.y+player.ndy)){player.dx=player.ndx;player.dy=player.ndy;}
+// Move player
+var nx=player.x+player.dx,ny=player.y+player.dy;
+// Tunnel wrap
+if(nx<0)nx=COLS-1;if(nx>=COLS)nx=0;
+if(canMove(nx,ny)){player.x=nx;player.y=ny;}
+player.mouth=(player.mouth+1)%4;
+
+// Eat dots
+if(grid[player.y][player.x]===2){grid[player.y][player.x]=0;score+=10;dots--;document.getElementById('score').textContent=score;}
+if(grid[player.y][player.x]===3){grid[player.y][player.x]=0;score+=50;dots--;powerMode=true;powerTimer=20;document.getElementById('score').textContent=score;}
+if(powerMode){powerTimer--;if(powerTimer<=0)powerMode=false;}
+
+// Move ghosts
+ghosts.forEach(function(g){
+// Simple AI: random turns at intersections, bias toward player
+var dirs=[];
+if(canMove(g.x+1,g.y))dirs.push({dx:1,dy:0});
+if(canMove(g.x-1,g.y))dirs.push({dx:-1,dy:0});
+if(canMove(g.x,g.y+1))dirs.push({dx:0,dy:1});
+if(canMove(g.x,g.y-1))dirs.push({dx:0,dy:-1});
+// Don't reverse
+dirs=dirs.filter(function(d){return !(d.dx===-g.dx&&d.dy===-g.dy);});
+if(dirs.length===0)dirs=[{dx:-g.dx,dy:-g.dy}];
+// Bias toward player (or away if power mode)
+if(Math.random()<.6){
+dirs.sort(function(a,b){
+var da=Math.abs(g.x+a.dx-player.x)+Math.abs(g.y+a.dy-player.y);
+var db2=Math.abs(g.x+b.dx-player.x)+Math.abs(g.y+b.dy-player.y);
+return powerMode?db2-da:da-db2;
+});
+}else{dirs.sort(function(){return Math.random()-.5;});}
+g.dx=dirs[0].dx;g.dy=dirs[0].dy;
+g.x+=g.dx;g.y+=g.dy;
+if(g.x<0)g.x=COLS-1;if(g.x>=COLS)g.x=0;
+});
+
+// Collision
+ghosts.forEach(function(g){
+if(g.x===player.x&&g.y===player.y){
+if(powerMode){g.x=8;g.y=10;score+=200;document.getElementById('score').textContent=score;}
+else{lives--;document.getElementById('lives').textContent=lives;player.x=8;player.y=15;player.dx=0;player.dy=0;
+if(lives<=0){gameOver=true;endGame();}
+}}
+});
+
+// Level clear
+if(dots<=0){level++;document.getElementById('level').textContent=level;buildGrid();player.x=8;player.y=15;player.dx=0;player.dy=0;}
+
+draw();
+}
+
+function draw(){
+ctx.fillStyle='#000';ctx.fillRect(0,0,cv.width,cv.height);
+// Walls + dots
+for(var r=0;r<ROWS;r++)for(var c=0;c<COLS;c++){
+if(grid[r][c]===1){ctx.fillStyle='#1e40af';ctx.fillRect(c*T,r*T,T,T);ctx.fillStyle='#2563eb';ctx.fillRect(c*T+1,r*T+1,T-2,T-2);}
+if(grid[r][c]===2){ctx.fillStyle='#fbbf24';ctx.beginPath();ctx.arc(c*T+T/2,r*T+T/2,2,0,Math.PI*2);ctx.fill();}
+if(grid[r][c]===3){ctx.fillStyle='#fbbf24';ctx.beginPath();ctx.arc(c*T+T/2,r*T+T/2,5,0,Math.PI*2);ctx.fill();}
+}
+// Player (muncher)
+var px=player.x*T+T/2,py=player.y*T+T/2;
+var mouthAngle=player.mouth<2?.3:0;
+var angle=player.dx===1?0:player.dx===-1?Math.PI:player.dy===1?Math.PI/2:-Math.PI/2;
+ctx.fillStyle='#fbbf24';ctx.beginPath();
+ctx.arc(px,py,T/2-1,angle+mouthAngle,angle+Math.PI*2-mouthAngle);
+ctx.lineTo(px,py);ctx.fill();
+// Eye
+var ex=px+Math.cos(angle-0.5)*3,ey=py+Math.sin(angle-0.5)*3;
+ctx.fillStyle='#000';ctx.beginPath();ctx.arc(ex,ey,1.5,0,Math.PI*2);ctx.fill();
+// Ghosts
+ghosts.forEach(function(g){
+var gx=g.x*T+T/2,gy=g.y*T+T/2;
+ctx.fillStyle=powerMode?'#3b82f6':g.c;
+// Body
+ctx.beginPath();ctx.arc(gx,gy-2,T/2-1,Math.PI,0);ctx.lineTo(gx+T/2-1,gy+T/2-1);
+for(var w=0;w<3;w++){ctx.lineTo(gx+T/2-1-w*(T-2)/3-(T-2)/6,gy+T/2-4);ctx.lineTo(gx+T/2-1-(w+1)*(T-2)/3,gy+T/2-1);}
+ctx.fill();
+// Eyes
+ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(gx-3,gy-3,2.5,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(gx+3,gy-3,2.5,0,Math.PI*2);ctx.fill();
+ctx.fillStyle=powerMode?'#fff':'#111';ctx.beginPath();ctx.arc(gx-3+g.dx,gy-3+g.dy,1.2,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(gx+3+g.dx,gy-3+g.dy,1.2,0,Math.PI*2);ctx.fill();
+});
+if(gameOver){ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillRect(0,0,cv.width,cv.height);ctx.fillStyle='#ef4444';ctx.font='bold 18px Bebas Neue';ctx.textAlign='center';ctx.fillText('GAME OVER',cv.width/2,cv.height/2-10);ctx.fillStyle='#fbbf24';ctx.font='14px Work Sans';ctx.fillText('Score: '+score,cv.width/2,cv.height/2+15);}
+}
+
+async function endGame(){
+if(currentUser)try{await db.rpc('record_game_result',{p_user_id:currentUser.id,p_game:'mazemuncher',p_won:score>500,p_coins:0});}catch(e){}
+}
+</script></body></html>
