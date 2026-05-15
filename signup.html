@@ -535,13 +535,20 @@ async function doSignup() {
     if (data?.user) {
       const spotifyUrl = document.getElementById('spotifyUrl').value.trim();
       try {
+        // Check if under 1000 members - auto-add founding_member badge
+        var countRes = await db.from('profiles').select('user_id', {count:'exact',head:true});
+        var memberCount = countRes.count || 0;
+        var finalBadges = selectedRoles.slice();
+        if (memberCount < 1000 && finalBadges.indexOf('founding_member') === -1) {
+          finalBadges.push('founding_member');
+        }
         await db.rpc('upsert_profile', {
           p_data: {
             user_id: data.user.id,
             username: username,
             display_name: displayName,
             role: selectedRoles[0] || 'fan',
-            badges: selectedRoles,
+            badges: finalBadges,
             date_of_birth: dob,
             age_tier: calculatedTier,
             coins: 50,
