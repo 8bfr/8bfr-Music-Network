@@ -791,6 +791,27 @@ function showResult(html){
   var r=document.getElementById('mResult');
   r.classList.add('show');
   r.innerHTML=html;
+  // Add Read Aloud button if result has readable text (not just media)
+  var textContent=r.textContent.trim();
+  if(textContent.length>20&&!html.match(/^<(video|audio|canvas|img)/)){
+    var speakBtn=document.createElement('button');
+    speakBtn.className='btn btn-ghost btn-sm';
+    speakBtn.textContent='Read Aloud';
+    speakBtn.style.cssText='margin-top:.3rem;font-size:.6rem;';
+    speakBtn.onclick=function(){
+      speechSynthesis.cancel();
+      var utter=new SpeechSynthesisUtterance(textContent.substring(0,5000));
+      utter.rate=1;speechSynthesis.speak(utter);
+      speakBtn.textContent='Speaking...';
+      utter.onend=function(){speakBtn.textContent='Read Aloud';};
+    };
+    var stopBtn=document.createElement('button');
+    stopBtn.className='btn btn-ghost btn-sm';
+    stopBtn.textContent='Stop';
+    stopBtn.style.cssText='margin-top:.3rem;margin-left:.2rem;font-size:.6rem;';
+    stopBtn.onclick=function(){speechSynthesis.cancel();speakBtn.textContent='Read Aloud';};
+    r.appendChild(speakBtn);r.appendChild(stopBtn);
+  }
 }
 function showError(msg){
   showResult('<div class="error-msg">⚠️ '+esc(msg)+'</div>');
@@ -1503,7 +1524,7 @@ var CLIENT_HANDLERS={
       var chunks=[];var rec=new MediaRecorder(cs,{mimeType:'video/webm'});
       rec.ondataavailable=function(e){if(e.data.size>0)chunks.push(e.data);};
       var done;var dp=new Promise(function(r){done=r;});
-      rec.onstop=function(){var blob=new Blob(chunks,{type:'video/webm'});var url=URL.createObjectURL(blob);window._lastBlobUrl=url;window._lastBlob=blob;showResult('<video src="'+url+'" controls style="width:100%;border-radius:8px;"></video><div class="result-actions"><button class="btn btn-sm" onclick="downloadBlob('trimmed-8bfr.webm')">Download</button><button class="btn btn-sm" onclick="convertToMp4(window._lastBlob,'trimmed-8bfr.mp4').then(function(){this.textContent='Done'})" style="margin-left:.2rem;">MP4</button></div><div style="font-size:.72rem;color:rgba(168,85,247,.7);margin-top:.3rem;">'+(end-start).toFixed(1)+'s | '+(blob.size/(1024*1024)).toFixed(2)+' MB</div>');done();};
+      rec.onstop=function(){var blob=new Blob(chunks,{type:'video/webm'});var url=URL.createObjectURL(blob);window._lastBlobUrl=url;window._lastBlob=blob;showResult('<video src="'+url+'" controls style="width:100%;border-radius:8px;"></video><div class="result-actions"><button class="btn btn-sm" onclick="downloadBlob(\x27trimmed-8bfr.webm\x27)">Download</button><button class="btn btn-sm" onclick="convertToMp4(window._lastBlob,\x27trimmed-8bfr.mp4\x27)" style="margin-left:.2rem;">MP4</button></div><div style="font-size:.72rem;color:rgba(168,85,247,.7);margin-top:.3rem;">'+(end-start).toFixed(1)+'s | '+(blob.size/(1024*1024)).toFixed(2)+' MB</div>');done();};
       tv.currentTime=start;await new Promise(function(r){tv.onseeked=r;});
       rec.start();tv.play();
       var di=setInterval(function(){ctx.drawImage(tv,0,0);if(tv.currentTime>=end){clearInterval(di);tv.pause();setTimeout(function(){rec.stop();},100);}},33);
@@ -1536,7 +1557,7 @@ var CLIENT_HANDLERS={
     }
     var blob=new Blob(allChunks,{type:'video/webm'});var burl=URL.createObjectURL(blob);
     window._lastBlob=blob;window._lastBlobUrl=burl;
-    showResult('<video src="'+burl+'" controls style="width:100%;border-radius:8px;"></video><div class="result-actions"><button class="btn btn-sm" onclick="downloadBlob('joined-8bfr.webm')">Download</button><button class="btn btn-sm" onclick="convertToMp4(window._lastBlob,'joined-8bfr.mp4')" style="margin-left:.2rem;">MP4</button></div><div style="font-size:.72rem;color:rgba(168,85,247,.7);margin-top:.3rem;">'+files.length+' videos joined | '+(blob.size/(1024*1024)).toFixed(2)+' MB</div>');
+    showResult('<video src="'+burl+'" controls style="width:100%;border-radius:8px;"></video><div class="result-actions"><button class="btn btn-sm" onclick="downloadBlob(\x27joined-8bfr.webm\x27)">Download</button><button class="btn btn-sm" onclick="convertToMp4(window._lastBlob,\x27joined-8bfr.mp4\x27)" style="margin-left:.2rem;">MP4</button></div><div style="font-size:.72rem;color:rgba(168,85,247,.7);margin-top:.3rem;">'+files.length+' videos joined | '+(blob.size/(1024*1024)).toFixed(2)+' MB</div>');
   },
 
   // AUDIO CUTTER
@@ -1591,7 +1612,7 @@ var CLIENT_HANDLERS={
       var chunks=[];var rec=new MediaRecorder(cs,{mimeType:'video/webm'});
       rec.ondataavailable=function(e){if(e.data.size>0)chunks.push(e.data);};
       var done;var dp=new Promise(function(r){done=r;});
-      rec.onstop=function(){var blob=new Blob(chunks,{type:'video/webm'});var burl=URL.createObjectURL(blob);window._lastBlob=blob;window._lastBlobUrl=burl;showResult('<video src="'+burl+'" controls style="width:100%;border-radius:8px;"></video><div class="result-actions"><button class="btn btn-sm" onclick="downloadBlob('speed-8bfr.webm')">Download</button><button class="btn btn-sm" onclick="convertToMp4(window._lastBlob,'speed-8bfr.mp4')" style="margin-left:.2rem;">MP4</button></div>');done();};
+      rec.onstop=function(){var blob=new Blob(chunks,{type:'video/webm'});var burl=URL.createObjectURL(blob);window._lastBlob=blob;window._lastBlobUrl=burl;showResult('<video src="'+burl+'" controls style="width:100%;border-radius:8px;"></video><div class="result-actions"><button class="btn btn-sm" onclick="downloadBlob(\x27speed-8bfr.webm\x27)">Download</button><button class="btn btn-sm" onclick="convertToMp4(window._lastBlob,\x27speed-8bfr.mp4\x27)" style="margin-left:.2rem;">MP4</button></div>');done();};
       vid.currentTime=0;rec.start();vid.play();
       var di=setInterval(function(){ctx.drawImage(vid,0,0);if(vid.ended){clearInterval(di);rec.stop();}},33);
       await dp;
@@ -1615,7 +1636,7 @@ var CLIENT_HANDLERS={
       rec.onstop=function(){
         var blob=new Blob(chunks,{type:'video/webm'});var url=URL.createObjectURL(blob);
         window._lastBlob=blob;window._lastBlobUrl=url;
-        showResult('<video src="'+url+'" controls style="width:100%;border-radius:8px;"></video><div class="result-actions"><button class="btn btn-sm" onclick="downloadBlob('screen-8bfr.webm')">Download</button><button class="btn btn-sm" onclick="convertToMp4(window._lastBlob,'screen-8bfr.mp4')" style="margin-left:.2rem;">MP4</button></div><div style="font-size:.72rem;color:rgba(168,85,247,.7);margin-top:.3rem;">'+(blob.size/(1024*1024)).toFixed(2)+' MB</div>');
+        showResult('<video src="'+url+'" controls style="width:100%;border-radius:8px;"></video><div class="result-actions"><button class="btn btn-sm" onclick="downloadBlob(\x27screen-8bfr.webm\x27)">Download</button><button class="btn btn-sm" onclick="convertToMp4(window._lastBlob,\x27screen-8bfr.mp4\x27)" style="margin-left:.2rem;">MP4</button></div><div style="font-size:.72rem;color:rgba(168,85,247,.7);margin-top:.3rem;">'+(blob.size/(1024*1024)).toFixed(2)+' MB</div>');
       };
       rec.start();
       showResult('<div style="text-align:center;padding:1rem;"><div style="font-size:1.5rem;color:#ef4444;margin-bottom:.5rem;">Recording Screen...</div><button class="btn btn-primary" onclick="window._screenRec.stop();window._screenStream.getTracks().forEach(function(t){t.stop();});">Stop Recording</button></div>');
@@ -1679,7 +1700,7 @@ var CLIENT_HANDLERS={
       rec.onstop=function(){
         var blob=new Blob(chunks,{type:'video/webm'});var burl=URL.createObjectURL(blob);
         window._lastBlob=blob;window._lastBlobUrl=burl;
-        showResult('<video src="'+burl+'" controls style="width:100%;border-radius:8px;"></video><div class="result-actions"><button class="btn btn-sm" onclick="downloadBlob('greenscreen-8bfr.webm')">Download</button><button class="btn btn-sm" onclick="convertToMp4(window._lastBlob,'greenscreen-8bfr.mp4')" style="margin-left:.2rem;">MP4</button></div>');
+        showResult('<video src="'+burl+'" controls style="width:100%;border-radius:8px;"></video><div class="result-actions"><button class="btn btn-sm" onclick="downloadBlob(\x27greenscreen-8bfr.webm\x27)">Download</button><button class="btn btn-sm" onclick="convertToMp4(window._lastBlob,\x27greenscreen-8bfr.mp4\x27)" style="margin-left:.2rem;">MP4</button></div>');
         done();
       };
       vid.currentTime=0;await new Promise(function(r){vid.onseeked=r;});
@@ -1738,6 +1759,12 @@ var CLIENT_HANDLERS={
       '<option value="Transparent">Transparent</option><option value="#000000" selected>Black</option><option value="#ffffff">White</option><option value="#7c3aed">Purple</option><option value="#ef4444">Red</option><option value="#2563eb">Blue</option><option value="#22c55e">Green</option><option value="#f97316">Orange</option><option value="#1a1a2e">Dark Navy</option></select>'+
       '</div>'+
       '<textarea id="taLT" rows="2" style="width:100%;padding:.3rem;background:rgba(124,58,237,.06);border:1px solid rgba(124,58,237,.25);border-radius:6px;color:#f0ecff;font-size:.78rem;margin-bottom:.3rem;resize:vertical;" oninput="taU()" placeholder="Type text...">'+esc(text)+'</textarea>'+
+      '<div style="display:flex;gap:.2rem;margin-bottom:.3rem;align-items:center;">'+
+      '<label style="display:flex;align-items:center;gap:.15rem;font-size:.55rem;color:rgba(255,255,255,.5);"><input type="checkbox" id="taVO" onchange="taU()">Voice-Over</label>'+
+      '<select id="taVoice" style="flex:1;padding:.2rem;background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.3);border-radius:6px;color:#f0ecff;font-size:.55rem;"></select>'+
+      '<input id="taRate" type="number" value="1" min="0.5" max="2" step="0.1" title="Speech speed" style="width:38px;padding:.2rem;background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.3);border-radius:4px;color:#f0ecff;font-size:.55rem;">'+
+      '<button onclick="taPreviewVoice()" style="padding:.2rem .4rem;border-radius:4px;background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.3);color:#a855f7;font-size:.5rem;cursor:pointer;white-space:nowrap;">Test</button>'+
+      '</div>'+
       '<div style="display:flex;gap:.2rem;"><button class="btn btn-primary" onclick="taRec()" style="flex:1;">Record '+duration+'s Video</button></div>'+
       '<div id="taRS" style="font-size:.62rem;color:rgba(255,255,255,.4);margin-top:.2rem;">Live preview - change settings above</div>'
     );
@@ -1746,6 +1773,10 @@ var CLIENT_HANDLERS={
     document.getElementById('taLS').value=style;
     if(document.getElementById('taLB'))document.getElementById('taLB').value=transparent?'Transparent':bg;
     window.taU=function(){_s=document.getElementById('taLS').value;_z=parseInt(document.getElementById('taLZ').value)||60;_c=document.getElementById('taLC').value;_f=document.getElementById('taLF').value;_t=document.getElementById('taLT').value||'8BFR';_st=document.getElementById('taStr').checked;_b=document.getElementById('taBld').checked;_oc=document.getElementById('taOC').value;_ow=parseInt(document.getElementById('taOW').value)||3;_sx=parseInt(document.getElementById('taSX').value)||0;_sy=parseInt(document.getElementById('taSY').value)||0;_sb=parseInt(document.getElementById('taSB').value)||0;_sc=document.getElementById('taSC').value;var bv=document.getElementById('taLB').value;_tr=bv==='Transparent';_bg=_tr?'#000':bv;var pv=document.getElementById('taPreview');if(pv)pv.style.background=_tr?'repeating-conic-gradient(rgba(255,255,255,.05) 0% 25%,transparent 0% 50%) 50%/12px 12px':_bg;};
+
+    // Load voices
+    function loadVoices(){var sel=document.getElementById('taVoice');if(!sel)return;var voices=speechSynthesis.getVoices();sel.innerHTML='';voices.forEach(function(v,i){var opt=document.createElement('option');opt.value=i;opt.textContent=v.name+(v.lang?' ('+v.lang+')':'');sel.appendChild(opt);});}
+    loadVoices();speechSynthesis.onvoiceschanged=loadVoices;
     function wL(c2,tx,mw){var paras=tx.split('\n'),all=[];paras.forEach(function(para){if(!para){all.push('');return;}var w=para.split(' '),l='';for(var i=0;i<w.length;i++){var t2=l?(l+' '+w[i]):w[i];if(c2.measureText(t2).width>mw&&l){all.push(l);l=w[i];}else l=t2;}if(l)all.push(l);});return all;}
     function dL(ox,oy,cl,ls,sy2,lh){if(_sb>0||_sx||_sy){ctx.shadowColor=_sc;ctx.shadowBlur=_sb;ctx.shadowOffsetX=_sx;ctx.shadowOffsetY=_sy;}ctx.fillStyle=cl||_c;for(var i=0;i<ls.length;i++)ctx.fillText(ls[i],W/2+ox,sy2+i*lh+oy);ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;}
     function sL(ox,oy,cl,w2,ls,sy2,lh){ctx.strokeStyle=cl||_oc;ctx.lineWidth=w2||_ow;ctx.lineJoin='round';for(var i=0;i<ls.length;i++)ctx.strokeText(ls[i],W/2+ox,sy2+i*lh+oy);}
@@ -1791,14 +1822,38 @@ var CLIENT_HANDLERS={
     ren();
     window.taRec=function(){
       var fmt=bestVideoMime();
-      var cs=cv.captureStream(30);var chunks=[];
+      var cs=cv.captureStream(30);
+      var voiceOn=document.getElementById('taVO')&&document.getElementById('taVO').checked;
+
+      // If voice-over, speak the text during recording
+      if(voiceOn&&window.speechSynthesis){
+        var utter=new SpeechSynthesisUtterance(_t);
+        var voices=speechSynthesis.getVoices();
+        var vi=parseInt(document.getElementById('taVoice').value)||0;
+        if(voices[vi])utter.voice=voices[vi];
+        utter.rate=parseFloat(document.getElementById('taRate').value)||1;
+        speechSynthesis.speak(utter);
+      }
+
+      var chunks=[];
       var recOpts=fmt.mime?{mimeType:fmt.mime}:{};
       var rec=new MediaRecorder(cs,recOpts);
       rec.ondataavailable=function(e){if(e.data.size>0)chunks.push(e.data);};
       rec.onstop=function(){var blob=new Blob(chunks,{type:fmt.mime||'video/webm'});var url=URL.createObjectURL(blob);window._lastBlob=blob;window._lastBlobUrl=url;var a=document.createElement('a');a.href=url;a.download='animated-text-8bfr.'+fmt.ext;document.body.appendChild(a);a.click();document.body.removeChild(a);document.getElementById('taRS').innerHTML='Downloaded as .'+fmt.ext+'! <a href="'+url+'" download="animated-text-8bfr.'+fmt.ext+'" style="color:#4ade80;">Download Again</a>'+(fmt.ext==='webm'?' <button id="taMp4Btn" style="margin-left:.3rem;padding:.2rem .5rem;border-radius:6px;background:#7c3aed;color:#fff;border:none;font-size:.6rem;font-weight:700;cursor:pointer;" onclick="taMp4()">Convert to MP4</button>':'');};
       window.taMp4=async function(){var b=document.getElementById('taMp4Btn');if(b){b.textContent='Loading FFmpeg...';b.disabled=true;}try{await loadFFmpeg();if(b)b.textContent='Converting...';var u=await convertToMp4(window._lastBlob,'animated-text-8bfr.mp4');if(b)b.textContent=u?'MP4 Downloaded!':'Failed';}catch(e){if(b)b.textContent='Error';}};
-      rec.start();document.getElementById('taRS').textContent='Recording '+duration+'s...';
-      setTimeout(function(){rec.stop();},duration*1000);
+      rec.start();document.getElementById('taRS').textContent='Recording '+duration+'s...'+(voiceOn?' (speaking)':'');
+      setTimeout(function(){rec.stop();speechSynthesis.cancel();},duration*1000);
+    };
+
+    // Preview voice button
+    window.taPreviewVoice=function(){
+      speechSynthesis.cancel();
+      var utter=new SpeechSynthesisUtterance(_t);
+      var voices=speechSynthesis.getVoices();
+      var vi=parseInt(document.getElementById('taVoice').value)||0;
+      if(voices[vi])utter.voice=voices[vi];
+      utter.rate=parseFloat(document.getElementById('taRate').value)||1;
+      speechSynthesis.speak(utter);
     };
   },
 

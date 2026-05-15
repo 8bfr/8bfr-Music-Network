@@ -86,16 +86,11 @@ select.fi{appearance:auto;}
 <div class="card">
 <h2>AI Voice-Over</h2>
 <div class="fg"><label>Script</label><textarea class="fi" id="voText" rows="4" placeholder="Type what you want the AI to say..."></textarea></div>
-<div class="fg"><label>Voice</label>
-<select class="fi" id="voVoice">
-<option value="alloy">Alloy (neutral)</option>
-<option value="echo">Echo (male)</option>
-<option value="fable">Fable (British)</option>
-<option value="onyx">Onyx (deep male)</option>
-<option value="nova">Nova (female)</option>
-<option value="shimmer">Shimmer (female warm)</option>
-</select></div>
-<button class="btn btn-p" onclick="genVoice()">Generate Voice-Over</button>
+<div class="fg"><label>Voice</label><select class="fi" id="voVoice"></select></div>
+<div class="fg"><label>Speed</label><input class="fi" id="voRate" type="number" value="1" min="0.5" max="2" step="0.1"></div>
+<button class="btn btn-p" onclick="genVoice()">Preview Voice</button>
+<button class="btn btn-p" onclick="recVoice()" style="margin-left:.3rem;">Record Audio</button>
+<button class="btn btn-ghost" onclick="speechSynthesis.cancel()" style="margin-left:.3rem;">Stop</button>
 <div class="result" id="voResult"></div>
 </div></div>
 
@@ -213,24 +208,48 @@ el.innerHTML='<div class="spinner"></div> Background generated. For best results
 }catch(e){el.innerHTML='Error: '+e.message;}
 }
 
-// VOICE-OVER
-async function genVoice(){
+// VOICE-OVER - Browser TTS
+function loadVoiceList(){var sel=document.getElementById('voVoice');if(!sel)return;var voices=speechSynthesis.getVoices();sel.innerHTML='';voices.forEach(function(v,i){var opt=document.createElement('option');opt.value=i;opt.textContent=v.name+(v.lang?' ('+v.lang+')':'');sel.appendChild(opt);});}
+loadVoiceList();speechSynthesis.onvoiceschanged=loadVoiceList;
+
+function getUtterance(){
 var text=document.getElementById('voText').value.trim();
-var voice=document.getElementById('voVoice').value;
-if(!text){alert('Enter script text.');return;}
-var el=document.getElementById('voResult');
-el.classList.add('show');
-el.innerHTML='<div class="spinner"></div> Generating voice-over with OpenAI TTS...';
-try{
-var res=await fetch('https://8bfr-api.vercel.app/api/openai',{method:'POST',headers:{'Content-Type':'application/json'},
-body:JSON.stringify({input:text,tool:'tts',voice:voice})});
-var data=await res.json();
-if(data.audio_url){
-el.innerHTML='<audio controls src="'+data.audio_url+'"></audio><br><a href="'+data.audio_url+'" download="voiceover.mp3" class="btn btn-g" style="display:inline-block;margin-top:.3rem;">Download MP3</a>';
-}else{
-el.innerHTML='<div style="color:var(--gold);">TTS endpoint not set up yet in your API. Add a /api/tts.js endpoint to your Vercel repo that calls OpenAI TTS.</div><div style="margin-top:.3rem;font-size:.72rem;color:var(--dim);">Script saved. You can paste it into any TTS service.</div><div style="background:rgba(0,0,0,.3);padding:.5rem;border-radius:8px;margin-top:.3rem;font-size:.82rem;">'+esc(text)+'</div>';
+if(!text){alert('Enter script text.');return null;}
+var utter=new SpeechSynthesisUtterance(text);
+var voices=speechSynthesis.getVoices();
+var vi=parseInt(document.getElementById('voVoice').value)||0;
+if(voices[vi])utter.voice=voices[vi];
+utter.rate=parseFloat(document.getElementById('voRate').value)||1;
+return utter;
 }
-}catch(e){el.innerHTML='<div style="color:var(--gold);">TTS not available. Script: </div><div style="background:rgba(0,0,0,.3);padding:.5rem;border-radius:8px;margin-top:.3rem;">'+esc(text)+'</div>';}
+
+function genVoice(){
+speechSynthesis.cancel();
+var utter=getUtterance();if(!utter)return;
+var el=document.getElementById('voResult');el.classList.add('show');
+el.innerHTML='Speaking...';
+utter.onend=function(){el.innerHTML='Done! Use Record Audio to save as file.';};
+speechSynthesis.speak(utter);
+}
+
+async function recVoice(){
+speechSynthesis.cancel();
+var utter=getUtterance();if(!utter)return;
+var el=document.getElementById('voResult');el.classList.add('show');
+el.innerHTML='Recording voice-over...';
+try{
+var stream=await navigator.mediaDevices.getUserMedia({audio:true});
+var chunks=[];var rec=new MediaRecorder(stream);
+rec.ondataavailable=function(e){if(e.data.size>0)chunks.push(e.data);};
+rec.onstop=function(){
+stream.getTracks().forEach(function(t){t.stop();});
+var blob=new Blob(chunks,{type:'audio/webm'});var url=URL.createObjectURL(blob);
+el.innerHTML='<audio controls src="'+url+'"></audio><br><a href="'+url+'" download="voiceover-8bfr.webm" class="btn btn-g" style="display:inline-block;margin-top:.3rem;">Download</a><div style="font-size:.6rem;color:rgba(255,255,255,.3);margin-top:.2rem;">Play on speaker, record picks up audio. For best quality use headphones off.</div>';
+};
+rec.start();
+utter.onend=function(){setTimeout(function(){rec.stop();},300);};
+speechSynthesis.speak(utter);
+}catch(e){el.innerHTML='Mic access needed to record. Error: '+e.message;}
 }
 
 // THUMBNAIL
