@@ -178,9 +178,10 @@ body{font-family:'Work Sans',system-ui,sans-serif;background:linear-gradient(#0b
     </div>
     <div class="final-video" id="finalVideo"></div>
     <div class="result-actions">
-      <button class="btn btn-success" onclick="downloadFinalVideo()">⬇️ Download MP4</button>
-      <button class="btn btn-ghost" onclick="shareVideo()">🔗 Share</button>
-      <button class="btn btn-ghost" onclick="startOver()">🔄 Make Another</button>
+      <button class="btn btn-success" onclick="downloadFinalVideo()">Download WebM</button>
+      <button class="btn btn-success" id="mp4Btn" onclick="downloadMp4()">Download MP4</button>
+      <button class="btn btn-ghost" onclick="shareVideo()">Share</button>
+      <button class="btn btn-ghost" onclick="startOver()">Make Another</button>
     </div>
   </div>
 </main>
@@ -560,6 +561,33 @@ window.downloadFinalVideo = function() {
   a.href = window._finalVideoUrl;
   a.download = '8bfr-music-video-' + Date.now() + '.webm';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
+};
+
+window.downloadMp4 = async function() {
+  if (!window._finalVideoBlob) return;
+  var btn = document.getElementById('mp4Btn');
+  if (btn) { btn.textContent = 'Loading FFmpeg...'; btn.disabled = true; }
+  try {
+    if (!window._ffLoaded) {
+      var s1 = document.createElement('script'); s1.src = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.min.js'; document.head.appendChild(s1);
+      await new Promise(function(r){ s1.onload = r; });
+      var s2 = document.createElement('script'); s2.src = 'https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/umd/util.min.js'; document.head.appendChild(s2);
+      await new Promise(function(r){ s2.onload = r; });
+      window._ff = new FFmpeg.FFmpeg();
+      await window._ff.load({ coreURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js' });
+      window._ffLoaded = true;
+    }
+    if (btn) btn.textContent = 'Converting...';
+    var data = new Uint8Array(await window._finalVideoBlob.arrayBuffer());
+    await window._ff.writeFile('input.webm', data);
+    await window._ff.exec(['-i','input.webm','-c:v','libx264','-preset','fast','-crf','23','-c:a','aac','-movflags','+faststart','output.mp4']);
+    var out = await window._ff.readFile('output.mp4');
+    var blob = new Blob([out.buffer], { type: 'video/mp4' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a'); a.href = url; a.download = '8bfr-music-video-' + Date.now() + '.mp4';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    if (btn) btn.textContent = 'MP4 Downloaded!';
+  } catch(e) { if (btn) btn.textContent = 'Error: ' + e.message; }
 };
 
 window.shareVideo = function() {
