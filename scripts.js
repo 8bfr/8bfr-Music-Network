@@ -233,8 +233,9 @@ body.menu-open #pageWrap{ margin-right:280px; }\
 @keyframes networkLabelAlt{ 0%,45%{opacity:0;} 55%,100%{opacity:1;} }\
 .menu-chip-ai{ background:linear-gradient(135deg,rgba(124,58,237,.4),rgba(0,217,255,.2)) !important; border-color:rgba(0,217,255,.6) !important; color:#00d9ff !important; font-weight:700 !important; }\
 .menu-chip-ai:hover{ background:linear-gradient(135deg,rgba(124,58,237,.6),rgba(0,217,255,.35)) !important; box-shadow:0 0 12px rgba(0,217,255,.4); }\
-#bubbleStack{ position:fixed; top:0; left:0; right:0; z-index:9989; display:flex; flex-direction:row; align-items:center; gap:4px; padding:6px 74px 6px 12px; background:rgba(10,2,26,.92); border-bottom:1px solid rgba(124,58,237,.4); backdrop-filter:blur(10px); overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch; }\
-body{ padding-top:52px !important; }\
+#bubbleStack{ position:fixed; top:0; left:0; right:0; z-index:9989; display:flex; flex-direction:row; align-items:center; gap:4px; padding:6px 74px 6px 12px; background:rgba(10,2,26,.92); border-bottom:1px solid rgba(124,58,237,.4); backdrop-filter:blur(10px); overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch; height:52px; }\
+body.bbl-on{ padding-top:52px !important; }\
+body.bbl-on .hdr,body.bbl-on .header,body.bbl-on .top,body.bbl-on .nav{ top:52px !important; }\
 #bubbleStack::-webkit-scrollbar{ display:none; }\
 .bubble-row{ display:flex; flex-direction:column; align-items:center; gap:1px; flex-shrink:0; }\
 .bubble-label{ font-size:.58rem; color:#fff; opacity:.85; white-space:nowrap; }\
@@ -456,6 +457,14 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
 
     ui.innerHTML = html;
     document.body.appendChild(ui);
+
+    // Check if bubbles are visible (games hide them) and add class for CSS spacing
+    setTimeout(function(){
+      var bs = document.getElementById('bubbleStack');
+      if(bs && window.getComputedStyle(bs).display !== 'none'){
+        document.body.classList.add('bbl-on');
+      }
+    }, 100);
 
     var fab = document.getElementById("fab");
     var menu = document.getElementById("menu");
