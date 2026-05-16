@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
-#bubbleStack,#_8bfr_copyright,.bubble-row,#carrieWrap,#avatarSwitcher,.global-avatar,.avatar-wrap,#pageUpBtn{display:none!important;}
+#bubbleStack,#_8bfr_copyright,.bubble-row,#carrieWrap,#avatarSwitcher,.global-avatar,.avatar-wrap,#pageUpBtn{display:none!important;}body{padding-top:0!important;}
 body{font-family:'Work Sans',sans-serif;background:linear-gradient(#080012,#020005);color:#f0ecff;min-height:100vh;}
 .hdr{background:rgba(8,0,18,.97);border-bottom:2px solid rgba(124,45,18,.8);padding:.75rem 1rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;}
 .hdr h1{font-family:'Bebas Neue',cursive;font-size:1.3rem;color:#f97316;}
@@ -131,15 +131,57 @@ function getMoves(r,c){
 var p=grid[r][c];if(!p)return[];
 var moves=[];
 var dirs=p.king?[[-1,-1],[-1,1],[1,-1],[1,1]]:p.color==='red'?[[-1,-1],[-1,1]]:[[1,-1],[1,1]];
+
+// Find all chain jumps recursively
+function findJumps(cr,cc,jumped,allDirs){
+var found=false;
+for(var i=0;i<allDirs.length;i++){
+  var nr=cr+allDirs[i][0],nc=cc+allDirs[i][1];
+  var jr=cr+allDirs[i][0]*2,jc=cc+allDirs[i][1]*2;
+  if(jr>=0&&jr<8&&jc>=0&&jc<8&&!grid[jr][jc]&&grid[nr]&&grid[nr][nc]&&grid[nr][nc].color!==p.color){
+    var jumpKey=nr+','+nc;
+    if(jumped.indexOf(jumpKey)!==-1)continue;// Already jumped this piece
+    var newJumped=jumped.concat([jumpKey]);
+    // Temporarily remove jumped piece to check further jumps
+    var saved=grid[nr][nc];grid[nr][nc]=null;
+    var savedOrig=grid[cr][cc];grid[jr][jc]=savedOrig;grid[cr][cc]=null;
+    var deeper=false;
+    // Check for more jumps from landing spot
+    for(var j=0;j<allDirs.length;j++){
+      var nr2=jr+allDirs[j][0],nc2=jc+allDirs[j][1];
+      var jr2=jr+allDirs[j][0]*2,jc2=jc+allDirs[j][1]*2;
+      if(jr2>=0&&jr2<8&&jc2>=0&&jc2<8&&!grid[jr2][jc2]&&grid[nr2]&&grid[nr2][nc2]&&grid[nr2][nc2].color!==p.color&&newJumped.indexOf(nr2+','+nc2)===-1){
+        deeper=true;break;
+      }
+    }
+    // Restore board
+    grid[cr][cc]=savedOrig;grid[jr][jc]=null;grid[nr][nc]=saved;
+    if(!deeper){
+      moves.push({r:jr,c:jc,jumps:newJumped.map(function(k){var parts=k.split(',');return{r:parseInt(parts[0]),c:parseInt(parts[1])};})});
+    } else {
+      // Continue chain
+      var savedJ=grid[nr][nc];grid[nr][nc]=null;
+      var savedO=grid[cr][cc];grid[jr][jc]=savedO;grid[cr][cc]=null;
+      findJumps(jr,jc,newJumped,allDirs);
+      grid[cr][cc]=savedO;grid[jr][jc]=null;grid[nr][nc]=savedJ;
+    }
+    found=true;
+  }
+}
+if(!found&&jumped.length>0){
+  moves.push({r:cr,c:cc,jumps:jumped.map(function(k){var parts=k.split(',');return{r:parseInt(parts[0]),c:parseInt(parts[1])};})});
+}
+}
+
+findJumps(r,c,[],dirs);
+// If jumps found, must jump (forced capture)
+if(moves.length>0)return moves;
+
+// Regular moves (no jumps available)
 for(var i=0;i<dirs.length;i++){
 var nr=r+dirs[i][0],nc=c+dirs[i][1];
 if(nr>=0&&nr<8&&nc>=0&&nc<8&&!grid[nr][nc])moves.push({r:nr,c:nc,jumps:[]});
-var jr=r+dirs[i][0]*2,jc=c+dirs[i][1]*2;
-if(jr>=0&&jr<8&&jc>=0&&jc<8&&!grid[jr][jc]&&grid[nr]&&grid[nr][nc]&&grid[nr][nc].color!==p.color)
-moves.push({r:jr,c:jc,jumps:[{r:nr,c:nc}]});
 }
-var jumpMoves=moves.filter(function(m){return m.jumps.length>0;});
-if(jumpMoves.length>0)return jumpMoves;
 return moves;
 }
 

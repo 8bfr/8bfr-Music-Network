@@ -11,7 +11,7 @@
         :root{--primary:#7c3aed;--card:#0c0618;--text:#eae6ff;--dim:rgba(168,85,247,.7);--border:rgba(124,58,237,.35);--success:#22c55e;--danger:#ef4444;--text-dim:rgba(234,230,255,.5);}
         *{margin:0;padding:0;box-sizing:border-box;}
         body{font-family:'Work Sans',sans-serif;background:linear-gradient(#0b0014,#000);color:var(--text);min-height:100vh;padding-bottom:2rem;}
-        .header{background:rgba(15,0,30,.95);border-bottom:2px solid var(--primary);padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;}
+        .header{background:rgba(15,0,30,.95);border-bottom:2px solid var(--primary);padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:52px;z-index:100;}
         .header h1{font-family:'Bebas Neue',cursive;font-size:1.5rem;color:var(--primary);}
         .logout-btn{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);color:#ef4444;padding:.4rem .8rem;border-radius:6px;cursor:pointer;font-weight:600;font-size:.8rem;}
         .container{max-width:900px;margin:0 auto;padding:1.5rem;}
@@ -78,6 +78,7 @@
             <div class="stat-card"><h3 id="statBeats">--</h3><p>Beats</p></div>
             <div class="stat-card"><h3 id="statPosts">--</h3><p>Posts</p></div>
         </div>
+        <div id="roleBreakdown" style="margin-bottom:1rem;"></div>
 
         <!-- TABS -->
         <div class="tabs">
@@ -137,8 +138,16 @@
         <!-- REPORTS PANEL -->
         <div class="panel" id="panel-reports">
             <div class="card">
-                <h3>🚩 Reported Content</h3>
-                <div id="reportList"><p style="font-size:.85rem;color:var(--text-dim);">No reports yet.</p></div>
+                <h3>Flagged Content</h3>
+                <div id="flagList"><div class="spinner"></div></div>
+            </div>
+            <div class="card">
+                <h3>Mod/Admin Action Log</h3>
+                <div id="actionLog"><div class="spinner"></div></div>
+            </div>
+            <div class="card">
+                <h3>Active Bans & Mutes</h3>
+                <div id="banList"><div class="spinner"></div></div>
             </div>
         </div>
 
@@ -248,34 +257,46 @@
             } else {
                 var d = r.data || [];
 
-            // Verified Artists: verified_artist=true AND role is artist or has artist badge
+            // Count ALL badges across all users
+            var badgeCounts = {};
+            d.forEach(function(p) {
+                var badges = p.badges || [];
+                if (!badges.length) {
+                    var role = p.role || 'fan';
+                    badgeCounts[role] = (badgeCounts[role] || 0) + 1;
+                } else {
+                    badges.forEach(function(b) {
+                        if (b === 'founding_member' || b === 'verified') return;
+                        badgeCounts[b] = (badgeCounts[b] || 0) + 1;
+                    });
+                }
+            });
+
+            // Verified counts
             var verifiedArtists = d.filter(function(p) {
                 return p.verified_artist === true && (p.role === 'artist' || (p.badges || []).indexOf('artist') !== -1);
             }).length;
-
-            // Verified Beatmakers: verified_artist=true AND role is beatmaker or has beatmaker badge
             var verifiedBeatmakers = d.filter(function(p) {
                 return p.verified_artist === true && (p.role === 'beatmaker' || p.role === 'producer' || (p.badges || []).indexOf('beatmaker') !== -1);
             }).length;
-
-            // Verified Users: total with verified_artist=true (all verified checkmarks)
             var verifiedUsers = d.filter(function(p) { return p.verified_artist === true; }).length;
 
-            // Artists by role
-            var artists = d.filter(function(p) { return p.role === 'artist' || (p.badges || []).indexOf('artist') !== -1; }).length;
-
-            // Beatmakers by role
-            var beatmakers = d.filter(function(p) { return p.role === 'beatmaker' || p.role === 'producer' || (p.badges || []).indexOf('beatmaker') !== -1; }).length;
-
-            // Fans
-            var fans = d.filter(function(p) { return p.role === 'fan' || p.role === 'supporter'; }).length;
-
+            // Set specific stat cards
             var eVA = document.getElementById('statVerifiedArtists'); if (eVA) eVA.textContent = verifiedArtists;
             var eVB = document.getElementById('statVerifiedBeatmakers'); if (eVB) eVB.textContent = verifiedBeatmakers;
             var eVU = document.getElementById('statVerifiedUsers'); if (eVU) eVU.textContent = verifiedUsers;
-            var el1 = document.getElementById('statArtists'); if (el1) el1.textContent = artists;
-            var el2 = document.getElementById('statBeatmakers'); if (el2) el2.textContent = beatmakers;
-            var el3 = document.getElementById('statFans'); if (el3) el3.textContent = fans;
+            var el1 = document.getElementById('statArtists'); if (el1) el1.textContent = badgeCounts['artist'] || 0;
+            var el2 = document.getElementById('statBeatmakers'); if (el2) el2.textContent = badgeCounts['beatmaker'] || 0;
+            var el3 = document.getElementById('statFans'); if (el3) el3.textContent = badgeCounts['fan'] || 0;
+
+            // Build full role breakdown
+            var roleDiv = document.getElementById('roleBreakdown');
+            if (roleDiv) {
+                roleDiv.innerHTML = Object.keys(badgeCounts).sort(function(a, b) { return badgeCounts[b] - badgeCounts[a]; }).map(function(r) {
+                    var label = r.charAt(0).toUpperCase() + r.slice(1).replace(/_/g, ' ');
+                    return '<span style="display:inline-block;padding:.2rem .5rem;margin:.1rem;border-radius:6px;background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.2);font-size:.72rem;"><b>' + badgeCounts[r] + '</b> ' + label + '</span>';
+                }).join('');
+            }
             }
         } catch(e) { console.warn('Role count error:', e); }
 
@@ -414,6 +435,72 @@
         var panel = document.getElementById('panel-' + name);
         if (panel) panel.classList.add('active');
         if (name === 'verify') loadVerifyQueue();
+        if (name === 'reports') loadReports();
+    };
+
+    async function loadReports() {
+        // Load flags
+        try {
+            var {data:flags}=await db.from('mod_flags').select('*').order('created_at',{ascending:false}).limit(50);
+            var fl=document.getElementById('flagList');
+            if(!flags||!flags.length){fl.innerHTML='<p style="font-size:.85rem;color:var(--text-dim);">No flags.</p>';}
+            else{fl.innerHTML=flags.map(function(f){
+                var statusColor=f.status==='pending'?'#fbbf24':f.status==='actioned'?'#22c55e':'#6b7280';
+                return '<div style="padding:.5rem;border:1px solid var(--border);border-radius:8px;margin-bottom:.3rem;font-size:.8rem;">'+
+                '<div style="display:flex;justify-content:space-between;"><b>'+f.content_type+'</b><span style="color:'+statusColor+';font-weight:700;">'+f.status+'</span></div>'+
+                '<div style="color:var(--text-dim);font-size:.72rem;">'+f.reason+'</div>'+
+                '<div style="display:flex;gap:.3rem;margin-top:.3rem;">'+
+                (f.status==='pending'?'<button class="btn-sm" style="background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.3);" onclick="reviewFlag(\''+f.id+'\',\'actioned\')">Action</button><button class="btn-sm" style="background:rgba(107,114,128,.15);color:#9ca3af;border:1px solid rgba(107,114,128,.3);" onclick="reviewFlag(\''+f.id+'\',\'dismissed\')">Dismiss</button>':'')+
+                '</div></div>';
+            }).join('');}
+        }catch(e){document.getElementById('flagList').innerHTML='<p style="color:#ef4444;">Error: '+e.message+'</p>';}
+
+        // Load action log
+        try {
+            var {data:actions}=await db.from('admin_actions').select('*').order('created_at',{ascending:false}).limit(50);
+            var al=document.getElementById('actionLog');
+            if(!actions||!actions.length){al.innerHTML='<p style="font-size:.85rem;color:var(--text-dim);">No actions logged.</p>';}
+            else{al.innerHTML=actions.map(function(a){
+                var time=new Date(a.created_at).toLocaleString();
+                return '<div style="padding:.4rem;border-bottom:1px solid var(--border);font-size:.75rem;">'+
+                '<span style="color:#a855f7;font-weight:700;">'+a.action_type+'</span> on '+a.target_type+' by <b>'+a.performed_by_role+'</b> - '+time+
+                (a.reason?' - <i style="color:var(--text-dim);">'+a.reason+'</i>':'')+
+                (!a.reversed?' <button class="btn-sm" style="font-size:.6rem;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);margin-left:.3rem;" onclick="reverseAction(\''+a.id+'\')">Reverse</button>':'<span style="color:#22c55e;font-size:.6rem;margin-left:.3rem;">REVERSED</span>')+
+                '</div>';
+            }).join('');}
+        }catch(e){document.getElementById('actionLog').innerHTML='<p style="color:#ef4444;">Error: '+e.message+'</p>';}
+
+        // Load bans & mutes
+        try {
+            var {data:bans}=await db.from('user_bans').select('*').order('created_at',{ascending:false}).limit(20);
+            var {data:mutes}=await db.from('chat_mutes').select('*').order('created_at',{ascending:false}).limit(20);
+            var bl=document.getElementById('banList');
+            var html='';
+            if(bans&&bans.length){html+='<div style="font-weight:700;font-size:.75rem;margin-bottom:.3rem;color:#ef4444;">Bans ('+bans.length+')</div>';bans.forEach(function(b){html+='<div style="padding:.3rem;border-bottom:1px solid var(--border);font-size:.72rem;">User: '+b.user_id.substring(0,8)+'... | '+(b.permanent?'PERMANENT':'Expires: '+new Date(b.expires_at).toLocaleDateString())+' | '+b.reason+' <button class="btn-sm" style="font-size:.55rem;" onclick="unban(\''+b.user_id+'\')">Unban</button></div>';});}
+            if(mutes&&mutes.length){html+='<div style="font-weight:700;font-size:.75rem;margin-top:.5rem;margin-bottom:.3rem;color:#60a5fa;">Mutes ('+mutes.length+')</div>';mutes.forEach(function(m){html+='<div style="padding:.3rem;border-bottom:1px solid var(--border);font-size:.72rem;">User: '+m.user_id.substring(0,8)+'... | '+(m.expires_at?'Expires: '+new Date(m.expires_at).toLocaleDateString():'Permanent')+' <button class="btn-sm" style="font-size:.55rem;" onclick="unmute(\''+m.user_id+'\')">Unmute</button></div>';});}
+            if(!html)html='<p style="font-size:.85rem;color:var(--text-dim);">No active bans or mutes.</p>';
+            bl.innerHTML=html;
+        }catch(e){document.getElementById('banList').innerHTML='<p style="color:#ef4444;">'+e.message+'</p>';}
+    }
+
+    window.reviewFlag=async function(id,status){
+        await db.from('mod_flags').update({status:status,reviewed_by:OWNER_ID,reviewed_at:new Date().toISOString()}).eq('id',id);
+        loadReports();
+    };
+    window.reverseAction=async function(id){
+        if(!confirm('Reverse this action?'))return;
+        await db.from('admin_actions').update({reversed:true,reversed_by:OWNER_ID,reversed_at:new Date().toISOString()}).eq('id',id);
+        loadReports();
+    };
+    window.unban=async function(uid){
+        if(!confirm('Unban this user?'))return;
+        await db.from('user_bans').delete().eq('user_id',uid);
+        await db.from('profiles').update({banned:false,ban_reason:null}).eq('user_id',uid);
+        loadReports();
+    };
+    window.unmute=async function(uid){
+        await db.from('chat_mutes').delete().eq('user_id',uid);
+        loadReports();
     };
 
     async function loadVerifyQueue() {

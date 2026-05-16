@@ -10,7 +10,7 @@
 :root{--primary:#7c3aed;--card:#0c0618;--text:#eae6ff;--dim:#a855f7;--border:rgba(124,58,237,.35);--green:#059669;--red:#dc2626;--cyan:#00d9ff;--gold:#fbbf24;--bg:#0b0014;--text-dim:rgba(234,230,255,.55);}
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'Work Sans',sans-serif;background:linear-gradient(var(--bg),#000);color:var(--text);min-height:100vh;padding-bottom:2rem;}
-.header{background:rgba(15,0,30,.95);border-bottom:2px solid var(--primary);padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;backdrop-filter:blur(12px);}
+.header{background:rgba(15,0,30,.95);border-bottom:2px solid var(--primary);padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:52px;z-index:100;backdrop-filter:blur(12px);}
 .header h1{font-family:'Bebas Neue',cursive;font-size:1.5rem;color:var(--primary);letter-spacing:1px;}
 .header-links{display:flex;align-items:center;gap:1rem;}
 .header-links a{color:var(--text-dim);text-decoration:none;font-size:0.85rem;}
@@ -301,6 +301,10 @@ function renderUsers(users){
         var role=u.role||'fan';
         var badges=u.badges||[];
         var isVerified=u.verified_artist===true;
+        var hasRegularVerify=(u.badges||[]).indexOf('verified')!==-1;
+        var hasArtistVerify=(u.badges||[]).indexOf('verified_artist_badge')!==-1;
+        var isArt=(u.role==='artist'||(u.badges||[]).indexOf('artist')!==-1);
+        var isBM=(u.role==='beatmaker'||(u.badges||[]).indexOf('beatmaker')!==-1||u.role==='producer');
         var joined=u.created_at?new Date(u.created_at).toLocaleDateString():'?';
 
         html+='<div class="user-card">';
@@ -335,7 +339,17 @@ function renderUsers(users){
         html+='<button class="btn-sm btn-edit" onclick="openEdit(\''+u.user_id+'\')">Edit</button>';
         if(!isOwner){
             html+='<button class="btn-sm btn-role" onclick="openRoleModal(\''+u.user_id+'\')">Role</button>';
-            html+='<button class="btn-sm btn-verify" onclick="toggleVerify(\''+u.user_id+'\','+isVerified+')">'+(isVerified?'Unverify':'Verify')+'</button>';
+            var isAdmin=(u.badges||[]).indexOf('admin')!==-1;
+            var isMod=(u.badges||[]).indexOf('mod')!==-1||u.role==='mod';
+            html+='<button class="btn-sm btn-verify" onclick="toggleVerifyRegular(\''+u.user_id+'\','+hasRegularVerify+')" title="Purple circle + checkmark">'+(hasRegularVerify?'Remove Checkmark':'Checkmark')+'</button>';
+            if(isArt||isBM){
+            html+='<button class="btn-sm btn-verify" onclick="toggleVerifyArtist(\''+u.user_id+'\','+hasArtistVerify+')" title="Purple circle + music note" style="margin-left:.2rem;">'+(hasArtistVerify?'Remove Music Note':'Music Note')+'</button>';
+            }
+            html+='<button class="btn-sm" style="background:rgba(59,130,246,.12);color:#60a5fa;border:1px solid rgba(59,130,246,.3);margin-left:.2rem;" onclick="toggleRole(\''+u.user_id+'\',\'admin\','+isAdmin+')">'+(isAdmin?'Remove Admin':'Make Admin')+'</button>';
+            html+='<button class="btn-sm" style="background:rgba(16,185,129,.12);color:#34d399;border:1px solid rgba(16,185,129,.3);margin-left:.2rem;" onclick="toggleRole(\''+u.user_id+'\',\'mod\','+isMod+')">'+(isMod?'Remove Mod':'Make Mod')+'</button>';
+            if(u.user_id!==OWN){
+            html+='<button class="btn-sm" style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.3);margin-left:.2rem;" onclick="banUser(\''+u.user_id+'\',\''+esc(name)+'\')">Ban</button>';
+            }
             html+='<button class="btn-sm btn-del" onclick="fullDeleteUser(\''+u.user_id+'\',\''+esc(name)+'\')">Delete</button>';
         }
         html+='</div>';
@@ -433,24 +447,77 @@ async function saveRole(){
     loadRoleCounts();
 }
 
-async function toggleVerify(uid,currently){
-    var action=currently?'Remove verification from':'Verify';
+// Regular verify - purple circle + checkmark (any user)
+async function toggleVerifyRegular(uid,currently){
+    var action=currently?'Remove checkmark from':'Give checkmark to';
     if(!confirm(action+' this user?'))return;
-    var update={verified_artist:!currently};
-    // Add or remove verified badge too
     var u=allUsers.find(function(x){return x.user_id===uid;});
-    if(u){
-        var badges=(u.badges||[]).slice();
-        if(!currently&&badges.indexOf('verified')===-1) badges.push('verified');
-        if(currently) badges=badges.filter(function(b){return b!=='verified';});
-        update.badges=badges;
-    }
+    if(!u)return;
+    var badges=(u.badges||[]).slice();
+    if(!currently&&badges.indexOf('verified')===-1) badges.push('verified');
+    if(currently) badges=badges.filter(function(b){return b!=='verified';});
+    var {error}=await db.from('profiles').update({badges:badges}).eq('user_id',uid);
+    if(error){alert('Error: '+error.message);return;}
+    alert(currently?'Checkmark removed.':'Checkmark badge added!');
+    var idx=allUsers.findIndex(function(x){return x.user_id===uid;});
+    if(idx!==-1)allUsers[idx].badges=badges;
+    switchTab(currentTab,document.querySelector('.tab.active'));
+}
+
+// Artist/Beatmaker verify - purple circle + music note
+async function toggleVerifyArtist(uid,currently){
+    var action=currently?'Remove music note from':'Give music note to';
+    if(!confirm(action+' this artist/beatmaker?'))return;
+    var u=allUsers.find(function(x){return x.user_id===uid;});
+    if(!u)return;
+    var badges=(u.badges||[]).slice();
+    if(!currently&&badges.indexOf('verified_artist_badge')===-1) badges.push('verified_artist_badge');
+    if(currently) badges=badges.filter(function(b){return b!=='verified_artist_badge';});
+    var update={badges:badges,verified_artist:!currently};
     var {error}=await db.from('profiles').update(update).eq('user_id',uid);
     if(error){alert('Error: '+error.message);return;}
-    alert(currently?'Verification removed.':'User verified!');
+    alert(currently?'Music note removed.':'Music note badge added!');
     var idx=allUsers.findIndex(function(x){return x.user_id===uid;});
-    if(idx!==-1){allUsers[idx].verified_artist=!currently;allUsers[idx].badges=update.badges;}
+    if(idx!==-1){allUsers[idx].badges=badges;allUsers[idx].verified_artist=!currently;}
     switchTab(currentTab,document.querySelector('.tab.active'));
+}
+
+// Promote/demote admin or mod
+async function toggleRole(uid,role,currently){
+    var action=currently?'Remove '+role+' from':'Make';
+    if(!confirm(action+' this user '+(currently?'':'a '+role)+'?'))return;
+    var u=allUsers.find(function(x){return x.user_id===uid;});
+    if(!u)return;
+    var badges=(u.badges||[]).slice();
+    if(!currently&&badges.indexOf(role)===-1)badges.push(role);
+    if(currently)badges=badges.filter(function(b){return b!==role;});
+    var update={badges:badges};
+    if(role==='admin'||role==='mod')update.role=currently?(badges.indexOf('artist')!==-1?'artist':'fan'):role;
+    var {error}=await db.from('profiles').update(update).eq('user_id',uid);
+    if(error){alert('Error: '+error.message);return;}
+    // Log the action
+    try{await db.from('admin_actions').insert({performed_by:OWN,performed_by_role:'owner',action_type:currently?'demote_'+role:'promote_'+role,target_type:'user',target_id:uid,target_user_id:uid,reason:'Owner action'});}catch(e){}
+    alert(currently?role+' removed.':'User is now '+role+'!');
+    var idx=allUsers.findIndex(function(x){return x.user_id===uid;});
+    if(idx!==-1){allUsers[idx].badges=badges;allUsers[idx].role=update.role||allUsers[idx].role;}
+    switchTab(currentTab,document.querySelector('.tab.active'));
+}
+
+// Ban user
+async function banUser(uid,name){
+    var hours=prompt('Ban "'+name+'" for how many hours? (0 = permanent)','24');
+    if(hours===null)return;
+    var reason=prompt('Reason for ban:','Violation of site rules');
+    if(!reason)return;
+    var h=parseInt(hours)||0;
+    var perm=h===0;
+    var expires=perm?null:new Date(Date.now()+h*3600000).toISOString();
+    try{
+        await db.from('user_bans').upsert({user_id:uid,banned_by:OWN,reason:reason,permanent:perm,expires_at:expires},{onConflict:'user_id'});
+        await db.from('profiles').update({banned:true,ban_reason:reason}).eq('user_id',uid);
+        await db.from('admin_actions').insert({performed_by:OWN,performed_by_role:'owner',action_type:'ban_user',target_type:'user',target_id:uid,target_user_id:uid,reason:reason});
+        alert('User banned'+(perm?' permanently.':' for '+h+' hours.'));
+    }catch(e){alert('Error: '+e.message);}
 }
 
 async function fullDeleteUser(uid,name){
