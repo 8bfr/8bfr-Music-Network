@@ -803,6 +803,15 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
   else { injectGlobalUI(); }
 })();
 
+// ═══ AUTO-INJECT RADIO PLAYER ═══
+(function(){
+  if(window.Radio)return;// already loaded
+  var s=document.createElement('script');
+  s.src='radio-player.js';
+  s.defer=true;
+  document.head.appendChild(s);
+})();
+
 // ═══ AUTO-INJECT DESIGN SYSTEM STYLESHEET ═══
 (function() {
   try {

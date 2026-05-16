@@ -128,16 +128,29 @@ async function loadRoles(){
         var {data}=await db.from('profiles').select('role,badges');
         if(!data){el.innerHTML='--';return;}
         var counts={};
+        // Count ALL badges/roles from badges array (not just primary role)
         data.forEach(function(p){
-            var r=p.role||'fan';
-            counts[r]=(counts[r]||0)+1;
+            var badges=p.badges||[];
+            if(!badges.length){
+                // If no badges, count their primary role
+                var r=p.role||'fan';
+                counts[r]=(counts[r]||0)+1;
+            } else {
+                badges.forEach(function(b){
+                    // Skip internal badges like founding_member, verified
+                    if(b==='founding_member')return;
+                    counts[b]=(counts[b]||0)+1;
+                });
+            }
         });
-        // Also count verified artists
+        // Count verified separately
         var verified=data.filter(function(p){return (p.badges||[]).indexOf('verified')!==-1;}).length;
-        counts['verified']=verified;
+        if(verified)counts['verified']=verified;
 
+        // Sort by count and display
         el.innerHTML=Object.keys(counts).sort(function(a,b){return counts[b]-counts[a];}).map(function(r){
-            return '<div class="role-tag"><strong>'+counts[r]+'</strong> '+r+'</div>';
+            var label=r.charAt(0).toUpperCase()+r.slice(1).replace(/_/g,' ');
+            return '<div class="role-tag"><strong>'+counts[r]+'</strong> '+label+'</div>';
         }).join('');
     }catch(e){el.innerHTML='--';}
 }
