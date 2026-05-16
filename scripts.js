@@ -896,3 +896,82 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
     if (p.indexOf(key) !== -1) { window.location.replace(redirects[key]); break; }
   }
 })();
+
+// ═══ SCREENSHOT & SCREEN RECORDING PROTECTION ═══
+// Owner and co-owner are EXEMPT from all protections
+(function() {
+  // Skip on landing, signup, login pages
+  var p = (window.location.pathname || '').toLowerCase();
+  if (/landing|signup|login/.test(p)) return;
+
+  function applyProtection() {
+    // Wait for auth check
+    if (window._8bfr && window._8bfr.ready) {
+      window._8bfr.ready.then(function() {
+        if (window._8bfr.isOwner || window._8bfr.isCoOwner) return; // OWNER EXEMPT
+        enableProtection();
+      });
+    } else {
+      // No auth system loaded, protect by default
+      setTimeout(enableProtection, 2000);
+    }
+  }
+
+  function enableProtection() {
+    // 1. Block right-click context menu on media
+    document.addEventListener('contextmenu', function(e) {
+      if (e.target.closest('audio,video,img,.song-card,.beat-card,.post-media')) {
+        e.preventDefault();
+      }
+    });
+
+    // 2. Block keyboard shortcuts for screenshots/save
+    document.addEventListener('keydown', function(e) {
+      // Block PrintScreen
+      if (e.key === 'PrintScreen') { e.preventDefault(); }
+      // Block Ctrl+S (save page)
+      if (e.ctrlKey && e.key === 's') { e.preventDefault(); }
+      // Block Ctrl+Shift+S
+      if (e.ctrlKey && e.shiftKey && e.key === 'S') { e.preventDefault(); }
+      // Block Ctrl+P (print)
+      if (e.ctrlKey && e.key === 'p') { e.preventDefault(); }
+    });
+
+    // 3. CSS protection - prevent long-press save on mobile, prevent drag
+    var style = document.createElement('style');
+    style.textContent = 'audio,video,img,.song-card,.beat-card,.post-media,.feed-item{-webkit-touch-callout:none;-webkit-user-select:none;-moz-user-select:none;user-select:none;pointer-events:auto;}img{-webkit-user-drag:none;user-drag:none;draggable:false;}';
+    document.head.appendChild(style);
+
+    // 4. Blur content when page loses focus (screen recording detection)
+    var blurOverlay = null;
+    document.addEventListener('visibilitychange', function() {
+      if (document.hidden) {
+        // Page went to background - could be screen recording
+        if (!blurOverlay) {
+          blurOverlay = document.createElement('div');
+          blurOverlay.id = '_8bfr_protect_overlay';
+          blurOverlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(8,0,18,.95);display:flex;align-items:center;justify-content:center;font-family:Work Sans,sans-serif;color:#a855f7;font-size:1.2rem;font-weight:700;';
+          blurOverlay.textContent = '8BFR - Content Protected';
+        }
+        document.body.appendChild(blurOverlay);
+      } else {
+        // Page came back
+        var ov = document.getElementById('_8bfr_protect_overlay');
+        if (ov) ov.remove();
+      }
+    });
+
+    // 5. Disable image dragging
+    document.addEventListener('dragstart', function(e) {
+      if (e.target.tagName === 'IMG' || e.target.tagName === 'VIDEO' || e.target.tagName === 'AUDIO') {
+        e.preventDefault();
+      }
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyProtection);
+  } else {
+    applyProtection();
+  }
+})();
