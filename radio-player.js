@@ -74,7 +74,7 @@
     // Styles
     var style = document.createElement('style');
     style.textContent = '' +
-      '#radioMiniBar{position:fixed;bottom:0;left:0;right:0;height:62px;background:rgba(12,6,24,0.97);backdrop-filter:blur(12px);border-top:1px solid rgba(124,58,237,0.5);display:none;align-items:center;gap:10px;padding:0 12px;z-index:9990;box-shadow:0 -4px 20px rgba(0,0,0,0.5);font-family:system-ui,-apple-system,sans-serif;}' +
+      '#radioMiniBar{position:fixed;bottom:0;left:0;right:0;height:52px;background:rgba(12,6,24,0.97);backdrop-filter:blur(12px);border-top:1px solid rgba(124,58,237,0.5);display:none;align-items:center;gap:8px;padding:0 10px;z-index:9500;box-shadow:0 -4px 20px rgba(0,0,0,0.5);font-family:system-ui,-apple-system,sans-serif;}' +
       '#radioMiniBar.show{display:flex;}' +
       '#radioMiniBar.expanded{height:auto;min-height:62px;flex-wrap:wrap;}' +
       '#rmCover{width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,#7c3aed,#a855f7);flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:1.2rem;cursor:pointer;}' +
@@ -91,7 +91,7 @@
       '#rmProgressBar{height:100%;background:linear-gradient(90deg,#7c3aed,#a855f7);width:0%;transition:width 0.15s linear;}' +
       '@media(max-width:480px){#rmInfo{font-size:0.8rem;}.rm-btn.extra{display:none;}}' +
       '/* Add bottom padding to body so content isn\'t hidden behind bar */' +
-      'body.radio-bar-visible{padding-bottom:62px!important;}';
+      'body.radio-bar-visible{padding-bottom:52px!important;}';
     document.head.appendChild(style);
 
     // HTML

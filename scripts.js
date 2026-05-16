@@ -814,9 +814,18 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
 
 // ═══ AUTO-INJECT RADIO PLAYER ═══
 (function(){
-  if(window.Radio)return;// already loaded
+  if(window.Radio)return;
   var s=document.createElement('script');
   s.src='radio-player.js';
+  s.defer=true;
+  document.head.appendChild(s);
+})();
+
+// ═══ AUTO-INJECT GAME SESSION MANAGER ═══
+(function(){
+  if(window.GameSession)return;
+  var s=document.createElement('script');
+  s.src='game-session.js';
   s.defer=true;
   document.head.appendChild(s);
 })();
@@ -892,7 +901,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
       var el = document.createElement('div');
       el.id = '_8bfr_copyright';
       el.style.cssText = 'position:relative;text-align:center;padding:1.25rem 1rem 4rem;font-size:0.7rem;color:rgba(255,255,255,0.55);font-family:system-ui,sans-serif;letter-spacing:0.3px;line-height:1.5;';
-      el.innerHTML = '\u00A9 8BFR Music Network \u00B7 <a href="https://8bfr.com" style="color:rgba(255,255,255,0.7);text-decoration:none;">8bfr.com</a> \u00B7 <a href="https://platoapp.com/link/20dob1b3am35w" target="_blank" rel="noopener" style="color:rgba(255,255,255,0.7);text-decoration:none;">Plato Games</a> \u00B7 James J. Siburt \u2014 Founder, CEO, CFO, Developer, Owner';
+      el.innerHTML = '\u00A9 8BFR Music Network \u00B7 <a href="https://8bfr.com" style="color:rgba(255,255,255,0.7);text-decoration:none;">8bfr.com</a> \u00B7 James J. Siburt \u2014 Founder, CEO, Developer, Owner';
       document.body.appendChild(el);
     } catch(e) {}
   }

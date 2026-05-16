@@ -244,6 +244,20 @@
             case 'song': return aiTextUI('e.g. Full rap song, 3 verses + hook, about discipline, aggressive delivery...');
 
             case 'songgen': return `
+                <div style="display:flex;gap:0.5rem;">
+                    <div class="form-group" style="flex:1;">
+                        <label>Song Title</label>
+                        <input type="text" id="sgTitle" placeholder="e.g. Streets Know My Name">
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>Artist Name</label>
+                        <input type="text" id="sgArtist" placeholder="e.g. 8BFR">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Sound Like (artist, song, or style reference)</label>
+                    <input type="text" id="sgRef" placeholder="e.g. Too Short - Blow the Whistle, or link to a song">
+                </div>
                 <div class="form-group">
                     <label>Lyrics (paste your lyrics or leave blank for AI to write)</label>
                     <textarea id="sgLyrics" rows="6" placeholder="Paste your lyrics here. If blank, AI will write them based on your description below."></textarea>
@@ -262,7 +276,7 @@
                         <select id="sgDur"><option value="30">30 sec</option><option value="60">1 min</option><option value="120">2 min</option><option value="180" selected>3 min</option></select>
                     </div>
                 </div>
-                <button class="btn btn-primary" onclick="runSongGen()">🎵 Generate Song</button>
+                <button class="btn btn-primary" onclick="runSongGen()">Generate Song</button>
                 <div style="font-size:0.7rem;color:rgba(255,255,255,0.4);margin-top:0.3rem;">Uses Pollinations ACE-Step. Generates real audio with AI vocals.</div>`;
 
             case 'beats': return aiTextUI('e.g. 82 BPM boom-bap beat with piano chops, heavy bass, martial arts movie sample...');
@@ -1238,6 +1252,9 @@
         var desc = document.getElementById('sgDesc').value.trim();
         var voice = document.getElementById('sgVoice').value;
         var dur = parseInt(document.getElementById('sgDur').value) || 180;
+        var title = document.getElementById('sgTitle') ? document.getElementById('sgTitle').value.trim() : '';
+        var artist = document.getElementById('sgArtist') ? document.getElementById('sgArtist').value.trim() : '';
+        var ref = document.getElementById('sgRef') ? document.getElementById('sgRef').value.trim() : '';
 
         if (!lyrics && !desc) { alert('Enter lyrics or a description.'); return; }
 
@@ -1250,7 +1267,7 @@
             try {
                 var lRes = await fetch('https://8bfr-api.vercel.app/api/openai', {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({input: 'Write a complete song with [Verse 1], [Chorus], [Verse 2], [Chorus], [Bridge], [Chorus] about: ' + desc + '. Style: ' + voice + '. Make lyrics vivid and rhythmic. Return ONLY the lyrics.', tier: 'full', max_tokens: 1500})
+                    body: JSON.stringify({input: 'Write a complete song with [Verse 1], [Chorus], [Verse 2], [Chorus], [Bridge], [Chorus] about: ' + (desc||'life') + '. Style: ' + voice + (ref ? '. Sound like / reference: ' + ref : '') + (title ? '. Song title: ' + title : '') + '. Make lyrics vivid and rhythmic with real slang, punchlines, wordplay. Do NOT water it down. Return ONLY the lyrics.', tier: 'full', max_tokens: 1500})
                 });
                 var lData = await lRes.json();
                 if (lData.text) lyrics = lData.text;
@@ -1262,12 +1279,21 @@
         resultDiv.innerHTML = '<p class="loading-text"><span class="spinner"></span> Step 2: Generating audio with vocals (' + dur + 's)... This may take 30-60 seconds.</p>';
 
         var prompt = desc ? desc + '. ' : '';
+        if (ref) prompt += 'Style similar to ' + ref + '. ';
+        if (title) prompt += 'Song: ' + title + '. ';
+        if (artist) prompt += 'Artist: ' + artist + '. ';
         prompt += voice + ' vocals. ';
         prompt += 'Lyrics: ' + lyrics.substring(0, 600);
 
         try {
             var url = 'https://gen.pollinations.ai/audio/' + encodeURIComponent(prompt) + '?key=sk_DRBNArnY4C6l8r9p1C12VXszekyAd9MB&model=acestep&duration=' + dur;
             var resp = await fetch(url);
+            // If key expired, retry without key (free tier)
+            if (resp.status === 401 || resp.status === 403) {
+                resultDiv.innerHTML = '<p style="color:#fbbf24;">Key expired, trying free tier...</p>';
+                url = 'https://gen.pollinations.ai/audio/' + encodeURIComponent(prompt) + '?model=acestep&duration=' + dur;
+                resp = await fetch(url);
+            }
             if (!resp.ok) {
                 var errText = '';
                 try { errText = await resp.text(); } catch(e2) {}
