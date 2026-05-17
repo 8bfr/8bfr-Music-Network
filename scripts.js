@@ -917,7 +917,8 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
     '/lyrics-ai.html': 'ai-studio.html',
     '/song-ai.html': 'ai-studio.html',
     '/voice-ai.html': 'ai-studio.html',
-    '/producer-ai.html': 'ai-studio.html'
+    '/producer-ai.html': 'ai-studio.html',
+    '/ai-tools.html': 'ai-studio.html'
   };
   for (var key in redirects) {
     if (p.indexOf(key) !== -1) { window.location.replace(redirects[key]); break; }
