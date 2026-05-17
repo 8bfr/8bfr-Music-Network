@@ -10,7 +10,7 @@
 :root{--primary:#7c3aed;--card:#0c0618;--text:#eae6ff;--dim:#a855f7;--border:rgba(124,58,237,.35);--cyan:#00d9ff;--gold:#fbbf24;--green:#4ade80;}
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'Work Sans',sans-serif;background:linear-gradient(#0b0014,#000);color:var(--text);min-height:100vh;padding-bottom:80px;}
-.header{background:rgba(15,0,30,.95);border-bottom:2px solid var(--primary);padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;backdrop-filter:blur(12px);}
+.header{background:rgba(15,0,30,.95);border-bottom:2px solid var(--primary);padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:52px;z-index:100;backdrop-filter:blur(12px);}
 .header h1{font-family:'Bebas Neue',cursive;font-size:1.5rem;color:var(--primary);}
 .header a{color:var(--dim);text-decoration:none;font-weight:600;font-size:.85rem;}
 .container{max-width:750px;margin:0 auto;padding:1.5rem 1rem;}
@@ -64,7 +64,7 @@ textarea.form-input{resize:vertical;min-height:60px;}
 </head>
 <body>
 <div class="header">
-<a href="ai-tools.html">&larr; AI Tools</a>
+<a href="ai-studio.html">&larr; AI Tools</a>
 <h1>AI Beat Maker</h1>
 <a href="pricing.html">Pricing</a>
 </div>
@@ -100,7 +100,13 @@ textarea.form-input{resize:vertical;min-height:60px;}
 </div>
 <div class="info-note">Tip: For a SINGLE sound (like scratching or beatboxing), say ONLY that sound and explicitly say NO drums, NO melody, NO other instruments.</div>
 </div>
-<div id="lyricsBox" style="display:none;"><div class="card"><h2>Lyrics</h2><div class="form-group"><textarea class="form-input" id="lyricsInput" placeholder="[Verse 1]&#10;Write lyrics...&#10;&#10;[Chorus]&#10;Chorus lyrics..." style="min-height:120px;"></textarea></div></div></div>
+<div id="lyricsBox" style="display:none;"><div class="card"><h2>Vocals Settings</h2>
+<div style="display:flex;gap:.5rem;margin-bottom:.5rem;">
+<div class="form-group" style="flex:1;"><label style="font-size:.72rem;font-weight:600;color:var(--dim);">Explicit Mode</label><select class="form-input" id="bmExplicit"><option value="standard">Standard</option><option value="street">Explicit - Street/Raw</option><option value="sexual">Explicit - Sexual/Dirty</option><option value="aggressive">Explicit - Aggressive</option><option value="clean">Clean - Radio Safe</option></select></div>
+<div class="form-group" style="flex:1;"><label style="font-size:.72rem;font-weight:600;color:var(--dim);">Lyrics Mode</label><select class="form-input" id="bmLyricsMode" onchange="document.getElementById('lyricsInput').placeholder=this.value==='auto'?'Leave blank - AI will write lyrics matching your settings':'[Verse 1]\nWrite lyrics...\n\n[Chorus]\nChorus lyrics...';"><option value="auto">AI Writes Lyrics</option><option value="manual">My Own Lyrics</option></select></div>
+</div>
+<div class="form-group"><label style="font-size:.72rem;font-weight:600;color:var(--dim);">Lyrics</label><textarea class="form-input" id="lyricsInput" placeholder="Leave blank - AI will write lyrics matching your settings" style="min-height:100px;"></textarea></div>
+</div></div>
 <div id="sfxBox" style="display:none;"><div class="card"><h2>Sound Effect Type</h2>
 <div class="chip-grid" id="sfxChips">
 <div class="chip sel" onclick="toggleChip(this,'sfx2')">Record Scratching</div>
@@ -290,7 +296,7 @@ async function renderSavedBeats(){var beats=await loadBeats();if(!beats.length){
 
 (async function(){
 await openIDB();
-db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdmJ1dndwam54d3d2ZGVramhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExODkxODUsImV4cCI6MjA3Njc2NTE4NX0.1UUkdGafh6ZplAX8hi7Bvj94D2gvFQZUl0an1RvcSA0');
+db=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f');
 try{
 var s=await db.auth.getSession();
 if(!s.data.session||!s.data.session.user){document.getElementById('loginPrompt').style.display='block';return;}
@@ -331,7 +337,51 @@ var inst=getSelected('instrChips');
 if(inst.length){p.push('USE ONLY THESE INSTRUMENTS: '+inst.join(', '));p.push('DO NOT add any other instruments not in the list above');}
 var g=getSelected('genreChips');if(g.length)p.push(g.join(', ')+' style');
 var sg=document.getElementById('subGenre').value.trim();if(sg)p.push(sg);
-var sa=document.getElementById('styleArtist').value.trim();if(sa)p.push('in the style of '+sa);
+var sa=document.getElementById('styleArtist').value.trim();
+if(sa){
+  // Artist-specific production style matching
+  var artistBeats={
+    'too short':'G-funk bass lines, Parliament-Funkadelic samples, 808 kick, crispy hi-hats, talk box, funk guitar, pimp-talk bouncy groove, 90-100 BPM',
+    '2 live crew':'Miami bass, heavy 808 sub bass, fast tempo 125-135 BPM, TR-808 drum machine, booty bass, call-and-response chants, party energy',
+    'run dmc':'vinyl record scratching, DJ turntable cuts, rock guitar riffs, hard boom-bap drums, power chords, heavy kick snare pattern, 100-110 BPM, Jam Master Jay style scratching',
+    'run-dmc':'vinyl record scratching, DJ turntable cuts, rock guitar riffs, hard boom-bap drums, power chords, heavy kick snare pattern, 100-110 BPM',
+    'sir mix a lot':'Seattle bass, funky synth bass, electro-funk, 808 drums, humorous bouncy groove, party horns, 100-110 BPM',
+    'sir mix-a-lot':'Seattle bass, funky synth bass, electro-funk, 808 drums, humorous bouncy groove, party horns, 100-110 BPM',
+    'dr. dre':'G-funk synth leads, Moog bass, smooth piano chords, layered west coast production, crispy snares, deep 808 kick, whistling synths, 90-100 BPM',
+    'dr dre':'G-funk synth leads, Moog bass, smooth piano chords, layered west coast production, crispy snares, deep 808 kick, whistling synths, 90-100 BPM',
+    'snoop dogg':'laid-back G-funk, smooth synth pads, talk box, Parliament funk samples, light hi-hats, deep bass, 85-95 BPM cruise tempo',
+    'snoop':'laid-back G-funk, smooth synth pads, talk box, Parliament funk samples, light hi-hats, deep bass, 85-95 BPM',
+    'eminem':'dark piano loops, horror movie strings, aggressive boom-bap drums, heavy snare, cinematic tension, minor keys, 100-140 BPM',
+    'slim shady':'dark circus/carnival sounds, eerie piano, aggressive drums, horror strings, chaotic energy, 110-140 BPM',
+    'method man':'gritty east coast boom-bap, kung-fu movie samples, dusty vinyl crackle, hard-hitting drums, dark piano, RZA production style',
+    'redman':'funk samples, dirty bass, boom-bap drums with funk groove, wah-wah guitar, energetic tempo, 90-100 BPM',
+    'wu-tang':'RZA production - kung-fu movie dialogue samples, lo-fi dusty drums, dark piano, soul samples chopped, eerie strings, boom-bap, 85-95 BPM',
+    'rza':'martial arts movie samples, lo-fi gritty drums, haunting piano, soul vocal chops, Staten Island boom-bap',
+    'ghostface':'soul music samples, lush orchestral strings, boom-bap drums, smooth R&B undertones, cinematic feel, 85-95 BPM',
+    'raekwon':'mafioso soundtrack feel, dark soul samples, boom-bap drums, piano loops, dramatic strings',
+    'gza':'minimal boom-bap, chess-like precision, clean drums, subtle samples, intellectual vibe, 85-90 BPM',
+    'bone thugs':'fast hi-hats, melodic pads, Ouija board dark atmosphere, rapid BPM 140-160 for fast flow, harmonious vocal-ready production, Cleveland sound',
+    'krayzie bone':'fast choppy hi-hats, dark melodic pads, rapid tempo, harmonic vocal beds, eerie atmosphere',
+    'tech n9ne':'chopper-speed drums 140+ BPM, dark synths, horror elements, midwest strange music production, aggressive bass',
+    'slick rick':'old school boom-bap, storytelling drums, simple clean loop, upbeat groove, classic 808, 90-100 BPM, golden era hip-hop',
+    'nas':'DJ Premier style boom-bap, jazz samples, dusty drums, NY street feel, saxophone, piano loops, 90-95 BPM',
+    'jay-z':'soulful samples, Kanye/Just Blaze style, chopped vocals, triumphant horns, hard drums, 85-95 BPM',
+    'tupac':'west coast G-funk meets east coast soul, piano driven, emotional strings, 808 bass, 85-100 BPM',
+    'biggie':'east coast boom-bap, funk and soul samples, smooth production, hard kicks, 90-100 BPM, Hitmen/DJ Premier style',
+    'kendrick':'jazz-influenced, live instruments, complex time signatures, west coast modern, 80-150 BPM varied',
+    'korn':'nu-metal, 7-string guitar heavy riffs, industrial distortion, rap-rock hybrid, drop tuning, aggressive drums, hip-hop breakdowns mixed with metal',
+    'limp bizkit':'rap-rock, DJ turntable scratching over heavy guitar riffs, nu-metal drums, hip-hop verses with rock chorus',
+    'dj premier':'vinyl scratching hooks, boom-bap perfection, jazz/soul sample chops, hard drums, classic NY sound',
+    'pete rock':'smooth jazz samples, soul chops, mellow boom-bap, rhodes piano, warm bass, golden era production',
+    'metro boomin':'dark trap, 808 sub bass, haunting melodies, hi-hat rolls, spacious reverb, 140-160 BPM trap tempo',
+    'zaytoven':'piano-driven trap, church organ, rapid piano runs, 808 bass, Atlanta trap sound',
+    'timbaland':'futuristic beats, middle-eastern influences, stuttering drums, innovative percussion, R&B-rap hybrid'
+  };
+  var lower=sa.toLowerCase();
+  var matched=artistBeats[lower];
+  if(matched){p.push('PRODUCTION STYLE: '+matched);p.push('Match the exact sonic signature of '+sa);}
+  else{p.push('in the style of '+sa+', match their signature production sound, instruments, tempo, and sonic characteristics exactly');}
+}
 var rl=document.getElementById('refLink').value.trim();if(rl)p.push('inspired by '+rl);
 var ru=document.getElementById('refUrl').value.trim();if(ru)p.push('reference: '+ru);
 p.push(document.getElementById('bpmSlider').value+' BPM');
@@ -343,7 +393,19 @@ var ew=['very minimal','minimal','sparse','laid back','moderate','energetic','dr
 p.push(ew[parseInt(en)-1]+' energy');
 var ex=document.getElementById('extraDesc').value.trim();if(ex)p.push(ex);
 if(genType==='instrumental')p.push('instrumental only, no vocals, no singing');
-else{var ly=document.getElementById('lyricsInput').value.trim();if(ly)p.push('with vocals singing: '+ly);else p.push('with vocals');}
+else{
+  var ly=document.getElementById('lyricsInput').value.trim();
+  var bmExp=document.getElementById('bmExplicit')?document.getElementById('bmExplicit').value:'standard';
+  var bmMode=document.getElementById('bmLyricsMode')?document.getElementById('bmLyricsMode').value:'manual';
+  // Add explicit instruction to prompt
+  if(bmExp==='street')p.push('explicit street lyrics, profanity, raw hood storytelling');
+  else if(bmExp==='sexual')p.push('sexually explicit lyrics, raunchy, dirty, adult content');
+  else if(bmExp==='aggressive')p.push('aggressive violent lyrics, hard disses, dark imagery');
+  else if(bmExp==='clean')p.push('clean radio-safe lyrics only, no profanity');
+  if(ly)p.push('with vocals singing: '+ly);
+  else if(bmMode==='auto')p.push('with vocals, AI generate fitting lyrics');
+  else p.push('with vocals');
+}
 }
 currentPrompt=p.join('. ')+'.';
 document.getElementById('promptPreview').textContent=currentPrompt;
@@ -360,14 +422,85 @@ if(!currentPrompt)buildPrompt();
 isGenerating=true;
 btn.disabled=true;btn.textContent='Generating...';btn.classList.add('generating');
 status.style.display='block';status.className='status-msg loading';
+var prompt=currentPrompt;
+
+// Auto-generate lyrics if Song mode + AI Writes Lyrics + no lyrics
+if(genType==='song'){
+  var ly=document.getElementById('lyricsInput')?document.getElementById('lyricsInput').value.trim():'';
+  var bmMode=document.getElementById('bmLyricsMode')?document.getElementById('bmLyricsMode').value:'manual';
+  var bmExp=document.getElementById('bmExplicit')?document.getElementById('bmExplicit').value:'standard';
+  if(!ly&&bmMode==='auto'){
+    status.textContent='Step 1: AI writing lyrics...';
+    try{
+      var sa=document.getElementById('styleArtist')?document.getElementById('styleArtist').value.trim():'';
+      var desc=document.getElementById('mainDesc')?document.getElementById('mainDesc').value.trim():'';
+      var expInst='';
+      if(bmExp==='street')expInst='Write with real street language, profanity, drug refs, hood storytelling. Parental Advisory.';
+      else if(bmExp==='sexual')expInst='Write sexually explicit like Too Short or 2 Live Crew. Raunchy, dirty, graphic.';
+      else if(bmExp==='aggressive')expInst='Write aggressive battle rap / drill. Hard disses, threats, violent imagery.';
+      else if(bmExp==='clean')expInst='Clean radio-safe lyrics only. No profanity.';
+      var lyrPr='Write a complete song with [Verse 1], [Chorus], [Verse 2], [Chorus]. Topic: '+(desc||'life and hustle')+'. '+(sa?'Write in the EXACT style of '+sa+'. ':'')+(expInst||'')+' Return ONLY the lyrics.';
+      var lRes=await fetch('https://8bfr-api.vercel.app/api/openai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({input:lyrPr,tier:'full',max_tokens:1200})});
+      var lData=await lRes.json();
+      if(lData.text){
+        ly=lData.text;
+        document.getElementById('lyricsInput').value=ly;
+        prompt=prompt.replace('with vocals, AI generate fitting lyrics','with vocals singing: '+ly.substring(0,500));
+      }
+    }catch(e){}
+  }
+}
+
+var hasRef=document.getElementById('styleArtist').value.trim()||document.getElementById('refLink').value.trim()||document.getElementById('refUrl').value.trim();
+if(hasRef&&genType!=='sfx'){
+status.textContent='Step 1: AI analyzing reference style...';
+try{
+var refArtist=document.getElementById('styleArtist').value.trim();
+var refSong=document.getElementById('refLink').value.trim();
+var refUrl=document.getElementById('refUrl').value.trim();
+var aiPrompt='You are an expert music producer. I want to create a beat';
+if(refSong)aiPrompt+=' inspired by the song "'+refSong+'"';
+if(refArtist)aiPrompt+=' in the style of '+refArtist;
+if(refUrl)aiPrompt+='. Reference link: '+refUrl;
+aiPrompt+='. Based on your knowledge of this song/artist, provide a VERY SPECIFIC music production prompt with: exact BPM, key and scale, specific drum pattern (kick on beats X, snare on Y, hi-hat pattern), bass/808 pattern description, melody instrument and chord progression, arrangement style, mix characteristics, and overall vibe. Format as one continuous paragraph suitable for an AI music generator. Be extremely specific about sounds and patterns. Do not include any explanations, just the production prompt.';
+aiPrompt+='\n\nAlso incorporate these user preferences into the prompt: '+prompt;
+var aiRes=await fetch('https://8bfr-api.vercel.app/api/openai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({input:aiPrompt,tier:'nano',max_tokens:500})});
+var aiData=await aiRes.json();
+if(aiData.text&&aiData.text.length>50){
+prompt=aiData.text.replace(/\n/g,' ').substring(0,800);
+if(genType==='instrumental')prompt+=' instrumental only, no vocals, no singing';
+else if(genType==='song'){
+  var ly=document.getElementById('lyricsInput')?document.getElementById('lyricsInput').value.trim():'';
+  var bmExp2=document.getElementById('bmExplicit')?document.getElementById('bmExplicit').value:'standard';
+  if(bmExp2==='street')prompt+=' explicit street lyrics, raw language';
+  else if(bmExp2==='sexual')prompt+=' sexually explicit raunchy lyrics';
+  else if(bmExp2==='aggressive')prompt+=' aggressive violent lyrics';
+  else if(bmExp2==='clean')prompt+=' clean family-friendly lyrics';
+  if(ly)prompt+=' with vocals singing: '+ly.substring(0,500);
+  else prompt+=' with vocals';
+}
+document.getElementById('promptPreview').textContent='AI-ENHANCED: '+prompt;
+document.getElementById('promptPreview').classList.add('show');
+}
+}catch(e){console.log('AI enhance failed, using original:',e);}
+}
 status.textContent='Generating '+duration+'s of audio... Please wait.';
 try{
-var prompt=currentPrompt;
 var isInstr=genType!=='song';
-var url='https://gen.pollinations.ai/audio/'+encodeURIComponent(prompt)+'?key='+POLLEN_KEY+'&model=acestep&duration='+duration;
+var url='https://gen.pollinations.ai/audio/'+encodeURIComponent(prompt)+'?model=acestep&duration='+duration;
+if(POLLEN_KEY)url+='&key='+POLLEN_KEY;
 if(isInstr)url+='&instrumental=true';
 var resp=await fetch(url);
+if(!resp.ok){
+// Try without key as fallback
+if(POLLEN_KEY){
+status.textContent='Retrying without API key...';
+var url2='https://gen.pollinations.ai/audio/'+encodeURIComponent(prompt)+'?model=acestep&duration='+Math.min(duration,60);
+if(isInstr)url2+='&instrumental=true';
+resp=await fetch(url2);
+}
 if(!resp.ok){var et=await resp.text();try{var ej=JSON.parse(et);throw new Error(ej.error.message||'Failed');}catch(e2){if(e2.message)throw e2;throw new Error('HTTP '+resp.status);}}
+}
 var blob=await resp.blob();
 var audioUrl=URL.createObjectURL(blob);
 document.getElementById('resultAudio').src=audioUrl;
