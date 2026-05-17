@@ -1002,3 +1002,241 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
     applyProtection();
   }
 })();
+
+// ═══ UNIVERSAL OWNER MOD ACTIONS ═══
+// Available on every page via scripts.js
+(function(){
+var OWN='cb556180-f032-4b21-9470-1d786f2664ab';
+var _modDb=null;
+function getDb(){
+  if(_modDb)return _modDb;
+  try{_modDb=window._8bfrDb||window._db||window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f');}catch(e){}
+  return _modDb;
+}
+
+window.ownerMod={
+  hidePost:async function(postId){
+    if(!confirm('Hide this post?'))return;
+    var db=getDb();if(!db)return;
+    await db.from('posts').update({hidden:true}).eq('id',postId);
+    try{await db.from('admin_actions').insert({performed_by:OWN,performed_by_role:'owner',action_type:'hide_post',target_type:'post',target_id:postId,reason:'Owner quick action'});}catch(e){}
+    alert('Post hidden.');
+  },
+  deletePost:async function(postId){
+    if(!confirm('PERMANENTLY delete this post?'))return;
+    var db=getDb();if(!db)return;
+    await db.from('posts').delete().eq('id',postId);
+    try{await db.from('admin_actions').insert({performed_by:OWN,performed_by_role:'owner',action_type:'delete_post',target_type:'post',target_id:postId,reason:'Owner quick action'});}catch(e){}
+    alert('Post deleted.');location.reload();
+  },
+  deleteSong:async function(songId){
+    if(!confirm('Delete this song?'))return;
+    var db=getDb();if(!db)return;
+    await db.from('songs').delete().eq('id',songId);
+    try{await db.from('admin_actions').insert({performed_by:OWN,performed_by_role:'owner',action_type:'delete_song',target_type:'song',target_id:songId,reason:'Owner quick action'});}catch(e){}
+    alert('Song deleted.');location.reload();
+  },
+  hideSong:async function(songId){
+    if(!confirm('Hide this song?'))return;
+    var db=getDb();if(!db)return;
+    await db.from('songs').update({hidden:true}).eq('id',songId);
+    alert('Song hidden.');
+  },
+  deleteComment:async function(commentId){
+    if(!confirm('Delete this comment?'))return;
+    var db=getDb();if(!db)return;
+    await db.from('comments').delete().eq('id',commentId);
+    alert('Comment deleted.');location.reload();
+  },
+  muteUser:async function(userId,name){
+    var hours=prompt('Mute "'+(name||'user')+'" for how many hours?','24');
+    if(!hours)return;
+    var h=parseInt(hours)||24;
+    var db=getDb();if(!db)return;
+    await db.from('chat_mutes').upsert({user_id:userId,muted_by:OWN,reason:'Owner mute',expires_at:new Date(Date.now()+h*3600000).toISOString()},{onConflict:'user_id'});
+    try{await db.from('admin_actions').insert({performed_by:OWN,performed_by_role:'owner',action_type:'mute_user',target_type:'user',target_id:userId,target_user_id:userId,reason:'Muted '+h+'h'});}catch(e){}
+    alert((name||'User')+' muted for '+h+' hours.');
+  },
+  banUser:async function(userId,name){
+    var hours=prompt('Ban "'+(name||'user')+'" for how many hours? (0=permanent)','0');
+    if(hours===null)return;
+    var reason=prompt('Reason:','Violation of site rules');
+    if(!reason)return;
+    var h=parseInt(hours)||0;
+    var db=getDb();if(!db)return;
+    await db.from('user_bans').upsert({user_id:userId,banned_by:OWN,reason:reason,permanent:h===0,expires_at:h>0?new Date(Date.now()+h*3600000).toISOString():null},{onConflict:'user_id'});
+    await db.from('profiles').update({banned:true,ban_reason:reason}).eq('user_id',userId);
+    try{await db.from('admin_actions').insert({performed_by:OWN,performed_by_role:'owner',action_type:'ban_user',target_type:'user',target_id:userId,target_user_id:userId,reason:reason});}catch(e){}
+    alert((name||'User')+' banned'+(h>0?' for '+h+'h.':' permanently.'));
+  },
+  kickFromChat:async function(userId,room,name){
+    if(!confirm('Kick "'+(name||'user')+'" from chat?'))return;
+    var db=getDb();if(!db)return;
+    await db.from('chat_members').delete().eq('user_id',userId).eq('room',room);
+    try{await db.from('admin_actions').insert({performed_by:OWN,performed_by_role:'owner',action_type:'kick_chat',target_type:'user',target_id:userId,reason:'Kicked from '+room});}catch(e){}
+    alert((name||'User')+' kicked from chat.');location.reload();
+  },
+  hideChat:async function(msgId){
+    if(!confirm('Hide this message?'))return;
+    var db=getDb();if(!db)return;
+    await db.from('chat_messages').update({hidden:true}).eq('id',msgId);
+    alert('Message hidden.');
+  },
+  deleteChat:async function(msgId){
+    if(!confirm('Delete this message?'))return;
+    var db=getDb();if(!db)return;
+    await db.from('chat_messages').delete().eq('id',msgId);
+    alert('Message deleted.');location.reload();
+  },
+  deletePage:async function(pageId){
+    if(!confirm('DELETE this page? This cannot be undone.'))return;
+    var db=getDb();if(!db)return;
+    await db.from('pages').delete().eq('id',pageId);
+    try{await db.from('admin_actions').insert({performed_by:OWN,performed_by_role:'owner',action_type:'delete_page',target_type:'page',target_id:pageId,reason:'Owner action'});}catch(e){}
+    alert('Page deleted.');location.href='feed.html';
+  },
+  deleteGroup:async function(groupId){
+    if(!confirm('DELETE this group? This cannot be undone.'))return;
+    var db=getDb();if(!db)return;
+    await db.from('groups').delete().eq('id',groupId);
+    try{await db.from('admin_actions').insert({performed_by:OWN,performed_by_role:'owner',action_type:'delete_group',target_type:'group',target_id:groupId,reason:'Owner action'});}catch(e){}
+    alert('Group deleted.');location.href='feed.html';
+  },
+  deleteDedication:async function(dedId){
+    if(!confirm('Delete this dedication?'))return;
+    var db=getDb();if(!db)return;
+    await db.from('dedications').delete().eq('id',dedId);
+    alert('Dedication deleted.');location.reload();
+  },
+  removeFromPlaylist:async function(songId,playlistId){
+    if(!confirm('Remove this song from playlist?'))return;
+    var db=getDb();if(!db)return;
+    await db.from('playlist_songs').delete().eq('song_id',songId).eq('playlist_id',playlistId);
+    alert('Removed from playlist.');location.reload();
+  },
+  deletePlaylist:async function(playlistId){
+    if(!confirm('DELETE this playlist?'))return;
+    var db=getDb();if(!db)return;
+    await db.from('playlists').delete().eq('id',playlistId);
+    alert('Playlist deleted.');location.href='playlists.html';
+  },
+  // Show mod menu on any element
+  showMenu:function(e,options){
+    e.stopPropagation();
+    var existing=document.getElementById('ownerModMenu');
+    if(existing)existing.remove();
+    var menu=document.createElement('div');
+    menu.id='ownerModMenu';
+    menu.style.cssText='position:fixed;z-index:99999;background:rgba(12,6,24,.98);border:1px solid rgba(124,58,237,.5);border-radius:10px;padding:.3rem 0;min-width:160px;box-shadow:0 4px 20px rgba(0,0,0,.6);';
+    menu.style.top=Math.min(e.clientY,window.innerHeight-200)+'px';
+    menu.style.left=Math.min(e.clientX,window.innerWidth-170)+'px';
+    options.forEach(function(opt){
+      var btn=document.createElement('button');
+      btn.textContent=opt.label;
+      btn.style.cssText='display:block;width:100%;text-align:left;background:none;border:none;color:'+(opt.danger?'#f87171':'#eae6ff')+';padding:.5rem .85rem;font-size:.78rem;cursor:pointer;';
+      btn.onmouseover=function(){btn.style.background='rgba(124,58,237,.15)';};
+      btn.onmouseout=function(){btn.style.background='none';};
+      btn.onclick=function(){menu.remove();opt.fn();};
+      menu.appendChild(btn);
+    });
+    document.body.appendChild(menu);
+    setTimeout(function(){document.addEventListener('click',function cl(){var m=document.getElementById('ownerModMenu');if(m)m.remove();document.removeEventListener('click',cl);});},50);
+  }
+};
+})();
+
+// ═══ AUTO-INJECT OWNER MOD BUTTON ON CONTENT PAGES ═══
+(function(){
+var OWN='cb556180-f032-4b21-9470-1d786f2664ab';
+function ready(fn){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',fn);else fn();}
+ready(function(){
+  // Wait for auth
+  if(!window._8bfr||!window._8bfr.ready)return;
+  window._8bfr.ready.then(function(){
+    if(!window._8bfr.isOwner)return;
+    var path=(location.pathname||'').toLowerCase();
+    var params=new URLSearchParams(location.search);
+
+    // Profile page - mod the user
+    if(path.indexOf('profile')!==-1){
+      var uid=params.get('id');
+      if(uid&&uid!==OWN){
+        addModBtn(function(e){
+          ownerMod.showMenu(e,[
+            {label:'Mute User',fn:function(){ownerMod.muteUser(uid);}},
+            {label:'Ban User',danger:true,fn:function(){ownerMod.banUser(uid);}}
+          ]);
+        });
+      }
+    }
+
+    // Song page
+    if(path.indexOf('song')!==-1&&path.indexOf('song')!==-1){
+      var sid=params.get('id');
+      if(sid){
+        addModBtn(function(e){
+          ownerMod.showMenu(e,[
+            {label:'Hide Song',fn:function(){ownerMod.hideSong(sid);}},
+            {label:'Delete Song',danger:true,fn:function(){ownerMod.deleteSong(sid);}}
+          ]);
+        });
+      }
+    }
+
+    // Page
+    if(path.indexOf('page.html')!==-1){
+      var pid=params.get('id');
+      if(pid){
+        addModBtn(function(e){
+          ownerMod.showMenu(e,[
+            {label:'Delete Page',danger:true,fn:function(){ownerMod.deletePage(pid);}}
+          ]);
+        });
+      }
+    }
+
+    // Group
+    if(path.indexOf('group.html')!==-1){
+      var gid=params.get('id');
+      if(gid){
+        addModBtn(function(e){
+          ownerMod.showMenu(e,[
+            {label:'Delete Group',danger:true,fn:function(){ownerMod.deleteGroup(gid);}}
+          ]);
+        });
+      }
+    }
+
+    // Playlists
+    if(path.indexOf('playlist-details')!==-1||path.indexOf('playlists')!==-1){
+      var plid=params.get('id');
+      if(plid){
+        addModBtn(function(e){
+          ownerMod.showMenu(e,[
+            {label:'Delete Playlist',danger:true,fn:function(){ownerMod.deletePlaylist(plid);}}
+          ]);
+        });
+      }
+    }
+
+    // Dedications
+    if(path.indexOf('dedication')!==-1){
+      addModBtn(function(e){
+        ownerMod.showMenu(e,[
+          {label:'Manage Dedications',fn:function(){alert('Use the ... button on individual dedications to delete.');}}
+        ]);
+      });
+    }
+  });
+});
+
+function addModBtn(onclick){
+  var btn=document.createElement('button');
+  btn.id='ownerQuickMod';
+  btn.style.cssText='position:fixed;bottom:70px;right:4px;z-index:9400;width:36px;height:36px;border-radius:50%;background:rgba(124,58,237,.85);border:2px solid rgba(168,85,247,.6);color:#fff;font-size:.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(124,58,237,.3);';
+  btn.textContent='...';
+  btn.title='Owner Mod Actions';
+  btn.onclick=onclick;
+  document.body.appendChild(btn);
+}
+})();
