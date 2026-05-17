@@ -1240,3 +1240,92 @@ function addModBtn(onclick){
   document.body.appendChild(btn);
 }
 })();
+
+// ═══ UNIVERSAL FILE UPLOAD TO SUPABASE STORAGE ═══
+(function(){
+var SUPA_URL='https://novbuvwpjnxwwvdekjhr.supabase.co';
+var SUPA_KEY='sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f';
+var BUCKET='media';
+
+// Upload a file and return public URL
+// folder: e.g. 'pages', 'groups', 'profiles', 'posts', 'songs'
+// file: File object from input
+// Returns: {url, error}
+window.uploadMedia=async function(folder,file,onProgress){
+  if(!file)return {error:'No file selected'};
+  // Max 50MB
+  if(file.size>50*1024*1024)return {error:'File too large (max 50MB)'};
+  
+  var db=window._8bfrDb||window._db;
+  if(!db){
+    try{db=window.supabase.createClient(SUPA_URL,SUPA_KEY);}catch(e){return {error:'DB not ready'};}
+  }
+  
+  var sess;
+  try{var s=await db.auth.getSession();sess=s.data.session;}catch(e){}
+  if(!sess)return {error:'Not logged in'};
+  
+  var uid=sess.user.id;
+  var ext=file.name.split('.').pop().toLowerCase();
+  var filename=uid+'/'+folder+'/'+Date.now()+'-'+Math.random().toString(36).substring(2,8)+'.'+ext;
+  
+  var {data,error}=await db.storage.from(BUCKET).upload(filename,file,{
+    cacheControl:'3600',
+    upsert:false,
+    contentType:file.type
+  });
+  
+  if(error)return {error:error.message};
+  
+  var {data:urlData}=db.storage.from(BUCKET).getPublicUrl(filename);
+  return {url:urlData.publicUrl};
+};
+
+// Create a file input button that uploads and calls callback with URL
+// container: DOM element to append to
+// folder: storage subfolder
+// accept: e.g. 'image/*' or 'image/*,video/*'
+// label: button text
+// callback: function(url) called with public URL on success
+window.createUploadBtn=function(container,folder,accept,label,callback){
+  var wrap=document.createElement('div');
+  wrap.style.cssText='display:inline-flex;align-items:center;gap:.3rem;margin:.3rem 0;';
+  
+  var input=document.createElement('input');
+  input.type='file';
+  input.accept=accept||'image/*';
+  input.style.display='none';
+  
+  var btn=document.createElement('button');
+  btn.textContent=label||'Upload File';
+  btn.style.cssText='padding:.35rem .7rem;border-radius:6px;background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.4);color:#a855f7;font-size:.75rem;font-weight:600;cursor:pointer;';
+  btn.onclick=function(){input.click();};
+  
+  var status=document.createElement('span');
+  status.style.cssText='font-size:.68rem;color:rgba(255,255,255,.4);';
+  
+  input.onchange=async function(){
+    if(!input.files||!input.files[0])return;
+    var file=input.files[0];
+    btn.disabled=true;btn.textContent='Uploading...';
+    status.textContent=file.name;
+    var result=await window.uploadMedia(folder,file);
+    if(result.error){
+      status.textContent='Error: '+result.error;
+      status.style.color='#f87171';
+      btn.disabled=false;btn.textContent=label||'Upload File';
+    }else{
+      status.textContent='Uploaded!';
+      status.style.color='#4ade80';
+      btn.disabled=false;btn.textContent=label||'Upload File';
+      if(callback)callback(result.url);
+    }
+  };
+  
+  wrap.appendChild(input);
+  wrap.appendChild(btn);
+  wrap.appendChild(status);
+  container.appendChild(wrap);
+  return {input:input,btn:btn,status:status};
+};
+})();
