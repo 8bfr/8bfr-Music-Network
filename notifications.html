@@ -11,7 +11,7 @@
 :root{--primary:#7c3aed;--card:#0c0618;--text:#eae6ff;--dim:#a855f7;--border:rgba(124,58,237,.35);}
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'Work Sans',sans-serif;background:linear-gradient(#0b0014,#000);color:var(--text);min-height:100vh;padding-bottom:80px;}
-.header{background:rgba(15,0,30,.95);border-bottom:2px solid var(--primary);padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;}
+.header{background:rgba(15,0,30,.95);border-bottom:2px solid var(--primary);padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:52px;z-index:100;}
 .header h1{font-family:'Bebas Neue',cursive;font-size:1.5rem;color:var(--primary);}
 .container{max-width:600px;margin:0 auto;padding:1.5rem;}
 .tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:1.25rem;}
@@ -80,9 +80,6 @@ var ICONS={
   mention:{icon:'@',bg:'rgba(124,58,237,.15)'},
   story_view:{icon:'*',bg:'rgba(168,85,247,.12)'},
   parent_verify:{icon:'P',bg:'rgba(139,92,246,.12)'},
-  parent_verified:{icon:'P',bg:'rgba(34,197,94,.12)'},
-  parent_rejected:{icon:'P',bg:'rgba(239,68,68,.12)'},
-  parent_verification_request:{icon:'P',bg:'rgba(249,115,22,.12)'},
   dm:{icon:'DM',bg:'rgba(0,217,255,.12)'},
   direct_message:{icon:'DM',bg:'rgba(0,217,255,.12)'},
   referral:{icon:'+',bg:'rgba(34,197,94,.12)'},
@@ -95,10 +92,12 @@ async function init(){
     if(!s.data.session){location.href='login.html?return=notifications.html';return;}
     currentUser=s.data.session.user;
     loadNotifications();
+    try{
     db.channel('notif-live')
       .on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications',filter:'recipient_id=eq.'+currentUser.id},function(){
         loadNotifications();
       }).subscribe();
+    }catch(rtErr){console.warn('Realtime subscription failed:',rtErr);}
   }catch(e){
     document.getElementById('notifList').innerHTML='<div class="empty"><div class="empty-icon">⚠️</div><p>'+e.message+'</p></div>';
   }
@@ -114,37 +113,24 @@ function switchTab(tab,btn){
 async function loadNotifications(){
   var el=document.getElementById('notifList');
   try{
+    // Add timeout to prevent infinite spinner
+    var controller=new AbortController();
+    var timeout=setTimeout(function(){controller.abort();},10000);
+    
     var r=await db.from('notifications')
       .select('*')
       .eq('recipient_id',currentUser.id)
       .order('created_at',{ascending:false})
       .limit(50);
-    if(r.error)throw r.error;
-    allNotifs=r.data||[];
-
-    // Resolve missing names: if from_id exists but from_name is missing, look it up
-    var missingIds=[];
-    allNotifs.forEach(function(n){
-      var m=n.metadata||{};
-      if(m.from_id&&!m.from_name)missingIds.push(m.from_id);
-    });
-    if(missingIds.length){
-      missingIds=[...new Set(missingIds)];
-      var pr=await db.from('profiles').select('user_id,display_name,username').in('user_id',missingIds);
-      var nameMap={};
-      if(pr.data)pr.data.forEach(function(p){nameMap[p.user_id]=p.display_name||p.username||'User';});
-      allNotifs.forEach(function(n){
-        var m=n.metadata||{};
-        if(m.from_id&&!m.from_name&&nameMap[m.from_id]){
-          m.from_name=nameMap[m.from_id];
-          if(!m.link)m.link='profile.html?id='+m.from_id;
-          if(!m.message&&n.notif_type==='friend_accepted')m.message=m.from_name+' accepted your friend request!';
-          if(!m.message&&n.notif_type==='friend_request')m.message=m.from_name+' sent you a friend request!';
-          n.metadata=m;
-        }
-      });
+    
+    clearTimeout(timeout);
+    
+    if(r.error){
+      console.error('Notifications error:', r.error);
+      el.innerHTML='<div class="empty"><div class="empty-icon">!</div><p style="font-size:.85rem;color:#f87171;">Error loading notifications: '+r.error.message+'</p></div>';
+      return;
     }
-
+    allNotifs=r.data||[];
     var unreadCount=allNotifs.filter(function(n){return !n.is_read;}).length;
     var badge=document.getElementById('allBadge');
     if(badge){
@@ -153,7 +139,8 @@ async function loadNotifications(){
     }
     renderList();
   }catch(e){
-    el.innerHTML='<div class="empty"><div class="empty-icon">🔔</div><h3 style="font-size:1.1rem;font-weight:700;margin-bottom:.5rem;">No notifications yet</h3><p style="font-size:.85rem;">When someone follows you, likes your posts, sends you a tip, or other activity happens — you\'ll see it here.</p></div>';
+    console.error('Notifications catch:', e);
+    el.innerHTML='<div class="empty"><div class="empty-icon">!</div><p style="font-size:.85rem;color:#f87171;">Failed to load: '+(e.message||'Unknown error')+'</p></div>';
   }
 }
 
@@ -163,14 +150,17 @@ function renderList(){
 
   if(!list.length){
     var msg=activeTab==='unread'?'All caught up! No unread notifications.':'No notifications yet. Activity will show up here.';
-    el.innerHTML='<div class="empty"><div class="empty-icon">'+(activeTab==='unread'?'':'')+'</div><p style="font-size:.88rem;">'+msg+'</p></div>';
+    el.innerHTML='<div class="empty"><p style="font-size:.88rem;">'+msg+'</p></div>';
     return;
   }
 
+  try{
   el.innerHTML=list.map(function(n){
+    try{
     var cfg=ICONS[n.notif_type]||ICONS.system;
     var unreadClass=!n.is_read?'notif unread':'notif';
     var meta=n.metadata||{};
+    if(typeof meta==='string'){try{meta=JSON.parse(meta);}catch(e){meta={};}}
     var link=meta.link||'#';
     var fromName=meta.from_name||meta.sender_name||'';
     var title='';
@@ -246,25 +236,10 @@ function renderList(){
         preview=meta.body||meta.message||'';
         link=meta.link||'owner-monitor.html';
         break;
-      case 'parent_verified':
-        title='Parent Verification Approved';
-        preview=meta.message||'You can now manage your children in KidZone.';
-        link=meta.link||'kidzone_parent.html';
-        break;
-      case 'parent_rejected':
-        title='Parent Verification Update';
-        preview=meta.message||'Your verification was not approved.';
-        link=meta.link||'kidzone_parent.html';
-        break;
-      case 'parent_verification_request':
-        title='New Parent Verification Request';
-        preview=meta.message||'A parent has submitted verification.';
-        link=meta.link||'owner-kidzone.html';
-        break;
       case 'referral':
         title=(fromName||'Someone')+' joined via your invite!';
-        preview=meta.message||'+250 coins earned';
-        link=meta.link||'referrals.html';
+        preview=meta.message||'+50 coins earned';
+        link='referral.html';
         break;
       default:
         title=meta.title||formatType(n.notif_type);
@@ -283,7 +258,15 @@ function renderList(){
       +'</div>'
       +'<button onclick="event.preventDefault();event.stopPropagation();deleteNotif(\''+n.id+'\',this)" style="background:none;border:none;color:rgba(234,230,255,.25);font-size:.9rem;cursor:pointer;flex-shrink:0;padding:0 .25rem;align-self:flex-start;" title="Delete">X</button>'
     +'</a>';
+    }catch(itemErr){
+      console.error('Notification render error:', itemErr, n);
+      return '<div class="notif" style="color:#f87171;font-size:.78rem;padding:.5rem;">Error rendering notification ('+n.notif_type+')</div>';
+    }
   }).join('');
+  }catch(renderErr){
+    console.error('renderList error:', renderErr);
+    el.innerHTML='<div class="empty"><p style="color:#f87171;font-size:.85rem;">Error displaying notifications: '+renderErr.message+'</p></div>';
+  }
 }
 
 function formatType(t){
