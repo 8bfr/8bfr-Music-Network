@@ -248,7 +248,7 @@ function renderList(){
 
     var previewHtml=preview?'<div class="notif-msg">'+esc(preview.substring(0,120))+'</div>':'';
 
-    return '<a href="'+link+'" class="'+unreadClass+'" onclick="markRead(\''+n.id+'\')">'
+    return '<a href="'+(link&&link!=='#'?link:'javascript:void(0)')+'" class="'+unreadClass+'" onclick="markRead(\''+n.id+'\');'+((!link||link==='#')?'event.preventDefault();return false;':'')+'">'
       +'<div class="notif-icon" style="background:'+cfg.bg+';">'+cfg.icon+'</div>'
       +'<div class="notif-body">'
         +'<div class="notif-title">'+esc(title)+'</div>'
@@ -274,8 +274,9 @@ function formatType(t){
   return m[t]||'Notification';
 }
 
-window.markRead=async function(id){
-  try{await db.from('notifications').update({is_read:true}).eq('id',id).eq('recipient_id',currentUser.id);}catch(e){}
+window.markRead=function(id){
+  // Fire and forget - don't await, don't block navigation
+  try{db.from('notifications').update({is_read:true}).eq('id',id).eq('recipient_id',currentUser.id).then(function(){}).catch(function(){});}catch(e){}
   allNotifs.forEach(function(n){if(n.id===id)n.is_read=true;});
   var unread=allNotifs.filter(function(n){return !n.is_read;}).length;
   var badge=document.getElementById('allBadge');
