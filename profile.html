@@ -163,7 +163,7 @@
         <button onclick="closeStoryModal()" style="background:none;border:none;color:#eae6ff;font-size:1.5rem;cursor:pointer;">✕</button>
       </div>
       <div class="form-group"><label>Story Text (optional)</label><textarea class="form-input" id="storyText" rows="2" placeholder="What's happening?"></textarea></div>
-      <div class="form-group"><label>Image URL (optional)</label><input class="form-input" type="url" id="storyMediaUrl" placeholder="https://i.ibb.co/your-image.jpg"><div class="hint">💡 Upload to <a href="https://imgbb.com" target="_blank">imgbb.com</a></div></div>
+      <div class="form-group"><label>Image URL (optional)</label><input class="form-input" type="url" id="storyMediaUrl" placeholder="https://i.ibb.co/your-image.jpg"><div id="storyUpload" style="margin-top:.2rem;"></div></div>
       <div class="form-group"><label>Background Color</label><div style="display:flex;gap:0.5rem;flex-wrap:wrap;" id="storyColorPicker">
         <div onclick="pickStoryColor('#7c3aed')" style="width:36px;height:36px;border-radius:8px;background:#7c3aed;cursor:pointer;border:2px solid #a855f7;" class="sco"></div>
         <div onclick="pickStoryColor('#dc2626')" style="width:36px;height:36px;border-radius:8px;background:#dc2626;cursor:pointer;border:2px solid transparent;" class="sco"></div>
@@ -217,7 +217,7 @@
       <div id="postMediaUrlGroup" style="display:none;margin-bottom:1rem;">
         <label style="display:block;margin-bottom:0.4rem;font-size:0.85rem;font-weight:600;color:rgba(234,230,255,0.75);">🔗 Media URL</label>
         <input type="url" id="postMediaUrl" placeholder="Paste image/video URL" class="form-input">
-        <div class="hint">💡 Upload images at <a href="https://imgbb.com" target="_blank">imgbb.com</a></div>
+        <div id="songCoverUpload" style="margin-top:.2rem;"></div>
       </div>
       <div style="display:flex;gap:0.5rem;margin-bottom:1rem;">
         <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;color:rgba(234,230,255,0.6);cursor:pointer;">
@@ -393,8 +393,8 @@
   window.favoritePost=async function(id,idx){
     if(!currentUser)return;var p=filteredPosts[idx];if(!p)return;
     try{
-      if(p._favorited){await db.from('post_favorites').delete().eq('post_id',id).eq('user_id',currentUser.id);p.favorites=Math.max(0,(p.favorites||1)-1);p._favorited=false;}
-      else{await db.from('post_favorites').upsert({post_id:id,user_id:currentUser.id});p.favorites=(p.favorites||0)+1;p._favorited=true;}
+      if(p._favorited){await db.from('favorites').delete().eq('post_id',id).eq('user_id',currentUser.id);p.favorites=Math.max(0,(p.favorites||1)-1);p._favorited=false;}
+      else{await db.from('favorites').upsert({post_id:id,user_id:currentUser.id});p.favorites=(p.favorites||0)+1;p._favorited=true;}
       await db.from('posts').update({favorites:p.favorites}).eq('id',id);renderPostViewer();
     }catch(e){}
   };
@@ -743,8 +743,8 @@
       ];
       sf.forEach(function(s){h+='<div class="form-group" style="margin-bottom:.6rem;"><label style="font-size:.78rem;">'+s.l+'</label><input class="form-input form-input-sm" id="sl_'+s.k+'" value="'+esc(sl2[s.k]||'')+'" placeholder="'+s.ph+'"></div>';});
       h+='</div>';
-      h+='<div class="form-group"><label>Profile Photo URL</label><div style="display:flex;align-items:center;gap:1rem;"><div id="ePrevAv" style="width:56px;height:56px;border-radius:50%;overflow:hidden;background:rgba(124,58,237,0.2);display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">'+(p.avatar_url?'<img src="'+p.avatar_url+'" style="width:100%;height:100%;object-fit:cover;">':'👤')+'</div><div style="flex:1;"><input class="form-input" type="url" id="eAv" value="'+(p.avatar_url||'')+'" placeholder="https://..." oninput="prevAv()"><div class="hint">Upload at <a href="https://imgbb.com" target="_blank">imgbb.com</a></div></div></div></div>';
-      h+='<div class="form-group"><label>Cover Photo URL</label><input class="form-input" type="url" id="eCov" value="'+(p.cover_url||'')+'" placeholder="https://..." oninput="prevCov()"><div class="hint">Wide banner (1200×400)</div></div>';
+      h+='<div class="form-group"><label>Profile Photo URL</label><div style="display:flex;align-items:center;gap:1rem;"><div id="ePrevAv" style="width:56px;height:56px;border-radius:50%;overflow:hidden;background:rgba(124,58,237,0.2);display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">'+(p.avatar_url?'<img src="'+p.avatar_url+'" style="width:100%;height:100%;object-fit:cover;">':'👤')+'</div><div style="flex:1;"><input class="form-input" type="url" id="eAv" value="'+(p.avatar_url||'')+'" placeholder="https://..." oninput="prevAv()"><div id="eAvUpload" style="margin-top:.2rem;"></div></div></div></div>';
+      h+='<div class="form-group"><label>Cover Photo URL</label><input class="form-input" type="url" id="eCov" value="'+(p.cover_url||'')+'" placeholder="https://..." oninput="prevCov()"><div id="eCovUpload" style="margin-top:.2rem;"></div><div class="hint">Wide banner (1200x400)</div></div>';
       if(isMusic)h+='<div class="form-group"><label>PayPal Email</label><input class="form-input" type="email" id="ePP" value="'+(p.paypal_email||'')+'"></div>';
       h+='<div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;"><button class="btn" onclick="saveProfile()">💾 Save</button><button class="btn btn-ghost" onclick="toggleEditPanel()">Cancel</button><span id="saveN" style="font-size:.85rem;"></span></div></div>';
     }
@@ -922,7 +922,7 @@
         var ids=allPosts.map(function(p){return p.id;});
         if(ids.length){
           var lkr=await db.from('post_likes').select('post_id').eq('user_id',currentUser.id).in('post_id',ids);
-          var fvr=await db.from('post_favorites').select('post_id').eq('user_id',currentUser.id).in('post_id',ids);
+          var fvr=await db.from('favorites').select('post_id').eq('user_id',currentUser.id).in('post_id',ids);
           var likedSet={};(lkr.data||[]).forEach(function(x){likedSet[x.post_id]=true;});
           var favSet={};(fvr.data||[]).forEach(function(x){favSet[x.post_id]=true;});
           allPosts.forEach(function(p){p._liked=!!likedSet[p.id];p._favorited=!!favSet[p.id];});
@@ -951,7 +951,7 @@
       // Load user's favorited posts (for Favorites tab)
       if(currentUser&&(isOwnProfile||uid===currentUser.id)){
         try{
-          var favR=await db.from('post_favorites').select('post_id').eq('user_id',uid).order('created_at',{ascending:false}).limit(50);
+          var favR=await db.from('favorites').select('post_id').eq('user_id',uid).order('created_at',{ascending:false}).limit(50);
           var favIds=(favR.data||[]).map(function(x){return x.post_id;});
           if(favIds.length){
             var fp=await db.from('posts').select('id,text,media,media_type,likes,shares,favorites,reshares,reshared_from,comment_count,created_at,hidden,pinned,is_private,user_id').in('id',favIds);
@@ -1792,6 +1792,20 @@ async function saveOwnerEdit(){
         renderProfile();
     }catch(e){alert('Error: '+e.message);}
 }
+</script>
+<script>
+// Auto-init upload buttons when edit forms appear
+var _uploadIv=setInterval(function(){
+  if(!window.createUploadBtn)return;
+  var eav=document.getElementById('eAvUpload');
+  if(eav&&!eav.dataset.init){eav.dataset.init='1';createUploadBtn(eav,'profiles','image/*','Upload Photo',function(url){document.getElementById('eAv').value=url;prevAv();});}
+  var ecov=document.getElementById('eCovUpload');
+  if(ecov&&!ecov.dataset.init){ecov.dataset.init='1';createUploadBtn(ecov,'profiles','image/*','Upload Cover',function(url){document.getElementById('eCov').value=url;prevCov();});}
+  var su=document.getElementById('storyUpload');
+  if(su&&!su.dataset.init){su.dataset.init='1';createUploadBtn(su,'stories','image/*,video/*','Upload Media',function(url){document.getElementById('storyMediaUrl').value=url;});}
+  var scu=document.getElementById('songCoverUpload');
+  if(scu&&!scu.dataset.init){scu.dataset.init='1';createUploadBtn(scu,'songs','image/*','Upload Cover Art',function(url){var ci=document.getElementById('songCoverInput')||document.querySelector('[name="cover_art"]');if(ci)ci.value=url;});}
+}, 2000);
 </script>
 </body>
 </html>
