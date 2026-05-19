@@ -112,22 +112,26 @@ function switchTab(tab,btn){
 
 async function loadNotifications(){
   var el=document.getElementById('notifList');
+  
+  // Hard timeout - if nothing loads in 8 seconds, show error
+  var timedOut=false;
+  var hardTimeout=setTimeout(function(){
+    timedOut=true;
+    el.innerHTML='<div class="empty"><p style="font-size:.85rem;color:#f87171;">Notifications timed out. This usually means the notifications table RLS policy is blocking reads.</p><button onclick="loadNotifications()" style="margin-top:.5rem;padding:.4rem .8rem;background:#7c3aed;color:#fff;border:none;border-radius:6px;cursor:pointer;">Retry</button></div>';
+  },8000);
+  
   try{
-    // Add timeout to prevent infinite spinner
-    var controller=new AbortController();
-    var timeout=setTimeout(function(){controller.abort();},10000);
-    
     var r=await db.from('notifications')
       .select('*')
       .eq('recipient_id',currentUser.id)
       .order('created_at',{ascending:false})
       .limit(50);
     
-    clearTimeout(timeout);
+    clearTimeout(hardTimeout);
+    if(timedOut)return;
     
     if(r.error){
-      console.error('Notifications error:', r.error);
-      el.innerHTML='<div class="empty"><div class="empty-icon">!</div><p style="font-size:.85rem;color:#f87171;">Error loading notifications: '+r.error.message+'</p></div>';
+      el.innerHTML='<div class="empty"><p style="font-size:.85rem;color:#f87171;">Error: '+r.error.message+'</p><button onclick="loadNotifications()" style="margin-top:.5rem;padding:.4rem .8rem;background:#7c3aed;color:#fff;border:none;border-radius:6px;cursor:pointer;">Retry</button></div>';
       return;
     }
     allNotifs=r.data||[];
@@ -139,8 +143,9 @@ async function loadNotifications(){
     }
     renderList();
   }catch(e){
-    console.error('Notifications catch:', e);
-    el.innerHTML='<div class="empty"><div class="empty-icon">!</div><p style="font-size:.85rem;color:#f87171;">Failed to load: '+(e.message||'Unknown error')+'</p></div>';
+    clearTimeout(hardTimeout);
+    if(timedOut)return;
+    el.innerHTML='<div class="empty"><p style="font-size:.85rem;color:#f87171;">Failed: '+(e.message||'Unknown error')+'</p><button onclick="loadNotifications()" style="margin-top:.5rem;padding:.4rem .8rem;background:#7c3aed;color:#fff;border:none;border-radius:6px;cursor:pointer;">Retry</button></div>';
   }
 }
 
@@ -351,6 +356,14 @@ window.declineFriend=async function(fromId,notifId,btn){
     if(badge){if(unread>0){badge.textContent=unread;badge.style.display='inline';}else badge.style.display='none';}
   }catch(e){alert('Error: '+e.message);}
 };
+
+// Safety: if nothing loads in 5 seconds, kill the spinner
+setTimeout(function(){
+  var el=document.getElementById('notifList');
+  if(el&&el.innerHTML.indexOf('spinner')!==-1){
+    el.innerHTML='<div class="empty"><p style="font-size:.85rem;color:#f87171;">Notifications failed to load.</p><p style="font-size:.75rem;color:rgba(255,255,255,.4);margin-top:.3rem;">Check browser console for errors. Likely cause: RLS policy on notifications table. Run moderation-setup.sql in Supabase.</p><button onclick="location.reload()" style="margin-top:.5rem;padding:.4rem .8rem;background:#7c3aed;color:#fff;border:none;border-radius:6px;cursor:pointer;">Reload Page</button></div>';
+  }
+},5000);
 
 init();
 </script>
