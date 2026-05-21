@@ -183,10 +183,13 @@ async function init(){
     var s=await db.auth.getSession();
     if(!s.data.session){location.href='login.html';return;}
     myUserId=s.data.session.user.id;
-    var pr=await db.from('profiles').select('role').eq('user_id',myUserId).single();
-    if(!pr.data||pr.data.role!=='owner'){
-        document.getElementById('userList').innerHTML='<div class="empty">Owner access only.</div>';
-        return;
+    if(myUserId!==OWNER_ID){
+        var pr=await db.from('profiles').select('role,badges').eq('user_id',myUserId).single();
+        var isOwnerRole=pr.data&&(pr.data.role==='owner'||(pr.data.badges||[]).indexOf('owner')!==-1);
+        if(!isOwnerRole){
+            document.getElementById('userList').innerHTML='<div class="empty">Owner access only.</div>';
+            return;
+        }
     }
     populateSelects();
     loadRoleCounts();
@@ -225,11 +228,17 @@ async function loadRoleCounts(){
 }
 
 async function loadAllMembers(){
-    var {data,error}=await db.from('profiles').select('user_id,display_name,username,avatar_url,role,verified_artist,badges,coins,bio,created_at').order('created_at',{ascending:false});
-    if(error){document.getElementById('userList').innerHTML='<div class="empty">Error: '+error.message+'</div>';return;}
-    allUsers=data||[];
+    try{
+    var queryP=db.from('profiles').select('user_id,display_name,username,avatar_url,role,verified_artist,badges,coins,bio,created_at').order('created_at',{ascending:false});
+    var timeoutP=new Promise(function(_,rej){setTimeout(function(){rej(new Error('Timed out loading users. Check profiles RLS.'));},10000);});
+    var result=await Promise.race([queryP,timeoutP]);
+    if(result.error){document.getElementById('userList').innerHTML='<div class="empty">Error: '+result.error.message+'</div>';return;}
+    allUsers=result.data||[];
     populateDropdown(allUsers);
     renderUsers(allUsers);
+    }catch(e){
+    document.getElementById('userList').innerHTML='<div class="empty" style="color:#f87171;">'+e.message+'<br><button onclick="loadAllMembers()" style="margin-top:.5rem;padding:.35rem .7rem;background:#7c3aed;color:#fff;border:none;border-radius:6px;cursor:pointer;">Retry</button></div>';
+    }
 }
 
 function populateDropdown(users){
@@ -347,7 +356,7 @@ function renderUsers(users){
             }
             html+='<button class="btn-sm" style="background:rgba(59,130,246,.12);color:#60a5fa;border:1px solid rgba(59,130,246,.3);margin-left:.2rem;" onclick="toggleRole(\''+u.user_id+'\',\'admin\','+isAdmin+')">'+(isAdmin?'Remove Admin':'Make Admin')+'</button>';
             html+='<button class="btn-sm" style="background:rgba(16,185,129,.12);color:#34d399;border:1px solid rgba(16,185,129,.3);margin-left:.2rem;" onclick="toggleRole(\''+u.user_id+'\',\'mod\','+isMod+')">'+(isMod?'Remove Mod':'Make Mod')+'</button>';
-            if(u.user_id!==OWN){
+            if(u.user_id!==OWNER_ID){
             html+='<button class="btn-sm" style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.3);margin-left:.2rem;" onclick="banUser(\''+u.user_id+'\',\''+esc(name)+'\')">Ban</button>';
             }
             html+='<button class="btn-sm btn-del" onclick="fullDeleteUser(\''+u.user_id+'\',\''+esc(name)+'\')">Delete</button>';
@@ -496,7 +505,7 @@ async function toggleRole(uid,role,currently){
     var {error}=await db.from('profiles').update(update).eq('user_id',uid);
     if(error){alert('Error: '+error.message);return;}
     // Log the action
-    try{await db.from('admin_actions').insert({performed_by:OWN,performed_by_role:'owner',action_type:currently?'demote_'+role:'promote_'+role,target_type:'user',target_id:uid,target_user_id:uid,reason:'Owner action'});}catch(e){}
+    try{await db.from('admin_actions').insert({performed_by:OWNER_ID,performed_by_role:'owner',action_type:currently?'demote_'+role:'promote_'+role,target_type:'user',target_id:uid,target_user_id:uid,reason:'Owner action'});}catch(e){}
     alert(currently?role+' removed.':'User is now '+role+'!');
     var idx=allUsers.findIndex(function(x){return x.user_id===uid;});
     if(idx!==-1){allUsers[idx].badges=badges;allUsers[idx].role=update.role||allUsers[idx].role;}
@@ -513,9 +522,9 @@ async function banUser(uid,name){
     var perm=h===0;
     var expires=perm?null:new Date(Date.now()+h*3600000).toISOString();
     try{
-        await db.from('user_bans').upsert({user_id:uid,banned_by:OWN,reason:reason,permanent:perm,expires_at:expires},{onConflict:'user_id'});
+        await db.from('user_bans').upsert({user_id:uid,banned_by:OWNER_ID,reason:reason,permanent:perm,expires_at:expires},{onConflict:'user_id'});
         await db.from('profiles').update({banned:true,ban_reason:reason}).eq('user_id',uid);
-        await db.from('admin_actions').insert({performed_by:OWN,performed_by_role:'owner',action_type:'ban_user',target_type:'user',target_id:uid,target_user_id:uid,reason:reason});
+        await db.from('admin_actions').insert({performed_by:OWNER_ID,performed_by_role:'owner',action_type:'ban_user',target_type:'user',target_id:uid,target_user_id:uid,reason:reason});
         alert('User banned'+(perm?' permanently.':' for '+h+' hours.'));
     }catch(e){alert('Error: '+e.message);}
 }

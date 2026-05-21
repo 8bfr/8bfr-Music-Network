@@ -537,13 +537,14 @@ async function doSignup() {
       try {
         // Check if under 1000 members - auto-add founding_member badge
         var countRes = await db.from('profiles').select('user_id', {count:'exact',head:true});
-        var memberCount = countRes.count || 0;
+        var memberCount = countRes.count || countRes.data?.length || 0;
+        console.log('Member count for founding badge:', memberCount);
         var finalBadges = selectedRoles.slice();
         if (memberCount < 1000 && finalBadges.indexOf('founding_member') === -1) {
           finalBadges.push('founding_member');
+          console.log('Added founding_member badge');
         }
-        await db.rpc('upsert_profile', {
-          p_data: {
+        var profileData = {
             user_id: data.user.id,
             username: username,
             display_name: displayName,
@@ -553,8 +554,13 @@ async function doSignup() {
             age_tier: calculatedTier,
             coins: 50,
             spotify_url: spotifyUrl || null
-          }
-        });
+        };
+        // Try direct upsert first, fall back to RPC
+        var profResult = await db.from('profiles').upsert(profileData, {onConflict: 'user_id'});
+        if (profResult.error) {
+          console.log('Direct upsert failed, trying RPC:', profResult.error.message);
+          await db.rpc('upsert_profile', { p_data: profileData });
+        }
       } catch(e) { console.log('Profile create error:', e); }
 
       // ★ If teen — create consent request
@@ -762,13 +768,13 @@ async function verifyCode() {
         if (needsVerify) msg += ' Needs artist verification!';
         await db.from('notifications').insert({
           recipient_id: OWNER_ID,
-          notif_type: 'system',
+          notif_type: 'new_member',
           metadata: {
             from_name: newName,
             from_id: signupUserId,
             title: 'New member joined!',
             message: msg,
-            link: needsVerify ? 'owner-verifications.html' : 'owner-users.html'
+            link: needsVerify ? 'owner-verifications.html' : 'profile.html?id=' + signupUserId
           }
         });
       } catch(e) { console.log('Owner notify:', e); }
