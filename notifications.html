@@ -60,13 +60,13 @@ body{font-family:'Work Sans',sans-serif;background:linear-gradient(#0b0014,#000)
   <a href="profile.html" style="text-decoration:none;text-align:center;color:rgba(234,230,255,0.6);font-size:0.7rem;">Profile</a>
 </nav>
 <script src="scripts.js" defer></script>
+<script src="scripts.js" defer></script>
 <script>
 var SUPA='https://novbuvwpjnxwwvdekjhr.supabase.co';
 var KEY='sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f';
 var db=window.supabase.createClient(SUPA,KEY);
-var currentUser=null,activeTab='all',allNotifs=[];
+var currentUser=null,activeTab='all',allNotifs=[],profileCache={};
 
-// Immediately show status
 document.getElementById('notifList').innerHTML='<div class="spinner"></div><div style="text-align:center;font-size:.72rem;color:rgba(255,255,255,.3);margin-top:.3rem;" id="loadStatus">Connecting...</div>';
 
 async function init(){
@@ -76,10 +76,10 @@ async function init(){
     var s=await db.auth.getSession();
     if(!s.data.session){location.href='login.html?return=notifications.html';return;}
     currentUser=s.data.session.user;
-    if(statusEl)statusEl.textContent='Loading notifications...';
+    if(statusEl)statusEl.textContent='Loading...';
     await loadNotifications();
   }catch(e){
-    document.getElementById('notifList').innerHTML='<div class="empty"><p style="color:#f87171;">Init error: '+e.message+'</p><button onclick="location.reload()" style="margin-top:.5rem;padding:.35rem .7rem;background:#7c3aed;color:#fff;border:none;border-radius:6px;">Reload</button></div>';
+    document.getElementById('notifList').innerHTML='<div class="empty"><p style="color:#f87171;">Error: '+e.message+'</p><button onclick="location.reload()" style="margin-top:.5rem;padding:.35rem .7rem;background:#7c3aed;color:#fff;border:none;border-radius:6px;">Reload</button></div>';
   }
 }
 
@@ -93,126 +93,163 @@ function switchTab(tab,btn){
 async function loadNotifications(){
   var el=document.getElementById('notifList');
   try{
-    // Use Promise.race for REAL timeout
-    var queryPromise=db.from('notifications').select('*').eq('recipient_id',currentUser.id).order('created_at',{ascending:false}).limit(50);
-    var timeoutPromise=new Promise(function(_,reject){setTimeout(function(){reject(new Error('Query timed out after 8s. Run the notifications RLS SQL in Supabase.'));},8000);});
-    
-    var r=await Promise.race([queryPromise,timeoutPromise]);
-    
-    if(r.error){
-      el.innerHTML='<div class="empty"><p style="color:#f87171;">DB Error: '+r.error.message+'</p><button onclick="loadNotifications()" style="margin-top:.5rem;padding:.35rem .7rem;background:#7c3aed;color:#fff;border:none;border-radius:6px;">Retry</button></div>';
-      return;
-    }
+    var queryP=db.from('notifications').select('*').eq('recipient_id',currentUser.id).order('created_at',{ascending:false}).limit(50);
+    var timeoutP=new Promise(function(_,rej){setTimeout(function(){rej(new Error('Timed out. Check notifications RLS in Supabase.'));},8000);});
+    var r=await Promise.race([queryP,timeoutP]);
+    if(r.error){el.innerHTML='<div class="empty"><p style="color:#f87171;">'+r.error.message+'</p><button onclick="loadNotifications()" style="margin-top:.5rem;padding:.35rem .7rem;background:#7c3aed;color:#fff;border:none;border-radius:6px;">Retry</button></div>';return;}
     allNotifs=r.data||[];
-    var unreadCount=allNotifs.filter(function(n){return !n.is_read;}).length;
+
+    // Batch-fetch all user profiles referenced in notifications
+    var userIds=[];
+    allNotifs.forEach(function(n){
+      var m=n.metadata||{};
+      if(typeof m==='string'){try{m=JSON.parse(m);}catch(e){m={};}}
+      if(m.from_id&&userIds.indexOf(m.from_id)===-1)userIds.push(m.from_id);
+      if(n.sender_id&&userIds.indexOf(n.sender_id)===-1)userIds.push(n.sender_id);
+      if(n.actor_id&&userIds.indexOf(n.actor_id)===-1)userIds.push(n.actor_id);
+    });
+    if(userIds.length>0){
+      try{
+        var pr=await db.from('profiles').select('user_id,display_name,username,avatar_url').in('user_id',userIds);
+        if(pr.data){pr.data.forEach(function(p){profileCache[p.user_id]=p;});}
+      }catch(e){}
+    }
+
+    var unread=allNotifs.filter(function(n){return !n.is_read;}).length;
     var badge=document.getElementById('allBadge');
-    if(badge){if(unreadCount>0){badge.textContent=unreadCount;badge.style.display='inline';}else badge.style.display='none';}
+    if(badge){if(unread>0){badge.textContent=unread;badge.style.display='inline';}else badge.style.display='none';}
     renderList();
   }catch(e){
     el.innerHTML='<div class="empty"><p style="color:#f87171;">'+e.message+'</p><button onclick="loadNotifications()" style="margin-top:.5rem;padding:.35rem .7rem;background:#7c3aed;color:#fff;border:none;border-radius:6px;">Retry</button></div>';
   }
 }
 
+function getProfile(id){return profileCache[id]||null;}
+function getName(meta,n){
+  // Try metadata first
+  if(meta.from_name&&meta.from_name!=='Someone')return meta.from_name;
+  if(meta.sender_name&&meta.sender_name!=='Someone')return meta.sender_name;
+  // Try profile cache
+  var uid=meta.from_id||n.sender_id||n.actor_id||'';
+  var p=getProfile(uid);
+  if(p)return p.display_name||p.username||'Unknown';
+  return '';
+}
+function getProfileLink(meta,n){
+  var uid=meta.from_id||n.sender_id||n.actor_id||'';
+  if(uid)return 'profile.html?id='+uid;
+  return '';
+}
+function getAvatar(meta,n){
+  var uid=meta.from_id||n.sender_id||n.actor_id||'';
+  var p=getProfile(uid);
+  if(p&&p.avatar_url)return '<img src="'+p.avatar_url+'" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">';
+  var name=getName(meta,n);
+  var letter=name?name.charAt(0).toUpperCase():'?';
+  return '<div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:1rem;">'+letter+'</div>';
+}
 function timeAgo(d){
   var s=Math.floor((Date.now()-new Date(d).getTime())/1000);
-  if(s<60)return 'just now';
-  if(s<3600)return Math.floor(s/60)+'m ago';
-  if(s<86400)return Math.floor(s/3600)+'h ago';
-  if(s<604800)return Math.floor(s/86400)+'d ago';
+  if(s<60)return 'just now';if(s<3600)return Math.floor(s/60)+'m ago';
+  if(s<86400)return Math.floor(s/3600)+'h ago';if(s<604800)return Math.floor(s/86400)+'d ago';
   return new Date(d).toLocaleDateString();
 }
 function esc(s){var d=document.createElement('div');d.textContent=String(s||'');return d.innerHTML;}
-function formatType(t){
-  var m={follow:'New Follower',like:'Post Liked',comment:'New Comment',reshare:'Post Reshared',tip:'Coins Received',purchase:'New Purchase',friend_request:'Friend Request',friend_accepted:'Friend Accepted',verification:'Verification',system:'System',badge:'New Badge',referral:'New Referral',new_member:'New Member'};
-  return m[t]||'Notification';
-}
 
 function renderList(){
   var el=document.getElementById('notifList');
   var list=activeTab==='unread'?allNotifs.filter(function(n){return !n.is_read;}):allNotifs;
-  if(!list.length){
-    el.innerHTML='<div class="empty"><p>'+( activeTab==='unread'?'All caught up!':'No notifications yet.')+'</p></div>';
-    return;
-  }
+  if(!list.length){el.innerHTML='<div class="empty"><p>'+(activeTab==='unread'?'All caught up!':'No notifications yet.')+'</p></div>';return;}
   var html='';
   for(var i=0;i<list.length;i++){
     try{
       var n=list[i];
       var meta=n.metadata||{};
       if(typeof meta==='string'){try{meta=JSON.parse(meta);}catch(e){meta={};}}
-      var fromName=meta.from_name||meta.sender_name||'';
+      var name=getName(meta,n);
+      var profLink=getProfileLink(meta,n);
       var title='',preview='',link='',actions='';
-      var iconBg='rgba(124,58,237,.15)';var icon='bell';
 
       switch(n.notif_type){
+        case 'follow':
+          title=(name||'Someone')+' followed you';
+          link=profLink;
+          break;
         case 'friend_request':
-          title=(fromName||'Someone')+' sent you a friend request';
-          icon='handshake';iconBg='rgba(124,58,237,.15)';
-          actions='<div style="display:flex;gap:.3rem;margin-top:.4rem;"><button onclick="event.stopPropagation();acceptFriend(\''+meta.from_id+'\',\''+n.id+'\',this)" style="padding:.2rem .5rem;border-radius:6px;background:#059669;border:none;color:#fff;font-size:.7rem;font-weight:600;cursor:pointer;">Accept</button><button onclick="event.stopPropagation();declineFriend(\''+meta.from_id+'\',\''+n.id+'\',this)" style="padding:.2rem .5rem;border-radius:6px;background:#6b7280;border:none;color:#fff;font-size:.7rem;font-weight:600;cursor:pointer;">Decline</button><a href="profile.html?id='+(meta.from_id||'')+'" onclick="event.stopPropagation();" style="padding:.2rem .5rem;border-radius:6px;background:rgba(124,58,237,.2);border:1px solid rgba(124,58,237,.3);color:#a855f7;font-size:.7rem;font-weight:600;text-decoration:none;">View</a></div>';
+          title=(name||'Someone')+' sent you a friend request';
+          actions='<div style="display:flex;gap:.3rem;margin-top:.4rem;">'
+            +'<button onclick="event.stopPropagation();event.preventDefault();acceptFriend(\''+meta.from_id+'\',\''+n.id+'\',this)" style="padding:.2rem .5rem;border-radius:6px;background:#059669;border:none;color:#fff;font-size:.7rem;font-weight:600;cursor:pointer;">Accept</button>'
+            +'<button onclick="event.stopPropagation();event.preventDefault();declineFriend(\''+meta.from_id+'\',\''+n.id+'\',this)" style="padding:.2rem .5rem;border-radius:6px;background:#6b7280;border:none;color:#fff;font-size:.7rem;font-weight:600;cursor:pointer;">Decline</button>'
+            +(profLink?'<a href="'+profLink+'" onclick="event.stopPropagation();" style="padding:.2rem .5rem;border-radius:6px;background:rgba(124,58,237,.2);border:1px solid rgba(124,58,237,.3);color:#a855f7;font-size:.7rem;font-weight:600;text-decoration:none;">View</a>':'')
+            +'</div>';
           break;
         case 'friend_accepted':
-          title=(fromName||'Someone')+' accepted your friend request!';
-          link=meta.from_id?'profile.html?id='+meta.from_id:'';
-          icon='party';iconBg='rgba(34,197,94,.12)';break;
-        case 'follow':
-          title=(fromName||'Someone')+' followed you';
-          link=meta.from_id?'profile.html?id='+meta.from_id:'';
-          icon='user';iconBg='rgba(124,58,237,.15)';break;
+          title=(name||'Someone')+' accepted your friend request!';
+          link=profLink;break;
         case 'like':
-          title=(fromName||'Someone')+' liked your post';
+          title=(name||'Someone')+' liked your post';
           preview=meta.post_preview||meta.message||'';
-          link=meta.post_id?'feed.html':'';
-          icon='heart';iconBg='rgba(244,114,182,.12)';break;
+          link=meta.post_id?'feed.html':'';break;
         case 'comment':
-          title=(fromName||'Someone')+' commented on your post';
+          title=(name||'Someone')+' commented on your post';
           preview=meta.comment_text||meta.message||'';
-          link=meta.post_id?'feed.html':'';
-          icon='chat';iconBg='rgba(124,58,237,.15)';break;
+          link=meta.post_id?'feed.html':'';break;
+        case 'reshare':
+          title=(name||'Someone')+' reshared your post';
+          link=meta.post_id?'feed.html':'';break;
         case 'dm':case 'direct_message':
-          title=(fromName||'Someone')+' sent you a message';
+          title=(name||'Someone')+' sent you a message';
           preview=meta.message_preview||meta.message||'';
-          link=meta.from_id?'dm.html?user='+meta.from_id:'dm.html';
-          icon='dm';iconBg='rgba(0,217,255,.12)';break;
+          link=meta.from_id?'dm.html?user='+meta.from_id:'dm.html';break;
         case 'tip':
-          title=(fromName||'Someone')+' sent you '+(meta.amount||'')+' coins';
+          title=(name||'Someone')+' sent you '+(meta.amount||'')+' coins';
           preview=meta.note||meta.message||'';
-          icon='coin';iconBg='rgba(251,191,36,.12)';break;
-        case 'referral':case 'new_member':case 'welcome':
-          title=meta.message||(fromName?fromName+' joined!':'New member joined!');
-          link='referrals.html';
-          icon='plus';iconBg='rgba(34,197,94,.12)';break;
+          link=profLink||'profile.html';break;
+        case 'purchase':
+          title=(name||'Someone')+' purchased your '+(meta.item_type||'item');
+          preview=meta.message||'';
+          link=meta.link||'profile.html';break;
+        case 'new_member':case 'welcome':
+          title=(name||meta.message||'New member joined!');
+          if(name&&name!=='Someone')title=name+' joined 8BFR!';
+          link=profLink||'referrals.html';break;
+        case 'referral':
+          title=(name||'Someone')+' joined via your invite!';
+          preview=meta.message||'+50 coins earned';
+          link='referrals.html';break;
         case 'badge':
           title='You earned a new badge!';
           preview=meta.badge_name||meta.message||'';
-          icon='badge';iconBg='rgba(251,191,36,.12)';break;
+          link='profile.html';break;
         case 'verification':
           title='Verification update';
           preview=meta.message||'';
-          icon='check';iconBg='rgba(0,217,255,.12)';break;
-        default:
-          title=meta.title||meta.message||formatType(n.notif_type);
+          link=meta.link||'profile.html';break;
+        case 'system':case 'chat_moderation':
+          title=meta.title||'System notification';
           preview=meta.body||meta.message||'';
+          link=meta.link||'';break;
+        default:
+          title=meta.title||meta.message||(name?(name+' - notification'):'Notification');
+          preview=meta.body||meta.message||'';
+          link=meta.link||profLink||'';
       }
-      var iconSymbols={handshake:'?',party:'!',user:'+',heart:'*',chat:'...',dm:'DM',coin:'$',plus:'+',badge:'B',check:'V',bell:'N'};
-      var sym=iconSymbols[icon]||'N';
+
       var cls=n.is_read?'notif':'notif unread';
-      var href=link||'';
-      var tag=href?'a':'div';
-      var hrefAttr=href?(' href="'+href+'"'):' ';
+      var tag=link?'a':'div';
+      var hrefAttr=link?(' href="'+link+'"'):'';
 
       html+='<'+tag+' class="'+cls+'"'+hrefAttr+' onclick="markRead(\''+n.id+'\')" style="text-decoration:none;color:var(--text);">';
-      html+='<div class="notif-icon" style="background:'+iconBg+';font-size:1rem;">'+sym+'</div>';
+      html+=getAvatar(meta,n);
       html+='<div class="notif-body">';
       html+='<div class="notif-title">'+esc(title)+'</div>';
       if(preview)html+='<div class="notif-msg">'+esc(preview.substring(0,120))+'</div>';
       if(actions)html+=actions;
       html+='<div class="notif-time">'+timeAgo(n.created_at)+'</div>';
       html+='</div>';
-      html+='<button onclick="event.stopPropagation();event.preventDefault();deleteNotif(\''+n.id+'\',this)" style="background:none;border:none;color:rgba(234,230,255,.2);font-size:.8rem;cursor:pointer;padding:0 .2rem;align-self:flex-start;">X</button>';
+      html+='<button onclick="event.stopPropagation();event.preventDefault();deleteNotif(\''+n.id+'\')" style="background:none;border:none;color:rgba(234,230,255,.2);font-size:.8rem;cursor:pointer;padding:0 .2rem;align-self:flex-start;">X</button>';
       html+='</'+tag+'>';
-    }catch(itemErr){
-      html+='<div class="notif" style="color:#f87171;font-size:.75rem;">Error rendering notification</div>';
-    }
+    }catch(e){html+='<div class="notif" style="color:#f87171;font-size:.75rem;">Error rendering</div>';}
   }
   el.innerHTML=html;
 }
@@ -224,56 +261,40 @@ window.markRead=function(id){
   var badge=document.getElementById('allBadge');
   if(badge){if(unread>0){badge.textContent=unread;badge.style.display='inline';}else badge.style.display='none';}
 };
-
 window.markAllRead=async function(){
-  try{
-    await db.from('notifications').update({is_read:true}).eq('recipient_id',currentUser.id).eq('is_read',false);
-    allNotifs.forEach(function(n){n.is_read=true;});
-    var badge=document.getElementById('allBadge');if(badge)badge.style.display='none';
-    renderList();
-  }catch(e){alert('Error: '+e.message);}
+  try{await db.from('notifications').update({is_read:true}).eq('recipient_id',currentUser.id).eq('is_read',false);
+  allNotifs.forEach(function(n){n.is_read=true;});
+  var badge=document.getElementById('allBadge');if(badge)badge.style.display='none';
+  renderList();}catch(e){alert('Error: '+e.message);}
 };
-
-window.deleteNotif=async function(id,btn){
-  try{
-    await db.from('notifications').delete().eq('id',id).eq('recipient_id',currentUser.id);
-    allNotifs=allNotifs.filter(function(n){return n.id!==id;});
-    renderList();
-  }catch(e){alert('Error: '+e.message);}
+window.deleteNotif=async function(id){
+  try{await db.from('notifications').delete().eq('id',id).eq('recipient_id',currentUser.id);
+  allNotifs=allNotifs.filter(function(n){return n.id!==id;});renderList();}catch(e){}
 };
-
 window.clearAllNotifs=async function(){
   if(!confirm('Delete all notifications?'))return;
-  try{
-    await db.from('notifications').delete().eq('recipient_id',currentUser.id);
-    allNotifs=[];renderList();
-  }catch(e){alert('Error: '+e.message);}
+  try{await db.from('notifications').delete().eq('recipient_id',currentUser.id);allNotifs=[];renderList();}catch(e){alert('Error: '+e.message);}
 };
-
 window.acceptFriend=async function(fromId,notifId,btn){
   if(!fromId)return;
-  try{
-    btn.disabled=true;btn.textContent='...';
-    await db.from('friends').upsert({user_id:currentUser.id,friend_id:fromId,status:'accepted'},{onConflict:'user_id,friend_id'});
-    await db.from('friends').upsert({user_id:fromId,friend_id:currentUser.id,status:'accepted'},{onConflict:'user_id,friend_id'});
-    await db.from('notifications').update({is_read:true}).eq('id',notifId);
-    var myProf=(await db.from('profiles').select('display_name,username').eq('user_id',currentUser.id).single()).data;
-    var myName=myProf?myProf.display_name||myProf.username:'Someone';
-    await db.from('notifications').insert({recipient_id:fromId,notif_type:'friend_accepted',metadata:{from_id:currentUser.id,from_name:myName,message:myName+' accepted your friend request!',link:'profile.html?id='+currentUser.id},created_at:new Date().toISOString()});
-    btn.textContent='Accepted!';btn.style.background='#22c55e';
-    setTimeout(function(){loadNotifications();},1000);
-  }catch(e){btn.textContent='Error';alert(e.message);}
+  try{btn.disabled=true;btn.textContent='...';
+  await db.from('friends').upsert({user_id:currentUser.id,friend_id:fromId,status:'accepted'},{onConflict:'user_id,friend_id'});
+  await db.from('friends').upsert({user_id:fromId,friend_id:currentUser.id,status:'accepted'},{onConflict:'user_id,friend_id'});
+  await db.from('notifications').update({is_read:true}).eq('id',notifId);
+  var myProf=(await db.from('profiles').select('display_name,username').eq('user_id',currentUser.id).single()).data;
+  var myName=myProf?myProf.display_name||myProf.username:'Someone';
+  await db.from('notifications').insert({recipient_id:fromId,notif_type:'friend_accepted',metadata:{from_id:currentUser.id,from_name:myName,message:myName+' accepted your friend request!',link:'profile.html?id='+currentUser.id},created_at:new Date().toISOString()});
+  btn.textContent='Accepted!';btn.style.background='#22c55e';
+  setTimeout(function(){loadNotifications();},1000);
+  }catch(e){btn.textContent='Error';}
 };
-
 window.declineFriend=async function(fromId,notifId,btn){
   if(!fromId)return;
-  try{
-    btn.disabled=true;btn.textContent='...';
-    await db.from('friends').delete().eq('user_id',currentUser.id).eq('friend_id',fromId);
-    await db.from('friends').delete().eq('user_id',fromId).eq('friend_id',currentUser.id);
-    await db.from('notifications').delete().eq('id',notifId);
-    allNotifs=allNotifs.filter(function(n){return n.id!==notifId;});
-    renderList();
+  try{btn.disabled=true;btn.textContent='...';
+  await db.from('friends').delete().eq('user_id',currentUser.id).eq('friend_id',fromId);
+  await db.from('friends').delete().eq('user_id',fromId).eq('friend_id',currentUser.id);
+  await db.from('notifications').delete().eq('id',notifId);
+  allNotifs=allNotifs.filter(function(n){return n.id!==notifId;});renderList();
   }catch(e){btn.textContent='Error';}
 };
 
