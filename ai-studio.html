@@ -439,7 +439,8 @@ var TOOLS = [
       {name:'bgImage',label:'Background image',type:'file',accept:'image/*',id:'gsBgFile'},
       {name:'bgVideo',label:'Background video',type:'file',accept:'video/*',id:'gsBgVid'},
       {name:'tolerance',label:'Tolerance (higher = removes more, lower = keeps more)',type:'number',value:'50',id:'gsTol'},
-      {name:'bgColor',label:'Solid color (if selected)',type:'text',value:'#000000',id:'gsBgColor'}
+      {name:'bgColor',label:'Solid color (if selected)',type:'text',value:'#000000',id:'gsBgColor'},
+      {name:'textOutline',label:'Add dark outline around text/subject (improves readability)',type:'select',options:['Yes','No'],id:'gsOutline'}
     ]
   },
   { id:'text-animation', cat:'creative', type:'client', handler:'textAnim', icon:'✨', name:'Animated Text', desc:'Create animated text GIFs and videos', badges:['tool','fun'],
@@ -1704,6 +1705,7 @@ var CLIENT_HANDLERS={
     var bgFiles=v.bgImage;
     var bgVidFiles=v.bgVideo;
     var tol=parseInt(v.tolerance)||45;
+    var addOutline=(v.textOutline||'Yes')==='Yes';
     var isVideo=files[0].type.startsWith('video');
     var url=URL.createObjectURL(files[0]);
     var si=Math.sin,co=Math.cos;
@@ -1742,13 +1744,38 @@ var CLIENT_HANDLERS={
       return [parseInt(parts[0]),parseInt(parts[1]),parseInt(parts[2])];
     }
 
-    function swapPixels(fg,bg,key,t2){
-      var f=fg.data,b=bg.data;
+    function swapPixels(fg,bg,key,t2,addOutline){
+      var f=fg.data,b=bg.data;var w2=fg.width;
+      // First pass: mark which pixels are background
+      var isBgMap=new Uint8Array(f.length/4);
       for(var i=0;i<f.length;i+=4){
         var dr=f[i]-key[0],dg=f[i+1]-key[1],db=f[i+2]-key[2];
         var dist=Math.sqrt(dr*dr+dg*dg+db*db);
-        if(dist<t2){f[i]=b[i];f[i+1]=b[i+1];f[i+2]=b[i+2];}
-        else if(dist<t2*1.5){var m=(t2*1.5-dist)/(t2*0.5);f[i]=Math.round(f[i]*(1-m)+b[i]*m);f[i+1]=Math.round(f[i+1]*(1-m)+b[i+1]*m);f[i+2]=Math.round(f[i+2]*(1-m)+b[i+2]*m);}
+        if(dist<t2){isBgMap[i/4]=1;f[i]=b[i];f[i+1]=b[i+1];f[i+2]=b[i+2];}
+        else if(dist<t2*1.5){var m=(t2*1.5-dist)/(t2*0.5);isBgMap[i/4]=2;f[i]=Math.round(f[i]*(1-m)+b[i]*m);f[i+1]=Math.round(f[i+1]*(1-m)+b[i+1]*m);f[i+2]=Math.round(f[i+2]*(1-m)+b[i+2]*m);}
+      }
+      // Second pass: add dark outline around non-bg pixels (text/subject)
+      if(addOutline){
+        var h2=fg.height;
+        for(var y=1;y<h2-1;y++){
+          for(var x=1;x<w2-1;x++){
+            var idx=y*w2+x;
+            if(isBgMap[idx]===0){// This is a foreground (text) pixel
+              // Check if any neighbor is background - if so, darken those neighbors
+              var neighbors=[idx-1,idx+1,idx-w2,idx+w2,idx-w2-1,idx-w2+1,idx+w2-1,idx+w2+1];
+              for(var n=0;n<neighbors.length;n++){
+                var ni=neighbors[n];
+                if(ni>=0&&ni<isBgMap.length&&isBgMap[ni]>=1){
+                  var pi=ni*4;
+                  f[pi]=Math.round(f[pi]*0.3);
+                  f[pi+1]=Math.round(f[pi+1]*0.3);
+                  f[pi+2]=Math.round(f[pi+2]*0.3);
+                  isBgMap[ni]=3;// Mark as outlined so we don't re-darken
+                }
+              }
+            }
+          }
+        }
       }
     }
 
@@ -1788,7 +1815,7 @@ var CLIENT_HANDLERS={
         else if(bgType==='Upload Image'&&bgImg){x2.drawImage(bgImg,0,0,w,h);}
         else if(bgType==='Upload Video'&&bgVid){bgVid.currentTime=0;await new Promise(function(r){bgVid.onseeked=r;});x2.drawImage(bgVid,0,0,w,h);}
         else{drawBg(x2,w,h,0,bgType);}
-        swapPixels(fgD,x2.getImageData(0,0,w,h),key,tol);
+        swapPixels(fgD,x2.getImageData(0,0,w,h),key,tol,addOutline);
         x1.putImageData(fgD,0,0);
       }
       var du=c1.toDataURL('image/png');window._lastImageUrl=du;
@@ -1813,7 +1840,7 @@ var CLIENT_HANDLERS={
       var chunks=[];var rec=new MediaRecorder(cs,{mimeType:'video/webm'});
       rec.ondataavailable=function(e){if(e.data.size>0)chunks.push(e.data);};
       var done;var dp=new Promise(function(r){done=r;});
-      rec.onstop=function(){var blob=new Blob(chunks,{type:'video/webm'});window._lastBlob=blob;var bu=URL.createObjectURL(blob);showResult('<div style="font-size:.68rem;color:rgba(255,255,255,.3);margin-bottom:.3rem;">Detected BG: RGB('+key.join(',')+') | Tolerance: '+tol+'</div><video src="'+bu+'" controls style="width:100%;border-radius:8px;"></video><div class="result-actions"><button class="btn btn-sm" onclick="downloadBlob(\'bg-video.webm\')">Download</button><button class="btn btn-sm" onclick="convertToMp4(window._lastBlob,\'bg-video.mp4\')" style="margin-left:.2rem;">MP4</button></div>');done();};
+      rec.onstop=function(){var blob=new Blob(chunks,{type:'video/webm'});window._lastBlob=blob;var bu=URL.createObjectURL(blob);window._lastBlobUrl=bu;showResult('<div style="font-size:.68rem;color:rgba(255,255,255,.3);margin-bottom:.3rem;">Detected BG: RGB('+key.join(',')+') | Tolerance: '+tol+'</div><video src="'+bu+'" controls style="width:100%;border-radius:8px;"></video><div class="result-actions"><button class="btn btn-sm" onclick="downloadBlob(\'bg-video.webm\')">Download</button><button class="btn btn-sm" onclick="convertToMp4(window._lastBlob,\'bg-video.mp4\')" style="margin-left:.2rem;">MP4</button></div>');done();};
       vid.currentTime=0;await new Promise(function(r){vid.onseeked=r;});
       rec.start();vid.play();if(bgVid)bgVid.play();
       var t0=Date.now();
@@ -1827,7 +1854,7 @@ var CLIENT_HANDLERS={
         else if(bgType!=='Transparent'){drawBg(bgX,w,h,t,bgType);}
         else{bgX.fillStyle='#000';bgX.fillRect(0,0,w,h);}
         var bgD=bgX.getImageData(0,0,w,h);
-        swapPixels(fgD,bgD,key,tol);
+        swapPixels(fgD,bgD,key,tol,false);// Skip outline on video for performance
         outX.putImageData(fgD,0,0);
         if(vid.ended||vid.paused){clearInterval(iv);if(bgVid)bgVid.pause();setTimeout(function(){rec.stop();},300);}
       },33);
