@@ -125,7 +125,8 @@ audio{width:100%;border-radius:8px;margin-top:.5rem;}
       <div style="margin-top:1rem;">
         <div class="canvas-wrap"><canvas id="aiCanvas"></canvas></div>
         <div class="btn-row">
-          <button class="btn btn-cyan hidden" id="btnAiPrev" onclick="previewAiVideo()">Preview</button>
+          <button class="btn btn-cyan hidden" id="btnAiQuick" onclick="quickPreview()">Quick Preview (all scenes)</button>
+          <button class="btn btn-cyan hidden" id="btnAiPrev" onclick="previewAiVideo()">Full Preview with Audio</button>
           <button class="btn btn-purple hidden" id="btnAiRec" onclick="recordAiVideo()">Record and Export</button>
           <button class="btn btn-red hidden" id="btnAiStop" onclick="stopAiRec()">Stop Recording</button>
         </div>
@@ -374,8 +375,8 @@ function aiCanvasSize(){
 }
 function loadImg(url){
   return new Promise(function(res,rej){
-    var img=new Image();img.crossOrigin='anonymous';
-    var timer=setTimeout(function(){rej(new Error('timeout'));},30000);
+    var img=new Image();
+    var timer=setTimeout(function(){rej(new Error('timeout'));},60000);
     img.onload=function(){clearTimeout(timer);res(img);};
     img.onerror=function(){clearTimeout(timer);rej(new Error('failed'));};
     img.src=url;
@@ -438,39 +439,69 @@ async function generateVideo(){
     aiScenes=parsed;
     buildSceneList();
     prog('aiProgFill','aiProg',15);
-    msg('aiMsg','info','Got '+aiScenes.length+' scenes - generating visuals...');
-    aiImages=[];
-    var imgW=aiOrient==='vertical'?720:1280;
-    var imgH=aiOrient==='vertical'?1280:720;
+    msg('aiMsg','info','Got '+aiScenes.length+' scenes - loading visuals in parallel...');
+    // Load all images in parallel with staggered starts - no async/await loop
+    aiImages=new Array(aiScenes.length).fill(null);
+    var imgW=aiOrient==='vertical'?576:1024;
+    var imgH=aiOrient==='vertical'?1024:576;
     var styleWords=AI_STYLE_MAP[aiStyle]||'cinematic';
-    for(var i=0;i<aiScenes.length;i++){
-      var sc=aiScenes[i];
-      var iPrompt=(sc.visual||sc.lyrics||'music video scene')+', '+styleWords+', high quality';
-      var seed=Math.floor(Math.random()*999999);
-      var iUrl='https://image.pollinations.ai/prompt/'+encodeURIComponent(iPrompt)+'?width='+imgW+'&height='+imgH+'&nologo=true&seed='+seed+'&key='+POLLEN_KEY;
-      prog('aiProgFill','aiProg',15+Math.round((i/aiScenes.length)*80));
-      msg('aiMsg','info','Generating scene '+(i+1)+' of '+aiScenes.length+' (takes ~10s each)...');
-      dotState(i,'working');
-      if(i>0)await new Promise(function(r){setTimeout(r,1500);});
-      var im=null;
-      for(var attempt=0;attempt<2;attempt++){
-        try{im=await loadImg(iUrl);break;}
-        catch(e2){
-          if(attempt===0){
-            await new Promise(function(r){setTimeout(r,3000);});
-            seed=Math.floor(Math.random()*999999);
-            iUrl='https://image.pollinations.ai/prompt/'+encodeURIComponent(iPrompt)+'?width='+imgW+'&height='+imgH+'&nologo=true&seed='+seed+'&key='+POLLEN_KEY;
-          }
-        }
-      }
-      if(im){aiImages.push(im);dotState(i,'done');}
-      else{aiImages.push(null);dotState(i,'failed');}
+    var doneCount=0;
+    var totalScenes=aiScenes.length;
+    function onAllDone(){
+      prog('aiProgFill','aiProg',100);
+      var got=aiImages.filter(function(x){return x!==null;}).length;
+      msg('aiMsg','ok',got+' of '+totalScenes+' scenes ready! Hit Quick Preview to check them.');
+      document.getElementById('btnAiQuick').classList.remove('hidden');
+      document.getElementById('btnAiPrev').classList.remove('hidden');
+      document.getElementById('btnAiRec').classList.remove('hidden');
+      drawAiFrame(0);
     }
-    prog('aiProgFill','aiProg',100);
-    msg('aiMsg','ok','Video ready! Preview it then hit Record to export.');
-    document.getElementById('btnAiPrev').classList.remove('hidden');
-    document.getElementById('btnAiRec').classList.remove('hidden');
-    drawAiFrame(0);
+    function loadOneScene(idx){
+      var sc=aiScenes[idx];
+      var rawPrompt=(sc.visual||sc.lyrics||'music video scene').substring(0,120);
+      var iPrompt=rawPrompt+', '+styleWords+', cinematic high quality';
+      var seed=Math.floor(Math.random()*999999);
+      var iUrl='https://image.pollinations.ai/prompt/'+encodeURIComponent(iPrompt)+'?width='+imgW+'&height='+imgH+'&nologo=true&seed='+seed+'&enhance=true';
+      dotState(idx,'working');
+      var img=new Image();
+      img.onload=function(){
+        aiImages[idx]=img;
+        dotState(idx,'done');
+        doneCount++;
+        prog('aiProgFill','aiProg',15+Math.round((doneCount/totalScenes)*85));
+        msg('aiMsg','info',doneCount+' of '+totalScenes+' scenes loaded...');
+        if(doneCount===totalScenes)onAllDone();
+      };
+      img.onerror=function(){
+        // Retry once with simpler prompt after 5s
+        setTimeout(function(){
+          var img2=new Image();
+          var simplePrompt=styleWords+' music video scene '+idx;
+          var seed2=Math.floor(Math.random()*999999);
+          img2.onload=function(){
+            aiImages[idx]=img2;
+            dotState(idx,'done');
+            doneCount++;
+            prog('aiProgFill','aiProg',15+Math.round((doneCount/totalScenes)*85));
+            if(doneCount===totalScenes)onAllDone();
+          };
+          img2.onerror=function(){
+            dotState(idx,'failed');
+            doneCount++;
+            if(doneCount===totalScenes)onAllDone();
+          };
+          img2.src='https://image.pollinations.ai/prompt/'+encodeURIComponent(simplePrompt)+'?width='+imgW+'&height='+imgH+'&nologo=true&seed='+seed2;
+        },5000);
+      };
+      img.src=iUrl;
+    }
+    // Stagger scene starts 3 seconds apart so Pollinations doesn't block
+    for(var si=0;si<totalScenes;si++){
+      (function(idx){setTimeout(function(){loadOneScene(idx);},idx*3000);})(si);
+    }
+    btn.disabled=false;
+    // Kick off parallel loading and return - callbacks handle completion
+    return;
   }catch(e){msg('aiMsg','err','Error: '+e.message);}
   btn.disabled=false;
 }
@@ -552,6 +583,60 @@ function drawAiFrame(elapsed){
   }
 }
 
+function quickPreview(){
+  if(!aiImages.length)return;
+  stopAiPreview();
+  aiCanvasSize();
+  var i=0;
+  var SECS_PER_SCENE=4;
+  var btn=document.getElementById('btnAiQuick');
+  btn.textContent='Stop Quick Preview';
+  btn.onclick=function(){stopAiPreview();btn.textContent='Quick Preview (all scenes)';btn.onclick=quickPreview;};
+  aiPrevPlaying=true;
+  function showScene(){
+    if(!aiPrevPlaying||i>=aiScenes.length){
+      aiPrevPlaying=false;
+      btn.textContent='Quick Preview (all scenes)';
+      btn.onclick=quickPreview;
+      drawAiFrame(0);
+      return;
+    }
+    // Highlight current dot
+    for(var d=0;d<aiScenes.length;d++){
+      var dot=document.getElementById('dot'+d);
+      if(dot){dot.style.outline=d===i?'2px solid #00d9ff':'';}
+    }
+    var start=performance.now();
+    function loop(){
+      var el=(performance.now()-start)/1000;
+      // Draw this scene image directly
+      var c2=document.getElementById('aiCanvas');
+      var ctx=c2.getContext('2d');
+      var w=c2.width,h=c2.height;
+      ctx.fillStyle='#000';ctx.fillRect(0,0,w,h);
+      var im=aiImages[i]||null;
+      if(im){
+        var scale=1.0+Math.min(el/SECS_PER_SCENE,1)*0.06;
+        ctx.save();ctx.translate(w/2,h/2);ctx.scale(scale,scale);ctx.drawImage(im,-w/2,-h/2,w,h);ctx.restore();
+        var grd=ctx.createLinearGradient(0,h*0.5,0,h);grd.addColorStop(0,'rgba(0,0,0,0)');grd.addColorStop(1,'rgba(0,0,0,0.82)');
+        ctx.fillStyle=grd;ctx.fillRect(0,0,w,h);
+      }else{ctx.fillStyle='#1a0a2e';ctx.fillRect(0,0,w,h);}
+      var sc=aiScenes[i];
+      if(sc&&sc.lyrics){
+        var fs=Math.round(w*0.038);ctx.font='bold '+fs+'px Inter,sans-serif';ctx.textAlign='center';
+        ctx.fillStyle='#ffffff';ctx.shadowColor='rgba(0,0,0,0.9)';ctx.shadowBlur=14;
+        ctx.fillText((i+1)+' / '+aiScenes.length+': '+sc.lyrics.substring(0,60),w/2,h*0.85);ctx.shadowBlur=0;
+      }
+      // Scene counter bar
+      ctx.fillStyle='rgba(255,255,255,0.12)';ctx.fillRect(w*0.06,h*0.962,w*0.88,h*0.005);
+      ctx.fillStyle='#00d9ff';ctx.fillRect(w*0.06,h*0.962,w*0.88*(i/aiScenes.length),h*0.005);
+      if(el<SECS_PER_SCENE&&aiPrevPlaying)aiPrevAnim=requestAnimationFrame(loop);
+      else{i++;showScene();}
+    }
+    loop();
+  }
+  showScene();
+}
 function previewAiVideo(){
   if(!aiImages.length)return;
   stopAiPreview();
