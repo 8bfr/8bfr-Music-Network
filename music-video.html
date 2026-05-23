@@ -442,23 +442,29 @@ async function generateVideo(){
     aiImages=[];
     var imgW=aiOrient==='vertical'?720:1280;
     var imgH=aiOrient==='vertical'?1280:720;
+    var styleWords=AI_STYLE_MAP[aiStyle]||'cinematic';
     for(var i=0;i<aiScenes.length;i++){
       var sc=aiScenes[i];
-      var styleWords=AI_STYLE_MAP[aiStyle]||'cinematic';
       var iPrompt=(sc.visual||sc.lyrics||'music video scene')+', '+styleWords+', high quality';
       var seed=Math.floor(Math.random()*999999);
-      var iUrl='https://image.pollinations.ai/prompt/'+encodeURIComponent(iPrompt)+'?width='+imgW+'&height='+imgH+'&nologo=true&seed='+seed;
+      var iUrl='https://image.pollinations.ai/prompt/'+encodeURIComponent(iPrompt)+'?width='+imgW+'&height='+imgH+'&nologo=true&seed='+seed+'&key='+POLLEN_KEY;
       prog('aiProgFill','aiProg',15+Math.round((i/aiScenes.length)*80));
-      msg('aiMsg','info','Generating scene '+(i+1)+' of '+aiScenes.length+'...');
+      msg('aiMsg','info','Generating scene '+(i+1)+' of '+aiScenes.length+' (takes ~10s each)...');
       dotState(i,'working');
-      try{
-        var im=await loadImg(iUrl);
-        aiImages.push(im);
-        dotState(i,'done');
-      }catch(e2){
-        aiImages.push(null);
-        dotState(i,'failed');
+      if(i>0)await new Promise(function(r){setTimeout(r,1500);});
+      var im=null;
+      for(var attempt=0;attempt<2;attempt++){
+        try{im=await loadImg(iUrl);break;}
+        catch(e2){
+          if(attempt===0){
+            await new Promise(function(r){setTimeout(r,3000);});
+            seed=Math.floor(Math.random()*999999);
+            iUrl='https://image.pollinations.ai/prompt/'+encodeURIComponent(iPrompt)+'?width='+imgW+'&height='+imgH+'&nologo=true&seed='+seed+'&key='+POLLEN_KEY;
+          }
+        }
       }
+      if(im){aiImages.push(im);dotState(i,'done');}
+      else{aiImages.push(null);dotState(i,'failed');}
     }
     prog('aiProgFill','aiProg',100);
     msg('aiMsg','ok','Video ready! Preview it then hit Record to export.');
