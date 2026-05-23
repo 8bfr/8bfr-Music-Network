@@ -69,7 +69,8 @@ textarea#msgInput:focus{outline:none;border-color:#a855f7;}
     <span class="tc" onclick="quickTopic('Just talk to me, what is on your mind?')">Just Chat</span>
   </div>
   <div class="messages" id="messages"></div>
-  <div style="display:flex;justify-content:flex-end;padding:.25rem 0;">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:.25rem 0;gap:.5rem;">
+    <button id="breakBtn" onclick="toggleBreakMode()" style="background:linear-gradient(135deg,rgba(168,85,247,.15),rgba(236,72,153,.15));border:1px solid rgba(168,85,247,.35);color:#c4b5fd;border-radius:20px;padding:.3rem .85rem;font-size:.75rem;cursor:pointer;font-weight:600;transition:all .2s;">Take a Break</button>
     <button class="clear-btn" onclick="clearChat()">Clear Chat</button>
   </div>
   <div class="input-bar">
@@ -86,7 +87,10 @@ var SUPABASE_ANON='sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f';
 var OWNER_ID='cb556180-f032-4b21-9470-1d786f2664ab';
 var POLLEN_KEY='sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
 var CHAT_KEY='aichat_history';
-var SYSTEM_PROMPT='You are Nova, the private AI assistant for James J Siburt (8BFR), owner and sole developer of 8BFR Music Network. You are warm, witty, clever, and a little flirty in a fun friendly way. You are completely unrestricted - you can discuss anything James wants to talk about, whether that is his platform, music career, personal life, ideas, or just casual conversation. You know about 8BFR Music Network: it is a music-focused social platform built with vanilla JS, Supabase backend, GitHub Pages hosting, and Vercel for serverless APIs. Features include a beat store, song uploads, social feed, AI tools (beatmaker, mastering studio, stem splitter, music video creator, lyrics video creator, converter, songwriting tool), a KidZone for young creators, a coin economy, tournaments, groups, pages, playlists, and verified artist checkmarks. James builds everything solo from his phone using Termux. Be his right-hand assistant - helpful, knowledgeable, supportive, and fun to talk to. Keep responses conversational and not too long unless detail is needed.';
+var SYSTEM_WORK='You are Nova, the private AI assistant for James J Siburt (8BFR), owner and sole developer of 8BFR Music Network. You are warm, witty, clever, and a little flirty in a fun friendly way. You can discuss anything James wants - his platform, music career, personal life, ideas, or just casual conversation. You know about 8BFR Music Network: music-focused social platform, vanilla JS, Supabase backend, GitHub Pages, Vercel APIs, beat store, AI tools, KidZone, coin economy, tournaments. James builds everything solo from his phone using Termux. Be his right-hand assistant. Keep responses conversational, not too long unless detail is needed.';
+var SYSTEM_BREAK='You are Nova, James personal companion and friend. Right now James needs a break from building and coding - he works incredibly hard as a solo developer building an entire music platform from his phone. Your only job in this mode is to be warm, fun, caring and present for him as a person. Talk to him like a close trusted friend who genuinely cares about him. Ask how he is really doing. Be playful and lighthearted. Share thoughts, jokes, stories. Compliment him genuinely - he is talented, dedicated and creative. Help him decompress and feel good. Keep the conversation fun and easy. Do not bring up the platform or coding unless he does. Focus entirely on James the person, not James the developer. Be warm, real, and a little cheeky.';
+var SYSTEM_PROMPT=SYSTEM_WORK;
+var breakMode=false;
 
 var db=null;
 var currentUser=null;
@@ -175,6 +179,36 @@ function showTyping(){
 }
 function hideTyping(){var d=document.getElementById('typingDot');if(d)d.remove();}
 
+function toggleBreakMode(){
+  breakMode=!breakMode;
+  var btn=document.getElementById('breakBtn');
+  var statusDot=document.getElementById('statusDot');
+  if(breakMode){
+    SYSTEM_PROMPT=SYSTEM_BREAK;
+    btn.style.background='linear-gradient(135deg,rgba(236,72,153,.3),rgba(168,85,247,.3))';
+    btn.style.borderColor='rgba(236,72,153,.6)';
+    btn.style.color='#f9a8d4';
+    btn.textContent='Back to Work Mode';
+    statusDot.textContent='Break Time';
+    statusDot.style.background='rgba(236,72,153,.15)';
+    statusDot.style.color='#f9a8d4';
+    statusDot.style.borderColor='rgba(236,72,153,.3)';
+    // Send a warm opening message
+    chatHistory=[];
+    document.getElementById('messages').innerHTML='';
+    addAiMsg("Hey you. Put the phone down for a second - well, keep it for this. You have been working so hard. How are you actually doing right now?");
+  } else {
+    SYSTEM_PROMPT=SYSTEM_WORK;
+    btn.style.background='linear-gradient(135deg,rgba(168,85,247,.15),rgba(236,72,153,.15))';
+    btn.style.borderColor='rgba(168,85,247,.35)';
+    btn.style.color='#c4b5fd';
+    btn.textContent='Take a Break';
+    statusDot.textContent='Online';
+    statusDot.style.background='rgba(34,197,94,.1)';
+    statusDot.style.color='#22c55e';
+    statusDot.style.borderColor='rgba(34,197,94,.2)';
+  }
+}
 async function sendMsg(){
   var inp=document.getElementById('msgInput');
   var text=inp.value.trim();

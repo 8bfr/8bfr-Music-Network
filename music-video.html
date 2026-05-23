@@ -446,51 +446,48 @@ async function generateVideo(){
     if(aiScenes.length>5)aiScenes=aiScenes.slice(0,5);
     buildSceneList();
     aiImages=new Array(aiScenes.length).fill(null);
-    var imgW=aiOrient==='vertical'?512:768;
-    var imgH=aiOrient==='vertical'?768:512;
+    // Small images = fast generation = fits Vercel 10s timeout easily
+    var imgW=256;var imgH=aiOrient==='vertical'?384:256;
     var styleWords=AI_STYLE_MAP[aiStyle]||'cinematic';
     btn.disabled=false;
-    // Sequential direct browser loading with 8s gap - slow but reliable
     (async function loadAllScenes(){
       for(var si=0;si<aiScenes.length;si++){
         var sc=aiScenes[si];
-        var iPrompt=((sc.visual||sc.lyrics||'music video')).substring(0,120)+', '+styleWords+', high quality';
-        var seed=Math.floor(Math.random()*999999);
-        var iUrl='https://image.pollinations.ai/prompt/'+encodeURIComponent(iPrompt)+'?width='+imgW+'&height='+imgH+'&nologo=true&seed='+seed;
+        var iPrompt=((sc.visual||sc.lyrics||'music video')).substring(0,100)+', '+styleWords;
+        var seed=Math.floor(Math.random()*99999);
+        // Route through Vercel proxy - server-to-server bypasses browser rate limits
+        var proxyUrl=VERCEL+'/api/image-gen?prompt='+encodeURIComponent(iPrompt)+'&width='+imgW+'&height='+imgH+'&seed='+seed;
         dotState(si,'working');
-        msg('aiMsg','info','Generating scene '+(si+1)+' of '+aiScenes.length+' - please wait (~15s each)...');
+        msg('aiMsg','info','Generating scene '+(si+1)+' of '+aiScenes.length+'...');
         prog('aiProgFill','aiProg',15+Math.round((si/aiScenes.length)*80));
         var loaded=await new Promise(function(res){
-          // fetch->blob->objectURL handles mobile redirects properly
-          fetch(iUrl).then(function(r){
-            if(!r.ok)throw new Error('bad');
+          var timer=setTimeout(function(){res(null);},15000);
+          fetch(proxyUrl).then(function(r){
+            if(!r.ok)throw new Error('HTTP '+r.status);
             return r.blob();
           }).then(function(blob){
+            clearTimeout(timer);
             var ou=URL.createObjectURL(blob);
             var im=new Image();
             im.onload=function(){res(im);};
             im.onerror=function(){res(null);};
             im.src=ou;
-          }).catch(function(){
-            // Retry with simpler prompt after 4s
-            setTimeout(function(){
-              var s2=Math.floor(Math.random()*999999);
-              var u2='https://image.pollinations.ai/prompt/'+encodeURIComponent(styleWords+' music video scene')+'?width='+imgW+'&height='+imgH+'&nologo=true&seed='+s2;
-              fetch(u2).then(function(r2){return r2.blob();}).then(function(b2){
-                var ou2=URL.createObjectURL(b2);
-                var im2=new Image();
-                im2.onload=function(){res(im2);};
-                im2.onerror=function(){res(null);};
-                im2.src=ou2;
-              }).catch(function(){res(null);});
-            },4000);
+          }).catch(function(e){
+            clearTimeout(timer);
+            // Fallback: try direct with minimal prompt
+            var s2=Math.floor(Math.random()*99999);
+            var fb=VERCEL+'/api/image-gen?prompt='+encodeURIComponent(styleWords+' scene')+'&width='+imgW+'&height='+imgH+'&seed='+s2;
+            fetch(fb).then(function(r2){return r2.blob();}).then(function(b2){
+              var ou2=URL.createObjectURL(b2);
+              var im2=new Image();im2.onload=function(){res(im2);};im2.onerror=function(){res(null);};
+              im2.src=ou2;
+            }).catch(function(){res(null);});
           });
-          setTimeout(function(){res(null);},60000);
         });
         if(loaded){aiImages[si]=loaded;dotState(si,'done');}
         else{dotState(si,'failed');}
-        // 8 second gap between requests - prevents Pollinations rate limiting
-        if(si<aiScenes.length-1)await new Promise(function(r){setTimeout(r,8000);});
+        // Small pause between calls
+        if(si<aiScenes.length-1)await new Promise(function(r){setTimeout(r,1000);});
       }
       prog('aiProgFill','aiProg',100);
       var got=aiImages.filter(function(x){return x!==null;}).length;
