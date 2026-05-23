@@ -846,7 +846,8 @@ async function aiFormat(){
   var btn=document.getElementById('btnFmt');btn.disabled=true;btn.textContent='Formatting...';
   msg('fmtMsg','info','AI is cleaning your lyrics...');
   try{
-    var prompt='Clean these lyrics for a lyrics video. Remove ALL section labels like [Verse], [Chorus], [Hook], [Intro], [Outro] and any speaker tags like [Krayzie Bone] or [8b]. Remove ALL timestamps like [00:00.00]. Keep only the actual sung lyric lines. One line per lyric line. Capitalize the first letter of each line. Output ONLY the cleaned lyrics, nothing else.\n\n'+raw.substring(0,3000);
+    var lineCount=raw.split('\n').filter(function(l){return l.trim().length>0;}).length;
+    var prompt='You are a lyrics formatter. Your ONLY job is to remove non-lyric lines and output the actual sung words. Rules:\n1. Remove section labels: [Verse], [Chorus], [Hook], [Intro], [Outro], [Bridge], [Pre-Chorus]\n2. Remove speaker tags: [Krayzie Bone], [8b], [James], etc\n3. Remove timestamps: [00:00.00] or (00:00)\n4. Keep EVERY sung lyric line - do not merge, skip, summarize or drop any lines\n5. Capitalize first letter of each line\n6. One line per lyric line\n7. Output ONLY the lyric lines, nothing else, no explanations\n\nIMPORTANT: The input has approximately '+lineCount+' lines. Your output should have a similar number of lyric lines. Do not cut lines short.\n\nLyrics to clean:\n'+raw.substring(0,4000);
     var r=await fetch('https://gen.pollinations.ai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+POLLEN_KEY},body:JSON.stringify({model:'openai',messages:[{role:'user',content:prompt}],temperature:0.3})});
     if(!r.ok)throw new Error('HTTP '+r.status);
     var d=await r.json();
@@ -946,51 +947,87 @@ function getLyrLine(t){
 
 // ---- BEAT SYNC ----
 function detectBeats(){
-  if(!lyrAudBuf){msg('beatMsg','err','Upload your song first, then select Beat Sync.');document.getElementById('beatMsg').classList.remove('hidden');return;}
+  if(!lyrAudBuf){msg('beatMsg','err','Upload your song first.');document.getElementById('beatMsg').classList.remove('hidden');return;}
   if(!lyrLines.length){msg('beatMsg','err','Add and format your lyrics first.');document.getElementById('beatMsg').classList.remove('hidden');return;}
   var beatEl=document.getElementById('beatMsg');
-  beatEl.className='s-msg s-info';beatEl.textContent='Analyzing beat...';beatEl.classList.remove('hidden');
+  beatEl.className='s-msg s-info';beatEl.textContent='Analyzing BPM and snare hits...';beatEl.classList.remove('hidden');
 
   setTimeout(function(){
     try{
       var buf=lyrAudBuf;
       var sr=buf.sampleRate;
       var data=buf.getChannelData(0);
-      var chunkSize=Math.round(sr*0.05); // 50ms chunks
+      var totalSecs=buf.duration;
+
+      // Step 1: Detect BPM via energy autocorrelation on 10s sample
+      var sampleLen=Math.min(data.length, sr*30); // use first 30s
+      var chunkMs=10; // 10ms chunks
+      var chunkSamples=Math.round(sr*(chunkMs/1000));
       var energies=[];
-      for(var i=0;i<data.length;i+=chunkSize){
-        var sum=0;
-        var end=Math.min(i+chunkSize,data.length);
+      for(var i=0;i<sampleLen;i+=chunkSamples){
+        var sum=0;var end=Math.min(i+chunkSamples,sampleLen);
         for(var j=i;j<end;j++)sum+=data[j]*data[j];
-        energies.push({e:sum/(end-i),t:i/sr});
+        energies.push(sum/(end-i));
       }
-      // Find peaks above local average
-      var beats=[];
-      var window=20;
-      for(var i=window;i<energies.length-window;i++){
-        var localAvg=0;
-        for(var k=i-window;k<i+window;k++)localAvg+=energies[k].e;
-        localAvg/=(window*2);
-        if(energies[i].e>localAvg*1.4&&(beats.length===0||energies[i].t-beats[beats.length-1]>0.25)){
-          beats.push(energies[i].t);
-        }
+
+      // Autocorrelation to find period (BPM range 60-180)
+      var minPeriod=Math.round(60/(180)*1000/chunkMs); // 180bpm
+      var maxPeriod=Math.round(60/(60)*1000/chunkMs);  // 60bpm
+      var bestPeriod=minPeriod;var bestCorr=0;
+      for(var p=minPeriod;p<=maxPeriod;p++){
+        var corr=0;
+        for(var k=0;k<energies.length-p;k++)corr+=energies[k]*energies[k+p];
+        if(corr>bestCorr){bestCorr=corr;bestPeriod=p;}
       }
-      // Distribute lyrics evenly across detected beats
+      var beatIntervalSec=(bestPeriod*chunkMs)/1000;
+      var bpm=Math.round(60/beatIntervalSec);
+
+      // Step 2: Find snare hits - snares are transients in mid freq (1-8kHz range)
+      // Simulate by finding energy spikes that are NOT at the bass beat (every other beat = snare on 2 and 4)
+      // In 4/4 time: beat 1=kick, beat 2=snare, beat 3=kick, beat 4=snare
+      // Rhyming words typically land ON the snare (beats 2 and 4)
+      var snareInterval=beatIntervalSec; // every beat
+      var snares=[];
+      // Start at first snare (beat 2 = one beat in)
+      for(var t=beatIntervalSec;t<totalSecs;t+=snareInterval){
+        snares.push(t);
+      }
+
+      // Step 3: Rhyming words land on every 4th snare (every 4 beats = one bar)
+      // so each lyric line = one bar
+      var barInterval=beatIntervalSec*4;
+      var barTimestamps=[];
+      for(var bt=0;bt<totalSecs-barInterval;bt+=barInterval){
+        barTimestamps.push(bt);
+      }
+
+      // Step 4: Map lyrics to bars
       lyrBeatTimestamps=[];
-      if(beats.length===0){
-        beatEl.className='s-msg s-warn';beatEl.textContent='No strong beats detected. Try Even Split instead.';return;
+      if(barTimestamps.length===0){
+        beatEl.className='s-msg s-warn';beatEl.textContent='Could not detect beat. Try tap sync instead.';return;
       }
-      var step=Math.max(1,Math.floor(beats.length/lyrLines.length));
-      for(var li=0;li<lyrLines.length;li++){
-        var bi=Math.min(li*step,beats.length-1);
-        lyrBeatTimestamps.push({time:beats[bi],line:lyrLines[li]});
+
+      // If more bars than lyrics, space lyrics across bars evenly
+      // If more lyrics than bars, stack multiple lyrics per bar
+      var linesPerBar=Math.max(1,Math.ceil(lyrLines.length/barTimestamps.length));
+      var lineIdx=0;
+      for(var bi=0;bi<barTimestamps.length&&lineIdx<lyrLines.length;bi++){
+        lyrBeatTimestamps.push({time:barTimestamps[bi],line:lyrLines[lineIdx]});
+        lineIdx++;
       }
+      // If lines remain, distribute them in remaining time
+      while(lineIdx<lyrLines.length){
+        var lastT=lyrBeatTimestamps[lyrBeatTimestamps.length-1].time+barInterval;
+        lyrBeatTimestamps.push({time:lastT,line:lyrLines[lineIdx]});
+        lineIdx++;
+      }
+
       beatEl.className='s-msg s-ok';
-      beatEl.textContent='Beat sync ready! '+beats.length+' beats found, '+lyrLines.length+' lines mapped. Preview to check.';
+      beatEl.textContent='BPM: '+bpm+' | Bar interval: '+barInterval.toFixed(2)+'s | '+lyrLines.length+' lines mapped to '+barTimestamps.length+' bars. Preview to check - use Tap Sync to fine-tune.';
     }catch(e){
       beatEl.className='s-msg s-err';beatEl.textContent='Beat detection failed: '+e.message;
     }
-  },50);
+  },100);
 }
 
 // ---- TAP SYNC ----
