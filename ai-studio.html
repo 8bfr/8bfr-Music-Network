@@ -771,6 +771,9 @@ function openTool(id){
   document.getElementById('mRun').disabled=false;
   document.getElementById('mRun').textContent=tool.type==='client'?'🚀 Create':'✨ Generate';
   document.getElementById('modalOverlay').classList.add('show');
+  // Restore saved field values and attach autosave
+  restoreToolFields(tool);
+  attachFieldSavers(tool);
 }
 window.openTool=openTool;
 
@@ -2169,6 +2172,58 @@ renderNav();
 renderTools();
 </script>
 
-<script src="scripts.js" defer></script>
+<script src="scripts.js" defer>
+// ---- localStorage persistence for tool fields ----
+var STUDIO_KEY='aistudio_fields';
+function getStudioData(){try{return JSON.parse(localStorage.getItem(STUDIO_KEY)||'{}');}catch(e){return{};}}
+function setStudioData(d){try{localStorage.setItem(STUDIO_KEY,JSON.stringify(d));}catch(e){}}
+
+function restoreToolFields(tool){
+  var data=getStudioData();
+  var prefix=tool.id+'__';
+  tool.fields.forEach(function(f){
+    var id=f.id||f.name;
+    var key=prefix+id;
+    var el=document.getElementById(id);
+    if(!el)return;
+    if(data[key]!==undefined){
+      if(el.tagName==='SELECT'||el.tagName==='TEXTAREA'||el.type==='text'||el.type==='number'||el.type==='color'){
+        el.value=data[key];
+      }
+    }
+  });
+}
+
+function attachFieldSavers(tool){
+  var prefix=tool.id+'__';
+  tool.fields.forEach(function(f){
+    var id=f.id||f.name;
+    var el=document.getElementById(id);
+    if(!el)return;
+    if(el.tagName==='SELECT'||el.tagName==='TEXTAREA'||el.type==='text'||el.type==='number'||el.type==='color'){
+      var save=function(){
+        var data=getStudioData();
+        data[prefix+id]=el.value;
+        setStudioData(data);
+      };
+      el.addEventListener('input',save);
+      el.addEventListener('change',save);
+    }
+  });
+}
+
+// Save/restore search input
+document.addEventListener('DOMContentLoaded',function(){
+  var search=document.getElementById('searchInput');
+  if(search){
+    var savedSearch=localStorage.getItem('aistudio_search')||'';
+    if(savedSearch){search.value=savedSearch;search.dispatchEvent(new Event('input'));}
+    search.addEventListener('input',function(){
+      try{localStorage.setItem('aistudio_search',this.value);}catch(e){}
+    });
+  }
+});
+
+</script>
 </body>
 </html>
