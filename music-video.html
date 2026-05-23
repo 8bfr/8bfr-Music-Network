@@ -387,6 +387,7 @@ async function generateVideo(){
   if(!aiSongFile){msg('aiMsg','err','Upload your song first.');return;}
   var lyrics=document.getElementById('aiLyrics').value.trim();
   var concept=document.getElementById('aiConcept').value.trim();
+  try{localStorage.setItem('ai_lyrics',lyrics);localStorage.setItem('ai_concept',concept);}catch(e){}
   if(!lyrics&&!concept){msg('aiMsg','err','Paste lyrics or describe your video concept.');return;}
   var btn=document.getElementById('btnGen');btn.disabled=true;
   aiScenes=[];aiImages=[];
@@ -441,41 +442,60 @@ async function generateVideo(){
     prog('aiProgFill','aiProg',15);
     msg('aiMsg','info','Got '+aiScenes.length+' scenes - loading visuals in parallel...');
     // Load all images in parallel with staggered starts - no async/await loop
+    // Cap at 5 scenes - fewer requests = Pollinations won't rate limit
+    if(aiScenes.length>5)aiScenes=aiScenes.slice(0,5);
+    buildSceneList();
     aiImages=new Array(aiScenes.length).fill(null);
     var imgW=aiOrient==='vertical'?512:768;
     var imgH=aiOrient==='vertical'?768:512;
     var styleWords=AI_STYLE_MAP[aiStyle]||'cinematic';
     btn.disabled=false;
-    // Load images sequentially through Vercel proxy (server-to-server, no rate limits)
+    // Sequential direct browser loading with 8s gap - slow but reliable
     (async function loadAllScenes(){
       for(var si=0;si<aiScenes.length;si++){
         var sc=aiScenes[si];
-        var rawPrompt=((sc.visual||sc.lyrics||'music video')).substring(0,150);
-        var iPrompt=rawPrompt+', '+styleWords+', high quality';
+        var iPrompt=((sc.visual||sc.lyrics||'music video')).substring(0,120)+', '+styleWords+', high quality';
         var seed=Math.floor(Math.random()*999999);
-        var proxyUrl=VERCEL+'/api/image-gen?prompt='+encodeURIComponent(iPrompt)+'&width='+imgW+'&height='+imgH+'&seed='+seed+'&key='+POLLEN_KEY;
+        var iUrl='https://image.pollinations.ai/prompt/'+encodeURIComponent(iPrompt)+'?width='+imgW+'&height='+imgH+'&nologo=true&seed='+seed;
         dotState(si,'working');
-        msg('aiMsg','info','Generating scene '+(si+1)+' of '+aiScenes.length+'...');
+        msg('aiMsg','info','Generating scene '+(si+1)+' of '+aiScenes.length+' - please wait (~15s each)...');
         prog('aiProgFill','aiProg',15+Math.round((si/aiScenes.length)*80));
-        try{
-          var resp=await fetch(proxyUrl);
-          if(!resp.ok)throw new Error('HTTP '+resp.status);
-          var blob=await resp.blob();
-          var objUrl=URL.createObjectURL(blob);
-          var img=await new Promise(function(res,rej){
+        var loaded=await new Promise(function(res){
+          // fetch->blob->objectURL handles mobile redirects properly
+          fetch(iUrl).then(function(r){
+            if(!r.ok)throw new Error('bad');
+            return r.blob();
+          }).then(function(blob){
+            var ou=URL.createObjectURL(blob);
             var im=new Image();
             im.onload=function(){res(im);};
-            im.onerror=function(){rej(new Error('img load failed'));};
-            im.src=objUrl;
+            im.onerror=function(){res(null);};
+            im.src=ou;
+          }).catch(function(){
+            // Retry with simpler prompt after 4s
+            setTimeout(function(){
+              var s2=Math.floor(Math.random()*999999);
+              var u2='https://image.pollinations.ai/prompt/'+encodeURIComponent(styleWords+' music video scene')+'?width='+imgW+'&height='+imgH+'&nologo=true&seed='+s2;
+              fetch(u2).then(function(r2){return r2.blob();}).then(function(b2){
+                var ou2=URL.createObjectURL(b2);
+                var im2=new Image();
+                im2.onload=function(){res(im2);};
+                im2.onerror=function(){res(null);};
+                im2.src=ou2;
+              }).catch(function(){res(null);});
+            },4000);
           });
-          aiImages[si]=img;
-          dotState(si,'done');
-        }catch(e2){
-          dotState(si,'failed');
-        }
+          setTimeout(function(){res(null);},60000);
+        });
+        if(loaded){aiImages[si]=loaded;dotState(si,'done');}
+        else{dotState(si,'failed');}
+        // 8 second gap between requests - prevents Pollinations rate limiting
+        if(si<aiScenes.length-1)await new Promise(function(r){setTimeout(r,8000);});
       }
       prog('aiProgFill','aiProg',100);
       var got=aiImages.filter(function(x){return x!==null;}).length;
+      // Save scenes to localStorage so refresh doesn't lose them
+      try{localStorage.setItem('mv_scenes',JSON.stringify(aiScenes));localStorage.setItem('mv_style',aiStyle);localStorage.setItem('mv_orient',aiOrient);}catch(e3){}
       msg('aiMsg','ok',got+' of '+aiScenes.length+' scenes ready! Hit Quick Preview to verify.');
       document.getElementById('btnAiQuick').classList.remove('hidden');
       document.getElementById('btnAiPrev').classList.remove('hidden');
@@ -717,6 +737,7 @@ function loadLyrSong(inp){
 document.getElementById('lyrInput').addEventListener('input',function(){
   lyrLines=this.value.split('\n').filter(function(l){return l.trim().length>0;});
   document.getElementById('lyrCount').textContent=lyrLines.length+' lines';
+  try{localStorage.setItem('lyr_text',this.value);}catch(e){}
   drawLyrStatic();
 });
 
@@ -767,12 +788,13 @@ function manualClean(){
 function pickLyrStyle(el){
   var all=document.querySelectorAll('#lyrStyleGrid .style-opt');
   for(var i=0;i<all.length;i++)all[i].classList.remove('active');
-  el.classList.add('active');lyrStyle=el.dataset.style;drawLyrStatic();
+  el.classList.add('active');lyrStyle=el.dataset.style;try{localStorage.setItem('lyr_style',lyrStyle);}catch(e){}drawLyrStatic();
 }
 function setLyrOrient(o){
   lyrOrient=o;
   document.getElementById('lyrVert').className=o==='vertical'?'orient-btn active':'orient-btn';
   document.getElementById('lyrHoriz').className=o==='horizontal'?'orient-btn active':'orient-btn';
+  try{localStorage.setItem('lyr_orient',o);}catch(e){}
   setLyrCanvasSize();drawLyrStatic();
 }
 function setLyrCanvasSize(){
@@ -890,9 +912,42 @@ function dlLyrWebm(){
 }
 function cvtLyrMp4(){cvtMp4(lyrWebm,'8bfr-lyrics-video.mp4','lyrMp4Msg',document.getElementById('btnLyrMp4'));}
 
-// Init
+// Init - restore saved state from localStorage
 aiCanvasSize();drawAiFrame(0);
-setLyrCanvasSize();drawLyrStatic();
+setLyrCanvasSize();
+try{
+  var savedLyrStyle=localStorage.getItem('lyr_style');
+  var savedLyrOrient=localStorage.getItem('lyr_orient');
+  var savedAiLyrics=localStorage.getItem('ai_lyrics');
+  var savedAiConcept=localStorage.getItem('ai_concept');
+  if(savedLyrStyle){
+    lyrStyle=savedLyrStyle;
+    var lsOpts=document.querySelectorAll('#lyrStyleGrid .style-opt');
+    for(var li=0;li<lsOpts.length;li++){lsOpts[li].classList.toggle('active',lsOpts[li].dataset.style===savedLyrStyle);}
+  }
+  if(savedLyrOrient)setLyrOrient(savedLyrOrient);
+  if(savedAiLyrics)document.getElementById('aiLyrics').value=savedAiLyrics;
+  if(savedAiConcept)document.getElementById('aiConcept').value=savedAiConcept;
+  var savedLyr=localStorage.getItem('lyr_text');
+  if(savedLyr){
+    document.getElementById('lyrInput').value=savedLyr;
+    lyrLines=savedLyr.split('\n').filter(function(l){return l.trim().length>0;});
+    document.getElementById('lyrCount').textContent=lyrLines.length+' lines';
+  }
+  var savedScenes=localStorage.getItem('mv_scenes');
+  var savedStyle=localStorage.getItem('mv_style');
+  var savedOrient=localStorage.getItem('mv_orient');
+  if(savedScenes){
+    aiScenes=JSON.parse(savedScenes);
+    if(savedStyle){aiStyle=savedStyle;}
+    if(savedOrient){aiOrient=savedOrient;setAiOrient(savedOrient);}
+    if(aiScenes.length){
+      buildSceneList();
+      msg('aiMsg','info','Last session restored ('+aiScenes.length+' scenes). Hit Generate to rebuild images.');
+    }
+  }
+}catch(e){}
+drawLyrStatic();
 </script>
 </body>
 </html>
