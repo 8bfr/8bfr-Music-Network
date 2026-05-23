@@ -400,7 +400,7 @@ async function generateVideo(){
   try{
     var sysP='You are a music video director. Output ONLY a valid JSON array. Each item must have "lyrics" (lyric snippet or section) and "visual" (vivid scene description under 150 chars for an image AI). Exactly 8 items. No markdown, no backticks, just the JSON array.';
     var usrP=lyrics?('Create music video scenes for these lyrics, style: '+aiStyle+'.\n'+lyrics.substring(0,1500)):('Create music video scenes for this concept: '+concept+'. Style: '+aiStyle+'.');
-    var aiR=await fetch(VERCEL+'/api/openai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({input:usrP,system:sysP,tier:'nano',max_tokens:800})});
+    var aiR=await fetch('https://gen.pollinations.ai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'openai',messages:[{role:'system',content:sysP},{role:'user',content:usrP}],temperature:0.7})});
     if(!aiR.ok)throw new Error('Scene planning failed HTTP '+aiR.status);
     var aiD=await aiR.json();
     var raw='';
@@ -408,8 +408,32 @@ async function generateVideo(){
     else if(aiD.result)raw=aiD.result;
     else if(typeof aiD==='string')raw=aiD;
     raw=raw.replace(/```json|```/g,'').trim();
-    var parsed=JSON.parse(raw);
-    if(!Array.isArray(parsed)||parsed.length===0)throw new Error('AI returned no scenes');
+    // Robust JSON extraction - find the array even if truncated
+    var parsed=null;
+    try{parsed=JSON.parse(raw);}catch(e1){
+      // Try to extract just the [...] array portion
+      var arrStart=raw.indexOf('[');
+      var arrEnd=raw.lastIndexOf('}');
+      if(arrStart!==-1&&arrEnd!==-1){
+        var partial=raw.substring(arrStart,arrEnd+1);
+        // Close the array if truncated
+        if(partial.indexOf(']')===-1)partial+=']';
+        try{parsed=JSON.parse(partial);}catch(e2){parsed=null;}
+      }
+    }
+    // Local fallback: build scenes from lyrics lines if AI JSON failed
+    if(!Array.isArray(parsed)||parsed.length===0){
+      msg('aiMsg','warn','AI scene planning had issues - building scenes from your lyrics...');
+      var fallbackLines=(lyrics||concept).split('\n').filter(function(l){return l.trim()&&!/^\[/.test(l.trim());});
+      if(!fallbackLines.length)fallbackLines=[concept||'music video scene'];
+      parsed=[];
+      var styleDesc=AI_STYLE_MAP[aiStyle]||'cinematic';
+      var step=Math.max(1,Math.floor(fallbackLines.length/8));
+      for(var fi=0;fi<8;fi++){
+        var ll=fallbackLines[Math.min(fi*step,fallbackLines.length-1)]||'';
+        parsed.push({lyrics:ll,visual:ll+' '+styleDesc+' dramatic lighting'});
+      }
+    }
     // Store in global
     aiScenes=parsed;
     buildSceneList();
@@ -631,7 +655,7 @@ async function aiFormat(){
   msg('fmtMsg','info','AI is cleaning your lyrics...');
   try{
     var prompt='Clean these lyrics for a lyrics video. Remove ALL section labels like [Verse], [Chorus], [Hook], [Intro], [Outro] and any speaker tags like [Krayzie Bone] or [8b]. Remove ALL timestamps like [00:00.00]. Keep only the actual sung lyric lines. One line per lyric line. Capitalize the first letter of each line. Output ONLY the cleaned lyrics, nothing else.\n\n'+raw.substring(0,3000);
-    var r=await fetch(VERCEL+'/api/openai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({input:prompt,tier:'nano',max_tokens:1200})});
+    var r=await fetch('https://gen.pollinations.ai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'openai',messages:[{role:'user',content:prompt}],temperature:0.3})});
     if(!r.ok)throw new Error('HTTP '+r.status);
     var d=await r.json();
     var result='';
