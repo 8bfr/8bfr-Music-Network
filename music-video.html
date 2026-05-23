@@ -442,65 +442,46 @@ async function generateVideo(){
     msg('aiMsg','info','Got '+aiScenes.length+' scenes - loading visuals in parallel...');
     // Load all images in parallel with staggered starts - no async/await loop
     aiImages=new Array(aiScenes.length).fill(null);
-    var imgW=aiOrient==='vertical'?576:1024;
-    var imgH=aiOrient==='vertical'?1024:576;
+    var imgW=aiOrient==='vertical'?512:768;
+    var imgH=aiOrient==='vertical'?768:512;
     var styleWords=AI_STYLE_MAP[aiStyle]||'cinematic';
-    var doneCount=0;
-    var totalScenes=aiScenes.length;
-    function onAllDone(){
+    btn.disabled=false;
+    // Load images sequentially through Vercel proxy (server-to-server, no rate limits)
+    (async function loadAllScenes(){
+      for(var si=0;si<aiScenes.length;si++){
+        var sc=aiScenes[si];
+        var rawPrompt=((sc.visual||sc.lyrics||'music video')).substring(0,150);
+        var iPrompt=rawPrompt+', '+styleWords+', high quality';
+        var seed=Math.floor(Math.random()*999999);
+        var proxyUrl=VERCEL+'/api/image-gen?prompt='+encodeURIComponent(iPrompt)+'&width='+imgW+'&height='+imgH+'&seed='+seed+'&key='+POLLEN_KEY;
+        dotState(si,'working');
+        msg('aiMsg','info','Generating scene '+(si+1)+' of '+aiScenes.length+'...');
+        prog('aiProgFill','aiProg',15+Math.round((si/aiScenes.length)*80));
+        try{
+          var resp=await fetch(proxyUrl);
+          if(!resp.ok)throw new Error('HTTP '+resp.status);
+          var blob=await resp.blob();
+          var objUrl=URL.createObjectURL(blob);
+          var img=await new Promise(function(res,rej){
+            var im=new Image();
+            im.onload=function(){res(im);};
+            im.onerror=function(){rej(new Error('img load failed'));};
+            im.src=objUrl;
+          });
+          aiImages[si]=img;
+          dotState(si,'done');
+        }catch(e2){
+          dotState(si,'failed');
+        }
+      }
       prog('aiProgFill','aiProg',100);
       var got=aiImages.filter(function(x){return x!==null;}).length;
-      msg('aiMsg','ok',got+' of '+totalScenes+' scenes ready! Hit Quick Preview to check them.');
+      msg('aiMsg','ok',got+' of '+aiScenes.length+' scenes ready! Hit Quick Preview to verify.');
       document.getElementById('btnAiQuick').classList.remove('hidden');
       document.getElementById('btnAiPrev').classList.remove('hidden');
       document.getElementById('btnAiRec').classList.remove('hidden');
       drawAiFrame(0);
-    }
-    function loadOneScene(idx){
-      var sc=aiScenes[idx];
-      var rawPrompt=(sc.visual||sc.lyrics||'music video scene').substring(0,120);
-      var iPrompt=rawPrompt+', '+styleWords+', cinematic high quality';
-      var seed=Math.floor(Math.random()*999999);
-      var iUrl='https://image.pollinations.ai/prompt/'+encodeURIComponent(iPrompt)+'?width='+imgW+'&height='+imgH+'&nologo=true&seed='+seed+'&enhance=true';
-      dotState(idx,'working');
-      var img=new Image();
-      img.onload=function(){
-        aiImages[idx]=img;
-        dotState(idx,'done');
-        doneCount++;
-        prog('aiProgFill','aiProg',15+Math.round((doneCount/totalScenes)*85));
-        msg('aiMsg','info',doneCount+' of '+totalScenes+' scenes loaded...');
-        if(doneCount===totalScenes)onAllDone();
-      };
-      img.onerror=function(){
-        // Retry once with simpler prompt after 5s
-        setTimeout(function(){
-          var img2=new Image();
-          var simplePrompt=styleWords+' music video scene '+idx;
-          var seed2=Math.floor(Math.random()*999999);
-          img2.onload=function(){
-            aiImages[idx]=img2;
-            dotState(idx,'done');
-            doneCount++;
-            prog('aiProgFill','aiProg',15+Math.round((doneCount/totalScenes)*85));
-            if(doneCount===totalScenes)onAllDone();
-          };
-          img2.onerror=function(){
-            dotState(idx,'failed');
-            doneCount++;
-            if(doneCount===totalScenes)onAllDone();
-          };
-          img2.src='https://image.pollinations.ai/prompt/'+encodeURIComponent(simplePrompt)+'?width='+imgW+'&height='+imgH+'&nologo=true&seed='+seed2;
-        },5000);
-      };
-      img.src=iUrl;
-    }
-    // Stagger scene starts 3 seconds apart so Pollinations doesn't block
-    for(var si=0;si<totalScenes;si++){
-      (function(idx){setTimeout(function(){loadOneScene(idx);},idx*3000);})(si);
-    }
-    btn.disabled=false;
-    // Kick off parallel loading and return - callbacks handle completion
+    })();
     return;
   }catch(e){msg('aiMsg','err','Error: '+e.message);}
   btn.disabled=false;
