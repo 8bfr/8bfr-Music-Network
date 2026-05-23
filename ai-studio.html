@@ -301,6 +301,7 @@ var TOOLS = [
   // ═══ FULL-PAGE LAUNCHER TOOLS (open in new tab) ═══
   { id:'stem-splitter-launch', cat:'music', type:'link', icon:'🎚️', name:'Stem Splitter', desc:'Separate vocals/drums/bass/other', badges:['music','pro'], url:'stem-splitter.html' },
   { id:'music-video-launch', cat:'music', type:'link', icon:'🎬', name:'Music Video Maker', desc:'AI-generated video clips with your song', badges:['music','pro'], url:'music-video.html' },
+  { id:'video-converter-launch', cat:'media', type:'link', icon:'🔄', name:'Video/Audio Converter', desc:'Convert MP3, WAV, OGG, WebM and add spatial effects', badges:['tool'], url:'converter.html' },
   { id:'link-tools-launch', cat:'social', type:'link', icon:'🔗', name:'Link Tools', desc:'Short links + QR codes for sharing', badges:['social'], url:'link-tools.html' },
   { id:'master-ai-launch', cat:'music', type:'link', icon:'🎧', name:'Mastering Studio', desc:'Upload + master your songs', badges:['music'], url:'master-ai.html' },
 
@@ -2060,34 +2061,31 @@ function bestVideoMime(){
   return{mime:'',ext:'webm'};
 }
 
-// FFmpeg.wasm for webm->mp4 conversion
+// FFmpeg.wasm v0.11.6 - works on GitHub Pages without special headers
 var _ffmpegLoaded=false,_ffmpeg=null;
 async function loadFFmpeg(){
   if(_ffmpegLoaded)return _ffmpeg;
   var script=document.createElement('script');
-  script.src='https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.min.js';
+  script.src='https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js';
   document.head.appendChild(script);
-  await new Promise(function(r){script.onload=r;});
-  var script2=document.createElement('script');
-  script2.src='https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/umd/util.min.js';
-  document.head.appendChild(script2);
-  await new Promise(function(r){script2.onload=r;});
-  _ffmpeg=new FFmpeg.FFmpeg();
-  await _ffmpeg.load({coreURL:'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js'});
-  _ffmpegLoaded=true;return _ffmpeg;
+  await new Promise(function(r,rej){script.onload=r;script.onerror=rej;});
+  var cf=FFmpeg.createFFmpeg({log:false,corePath:'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'});
+  await cf.load();
+  _ffmpeg=cf;_ffmpegLoaded=true;return _ffmpeg;
 }
 async function convertToMp4(webmBlob,filename){
   try{
     var ff=await loadFFmpeg();
-    var data=new Uint8Array(await webmBlob.arrayBuffer());
-    await ff.writeFile('input.webm',data);
-    await ff.exec(['-i','input.webm','-c:v','libx264','-preset','fast','-crf','23','-c:a','aac','-movflags','+faststart','output.mp4']);
-    var out=await ff.readFile('output.mp4');
-    var mp4Blob=new Blob([out.buffer],{type:'video/mp4'});
+    var inData=await FFmpeg.fetchFile(webmBlob);
+    ff.FS('writeFile','input.webm',inData);
+    await ff.run('-i','input.webm','-c:v','libx264','-preset','fast','-crf','23','-c:a','aac','-b:a','192k','-movflags','+faststart','-pix_fmt','yuv420p','output.mp4');
+    var data=ff.FS('readFile','output.mp4');
+    var mp4Blob=new Blob([data.buffer],{type:'video/mp4'});
     var url=URL.createObjectURL(mp4Blob);
     var a=document.createElement('a');a.href=url;a.download=filename||'video-8bfr.mp4';document.body.appendChild(a);a.click();document.body.removeChild(a);
+    try{ff.FS('unlink','input.webm');ff.FS('unlink','output.mp4');}catch(e){}
     return url;
-  }catch(e){console.error('MP4 convert error:',e);return null;}
+  }catch(e){console.error('MP4 convert error:',e);alert('MP4 conversion failed: '+e.message+'\nTry cloudconvert.com as a free alternative.');return null;}
 }
 // Adds a convert button to any result area
 function addMp4ConvertBtn(containerId,blobRef,filename){

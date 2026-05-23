@@ -1312,20 +1312,16 @@
         prompt += voice + ' vocals. ';
         prompt += 'Lyrics: ' + lyrics.substring(0, 600);
 
+        var POLLEN_KEY = 'sk_DRBNArnY4C6l8r9p1C12VXszekyAd9MB';
         try {
-            var url = 'https://gen.pollinations.ai/audio/' + encodeURIComponent(prompt) + '?model=acestep&duration=' + dur;
-            var resp = await fetch(url, {
-                headers: { 'Authorization': 'Bearer sk_DRBNArnY4C6l8r9p1C12VXszekyAd9MB' }
-            });
-            // If auth fails, retry without key (free tier - slower, shorter)
-            if (resp.status === 401 || resp.status === 403) {
-                resultDiv.innerHTML = '<p style="color:#fbbf24;">Paid tier auth failed, trying free tier...</p>';
-                resp = await fetch(url);
-            }
+            var url = 'https://gen.pollinations.ai/audio/' + encodeURIComponent(prompt) + '?key=' + POLLEN_KEY + '&model=acestep&duration=' + dur;
+            var resp = await fetch(url);
             if (!resp.ok) {
                 var errText = '';
-                try { errText = await resp.text(); } catch(e2) {}
-                throw new Error('HTTP ' + resp.status + ': ' + errText.substring(0, 200));
+                try { var errJson = JSON.parse(await resp.text()); errText = errJson.error && errJson.error.message ? errJson.error.message : 'HTTP ' + resp.status; } catch(e2) { errText = 'HTTP ' + resp.status; }
+                if (resp.status === 401) errText = 'API key invalid or expired. Go to enter.pollinations.ai, get a new key, and update POLLEN_KEY in owner-studio.html.';
+                if (resp.status === 402) errText = 'Pollinations balance is 0. Go to enter.pollinations.ai and add credits (~$0.03/song).';
+                throw new Error(errText);
             }
             var blob = await resp.blob();
             var audioUrl = URL.createObjectURL(blob);

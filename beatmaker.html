@@ -487,19 +487,17 @@ document.getElementById('promptPreview').classList.add('show');
 status.textContent='Generating '+duration+'s of audio... Please wait.';
 try{
 var isInstr=genType!=='song';
-var url='https://gen.pollinations.ai/audio/'+encodeURIComponent(prompt)+'?model=acestep&duration='+duration;
-if(POLLEN_KEY)url+='&key='+POLLEN_KEY;
+if(!POLLEN_KEY){throw new Error('No Pollinations API key set. Add your key from enter.pollinations.ai to POLLEN_KEY in this file.');}
+var url='https://gen.pollinations.ai/audio/'+encodeURIComponent(prompt)+'?key='+POLLEN_KEY+'&model=acestep&duration='+duration;
 if(isInstr)url+='&instrumental=true';
 var resp=await fetch(url);
 if(!resp.ok){
-// Try without key as fallback
-if(POLLEN_KEY){
-status.textContent='Retrying without API key...';
-var url2='https://gen.pollinations.ai/audio/'+encodeURIComponent(prompt)+'?model=acestep&duration='+Math.min(duration,60);
-if(isInstr)url2+='&instrumental=true';
-resp=await fetch(url2);
-}
-if(!resp.ok){var et=await resp.text();try{var ej=JSON.parse(et);throw new Error(ej.error.message||'Failed');}catch(e2){if(e2.message)throw e2;throw new Error('HTTP '+resp.status);}}
+var et=await resp.text();
+var errMsg='Generation failed (HTTP '+resp.status+')';
+try{var ej=JSON.parse(et);errMsg=ej.error&&ej.error.message?ej.error.message:'HTTP '+resp.status;}catch(e2){}
+if(resp.status===401)errMsg='API key invalid or expired. Go to enter.pollinations.ai, get a new key, and update POLLEN_KEY in beatmaker.html.';
+if(resp.status===402)errMsg='Pollinations balance is 0. Go to enter.pollinations.ai and add credits (~$0.03/generation).';
+throw new Error(errMsg);
 }
 var blob=await resp.blob();
 var audioUrl=URL.createObjectURL(blob);
