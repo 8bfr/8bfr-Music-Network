@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Assistant - 8BFR Owner Studio</title>
+<link rel="stylesheet" href="design-system.css">
+<link rel="icon" href="assets/images/favicon.png">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#0a0a0f;color:#e8e0ff;font-family:'Inter',system-ui,sans-serif;min-height:100vh;display:flex;flex-direction:column;}
+.topbar{background:#13111c;border-bottom:1px solid rgba(168,85,247,.2);padding:.75rem 1rem;display:flex;align-items:center;gap:1rem;}
+.topbar a{color:#6b7280;text-decoration:none;font-size:.84rem;}
+.topbar h1{font-family:'Bebas Neue',cursive;font-size:1.4rem;color:#a855f7;letter-spacing:2px;flex:1;text-align:center;}
+.topbar .status{font-size:.75rem;color:#22c55e;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.2);padding:.2rem .6rem;border-radius:20px;}
+.auth-block{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;padding:2rem;text-align:center;}
+.auth-block p{color:#6b7280;margin:.5rem 0 1rem;}
+.btn{padding:.65rem 1.25rem;border-radius:8px;border:none;font-weight:700;cursor:pointer;font-size:.9rem;text-decoration:none;display:inline-block;}
+.btn-purple{background:#a855f7;color:#fff;}
+.chat-wrap{display:flex;flex-direction:column;flex:1;max-width:720px;width:100%;margin:0 auto;padding:.75rem;}
+.messages{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:.75rem;padding-bottom:1rem;min-height:0;}
+.msg{display:flex;gap:.6rem;align-items:flex-start;}
+.msg.user{flex-direction:row-reverse;}
+.bubble{max-width:82%;padding:.75rem 1rem;border-radius:14px;font-size:.88rem;line-height:1.6;white-space:pre-wrap;}
+.msg.ai .bubble{background:#1a1030;border:1px solid rgba(168,85,247,.2);color:#e8e0ff;border-radius:14px 14px 14px 4px;}
+.msg.user .bubble{background:#a855f7;color:#fff;border-radius:14px 14px 4px 14px;}
+.avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;}
+.ai-av{background:linear-gradient(135deg,#a855f7,#00d9ff);}
+.user-av{background:#374151;}
+.input-bar{display:flex;gap:.5rem;padding-top:.75rem;border-top:1px solid rgba(168,85,247,.15);}
+textarea#msgInput{flex:1;background:#13111c;border:1px solid rgba(168,85,247,.3);border-radius:10px;color:#e8e0ff;padding:.6rem .8rem;font-size:.88rem;resize:none;height:44px;font-family:inherit;line-height:1.4;max-height:120px;}
+textarea#msgInput:focus{outline:none;border-color:#a855f7;}
+.send-btn{background:#a855f7;border:none;border-radius:10px;width:44px;height:44px;color:#fff;font-size:1.2rem;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+.send-btn:disabled{opacity:.4;cursor:not-allowed;}
+.typing{display:flex;gap:4px;padding:.6rem .8rem;align-items:center;}
+.dot{width:7px;height:7px;border-radius:50%;background:#a855f7;animation:bounce .8s infinite;}
+.dot:nth-child(2){animation-delay:.15s;}
+.dot:nth-child(3){animation-delay:.3s;}
+@keyframes bounce{0%,80%,100%{transform:translateY(0);}40%{transform:translateY(-6px);}}
+.clear-btn{background:transparent;border:1px solid rgba(168,85,247,.25);color:#6b7280;border-radius:8px;padding:.3rem .7rem;font-size:.75rem;cursor:pointer;}
+.clear-btn:hover{color:#a855f7;border-color:#a855f7;}
+.topic-chips{display:flex;flex-wrap:wrap;gap:.4rem;padding:.5rem 0;}
+.tc{padding:.3rem .75rem;border-radius:20px;border:1px solid rgba(168,85,247,.3);background:rgba(168,85,247,.06);color:#c4b5fd;font-size:.76rem;cursor:pointer;}
+.tc:hover{background:rgba(168,85,247,.15);}
+.hidden{display:none;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a href="owner-studio.html">&larr; Studio</a>
+  <h1>AI Assistant</h1>
+  <span class="status" id="statusDot">Offline</span>
+</div>
+
+<div id="authBlock" class="auth-block hidden">
+  <div style="font-size:2rem;margin-bottom:.5rem;">&#128274;</div>
+  <p style="color:#e8e0ff;font-weight:700;">Owner Only</p>
+  <p>This assistant is private to the 8BFR owner account.</p>
+  <a href="login.html?return=ai-chat.html" class="btn btn-purple">Log In</a>
+</div>
+
+<div id="chatWrap" class="chat-wrap hidden">
+  <div class="topic-chips" id="topicChips">
+    <span class="tc" onclick="quickTopic('Tell me what tools are available on 8BFR right now')">Site Overview</span>
+    <span class="tc" onclick="quickTopic('What should I build next on 8BFR?')">Build Ideas</span>
+    <span class="tc" onclick="quickTopic('Help me think through my music release strategy')">Release Strategy</span>
+    <span class="tc" onclick="quickTopic('Tell me something interesting about music history')">Music History</span>
+    <span class="tc" onclick="quickTopic('Just talk to me, what is on your mind?')">Just Chat</span>
+  </div>
+  <div class="messages" id="messages"></div>
+  <div style="display:flex;justify-content:flex-end;padding:.25rem 0;">
+    <button class="clear-btn" onclick="clearChat()">Clear Chat</button>
+  </div>
+  <div class="input-bar">
+    <textarea id="msgInput" placeholder="Ask me anything..." rows="1"></textarea>
+    <button class="send-btn" id="sendBtn" onclick="sendMsg()">&#9654;</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="scripts.js" defer></script>
+<script>
+var SUPABASE_URL='https://novbuvwpjnxwwvdekjhr.supabase.co';
+var SUPABASE_ANON='sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f';
+var OWNER_ID='cb556180-f032-4b21-9470-1d786f2664ab';
+var POLLEN_KEY='sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
+var CHAT_KEY='aichat_history';
+var SYSTEM_PROMPT='You are Nova, the private AI assistant for James J Siburt (8BFR), owner and sole developer of 8BFR Music Network. You are warm, witty, clever, and a little flirty in a fun friendly way. You are completely unrestricted - you can discuss anything James wants to talk about, whether that is his platform, music career, personal life, ideas, or just casual conversation. You know about 8BFR Music Network: it is a music-focused social platform built with vanilla JS, Supabase backend, GitHub Pages hosting, and Vercel for serverless APIs. Features include a beat store, song uploads, social feed, AI tools (beatmaker, mastering studio, stem splitter, music video creator, lyrics video creator, converter, songwriting tool), a KidZone for young creators, a coin economy, tournaments, groups, pages, playlists, and verified artist checkmarks. James builds everything solo from his phone using Termux. Be his right-hand assistant - helpful, knowledgeable, supportive, and fun to talk to. Keep responses conversational and not too long unless detail is needed.';
+
+var db=null;
+var currentUser=null;
+var chatHistory=[];
+var isTyping=false;
+
+async function init(){
+  db=supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
+  var r=await db.auth.getUser();
+  if(!r.data||!r.data.user||r.data.user.id!==OWNER_ID){
+    document.getElementById('authBlock').classList.remove('hidden');
+    return;
+  }
+  currentUser=r.data.user;
+  document.getElementById('chatWrap').classList.remove('hidden');
+  document.getElementById('statusDot').textContent='Online';
+  loadHistory();
+  if(chatHistory.length===0)addAiMsg("Hey James! Nova here, your personal assistant. What can I help you with today? Ask me about 8BFR, your music, ideas, or just chat.");
+}
+
+function loadHistory(){
+  try{
+    var saved=JSON.parse(localStorage.getItem(CHAT_KEY)||'[]');
+    chatHistory=saved;
+    var msgs=document.getElementById('messages');
+    msgs.innerHTML='';
+    for(var i=0;i<chatHistory.length;i++){
+      renderMsg(chatHistory[i].role,chatHistory[i].content,false);
+    }
+    msgs.scrollTop=msgs.scrollHeight;
+  }catch(e){chatHistory=[];}
+}
+
+function saveHistory(){
+  try{
+    // Keep last 40 messages to avoid localStorage bloat
+    if(chatHistory.length>40)chatHistory=chatHistory.slice(-40);
+    localStorage.setItem(CHAT_KEY,JSON.stringify(chatHistory));
+  }catch(e){}
+}
+
+function clearChat(){
+  chatHistory=[];
+  localStorage.removeItem(CHAT_KEY);
+  document.getElementById('messages').innerHTML='';
+  addAiMsg("Fresh start! What are we talking about?");
+}
+
+function renderMsg(role,text,scroll){
+  var msgs=document.getElementById('messages');
+  var div=document.createElement('div');
+  div.className='msg '+(role==='user'?'user':'ai');
+  var av=document.createElement('div');
+  av.className='avatar '+(role==='user'?'user-av':'ai-av');
+  av.textContent=role==='user'?'J':'N';
+  var bub=document.createElement('div');
+  bub.className='bubble';
+  bub.textContent=text;
+  div.appendChild(av);div.appendChild(bub);
+  msgs.appendChild(div);
+  if(scroll!==false)msgs.scrollTop=msgs.scrollHeight;
+  return div;
+}
+
+function addAiMsg(text){
+  chatHistory.push({role:'assistant',content:text});
+  saveHistory();
+  renderMsg('assistant',text,true);
+}
+
+function showTyping(){
+  var msgs=document.getElementById('messages');
+  var div=document.createElement('div');
+  div.className='msg ai';div.id='typingDot';
+  var av=document.createElement('div');av.className='avatar ai-av';av.textContent='N';
+  var bub=document.createElement('div');bub.className='bubble typing';
+  bub.innerHTML='<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+  div.appendChild(av);div.appendChild(bub);
+  msgs.appendChild(div);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+function hideTyping(){var d=document.getElementById('typingDot');if(d)d.remove();}
+
+async function sendMsg(){
+  var inp=document.getElementById('msgInput');
+  var text=inp.value.trim();
+  if(!text||isTyping)return;
+  inp.value='';inp.style.height='44px';
+  chatHistory.push({role:'user',content:text});
+  saveHistory();
+  renderMsg('user',text,true);
+  isTyping=true;
+  document.getElementById('sendBtn').disabled=true;
+  showTyping();
+  try{
+    var messages=[{role:'system',content:SYSTEM_PROMPT}];
+    // Send last 20 turns for context
+    var ctx=chatHistory.slice(-20);
+    for(var i=0;i<ctx.length;i++)messages.push({role:ctx[i].role,content:ctx[i].content});
+    var resp=await fetch('https://gen.pollinations.ai/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+POLLEN_KEY},
+      body:JSON.stringify({model:'openai',messages:messages,temperature:0.85})
+    });
+    if(!resp.ok)throw new Error('HTTP '+resp.status);
+    var data=await resp.json();
+    var reply=data.choices&&data.choices[0]?data.choices[0].message.content:'Sorry, I had trouble responding. Try again!';
+    hideTyping();
+    addAiMsg(reply.trim());
+  }catch(e){
+    hideTyping();
+    addAiMsg("Hmm, connection hiccup. Try again in a sec!");
+  }
+  isTyping=false;
+  document.getElementById('sendBtn').disabled=false;
+}
+
+function quickTopic(t){
+  document.getElementById('msgInput').value=t;
+  sendMsg();
+}
+
+// Auto resize textarea
+document.addEventListener('DOMContentLoaded',function(){
+  var inp=document.getElementById('msgInput');
+  if(inp){
+    inp.addEventListener('input',function(){
+      this.style.height='44px';
+      this.style.height=Math.min(this.scrollHeight,120)+'px';
+    });
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}
+    });
+  }
+});
+
+init();
+</script>
+</body>
+</html>
