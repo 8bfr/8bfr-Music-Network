@@ -1315,24 +1315,19 @@
         if(btn){btn.disabled=true;btn.textContent='Generating prompts...';}
         var POLLEN_KEY='sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
         var settingLine=setting?'Setting/location: '+setting+'.':'';
-        var promptLines=[
-            'You are a music video director. Read these lyrics for '+title+' by '+artists+'.',
-            'Write exactly '+numScenes+' Kling AI video generation prompts for a '+style+'.',
-            settingLine,
-            'Return ONLY a JSON array of '+numScenes+' objects.',
-            'Each object must have: scene (number), timestamp (e.g. Verse 1), prompt (60-120 word Kling prompt with shot type, subject, setting, lighting, mood, camera movement ending with '+style+' 4K high quality), lyric (the lyric line this scene covers).',
-            'No markdown, just the JSON array.',
-            'Lyrics:',
-            lyrics.substring(0,2000)
-        ];
-        var prompt=promptLines.join(' ');
+        var shortLyrics=lyrics.substring(0,800);
+        var sysMsg='You are a music video director. Output ONLY a valid JSON array, no markdown, no explanation.';
+        var userMsg='Song: '+title+' by '+artists+'. Style: '+style+'.'+(setting?' Setting: '+setting+'.':'')+' Write '+numScenes+' Kling AI video prompts based on these lyrics. JSON array of objects with keys: scene (int), timestamp (string like Verse 1 or 0:00), prompt (50-80 words: shot type, subject, action, setting, lighting, mood, camera move, end with '+style+' cinematic 4K), lyric (lyric snippet). Lyrics: '+shortLyrics;
         try{
             var resp = await fetch('https://gen.pollinations.ai/v1/chat/completions',{
                 method:'POST',
                 headers:{'Content-Type':'application/json','Authorization':'Bearer '+POLLEN_KEY},
-                body:JSON.stringify({model:'openai',messages:[{role:'user',content:prompt}],temperature:0.75})
+                body:JSON.stringify({model:'openai',messages:[{role:'system',content:sysMsg},{role:'user',content:userMsg}],temperature:0.7,max_tokens:2000})
             });
-            if(!resp.ok)throw new Error('HTTP '+resp.status);
+            if(!resp.ok){
+                var errText=await resp.text();
+                throw new Error('HTTP '+resp.status+': '+errText.substring(0,100));
+            }
             var data = await resp.json();
             var raw = data.choices&&data.choices[0]?data.choices[0].message.content:'';
             raw = raw.replace(/```json|```/g,'').trim();
