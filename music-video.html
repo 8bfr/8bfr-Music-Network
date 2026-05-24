@@ -240,6 +240,10 @@ audio{width:100%;border-radius:8px;margin-top:.5rem;}
         <label>Font Size: <span id="fsLabel">44</span></label>
         <input type="range" id="lyrFs" min="20" max="80" value="44" oninput="document.getElementById('fsLabel').textContent=this.value;drawLyrStatic();">
       </div>
+      <div style="margin-top:.75rem;">
+        <label>Look-Ahead: <span id="lookAheadLabel">1 line</span> <span style="font-size:.72rem;color:#6b7280;">(shows lyrics before they are rapped)</span></label>
+        <input type="range" id="lookAhead" min="0" max="3" step="1" value="1" oninput="var v=parseInt(this.value);document.getElementById('lookAheadLabel').textContent=v===0?'Off':v+' line'+(v>1?'s':'');try{localStorage.setItem('lyr_lookahead',v);}catch(e){}">
+      </div>
     </div>
 
     <div class="card">
@@ -928,37 +932,44 @@ function setSyncMode(mode){
   drawLyrStatic();
 }
 
+function getLookAhead(){
+  try{return parseInt(document.getElementById('lookAhead').value)||0;}catch(e){return 1;}
+}
+
 function getLyrLine(t){
   if(!lyrLines.length)return'';
+  var ahead=getLookAhead();
 
   if(lyrSyncMode==='tap'&&lyrTimestamps.length){
-    // Tap sync: 1 line at a time, most accurate
-    var line='';
+    // Tap sync: find current index then jump ahead by look-ahead count
+    var curIdx=0;
     for(var i=0;i<lyrTimestamps.length;i++){
-      if(lyrTimestamps[i].time<=t)line=lyrTimestamps[i].line;
+      if(lyrTimestamps[i].time<=t)curIdx=i;
       else break;
     }
-    return line;
+    var showIdx=Math.min(curIdx+ahead, lyrTimestamps.length-1);
+    return lyrTimestamps[showIdx].line;
   }
 
   if(lyrSyncMode==='beat'&&lyrBeatTimestamps.length){
-    // Beat sync: show 3 lines at once so fast rappers are all visible
+    // Beat sync: find current index, jump ahead, then show 3 lines from there
     var curIdx=0;
     for(var i=0;i<lyrBeatTimestamps.length;i++){
       if(lyrBeatTimestamps[i].time<=t)curIdx=i;
       else break;
     }
-    // Show current + next 2 lines
+    var startIdx=Math.min(curIdx+ahead, lyrBeatTimestamps.length-1);
     var lines=[];
-    for(var j=curIdx;j<Math.min(curIdx+3,lyrBeatTimestamps.length);j++){
+    for(var j=startIdx;j<Math.min(startIdx+3,lyrBeatTimestamps.length);j++){
       lines.push(lyrBeatTimestamps[j].line);
     }
     return lines.join('\n');
   }
 
-  // Even split: 1 line at a time
+  // Even split: jump ahead by look-ahead count
   if(!lyrDuration)return'';
   var idx=Math.max(0,Math.min(Math.floor((t/lyrDuration)*lyrLines.length),lyrLines.length-1));
+  idx=Math.min(idx+ahead, lyrLines.length-1);
   return lyrLines[idx]||'';
 }
 
@@ -1363,6 +1374,15 @@ checkUserTier().then(function(){
 aiCanvasSize();drawAiFrame(0);
 setLyrCanvasSize();
 try{
+  var savedLookAhead=localStorage.getItem('lyr_lookahead');
+  if(savedLookAhead!==null){
+    var la=document.getElementById('lookAhead');
+    if(la){
+      la.value=savedLookAhead;
+      var v=parseInt(savedLookAhead);
+      document.getElementById('lookAheadLabel').textContent=v===0?'Off':v+' line'+(v>1?'s':'');
+    }
+  }
   var savedLyrStyle=localStorage.getItem('lyr_style');
   var savedLyrOrient=localStorage.getItem('lyr_orient');
   var savedAiLyrics=localStorage.getItem('ai_lyrics');
