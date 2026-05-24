@@ -1001,37 +1001,69 @@ function detectBeats(){
         snares.push(t);
       }
 
-      // Step 3: Rhyming words land on every 4th snare (every 4 beats = one bar)
-      // so each lyric line = one bar
+      // Step 3: Count syllables per line to detect fast vs slow delivery
+      function countSyllables(line){
+        var w=line.toLowerCase().replace(/[^a-z]/g,' ');
+        var count=0;
+        var words=w.split(/\s+/);
+        for(var wi=0;wi<words.length;wi++){
+          var word=words[wi];
+          if(!word)continue;
+          // Count vowel groups as syllables
+          var matches=word.match(/[aeiouy]+/g);
+          var s=matches?matches.length:1;
+          // Subtract silent e at end
+          if(word.length>2&&word.match(/[^aeiouy]e$/))s=Math.max(1,s-1);
+          count+=Math.max(1,s);
+        }
+        return Math.max(1,count);
+      }
+
+      var syllables=[];
+      var totalSyl=0;
+      for(var li=0;li<lyrLines.length;li++){
+        var s=countSyllables(lyrLines[li]);
+        syllables.push(s);
+        totalSyl+=s;
+      }
+      var avgSyl=totalSyl/lyrLines.length;
+
+      // Step 4: Calculate duration per line based on syllable density
+      // Base: one bar (4 beats) per average line
+      // Fast line (more syllables): less time (can be half a bar)
+      // Slow line (fewer syllables): more time (can be 2 bars)
       var barInterval=beatIntervalSec*4;
-      var barTimestamps=[];
-      for(var bt=0;bt<totalSecs-barInterval;bt+=barInterval){
-        barTimestamps.push(bt);
-      }
+      var totalLyricTime=totalSecs*0.9; // use 90% of song duration for lyrics
+      var baseDuration=totalLyricTime/lyrLines.length;
 
-      // Step 4: Map lyrics to bars
       lyrBeatTimestamps=[];
-      if(barTimestamps.length===0){
-        beatEl.className='s-msg s-warn';beatEl.textContent='Could not detect beat. Try tap sync instead.';return;
+      var currentTime=0;
+      for(var li=0;li<lyrLines.length;li++){
+        lyrBeatTimestamps.push({time:currentTime,line:lyrLines[li]});
+        // Scale duration by syllable density
+        var ratio=syllables[li]/avgSyl;
+        // Clamp ratio between 0.4 (very fast) and 2.0 (very slow)
+        ratio=Math.max(0.4,Math.min(2.0,ratio));
+        var lineDur=baseDuration*ratio;
+        // Snap to nearest beat boundary so lines always land on beat
+        var beatsInLine=Math.max(1,Math.round(lineDur/beatIntervalSec));
+        lineDur=beatsInLine*beatIntervalSec;
+        currentTime+=lineDur;
+        if(currentTime>=totalSecs)break;
       }
-
-      // If more bars than lyrics, space lyrics across bars evenly
-      // If more lyrics than bars, stack multiple lyrics per bar
-      var linesPerBar=Math.max(1,Math.ceil(lyrLines.length/barTimestamps.length));
-      var lineIdx=0;
-      for(var bi=0;bi<barTimestamps.length&&lineIdx<lyrLines.length;bi++){
-        lyrBeatTimestamps.push({time:barTimestamps[bi],line:lyrLines[lineIdx]});
-        lineIdx++;
-      }
-      // If lines remain, distribute them in remaining time
-      while(lineIdx<lyrLines.length){
-        var lastT=lyrBeatTimestamps[lyrBeatTimestamps.length-1].time+barInterval;
-        lyrBeatTimestamps.push({time:lastT,line:lyrLines[lineIdx]});
-        lineIdx++;
+      // If we ran out of time before all lines, redistribute remaining
+      if(lyrBeatTimestamps.length<lyrLines.length){
+        var remaining=lyrLines.slice(lyrBeatTimestamps.length);
+        var timeLeft=totalSecs-currentTime;
+        var step=Math.max(beatIntervalSec,timeLeft/remaining.length);
+        for(var ri=0;ri<remaining.length;ri++){
+          lyrBeatTimestamps.push({time:currentTime,line:remaining[ri]});
+          currentTime+=step;
+        }
       }
 
       beatEl.className='s-msg s-ok';
-      beatEl.textContent='BPM: '+bpm+' | Bar interval: '+barInterval.toFixed(2)+'s | '+lyrLines.length+' lines mapped to '+barTimestamps.length+' bars. Preview to check - use Tap Sync to fine-tune.';
+      beatEl.textContent='BPM: '+bpm+' | '+lyrLines.length+' lines synced with syllable density. Fast lines get shorter time, slow lines get more. Preview to check.';
     }catch(e){
       beatEl.className='s-msg s-err';beatEl.textContent='Beat detection failed: '+e.message;
     }
