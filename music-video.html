@@ -121,18 +121,6 @@ audio{width:100%;border-radius:8px;margin-top:.5rem;}
       <div class="card-title"><span class="step-num">4</span> Generate and Record</div>
       <div class="btn-row">
         <button class="btn btn-purple" id="btnGen" onclick="generateVideo()">Generate Photo Slideshow</button>
-        <button class="btn btn-cyan" id="btnRealVideo" onclick="showColabPanel()" style="display:none;">AI Real Video (Pro)</button>
-      </div>
-      <div id="colabPanel" style="display:none;margin-top:.75rem;background:#0d0b14;border:1px solid rgba(0,217,255,.25);border-radius:10px;padding:1rem;">
-        <div style="font-size:.82rem;color:#00d9ff;font-weight:700;margin-bottom:.5rem;">AI Real Video Generator</div>
-        <div style="font-size:.78rem;color:#9ca3af;margin-bottom:.6rem;">1. Open your <a href="https://colab.research.google.com" target="_blank" style="color:#00d9ff;">Google Colab</a> notebook and run all cells.<br>2. Copy the ngrok URL from the last cell and paste it below.</div>
-        <input type="text" id="colabUrlInput" placeholder="https://abc123.ngrok.io" style="width:100%;background:#0a0a0f;border:1px solid rgba(0,217,255,.3);border-radius:7px;color:#e8e0ff;padding:.5rem .75rem;font-size:.85rem;margin-bottom:.5rem;">
-        <div class="btn-row">
-          <button class="btn btn-cyan" onclick="testColabConnection()" id="btnTestColab">Test Connection</button>
-          <button class="btn btn-purple" onclick="generateRealVideo()" id="btnGenReal">Generate Real Video</button>
-        </div>
-        <div id="colabMsg" class="hidden s-msg" style="margin-top:.5rem;"></div>
-        <div style="font-size:.75rem;color:#4b5563;margin-top:.5rem;">Each scene takes ~2-3 min on Colab free GPU. Keep the notebook open while generating.</div>
       </div>
       <div id="aiMsg" class="hidden s-msg"></div>
       <div id="aiProg" class="prog-bar hidden"><div class="prog-fill" id="aiProgFill"></div></div>
@@ -343,7 +331,7 @@ var SUPABASE_URL='https://novbuvwpjnxwwvdekjhr.supabase.co';
 var SUPABASE_ANON='sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f';
 var OWNER_ID='cb556180-f032-4b21-9470-1d786f2664ab';
 var userTier='free'; // 'free','vip','creator','elite','owner'
-var colabUrl='';
+
 
 async function checkUserTier(){
   try{
@@ -1660,107 +1648,17 @@ function dlLyrWebm(){
 function cvtLyrMp4(){cvtMp4(lyrWebm,'8bfr-lyrics-video.mp4','lyrMp4Msg',document.getElementById('btnLyrMp4'));}
 
 // ---- COLAB REAL VIDEO ----
-function showColabPanel(){
-  var p=document.getElementById('colabPanel');
-  p.style.display=p.style.display==='none'?'block':'none';
-}
 
-async function testColabConnection(){
-  var url=document.getElementById('colabUrlInput').value.trim();
-  if(!url){msg('colabMsg','err','Paste your ngrok URL first.');return;}
-  colabUrl=url.replace(/\/$/,'');
-  var btn=document.getElementById('btnTestColab');
-  btn.disabled=true;btn.textContent='Testing...';
-  msg('colabMsg','info','Connecting...');
-  try{
-    var r=await fetch(colabUrl+'/health');
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    var d=await r.json();
-    msg('colabMsg','ok','Connected! Model: '+(d.model||'ready')+'. Hit Generate Real Video.');
-  }catch(e){
-    msg('colabMsg','err','Connection failed. Make sure Colab is running and the URL is correct.');
-    colabUrl='';
-  }
-  btn.disabled=false;btn.textContent='Test Connection';
-}
 
-async function generateRealVideo(){
-  if(!aiSongFile){msg('colabMsg','err','Upload your song first.');return;}
-  var url=document.getElementById('colabUrlInput').value.trim();
-  if(!url){msg('colabMsg','err','Test your Colab connection first.');return;}
-  colabUrl=url.replace(/\/$/,'');
-  var lyrics=document.getElementById('aiLyrics').value.trim();
-  var concept=document.getElementById('aiConcept').value.trim();
-  if(!lyrics&&!concept){msg('colabMsg','err','Add lyrics or a video concept first.');return;}
 
-  var btn=document.getElementById('btnGenReal');
-  btn.disabled=true;btn.textContent='Planning scenes...';
-  msg('colabMsg','info','Getting scene list from AI...');
 
-  // Get scenes first if not already generated
-  if(!aiScenes.length){
-    await generateVideo();
-    if(!aiScenes.length){msg('colabMsg','err','Scene planning failed. Try generating the photo slideshow first.');btn.disabled=false;btn.textContent='Generate Real Video';return;}
-  }
 
-  var styleWords=AI_STYLE_MAP[aiStyle]||'cinematic';
-  var videos=[];
-  msg('colabMsg','info','Generating '+aiScenes.length+' video clips on Colab. This takes ~2-3 min each...');
 
-  for(var vi=0;vi<aiScenes.length;vi++){
-    var sc=aiScenes[vi];
-    var vPrompt=(sc.visual||sc.lyrics||'music video scene')+', '+styleWords+', cinematic, smooth camera movement, high quality';
-    btn.textContent='Generating clip '+(vi+1)+' of '+aiScenes.length+'...';
-    dotState(vi,'working');
-    try{
-      var resp=await fetch(colabUrl+'/generate',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({prompt:vPrompt,frames:24,steps:25,seed:vi*77+42})
-      });
-      if(!resp.ok)throw new Error('HTTP '+resp.status);
-      var data=await resp.json();
-      if(!data.success)throw new Error(data.error||'failed');
-      videos.push(data.video); // base64 mp4
-      dotState(vi,'done');
-      msg('colabMsg','info',(vi+1)+' of '+aiScenes.length+' clips done...');
-    }catch(e){
-      dotState(vi,'failed');
-      msg('colabMsg','warn','Clip '+(vi+1)+' failed: '+e.message+'. Continuing...');
-    }
-  }
 
-  if(!videos.length){msg('colabMsg','err','No clips generated. Check Colab is still running.');btn.disabled=false;btn.textContent='Generate Real Video';return;}
-
-  msg('colabMsg','ok',videos.length+' clips generated! Stitching with your song and downloading...');
-  stitchAndDownload(videos);
-  btn.disabled=false;btn.textContent='Generate Real Video';
-}
-
-function stitchAndDownload(videoBase64Array){
-  // Create download links for each clip - user can stitch in their timeline tool
-  // or if all clips generated, create a playlist download
-  videoBase64Array.forEach(function(b64,i){
-    setTimeout(function(){
-      var bin=atob(b64);
-      var arr=new Uint8Array(bin.length);
-      for(var j=0;j<bin.length;j++)arr[j]=bin.charCodeAt(j);
-      var blob=new Blob([arr],{type:'video/mp4'});
-      var url=URL.createObjectURL(blob);
-      var a=document.createElement('a');
-      a.href=url;a.download='8bfr-scene-'+(i+1)+'.mp4';
-      document.body.appendChild(a);a.click();document.body.removeChild(a);
-    },i*800);
-  });
-  msg('colabMsg','ok','All clips downloading! Import them into your timeline editor and stitch with your song.');
-}
 
 // ---- END COLAB ----
 // Init - restore saved state from localStorage
 document.addEventListener('DOMContentLoaded',function(){
-checkUserTier().then(function(){
-  if(canUseColab())document.getElementById('btnRealVideo').style.display='';
-});
 aiCanvasSize();drawAiFrame(0);
 setLyrCanvasSize();
 try{

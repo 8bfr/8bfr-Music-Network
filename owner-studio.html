@@ -110,6 +110,7 @@
             <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem;">
                 <div class="tool-card" onclick="window.location.href='converter.html'"><h3>🔄 Audio Converter</h3><p>MP3, WAV, OGG, WebM + spatial effects</p></div>
                 <div class="tool-card" onclick="window.location.href='music-video.html'"><h3>🎬 Music Video Studio</h3><p>AI video from lyrics + lyrics video creator</p></div>
+                <div class="tool-card" id="tool-kling" onclick="selectTool('kling')" style="border-color:rgba(0,217,255,.3);"><h3>🎥 Real Music Video</h3><p>AI writes Kling prompts from your lyrics - generate actual moving video scenes</p><span class="badge-real" style="background:rgba(0,217,255,.1);color:#00d9ff;">🎥 KLING AI</span></div>
                 <div class="tool-card" onclick="window.location.href='master-ai.html'"><h3>🎚️ Mastering Studio</h3><p>Real-time AI mastering with EQ and compression</p></div>
                 <div class="tool-card" onclick="window.location.href='stem-splitter.html'"><h3>🎛️ Stem Splitter</h3><p>Separate vocals, drums, bass, and instruments</p></div>
             </div>
@@ -202,7 +203,8 @@
         meme: { title: '😂 Meme Creator', hint: 'Upload an image, add top/bottom text to create a meme.' },
         gif: { title: '🎞️ GIF Creator', hint: 'Upload multiple images to create an animated GIF.' },
         qr: { title: '📱 QR Code Generator', hint: 'Enter a URL or text to generate a QR code for promo.' },
-        resize: { title: '📐 Image Resizer', hint: 'Upload an image and resize it for different social platforms.' }
+        resize: { title: '📐 Image Resizer', hint: 'Upload an image and resize it for different social platforms.' },
+        kling: { title: '🎥 Real Music Video - Kling Prompt Generator', hint: 'Paste your lyrics and AI writes scene-by-scene Kling AI prompts for a full music video.' }
     };
 
     /* ═══════════════ TOOL SELECTION ═══════════════ */
@@ -284,6 +286,56 @@
                 <div id="sgStatus" style="font-size:0.72rem;color:rgba(255,255,255,0.4);margin-top:0.3rem;">AI writes lyrics + generates real audio with vocals via Pollinations.</div>`;
 
             case 'beats': return aiTextUI('e.g. 82 BPM boom-bap beat with piano chops, heavy bass, martial arts movie sample...');
+
+            case 'kling': return `
+                <div class="form-group">
+                    <label>Song Title</label>
+                    <input type="text" id="klingSongTitle" placeholder="e.g. OGs Still Spit Fire">
+                </div>
+                <div class="form-group">
+                    <label>Artist(s)</label>
+                    <input type="text" id="klingArtists" placeholder="e.g. 8BFR feat. Krayzie Bone">
+                </div>
+                <div class="form-group">
+                    <label>Paste Your Lyrics</label>
+                    <textarea id="klingLyrics" rows="8" placeholder="Paste your full lyrics here. AI will read them and write a Kling prompt for each scene/section of the video..."></textarea>
+                </div>
+                <div style="display:flex;gap:.5rem;">
+                    <div class="form-group" style="flex:1;">
+                        <label>Visual Style</label>
+                        <select id="klingStyle">
+                            <option value="cinematic hip hop music video">Cinematic Hip Hop</option>
+                            <option value="dark moody noir music video">Dark Noir</option>
+                            <option value="neon cyberpunk music video">Neon Cyberpunk</option>
+                            <option value="luxury gold aesthetic music video">Gold Luxury</option>
+                            <option value="urban street documentary music video">Urban Street</option>
+                            <option value="abstract artistic music video">Abstract Art</option>
+                            <option value="cinematic action music video">Cinematic Action</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>Number of Scenes</label>
+                        <select id="klingScenes">
+                            <option value="5">5 scenes</option>
+                            <option value="8" selected>8 scenes</option>
+                            <option value="10">10 scenes</option>
+                            <option value="12">12 scenes</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Setting / Location Vibe (optional)</label>
+                    <input type="text" id="klingSetting" placeholder="e.g. city rooftops at night, underground studio, streets of LA...">
+                </div>
+                <button class="btn btn-primary" onclick="runKling()">Generate Kling Prompts</button>
+                <div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-top:.3rem;">AI reads your lyrics and writes one Kling prompt per scene — paste each one into klingai.com to generate your video clips.</div>
+                <div id="klingResult" style="display:none;margin-top:1rem;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
+                        <div style="font-family:'Bebas Neue',cursive;color:#00d9ff;font-size:1rem;letter-spacing:1px;">YOUR KLING PROMPTS</div>
+                        <a href="https://klingai.com" target="_blank" style="background:#00d9ff;color:#000;padding:.3rem .8rem;border-radius:6px;font-weight:700;font-size:.78rem;text-decoration:none;">Open Kling AI</a>
+                    </div>
+                    <div id="klingPromptsWrap" style="display:flex;flex-direction:column;gap:.75rem;"></div>
+                </div>`;
             case 'video': return aiTextUI('e.g. Music video for a hype anthem — warehouse setting, crew shots, slow-mo, smoke...');
 
             /* ── ALBUM COVER (FIXED) ── */
@@ -1250,6 +1302,77 @@
     }
 
     /* ═══════════════ SONG GENERATOR (REAL AUDIO) ═══════════════ */
+
+    window.runKling = async function() {
+        var lyrics = (document.getElementById('klingLyrics')||{}).value||'';
+        var title = (document.getElementById('klingSongTitle')||{}).value||'My Song';
+        var artists = (document.getElementById('klingArtists')||{}).value||'8BFR';
+        var style = (document.getElementById('klingStyle')||{}).value||'cinematic hip hop music video';
+        var numScenes = parseInt((document.getElementById('klingScenes')||{}).value||8);
+        var setting = (document.getElementById('klingSetting')||{}).value||'';
+        if(!lyrics.trim()){alert('Paste your lyrics first.');return;}
+        var btn = document.querySelector('#toolBody .btn-primary');
+        if(btn){btn.disabled=true;btn.textContent='Generating prompts...';}
+        var POLLEN_KEY='sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
+        var settingLine=setting?'Setting/location: '+setting+'.':'';
+        var promptLines=[
+            'You are a music video director. Read these lyrics for '+title+' by '+artists+'.',
+            'Write exactly '+numScenes+' Kling AI video generation prompts for a '+style+'.',
+            settingLine,
+            'Return ONLY a JSON array of '+numScenes+' objects.',
+            'Each object must have: scene (number), timestamp (e.g. Verse 1), prompt (60-120 word Kling prompt with shot type, subject, setting, lighting, mood, camera movement ending with '+style+' 4K high quality), lyric (the lyric line this scene covers).',
+            'No markdown, just the JSON array.',
+            'Lyrics:',
+            lyrics.substring(0,2000)
+        ];
+        var prompt=promptLines.join(' ');
+        try{
+            var resp = await fetch('https://gen.pollinations.ai/v1/chat/completions',{
+                method:'POST',
+                headers:{'Content-Type':'application/json','Authorization':'Bearer '+POLLEN_KEY},
+                body:JSON.stringify({model:'openai',messages:[{role:'user',content:prompt}],temperature:0.75})
+            });
+            if(!resp.ok)throw new Error('HTTP '+resp.status);
+            var data = await resp.json();
+            var raw = data.choices&&data.choices[0]?data.choices[0].message.content:'';
+            raw = raw.replace(/```json|```/g,'').trim();
+            var scenes = JSON.parse(raw);
+            if(!Array.isArray(scenes)||!scenes.length)throw new Error('No scenes returned');
+            // Render
+            var wrap = document.getElementById('klingPromptsWrap');
+            var result = document.getElementById('klingResult');
+            wrap.innerHTML='';
+            scenes.forEach(function(sc){
+                var d=document.createElement('div');
+                d.style.cssText='background:#0a0a0f;border:1px solid rgba(0,217,255,.2);border-radius:10px;padding:.85rem;';
+                var header=document.createElement('div');
+                header.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;';
+                header.innerHTML='<span style="color:#00d9ff;font-weight:700;font-size:.85rem;">Scene '+sc.scene+(sc.timestamp?' — '+sc.timestamp:'')+'</span>'
+                    +'<button onclick="copyPrompt(this)" style="background:#00d9ff;border:none;color:#000;border-radius:5px;padding:.2rem .6rem;font-size:.72rem;font-weight:700;cursor:pointer;">Copy</button>';
+                var lyric=document.createElement('div');
+                lyric.style.cssText='font-size:.75rem;color:#6b7280;margin-bottom:.4rem;font-style:italic;';
+                lyric.textContent='"'+(sc.lyric||'')+'"';
+                var promptEl=document.createElement('div');
+                promptEl.style.cssText='font-size:.82rem;color:#d1d5db;line-height:1.6;';
+                promptEl.textContent=sc.prompt||'';
+                d.appendChild(header);d.appendChild(lyric);d.appendChild(promptEl);
+                wrap.appendChild(d);
+            });
+            result.style.display='block';
+            result.scrollIntoView({behavior:'smooth',block:'start'});
+        }catch(e){
+            alert('Failed: '+e.message+'. Try again.');
+        }
+        if(btn){btn.disabled=false;btn.textContent='Generate Kling Prompts';}
+    };
+
+    window.copyPrompt = function(btn) {
+        var text = btn.closest('div').querySelector('div:last-child').textContent;
+        navigator.clipboard.writeText(text).then(function(){
+            btn.textContent='Copied!';
+            setTimeout(function(){btn.textContent='Copy';},2000);
+        });
+    };
 
     window.runSongGen = async function() {
         var lyrics = document.getElementById('sgLyrics').value.trim();
