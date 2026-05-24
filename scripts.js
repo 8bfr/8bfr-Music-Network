@@ -42,6 +42,11 @@
               window._8bfr.role = role;
               window._8bfr.badges = badges;
               window._8bfr.isOwner = (role === 'owner' || session.user.id === OWNER_ID);
+              // Remove protection immediately if owner
+              if(window._8bfr.isOwner){
+                var ov=document.getElementById('_8bfr_protect_overlay');if(ov)ov.remove();
+                var ps=document.getElementById('_8bfr_protect_style');if(ps)ps.remove();
+              }
               window._8bfr.isCoOwner = (role === 'co-owner');
               window._8bfr.hasPerks = (PERK_ROLES.indexOf(role) !== -1 || session.user.id === OWNER_ID);
               window._8bfr.isAdmin = (ADMIN_ROLES.indexOf(role) !== -1 || session.user.id === OWNER_ID);
@@ -967,6 +972,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
 
     // 3. CSS protection - prevent long-press save on mobile, prevent drag
     var style = document.createElement('style');
+    style.id='_8bfr_protect_style';
     style.textContent = 'audio,video,img,.song-card,.beat-card,.post-media,.feed-item{-webkit-touch-callout:none;-webkit-user-select:none;-moz-user-select:none;user-select:none;pointer-events:auto;}img{-webkit-user-drag:none;user-drag:none;draggable:false;}';
     document.head.appendChild(style);
 
