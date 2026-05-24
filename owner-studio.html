@@ -140,7 +140,7 @@
             <h2 class="section-title" id="toolTitle">Tool</h2>
             <p id="toolHint" style="font-size:0.85rem;color:var(--text-dim);margin-bottom:0.5rem;"></p>
             <div id="toolBody"></div>
-            <div class="warn-box">⚠️ <strong>Save your output!</strong> Results are not saved — copy text or download images before leaving this page.</div>
+            <div class="warn-box" id="saveWarnBox">⚠️ <strong>Save your output!</strong> Results are not saved — copy text or download images before leaving this page.</div>
             <div id="result" class="result-box" style="display: none;"></div>
             <div id="coverPreview" class="cover-preview" style="display:none;"></div>
         </div>
@@ -224,6 +224,8 @@
 
         const body = document.getElementById('toolBody');
         body.innerHTML = getToolHTML(tool);
+        // Restore Kling results if switching back to kling tool
+        if(tool === 'kling') setTimeout(restoreKlingResults, 50);
         document.getElementById('toolPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
@@ -1303,6 +1305,45 @@
 
     /* ═══════════════ SONG GENERATOR (REAL AUDIO) ═══════════════ */
 
+    window.restoreKlingResults = function() {
+        try{
+            var saved = localStorage.getItem('kling_scenes');
+            var meta = JSON.parse(localStorage.getItem('kling_meta')||'{}');
+            if(!saved) return;
+            var scenes = JSON.parse(saved);
+            if(!scenes||!scenes.length) return;
+            // Restore field values
+            if(meta.title && document.getElementById('klingSongTitle')) document.getElementById('klingSongTitle').value=meta.title;
+            if(meta.artists && document.getElementById('klingArtists')) document.getElementById('klingArtists').value=meta.artists;
+            if(meta.style && document.getElementById('klingStyle')) document.getElementById('klingStyle').value=meta.style;
+            // Re-render the prompts
+            var wrap = document.getElementById('klingPromptsWrap');
+            var result = document.getElementById('klingResult');
+            if(!wrap||!result) return;
+            wrap.innerHTML='';
+            scenes.forEach(function(sc){
+                var d=document.createElement('div');
+                d.style.cssText='background:#0a0a0f;border:1px solid rgba(0,217,255,.2);border-radius:10px;padding:.85rem;';
+                var header=document.createElement('div');
+                header.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;';
+                header.innerHTML='<span style="color:#00d9ff;font-weight:700;font-size:.85rem;">Scene '+sc.scene+(sc.timestamp?' — '+sc.timestamp:'')+'</span>'
+                    +'<button onclick="copyPrompt(this)" style="background:#00d9ff;border:none;color:#000;border-radius:5px;padding:.2rem .6rem;font-size:.72rem;font-weight:700;cursor:pointer;">Copy</button>';
+                var lyric=document.createElement('div');
+                lyric.style.cssText='font-size:.75rem;color:#6b7280;margin-bottom:.4rem;font-style:italic;';
+                lyric.textContent='"'+(sc.lyric||'')+'"';
+                var promptEl=document.createElement('div');
+                promptEl.style.cssText='font-size:.82rem;color:#d1d5db;line-height:1.6;';
+                promptEl.textContent=sc.prompt||'';
+                d.appendChild(header);d.appendChild(lyric);d.appendChild(promptEl);
+                wrap.appendChild(d);
+            });
+            result.style.display='block';
+            // Hide the save warning since results are restored
+            var warn=document.getElementById('saveWarnBox');
+            if(warn) warn.style.display='none';
+        }catch(e){}
+    };
+
     window.runKling = async function() {
         var lyrics = (document.getElementById('klingLyrics')||{}).value||'';
         var title = (document.getElementById('klingSongTitle')||{}).value||'My Song';
@@ -1355,6 +1396,9 @@
             });
             result.style.display='block';
             result.scrollIntoView({behavior:'smooth',block:'start'});
+            // Save to localStorage so results survive page switches
+            try{localStorage.setItem('kling_scenes',JSON.stringify(scenes));
+                localStorage.setItem('kling_meta',JSON.stringify({title:title,artists:artists,style:style}));}catch(e){}
         }catch(e){
             alert('Failed: '+e.message+'. Try again.');
         }
@@ -1362,11 +1406,27 @@
     };
 
     window.copyPrompt = function(btn) {
-        var text = btn.closest('div').querySelector('div:last-child').textContent;
-        navigator.clipboard.writeText(text).then(function(){
-            btn.textContent='Copied!';
-            setTimeout(function(){btn.textContent='Copy';},2000);
-        });
+        // btn is inside header div, need to go up to card then find last child (prompt text)
+        var card = btn.parentElement.parentElement;
+        var text = card.querySelector('div:last-child').textContent;
+        if(navigator.clipboard && navigator.clipboard.writeText){
+            navigator.clipboard.writeText(text).then(function(){
+                btn.textContent='Copied!';
+                setTimeout(function(){btn.textContent='Copy';},2000);
+            }).catch(function(){
+                fallbackCopy(text,btn);
+            });
+        } else {
+            fallbackCopy(text,btn);
+        }
+    };
+    window.fallbackCopy = function(text,btn){
+        var ta=document.createElement('textarea');
+        ta.value=text;ta.style.position='fixed';ta.style.opacity='0';
+        document.body.appendChild(ta);ta.focus();ta.select();
+        try{document.execCommand('copy');btn.textContent='Copied!';setTimeout(function(){btn.textContent='Copy';},2000);}
+        catch(e){alert('Copy failed - long press the prompt text to copy manually.');}
+        document.body.removeChild(ta);
     };
 
     window.runSongGen = async function() {
