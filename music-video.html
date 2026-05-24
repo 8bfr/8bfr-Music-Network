@@ -242,9 +242,16 @@ audio{width:100%;border-radius:8px;margin-top:.5rem;}
       </div>
       <div style="margin-top:.75rem;">
         <label>Look-Ahead: <span id="lookAheadLabel">1 line</span> <span style="font-size:.72rem;color:#6b7280;">(shows lyrics before they are rapped - increase for faster rappers)</span></label>
-        <input type="range" id="lookAhead" min="0" max="6" step="0.5" value="1" oninput="var v=parseFloat(this.value);document.getElementById('lookAheadLabel').textContent=v===0?'Off':v+' lines';try{localStorage.setItem('lyr_lookahead',v);}catch(e){}">
+        <input type="range" id="lookAhead" min="0" max="12" step="0.5" value="1" oninput="var v=parseFloat(this.value);document.getElementById('lookAheadLabel').textContent=v===0?'Off':v+' lines';try{localStorage.setItem('lyr_lookahead',v);}catch(e){}">
         <div style="display:flex;justify-content:space-between;font-size:.7rem;color:#4b5563;margin-top:.2rem;">
-          <span>Off</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
+          <span>Off</span><span>2</span><span>4</span><span>6</span><span>7</span><span>8</span><span>10</span><span>12</span>
+        </div>
+      </div>
+      <div style="margin-top:.75rem;">
+        <label>Lines per Slide (Beat Mode): <span id="lpsLabel">3</span> <span style="font-size:.72rem;color:#6b7280;">(show more lines at once for fast rappers)</span></label>
+        <input type="range" id="linesPerSlide" min="1" max="8" step="1" value="3" oninput="var v=parseInt(this.value);document.getElementById('lpsLabel').textContent=v;try{localStorage.setItem('lyr_lps',v);}catch(e){}drawLyrStatic();">
+        <div style="display:flex;justify-content:space-between;font-size:.7rem;color:#4b5563;margin-top:.2rem;">
+          <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span>
         </div>
       </div>
     </div>
@@ -962,8 +969,9 @@ function getLyrLine(t){
       else break;
     }
     var startIdx=Math.min(Math.round(curIdx+ahead), lyrBeatTimestamps.length-1);
+    var lps=3;try{lps=parseInt(document.getElementById('linesPerSlide').value)||3;}catch(e){}
     var lines=[];
-    for(var j=startIdx;j<Math.min(startIdx+3,lyrBeatTimestamps.length);j++){
+    for(var j=startIdx;j<Math.min(startIdx+lps,lyrBeatTimestamps.length);j++){
       lines.push(lyrBeatTimestamps[j].line);
     }
     return lines.join('\n');
@@ -1179,7 +1187,9 @@ function drawLyrFrame(t){
   if(lineText){
     var fs=parseInt(document.getElementById('lyrFs').value)||44;
     var isBeat=lyrSyncMode==='beat'&&lyrBeatTimestamps.length>0;
-    var sfs=Math.round(fs*(isBeat?0.72:1.0)*(w/420));
+    var lps2=3;try{lps2=parseInt(document.getElementById('linesPerSlide').value)||3;}catch(e){}
+    var fontScale=isBeat?(lps2<=2?0.85:lps2<=4?0.72:lps2<=6?0.58:0.48):1.0;
+    var sfs=Math.round(fs*fontScale*(w/420));
     ctx.textAlign='center';
     var stanzaLines=lineText.split('\n');
     var lh=sfs*1.42;
@@ -1377,6 +1387,11 @@ checkUserTier().then(function(){
 aiCanvasSize();drawAiFrame(0);
 setLyrCanvasSize();
 try{
+  var savedLps=localStorage.getItem('lyr_lps');
+  if(savedLps){
+    var lpsEl=document.getElementById('linesPerSlide');
+    if(lpsEl){lpsEl.value=savedLps;document.getElementById('lpsLabel').textContent=savedLps;}
+  }
   var savedLookAhead=localStorage.getItem('lyr_lookahead');
   if(savedLookAhead!==null){
     var la=document.getElementById('lookAhead');
