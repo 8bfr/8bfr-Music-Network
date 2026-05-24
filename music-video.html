@@ -217,6 +217,27 @@ audio{width:100%;border-radius:8px;margin-top:.5rem;}
         </div>
         <div id="tapProgress" style="font-size:.76rem;color:#6b7280;text-align:center;margin-top:.5rem;"></div>
       </div>
+      <div style="margin-top:.75rem;">
+        <label>Slide Duration: <span id="slideDurLabel">Song-synced</span> <span style="font-size:.72rem;color:#6b7280;">(how long each slide stays on screen)</span></label>
+        <input type="range" id="slideDur" min="0" max="6" step="0.25" value="0" oninput="updateSlideDurLabel();">
+        <div style="display:flex;justify-content:space-between;font-size:.7rem;color:#4b5563;margin-top:.2rem;">
+          <span>Song sync</span><span>0.5s</span><span>1s</span><span>2s</span><span>3s</span><span>4s</span><span>6s</span>
+        </div>
+        <div style="font-size:.74rem;color:#6b7280;margin-top:.3rem;">Set to 0 to use song position. Any other value overrides to fixed interval - like a slideshow. Use with section speed to change interval mid-song.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Section Speed Control <span style="font-size:.76rem;color:#9ca3af;font-family:Inter,sans-serif;font-weight:400;letter-spacing:0;">— different speeds for different rappers</span></div>
+      <div style="font-size:.78rem;color:#9ca3af;margin-bottom:.75rem;">Add sections with a start time and speed multiplier. When the song reaches that time it switches speed automatically. Great for switching between slow and fast rappers.</div>
+      <div id="sectionList" style="display:flex;flex-direction:column;gap:.4rem;margin-bottom:.75rem;"></div>
+      <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+        <input type="number" id="secTime" placeholder="Start (sec)" style="width:100px;background:#0d0b14;border:1px solid rgba(168,85,247,.3);border-radius:7px;color:#e8e0ff;padding:.4rem .6rem;font-size:.84rem;">
+        <input type="number" id="secSpeed" placeholder="Secs per slide" step="0.25" min="0.25" max="10" style="width:130px;background:#0d0b14;border:1px solid rgba(168,85,247,.3);border-radius:7px;color:#e8e0ff;padding:.4rem .6rem;font-size:.84rem;">
+        <input type="text" id="secLabel" placeholder="Label (e.g. Krayzie)" style="flex:1;min-width:100px;background:#0d0b14;border:1px solid rgba(168,85,247,.3);border-radius:7px;color:#e8e0ff;padding:.4rem .6rem;font-size:.84rem;">
+        <button class="btn btn-purple" onclick="addSection()" style="padding:.4rem .9rem;font-size:.82rem;">Add</button>
+      </div>
+      <div style="font-size:.74rem;color:#4b5563;margin-top:.5rem;">Tip: Play your song, note when each rapper starts. Set seconds per slide lower for fast rappers (e.g. 0.5s) and higher for slow sections (e.g. 2s).</div>
     </div>
 
     <div class="card">
@@ -249,9 +270,9 @@ audio{width:100%;border-radius:8px;margin-top:.5rem;}
       </div>
       <div style="margin-top:.75rem;">
         <label>Lines per Slide (Beat Mode): <span id="lpsLabel">3</span> <span style="font-size:.72rem;color:#6b7280;">(show more lines at once for fast rappers)</span></label>
-        <input type="range" id="linesPerSlide" min="1" max="8" step="1" value="3" oninput="var v=parseInt(this.value);document.getElementById('lpsLabel').textContent=v;try{localStorage.setItem('lyr_lps',v);}catch(e){}drawLyrStatic();">
+        <input type="range" id="linesPerSlide" min="1" max="20" step="1" value="3" oninput="var v=parseInt(this.value);document.getElementById('lpsLabel').textContent=v;try{localStorage.setItem('lyr_lps',v);}catch(e){}drawLyrStatic();">
         <div style="display:flex;justify-content:space-between;font-size:.7rem;color:#4b5563;margin-top:.2rem;">
-          <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span>
+          <span>1</span><span>4</span><span>8</span><span>12</span><span>16</span><span>20</span>
         </div>
       </div>
     </div>
@@ -925,6 +946,9 @@ function setLyrCanvasSize(){
 }
 // Sync state
 var lyrSyncMode='even';
+var slideTimerIdx=0;    // current line index when using fixed slide duration
+var slideTimerLast=0;   // last time the slide advanced
+var slideTimerActive=false;
 var lyrTimestamps=[]; // for tap sync: array of {time, line}
 var lyrBeatTimestamps=[]; // for beat sync
 var tapIdx=0;
@@ -942,6 +966,97 @@ function setSyncMode(mode){
   drawLyrStatic();
 }
 
+// ---- SECTION SPEED CONTROL ----
+var lyrSections=[]; // [{time, speed, label}] sorted by time
+
+function addSection(){
+  var t=parseFloat(document.getElementById('secTime').value);
+  var s=parseFloat(document.getElementById('secSpeed').value);
+  var l=document.getElementById('secLabel').value.trim()||('Section at '+t+'s');
+  if(isNaN(t)||isNaN(s)||s<=0){alert('Enter a valid time and speed.');return;}
+  lyrSections.push({time:t,speed:s,label:l});
+  lyrSections.sort(function(a,b){return a.time-b.time;});
+  document.getElementById('secTime').value='';
+  document.getElementById('secSpeed').value='';
+  document.getElementById('secLabel').value='';
+  renderSections();
+  saveSections();
+}
+
+function removeSection(idx){
+  lyrSections.splice(idx,1);
+  renderSections();
+  saveSections();
+}
+
+function renderSections(){
+  var el=document.getElementById('sectionList');
+  if(!el)return;
+  el.innerHTML='';
+  if(!lyrSections.length){
+    el.innerHTML='<div style="font-size:.76rem;color:#4b5563;">No sections added yet. Global speed slider applies.</div>';
+    return;
+  }
+  lyrSections.forEach(function(sec,i){
+    var d=document.createElement('div');
+    d.style.cssText='display:flex;align-items:center;gap:.5rem;padding:.4rem .6rem;background:#0d0b14;border-radius:7px;border:1px solid rgba(168,85,247,.15);';
+    d.innerHTML='<span style="color:#a855f7;font-size:.78rem;font-weight:700;min-width:50px;">'+formatTime(sec.time)+'</span>'
+      +'<span style="color:#00d9ff;font-size:.78rem;min-width:35px;">'+sec.speed+'x</span>'
+      +'<span style="color:#e8e0ff;font-size:.78rem;flex:1;">'+sec.label+'</span>'
+      +'<button onclick="removeSection('+i+')" style="background:transparent;border:none;color:#6b7280;cursor:pointer;font-size:.9rem;padding:0 .25rem;">x</button>';
+    el.appendChild(d);
+  });
+}
+
+function formatTime(s){
+  var m=Math.floor(s/60);
+  var sec=Math.floor(s%60);
+  return m+':'+(sec<10?'0':'')+sec;
+}
+
+function saveSections(){
+  try{localStorage.setItem('lyr_sections',JSON.stringify(lyrSections));}catch(e){}
+}
+
+function updateSlideDurLabel(){
+  var v=parseFloat(document.getElementById('slideDur').value)||0;
+  document.getElementById('slideDurLabel').textContent=v===0?'Song-synced':v+'s per slide';
+  try{localStorage.setItem('lyr_slidedur',v);}catch(e){}
+}
+
+function getSlideDurAt(t){
+  // Check if a section overrides duration at this time
+  if(lyrSections.length){
+    var secDur=null;
+    for(var i=0;i<lyrSections.length;i++){
+      if(lyrSections[i].time<=t)secDur=lyrSections[i].speed; // speed field = seconds per slide in section
+      else break;
+    }
+    if(secDur!==null)return secDur;
+  }
+  // Fall back to global slider
+  try{return parseFloat(document.getElementById('slideDur').value)||0;}catch(e){return 0;}
+}
+
+function getSpeedAt(t){return 1;} // kept for compatibility
+
+function getLineByIndex(idx){
+  var ahead=getLookAhead();
+  if(lyrSyncMode==='beat'&&lyrBeatTimestamps.length){
+    var startIdx=Math.min(Math.round(idx+ahead),lyrBeatTimestamps.length-1);
+    var lps=3;try{lps=parseInt(document.getElementById('linesPerSlide').value)||3;}catch(e){}
+    var lines=[];
+    for(var j=startIdx;j<Math.min(startIdx+lps,lyrBeatTimestamps.length);j++)lines.push(lyrBeatTimestamps[j].line);
+    return lines.join('\n');
+  }
+  if(lyrSyncMode==='tap'&&lyrTimestamps.length){
+    var si=Math.min(Math.round(idx+ahead),lyrTimestamps.length-1);
+    return lyrTimestamps[si].line;
+  }
+  var si=Math.min(Math.round(idx+ahead),lyrLines.length-1);
+  return lyrLines[Math.max(0,si)]||'';
+}
+
 function getLookAhead(){
   try{return parseFloat(document.getElementById('lookAhead').value)||0;}catch(e){return 1;}
 }
@@ -949,26 +1064,26 @@ function getLookAhead(){
 function getLyrLine(t){
   if(!lyrLines.length)return'';
   var ahead=getLookAhead();
+  var speed=getSpeedAt(t);
+  var speedBoost=Math.round((speed-1)*2);
 
   if(lyrSyncMode==='tap'&&lyrTimestamps.length){
-    // Tap sync: find current index then jump ahead by look-ahead count
     var curIdx=0;
     for(var i=0;i<lyrTimestamps.length;i++){
       if(lyrTimestamps[i].time<=t)curIdx=i;
       else break;
     }
-    var showIdx=Math.min(Math.round(curIdx+ahead), lyrTimestamps.length-1);
+    var showIdx=Math.min(Math.round(curIdx+ahead+speedBoost),lyrTimestamps.length-1);
     return lyrTimestamps[showIdx].line;
   }
 
   if(lyrSyncMode==='beat'&&lyrBeatTimestamps.length){
-    // Beat sync: find current index, jump ahead, then show 3 lines from there
     var curIdx=0;
     for(var i=0;i<lyrBeatTimestamps.length;i++){
       if(lyrBeatTimestamps[i].time<=t)curIdx=i;
       else break;
     }
-    var startIdx=Math.min(Math.round(curIdx+ahead), lyrBeatTimestamps.length-1);
+    var startIdx=Math.min(Math.round(curIdx+ahead+speedBoost),lyrBeatTimestamps.length-1);
     var lps=3;try{lps=parseInt(document.getElementById('linesPerSlide').value)||3;}catch(e){}
     var lines=[];
     for(var j=startIdx;j<Math.min(startIdx+lps,lyrBeatTimestamps.length);j++){
@@ -977,10 +1092,9 @@ function getLyrLine(t){
     return lines.join('\n');
   }
 
-  // Even split: jump ahead by look-ahead count
   if(!lyrDuration)return'';
   var idx=Math.max(0,Math.min(Math.floor((t/lyrDuration)*lyrLines.length),lyrLines.length-1));
-  idx=Math.min(Math.round(idx+ahead), lyrLines.length-1);
+  idx=Math.min(Math.round(idx+ahead+speedBoost),lyrLines.length-1);
   return lyrLines[idx]||'';
 }
 
@@ -1182,8 +1296,18 @@ function drawLyrFrame(t){
   var wfs=Math.round(w*0.022);
   ctx.font='600 '+wfs+'px Inter,sans-serif';ctx.fillStyle=st.accent;ctx.globalAlpha=0.45;ctx.textAlign='center';
   ctx.fillText('8BFR Music Network',w/2,h*0.055);ctx.globalAlpha=1;
+  // Slide duration mode: advance index by fixed interval
+  var dur=getSlideDurAt(t);
+  if(dur>0){
+    if(!slideTimerActive){slideTimerActive=true;slideTimerIdx=0;slideTimerLast=t;}
+    else if(t-slideTimerLast>=dur){
+      var steps=Math.floor((t-slideTimerLast)/dur);
+      slideTimerIdx=Math.min(slideTimerIdx+steps,lyrLines.length-1);
+      slideTimerLast+=steps*dur;
+    }
+  }else{slideTimerActive=false;}
   // Lyric - beat mode shows 3 lines at once, others show 1
-  var lineText=getLyrLine(t);
+  var lineText=dur>0?getLineByIndex(slideTimerIdx):getLyrLine(t);
   if(lineText){
     var fs=parseInt(document.getElementById('lyrFs').value)||44;
     var isBeat=lyrSyncMode==='beat'&&lyrBeatTimestamps.length>0;
@@ -1222,6 +1346,7 @@ function drawLyrFrame(t){
 function drawLyrStatic(){setLyrCanvasSize();drawLyrFrame(0);}
 
 function startLyrPreview(){
+  slideTimerIdx=0;slideTimerLast=0;slideTimerActive=false;
   if(!lyrSongFile){msg('lyrMsg','err','Upload a song first.');return;}
   if(!lyrLines.length){msg('lyrMsg','err','Add lyrics first.');return;}
   stopLyrPreview();setLyrCanvasSize();
@@ -1387,6 +1512,19 @@ checkUserTier().then(function(){
 aiCanvasSize();drawAiFrame(0);
 setLyrCanvasSize();
 try{
+  var savedSections=localStorage.getItem('lyr_sections');
+  if(savedSections){try{lyrSections=JSON.parse(savedSections);renderSections();}catch(e){}}
+  else{renderSections();}
+  var savedSpeed=localStorage.getItem('lyr_speed');
+  if(savedSpeed){
+    var spEl=document.getElementById('slideSpeed');
+    if(spEl){spEl.value=savedSpeed;document.getElementById('speedLabel').textContent=savedSpeed+'x';}
+  }
+  var savedSlideDur=localStorage.getItem('lyr_slidedur');
+  if(savedSlideDur){
+    var sdEl=document.getElementById('slideDur');
+    if(sdEl){sdEl.value=savedSlideDur;updateSlideDurLabel();}
+  }
   var savedLps=localStorage.getItem('lyr_lps');
   if(savedLps){
     var lpsEl=document.getElementById('linesPerSlide');
