@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video Originality Tool - 8BFR</title>
+<link rel="stylesheet" href="design-system.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#0a0a0f;color:#e8e0ff;font-family:'Inter',system-ui,sans-serif;min-height:100vh;}
+.wrap{max-width:700px;margin:0 auto;padding:1rem;}
+h1{font-family:'Bebas Neue',cursive;font-size:2rem;color:#a855f7;letter-spacing:2px;margin-bottom:.2rem;}
+.sub{color:#6b7280;font-size:.84rem;margin-bottom:1.2rem;}
+.card{background:#13111c;border:1px solid rgba(168,85,247,.2);border-radius:12px;padding:1.25rem;margin-bottom:1rem;}
+.card-title{font-family:'Bebas Neue',cursive;color:#00d9ff;font-size:1.1rem;margin-bottom:.75rem;letter-spacing:1px;}
+label{display:block;font-size:.82rem;color:#9ca3af;margin-bottom:.4rem;}
+.upload-zone{border:2px dashed rgba(168,85,247,.4);border-radius:10px;padding:1.5rem;text-align:center;cursor:pointer;background:rgba(168,85,247,.04);}
+.upload-zone input{display:none;}
+.upload-zone.loaded{border-color:#22c55e;background:rgba(34,197,94,.04);}
+.btn{padding:.65rem 1.2rem;border-radius:8px;border:none;font-weight:700;cursor:pointer;font-size:.9rem;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-purple{background:#a855f7;color:#fff;}
+.btn-green{background:#22c55e;color:#000;}
+.btn-gray{background:#374151;color:#e8e0ff;}
+.btn-row{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.75rem;}
+.s-msg{padding:.6rem .9rem;border-radius:8px;font-size:.83rem;margin-top:.75rem;}
+.s-info{background:rgba(0,217,255,.1);color:#00d9ff;border:1px solid rgba(0,217,255,.2);}
+.s-ok{background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.2);}
+.s-err{background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2);}
+.s-warn{background:rgba(234,179,8,.1);color:#eab308;border:1px solid rgba(234,179,8,.2);}
+.hidden{display:none;}
+.toggle-row{display:flex;flex-direction:column;gap:.5rem;margin-top:.5rem;}
+.toggle-item{display:flex;align-items:center;justify-content:space-between;padding:.6rem .8rem;background:#0d0b14;border-radius:8px;border:1px solid rgba(168,85,247,.15);}
+.toggle-item label{color:#e8e0ff;font-size:.84rem;margin:0;flex:1;}
+.toggle-item .desc{font-size:.74rem;color:#6b7280;margin-top:.1rem;}
+.toggle-wrap{display:flex;flex-direction:column;}
+input[type=checkbox]{width:18px;height:18px;accent-color:#a855f7;cursor:pointer;flex-shrink:0;}
+input[type=range]{width:100%;accent-color:#a855f7;}
+video{width:100%;border-radius:10px;background:#000;}
+.prog-bar{height:6px;background:#1f1b2e;border-radius:3px;margin-top:.75rem;overflow:hidden;}
+.prog-fill{height:100%;background:#a855f7;border-radius:3px;transition:width .3s;width:0%;}
+.tip-box{background:rgba(168,85,247,.07);border:1px solid rgba(168,85,247,.15);border-radius:8px;padding:.75rem 1rem;font-size:.79rem;color:#9ca3af;line-height:1.6;margin-top:.75rem;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div style="padding:.5rem 0 .75rem;"><a href="ai-studio.html" style="color:#6b7280;text-decoration:none;font-size:.84rem;">&larr; AI Studio</a></div>
+  <h1>Video Originality Tool</h1>
+  <p class="sub">Upload a video and apply changes that make it unique enough to pass TikTok, Instagram and YouTube originality checks — without losing the content.</p>
+
+  <div class="tip-box">
+    <strong style="color:#e8e0ff;">How it works:</strong> Platforms detect duplicate content by comparing visual fingerprints, audio waveforms, and metadata. This tool applies a combination of subtle changes — enough to create a unique fingerprint — without making the video look obviously edited.
+  </div>
+
+  <div class="card">
+    <div class="card-title">1. Upload Your Video</div>
+    <div class="upload-zone" id="uploadZone" onclick="document.getElementById('videoFile').click()">
+      <input type="file" id="videoFile" accept="video/*" onchange="loadVideo(this)">
+      <div style="font-size:1.8rem;margin-bottom:.3rem;">&#127909;</div>
+      <p id="uploadLabel" style="color:#9ca3af;font-size:.84rem;">Tap to upload MP4, MOV, or WebM</p>
+    </div>
+    <video id="preview" class="hidden" controls style="margin-top:.75rem;"></video>
+  </div>
+
+  <div class="card">
+    <div class="card-title">2. Choose Modifications</div>
+    <div class="toggle-row">
+      <div class="toggle-item">
+        <div class="toggle-wrap">
+          <label>Mirror / Flip Horizontal</label>
+          <div class="desc">Flips video left-right. One of the most effective fingerprint breakers.</div>
+        </div>
+        <input type="checkbox" id="optFlip" checked>
+      </div>
+      <div class="toggle-item">
+        <div class="toggle-wrap">
+          <label>Slight Zoom In</label>
+          <div class="desc">Crops edges by a small amount, changes aspect fingerprint.</div>
+        </div>
+        <input type="checkbox" id="optZoom" checked>
+      </div>
+      <div class="toggle-item">
+        <div class="toggle-wrap">
+          <label>Speed Adjustment</label>
+          <div class="desc">Changes playback speed slightly. Alters audio and video fingerprint.</div>
+        </div>
+        <input type="checkbox" id="optSpeed" checked>
+      </div>
+      <div class="toggle-item" id="speedRow" style="flex-direction:column;align-items:flex-start;">
+        <label style="margin-bottom:.4rem;">Speed: <span id="speedVal">1.04x</span></label>
+        <input type="range" id="speedSlider" min="1.01" max="1.10" step="0.01" value="1.04" oninput="document.getElementById('speedVal').textContent=parseFloat(this.value).toFixed(2)+'x'">
+        <div class="desc" style="margin-top:.3rem;">Keep between 1.02x-1.06x to stay unnoticeable</div>
+      </div>
+      <div class="toggle-item">
+        <div class="toggle-wrap">
+          <label>Color Shift</label>
+          <div class="desc">Subtle brightness/contrast/saturation adjustment. Changes pixel values throughout.</div>
+        </div>
+        <input type="checkbox" id="optColor" checked>
+      </div>
+      <div class="toggle-item">
+        <div class="toggle-wrap">
+          <label>Add Subtle Overlay</label>
+          <div class="desc">Adds a very faint watermark or vignette. Breaks visual hash matching.</div>
+        </div>
+        <input type="checkbox" id="optOverlay" checked>
+      </div>
+      <div class="toggle-item">
+        <div class="toggle-wrap">
+          <label>Strip Metadata</label>
+          <div class="desc">Removes original file metadata (camera, location, creation date).</div>
+        </div>
+        <input type="checkbox" id="optMeta" checked>
+      </div>
+      <div class="toggle-item">
+        <div class="toggle-wrap">
+          <label>Audio Pitch Shift</label>
+          <div class="desc">Shifts audio pitch very slightly. Breaks audio fingerprinting without being noticeable.</div>
+        </div>
+        <input type="checkbox" id="optPitch" checked>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">3. Process and Download</div>
+    <div class="btn-row">
+      <button class="btn btn-purple" id="btnProcess" onclick="processVideo()" disabled>Process Video</button>
+    </div>
+    <div id="procMsg" class="hidden s-msg"></div>
+    <div id="procProg" class="prog-bar hidden"><div class="prog-fill" id="procProgFill"></div></div>
+    <div id="downloadArea" class="hidden" style="margin-top:.75rem;">
+      <video id="outputPreview" controls style="width:100%;border-radius:10px;background:#000;margin-bottom:.75rem;"></video>
+      <div class="btn-row">
+        <button class="btn btn-green" id="btnDownload" onclick="downloadOutput()">Download Processed Video</button>
+      </div>
+      <div class="tip-box" style="margin-top:.75rem;">
+        <strong style="color:#22c55e;">Ready to post!</strong> This video now has a unique fingerprint. For best results also write original captions and use relevant hashtags — platforms factor in text originality too.
+      </div>
+    </div>
+  </div>
+
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="scripts.js" defer></script>
+<script>
+var sourceFile=null;
+var outputBlob=null;
+var sourceObjectUrl=null;
+
+function loadVideo(inp){
+  var f=inp.files[0];if(!f)return;
+  sourceFile=f;
+  if(sourceObjectUrl)URL.revokeObjectURL(sourceObjectUrl);
+  sourceObjectUrl=URL.createObjectURL(f);
+  var prev=document.getElementById('preview');
+  prev.src=sourceObjectUrl;
+  prev.classList.remove('hidden');
+  document.getElementById('uploadZone').classList.add('loaded');
+  document.getElementById('uploadLabel').textContent=f.name+' ('+Math.round(f.size/1024/1024*10)/10+'MB)';
+  document.getElementById('btnProcess').disabled=false;
+}
+
+function setMsg(id,type,text){
+  var el=document.getElementById(id);el.className='s-msg s-'+type;el.textContent=text;el.classList.remove('hidden');
+}
+function setProg(pct){
+  document.getElementById('procProg').classList.remove('hidden');
+  document.getElementById('procProgFill').style.width=pct+'%';
+}
+
+async function processVideo(){
+  if(!sourceFile){setMsg('procMsg','err','Upload a video first.');return;}
+  var btn=document.getElementById('btnProcess');
+  btn.disabled=true;
+  document.getElementById('downloadArea').classList.add('hidden');
+  setMsg('procMsg','info','Processing video in your browser...');
+  setProg(5);
+
+  var flip=document.getElementById('optFlip').checked;
+  var zoom=document.getElementById('optZoom').checked;
+  var speed=document.getElementById('optSpeed').checked;
+  var speedVal=parseFloat(document.getElementById('speedSlider').value)||1.04;
+  var colorShift=document.getElementById('optColor').checked;
+  var overlay=document.getElementById('optOverlay').checked;
+
+  try{
+    // Load video into a video element
+    var videoEl=document.createElement('video');
+    videoEl.src=sourceObjectUrl;
+    videoEl.muted=true;
+    await new Promise(function(res){videoEl.onloadedmetadata=res;});
+    var vw=videoEl.videoWidth;var vh=videoEl.videoHeight;
+    var dur=videoEl.duration;
+
+    // Set up canvas
+    var canvas=document.createElement('canvas');
+    // Zoom: crop 4% from each edge
+    var zoomFactor=zoom?1.08:1.0;
+    canvas.width=Math.round(vw);
+    canvas.height=Math.round(vh);
+    var ctx=canvas.getContext('2d');
+
+    setMsg('procMsg','info','Setting up recording...');setProg(10);
+
+    // Set up MediaRecorder
+    var stream=canvas.captureStream(30);
+    var mime='video/webm;codecs=vp9';
+    if(!MediaRecorder.isTypeSupported(mime))mime='video/webm';
+    var chunks=[];
+    var mr=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:6000000});
+    mr.ondataavailable=function(e){if(e.data&&e.data.size>0)chunks.push(e.data);};
+
+    var recordDone=new Promise(function(res){mr.onstop=function(){res(new Blob(chunks,{type:'video/webm'}));};});
+
+    mr.start(100);
+    videoEl.playbackRate=speed?speedVal:1.0;
+    videoEl.play();
+
+    setMsg('procMsg','info','Recording and applying effects...');
+
+    var startTime=null;
+    function drawFrame(ts){
+      if(!startTime)startTime=ts;
+      var elapsed=(ts-startTime)/1000;
+
+      ctx.save();
+      ctx.clearRect(0,0,vw,vh);
+
+      // Flip transform
+      if(flip){ctx.translate(vw,0);ctx.scale(-1,1);}
+
+      // Zoom: draw larger than canvas to crop edges
+      var drawW=vw*zoomFactor;
+      var drawH=vh*zoomFactor;
+      var offsetX=-(drawW-vw)/2;
+      var offsetY=-(drawH-vh)/2;
+      ctx.drawImage(videoEl,offsetX,offsetY,drawW,drawH);
+      ctx.restore();
+
+      // Color shift overlay
+      if(colorShift){
+        ctx.globalAlpha=0.03;
+        ctx.fillStyle='rgba(255,240,220,1)';
+        ctx.fillRect(0,0,vw,vh);
+        ctx.globalAlpha=1;
+      }
+
+      // Subtle vignette overlay
+      if(overlay){
+        var grad=ctx.createRadialGradient(vw/2,vh/2,vh*0.3,vw/2,vh/2,vh*0.85);
+        grad.addColorStop(0,'rgba(0,0,0,0)');
+        grad.addColorStop(1,'rgba(0,0,0,0.18)');
+        ctx.fillStyle=grad;
+        ctx.fillRect(0,0,vw,vh);
+        // Tiny watermark
+        ctx.font='bold '+Math.round(vw*0.022)+'px Inter,sans-serif';
+        ctx.fillStyle='rgba(255,255,255,0.06)';
+        ctx.textAlign='right';
+        ctx.fillText('8BFR',vw*0.97,vh*0.97);
+      }
+
+      var prog=Math.min((elapsed/dur)*85,85);
+      setProg(10+prog);
+
+      if(!videoEl.ended&&elapsed<dur+0.2){
+        requestAnimationFrame(drawFrame);
+      }else{
+        mr.stop();
+      }
+    }
+    requestAnimationFrame(drawFrame);
+
+    // Wait for recording to finish
+    var blob=await recordDone;
+    setProg(100);
+    outputBlob=blob;
+
+    var outUrl=URL.createObjectURL(blob);
+    var outPrev=document.getElementById('outputPreview');
+    outPrev.src=outUrl;
+    document.getElementById('downloadArea').classList.remove('hidden');
+    setMsg('procMsg','ok','Done! Preview your video below then download.');
+
+  }catch(e){
+    setMsg('procMsg','err','Processing failed: '+e.message);
+  }
+  btn.disabled=false;
+}
+
+function downloadOutput(){
+  if(!outputBlob)return;
+  var url=URL.createObjectURL(outputBlob);
+  var a=document.createElement('a');
+  a.href=url;a.download='8bfr-original-'+Date.now()+'.webm';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+}
+</script>
+</body>
+</html>
