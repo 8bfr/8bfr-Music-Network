@@ -176,8 +176,7 @@ audio{width:100%;border-radius:8px;margin-top:.5rem;}
       <label>Paste raw lyrics - labels, timestamps, speaker tags all fine. AI will strip them to clean lyric lines.</label>
       <textarea id="lyrInput" placeholder="Paste lyrics here - can include [Verse 1], timestamps, speaker labels etc..."></textarea>
       <div class="btn-row">
-        <button class="btn btn-cyan" id="btnFmt" onclick="aiFormat()">AI Format Lyrics</button>
-        <button class="btn btn-gray" onclick="manualClean()">Quick Clean</button>
+        <button class="btn btn-cyan" id="btnFmt" onclick="aiFormat()">Smart Clean Lyrics</button>
       </div>
       <p id="lyrCount" style="font-size:.78rem;color:#6b7280;margin-top:.4rem;">0 lines</p>
       <div id="fmtMsg" class="hidden s-msg"></div>
@@ -840,29 +839,38 @@ document.getElementById('lyrInput').addEventListener('input',function(){
   drawLyrStatic();
 });
 
-async function aiFormat(){
-  var raw=document.getElementById('lyrInput').value.trim();
-  if(!raw){msg('fmtMsg','err','Paste lyrics first.');return;}
-  var btn=document.getElementById('btnFmt');btn.disabled=true;btn.textContent='Formatting...';
-  msg('fmtMsg','info','AI is cleaning your lyrics...');
-  try{
-    var lineCount=raw.split('\n').filter(function(l){return l.trim().length>0;}).length;
-    var prompt='You are a lyrics formatter. Your ONLY job is to remove non-lyric lines and output the actual sung words. Rules:\n1. Remove section labels: [Verse], [Chorus], [Hook], [Intro], [Outro], [Bridge], [Pre-Chorus]\n2. Remove speaker tags: [Krayzie Bone], [8b], [James], etc\n3. Remove timestamps: [00:00.00] or (00:00)\n4. Keep EVERY sung lyric line - do not merge, skip, summarize or drop any lines\n5. Capitalize first letter of each line\n6. One line per lyric line\n7. Output ONLY the lyric lines, nothing else, no explanations\n\nIMPORTANT: The input has approximately '+lineCount+' lines. Your output should have a similar number of lyric lines. Do not cut lines short.\n\nLyrics to clean:\n'+raw.substring(0,4000);
-    var r=await fetch('https://gen.pollinations.ai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+POLLEN_KEY},body:JSON.stringify({model:'openai',messages:[{role:'user',content:prompt}],temperature:0.3})});
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    var d=await r.json();
-    var result='';
-    if(d.choices&&d.choices[0])result=d.choices[0].message.content||'';
-    else if(d.result)result=d.result;
-    result=result.trim();
-    if(!result)throw new Error('Empty result');
-    document.getElementById('lyrInput').value=result;
-    lyrLines=result.split('\n').filter(function(l){return l.trim().length>0;});
-    document.getElementById('lyrCount').textContent=lyrLines.length+' lines';
-    drawLyrStatic();
-    msg('fmtMsg','ok','Done - '+lyrLines.length+' clean lyric lines.');
-  }catch(e){msg('fmtMsg','err','AI format failed: '+e.message+'. Try Quick Clean instead.');}
-  btn.disabled=false;btn.textContent='AI Format Lyrics';
+function aiFormat(){
+  var raw=document.getElementById('lyrInput').value;
+  if(!raw.trim()){msg('fmtMsg','err','Paste lyrics first.');return;}
+  var inputLines=raw.split('\n');
+  var before=inputLines.filter(function(l){return l.trim().length>0;}).length;
+  var out=[];
+  for(var i=0;i<inputLines.length;i++){
+    var line=inputLines[i];
+    // Remove timestamps like [00:00.00] anywhere in line
+    line=line.replace(/\[\d{1,2}:\d{2}[.:]\d{2}\]/g,'');
+    line=line.replace(/\(\d{1,2}:\d{2}[.:]?\d{0,2}\)/g,'');
+    // Strip speaker/section tags at START of line but keep the lyric after them
+    line=line.replace(/^\s*\[[^\]]{1,50}\]\s*/,'');
+    line=line.replace(/^\s*\[[^\]]{1,50}\]\s*/,''); // second pass for double tags
+    line=line.trim();
+    // Skip if entire remaining line is just a bracketed label
+    if(/^\[[^\]]+\]$/.test(line))continue;
+    // Skip empty lines
+    if(!line)continue;
+    // Capitalize first letter
+    line=line.charAt(0).toUpperCase()+line.slice(1);
+    out.push(line);
+  }
+  var result=out.join('\n');
+  document.getElementById('lyrInput').value=result;
+  lyrLines=out;
+  document.getElementById('lyrCount').textContent=out.length+' lines';
+  try{localStorage.setItem('lyr_text',result);}catch(e){}
+  drawLyrStatic();
+  var removed=before-out.length;
+  msg('fmtMsg','ok','Done! '+before+' lines in, '+out.length+' lyric lines out'+(removed>0?' ('+removed+' label/timestamp lines removed)':'')+'.');
+  document.getElementById('fmtMsg').classList.remove('hidden');
 }
 
 function manualClean(){
