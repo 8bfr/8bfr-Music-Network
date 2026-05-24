@@ -266,7 +266,10 @@ audio{width:100%;border-radius:8px;margin-top:.5rem;}
       </div>
       <div style="font-size:.74rem;color:#4b5563;margin-top:.5rem;">Tip: Play your song, note when each rapper starts. Set seconds per slide lower for fast rappers (e.g. 0.5s) and higher for slow sections (e.g. 2s).</div>
       <div style="margin-top:.6rem;">
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
         <button class="btn btn-cyan" onclick="aiDetectSections()" id="btnAiSections" style="font-size:.8rem;padding:.45rem .9rem;">AI Auto-Detect Speed Changes</button>
+        <button class="btn btn-gray" onclick="undoSection()" id="btnUndoSection" disabled style="font-size:.8rem;padding:.45rem .9rem;">Undo Last Change</button>
+      </div>
         <div id="aiSecMsg" class="hidden s-msg" style="margin-top:.5rem;font-size:.78rem;"></div>
       </div>
     </div>
@@ -1110,12 +1113,27 @@ function convertTime(){
 
 // ---- SECTION SPEED CONTROL ----
 var lyrSections=[]; // [{time, speed, label}] sorted by time
+var sectionsHistory=[]; // undo stack - stores snapshots of lyrSections
+
+function snapshotSections(){
+  sectionsHistory.push(JSON.stringify(lyrSections));
+  if(sectionsHistory.length>20)sectionsHistory.shift();
+  document.getElementById('btnUndoSection').disabled=sectionsHistory.length===0;
+}
+
+function undoSection(){
+  if(!sectionsHistory.length)return;
+  lyrSections=JSON.parse(sectionsHistory.pop());
+  saveSections();renderSections();
+  document.getElementById('btnUndoSection').disabled=sectionsHistory.length===0;
+}
 
 function addSection(){
   var t=parseFloat(document.getElementById('secTime').value);
   var s=parseFloat(document.getElementById('secSpeed').value);
   var l=document.getElementById('secLabel').value.trim()||('Section at '+t+'s');
   if(isNaN(t)||isNaN(s)||s<=0){alert('Enter a valid time and speed.');return;}
+  snapshotSections();
   lyrSections.push({time:t,speed:s,label:l});
   lyrSections.sort(function(a,b){return a.time-b.time;});
   document.getElementById('secTime').value='';
@@ -1126,6 +1144,7 @@ function addSection(){
 }
 
 function removeSection(idx){
+  snapshotSections();
   lyrSections.splice(idx,1);
   renderSections();
   saveSections();
@@ -1136,6 +1155,10 @@ async function aiDetectSections(){
     var el=document.getElementById('aiSecMsg');
     el.className='s-msg s-err';el.textContent='Add and clean your lyrics first.';el.classList.remove('hidden');return;
   }
+  if(lyrSections.length>0){
+    if(!confirm('This will replace your '+lyrSections.length+' existing section(s) with AI-generated ones. Your current sections will be saved to Undo. Continue?'))return;
+  }
+  snapshotSections();
   var btn=document.getElementById('btnAiSections');
   btn.disabled=true;btn.textContent='Analyzing...';
   var el=document.getElementById('aiSecMsg');
@@ -1223,11 +1246,12 @@ function renderSections(){
 
 function updateSection(idx,field,val){
   if(!lyrSections[idx])return;
+  snapshotSections();
   if(field==='time'||field==='speed')lyrSections[idx][field]=parseFloat(val)||0;
   else lyrSections[idx][field]=val;
   if(field==='time')lyrSections.sort(function(a,b){return a.time-b.time;});
   saveSections();
-  if(field==='time')renderSections(); // re-render after sort
+  if(field==='time')renderSections();
 }
 
 function formatTime(s){
@@ -1733,6 +1757,7 @@ function stitchAndDownload(videoBase64Array){
 
 // ---- END COLAB ----
 // Init - restore saved state from localStorage
+document.addEventListener('DOMContentLoaded',function(){
 checkUserTier().then(function(){
   if(canUseColab())document.getElementById('btnRealVideo').style.display='';
 });
@@ -1798,6 +1823,7 @@ try{
   }
 }catch(e){}
 drawLyrStatic();
+}); // end DOMContentLoaded
 </script>
 </body>
 </html>
