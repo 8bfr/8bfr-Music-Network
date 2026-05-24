@@ -930,8 +930,9 @@ function setSyncMode(mode){
 
 function getLyrLine(t){
   if(!lyrLines.length)return'';
+
   if(lyrSyncMode==='tap'&&lyrTimestamps.length){
-    // Find last timestamp <= t
+    // Tap sync: 1 line at a time, most accurate
     var line='';
     for(var i=0;i<lyrTimestamps.length;i++){
       if(lyrTimestamps[i].time<=t)line=lyrTimestamps[i].line;
@@ -939,15 +940,23 @@ function getLyrLine(t){
     }
     return line;
   }
+
   if(lyrSyncMode==='beat'&&lyrBeatTimestamps.length){
-    var line='';
+    // Beat sync: show 3 lines at once so fast rappers are all visible
+    var curIdx=0;
     for(var i=0;i<lyrBeatTimestamps.length;i++){
-      if(lyrBeatTimestamps[i].time<=t)line=lyrBeatTimestamps[i].line;
+      if(lyrBeatTimestamps[i].time<=t)curIdx=i;
       else break;
     }
-    return line;
+    // Show current + next 2 lines
+    var lines=[];
+    for(var j=curIdx;j<Math.min(curIdx+3,lyrBeatTimestamps.length);j++){
+      lines.push(lyrBeatTimestamps[j].line);
+    }
+    return lines.join('\n');
   }
-  // Even split fallback
+
+  // Even split: 1 line at a time
   if(!lyrDuration)return'';
   var idx=Math.max(0,Math.min(Math.floor((t/lyrDuration)*lyrLines.length),lyrLines.length-1));
   return lyrLines[idx]||'';
@@ -1151,17 +1160,28 @@ function drawLyrFrame(t){
   var wfs=Math.round(w*0.022);
   ctx.font='600 '+wfs+'px Inter,sans-serif';ctx.fillStyle=st.accent;ctx.globalAlpha=0.45;ctx.textAlign='center';
   ctx.fillText('8BFR Music Network',w/2,h*0.055);ctx.globalAlpha=1;
-  // Lyric
-  var line=getLyrLine(t);
-  if(line){
+  // Lyric - beat mode shows 3 lines at once, others show 1
+  var lineText=getLyrLine(t);
+  if(lineText){
     var fs=parseInt(document.getElementById('lyrFs').value)||44;
-    var sfs=Math.round(fs*(w/420));
-    ctx.font='bold '+sfs+'px Inter,sans-serif';ctx.textAlign='center';
-    ctx.shadowColor=st.glow;ctx.shadowBlur=sfs*0.55;ctx.fillStyle=st.text;
-    var wrapped=wrapTxt(ctx,line,w*0.84);
-    var lh=sfs*1.35;var sy=h/2-wrapped.length*lh/2+sfs;
-    for(var li=0;li<wrapped.length;li++)ctx.fillText(wrapped[li],w/2,sy+li*lh);
-    ctx.shadowBlur=0;
+    var isBeat=lyrSyncMode==='beat'&&lyrBeatTimestamps.length>0;
+    var sfs=Math.round(fs*(isBeat?0.72:1.0)*(w/420));
+    ctx.textAlign='center';
+    var stanzaLines=lineText.split('\n');
+    var lh=sfs*1.42;
+    var totalH=stanzaLines.length*lh;
+    var startY=h/2-totalH/2+sfs;
+    for(var si2=0;si2<stanzaLines.length;si2++){
+      // First line full brightness, preview lines dimmer
+      ctx.globalAlpha=si2===0?1.0:si2===1?0.5:0.25;
+      ctx.font=(si2===0?'bold ':'600 ')+sfs+'px Inter,sans-serif';
+      ctx.shadowColor=st.glow;ctx.shadowBlur=si2===0?sfs*0.55:0;ctx.fillStyle=st.text;
+      var wrapped=wrapTxt(ctx,stanzaLines[si2],w*0.84);
+      for(var wi2=0;wi2<wrapped.length;wi2++){
+        ctx.fillText(wrapped[wi2],w/2,startY+si2*lh+wi2*(sfs*1.2));
+      }
+    }
+    ctx.globalAlpha=1;ctx.shadowBlur=0;
   }
   // Progress bar
   if(lyrDuration>0&&t>0){
