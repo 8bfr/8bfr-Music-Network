@@ -1523,15 +1523,28 @@
                 await new Promise(function(r){ vid.onseeked = r; vid.currentTime = 0; });
                 vid.play().catch(function(){});
 
+                // Duration-based timeout - reliable on mobile, doesn't wait for onended
+                var clipDur = (vid.duration && isFinite(vid.duration)) ? vid.duration : 10;
                 await new Promise(function(resolve) {
                     var finished = false;
+                    var elapsed = 0;
                     var di = setInterval(function() {
                         if(finished) return;
                         try { ctx.drawImage(vid, 0, 0, canvas.width, canvas.height); } catch(e2) {}
-                        if(vid.ended){ finished=true; clearInterval(di); setTimeout(resolve,150); }
+                        elapsed += 33;
+                        if(vid.ended || elapsed >= (clipDur * 1000) + 500){
+                            finished = true;
+                            clearInterval(di);
+                            setTimeout(resolve, 300);
+                        }
                     }, 33);
-                    vid.onended = function(){ if(!finished){ finished=true; clearInterval(di); setTimeout(resolve,150); }};
-                    setTimeout(function(){ if(!finished){ finished=true; clearInterval(di); resolve(); }}, 300000);
+                    vid.onended = function(){
+                        if(!finished){ finished=true; clearInterval(di); setTimeout(resolve,300); }
+                    };
+                    // Hard timeout: clip duration + 5 seconds
+                    setTimeout(function(){
+                        if(!finished){ finished=true; clearInterval(di); resolve(); }
+                    }, (clipDur*1000)+5000);
                 });
                 vid.src = '';
             }
