@@ -1392,6 +1392,55 @@
         document.getElementById('joinProg').style.display = 'none';
     };
 
+    // Compress a video clip through canvas - reduces size for Supabase 50MB limit
+    window.compressClip = async function(file) {
+        return new Promise(async function(resolve) {
+            var url = URL.createObjectURL(file);
+            var vid = document.createElement('video');
+            vid.src = url; vid.muted = true; vid.playsInline = true;
+            await new Promise(function(r){ vid.onloadedmetadata = r; });
+
+            // Downscale to max 720p to reduce file size significantly
+            var maxW = 1280; var maxH = 720;
+            var vw = vid.videoWidth; var vh = vid.videoHeight;
+            // If portrait (TikTok style) flip the max dimensions
+            if(vh > vw){ maxW = 720; maxH = 1280; }
+            var scale = Math.min(maxW/vw, maxH/vh, 1.0); // never upscale
+            var outW = Math.round(vw * scale);
+            var outH = Math.round(vh * scale);
+
+            var canvas = document.createElement('canvas');
+            canvas.width = outW; canvas.height = outH;
+            var ctx = canvas.getContext('2d');
+
+            var cs = canvas.captureStream(24); // 24fps is enough for video
+            var mime = 'video/webm;codecs=vp9,opus';
+            if(!MediaRecorder.isTypeSupported(mime)) mime = 'video/webm;codecs=vp8,opus';
+            if(!MediaRecorder.isTypeSupported(mime)) mime = 'video/webm';
+            var chunks = [];
+            var mr = new MediaRecorder(cs, {mimeType: mime, videoBitsPerSecond: 1500000}); // 1.5Mbps - good quality, small size
+            mr.ondataavailable = function(e){ if(e.data && e.data.size > 0) chunks.push(e.data); };
+            mr.onstop = function(){
+                URL.revokeObjectURL(url);
+                resolve(new Blob(chunks, {type:'video/webm'}));
+            };
+
+            vid.currentTime = 0;
+            await new Promise(function(r){ vid.onseeked = r; vid.currentTime = 0; });
+            mr.start(100);
+            vid.play().catch(function(){});
+
+            var finished = false;
+            var di = setInterval(function(){
+                if(finished) return;
+                try{ ctx.drawImage(vid, 0, 0, outW, outH); }catch(e2){}
+                if(vid.ended){ finished=true; clearInterval(di); setTimeout(function(){ mr.stop(); }, 150); }
+            }, 42); // ~24fps
+            vid.onended = function(){ if(!finished){ finished=true; clearInterval(di); setTimeout(function(){ mr.stop(); }, 150); }};
+            setTimeout(function(){ if(!finished){ finished=true; clearInterval(di); mr.stop(); }}, 300000);
+        });
+    };
+
     window.joinClips = async function() {
         if(clipFiles.length < 2){ return; }
         var btn = document.getElementById('btnJoin');
@@ -1415,10 +1464,13 @@
                 msgEl.textContent = 'Uploading clip '+(i+1)+' of '+clipFiles.length+' to cloud...';
                 progFill.style.width = (2 + Math.round(((i)/clipFiles.length)*45)) + '%';
 
-                var fname = Date.now() + '-clip' + i + '.mp4';
+                msgEl.textContent = 'Compressing clip '+(i+1)+' of '+clipFiles.length+'...';
+                var compressedBlob = await compressClip(clipFiles[i]);
+                msgEl.textContent = 'Uploading clip '+(i+1)+' of '+clipFiles.length+' ('+Math.round(compressedBlob.size/1024/1024*10)/10+'MB)...';
+                var fname = Date.now() + '-clip' + i + '.webm';
                 var path = 'temp-clips/' + fname;
                 var db = supabase.createClient(SUPA_URL, SUPA_KEY);
-                var upResult = await db.storage.from('video-clips').upload(path, clipFiles[i], {upsert:true, contentType: clipFiles[i].type||'video/mp4'});
+                var upResult = await db.storage.from('video-clips').upload(path, compressedBlob, {upsert:true, contentType:'video/webm'});
                 if(upResult.error) throw new Error('Upload failed clip '+(i+1)+': '+upResult.error.message);
                 uploadedPaths.push(path);
                 await new Promise(function(r){ setTimeout(r, 200); }); // small pause between uploads
