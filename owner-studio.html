@@ -1417,20 +1417,9 @@
 
                 var fname = Date.now() + '-clip' + i + '.mp4';
                 var path = 'temp-clips/' + fname;
-                var formData = new FormData();
-                formData.append('', clipFiles[i], fname);
-                var resp = await fetch(SUPA_URL + '/storage/v1/object/video-clips/' + path, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': 'Bearer ' + SUPA_KEY,
-                        'x-upsert': 'true'
-                    },
-                    body: formData
-                });
-                if(!resp.ok){
-                    var errText = await resp.text();
-                    throw new Error('Upload failed clip '+(i+1)+': HTTP '+resp.status+' '+errText.substring(0,100));
-                }
+                var db = supabase.createClient(SUPA_URL, SUPA_KEY);
+                var upResult = await db.storage.from('video-clips').upload(path, clipFiles[i], {upsert:true, contentType: clipFiles[i].type||'video/mp4'});
+                if(upResult.error) throw new Error('Upload failed clip '+(i+1)+': '+upResult.error.message);
                 uploadedPaths.push(path);
                 await new Promise(function(r){ setTimeout(r, 200); }); // small pause between uploads
             }
@@ -1440,7 +1429,9 @@
 
             // Step 2: Get public URLs for each clip
             var clipUrls = uploadedPaths.map(function(p){
-                return SUPA_URL + '/storage/v1/object/public/video-clips/' + p;
+                var db2=supabase.createClient(SUPA_URL,SUPA_KEY);
+                var purl=db2.storage.from('video-clips').getPublicUrl(p);
+                return purl.data.publicUrl;
             });
 
             // Step 3: Set up canvas + ONE continuous MediaRecorder
@@ -1501,10 +1492,7 @@
 
             // Step 6: Clean up temp clips from Supabase
             for(var di2 = 0; di2 < uploadedPaths.length; di2++) {
-                fetch(SUPA_URL + '/storage/v1/object/video-clips/' + uploadedPaths[di2], {
-                    method: 'DELETE',
-                    headers: { 'Authorization': 'Bearer ' + SUPA_KEY }
-                }).catch(function(){});
+                (function(p){supabase.createClient(SUPA_URL,SUPA_KEY).storage.from('video-clips').remove([p]).catch(function(){});})(uploadedPaths[di2]);
             }
 
             progFill.style.width = '100%';
@@ -1519,10 +1507,7 @@
         } catch(e) {
             // Clean up any uploaded clips on failure
             for(var di3 = 0; di3 < uploadedPaths.length; di3++) {
-                fetch(SUPA_URL + '/storage/v1/object/video-clips/' + uploadedPaths[di3], {
-                    method: 'DELETE',
-                    headers: { 'Authorization': 'Bearer ' + SUPA_KEY }
-                }).catch(function(){});
+                (function(p){supabase.createClient(SUPA_URL,SUPA_KEY).storage.from('video-clips').remove([p]).catch(function(){});})(uploadedPaths[di3]);
             }
             msgEl.style.cssText = 'display:block;margin-top:.6rem;padding:.55rem .9rem;border-radius:8px;font-size:.83rem;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2);';
             msgEl.textContent = 'Failed: ' + e.message;
