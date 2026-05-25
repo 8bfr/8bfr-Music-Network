@@ -1415,17 +1415,22 @@
                 msgEl.textContent = 'Uploading clip '+(i+1)+' of '+clipFiles.length+' to cloud...';
                 progFill.style.width = (2 + Math.round(((i)/clipFiles.length)*45)) + '%';
 
-                var path = 'temp-clips/' + Date.now() + '-clip' + i + '.mp4';
+                var fname = Date.now() + '-clip' + i + '.mp4';
+                var path = 'temp-clips/' + fname;
+                var formData = new FormData();
+                formData.append('', clipFiles[i], fname);
                 var resp = await fetch(SUPA_URL + '/storage/v1/object/video-clips/' + path, {
                     method: 'POST',
                     headers: {
                         'Authorization': 'Bearer ' + SUPA_KEY,
-                        'Content-Type': clipFiles[i].type || 'video/mp4',
                         'x-upsert': 'true'
                     },
-                    body: clipFiles[i]
+                    body: formData
                 });
-                if(!resp.ok) throw new Error('Upload failed for clip '+(i+1)+': HTTP '+resp.status);
+                if(!resp.ok){
+                    var errText = await resp.text();
+                    throw new Error('Upload failed clip '+(i+1)+': HTTP '+resp.status+' '+errText.substring(0,100));
+                }
                 uploadedPaths.push(path);
                 await new Promise(function(r){ setTimeout(r, 200); }); // small pause between uploads
             }
