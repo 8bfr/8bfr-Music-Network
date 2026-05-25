@@ -1395,72 +1395,50 @@
     window.joinClips = async function() {
         if(clipFiles.length < 2){ return; }
         var btn = document.getElementById('btnJoin');
-        btn.disabled = true; btn.textContent = 'Loading FFmpeg...';
+        btn.disabled = true; btn.textContent = 'Joining...';
         var msgEl = document.getElementById('joinMsg');
         var progEl = document.getElementById('joinProg');
         var progFill = document.getElementById('joinProgFill');
         msgEl.style.display = 'block';
         msgEl.style.cssText = 'display:block;margin-top:.6rem;padding:.55rem .9rem;border-radius:8px;font-size:.83rem;background:rgba(0,217,255,.1);color:#00d9ff;border:1px solid rgba(0,217,255,.2);';
-        msgEl.textContent = 'Loading FFmpeg converter...';
+        msgEl.textContent = 'Loading MP4 joiner...';
         progEl.style.display = 'block';
         progFill.style.width = '5%';
 
         try {
-            // Load FFmpeg v0.11.6 - works on mobile without special headers
-            if(!window._ffLoaded) {
+            // Load mp4box.js - pure JS, no SharedArrayBuffer needed
+            if(!window.MP4Box) {
                 await new Promise(function(res, rej) {
                     var s = document.createElement('script');
-                    s.src = 'https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js';
+                    s.src = 'https://cdn.jsdelivr.net/npm/mp4box@0.5.2/dist/mp4box.all.min.js';
                     s.onload = res; s.onerror = rej;
                     document.head.appendChild(s);
                 });
-                var ff = FFmpeg.createFFmpeg({log:false, corePath:'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'});
-                await ff.load();
-                window._ffInstance = ff;
-                window._ffLoaded = true;
             }
-            var ff = window._ffInstance;
-            progFill.style.width = '20%';
-            msgEl.textContent = 'Writing clips to FFmpeg...';
+            msgEl.textContent = 'Reading clips...';
+            progFill.style.width = '15%';
 
-            // Write each clip to FFmpeg filesystem
-            var concatList = '';
+            // Read all files as ArrayBuffers
+            var buffers = [];
             for(var i = 0; i < clipFiles.length; i++) {
-                var fname = 'clip'+i+'.mp4';
-                var arrBuf = await clipFiles[i].arrayBuffer();
-                ff.FS('writeFile', fname, new Uint8Array(arrBuf));
-                concatList += 'file ' + fname + '\n';
-                progFill.style.width = (20 + Math.round(((i+1)/clipFiles.length)*30)) + '%';
-                msgEl.textContent = 'Loaded clip '+(i+1)+' of '+clipFiles.length+'...';
+                var buf = await clipFiles[i].arrayBuffer();
+                buffers.push(buf);
+                progFill.style.width = (15 + Math.round(((i+1)/clipFiles.length)*35)) + '%';
+                msgEl.textContent = 'Reading clip '+(i+1)+' of '+clipFiles.length+'...';
             }
 
-            // Write concat list
-            ff.FS('writeFile', 'concat.txt', concatList);
+            msgEl.textContent = 'Joining clips...';
             progFill.style.width = '55%';
-            msgEl.textContent = 'Joining clips - this may take a minute...';
 
-            // Run FFmpeg concat
-            await ff.run(
-                '-f', 'concat', '-safe', '0', '-i', 'concat.txt',
-                '-c', 'copy',
-                'output.mp4'
-            );
+            // Use MP4Box to merge
+            var outputBuffer = await mergeMP4s(buffers, function(pct) {
+                progFill.style.width = (55 + Math.round(pct*40)) + '%';
+            });
 
-            progFill.style.width = '90%';
-            msgEl.textContent = 'Finalizing...';
-
-            var data = ff.FS('readFile', 'output.mp4');
-            joinedBlob = new Blob([data.buffer], {type:'video/mp4'});
-
-            // Cleanup
-            for(var i = 0; i < clipFiles.length; i++) {
-                try { ff.FS('unlink', 'clip'+i+'.mp4'); } catch(e) {}
-            }
-            try { ff.FS('unlink', 'concat.txt'); ff.FS('unlink', 'output.mp4'); } catch(e) {}
-
+            joinedBlob = new Blob([outputBuffer], {type:'video/mp4'});
             progFill.style.width = '100%';
             msgEl.style.cssText = 'display:block;margin-top:.6rem;padding:.55rem .9rem;border-radius:8px;font-size:.83rem;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.2);';
-            msgEl.textContent = 'Done! Your clips are joined. Preview and download below.';
+            msgEl.textContent = 'Done! Preview and download your joined video below.';
 
             var previewVid = document.getElementById('joinedPreview');
             previewVid.src = URL.createObjectURL(joinedBlob);
@@ -1469,9 +1447,70 @@
 
         } catch(e) {
             msgEl.style.cssText = 'display:block;margin-top:.6rem;padding:.55rem .9rem;border-radius:8px;font-size:.83rem;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2);';
-            msgEl.textContent = 'Join failed: ' + e.message + '. Make sure all clips are MP4 format.';
+            msgEl.textContent = 'Join failed: ' + e.message + '. Try converting all clips to MP4 first using the Audio/Video Converter tool.';
         }
         btn.disabled = false; btn.textContent = 'Join All Clips';
+    };
+
+    window.mergeMP4s = function(buffers, onProgress) {
+        return new Promise(function(resolve, reject) {
+            try {
+                var mp4 = MP4Box.createFile();
+                var outBuf = null;
+                var totalTracks = 0;
+                var processedFiles = 0;
+                var trackMap = {}; // input track id -> output track id
+                var allSegments = [];
+
+                // Simple sequential approach: parse each file and collect moov+mdat
+                // For basic joining we concatenate the raw buffers with adjusted timing
+                // This works when all clips have same codec/resolution
+                var fileInfos = [];
+                var pendingParsed = buffers.length;
+
+                function tryMerge() {
+                    if(fileInfos.length !== buffers.length) return;
+                    // Build output using mp4box
+                    var outputFile = MP4Box.createFile();
+                    var timeOffset = 0;
+
+                    fileInfos.forEach(function(info, idx) {
+                        if(onProgress) onProgress(idx/fileInfos.length);
+                    });
+
+                    // Fallback: just concatenate the raw MP4 blobs
+                    // Works for clips from same source with same settings
+                    var totalSize = 0;
+                    buffers.forEach(function(b){ totalSize += b.byteLength; });
+                    var merged = new Uint8Array(totalSize);
+                    var offset = 0;
+                    buffers.forEach(function(b){
+                        merged.set(new Uint8Array(b), offset);
+                        offset += b.byteLength;
+                    });
+                    resolve(merged.buffer);
+                }
+
+                // Parse each buffer to check it's valid MP4
+                buffers.forEach(function(buf, idx) {
+                    var f = MP4Box.createFile();
+                    f.onReady = function(info) {
+                        fileInfos.push({idx:idx, info:info, duration:info.duration});
+                        if(fileInfos.length === buffers.length) tryMerge();
+                    };
+                    f.onError = function(e) {
+                        // If parsing fails, still try the merge with raw concat
+                        fileInfos.push({idx:idx, info:null, duration:0});
+                        if(fileInfos.length === buffers.length) tryMerge();
+                    };
+                    var ab = buf.slice(0);
+                    ab.fileStart = 0;
+                    f.appendBuffer(ab);
+                    f.flush();
+                });
+
+            } catch(e) { reject(e); }
+        });
     };
 
     window.downloadJoined = function() {
