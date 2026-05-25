@@ -1395,82 +1395,73 @@
     window.joinClips = async function() {
         if(clipFiles.length < 2){ return; }
         var btn = document.getElementById('btnJoin');
-        btn.disabled = true; btn.textContent = 'Joining...';
+        btn.disabled = true; btn.textContent = 'Loading FFmpeg...';
         var msgEl = document.getElementById('joinMsg');
         var progEl = document.getElementById('joinProg');
         var progFill = document.getElementById('joinProgFill');
         msgEl.style.display = 'block';
         msgEl.style.cssText = 'display:block;margin-top:.6rem;padding:.55rem .9rem;border-radius:8px;font-size:.83rem;background:rgba(0,217,255,.1);color:#00d9ff;border:1px solid rgba(0,217,255,.2);';
-        msgEl.textContent = 'Loading clips...';
+        msgEl.textContent = 'Loading FFmpeg converter...';
         progEl.style.display = 'block';
         progFill.style.width = '5%';
 
         try {
-            // Decode each video into frames using canvas and stitch
-            // Simpler approach: use MediaSource API to concatenate blobs
-            var blobs = [];
-            for(var i = 0; i < clipFiles.length; i++){
-                blobs.push(clipFiles[i]);
-                progFill.style.width = Math.round(((i+1)/clipFiles.length)*40) + '%';
-                msgEl.textContent = 'Loading clip ' + (i+1) + ' of ' + clipFiles.length + '...';
-            }
-
-            msgEl.textContent = 'Stitching clips together...';
-            progFill.style.width = '50%';
-
-            // Use canvas + requestAnimationFrame approach to re-record all clips in sequence
-            var firstVid = document.createElement('video');
-            firstVid.src = URL.createObjectURL(blobs[0]);
-            firstVid.muted = true;
-            await new Promise(function(r){ firstVid.onloadedmetadata = r; });
-            var vw = firstVid.videoWidth || 1080;
-            var vh = firstVid.videoHeight || 1920;
-
-            var canvas = document.createElement('canvas');
-            canvas.width = vw; canvas.height = vh;
-            var ctx = canvas.getContext('2d');
-
-            var stream = canvas.captureStream(30);
-            var mime = 'video/webm;codecs=vp9';
-            if(!MediaRecorder.isTypeSupported(mime)) mime = 'video/webm';
-            var chunks = [];
-            var mr = new MediaRecorder(stream, {mimeType: mime, videoBitsPerSecond: 6000000});
-            mr.ondataavailable = function(e){ if(e.data && e.data.size > 0) chunks.push(e.data); };
-
-            var allDone = new Promise(function(res){ mr.onstop = function(){ res(new Blob(chunks, {type:'video/webm'})); }; });
-            mr.start(100);
-
-            // Play each clip through canvas in sequence
-            for(var ci = 0; ci < blobs.length; ci++){
-                msgEl.textContent = 'Recording clip ' + (ci+1) + ' of ' + blobs.length + '...';
-                progFill.style.width = (50 + Math.round(((ci+1)/blobs.length)*45)) + '%';
-                var vid = document.createElement('video');
-                vid.src = URL.createObjectURL(blobs[ci]);
-                vid.muted = true;
-                vid.playsInline = true;
-                await new Promise(function(r){ vid.onloadedmetadata = r; });
-                vid.play();
-                await new Promise(function(resolve){
-                    function frame(){
-                        if(vid.ended || vid.paused){
-                            ctx.drawImage(vid, 0, 0, vw, vh);
-                            resolve();
-                        } else {
-                            ctx.drawImage(vid, 0, 0, vw, vh);
-                            requestAnimationFrame(frame);
-                        }
-                    }
-                    frame();
-                    vid.onended = function(){ setTimeout(resolve, 200); };
+            // Load FFmpeg v0.11.6 - works on mobile without special headers
+            if(!window._ffLoaded) {
+                await new Promise(function(res, rej) {
+                    var s = document.createElement('script');
+                    s.src = 'https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js';
+                    s.onload = res; s.onerror = rej;
+                    document.head.appendChild(s);
                 });
-                URL.revokeObjectURL(vid.src);
+                var ff = FFmpeg.createFFmpeg({log:false, corePath:'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'});
+                await ff.load();
+                window._ffInstance = ff;
+                window._ffLoaded = true;
+            }
+            var ff = window._ffInstance;
+            progFill.style.width = '20%';
+            msgEl.textContent = 'Writing clips to FFmpeg...';
+
+            // Write each clip to FFmpeg filesystem
+            var concatList = '';
+            for(var i = 0; i < clipFiles.length; i++) {
+                var fname = 'clip'+i+'.mp4';
+                var arrBuf = await clipFiles[i].arrayBuffer();
+                ff.FS('writeFile', fname, new Uint8Array(arrBuf));
+                concatList += 'file ' + fname + '
+';
+                progFill.style.width = (20 + Math.round(((i+1)/clipFiles.length)*30)) + '%';
+                msgEl.textContent = 'Loaded clip '+(i+1)+' of '+clipFiles.length+'...';
             }
 
-            mr.stop();
-            joinedBlob = await allDone;
+            // Write concat list
+            ff.FS('writeFile', 'concat.txt', concatList);
+            progFill.style.width = '55%';
+            msgEl.textContent = 'Joining clips - this may take a minute...';
+
+            // Run FFmpeg concat
+            await ff.run(
+                '-f', 'concat', '-safe', '0', '-i', 'concat.txt',
+                '-c', 'copy',
+                'output.mp4'
+            );
+
+            progFill.style.width = '90%';
+            msgEl.textContent = 'Finalizing...';
+
+            var data = ff.FS('readFile', 'output.mp4');
+            joinedBlob = new Blob([data.buffer], {type:'video/mp4'});
+
+            // Cleanup
+            for(var i = 0; i < clipFiles.length; i++) {
+                try { ff.FS('unlink', 'clip'+i+'.mp4'); } catch(e) {}
+            }
+            try { ff.FS('unlink', 'concat.txt'); ff.FS('unlink', 'output.mp4'); } catch(e) {}
+
             progFill.style.width = '100%';
             msgEl.style.cssText = 'display:block;margin-top:.6rem;padding:.55rem .9rem;border-radius:8px;font-size:.83rem;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.2);';
-            msgEl.textContent = 'Done! Preview your joined video below then download.';
+            msgEl.textContent = 'Done! Your clips are joined. Preview and download below.';
 
             var previewVid = document.getElementById('joinedPreview');
             previewVid.src = URL.createObjectURL(joinedBlob);
@@ -1479,7 +1470,7 @@
 
         } catch(e) {
             msgEl.style.cssText = 'display:block;margin-top:.6rem;padding:.55rem .9rem;border-radius:8px;font-size:.83rem;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2);';
-            msgEl.textContent = 'Join failed: ' + e.message;
+            msgEl.textContent = 'Join failed: ' + e.message + '. Make sure all clips are MP4 format.';
         }
         btn.disabled = false; btn.textContent = 'Join All Clips';
     };
@@ -1487,7 +1478,7 @@
     window.downloadJoined = function() {
         if(!joinedBlob) return;
         var url = URL.createObjectURL(joinedBlob);
-        var a = document.createElement('a'); a.href = url; a.download = '8bfr-music-video-joined.webm';
+        var a = document.createElement('a'); a.href = url; a.download = '8bfr-music-video-joined.mp4';
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
     };
     // ---- END VIDEO STITCHER ----
