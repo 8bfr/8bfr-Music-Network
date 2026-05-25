@@ -1401,44 +1401,90 @@
         var progFill = document.getElementById('joinProgFill');
         msgEl.style.display = 'block';
         msgEl.style.cssText = 'display:block;margin-top:.6rem;padding:.55rem .9rem;border-radius:8px;font-size:.83rem;background:rgba(0,217,255,.1);color:#00d9ff;border:1px solid rgba(0,217,255,.2);';
-        msgEl.textContent = 'Loading MP4 joiner...';
         progEl.style.display = 'block';
         progFill.style.width = '5%';
 
         try {
-            // Load mp4box.js - pure JS, no SharedArrayBuffer needed
-            if(!window.MP4Box) {
-                await new Promise(function(res, rej) {
-                    var s = document.createElement('script');
-                    s.src = 'https://cdn.jsdelivr.net/npm/mp4box@0.5.2/dist/mp4box.all.min.js';
-                    s.onload = res; s.onerror = rej;
-                    document.head.appendChild(s);
+            // Process one clip at a time to stay within mobile memory limits
+            // Record each video through canvas sequentially, keeping only current clip in memory
+            msgEl.textContent = 'Setting up recorder...';
+
+            // Get dimensions from first clip
+            var firstUrl = URL.createObjectURL(clipFiles[0]);
+            var firstVid = document.createElement('video');
+            firstVid.src = firstUrl; firstVid.muted = true; firstVid.playsInline = true;
+            await new Promise(function(r){ firstVid.onloadedmetadata = r; });
+            var vw = firstVid.videoWidth || 1080;
+            var vh = firstVid.videoHeight || 1920;
+            firstVid.src = ''; URL.revokeObjectURL(firstUrl);
+
+            // Set up canvas at clip resolution
+            var canvas = document.createElement('canvas');
+            canvas.width = vw; canvas.height = vh;
+            var ctx = canvas.getContext('2d');
+
+            // Start recording
+            var stream = canvas.captureStream(30);
+            var mime = 'video/webm;codecs=vp9,opus';
+            if(!MediaRecorder.isTypeSupported(mime)) mime = 'video/webm;codecs=vp8,opus';
+            if(!MediaRecorder.isTypeSupported(mime)) mime = 'video/webm';
+            var chunks = [];
+            var mr = new MediaRecorder(stream, {mimeType:mime, videoBitsPerSecond:5000000});
+            mr.ondataavailable = function(e){ if(e.data && e.data.size > 0) chunks.push(e.data); };
+            var recordDone = new Promise(function(res){ mr.onstop = function(){ res(new Blob(chunks, {type:'video/webm'})); }; });
+            mr.start(200);
+
+            // Play each clip through canvas ONE AT A TIME - frees memory after each
+            for(var ci = 0; ci < clipFiles.length; ci++) {
+                msgEl.textContent = 'Recording clip '+(ci+1)+' of '+clipFiles.length+'...';
+                progFill.style.width = (10 + Math.round(((ci)/clipFiles.length)*85)) + '%';
+
+                var clipUrl = URL.createObjectURL(clipFiles[ci]);
+                var vid = document.createElement('video');
+                vid.src = clipUrl;
+                vid.muted = true;
+                vid.playsInline = true;
+                vid.setAttribute('webkit-playsinline','');
+
+                await new Promise(function(r){ vid.onloadedmetadata = r; });
+
+                // Use setInterval for drawing - more reliable on mobile than rAF during recording
+                await new Promise(function(resolve) {
+                    vid.play().catch(function(){});
+                    var done = false;
+                    var interval = setInterval(function() {
+                        if(done) return;
+                        if(vid.ended || vid.paused) {
+                            ctx.drawImage(vid, 0, 0, vw, vh);
+                            done = true;
+                            clearInterval(interval);
+                            resolve();
+                        } else {
+                            ctx.drawImage(vid, 0, 0, vw, vh);
+                        }
+                    }, 33); // ~30fps
+                    vid.onended = function() {
+                        if(!done){ done=true; clearInterval(interval); setTimeout(resolve, 100); }
+                    };
+                    // Safety timeout per clip (max 3 min per clip)
+                    setTimeout(function(){ if(!done){ done=true; clearInterval(interval); resolve(); }}, 180000);
                 });
-            }
-            msgEl.textContent = 'Reading clips...';
-            progFill.style.width = '15%';
 
-            // Read all files as ArrayBuffers
-            var buffers = [];
-            for(var i = 0; i < clipFiles.length; i++) {
-                var buf = await clipFiles[i].arrayBuffer();
-                buffers.push(buf);
-                progFill.style.width = (15 + Math.round(((i+1)/clipFiles.length)*35)) + '%';
-                msgEl.textContent = 'Reading clip '+(i+1)+' of '+clipFiles.length+'...';
+                // Free this clip from memory before loading next
+                vid.src = '';
+                URL.revokeObjectURL(clipUrl);
+                // Small pause to let browser GC
+                await new Promise(function(r){ setTimeout(r, 300); });
             }
 
-            msgEl.textContent = 'Joining clips...';
-            progFill.style.width = '55%';
+            mr.stop();
+            msgEl.textContent = 'Finalizing...';
+            progFill.style.width = '98%';
+            joinedBlob = await recordDone;
 
-            // Use MP4Box to merge
-            var outputBuffer = await mergeMP4s(buffers, function(pct) {
-                progFill.style.width = (55 + Math.round(pct*40)) + '%';
-            });
-
-            joinedBlob = new Blob([outputBuffer], {type:'video/mp4'});
             progFill.style.width = '100%';
             msgEl.style.cssText = 'display:block;margin-top:.6rem;padding:.55rem .9rem;border-radius:8px;font-size:.83rem;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.2);';
-            msgEl.textContent = 'Done! Preview and download your joined video below.';
+            msgEl.textContent = 'Done! Preview and download below. Convert to MP4 at cloudconvert.com if needed for TikTok.';
 
             var previewVid = document.getElementById('joinedPreview');
             previewVid.src = URL.createObjectURL(joinedBlob);
@@ -1447,7 +1493,7 @@
 
         } catch(e) {
             msgEl.style.cssText = 'display:block;margin-top:.6rem;padding:.55rem .9rem;border-radius:8px;font-size:.83rem;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2);';
-            msgEl.textContent = 'Join failed: ' + e.message + '. Try converting all clips to MP4 first using the Audio/Video Converter tool.';
+            msgEl.textContent = 'Failed: ' + e.message;
         }
         btn.disabled = false; btn.textContent = 'Join All Clips';
     };
