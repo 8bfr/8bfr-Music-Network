@@ -941,12 +941,22 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
     // Wait for auth check
     if (window._8bfr && window._8bfr.ready) {
       window._8bfr.ready.then(function() {
-        if (window._8bfr.isOwner || window._8bfr.isCoOwner) return; // OWNER EXEMPT
+        if (window._8bfr.isOwner || window._8bfr.isCoOwner) return; // OWNER EXEMPT - never apply
         enableProtection();
       });
     } else {
-      // No auth system loaded, protect by default
-      setTimeout(enableProtection, 2000);
+      // No auth yet - wait longer for auth before applying protection
+      // This prevents applying protection before owner status is confirmed
+      setTimeout(function(){
+        if (window._8bfr && window._8bfr.ready) {
+          window._8bfr.ready.then(function() {
+            if (window._8bfr.isOwner || window._8bfr.isCoOwner) return;
+            enableProtection();
+          });
+        } else {
+          enableProtection(); // No auth at all, protect
+        }
+      }, 4000); // wait 4s for auth to resolve
     }
   }
 
