@@ -2031,19 +2031,16 @@ var CLIENT_HANDLERS={
     var langMap={'Auto Detect':'auto','English':'en','Spanish':'es','French':'fr','German':'de','Portuguese':'pt','Japanese':'ja','Korean':'ko','Chinese':'zh'};
     var langSel=document.getElementById('trLang');
     var lang=langSel?langMap[langSel.value]||'auto':'auto';
-    if(file.size>20*1024*1024){showError('File too large ('+Math.round(file.size/1024/1024)+'MB). Max 20MB. Use the Audio Converter to compress it first.');return;}
-    showLoading('Transcribing "'+file.name+'" with AI... This may take 15-30 seconds.');
+    if(file.size>24*1024*1024){showError('File too large ('+Math.round(file.size/1024/1024)+'MB). Max 24MB.');return;}
+    showLoading('Uploading and transcribing... This may take 30 seconds.');
     try{
-      var base64=await new Promise(function(resolve,reject){
-        var reader=new FileReader();
-        reader.onload=function(){resolve(reader.result.split(',')[1]);};
-        reader.onerror=function(){reject(new Error('File read failed'));};
-        reader.readAsDataURL(file);
-      });
+      // Use FormData - avoids JSON size limits on mobile
+      var fd=new FormData();
+      fd.append('audio',file,file.name);
+      fd.append('language',lang||'auto');
       var res=await fetch('https://8bfr-api.vercel.app/api/transcribe',{
         method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({audio:base64,filename:file.name,language:lang})
+        body:fd
       });
       if(!res.ok){var errTxt=await res.text();showError('Server error '+res.status+': '+errTxt.substring(0,150));return;}
       var data=await res.json();
