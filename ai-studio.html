@@ -2031,31 +2031,32 @@ var CLIENT_HANDLERS={
     var langMap={'Auto Detect':'auto','English':'en','Spanish':'es','French':'fr','German':'de','Portuguese':'pt','Japanese':'ja','Korean':'ko','Chinese':'zh'};
     var langSel=document.getElementById('trLang');
     var lang=langSel?langMap[langSel.value]||'auto':'auto';
-    if(file.size>20*1024*1024){showError('File too large ('+Math.round(file.size/1024/1024)+'MB). Max 20MB. Compress it first in the Audio Converter.');return;}
-    showLoading('Transcribing... This may take 30-60 seconds for longer songs.');
+    if(file.size>24*1024*1024){showError('File too large ('+Math.round(file.size/1024/1024)+'MB). Max 24MB.');return;}
+    showLoading('Transcribing... This may take 30 seconds.');
     try{
-      // Convert to base64 then send via working openai.js endpoint
-      var base64=await new Promise(function(resolve,reject){
-        var reader=new FileReader();
-        reader.onload=function(){resolve(reader.result.split(',')[1]);};
-        reader.onerror=function(){reject(new Error('File read failed'));};
-        reader.readAsDataURL(file);
-      });
-      var ext=(file.name||'audio.mp3').split('.').pop().toLowerCase();
-      var mimes={mp3:'audio/mpeg',wav:'audio/wav',m4a:'audio/mp4',ogg:'audio/ogg',webm:'audio/webm',mp4:'audio/mp4',flac:'audio/flac'};
-      var mime=mimes[ext]||'audio/mpeg';
-      // Use openai.js with audio input format
-      var res=await fetch('https://8bfr-api.vercel.app/api/openai',{
+      // Get a proxy token from our API then call Whisper directly with FormData
+      // This avoids the mobile browser base64 JSON body size limit
+      var tokenRes=await fetch('https://8bfr-api.vercel.app/api/openai',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          audio:base64,
-          audioMime:mime,
-          filename:file.name,
-          language:lang||'auto',
-          mode:'transcribe',
-          tier:'mini'
-        })
+        body:JSON.stringify({mode:'get-whisper-token',tier:'nano',input:'token'})
+      });
+      var tokenData=await tokenRes.json();
+      var token=tokenData.whisperToken||null;
+      if(!token){
+        // Fallback: use Vercel as pure proxy with small chunk
+        showError('Transcription service unavailable. Try a smaller file or contact support.');
+        return;
+      }
+      var fd=new FormData();
+      fd.append('file',file,file.name);
+      fd.append('model','whisper-1');
+      fd.append('response_format','verbose_json');
+      if(lang&&lang!=='auto')fd.append('language',lang);
+      var res=await fetch('https://api.openai.com/v1/audio/transcriptions',{
+        method:'POST',
+        headers:{'Authorization':'Bearer '+token},
+        body:fd
       });
       if(!res.ok){var errTxt=await res.text();showError('Server error '+res.status+': '+errTxt.substring(0,150));return;}
       var data=await res.json();
