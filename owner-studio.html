@@ -290,7 +290,16 @@
                     </div>
                     <div class="form-group" style="flex:1;">
                         <label>Duration</label>
-                        <select id="sgDur"><option value="30">30 sec</option><option value="60">1 min</option><option value="120">2 min</option><option value="180" selected>3 min</option><option value="300">5 min</option></select>
+                        <select id="sgDur"><option value="30">30 sec</option><option value="60">1 min</option><option value="120">2 min</option><option value="180" selected>3 min</option><option value="210">3.5 min</option><option value="240">4 min</option><option value="300">5 min</option></select>
+                        <div style="margin-top:.5rem;background:#0a0a0f;border:1px solid rgba(168,85,247,.2);border-radius:8px;padding:.65rem;">
+                          <div style="font-size:.74rem;color:#a855f7;font-weight:700;margin-bottom:.35rem;">Duration Calculator</div>
+                          <div style="display:flex;gap:.4rem;align-items:flex-start;flex-wrap:wrap;">
+                            <input type="number" id="calcBpm" placeholder="BPM" min="40" max="300" style="width:65px;background:#13111c;border:1px solid rgba(168,85,247,.3);border-radius:6px;color:#e8e0ff;padding:.3rem .45rem;font-size:.82rem;" oninput="calcDuration()">
+                            <textarea id="calcLyrics" placeholder="Paste lyrics to calculate" rows="2" style="flex:1;min-width:100px;background:#13111c;border:1px solid rgba(168,85,247,.3);border-radius:6px;color:#e8e0ff;padding:.3rem .45rem;font-size:.76rem;resize:none;" oninput="calcDuration()"></textarea>
+                          </div>
+                          <div id="calcResult" style="margin-top:.35rem;font-size:.8rem;color:#00d9ff;min-height:1rem;"></div>
+                          <button onclick="applyCalcDur()" id="btnApplyDur" style="display:none;margin-top:.3rem;background:#a855f7;border:none;color:#fff;border-radius:5px;padding:.25rem .65rem;font-size:.74rem;font-weight:700;cursor:pointer;">Use This Duration</button>
+                        </div>
                     </div>
                 </div>
                 <button class="btn btn-primary" onclick="runSongGen()">Generate Song</button>
@@ -1463,6 +1472,40 @@
         try{document.execCommand('copy');btn.textContent='Copied!';setTimeout(function(){btn.textContent='Copy';},2000);}
         catch(e){alert('Copy failed - long press the prompt text to copy manually.');}
         document.body.removeChild(ta);
+    };
+
+    window.calcDuration = function() {
+        var bpm = parseInt(document.getElementById('calcBpm').value) || 0;
+        var lyrics = document.getElementById('calcLyrics').value.trim();
+        var resultEl = document.getElementById('calcResult');
+        var applyBtn = document.getElementById('btnApplyDur');
+        if (!bpm || !lyrics) { resultEl.textContent = ''; applyBtn.style.display='none'; return; }
+        var lines = lyrics.split('\n').filter(function(l){ return l.trim() && !/^\(/.test(l.trim()); });
+        var bars = Math.ceil(lines.length / 4);
+        var barsPerMin = bpm / 5;
+        var minutes = bars / barsPerMin;
+        var buffer = 0.5;
+        var totalMins = minutes + buffer;
+        var totalSecs = Math.ceil(totalMins * 60);
+        // Round to nearest available option
+        var opts = [30,60,120,180,210,240,300];
+        var best = opts.reduce(function(a,b){ return Math.abs(b-totalSecs)<Math.abs(a-totalSecs)?b:a; });
+        resultEl.textContent = lines.length+' lyric lines, ~'+bars+' bars at '+bpm+' BPM = '+totalMins.toFixed(1)+' min recommended. Use '+Math.round(best/60*10)/10+' min.';
+        applyBtn.style.display = '';
+        applyBtn.dataset.secs = best;
+    };
+
+    window.applyCalcDur = function() {
+        var btn = document.getElementById('btnApplyDur');
+        var secs = btn.dataset.secs;
+        var sel = document.getElementById('sgDur');
+        if(sel && secs) sel.value = secs;
+        // Also copy lyrics to the main lyrics field if it's empty
+        var calcLyr = document.getElementById('calcLyrics').value.trim();
+        var sgLyr = document.getElementById('sgLyrics');
+        if(sgLyr && !sgLyr.value.trim() && calcLyr) sgLyr.value = calcLyr;
+        btn.textContent = 'Applied!';
+        setTimeout(function(){ btn.textContent = 'Use This Duration'; }, 1500);
     };
 
     window.runSongGen = async function() {
