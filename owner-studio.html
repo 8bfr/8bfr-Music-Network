@@ -1495,17 +1495,25 @@
         var applyBtn = document.getElementById('btnApplyDur');
         if (!bpm || !lyrics) { resultEl.textContent = ''; applyBtn.style.display='none'; return; }
         var lines = lyrics.split('\n').filter(function(l){ var t=l.trim(); return t && !/^\(intro\)|^\(verse\s*\d*\)|^\(hook\)|^\(chorus\)|^\(bridge\)|^\(outro\)|^\(talking\)|^title$/i.test(t) && t.length>2; });
-        // Each line = 1 bar in rap (one bar = 4 beats)
-        var bars = lines.length;
-        // Bars per minute = BPM / 4 (4 beats per bar)
+        // Detect paragraph vs line format
+        var wordCount = lyrics.trim().split(/\s+/).length;
+        var bars;
+        if(lines.length < 5 && wordCount > 30){
+            // Paragraph format - estimate bars from word count (~8 words per rap bar)
+            bars = Math.ceil(wordCount / 8);
+        } else {
+            // Line format - each line is 1 bar
+            bars = lines.length;
+        }
         var barsPerMin = bpm / 4;
         var minutes = bars / barsPerMin;
-        var buffer = 0.4; // small buffer for intro/outro
+        var buffer = 0.4;
         var totalMins = minutes + buffer;
         var totalSecs = Math.ceil(totalMins * 60);
         var opts = [30,60,120,180,210,240,300];
         var best = opts.reduce(function(a,b){ return Math.abs(b-totalSecs)<Math.abs(a-totalSecs)?b:a; });
-        resultEl.textContent = lines.length+' lyric lines = '+bars+' bars at '+bpm+' BPM = '+totalMins.toFixed(1)+' min recommended. Use '+Math.round(best/60*10)/10+' min.';
+        var mode = lines.length < 5 ? 'paragraph (~'+wordCount+' words)' : lines.length+' lines';
+        resultEl.textContent = mode+' = ~'+bars+' bars at '+bpm+' BPM = '+totalMins.toFixed(1)+' min. Use '+Math.round(best/60*10)/10+' min.';
         applyBtn.style.display = '';
         applyBtn.dataset.secs = best;
     };
