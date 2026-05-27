@@ -1518,17 +1518,40 @@
             } catch(e) { resultDiv.innerHTML = '<p style="color:#ff4466;">API error: ' + e.message + '</p>'; return; }
         }
 
-        // Step 2: Build Pollinations audio prompt
+        // Step 2a: If lyrics were provided/generated, adjust them for Pollinations syllable counts
+        // so nothing gets cut off or repeated
+        var adjustedLyrics = lyrics;
+        var lyricsNote = '';
+        if (lyrics) {
+            resultDiv.innerHTML = '<p class="loading-text"><span class="spinner"></span> Step 2: Optimizing lyrics for audio generation...</p>';
+            try {
+                var adjPrompt = 'You are a music producer preparing lyrics for AI audio generation. The AI model will sing exactly what you provide. Task: Review these lyrics and make minimal adjustments ONLY where needed so every line fits naturally within its bar count. Rules: Keep ALL verses, hooks, chorus, bridge — nothing removed. Keep meaning and feel intact. If a line is too long for its bar count, shorten by 1-3 syllables. If too short, add 1-2 syllables. After adjusting, output TWO sections separated by ---UPDATED LYRICS---. First section: the adjusted lyrics (complete, all sections). Second section: a bullet list of any lines you changed and why. If no changes needed, output the original lyrics then ---UPDATED LYRICS--- then "No changes needed."';
+                var adjRes = await fetch('https://8bfr-api.vercel.app/api/openai', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({input: lyrics, system: adjPrompt, tier: 'nano', max_tokens: 2000})
+                });
+                var adjData = await adjRes.json();
+                if (adjData.text && adjData.text.includes('---UPDATED LYRICS---')) {
+                    var parts = adjData.text.split('---UPDATED LYRICS---');
+                    adjustedLyrics = parts[0].trim();
+                    lyricsNote = parts[1] ? parts[1].trim() : '';
+                }
+            } catch(e2) { /* use original lyrics if adjustment fails */ }
+        }
+
+        // Step 2b: Build Pollinations audio prompt with FULL lyrics
         resultDiv.innerHTML = '<p class="loading-text"><span class="spinner"></span> Step 2: Generating audio with vocals (' + dur + 's)... This may take 30-60 seconds.</p>';
         if (statusEl) statusEl.textContent = 'Generating audio...';
 
-        var prompt = desc ? desc + '. ' : '';
-        if (ref) prompt += 'Production style similar to ' + ref + '. ';
-        if (refSong) prompt += 'Inspired by "' + refSong + '". ';
-        if (title) prompt += 'Song: ' + title + '. ';
-        if (artist) prompt += 'Artist: ' + artist + '. ';
-        prompt += voice + ' vocals. ';
-        prompt += 'Lyrics: ' + lyrics.substring(0, 600);
+        // Build a tight style prompt then append ALL lyrics - Pollinations supports up to 300s
+        var styleDesc = '';
+        if (ref) styleDesc += ref + ' style, ';
+        if (refSong) styleDesc += 'inspired by ' + refSong + ', ';
+        if (desc) styleDesc += desc + ', ';
+        styleDesc += voice + ' vocals';
+
+        // Pollinations uses the prompt as both style guide and lyrics - put style first, lyrics after
+        var prompt = styleDesc + '. [LYRICS START] ' + adjustedLyrics + ' [LYRICS END]';
 
         var POLLEN_KEY = 'sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
         try {
@@ -1544,12 +1567,22 @@
             var blob = await resp.blob();
             var audioUrl = URL.createObjectURL(blob);
 
+            var changesHtml = '';
+            if (lyricsNote && lyricsNote !== 'No changes needed.') {
+                changesHtml = '<details style="margin-top:.5rem;border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:.6rem;"><summary style="font-size:.75rem;color:#f59e0b;cursor:pointer;font-weight:700;">&#9432; Lyrics adjusted to fit audio — tap to see changes and copy updated version</summary>' +
+                '<div style="margin-top:.5rem;">' +
+                '<div style="font-size:.72rem;color:#9ca3af;margin-bottom:.5rem;white-space:pre-wrap;">' + escapeHtml(lyricsNote) + '</div>' +
+                '<pre id="adjLyricsBox" style="font-size:.75rem;white-space:pre-wrap;color:#e8e0ff;background:#0a0a0f;padding:.75rem;border-radius:8px;margin:.4rem 0;border:1px solid rgba(168,85,247,.2);">' + escapeHtml(adjustedLyrics) + '</pre>' +
+                '<button onclick="var el=document.getElementById(&quot;adjLyricsBox&quot;);navigator.clipboard.writeText(el?el.textContent:\'\').then(function(){var b=document.activeElement;b.textContent=\'Copied!\';setTimeout(function(){b.textContent=\'Copy Updated Lyrics\';},2000);});" style="background:#a855f7;border:none;color:#fff;border-radius:6px;padding:.4rem .85rem;font-size:.78rem;font-weight:700;cursor:pointer;">Copy Updated Lyrics</button>' +
+                '</div></details>';
+            }
             resultDiv.innerHTML = '<p style="color:#4ade80;font-weight:700;">Song generated!</p>' +
                 '<audio controls src="' + audioUrl + '" style="width:100%;margin:.5rem 0;"></audio>' +
-                '<div style="display:flex;gap:0.5rem;margin-top:.5rem;">' +
+                '<div style="display:flex;gap:0.5rem;margin-top:.5rem;flex-wrap:wrap;">' +
                 '<a href="' + audioUrl + '" download="8bfr-song-' + Date.now() + '.mp3" class="btn btn-green">Download</a>' +
                 '<button class="btn btn-cyan" onclick="runSongGen()">Regenerate</button></div>' +
-                '<details style="margin-top:.5rem;"><summary style="font-size:.72rem;color:rgba(255,255,255,.4);cursor:pointer;">Lyrics used</summary><pre style="font-size:.72rem;white-space:pre-wrap;color:rgba(255,255,255,.5);margin-top:.3rem;">' + escapeHtml(lyrics) + '</pre></details>';
+                changesHtml +
+                '<details style="margin-top:.5rem;"><summary style="font-size:.72rem;color:rgba(255,255,255,.4);cursor:pointer;">Full lyrics used</summary><pre style="font-size:.72rem;white-space:pre-wrap;color:rgba(255,255,255,.5);margin-top:.3rem;">' + escapeHtml(adjustedLyrics||lyrics) + '</pre></details>';
         } catch(e) {
             resultDiv.innerHTML = '<p style="color:#ff4466;">Audio generation error: ' + e.message + '</p>' +
                 '<div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-top:.3rem;">If this keeps failing, your Pollinations credits may be expired. Try without the key parameter or purchase more credits.</div>' +
