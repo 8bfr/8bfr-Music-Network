@@ -1569,37 +1569,37 @@
         resultDiv.innerHTML = '<p class="loading-text"><span class="spinner"></span> Step 2: Generating audio with vocals (' + dur + 's)... This may take 30-60 seconds.</p>';
         if (statusEl) statusEl.textContent = 'Generating audio...';
 
-        // ACE-Step correct format:
-        // prompt = style TAGS only (comma separated, never sung)
-        // lyrics = actual words with [Section] markers (separate param)
+        // ACE-Step: everything goes in the URL prompt
+        // Format: style tags first, then lyrics - this is what actually works
+        // Style tags are short so the model focuses on lyrics as the main content
         
-        // Build tags - these control style, NOT sung
-        var tags = 'hip-hop, rap, ';
-        if (ref) tags += ref + ' style, ';
-        if (desc) tags += desc + ', ';
-        if (voice && voice.toLowerCase().includes('female')) {
-            tags += 'female rap vocals, ';
-        } else {
-            tags += 'male rap vocals, aggressive delivery, ';
-        }
-        tags += 'no singing, spoken word rap, clear lyrics';
-        var prompt = tags.replace(/,\s*$/, '');
-
-        // Format lyrics with proper ACE-Step section markers
+        // Format lyrics - convert (Section) to [Section] markers ACE-Step understands
         var formattedLyrics = adjustedLyrics
             .replace(/\(Intro\)[^\n]*/gi, '[Intro]')
             .replace(/\(Verse\s*(\d+)\)/gi, '[Verse $1]')
+            .replace(/\(Verse\)/gi, '[Verse 1]')
             .replace(/\(Hook\)/gi, '[Chorus]')
             .replace(/\(Chorus\)/gi, '[Chorus]')
             .replace(/\(Bridge\)/gi, '[Bridge]')
             .replace(/\(Outro\)/gi, '[Outro]')
-            .replace(/\(talking\)/gi, '')
+            .replace(/\(talking\)/gi, '[Intro]')
+            .replace(/\(Title\)[^\n]*/gi, '')
+            .replace(/^\([^)]+\)\s*$/gim, '')
             .trim();
-        var lyricsForAudio = formattedLyrics.substring(0, 2000);
+
+        // Build very short style prefix - just genre + vocal type
+        var stylePrefix = 'hip-hop rap, ';
+        if (ref) stylePrefix += ref + ' flow, ';
+        if (desc) stylePrefix += desc + ', ';
+        stylePrefix += (voice && voice.toLowerCase().includes('female')) ? 'female rapper' : 'male rapper';
+
+        // Prompt = short style, then full lyrics
+        var lyricsForAudio = formattedLyrics.substring(0, 1800);
+        var prompt = stylePrefix + '\n\n' + lyricsForAudio;
 
         var POLLEN_KEY = 'sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
         try {
-            var url = 'https://gen.pollinations.ai/audio/' + encodeURIComponent(prompt) + '?key=' + POLLEN_KEY + '&model=acestep&duration=' + dur + '&lyrics=' + encodeURIComponent(lyricsForAudio);
+            var url = 'https://gen.pollinations.ai/audio/' + encodeURIComponent(prompt) + '?key=' + POLLEN_KEY + '&model=acestep&duration=' + dur;
             var resp = await fetch(url);
             if (!resp.ok) {
                 var errText = '';
