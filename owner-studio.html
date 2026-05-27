@@ -302,8 +302,14 @@
                         </div>
                     </div>
                 </div>
-                <button class="btn btn-primary" onclick="runSongGen()">Generate Song</button>
-                <div id="sgStatus" style="font-size:0.72rem;color:rgba(255,255,255,0.4);margin-top:0.3rem;">AI writes lyrics + generates real audio with vocals via Pollinations.</div>`;
+                <button class="btn btn-primary" onclick="runSongGen()">Generate Song (Pollinations)</button>
+                <div style="margin-top:.6rem;display:flex;flex-wrap:wrap;gap:.4rem;">
+                  <a href="https://suno.com" target="_blank" style="background:#1db954;color:#fff;border-radius:6px;padding:.35rem .75rem;font-size:.76rem;font-weight:700;text-decoration:none;">Open Suno AI</a>
+                  <a href="https://udio.com" target="_blank" style="background:#6366f1;color:#fff;border-radius:6px;padding:.35rem .75rem;font-size:.76rem;font-weight:700;text-decoration:none;">Open Udio</a>
+                  <a href="https://mureka.ai" target="_blank" style="background:#f59e0b;color:#000;border-radius:6px;padding:.35rem .75rem;font-size:.76rem;font-weight:700;text-decoration:none;">Open Mureka</a>
+                </div>
+                <div style="font-size:.72rem;color:#6b7280;margin-top:.4rem;">Suno/Udio/Mureka follow lyrics more accurately. Copy your lyrics above then paste into any of these — all have free tiers.</div>
+                <div id="sgStatus" style="font-size:0.72rem;color:rgba(255,255,255,0.4);margin-top:0.3rem;">Pollinations: best for beat style testing. Suno/Udio: best for accurate lyric flow.</div>`;
 
             case 'beats': return aiTextUI('e.g. 82 BPM boom-bap beat with piano chops, heavy bass, martial arts movie sample...');
 
@@ -1573,27 +1579,29 @@
         // Format: style tags first, then lyrics - this is what actually works
         // Style tags are short so the model focuses on lyrics as the main content
         
-        // Format lyrics - convert (Section) to [Section] markers ACE-Step understands
+        // Format lyrics - rename hooks to verses to trick Pollinations into rapping straight through
+        // Remove all section labels entirely so it just raps continuously without breaks
+        var hookCount = 0;
+        var verseCount = 0;
         var formattedLyrics = adjustedLyrics
-            .replace(/\(Intro\)[^\n]*/gi, '[Intro]')
-            .replace(/\(Verse\s*(\d+)\)/gi, '[Verse $1]')
-            .replace(/\(Verse\)/gi, '[Verse 1]')
-            .replace(/\(Hook\)/gi, '[Chorus]')
-            .replace(/\(Chorus\)/gi, '[Chorus]')
-            .replace(/\(Bridge\)/gi, '[Bridge]')
-            .replace(/\(Outro\)/gi, '[Outro]')
-            .replace(/\(talking\)/gi, '[Intro]')
             .replace(/\(Title\)[^\n]*/gi, '')
+            .replace(/\(Intro\)[^\n]*/gi, '')
+            .replace(/\(talking\)/gi, '')
+            .replace(/\(Verse\s*\d*\)/gi, '')
+            .replace(/\(Hook\)/gi, '')
+            .replace(/\(Chorus\)/gi, '')
+            .replace(/\(Bridge\)/gi, '')
+            .replace(/\(Outro\)/gi, '')
             .replace(/^\([^)]+\)\s*$/gim, '')
+            .replace(/\n{3,}/g, '\n\n')
             .trim();
 
-        // Build very short style prefix - just genre + vocal type
-        var stylePrefix = 'hip-hop rap, ';
-        if (ref) stylePrefix += ref + ' flow, ';
+        var stylePrefix = 'hip-hop rap, continuous flow no breaks, ';
+        if (ref) stylePrefix += ref + ' style, ';
         if (desc) stylePrefix += desc + ', ';
-        stylePrefix += (voice && voice.toLowerCase().includes('female')) ? 'female rapper' : 'male rapper';
+        stylePrefix += (voice && voice.toLowerCase().includes('female')) ? 'female rapper, ' : 'male rapper, ';
+        stylePrefix += 'rap every single line, no instrumental breaks, no ad libs, no filler';
 
-        // Prompt = short style, then full lyrics
         var lyricsForAudio = formattedLyrics.substring(0, 1800);
         var prompt = stylePrefix + '\n\n' + lyricsForAudio;
 
