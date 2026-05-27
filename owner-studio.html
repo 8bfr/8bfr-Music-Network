@@ -277,6 +277,11 @@
                 </div>
                 <div class="form-group" id="sgLyricsWrap">
                     <label>Lyrics (leave blank for AI to auto-generate)</label>
+                    <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.4rem;">
+                      <button onclick="formatLyricsParagraph()" style="background:#374151;border:none;color:#e8e0ff;border-radius:6px;padding:.3rem .7rem;font-size:.74rem;font-weight:700;cursor:pointer;">Convert to Paragraph</button>
+                      <button onclick="splitLyricsHalf(1)" style="background:#374151;border:none;color:#e8e0ff;border-radius:6px;padding:.3rem .7rem;font-size:.74rem;font-weight:700;cursor:pointer;">Use Part 1</button>
+                      <button onclick="splitLyricsHalf(2)" style="background:#374151;border:none;color:#e8e0ff;border-radius:6px;padding:.3rem .7rem;font-size:.74rem;font-weight:700;cursor:pointer;">Use Part 2</button>
+                    </div>
                     <textarea id="sgLyrics" rows="5" placeholder="Paste your lyrics here, or leave blank and AI will write them matching your settings above."></textarea>
                 </div>
                 <div class="form-group">
@@ -1516,6 +1521,47 @@
         if(sgLyr && !sgLyr.value.trim() && calcLyr) sgLyr.value = calcLyr;
         btn.textContent = 'Applied!';
         setTimeout(function(){ btn.textContent = 'Use This Duration'; }, 1500);
+    };
+
+    window.formatLyricsParagraph = function() {
+        var ta = document.getElementById('sgLyrics');
+        if(!ta) return;
+        var raw = ta.value;
+        // Store original for split functions
+        window._originalLyrics = raw;
+        // Remove all section labels like (Verse 1), (Hook), (Title), (Intro) etc
+        var lines = raw.split('\n');
+        var kept = [];
+        for(var i=0;i<lines.length;i++){
+            var l = lines[i].trim();
+            if(!l) continue;
+            // Skip pure label lines
+            if(/^\([^)]*\)\s*([^a-zA-Z0-9]*)$/.test(l)) continue;
+            // Strip inline labels at start of line like (Intro)(talking)
+            l = l.replace(/^(\([^)]*\)\s*)+/, '').trim();
+            if(!l) continue;
+            kept.push(l);
+        }
+        // Join as one continuous paragraph with spaces
+        ta.value = kept.join(' ');
+        window._paraLyrics = ta.value;
+    };
+
+    window.splitLyricsHalf = function(part) {
+        var ta = document.getElementById('sgLyrics');
+        if(!ta) return;
+        // Use paragraph version if available, otherwise convert now
+        if(!window._paraLyrics) {
+            formatLyricsParagraph();
+        }
+        var para = window._paraLyrics || ta.value;
+        var words = para.split(' ');
+        var mid = Math.floor(words.length / 2);
+        if(part === 1) {
+            ta.value = words.slice(0, mid).join(' ');
+        } else {
+            ta.value = words.slice(mid).join(' ');
+        }
     };
 
     window.runSongGen = async function() {
