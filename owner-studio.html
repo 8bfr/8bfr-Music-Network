@@ -298,7 +298,7 @@
                     </div>
                     <div class="form-group" style="flex:1;">
                         <label>Duration</label>
-                        <select id="sgDur"><option value="30">30 sec</option><option value="60">1 min</option><option value="120">2 min</option><option value="180" selected>3 min</option><option value="210">3.5 min</option><option value="240">4 min</option><option value="300">5 min</option></select>
+                        <select id="sgDur"><option value="30">30 sec</option><option value="60">1 min</option><option value="120">2 min</option><option value="180" selected>3 min</option><option value="210">3.5 min</option><option value="240">4 min</option><option value="270">4.5 min</option><option value="300">5 min (max)</option></select>
                         <div style="margin-top:.5rem;background:#0a0a0f;border:1px solid rgba(168,85,247,.2);border-radius:8px;padding:.65rem;">
                           <div style="font-size:.74rem;color:#a855f7;font-weight:700;margin-bottom:.35rem;">Duration Calculator</div>
                           <div style="display:flex;gap:.4rem;align-items:flex-start;flex-wrap:wrap;">
@@ -1636,22 +1636,23 @@
         // Format: style tags first, then lyrics - this is what actually works
         // Style tags are short so the model focuses on lyrics as the main content
         
-        // Format lyrics - rename hooks to verses to trick Pollinations into rapping straight through
-        // Remove all section labels entirely so it just raps continuously without breaks
-        var hookCount = 0;
-        var verseCount = 0;
+        // Format lyrics with proper ACE-Step square bracket section tags
+        var verseNum = 0;
         var formattedLyrics = adjustedLyrics
             .replace(/\(Title\)[^\n]*/gi, '')
-            .replace(/\(Intro\)[^\n]*/gi, '')
-            .replace(/\(talking\)/gi, '')
-            .replace(/\(Verse\s*\d*\)/gi, '')
-            .replace(/\(Hook\)/gi, '')
-            .replace(/\(Chorus\)/gi, '')
-            .replace(/\(Bridge\)/gi, '')
-            .replace(/\(Outro\)/gi, '')
+            .replace(/\(Intro\)[^\n]*/gi, '[intro]')
+            .replace(/\(talking\)[^\n]*/gi, '[intro]')
+            .replace(/\(Verse\s*(\d+)\)/gi, function(m,n){ return '[verse '+n+']'; })
+            .replace(/\(Verse\)/gi, function(){ verseNum++; return '[verse '+verseNum+']'; })
+            .replace(/\(Hook\)/gi, '[chorus]')
+            .replace(/\(Chorus\)/gi, '[chorus]')
+            .replace(/\(Bridge\)/gi, '[bridge]')
+            .replace(/\(Outro\)/gi, '[outro]')
             .replace(/^\([^)]+\)\s*$/gim, '')
             .replace(/\n{3,}/g, '\n\n')
             .trim();
+        // Add [end] tag so ACE-Step knows song is complete
+        if(!formattedLyrics.endsWith('[end]')) formattedLyrics += '\n[end]';
 
         // Always old school boom bap wu-tang style - no description needed
         var bpmVal = parseInt(document.getElementById('sgDur') ? 
@@ -1668,7 +1669,7 @@
 
         var POLLEN_KEY = 'sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
         try {
-            var url = 'https://gen.pollinations.ai/audio/' + encodeURIComponent(prompt) + '?key=' + POLLEN_KEY + '&model=acestep&duration=' + dur + '&tags=' + encodeURIComponent(styleTags);
+            var url = 'https://gen.pollinations.ai/audio/' + encodeURIComponent(prompt) + '?key=' + POLLEN_KEY + '&model=acestep&duration=' + Math.min(dur,300) + '&style=' + encodeURIComponent(styleTags);
             var resp = await fetch(url);
             if (!resp.ok) {
                 var errText = '';
