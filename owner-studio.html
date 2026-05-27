@@ -1569,21 +1569,37 @@
         resultDiv.innerHTML = '<p class="loading-text"><span class="spinner"></span> Step 2: Generating audio with vocals (' + dur + 's)... This may take 30-60 seconds.</p>';
         if (statusEl) statusEl.textContent = 'Generating audio...';
 
-        // ACE-Step: lyrics ONLY in prompt - style goes in tags param
-        // Do NOT put description in prompt or it gets sung
-        var lyricsForAudio = adjustedLyrics.substring(0, 1500);
-        var prompt = lyricsForAudio;
+        // ACE-Step correct format:
+        // prompt = style TAGS only (comma separated, never sung)
+        // lyrics = actual words with [Section] markers (separate param)
+        
+        // Build tags - these control style, NOT sung
+        var tags = 'hip-hop, rap, ';
+        if (ref) tags += ref + ' style, ';
+        if (desc) tags += desc + ', ';
+        if (voice && voice.toLowerCase().includes('female')) {
+            tags += 'female rap vocals, ';
+        } else {
+            tags += 'male rap vocals, aggressive delivery, ';
+        }
+        tags += 'no singing, spoken word rap, clear lyrics';
+        var prompt = tags.replace(/,\s*$/, '');
 
-        // Build style tags string for the tags param
-        var tagsParam = '';
-        if (ref) tagsParam += ref + ', ';
-        if (desc) tagsParam += desc + ', ';
-        tagsParam += voice + ' vocals, hip hop';
-        tagsParam = tagsParam.replace(/,\s*$/, '');
+        // Format lyrics with proper ACE-Step section markers
+        var formattedLyrics = adjustedLyrics
+            .replace(/\(Intro\)[^\n]*/gi, '[Intro]')
+            .replace(/\(Verse\s*(\d+)\)/gi, '[Verse $1]')
+            .replace(/\(Hook\)/gi, '[Chorus]')
+            .replace(/\(Chorus\)/gi, '[Chorus]')
+            .replace(/\(Bridge\)/gi, '[Bridge]')
+            .replace(/\(Outro\)/gi, '[Outro]')
+            .replace(/\(talking\)/gi, '')
+            .trim();
+        var lyricsForAudio = formattedLyrics.substring(0, 2000);
 
         var POLLEN_KEY = 'sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
         try {
-            var url = 'https://gen.pollinations.ai/audio/' + encodeURIComponent(prompt) + '?key=' + POLLEN_KEY + '&model=acestep&duration=' + dur + '&tags=' + encodeURIComponent(tagsParam);
+            var url = 'https://gen.pollinations.ai/audio/' + encodeURIComponent(prompt) + '?key=' + POLLEN_KEY + '&model=acestep&duration=' + dur + '&lyrics=' + encodeURIComponent(lyricsForAudio);
             var resp = await fetch(url);
             if (!resp.ok) {
                 var errText = '';
