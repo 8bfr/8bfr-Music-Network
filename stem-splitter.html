@@ -220,7 +220,7 @@ async function splitStems() {
   try {
     const audioUrl = await uploadToStorage(audioFile);
 
-    showProgress('AI is separating stems (30-60 seconds)...');
+    showProgress('Starting stem separation...');
 
     const splitMode = document.getElementById('splitMode').value;
     const res = await fetch(API + '/api/replicate', {
@@ -238,16 +238,45 @@ async function splitStems() {
 
     if (!res.ok || !data.ok) {
       if (data.code === 'UPGRADE_REQUIRED') {
-        showError('⚡ Requires a paid plan. <a href="pricing.html" style="color:#fbbf24;">Upgrade to VIP</a> for 5 stem splits/month.');
+        showError('Requires a paid plan. <a href="pricing.html" style="color:#fbbf24;">Upgrade to VIP</a> for 5 stem splits/month.');
       } else if (data.code === 'LIMIT_REACHED') {
-        showError('🚫 Monthly limit reached (' + data.used + '/' + data.limit + '). <a href="pricing.html">Upgrade</a> or wait until next month.');
+        showError('Monthly limit reached (' + data.used + '/' + data.limit + '). <a href="pricing.html">Upgrade</a> or wait until next month.');
       } else {
         showError('Error: ' + (data.error || 'unknown'));
       }
       return;
     }
 
-    renderStems(data.stems);
+    // Poll for result from browser - avoids Vercel 60s timeout
+    const predId = data.prediction_id;
+    if (!predId) { showError('No prediction ID returned.'); return; }
+
+    showProgress('Processing stems... this takes 2-4 minutes. Do not close this page.');
+    let stems = null;
+    let attempts = 0;
+    const maxAttempts = 90; // 90 x 5s = 7.5 min max
+    while (attempts < maxAttempts) {
+      await new Promise(function(r){ setTimeout(r, 5000); });
+      attempts++;
+      const pollRes = await fetch(API + '/api/replicate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'stem-poll', prediction_id: predId })
+      });
+      const pollData = await pollRes.json();
+      if (pollData.status === 'succeeded' && pollData.stems) {
+        stems = pollData.stems;
+        break;
+      } else if (pollData.status === 'failed') {
+        showError('Stem separation failed: ' + (pollData.error || 'unknown error'));
+        return;
+      }
+      const elapsed = attempts * 5;
+      showProgress('Processing stems... ' + elapsed + 's elapsed. Please wait.');
+    }
+
+    if (!stems) { showError('Timed out waiting for stems. Try again.'); return; }
+    renderStems(stems);
     checkUsage();
 
   } catch (err) {
