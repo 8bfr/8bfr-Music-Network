@@ -57,6 +57,11 @@ body{font-family:'Work Sans',system-ui,sans-serif;background:linear-gradient(#0b
 .upgrade-banner{background:linear-gradient(135deg,rgba(251,191,36,0.12),rgba(236,72,153,0.12));border:1px solid rgba(251,191,36,0.35);color:#fcd34d;padding:.9rem 1rem;border-radius:10px;font-size:0.88rem;margin-top:.75rem;line-height:1.55;}
 .upgrade-banner a{color:#fbbf24;font-weight:700;text-decoration:underline;}
 .hidden{display:none;}
+.dl-all-btn{display:flex;align-items:center;justify-content:center;gap:.5rem;width:100%;padding:.75rem;background:linear-gradient(135deg,rgba(124,58,237,0.35),rgba(6,182,212,0.2));border:1px solid rgba(124,58,237,0.5);color:#eae6ff;border-radius:10px;font-size:0.9rem;font-weight:800;cursor:pointer;margin-bottom:.75rem;font-family:inherit;}
+.dl-all-btn:hover{background:linear-gradient(135deg,rgba(124,58,237,0.55),rgba(6,182,212,0.35));}
+.expiry-badge{display:inline-block;padding:.2rem .6rem;background:rgba(6,182,212,0.12);border:1px solid rgba(6,182,212,0.3);border-radius:999px;font-size:0.72rem;color:#67e8f9;margin-left:.5rem;vertical-align:middle;}
+.prev-gens-section{margin-bottom:1rem;}
+.prev-gens-title{font-size:0.8rem;font-weight:700;color:rgba(168,85,247,0.7);margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.06em;}
 </style>
 </head>
 <body>
@@ -105,6 +110,7 @@ body{font-family:'Work Sans',system-ui,sans-serif;background:linear-gradient(#0b
     <div id="errorBox"></div>
   </div>
 
+  <div id="prevStemsSection" class="hidden prev-gens-section"></div>
   <div id="stemsResult"></div>
 </main>
 
@@ -128,6 +134,7 @@ async function init() {
       currentUser = data.user;
       document.getElementById('signedOutMsg').classList.add('hidden');
       await checkUsage();
+      setTimeout(loadPreviousStems, 500); // wait for aiGen from scripts.js
     } else {
       document.getElementById('signedOutMsg').classList.remove('hidden');
       disableAll();
@@ -277,6 +284,7 @@ async function splitStems() {
 
     if (!stems) { showError('Timed out waiting for stems. Try again.'); return; }
     renderStems(stems);
+    saveStems(stems);
     checkUsage();
 
   } catch (err) {
@@ -289,11 +297,26 @@ async function splitStems() {
   }
 }
 
-function renderStems(stems) {
+function renderStems(stems, expiresAt, targetId) {
   const icons = { vocals: '🎤', drums: '🥁', bass: '🎸', other: '🎹', no_vocals: '🎵', instrumental: '🎵' };
   const names = { vocals: 'Vocals', drums: 'Drums', bass: 'Bass', other: 'Other Instruments', no_vocals: 'Instrumental', instrumental: 'Instrumental' };
 
-  let html = '<div class="card"><div class="field"><label>Your stems</label></div><div class="stems-grid">';
+  // Build files array for Download All
+  var filesForDl = [];
+  Object.keys(stems).forEach(function(key){ if(stems[key]) filesForDl.push({name: key+'.mp3', url: stems[key]}); });
+
+  var expiryHtml = '';
+  if (expiresAt && window.aiGen) expiryHtml = '<span class="expiry-badge">Saved ' + window.aiGen.timeLeft(expiresAt) + '</span>';
+
+  var html = '<div class="card">' +
+    '<div class="field"><label>Your stems ' + expiryHtml + '</label></div>';
+
+  // Download All button
+  if (filesForDl.length > 1) {
+    html += '<button class="dl-all-btn" id="dlAllBtn">⬇️ Download All Stems (' + filesForDl.length + ')</button>';
+  }
+
+  html += '<div class="stems-grid">';
   Object.keys(stems).forEach(function(key){
     const url = stems[key];
     if (!url) return;
@@ -306,8 +329,62 @@ function renderStems(stems) {
       '</div>';
   });
   html += '</div></div>';
-  document.getElementById('stemsResult').innerHTML = html;
-  document.getElementById('stemsResult').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  var target = document.getElementById(targetId || 'stemsResult');
+  target.innerHTML = html;
+
+  // Wire Download All button
+  var dlBtn = target.querySelector('#dlAllBtn');
+  if (dlBtn) {
+    dlBtn.onclick = function() {
+      dlBtn.textContent = 'Downloading...';
+      dlBtn.disabled = true;
+      if (window.aiGen) {
+        window.aiGen.downloadAll(filesForDl);
+      } else {
+        filesForDl.forEach(function(f){ window.open(f.url,'_blank'); });
+      }
+      setTimeout(function(){ dlBtn.textContent = 'Done! Check your downloads'; }, 2000);
+    };
+  }
+
+  if (!targetId) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function saveStems(stems) {
+  if (!window.aiGen) return;
+  var files = Object.keys(stems).filter(function(k){ return !!stems[k]; }).map(function(k){ return {name: k+'.mp3', url: stems[k]}; });
+  if (!files.length) return;
+  await window.aiGen.save('stems', files, { splitMode: document.getElementById('splitMode').value });
+}
+
+async function loadPreviousStems() {
+  if (!window.aiGen) return;
+  await window.aiGen.cleanExpired();
+  var gens = await window.aiGen.load('stems');
+  if (!gens || !gens.length) return;
+
+  var section = document.getElementById('prevStemsSection');
+  section.classList.remove('hidden');
+  section.innerHTML = '<div class="prev-gens-title">Previous Results (auto-delete after 2 days)</div>';
+
+  // Show most recent only (first item), with option to see all
+  var latest = gens[0];
+  var stems = {};
+  latest.files.forEach(function(f){ var key = f.name.replace('.mp3',''); stems[key] = f.url; });
+
+  var wrapper = document.createElement('div');
+  wrapper.id = 'prevStemsResult';
+  section.appendChild(wrapper);
+  renderStems(stems, latest.expires_at, 'prevStemsResult');
+
+  // If more than 1 generation, show count
+  if (gens.length > 1) {
+    var more = document.createElement('div');
+    more.style.cssText = 'font-size:0.78rem;color:rgba(168,85,247,0.6);margin-top:.4rem;';
+    more.textContent = gens.length - 1 + ' older result(s) not shown.';
+    section.appendChild(more);
+  }
 }
 
 function showProgress(text) {

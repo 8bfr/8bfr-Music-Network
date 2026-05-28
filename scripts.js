@@ -1346,3 +1346,112 @@ window.createUploadBtn=function(container,folder,accept,label,callback){
   return {input:input,btn:btn,status:status};
 };
 })();
+
+// ===================================================================
+// AI GENERATION SAVER - save/load/cleanup AI tool results
+// Stores in Supabase ai_generations table, auto-expires after 2 days.
+// Usage:
+//   await window.aiGen.save('stems', [{name:'vocals.mp3',url:'...'}])
+//   var gens = await window.aiGen.load('stems')
+//   window.aiGen.downloadAll(files)
+// ===================================================================
+(function(){
+var SUPA_URL='https://novbuvwpjnxwwvdekjhr.supabase.co';
+var SUPA_KEY='sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f';
+var TABLE='ai_generations';
+
+function getDb(){
+  if(window._8bfrDb) return window._8bfrDb;
+  if(window._8bfrSupabaseClient) return window._8bfrSupabaseClient;
+  if(window.supabase&&window.supabase.createClient){
+    var c=window.supabase.createClient(SUPA_URL,SUPA_KEY);
+    window._8bfrSupabaseClient=c;
+    return c;
+  }
+  return null;
+}
+
+async function getUserId(){
+  var db=getDb();
+  if(!db) return null;
+  try{
+    var s=await db.auth.getSession();
+    return s.data&&s.data.session?s.data.session.user.id:null;
+  }catch(e){return null;}
+}
+
+async function save(type,files,metadata){
+  var db=getDb();
+  if(!db) return {error:'DB not ready'};
+  var userId=await getUserId();
+  if(!userId) return {error:'Not logged in'};
+  var expiresAt=new Date(Date.now()+2*24*60*60*1000).toISOString();
+  var row={user_id:userId,type:type,files:JSON.stringify(files),metadata:metadata?JSON.stringify(metadata):null,expires_at:expiresAt};
+  var res=await db.from(TABLE).insert(row).select().single();
+  if(res.error) return {error:res.error.message};
+  return {ok:true,id:res.data.id};
+}
+
+async function load(type){
+  var db=getDb();
+  if(!db) return [];
+  var userId=await getUserId();
+  if(!userId) return [];
+  var now=new Date().toISOString();
+  var q=db.from(TABLE).select('*').eq('user_id',userId).gte('expires_at',now).order('created_at',{ascending:false});
+  if(type) q=q.eq('type',type);
+  var res=await q;
+  if(res.error||!res.data) return [];
+  return res.data.map(function(row){
+    var files=[];try{files=JSON.parse(row.files);}catch(e){}
+    var metadata=null;try{if(row.metadata)metadata=JSON.parse(row.metadata);}catch(e){}
+    return {id:row.id,type:row.type,files:files,metadata:metadata,created_at:row.created_at,expires_at:row.expires_at};
+  });
+}
+
+async function remove(id){
+  var db=getDb();
+  if(!db) return;
+  await db.from(TABLE).delete().eq('id',id);
+}
+
+async function cleanExpired(){
+  var db=getDb();
+  if(!db) return;
+  var userId=await getUserId();
+  if(!userId) return;
+  var now=new Date().toISOString();
+  await db.from(TABLE).delete().eq('user_id',userId).lt('expires_at',now);
+}
+
+function downloadAll(files){
+  if(!files||!files.length) return;
+  var delay=0;
+  files.forEach(function(f,i){
+    setTimeout(function(){
+      fetch(f.url)
+        .then(function(r){return r.blob();})
+        .then(function(blob){
+          var a=document.createElement('a');
+          a.href=URL.createObjectURL(blob);
+          a.download=f.name||('file-'+(i+1));
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},2000);
+        })
+        .catch(function(){ window.open(f.url,'_blank'); });
+    },delay);
+    delay+=900;
+  });
+}
+
+function timeLeft(expiresAt){
+  var ms=new Date(expiresAt)-Date.now();
+  if(ms<=0) return 'Expired';
+  var h=Math.floor(ms/3600000);
+  if(h>=24) return Math.floor(h/24)+'d '+Math.floor(h%24)+'h left';
+  return h+'h '+Math.floor((ms%3600000)/60000)+'m left';
+}
+
+window.aiGen={save:save,load:load,remove:remove,cleanExpired:cleanExpired,downloadAll:downloadAll,timeLeft:timeLeft};
+})();
