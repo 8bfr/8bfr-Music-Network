@@ -1350,10 +1350,6 @@ window.createUploadBtn=function(container,folder,accept,label,callback){
 // ===================================================================
 // AI GENERATION SAVER - save/load/cleanup AI tool results
 // Stores in Supabase ai_generations table, auto-expires after 2 days.
-// Usage:
-//   await window.aiGen.save('stems', [{name:'vocals.mp3',url:'...'}])
-//   var gens = await window.aiGen.load('stems')
-//   window.aiGen.downloadAll(files)
 // ===================================================================
 (function(){
 var SUPA_URL='https://novbuvwpjnxwwvdekjhr.supabase.co';
@@ -1382,13 +1378,15 @@ async function getUserId(){
 
 async function save(type,files,metadata){
   var db=getDb();
-  if(!db) return {error:'DB not ready'};
+  if(!db){console.warn('aiGen: DB not ready');return {error:'DB not ready'};}
   var userId=await getUserId();
-  if(!userId) return {error:'Not logged in'};
+  if(!userId){console.warn('aiGen: not logged in');return {error:'Not logged in'};}
   var expiresAt=new Date(Date.now()+2*24*60*60*1000).toISOString();
-  var row={user_id:userId,type:type,files:JSON.stringify(files),metadata:metadata?JSON.stringify(metadata):null,expires_at:expiresAt};
+  // Pass objects directly - Supabase client handles jsonb serialization
+  var row={user_id:userId,type:type,files:files,metadata:metadata||null,expires_at:expiresAt};
   var res=await db.from(TABLE).insert(row).select().single();
-  if(res.error) return {error:res.error.message};
+  if(res.error){console.error('aiGen save error:',res.error);return {error:res.error.message};}
+  console.log('aiGen: saved',type,'id:',res.data.id);
   return {ok:true,id:res.data.id};
 }
 
@@ -1402,10 +1400,16 @@ async function load(type){
   if(type) q=q.eq('type',type);
   var res=await q;
   if(res.error||!res.data) return [];
+  // files/metadata come back as objects already (jsonb), no JSON.parse needed
   return res.data.map(function(row){
-    var files=[];try{files=JSON.parse(row.files);}catch(e){}
-    var metadata=null;try{if(row.metadata)metadata=JSON.parse(row.metadata);}catch(e){}
-    return {id:row.id,type:row.type,files:files,metadata:metadata,created_at:row.created_at,expires_at:row.expires_at};
+    return {
+      id:row.id,
+      type:row.type,
+      files:Array.isArray(row.files)?row.files:(row.files||[]),
+      metadata:row.metadata||null,
+      created_at:row.created_at,
+      expires_at:row.expires_at
+    };
   });
 }
 
