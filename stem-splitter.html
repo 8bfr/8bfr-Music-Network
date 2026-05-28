@@ -134,7 +134,10 @@ async function init() {
       currentUser = data.user;
       document.getElementById('signedOutMsg').classList.add('hidden');
       await checkUsage();
-      setTimeout(loadPreviousStems, 500); // wait for aiGen from scripts.js
+      setTimeout(function(){
+        loadPreviousStems();
+        resumePollIfNeeded();
+      }, 500);
     } else {
       document.getElementById('signedOutMsg').classList.remove('hidden');
       disableAll();
@@ -254,9 +257,11 @@ async function splitStems() {
       return;
     }
 
-    // Poll for result from browser - avoids Vercel 60s timeout
     const predId = data.prediction_id;
     if (!predId) { showError('No prediction ID returned.'); return; }
+
+    // Save predId so polling can resume if page is refreshed
+    lsSavePred(predId, audioFile ? audioFile.name : '');
 
     showProgress('Processing stems... this takes 2-4 minutes. Do not close this page.');
     let stems = null;
@@ -282,7 +287,8 @@ async function splitStems() {
       showProgress('Processing stems... ' + elapsed + 's elapsed. Please wait.');
     }
 
-    if (!stems) { showError('Timed out waiting for stems. Try again.'); return; }
+    if (!stems) { lsClearPred(); showError('Timed out waiting for stems. Try again.'); return; }
+    lsClearPred();
     renderStems(stems);
     saveStems(stems);
     checkUsage();
@@ -351,7 +357,60 @@ function renderStems(stems, expiresAt, targetId) {
   if (!targetId) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+// ── LocalStorage helpers ──
+var LS_STEMS = '8bfr_stems_result';
+var LS_PRED  = '8bfr_stems_predId';
+var TWO_DAYS = 2 * 24 * 60 * 60 * 1000;
+
+function lsSaveStems(stems) {
+  try {
+    localStorage.setItem(LS_STEMS, JSON.stringify({
+      stems: stems,
+      savedAt: Date.now(),
+      expiresAt: Date.now() + TWO_DAYS
+    }));
+  } catch(e) {}
+}
+
+function lsLoadStems() {
+  try {
+    var raw = localStorage.getItem(LS_STEMS);
+    if (!raw) return null;
+    var data = JSON.parse(raw);
+    if (!data || Date.now() > data.expiresAt) { localStorage.removeItem(LS_STEMS); return null; }
+    return data;
+  } catch(e) { return null; }
+}
+
+function lsSavePred(predId, audioFileName) {
+  try {
+    localStorage.setItem(LS_PRED, JSON.stringify({
+      predId: predId,
+      audioFileName: audioFileName || '',
+      savedAt: Date.now()
+    }));
+  } catch(e) {}
+}
+
+function lsClearPred() {
+  try { localStorage.removeItem(LS_PRED); } catch(e) {}
+}
+
+function lsLoadPred() {
+  try {
+    var raw = localStorage.getItem(LS_PRED);
+    if (!raw) return null;
+    var data = JSON.parse(raw);
+    // Only resume if less than 10 minutes old
+    if (!data || Date.now() - data.savedAt > 10 * 60 * 1000) { localStorage.removeItem(LS_PRED); return null; }
+    return data;
+  } catch(e) { return null; }
+}
+
 async function saveStems(stems) {
+  // Always save to localStorage first (instant, reliable)
+  lsSaveStems(stems);
+  // Then try Supabase for 48hr cross-device storage
   if (!window.aiGen) return;
   var files = Object.keys(stems).filter(function(k){ return !!stems[k]; }).map(function(k){ return {name: k+'.mp3', url: stems[k]}; });
   if (!files.length) return;
@@ -359,6 +418,20 @@ async function saveStems(stems) {
 }
 
 async function loadPreviousStems() {
+  // 1. Check localStorage first (instant, works offline)
+  var lsData = lsLoadStems();
+  if (lsData && lsData.stems) {
+    var section = document.getElementById('prevStemsSection');
+    section.classList.remove('hidden');
+    section.innerHTML = '<div class="prev-gens-title">Last result (saved locally — expires ' + timeLeftMs(lsData.expiresAt) + ')</div>';
+    var wrapper = document.createElement('div');
+    wrapper.id = 'prevStemsResult';
+    section.appendChild(wrapper);
+    renderStems(lsData.stems, new Date(lsData.expiresAt).toISOString(), 'prevStemsResult');
+    return; // localStorage found, skip Supabase call
+  }
+
+  // 2. Fall back to Supabase
   if (!window.aiGen) return;
   await window.aiGen.cleanExpired();
   var gens = await window.aiGen.load('stems');
@@ -366,9 +439,8 @@ async function loadPreviousStems() {
 
   var section = document.getElementById('prevStemsSection');
   section.classList.remove('hidden');
-  section.innerHTML = '<div class="prev-gens-title">Previous Results (auto-delete after 2 days)</div>';
+  section.innerHTML = '<div class="prev-gens-title">Previous result (expires ' + window.aiGen.timeLeft(gens[0].expires_at) + ')</div>';
 
-  // Show most recent only (first item), with option to see all
   var latest = gens[0];
   var stems = {};
   latest.files.forEach(function(f){ var key = f.name.replace('.mp3',''); stems[key] = f.url; });
@@ -378,16 +450,74 @@ async function loadPreviousStems() {
   section.appendChild(wrapper);
   renderStems(stems, latest.expires_at, 'prevStemsResult');
 
-  // If more than 1 generation, show count
   if (gens.length > 1) {
     var more = document.createElement('div');
     more.style.cssText = 'font-size:0.78rem;color:rgba(168,85,247,0.6);margin-top:.4rem;';
-    more.textContent = gens.length - 1 + ' older result(s) not shown.';
+    more.textContent = (gens.length - 1) + ' older result(s) not shown.';
     section.appendChild(more);
   }
 }
 
-function showProgress(text) {
+function timeLeftMs(expiresMs) {
+  var ms = expiresMs - Date.now();
+  if (ms <= 0) return 'soon';
+  var h = Math.floor(ms / 3600000);
+  if (h >= 24) return Math.floor(h/24) + 'd ' + Math.floor(h%24) + 'h';
+  return h + 'h ' + Math.floor((ms%3600000)/60000) + 'm';
+}
+
+async function resumePollIfNeeded() {
+  var pred = lsLoadPred();
+  if (!pred || !pred.predId) return;
+
+  var btn = document.getElementById('splitBtn');
+  btn.disabled = true;
+  document.getElementById('splitBtnText').innerHTML = '<span class="spinner"></span> Resuming...';
+  showProgress('Resuming stem separation from before refresh...');
+
+  var predId = pred.predId;
+  var stems = null;
+  var attempts = 0;
+  var maxAttempts = 90;
+
+  while (attempts < maxAttempts) {
+    await new Promise(function(r){ setTimeout(r, 5000); });
+    attempts++;
+    try {
+      var pollRes = await fetch(API + '/api/replicate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'stem-poll', prediction_id: predId })
+      });
+      var pollData = await pollRes.json();
+      if (pollData.status === 'succeeded' && pollData.stems) {
+        stems = pollData.stems; break;
+      } else if (pollData.status === 'failed') {
+        lsClearPred();
+        showError('Stem separation failed: ' + (pollData.error || 'unknown'));
+        btn.disabled = false;
+        document.getElementById('splitBtnText').textContent = 'Split Stems';
+        hideProgress();
+        return;
+      }
+      showProgress('Resuming... ' + (attempts * 5) + 's elapsed. Please wait.');
+    } catch(e) {
+      showProgress('Reconnecting... ' + (attempts * 5) + 's elapsed.');
+    }
+  }
+
+  btn.disabled = false;
+  document.getElementById('splitBtnText').textContent = 'Split Stems';
+  hideProgress();
+
+  if (!stems) { lsClearPred(); showError('Could not resume. The job may have expired. Please try again.'); return; }
+  lsClearPred();
+  renderStems(stems);
+  saveStems(stems);
+  checkUsage();
+}
+
+
   document.getElementById('progressBox').classList.add('show');
   document.getElementById('progressText').textContent = text;
 }
