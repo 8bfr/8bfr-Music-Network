@@ -360,18 +360,33 @@ function renderStems(stems, expiresAt, targetId) {
   var target = document.getElementById(targetId || 'stemsResult');
   target.innerHTML = html;
 
-  // Wire Download All button
+  // Wire Download All button — mobile browsers block rapid multi-downloads,
+  // so trigger each file one at a time with a delay between them.
   var dlBtn = target.querySelector('#dlAllBtn');
   if (dlBtn) {
     dlBtn.onclick = function() {
-      dlBtn.textContent = 'Downloading...';
       dlBtn.disabled = true;
-      if (window.aiGen) {
-        window.aiGen.downloadAll(filesForDl);
-      } else {
-        filesForDl.forEach(function(f){ window.open(f.url,'_blank'); });
+      var i = 0;
+      function next() {
+        if (i >= filesForDl.length) {
+          dlBtn.textContent = 'Done! Check your downloads';
+          dlBtn.disabled = false;
+          return;
+        }
+        var f = filesForDl[i];
+        dlBtn.textContent = 'Downloading ' + (i+1) + ' of ' + filesForDl.length + '...';
+        var a = document.createElement('a');
+        a.href = f.url;
+        a.download = (f.name || ('stem'+i)) ;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        i++;
+        setTimeout(next, 1200); // delay so mobile honors each download
       }
-      setTimeout(function(){ dlBtn.textContent = 'Done! Check your downloads'; }, 2000);
+      next();
     };
   }
 
@@ -429,53 +444,63 @@ function lsLoadPred() {
 }
 
 async function saveStems(stems) {
-  // Always save to localStorage first (instant, reliable)
+  // Always save to localStorage first (instant, but URLs are temporary)
   lsSaveStems(stems);
-  // Then try Supabase for 48hr cross-device storage
-  if (!window.aiGen) return;
+  // Then save to Supabase for 48hr cross-device storage (permanent URLs)
+  if (!window.aiGen) {
+    console.warn('aiGen not loaded — stems will NOT persist across reopen');
+    return;
+  }
   var files = Object.keys(stems).filter(function(k){ return !!stems[k]; }).map(function(k){ return {name: k+'.mp3', url: stems[k]}; });
   if (!files.length) return;
-  await window.aiGen.save('stems', files, { splitMode: document.getElementById('splitMode').value });
+  try {
+    await window.aiGen.save('stems', files, { splitMode: document.getElementById('splitMode').value });
+    console.log('Stems saved to Supabase for 48hr');
+  } catch (e) {
+    console.error('Supabase stem save FAILED:', e);
+    var eb = document.getElementById('errorBox');
+    if (eb) eb.innerHTML = '<div class="error-msg" style="background:rgba(245,158,11,.12);">Stems are ready, but saving for 48hr cross-device access failed. Download them now to keep them.</div>';
+  }
 }
 
 async function loadPreviousStems() {
-  // 1. Check localStorage first (instant, works offline)
-  var lsData = lsLoadStems();
-  if (lsData && lsData.stems) {
-    var section = document.getElementById('prevStemsSection');
-    section.classList.remove('hidden');
-    section.innerHTML = '<div class="prev-gens-title">Last result (saved locally — expires ' + timeLeftMs(lsData.expiresAt) + ')</div>';
-    var wrapper = document.createElement('div');
-    wrapper.id = 'prevStemsResult';
-    section.appendChild(wrapper);
-    renderStems(lsData.stems, new Date(lsData.expiresAt).toISOString(), 'prevStemsResult');
-    return; // localStorage found, skip Supabase call
+  var section = document.getElementById('prevStemsSection');
+
+  // 1. Prefer Supabase — these are permanent 48hr URLs that survive reopening.
+  if (window.aiGen) {
+    try {
+      await window.aiGen.cleanExpired();
+      var gens = await window.aiGen.load('stems');
+      if (gens && gens.length) {
+        section.classList.remove('hidden');
+        section.innerHTML = '<div class="prev-gens-title">Previous result (expires ' + window.aiGen.timeLeft(gens[0].expires_at) + ')</div>';
+        var latest = gens[0];
+        var stems = {};
+        latest.files.forEach(function(f){ var key = f.name.replace('.mp3',''); stems[key] = f.url; });
+        var wrapper = document.createElement('div');
+        wrapper.id = 'prevStemsResult';
+        section.appendChild(wrapper);
+        renderStems(stems, latest.expires_at, 'prevStemsResult');
+        if (gens.length > 1) {
+          var more = document.createElement('div');
+          more.style.cssText = 'font-size:0.78rem;color:rgba(168,85,247,0.6);margin-top:.4rem;';
+          more.textContent = (gens.length - 1) + ' older result(s) not shown.';
+          section.appendChild(more);
+        }
+        return; // permanent copy shown, done
+      }
+    } catch (e) { console.error('Supabase stems load:', e); }
   }
 
-  // 2. Fall back to Supabase
-  if (!window.aiGen) return;
-  await window.aiGen.cleanExpired();
-  var gens = await window.aiGen.load('stems');
-  if (!gens || !gens.length) return;
-
-  var section = document.getElementById('prevStemsSection');
-  section.classList.remove('hidden');
-  section.innerHTML = '<div class="prev-gens-title">Previous result (expires ' + window.aiGen.timeLeft(gens[0].expires_at) + ')</div>';
-
-  var latest = gens[0];
-  var stems = {};
-  latest.files.forEach(function(f){ var key = f.name.replace('.mp3',''); stems[key] = f.url; });
-
-  var wrapper = document.createElement('div');
-  wrapper.id = 'prevStemsResult';
-  section.appendChild(wrapper);
-  renderStems(stems, latest.expires_at, 'prevStemsResult');
-
-  if (gens.length > 1) {
-    var more = document.createElement('div');
-    more.style.cssText = 'font-size:0.78rem;color:rgba(168,85,247,0.6);margin-top:.4rem;';
-    more.textContent = (gens.length - 1) + ' older result(s) not shown.';
-    section.appendChild(more);
+  // 2. Fall back to localStorage (same-session only — these URLs may have expired)
+  var lsData = lsLoadStems();
+  if (lsData && lsData.stems) {
+    section.classList.remove('hidden');
+    section.innerHTML = '<div class="prev-gens-title">Last result (local copy — may have expired, re-split if links are dead)</div>';
+    var wrapper2 = document.createElement('div');
+    wrapper2.id = 'prevStemsResult';
+    section.appendChild(wrapper2);
+    renderStems(lsData.stems, new Date(lsData.expiresAt).toISOString(), 'prevStemsResult');
   }
 }
 
