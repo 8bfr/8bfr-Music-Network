@@ -129,9 +129,19 @@ async function init() {
       return;
     }
     supabase = window._8bfrDb || window.supabase.createClient(SUPABASE_URL, anon);
-    const { data } = await supabase.auth.getUser();
-    if (data && data.user) {
-      currentUser = data.user;
+    let user = null;
+    try {
+      const { data } = await supabase.auth.getUser();
+      user = data && data.user;
+    } catch (e) { console.error('getUser:', e); }
+    if (!user) {
+      try {
+        const { data: s } = await supabase.auth.getSession();
+        user = s && s.session && s.session.user;
+      } catch (e) { console.error('getSession:', e); }
+    }
+    if (user) {
+      currentUser = user;
       document.getElementById('signedOutMsg').classList.add('hidden');
       await checkUsage();
       setTimeout(function(){
@@ -139,42 +149,53 @@ async function init() {
         resumePollIfNeeded();
       }, 500);
     } else {
+      document.getElementById('usagePill').textContent = 'Sign in to continue';
       document.getElementById('signedOutMsg').classList.remove('hidden');
       disableAll();
     }
   } catch (e) {
     console.error('init:', e);
+    document.getElementById('usagePill').textContent = 'Error loading — refresh the page';
   }
 }
 
 async function checkUsage() {
   if (!currentUser) return;
+  const pill = document.getElementById('usagePill');
+
+  // Owner check FIRST — never let a failing profile query block this
+  if (currentUser.id === 'cb556180-f032-4b21-9470-1d786f2664ab') {
+    pill.textContent = '\uD83D\uDC51 Owner — unlimited';
+    document.getElementById('splitBtn').disabled = false;
+    return;
+  }
+
+  let tier = 'free';
   try {
     const { data: profile } = await supabase
-      .from('profiles').select('subscription_tier').eq('user_id', currentUser.id).single();
-    let tier = (profile && profile.subscription_tier) || 'free';
-    if (currentUser.id === 'cb556180-f032-4b21-9470-1d786f2664ab') tier = 'owner';
+      .from('profiles').select('subscription_tier').eq('user_id', currentUser.id).maybeSingle();
+    tier = (profile && profile.subscription_tier) || 'free';
+  } catch (e) { console.error('tier lookup:', e); tier = 'free'; }
 
+  let count = 0;
+  try {
     const startMonth = new Date(); startMonth.setDate(1); startMonth.setHours(0,0,0,0);
     const { data: usage } = await supabase.from('api_usage')
       .select('id').eq('user_id', currentUser.id).eq('endpoint', 'stem-split')
       .eq('success', true).gte('created_at', startMonth.toISOString());
+    count = (usage && usage.length) || 0;
+  } catch (e) { console.error('usage lookup:', e); }
 
-    const count = (usage && usage.length) || 0;
-    const LIMITS = { free: 0, vip: 5, 'creator-pro': 20, 'artist-pro': 20, elite: 50, owner: 9999 };
-    const limit = LIMITS[tier] || 0;
+  const LIMITS = { free: 0, vip: 5, 'creator-pro': 20, 'artist-pro': 20, elite: 50, owner: 9999 };
+  const limit = LIMITS[tier] || 0;
 
-    const pill = document.getElementById('usagePill');
-    if (tier === 'owner') {
-      pill.textContent = '👑 Owner — unlimited';
-    } else if (limit === 0) {
-      pill.innerHTML = '🔒 Free tier — <a href="pricing.html" style="color:#fbbf24;">upgrade to VIP ($4.99) for 5/mo</a>';
-      disableAll();
-    } else {
-      pill.textContent = tier.toUpperCase() + ' — ' + count + '/' + limit + ' splits this month';
-      if (count >= limit) disableAll('Monthly limit reached. Upgrade or wait.');
-    }
-  } catch (e) { console.error('usage:', e); }
+  if (limit === 0) {
+    pill.innerHTML = '\uD83D\uDD12 Free tier — <a href="pricing.html" style="color:#fbbf24;">upgrade to VIP ($4.99) for 5/mo</a>';
+    disableAll();
+  } else {
+    pill.textContent = tier.toUpperCase() + ' — ' + count + '/' + limit + ' splits this month';
+    if (count >= limit) disableAll('Monthly limit reached. Upgrade or wait.');
+  }
 }
 
 function disableAll(msg) {
@@ -517,7 +538,7 @@ async function resumePollIfNeeded() {
   checkUsage();
 }
 
-
+function showProgress(text) {
   document.getElementById('progressBox').classList.add('show');
   document.getElementById('progressText').textContent = text;
 }
