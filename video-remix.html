@@ -133,8 +133,10 @@ video{width:100%;border-radius:10px;background:#000;}
     <div id="downloadArea" class="hidden" style="margin-top:.75rem;">
       <video id="outputPreview" controls style="width:100%;border-radius:10px;background:#000;margin-bottom:.75rem;"></video>
       <div class="btn-row">
-        <button class="btn btn-green" id="btnDownload" onclick="downloadOutput()">Download Processed Video</button>
+        <button class="btn btn-green" id="btnDownload" onclick="downloadOutput()">Download (WebM)</button>
+        <button class="btn btn-purple" id="btnDownloadMp4" onclick="downloadMp4()">Download as MP4 (for TikTok)</button>
       </div>
+      <div id="mp4Status" style="font-size:.78rem;color:#9ca3af;margin-top:.4rem;"></div>
       <div class="tip-box" style="margin-top:.75rem;">
         <strong style="color:#22c55e;">Ready to post!</strong> This video now has a unique fingerprint. For best results also write original captions and use relevant hashtags — platforms factor in text originality too.
       </div>
@@ -353,6 +355,56 @@ function downloadOutput(){
   var a=document.createElement('a');
   a.href=url;a.download='8bfr-original-'+Date.now()+'.webm';
   document.body.appendChild(a);a.click();document.body.removeChild(a);
+}
+
+var _ff=null,_ffLoading=null;
+function _loadScript(src){return new Promise(function(res,rej){var s=document.createElement('script');s.src=src;s.onload=res;s.onerror=function(){rej(new Error('Failed to load engine'));};document.head.appendChild(s);});}
+async function _getFFmpeg(){
+  if(_ff)return _ff;
+  if(_ffLoading)return _ffLoading;
+  _ffLoading=(async function(){
+    var st=document.getElementById('mp4Status');
+    if(st)st.textContent='Loading MP4 engine (one-time download, about 25MB)...';
+    if(typeof window.FFmpegWASM==='undefined'&&typeof window.FFmpeg==='undefined'){
+      await _loadScript('https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js');
+    }
+    await _loadScript('https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/umd/index.js');
+    var FF=(window.FFmpegWASM&&window.FFmpegWASM.FFmpeg)||(window.FFmpeg&&window.FFmpeg.FFmpeg);
+    var inst=new FF();
+    inst.on('progress',function(ev){var st2=document.getElementById('mp4Status');if(st2&&ev&&typeof ev.progress==='number')st2.textContent='Converting to MP4... '+Math.min(99,Math.round(ev.progress*100))+'%';});
+    var base='https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd';
+    await inst.load({
+      coreURL: await window.FFmpegUtil.toBlobURL(base+'/ffmpeg-core.js','text/javascript'),
+      wasmURL: await window.FFmpegUtil.toBlobURL(base+'/ffmpeg-core.wasm','application/wasm')
+    });
+    _ff=inst;return inst;
+  })();
+  return _ffLoading;
+}
+async function downloadMp4(){
+  if(!outputBlob)return;
+  var st=document.getElementById('mp4Status');
+  var btn=document.getElementById('btnDownloadMp4');
+  btn.disabled=true;
+  try{
+    var ff=await _getFFmpeg();
+    if(st)st.textContent='Converting to MP4...';
+    var data=new Uint8Array(await outputBlob.arrayBuffer());
+    await ff.writeFile('in.webm',data);
+    await ff.exec(['-i','in.webm','-c:v','libx264','-preset','veryfast','-crf','23','-c:a','aac','-movflags','+faststart','out.mp4']);
+    var out=await ff.readFile('out.mp4');
+    var blob=new Blob([out.buffer],{type:'video/mp4'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');
+    a.href=url;a.download='8bfr-original-'+Date.now()+'.mp4';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    try{ await ff.deleteFile('in.webm'); await ff.deleteFile('out.mp4'); }catch(e){}
+    if(st)st.textContent='MP4 saved to your downloads.';
+  }catch(e){
+    console.error(e);
+    if(st)st.textContent='MP4 conversion failed. You can still download the WebM and convert it on the File Converter page.';
+  }
+  btn.disabled=false;
 }
 // ─── Access gate: owner / co-owner only ───
 (function(){
