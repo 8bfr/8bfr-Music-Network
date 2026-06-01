@@ -303,7 +303,7 @@ var TOOLS = [
   { id:'music-video-launch', cat:'music', type:'link', icon:'🎬', name:'Music Video Maker', desc:'AI-generated video clips with your song', badges:['music','pro'], url:'music-video.html' },
   { id:'video-converter-launch', cat:'media', type:'link', icon:'🔄', name:'Video/Audio Converter', desc:'Convert MP3, WAV, OGG, WebM and add spatial effects', badges:['tool'], url:'converter.html' },
   { id:'algorithm-coach-launch', cat:'social', type:'link', icon:'📈', name:'Algorithm Coach', desc:'Pick a platform and get an exact playbook to get the algorithm working for you', badges:['ai','social'], url:'algorithm-coach.html' },
-  { id:'video-remix-launch', cat:'media', type:'link', icon:'🎭', name:'Video Originality Tool', desc:'Make videos unique enough to pass TikTok, Instagram and YouTube duplicate detection', badges:['tool','media'], url:'video-remix.html' },
+  { id:'video-remix-launch', cat:'media', type:'link', ownerOnly:true, icon:'🎭', name:'Video Originality Tool', desc:'Make videos unique enough to pass TikTok, Instagram and YouTube duplicate detection', badges:['tool','media'], url:'video-remix.html' },
   { id:'link-tools-launch', cat:'social', type:'link', icon:'🔗', name:'Link Tools', desc:'Short links + QR codes for sharing', badges:['social'], url:'link-tools.html' },
   { id:'master-ai-launch', cat:'music', type:'link', icon:'🎧', name:'Mastering Studio', desc:'Upload + master your songs', badges:['music'], url:'master-ai.html' },
 
@@ -704,6 +704,7 @@ function renderTools(){
     if(activeCategory!=='all'&&activeCategory!==cat.id)return;
     var catTools=TOOLS.filter(function(t){
       if(t.cat!==cat.id)return false;
+      if(t.ownerOnly && !isOwnerOrCoOwner)return false;
       if(!q)return true;
       return (t.name+' '+t.desc).toLowerCase().indexOf(q)!==-1;
     });
@@ -2192,6 +2193,27 @@ document.addEventListener('keydown',function(e){
 
 renderNav();
 renderTools();
+
+var isOwnerOrCoOwner=false;
+async function checkOwnerAccess(){
+  try{
+    var db=window._8bfrDb;
+    if(!db)return;
+    var ures=await db.auth.getUser();
+    var user=ures&&ures.data&&ures.data.user;
+    if(!user){
+      var sres=await db.auth.getSession();
+      user=sres&&sres.data&&sres.data.session&&sres.data.session.user;
+    }
+    if(!user)return;
+    if(user.id==='cb556180-f032-4b21-9470-1d786f2664ab'){isOwnerOrCoOwner=true;renderTools();return;}
+    var prof=await db.from('profiles').select('role').eq('user_id',user.id).maybeSingle();
+    var role=prof&&prof.data&&prof.data.role;
+    if(role==='owner'||role==='co-owner'){isOwnerOrCoOwner=true;renderTools();}
+  }catch(e){console.error('owner access check:',e);}
+}
+var _ownA=0;function _ownTry(){_ownA++;if(window._8bfrDb){checkOwnerAccess();}else if(_ownA<12){setTimeout(_ownTry,300);}}
+setTimeout(_ownTry,400);
 </script>
 
 <script src="scripts.js" defer>
