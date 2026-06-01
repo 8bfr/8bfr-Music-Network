@@ -1,0 +1,2211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Owner Studio - 8BFR</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary: #7c3aed; --dark: #0b0014; --dark-card: #0c0618; --text: #eae6ff; --text-dim: #a855f7; --border: rgba(124,58,237,.35); --green: #00ff88; --cyan: #00d9ff; --warn: #f59e0b; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Work Sans', sans-serif; background: linear-gradient(#0b0014,#000); color: var(--text); min-height: 100vh; padding-bottom: 80px; }
+        .header { background: rgba(15,0,30,.9); border-bottom: 2px solid var(--primary); padding: 1.5rem 2rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; flex-wrap: wrap; gap: 0.5rem; backdrop-filter: blur(12px); }
+        .header h1 { font-family: 'Bebas Neue', cursive; font-size: 2rem; color: var(--primary); }
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        .card { background: var(--dark-card); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .section-title { color: var(--primary); margin-bottom: 1rem; font-family: 'Bebas Neue', cursive; font-size: 1.5rem; }
+        .tools-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+        .tool-card { background: var(--dark); border: 1px solid var(--border); padding: 1rem; border-radius: 8px; cursor: pointer; transition: all 0.3s; }
+        .tool-card:hover { border-color: var(--primary); transform: translateY(-2px); }
+        .tool-card.active { border-color: var(--primary); background: rgba(124,58,237,0.15); box-shadow: 0 0 15px rgba(124,58,237,0.3); }
+        .tool-card h3 { color: var(--primary); margin-bottom: 0.5rem; font-size: 0.95rem; }
+        .tool-card p { font-size: 0.8rem; color: var(--text-dim); }
+        .badge-real { display: inline-block; background: rgba(0,255,136,0.15); color: var(--green); font-size: 0.65rem; padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: 700; margin-top: 0.3rem; }
+        .badge-brief { display: inline-block; background: rgba(124,58,237,0.15); color: var(--text-dim); font-size: 0.65rem; padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: 700; margin-top: 0.3rem; }
+        .badge-converter { display: inline-block; background: rgba(0,217,255,0.15); color: var(--cyan); font-size: 0.65rem; padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: 700; margin-top: 0.3rem; }
+        .btn { background: var(--primary); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.2s; }
+        .btn:hover { background: #6d28d9; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-outline { background: rgba(124,58,237,0.2); border: 1px solid var(--border); color: var(--text); }
+        .btn-green { background: rgba(0,255,136,0.2); border: 1px solid rgba(0,255,136,0.4); color: var(--green); }
+        .btn-cyan { background: rgba(0,217,255,0.2); border: 1px solid rgba(0,217,255,0.4); color: var(--cyan); }
+        textarea, input[type="text"], input[type="number"], select { width: 100%; padding: 0.75rem; background: var(--dark); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit; font-size: 0.95rem; }
+        textarea { min-height: 120px; margin: 0.75rem 0; resize: vertical; }
+        textarea:focus, input:focus, select:focus { outline: none; border-color: var(--primary); }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem; }
+        .form-group { margin-bottom: 0.75rem; }
+        .form-group label { display: block; font-size: 0.82rem; color: var(--text-dim); margin-bottom: 0.35rem; font-weight: 600; }
+        .result-box { background: rgba(124,58,237,0.1); border: 1px solid var(--border); padding: 1.25rem; border-radius: 8px; margin-top: 1rem; min-height: 100px; line-height: 1.7; white-space: pre-wrap; font-size: 0.95rem; }
+        .spinner { width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; vertical-align: middle; margin-right: 0.5rem; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .chat-link { display: flex; align-items: center; gap: 1rem; padding: 1.25rem; background: var(--dark); border: 1px solid var(--border); border-radius: 12px; text-decoration: none; color: var(--text); transition: all 0.3s; }
+        .chat-link:hover { border-color: var(--primary); background: rgba(124,58,237,0.1); transform: translateY(-2px); }
+        .chat-link .icon { font-size: 2.5rem; flex-shrink: 0; }
+        .chat-link h3 { color: var(--primary); font-size: 1.1rem; margin-bottom: 0.25rem; }
+        .chat-link p { font-size: 0.85rem; color: var(--text-dim); margin: 0; line-height: 1.4; }
+        .cover-preview { margin-top: 1rem; text-align: center; }
+        .cover-preview img { max-width: 400px; width: 100%; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.5); }
+        .warn-box { margin-top: 0.75rem; padding: 0.6rem 1rem; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); border-radius: 8px; font-size: 0.82rem; color: var(--warn); }
+        .upload-zone { border: 2px dashed var(--border); border-radius: 10px; padding: 1.5rem; text-align: center; cursor: pointer; transition: all 0.3s; background: rgba(124,58,237,0.05); }
+        .upload-zone:hover { border-color: var(--primary); background: rgba(124,58,237,0.1); }
+        .upload-zone input[type="file"] { display: none; }
+        .upload-zone .drop-text { color: var(--text-dim); font-size: 0.9rem; }
+        .upload-zone .drop-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+        .preview-strip { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; }
+        .preview-strip img { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); }
+        .tab-bar { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+        .tab-btn { padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--border); background: var(--dark); color: var(--text-dim); cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.2s; }
+        .tab-btn:hover { border-color: var(--primary); }
+        .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+        canvas { border-radius: 8px; max-width: 100%; }
+        .meme-controls { display: grid; gap: 0.75rem; margin: 1rem 0; }
+        .color-row { display: flex; gap: 0.75rem; align-items: center; }
+        .color-row input[type="color"] { width: 40px; height: 35px; border: none; background: none; cursor: pointer; }
+        .format-options { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.75rem 0; }
+        .format-opt { padding: 0.5rem 1rem; border-radius: 6px; border: 1px solid var(--border); background: var(--dark); color: var(--text-dim); cursor: pointer; font-size: 0.85rem; transition: all 0.2s; }
+        .format-opt:hover, .format-opt.selected { border-color: var(--cyan); color: var(--cyan); background: rgba(0,217,255,0.1); }
+        @media (max-width: 600px) {
+            .form-row { grid-template-columns: 1fr; }
+            .tools-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+            .container { padding: 1rem; }
+        }
+        .sg-chip { padding: .35rem .7rem; border-radius: 999px; border: 1px solid rgba(168,85,247,.3); background: #13111c; color: var(--text-dim); cursor: pointer; font-size: .76rem; font-weight: 600; user-select: none; transition: all .15s; }
+        .sg-chip:hover { border-color: #a855f7; color: #e8e0ff; }
+        .sg-chip.sel { background: linear-gradient(135deg,#7c3aed,#a855f7); color: #fff; border-color: #a855f7; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎨 Owner Studio</h1>
+        <a href="owner-panel.html" style="color: var(--text); text-decoration: none; font-weight: 600;">← Back to Panel</a>
+    </div>
+    <div class="container">
+
+        <!-- AI CHATS -->
+        <div class="card">
+            <h2 class="section-title">💬 AI Assistants</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+                <a href="ai-chat.html" class="chat-link">
+                    <div class="icon">🤖</div>
+                    <div><h3>General AI Chat</h3><p>Ask anything — coding, business, ideas, writing, advice</p></div>
+                </a>
+                <a href="ai-music-expert.html" class="chat-link">
+                    <div class="icon">🎓</div>
+                    <div><h3>Music Expert AI</h3><p>Tips, tricks, theory, production, mixing, marketing, industry knowledge</p></div>
+                </a>
+            </div>
+        </div>
+
+        <!-- AI GENERATOR TOOLS -->
+        <div class="card">
+            <a href="ai-studio.html" style="display:block;padding:.75rem;background:linear-gradient(135deg,rgba(124,58,237,.2),rgba(0,217,255,.1));border:1px solid rgba(124,58,237,.4);border-radius:10px;text-align:center;text-decoration:none;margin-bottom:1rem;font-weight:700;color:#a855f7;font-size:.95rem;">Open Full AI Studio (40+ Tools)</a>
+            <h2 class="section-title">Owner-Only Tools</h2>
+            <div class="tools-grid">
+                <div class="tool-card" id="tool-songgen" onclick="selectTool('songgen')" style="border-color:rgba(74,222,128,.3);"><h3>🎵 Song Generator</h3><p>Generate actual song with vocals + music</p><span class="badge-real" style="background:rgba(74,222,128,.15);color:#4ade80;">🎵 REAL AUDIO</span></div>
+                <div class="tool-card" id="tool-beats" onclick="selectTool('beats')"><h3>🎵 Beat Ideas</h3><p>AI production concepts and arrangement blueprints</p><span class="badge-real">✅ REAL OUTPUT</span></div>
+            </div>
+        </div>
+
+        <!-- CONVERTER & CREATOR TOOLS -->
+        <div class="card">
+            <h2 class="section-title">🔄 Converters & Creators</h2>
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem;">
+                <div class="tool-card" onclick="window.location.href='converter.html'"><h3>🔄 Audio Converter</h3><p>MP3, WAV, OGG, WebM + spatial effects</p></div>
+                <div class="tool-card" onclick="window.location.href='music-video.html'"><h3>🎬 Music Video Studio</h3><p>AI video from lyrics + lyrics video creator</p></div>
+                <div class="tool-card" id="tool-kling" onclick="selectTool('kling')" style="border-color:rgba(0,217,255,.3);"><h3>🎥 Real Music Video</h3><p>AI writes video prompts from your lyrics - generate actual moving video scenes</p><span class="badge-real" style="background:rgba(0,217,255,.1);color:#00d9ff;">🎥 AI VIDEO</span></div>
+            </div>
+            <h2 class="section-title" style="margin-top:1.5rem;">🎬 Video & Music Tools</h2>
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem;">
+                <div class="tool-card" onclick="window.open('https://app.artistly.ai/dashboard','_blank')"><h3>🎨 Artistly Commercial</h3><p>AI commercial video creator</p></div>
+                <div class="tool-card" onclick="window.open('https://app.videoexpress.ai/login?code=a3b2ea6447fdd612cbc7b0c484d7f4a2&accept=12019','_blank')"><h3>&#127909; Video Express</h3><p>AI video creation platform</p></div>
+                <div class="tool-card" onclick="window.open('https://ai.flaxxa.com/','_blank')"><h3>&#9889; Flexa AI</h3><p>AI tools suite</p></div>
+                <div class="tool-card" onclick="window.open('http://warriorplus.com/','_blank')"><h3>&#9876; Warrior Plus</h3><p>Digital marketing marketplace</p></div>
+                <div class="tool-card" onclick="window.open('https://www.bandlab.com/8bfr','_blank')"><h3>&#127911; BandLab</h3><p>8BFR BandLab profile</p></div>
+            <div style="display:none;"><!-- placeholder --></div>
+                <div class="tool-card" onclick="window.location.href='master-ai.html'"><h3>🎚️ Mastering Studio</h3><p>Real-time AI mastering with EQ and compression</p></div>
+                <div class="tool-card" onclick="window.location.href='stem-splitter.html'"><h3>🎛️ Stem Splitter</h3><p>Separate vocals, drums, bass, and instruments</p></div>
+            </div>
+        </div>
+
+        <!-- ALL AI TOOLS (via AI Studio) -->
+        <div style="margin-top:1.5rem;">
+            <h2 style="font-size:1rem;color:var(--primary);margin-bottom:0.75rem;">All AI Tools</h2>
+            <div style="background:rgba(124,58,237,.06);border:1px solid rgba(124,58,237,.2);border-radius:12px;padding:1rem;text-align:center;">
+                <p style="font-size:.85rem;color:rgba(255,255,255,.6);margin-bottom:.75rem;">Access AI tools including Caption Writer, Translator, Bio Writer, Email Writer, Summarizer, Proofreader, Hashtag Generator, Video Trimmer, Background Changer, Screen Recorder, Beat Maker, Stem Splitter, Mastering Studio, Music Video Creator, Lyrics Video, Audio Converter, and more.</p>
+                <a href="ai-studio.html" class="btn btn-outline" style="display:inline-block;text-decoration:none;padding:.6rem 1.5rem;">Open Full AI Studio</a>
+            </div>
+        </div>
+        <div style="margin-top:1.5rem;">
+            <h2 style="font-size:1rem;color:var(--primary);margin-bottom:0.75rem;">🎤 Co-Producer Suite</h2>
+            <div class="tool-grid">
+                <div class="tool-card" id="tool-coproducer" onclick="selectTool('coproducer')"><h3>🎤 Co-Producer</h3><p>Upload feature verse, get matching lyrics + hook</p><span class="badge-real">✅ REAL OUTPUT</span></div>
+                <div class="tool-card" id="tool-flowriter" onclick="selectTool('flowriter')"><h3>🌊 Flow Writer</h3><p>Match any rapper's cadence + syllable count</p><span class="badge-real">✅ REAL OUTPUT</span></div>
+                <div class="tool-card" id="tool-hookmaker" onclick="selectTool('hookmaker')"><h3>🪝 Hook Maker</h3><p>Catchy chorus/hook from your verse</p><span class="badge-real">✅ REAL OUTPUT</span></div>
+                <div class="tool-card" onclick="window.location.href='beatmaker.html'"><h3>🥁 AI Beat Maker</h3><p>Generate beats with Pollinations AI</p><span class="badge-real">✅ REAL AUDIO</span></div>
+                <div class="tool-card" onclick="window.location.href='songwriting.html'" style="border-color:rgba(251,191,36,.3);"><h3>📝 Songwriting Studio</h3><p>Write lyrics with templates, rhyme finder, syllable tools</p><span class="badge-real">✅ NOTEPAD</span></div>
+            </div>
+        </div>
+
+        <!-- DYNAMIC TOOL PANEL -->
+        <div id="toolPanel" class="card" style="display: none;">
+            <h2 class="section-title" id="toolTitle">Tool</h2>
+            <p id="toolHint" style="font-size:0.85rem;color:var(--text-dim);margin-bottom:0.5rem;"></p>
+            <div id="toolBody"></div>
+            <div class="warn-box" id="saveWarnBox">⚠️ <strong>Save your output!</strong> Results are not saved — copy text or download images before leaving this page.</div>
+            <div id="result" class="result-box" style="display: none;"></div>
+            <div id="coverPreview" class="cover-preview" style="display:none;"></div>
+        </div>
+
+        <!-- INFO -->
+        <div class="card" style="border-color:rgba(0,217,255,0.3);background:rgba(0,217,255,0.05);">
+            <h2 style="color:var(--cyan);font-family:'Bebas Neue',cursive;font-size:1.3rem;">ℹ️ About Studio Tools</h2>
+            <div style="font-size:0.9rem;line-height:1.7;color:var(--text-dim);">
+                <p style="margin-bottom:0.5rem;"><strong style="color:var(--text);">AI Generators:</strong></p>
+                <p>✅ <strong>Lyrics (in AI Studio), Song Generator</strong> — Full text you can use immediately</p>
+                <p>✅ <strong>Album Cover</strong> — Generates a real image with artist name baked in</p>
+                <p>📋 <strong>Beat Ideas / Video Concepts</strong> — Detailed AI-written production and video blueprints</p>
+                <p style="margin-top:0.75rem;"><strong style="color:var(--text);">Converters & Creators:</strong></p>
+                <p>🔄 <strong>Audio Converter</strong> — Convert between MP3, WAV, OGG, WebM with spatial effects</p>
+                <p>🎬 <strong>Music Video Studio</strong> — AI-generated video from your lyrics, or animated lyrics video export to MP4</p>
+                <p>🎚️ <strong>Mastering Studio</strong> — Real-time mastering with 5-band EQ, compression, limiter, stereo width</p>
+                <p>🎛️ <strong>Stem Splitter</strong> — Separate vocals, drums, bass, and instruments using AI</p>
+                <p style="margin-top:0.75rem;padding:0.75rem;background:rgba(74,222,128,0.08);border-radius:8px;border-left:3px solid #4ade80;">
+                    <strong style="color:#4ade80;">Live Now:</strong> AI Beat Maker (Pollinations ACE-Step), AI Music Video Creator, Lyrics Video Creator, Real-time Mastering Studio, Audio Converter, Stem Splitter, AI Chat Assistant, Music Expert AI — all built and running.
+                </p>
+                <p style="margin-top:0.75rem;color:rgba(234,230,255,0.4);font-size:0.8rem;">AI: Pollinations + OpenAI via Vercel · Converters: 100% client-side — your files never leave your device</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="scripts.js" defer></script>
+    <script>
+    const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f';
+    const s = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let currentTool = '';
+    let currentCoverUrl = '';
+    let memeCanvas, memeCtx, memeImg;
+    let gifFrames = [];
+
+    /* ═══════════════ AUTH CHECK ═══════════════ */
+    async function init() {
+        try {
+            const { data: { session } } = await s.auth.getSession();
+            if (!session) { location.href = 'login.html?return=owner-studio.html'; return; }
+            const { data: profile } = await s.from('profiles').select('role').eq('user_id', session.user.id).single();
+            if (!profile || (profile.role !== 'owner' && profile.role !== 'co-owner')) { alert('Owner/Co-Owner access only.'); location.href = 'feed.html'; return; }
+        } catch (error) { console.error('Init error:', error); }
+    }
+
+    /* ═══════════════ TOOL CONFIG ═══════════════ */
+    const toolConfig = {
+        lyrics: { title: '✍️ Lyrics Generator', hint: 'Describe the mood, genre, theme. Be specific for better results.' },
+        beats: { title: '🎵 Beat Ideas', hint: 'Describe the vibe — creates a detailed production blueprint.' },
+        cover: { title: '🎨 Album Cover Generator', hint: 'Describe the image, add artist name and featured artists to burn into the cover.' },
+        video: { title: '🎬 Video Concept', hint: 'Describe the song and vision — get a storyboard plan.' },
+        post: { title: '📝 Post Generator', hint: 'What platform and topic? Gets ready-to-paste posts.' },
+        songgen: { title: '🎵 Song Generator', hint: 'Generate an actual song with AI vocals and music. Owner only.' },
+        imgconvert: { title: '🖼️ Image Converter', hint: 'Upload an image and convert between PNG, JPG, and WebP formats.' },
+        audioextract: { title: '🎧 Audio Extractor', hint: 'Upload a video file to extract the audio track.' },
+        coproducer: { title: '🎤 Co-Producer', hint: 'Paste the featured artist verse. AI analyzes flow and writes matching verses + hook.' },
+        flowriter: { title: '🌊 Flow Writer', hint: 'Paste lyrics or describe a flow style. AI matches the cadence exactly.' },
+        hookmaker: { title: '🪝 Hook Maker', hint: 'Paste your verse and AI creates a catchy hook/chorus to match.' },
+        meme: { title: '😂 Meme Creator', hint: 'Upload an image, add top/bottom text to create a meme.' },
+        gif: { title: '🎞️ GIF Creator', hint: 'Upload multiple images to create an animated GIF.' },
+        qr: { title: '📱 QR Code Generator', hint: 'Enter a URL or text to generate a QR code for promo.' },
+        resize: { title: '📐 Image Resizer', hint: 'Upload an image and resize it for different social platforms.' },
+        kling: { title: '🎥 Real Music Video - Kling Prompt Generator', hint: 'Paste your lyrics and AI writes scene-by-scene Kling AI prompts for a full music video.' }
+    };
+
+    /* ═══════════════ TOOL SELECTION ═══════════════ */
+    function selectTool(tool) {
+        currentTool = tool;
+        currentCoverUrl = '';
+        gifFrames = [];
+        const cfg = toolConfig[tool] || {};
+        document.querySelectorAll('.tool-card').forEach(c => c.classList.remove('active'));
+        const el = document.getElementById('tool-' + tool);
+        if (el) el.classList.add('active');
+        document.getElementById('toolTitle').textContent = cfg.title || tool;
+        document.getElementById('toolHint').textContent = cfg.hint || '';
+        document.getElementById('toolPanel').style.display = 'block';
+        document.getElementById('result').style.display = 'none';
+        document.getElementById('coverPreview').style.display = 'none';
+
+        const body = document.getElementById('toolBody');
+        body.innerHTML = getToolHTML(tool);
+        // Restore Kling results if switching back to kling tool
+        if(tool === 'kling') setTimeout(restoreKlingResults, 50);
+        if(tool === 'songgen') setTimeout(function(){
+            var m = document.getElementById('sgLyricsMode');
+            if(m && window.toggleLyricsMode) window.toggleLyricsMode(m.value);
+        }, 50);
+        document.getElementById('toolPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function getToolHTML(tool) {
+        switch(tool) {
+            /* ── AI TEXT TOOLS ── */
+            case 'lyrics': return aiTextUI('e.g. Write a dark trap verse about rising from nothing, Wu-Tang style, with internal rhymes...');
+            case 'post': return aiTextUI('e.g. Instagram caption for a new single drop, hype tone, include hashtags...');
+
+            case 'songgen': return `
+                <div style="display:flex;gap:0.5rem;">
+                    <div class="form-group" style="flex:1;">
+                        <label>Song Title</label>
+                        <input type="text" id="sgTitle" placeholder="e.g. Streets Know My Name">
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>Artist Name</label>
+                        <input type="text" id="sgArtist" placeholder="e.g. 8BFR">
+                    </div>
+                </div>
+                <div style="display:flex;gap:0.5rem;">
+                    <div class="form-group" style="flex:1;">
+                        <label>Reference Artist</label>
+                        <select id="sgRefSelect" onchange="document.getElementById('sgRefCustomWrap').style.display=(this.value==='__custom__'?'block':'none');">
+                            <option value="">None — pure boom bap</option>
+                            <option value="Wu-Tang Clan">Wu-Tang Clan</option>
+                            <option value="RZA">RZA</option>
+                            <option value="GZA">GZA</option>
+                            <option value="Method Man">Method Man</option>
+                            <option value="Raekwon">Raekwon</option>
+                            <option value="Ghostface Killah">Ghostface Killah</option>
+                            <option value="ODB">Ol' Dirty Bastard</option>
+                            <option value="Masta Killah">Masta Killa</option>
+                            <option value="Killah Priest">Killah Priest</option>
+                            <option value="Cappadonna">Cappadonna</option>
+                            <option value="Bone Thugs">Bone Thugs-N-Harmony</option>
+                            <option value="Krayzie Bone">Krayzie Bone</option>
+                            <option value="Layzie Bone">Layzie Bone</option>
+                            <option value="Bizzy Bone">Bizzy Bone</option>
+                            <option value="Dr. Dre">Dr. Dre</option>
+                            <option value="Snoop">Snoop Dogg</option>
+                            <option value="Ice Cube">Ice Cube</option>
+                            <option value="Eazy-E">Eazy-E</option>
+                            <option value="N.W.A">N.W.A</option>
+                            <option value="The D.O.C">The D.O.C</option>
+                            <option value="2Pac">2Pac</option>
+                            <option value="Too Short">Too Short</option>
+                            <option value="Tech N9ne">Tech N9ne</option>
+                            <option value="Twista">Twista</option>
+                            <option value="ICP">Insane Clown Posse</option>
+                            <option value="Geto Boys">Geto Boys</option>
+                            <option value="Eminem">Eminem</option>
+                            <option value="Slim Shady">Slim Shady</option>
+                            <option value="Nas">Nas</option>
+                            <option value="Biggie">Notorious B.I.G.</option>
+                            <option value="Mobb Deep">Mobb Deep</option>
+                            <option value="Redman">Redman</option>
+                            <option value="Cypress Hill">Cypress Hill</option>
+                            <option value="Slick Rick">Slick Rick</option>
+                            <option value="Biz Markie">Biz Markie</option>
+                            <option value="Digital Underground">Digital Underground</option>
+                            <option value="LL Cool J">LL Cool J</option>
+                            <option value="Onyx">Onyx</option>
+                            <option value="Das EFX">Das EFX</option>
+                            <option value="KRS-One">KRS-One</option>
+                            <option value="Public Enemy">Public Enemy</option>
+                            <option value="3rd Bass">3rd Bass</option>
+                            <option value="Stetsasonic">Stetsasonic</option>
+                            <option value="Run DMC">Run-DMC</option>
+                            <option value="Beastie Boys">Beastie Boys</option>
+                            <option value="Sugar Hill Gang">Sugar Hill Gang</option>
+                            <option value="Grandmaster Flash">Grandmaster Flash</option>
+                            <option value="Rob Base">Rob Base</option>
+                            <option value="MC Hammer">MC Hammer</option>
+                            <option value="Vanilla Ice">Vanilla Ice</option>
+                            <option value="Fat Boys">Fat Boys</option>
+                            <option value="UTFO">UTFO</option>
+                            <option value="Tone Loc">Tone Loc</option>
+                            <option value="Young MC">Young MC</option>
+                            <option value="Newcleus">Newcleus</option>
+                            <option value="Wreckx-N-Effect">Wreckx-N-Effect</option>
+                            <option value="De La Soul">De La Soul</option>
+                            <option value="Digable Planets">Digable Planets</option>
+                            <option value="Tribe Called Quest">A Tribe Called Quest</option>
+                            <option value="J Dilla">J Dilla</option>
+                            <option value="DJ Premier">DJ Premier</option>
+                            <option value="Pete Rock">Pete Rock</option>
+                            <option value="Sir Mix">Sir Mix-A-Lot</option>
+                            <option value="2 Live Crew">2 Live Crew</option>
+                            <option value="Korn">Korn</option>
+                            <option value="Rage Against">Rage Against the Machine</option>
+                            <option value="OutKast">OutKast</option>
+                            <option value="Kendrick">Kendrick Lamar</option>
+                            <option value="50 Cent">50 Cent</option>
+                            <option value="__custom__">Other (type my own)...</option>
+                        </select>
+                        <div id="sgRefCustomWrap" style="display:none;margin-top:.4rem;">
+                            <input type="text" id="sgRefCustom" placeholder="Type any artist name">
+                        </div>
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>Reference Song</label>
+                        <input type="text" id="sgRefSong" placeholder="e.g. Blow the Whistle">
+                    </div>
+                </div>
+                <div style="display:flex;gap:0.5rem;">
+                    <div class="form-group" style="flex:1;">
+                        <label>Explicit Mode</label>
+                        <select id="sgExplicit"><option value="standard">Standard</option><option value="street">Explicit - Street/Raw</option><option value="sexual">Explicit - Sexual/Dirty</option><option value="aggressive">Explicit - Aggressive</option><option value="clean">Clean - Radio Safe</option></select>
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>Lyrics Mode</label>
+                        <select id="sgLyricsMode" onchange="toggleLyricsMode(this.value)"><option value="auto">AI Writes Lyrics</option><option value="manual">I Have My Own</option></select>
+                    </div>
+                </div>
+                <div class="form-group" id="sgLyricsWrap">
+                    <label>Lyrics (leave blank for AI to auto-generate)</label>
+                    <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.4rem;">
+                      <button onclick="formatLyricsParagraph()" style="background:#374151;border:none;color:#e8e0ff;border-radius:6px;padding:.3rem .7rem;font-size:.74rem;font-weight:700;cursor:pointer;">Convert to Paragraph</button>
+                      <button onclick="splitLyricsHalf(1)" style="background:#374151;border:none;color:#e8e0ff;border-radius:6px;padding:.3rem .7rem;font-size:.74rem;font-weight:700;cursor:pointer;">Use Part 1</button>
+                      <button onclick="splitLyricsHalf(2)" style="background:#374151;border:none;color:#e8e0ff;border-radius:6px;padding:.3rem .7rem;font-size:.74rem;font-weight:700;cursor:pointer;">Use Part 2</button>
+                    </div>
+                    <textarea id="sgLyrics" rows="5" placeholder="Paste your lyrics here, or leave blank and AI will write them matching your settings above."></textarea>
+                </div>
+                <div class="form-group" id="sgDescWrap" style="display:none;">
+                    <label>What should the song be about?</label>
+                    <input type="text" id="sgDesc" placeholder="e.g. Rising from nothing, street life, loyalty, flexing on haters...">
+                    <div style="font-size:.72rem;color:#6b7280;margin-top:.3rem;">AI writes lyrics about this topic, matching the flow and cadence of your Reference Artist.</div>
+                </div>
+                <div style="display:flex;gap:0.5rem;">
+                    <div class="form-group" style="flex:1;">
+                        <label>BPM / Pace</label>
+                        <input type="range" id="sgBpm" min="60" max="130" value="90" step="1" oninput="document.getElementById('sgBpmVal').textContent=this.value">
+                        <div style="font-size:.75rem;color:#a855f7;margin-top:.2rem;">Tempo: <span id="sgBpmVal">90</span> BPM <span style="color:#6b7280;">(boom bap sits ~80-95)</span></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Must-Include Instruments / Sounds <span style="color:#6b7280;font-weight:400;">(AI still builds its own beat — these get layered in)</span></label>
+                    <div id="sgInstrChips" style="display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.3rem;">
+                        <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="prominent human beatbox mouth percussion, beatboxing rhythm">Human Beatbox</div>
+                        <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="vinyl record scratching, DJ turntable cuts">Record Scratch</div>
+                        <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="RZA-style piano stabs played on the beat, gritty kung-fu soul piano">RZA Piano (Wu style)</div>
+                        <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="jazzy piano loop">Jazz Piano</div>
+                        <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="deep sub bass">Deep Bass</div>
+                        <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="hard kick 808 bass, heavy kick drum">Hard Kick / 808</div>
+                        <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="brass horn section, blaring horns">Horns</div>
+                        <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="electric guitar riffs">Electric Guitar</div>
+                        <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="distorted rock power chords">Rock Power Chords</div>
+                        <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="funk guitar, wah-wah guitar">Funk Guitar</div>
+                        <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="organ">Organ</div>
+                        <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="saxophone solo">Saxophone</div>
+                        <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="trumpet">Trumpet</div>
+                        <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="flute">Flute</div>
+                        <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="strings, cinematic string section">Strings</div>
+                        <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="vibraphone">Vibraphone</div>
+                        <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="bell chimes">Bells</div>
+                        <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="boom bap snare, crispy hi-hats">Crispy Hats</div>
+                        <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="conga and bongo percussion">Congas</div>
+                        <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="tambourine">Tambourine</div>
+                        <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="synth lead">Synth Lead</div>
+                        <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="moog synth bass">Synth Bass</div>
+                        <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="acoustic guitar">Acoustic Guitar</div>
+                        <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="harmonica">Harmonica</div>
+                        <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="dusty vinyl crackle texture">Vinyl Crackle</div>
+                        <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="movie sample, spoken word vocal sample chops">Sample Chops</div>
+                        <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="cowbell">Cowbell</div>
+                        <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="808 hi-hat rolls">Hi-Hat Rolls</div>
+                    </div>
+                    <input type="text" id="sgInstrCustom" placeholder="Anything not listed? e.g. sitar, kalimba, air horn..." style="margin-top:.5rem;">
+                </div>
+                <div id="sgStyleNote" class="form-group">
+                    <div style="font-size:.75rem;color:#4ade80;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.2);border-radius:6px;padding:.5rem .75rem;">
+                        Base style: Old School Boom Bap. Each generation varies the texture/feel so no two come out identical. Pick a Reference Artist to push the flow, beat, and instruments toward that sound.
+                    </div>
+                </div>
+                <div style="display:flex;gap:0.5rem;">
+                    <div class="form-group" style="flex:1;">
+                        <label>Voice Type</label>
+                        <select id="sgVoice"><option value="A">A. Male Rap Only</option><option value="B">B. Male Rap + Female Sung Hook</option><option value="C">C. Female Rap Only</option><option value="D">D. Female Singing + Male Rap Hook</option></select>
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>Duration</label>
+                        <select id="sgDur"><option value="30">30 sec</option><option value="60">1 min</option><option value="120">2 min</option><option value="180" selected>3 min</option><option value="210">3.5 min</option><option value="240">4 min</option><option value="270">4.5 min</option><option value="300">5 min (max)</option></select>
+                        <div style="margin-top:.5rem;background:#0a0a0f;border:1px solid rgba(168,85,247,.2);border-radius:8px;padding:.65rem;">
+                          <div style="font-size:.74rem;color:#a855f7;font-weight:700;margin-bottom:.35rem;">Duration Calculator</div>
+                          <div style="display:flex;gap:.4rem;align-items:flex-start;flex-wrap:wrap;">
+                            <input type="number" id="calcBpm" placeholder="BPM" min="40" max="300" style="width:65px;background:#13111c;border:1px solid rgba(168,85,247,.3);border-radius:6px;color:#e8e0ff;padding:.3rem .45rem;font-size:.82rem;" oninput="calcDuration()">
+                            <textarea id="calcLyrics" placeholder="Paste lyrics to calculate" rows="2" style="flex:1;min-width:100px;background:#13111c;border:1px solid rgba(168,85,247,.3);border-radius:6px;color:#e8e0ff;padding:.3rem .45rem;font-size:.76rem;resize:none;" oninput="calcDuration()"></textarea>
+                          </div>
+                          <div id="calcResult" style="margin-top:.35rem;font-size:.8rem;color:#00d9ff;min-height:1rem;"></div>
+                          <button onclick="applyCalcDur()" id="btnApplyDur" style="display:none;margin-top:.3rem;background:#a855f7;border:none;color:#fff;border-radius:5px;padding:.25rem .65rem;font-size:.74rem;font-weight:700;cursor:pointer;">Use This Duration</button>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="runSongGen()">Generate Song (Pollinations)</button>
+                <div style="margin-top:.6rem;display:flex;flex-wrap:wrap;gap:.4rem;">
+                  <a href="https://suno.com" target="_blank" style="background:#1db954;color:#fff;border-radius:6px;padding:.35rem .75rem;font-size:.76rem;font-weight:700;text-decoration:none;">Open Suno AI</a>
+                  <a href="https://udio.com" target="_blank" style="background:#6366f1;color:#fff;border-radius:6px;padding:.35rem .75rem;font-size:.76rem;font-weight:700;text-decoration:none;">Open Udio</a>
+                  <a href="https://mureka.ai" target="_blank" style="background:#f59e0b;color:#000;border-radius:6px;padding:.35rem .75rem;font-size:.76rem;font-weight:700;text-decoration:none;">Open Mureka</a>
+                </div>
+                <div style="font-size:.72rem;color:#6b7280;margin-top:.4rem;">Suno/Udio/Mureka follow lyrics more accurately. Copy your lyrics above then paste into any of these — all have free tiers.</div>
+                <div id="sgStatus" style="font-size:0.72rem;color:rgba(255,255,255,0.4);margin-top:0.3rem;">Pollinations: best for beat style testing. Suno/Udio: best for accurate lyric flow.</div>`;
+
+            case 'beats': return aiTextUI('e.g. 82 BPM boom-bap beat with piano chops, heavy bass, martial arts movie sample...');
+
+            case 'kling': return `
+                <div class="form-group">
+                    <label>Song Title</label>
+                    <input type="text" id="klingSongTitle" placeholder="e.g. OGs Still Spit Fire">
+                </div>
+                <div class="form-group">
+                    <label>Artist(s)</label>
+                    <input type="text" id="klingArtists" placeholder="e.g. 8BFR feat. Krayzie Bone">
+                </div>
+                <div class="form-group">
+                    <label>Paste Your Lyrics</label>
+                    <textarea id="klingLyrics" rows="8" placeholder="Paste your full lyrics here. AI will read them and write a Kling prompt for each scene/section of the video..."></textarea>
+                </div>
+                <div style="display:flex;gap:.5rem;">
+                    <div class="form-group" style="flex:1;">
+                        <label>Visual Style</label>
+                        <select id="klingStyle">
+                            <option value="cinematic hip hop music video">Cinematic Hip Hop</option>
+                            <option value="dark moody noir music video">Dark Noir</option>
+                            <option value="neon cyberpunk music video">Neon Cyberpunk</option>
+                            <option value="luxury gold aesthetic music video">Gold Luxury</option>
+                            <option value="urban street documentary music video">Urban Street</option>
+                            <option value="abstract artistic music video">Abstract Art</option>
+                            <option value="cinematic action music video">Cinematic Action</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>Number of Scenes</label>
+                        <select id="klingScenes">
+                            <option value="5">5 scenes</option>
+                            <option value="8" selected>8 scenes</option>
+                            <option value="10">10 scenes</option>
+                            <option value="12">12 scenes</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Setting / Location Vibe (optional)</label>
+                    <input type="text" id="klingSetting" placeholder="e.g. city rooftops at night, underground studio, streets of LA...">
+                </div>
+                <button class="btn btn-primary" onclick="runKling()">Generate Kling Prompts</button>
+                <div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-top:.3rem;">AI writes a scene-by-scene prompt and timeline for each section. Generate your clips in any AI video app, then upload them below to stitch into one video.</div>
+
+                <div id="klingResult" style="display:none;margin-top:1rem;">
+                    <div style="margin-bottom:.5rem;">
+                        <div style="font-family:'Bebas Neue',cursive;color:#00d9ff;font-size:1rem;letter-spacing:1px;margin-bottom:.25rem;">YOUR SCENE PROMPTS + TIMELINE</div>
+                        <div style="font-size:.75rem;color:#6b7280;">Copy each prompt into any AI video generator. When done, upload your clips below to join them into one video.</div>
+                    </div>
+                    <div id="klingPromptsWrap" style="display:flex;flex-direction:column;gap:.75rem;"></div>
+
+                    </div>
+                </div>`;
+            case 'video': return aiTextUI('e.g. Music video for a hype anthem — warehouse setting, crew shots, slow-mo, smoke...');
+
+            /* ── ALBUM COVER (FIXED) ── */
+            case 'cover': return `
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Artist Name *</label>
+                        <input type="text" id="coverArtist" placeholder="e.g. 8BFR, DJ Nova, etc.">
+                    </div>
+                    <div class="form-group">
+                        <label>Album / Single Title</label>
+                        <input type="text" id="coverTitle" placeholder="e.g. Rise Up, Dark Side, etc.">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Featured Artists (comma separated)</label>
+                    <input type="text" id="coverFeatured" placeholder="e.g. Lil Vibe, MC Storm">
+                </div>
+                <div class="form-group">
+                    <label>Text Position</label>
+                    <select id="coverTextPos">
+                        <option value="bottom">Bottom (default)</option>
+                        <option value="top">Top</option>
+                        <option value="center">Center</option>
+                        <option value="none">No text overlay (bake into AI prompt only)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Describe the visual style</label>
+                    <textarea id="prompt" placeholder="e.g. Dark cyberpunk album cover with neon purple glow, a hooded figure, city skyline at night, rain..." style="min-height:100px;"></textarea>
+                </div>
+                <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+                    <button class="btn" id="generateBtn" onclick="generateCover()">🚀 Generate Cover</button>
+                    <button class="btn btn-outline" id="downloadBtn" onclick="downloadCover()" style="display:none;">💾 Download</button>
+                </div>`;
+
+            /* ── IMAGE CONVERTER ── */
+            case 'imgconvert': return `
+                <div class="upload-zone" onclick="document.getElementById('imgFile').click()">
+                    <input type="file" id="imgFile" accept="image/*" onchange="previewConvertImg(this)">
+                    <div class="drop-icon">🖼️</div>
+                    <div class="drop-text">Click to upload image</div>
+                </div>
+                <div id="imgPreviewBox" style="display:none;text-align:center;margin:1rem 0;">
+                    <img id="imgPreview" style="max-width:300px;border-radius:8px;border:1px solid var(--border);">
+                    <p id="imgInfo" style="font-size:0.82rem;color:var(--text-dim);margin-top:0.5rem;"></p>
+                </div>
+                <div class="form-group">
+                    <label>Convert to:</label>
+                    <div class="format-options">
+                        <div class="format-opt selected" onclick="selectFormat(this,'png')">PNG</div>
+                        <div class="format-opt" onclick="selectFormat(this,'jpeg')">JPG</div>
+                        <div class="format-opt" onclick="selectFormat(this,'webp')">WebP</div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Quality (JPG/WebP only)</label>
+                        <input type="number" id="imgQuality" value="90" min="10" max="100" step="5">
+                    </div>
+                    <div class="form-group">
+                        <label>Scale %</label>
+                        <input type="number" id="imgScale" value="100" min="10" max="300" step="10">
+                    </div>
+                </div>
+                <button class="btn btn-cyan" onclick="convertImage()">🔄 Convert & Download</button>`;
+
+            /* ── AUDIO EXTRACTOR ── */
+            case 'audioextract': return `
+                <div class="upload-zone" onclick="document.getElementById('vidFile').click()">
+                    <input type="file" id="vidFile" accept="video/*" onchange="previewVideo(this)">
+                    <div class="drop-icon">🎬</div>
+                    <div class="drop-text">Click to upload video (MP4, WebM, MOV)</div>
+                </div>
+                <div id="vidPreviewBox" style="display:none;margin:1rem 0;">
+                    <video id="vidPreview" controls style="max-width:100%;max-height:250px;border-radius:8px;"></video>
+                    <p id="vidInfo" style="font-size:0.82rem;color:var(--text-dim);margin-top:0.5rem;"></p>
+                </div>
+                <div class="form-group">
+                    <label>Output format:</label>
+                    <div class="format-options">
+                        <div class="format-opt selected" onclick="selectAudioFmt(this,'wav')">WAV</div>
+                        <div class="format-opt" onclick="selectAudioFmt(this,'webm')">WebM Audio</div>
+                    </div>
+                </div>
+                <p style="font-size:0.8rem;color:var(--text-dim);margin:0.5rem 0;">WAV = highest quality, larger file. WebM = smaller file. All processing happens on your device.</p>
+                <button class="btn btn-cyan" onclick="extractAudio()">🎧 Extract Audio</button>
+                <div id="audioResult" style="display:none;margin-top:1rem;padding:1rem;background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.3);border-radius:8px;">
+                    <audio id="audioPlayer" controls style="width:100%;"></audio>
+                    <button class="btn btn-green" onclick="downloadExtractedAudio()" style="margin-top:0.75rem;">💾 Download Audio</button>
+                </div>`;
+
+            /* ── CO-PRODUCER SUITE ── */
+            case 'coproducer': return `
+                <div class="form-group">
+                    <label>Featured Artist Name</label>
+                    <input type="text" id="cpArtist" placeholder="e.g. Bone Thugs, Method Man, Redman">
+                </div>
+                <div class="form-group">
+                    <label>Paste the Featured Verse (the verse you bought)</label>
+                    <textarea id="cpFeatureVerse" rows="8" placeholder="Paste the featured artist's verse here. AI will analyze the flow, cadence, rhyme scheme, and syllable count to write matching verses."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Song Topic / Theme</label>
+                    <input type="text" id="cpTopic" placeholder="e.g. Street survival, loyalty, grinding">
+                </div>
+                <div class="form-group">
+                    <label>Your Artist Name</label>
+                    <input type="text" id="cpMyName" placeholder="e.g. 8bfr, James J Siburt" value="8bfr">
+                </div>
+                <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                    <div class="form-group" style="flex:1;min-width:120px;">
+                        <label>How Many Verses</label>
+                        <select id="cpVerses"><option value="2">2 Verses</option><option value="3" selected>3 Verses</option><option value="4">4 Verses</option></select>
+                    </div>
+                    <div class="form-group" style="flex:1;min-width:120px;">
+                        <label>Include Hook?</label>
+                        <select id="cpHook"><option value="yes" selected>Yes - AI Female Hook</option><option value="male">Yes - AI Male Hook</option><option value="no">No Hook</option></select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Extra Instructions (optional)</label>
+                    <input type="text" id="cpExtra" placeholder="e.g. Match the double-time flow, add ad-libs like yeah yeah">
+                </div>
+                <button class="btn btn-primary" onclick="runCoproducer()">🎤 Generate Matching Verses</button>`;
+
+            case 'flowriter': return `
+                <div class="form-group">
+                    <label>Reference Lyrics (paste any verse to match its flow)</label>
+                    <textarea id="fwRef" rows="6" placeholder="Paste a verse from any artist. AI will count syllables per line, analyze the rhyme scheme, and write new lyrics that match the exact same flow pattern."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Your Topic</label>
+                    <input type="text" id="fwTopic" placeholder="e.g. Hustle, loyalty, city life">
+                </div>
+                <div class="form-group">
+                    <label>Reference Artist (optional)</label>
+                    <input type="text" id="fwArtist" placeholder="e.g. Nas, Eminem, J. Cole">
+                </div>
+                <button class="btn btn-primary" onclick="runFlowriter()">🌊 Match This Flow</button>`;
+
+            case 'hookmaker': return `
+                <div class="form-group">
+                    <label>Paste Your Verse</label>
+                    <textarea id="hmVerse" rows="6" placeholder="Paste the verse(s) you already have. AI will create a catchy hook/chorus that fits the theme, mood, and energy."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Hook Style</label>
+                    <select id="hmStyle">
+                        <option value="catchy">Catchy / Radio-Ready</option>
+                        <option value="melodic">Melodic / Sung</option>
+                        <option value="chant">Chant / Anthem</option>
+                        <option value="minimal">Minimal / Repeated Phrase</option>
+                        <option value="storytelling">Storytelling / Narrative</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Genre</label>
+                    <select id="hmGenre">
+                        <option value="hip-hop">Hip-Hop</option>
+                        <option value="trap">Trap</option>
+                        <option value="r&b">R&B</option>
+                        <option value="pop">Pop</option>
+                        <option value="drill">Drill</option>
+                        <option value="boom-bap">Boom Bap</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="runHookmaker()">🪝 Create Hook</button>`;
+
+            /* ── MEME CREATOR ── */
+            case 'meme': return `
+                <div class="upload-zone" onclick="document.getElementById('memeFile').click()">
+                    <input type="file" id="memeFile" accept="image/*" onchange="loadMemeImage(this)">
+                    <div class="drop-icon">😂</div>
+                    <div class="drop-text">Click to upload base image</div>
+                </div>
+                <div class="meme-controls">
+                    <div class="form-group">
+                        <label>Top Text</label>
+                        <input type="text" id="memeTop" placeholder="TOP TEXT" oninput="drawMeme()">
+                    </div>
+                    <div class="form-group">
+                        <label>Bottom Text</label>
+                        <input type="text" id="memeBottom" placeholder="BOTTOM TEXT" oninput="drawMeme()">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Font Size</label>
+                            <input type="number" id="memeFontSize" value="48" min="16" max="120" oninput="drawMeme()">
+                        </div>
+                        <div class="form-group">
+                            <label>Font</label>
+                            <select id="memeFont" onchange="drawMeme()">
+                                <option value="Impact">Impact (Classic)</option>
+                                <option value="'Bebas Neue'">Bebas Neue</option>
+                                <option value="Arial Black">Arial Black</option>
+                                <option value="Comic Sans MS">Comic Sans</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="color-row">
+                        <label style="font-size:0.82rem;color:var(--text-dim);font-weight:600;">Text Color</label>
+                        <input type="color" id="memeColor" value="#ffffff" oninput="drawMeme()">
+                        <label style="font-size:0.82rem;color:var(--text-dim);font-weight:600;">Outline</label>
+                        <input type="color" id="memeOutline" value="#000000" oninput="drawMeme()">
+                    </div>
+                </div>
+                <div style="text-align:center;margin:1rem 0;">
+                    <canvas id="memeCanvas" style="max-width:100%;border:1px solid var(--border);display:none;"></canvas>
+                </div>
+                <button class="btn btn-green" onclick="downloadMeme()">💾 Download Meme</button>`;
+
+            /* ── GIF CREATOR ── */
+            case 'gif': return `
+                <div class="upload-zone" onclick="document.getElementById('gifFiles').click()">
+                    <input type="file" id="gifFiles" accept="image/*" multiple onchange="loadGifFrames(this)">
+                    <div class="drop-icon">🎞️</div>
+                    <div class="drop-text">Click to upload images (select multiple)<br><span style="font-size:0.8rem;">Images will play in order as GIF frames</span></div>
+                </div>
+                <div id="gifPreviewStrip" class="preview-strip"></div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Frame Delay (ms)</label>
+                        <input type="number" id="gifDelay" value="500" min="50" max="5000" step="50">
+                    </div>
+                    <div class="form-group">
+                        <label>Output Width (px)</label>
+                        <input type="number" id="gifWidth" value="480" min="100" max="1200">
+                    </div>
+                </div>
+                <p id="gifStatus" style="font-size:0.85rem;color:var(--text-dim);margin:0.5rem 0;">Upload at least 2 images to create a GIF.</p>
+                <button class="btn btn-green" onclick="createGif()">🎞️ Create GIF</button>
+                <div id="gifResult" style="display:none;text-align:center;margin-top:1rem;">
+                    <img id="gifOutput" style="max-width:100%;border-radius:8px;border:1px solid var(--border);">
+                </div>`;
+
+            /* ── QR CODE ── */
+            case 'qr': return `
+                <div class="form-group">
+                    <label>URL or Text</label>
+                    <input type="text" id="qrText" placeholder="https://8bfr.com/your-page">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Size (px)</label>
+                        <input type="number" id="qrSize" value="300" min="100" max="1000" step="50">
+                    </div>
+                    <div class="form-group">
+                        <label>Color</label>
+                        <div class="color-row">
+                            <input type="color" id="qrFg" value="#7c3aed">
+                            <span style="font-size:0.82rem;color:var(--text-dim);">Foreground</span>
+                            <input type="color" id="qrBg" value="#0b0014">
+                            <span style="font-size:0.82rem;color:var(--text-dim);">Background</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn" onclick="generateQR()">📱 Generate QR Code</button>
+                <div id="qrResult" style="display:none;text-align:center;margin-top:1rem;">
+                    <canvas id="qrCanvas"></canvas>
+                    <br><button class="btn btn-green" onclick="downloadQR()" style="margin-top:0.75rem;">💾 Download QR</button>
+                </div>`;
+
+            /* ── IMAGE RESIZER ── */
+            case 'resize': return `
+                <div class="upload-zone" onclick="document.getElementById('resizeFile').click()">
+                    <input type="file" id="resizeFile" accept="image/*" onchange="previewResizeImg(this)">
+                    <div class="drop-icon">📐</div>
+                    <div class="drop-text">Click to upload image</div>
+                </div>
+                <div id="resizePreviewBox" style="display:none;text-align:center;margin:1rem 0;">
+                    <img id="resizePreview" style="max-width:200px;border-radius:8px;border:1px solid var(--border);">
+                    <p id="resizeInfo" style="font-size:0.82rem;color:var(--text-dim);margin-top:0.5rem;"></p>
+                </div>
+                <div class="form-group">
+                    <label>Quick Presets:</label>
+                    <div class="format-options">
+                        <div class="format-opt" onclick="setResize(1080,1080,this)">Instagram Post<br><span style="font-size:0.7rem;">1080×1080</span></div>
+                        <div class="format-opt" onclick="setResize(1080,1920,this)">IG Story/Reel<br><span style="font-size:0.7rem;">1080×1920</span></div>
+                        <div class="format-opt" onclick="setResize(1500,500,this)">Twitter Banner<br><span style="font-size:0.7rem;">1500×500</span></div>
+                        <div class="format-opt" onclick="setResize(400,400,this)">Avatar<br><span style="font-size:0.7rem;">400×400</span></div>
+                    </div>
+                    <div class="format-options" style="margin-top:0.5rem;">
+                        <div class="format-opt" onclick="setResize(2560,1440,this)">YouTube Banner<br><span style="font-size:0.7rem;">2560×1440</span></div>
+                        <div class="format-opt" onclick="setResize(1280,720,this)">YouTube Thumb<br><span style="font-size:0.7rem;">1280×720</span></div>
+                        <div class="format-opt" onclick="setResize(820,312,this)">Facebook Cover<br><span style="font-size:0.7rem;">820×312</span></div>
+                        <div class="format-opt" onclick="setResize(1024,1024,this)">Album Cover<br><span style="font-size:0.7rem;">1024×1024</span></div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Width (px)</label>
+                        <input type="number" id="resizeW" value="1080" min="10" max="4096">
+                    </div>
+                    <div class="form-group">
+                        <label>Height (px)</label>
+                        <input type="number" id="resizeH" value="1080" min="10" max="4096">
+                    </div>
+                </div>
+                <button class="btn btn-cyan" onclick="resizeImage()">📐 Resize & Download</button>`;
+
+            default: return '<p>Unknown tool.</p>';
+        }
+    }
+
+    /* ── Shared AI text input ── */
+    function aiTextUI(placeholder) {
+        return `
+            <textarea id="prompt" placeholder="${placeholder}"></textarea>
+            <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+                <button class="btn" id="generateBtn" onclick="generateAI()">🚀 Generate</button>
+                <button class="btn btn-outline" onclick="copyResult()">📋 Copy Result</button>
+            </div>`;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       AI TEXT GENERATION (Lyrics, Posts, Songs, etc.)
+       ═══════════════════════════════════════════════════ */
+    async function generateAI() {
+        const prompt = document.getElementById('prompt').value.trim();
+        if (!prompt) { alert('Enter a prompt first.'); return; }
+        const resultDiv = document.getElementById('result');
+        const btn = document.getElementById('generateBtn');
+        btn.disabled = true; btn.textContent = 'Generating...';
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = '<div class="spinner"></div> Generating...';
+
+        try {
+            const response = await fetch('https://8bfr-api.vercel.app/api/openai', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ input: prompt, tool: currentTool, tier: 'mini', max_tokens: 1000 })
+            });
+            if (!response.ok) {
+                const errorText = await response.text();
+                resultDiv.innerHTML = '<p style="color:#ff4466;"><strong>API Error (' + response.status + ')</strong></p><p style="font-size:0.85rem;color:var(--text-dim);margin-top:0.5rem;">' + errorText.substring(0, 500) + '</p>';
+                return;
+            }
+            const data = await response.json();
+            if (data.text || data.ok || data.response || data.result) {
+                const content = data.text || data.response || data.result || JSON.stringify(data, null, 2);
+                resultDiv.innerHTML = '<pre style="white-space:pre-wrap;font-size:0.88rem;line-height:1.6;">' + content.replace(/</g,'&lt;') + '</pre>';
+            } else {
+                resultDiv.innerHTML = '<p style="color:#ff4466;">Error: ' + (data.error || data.message || 'Unknown') + (data.attempts ? '<br><span style="font-size:.7rem;color:rgba(255,255,255,.4);">' + JSON.stringify(data.attempts).substring(0,300) + '</span>' : '') + '</p>';
+            }
+        } catch (error) {
+            resultDiv.innerHTML = '<p style="color:#ff4466;"><strong>Network Error:</strong> ' + error.message + '</p>';
+        } finally {
+            btn.disabled = false; btn.textContent = '🚀 Generate';
+        }
+    }
+
+    function copyResult() {
+        const r = document.getElementById('result');
+        if (!r || r.style.display === 'none') { alert('Nothing to copy yet.'); return; }
+        navigator.clipboard.writeText(r.innerText).then(() => alert('✅ Copied!')).catch(() => {
+            const t = document.createElement('textarea'); t.value = r.innerText; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); alert('✅ Copied!');
+        });
+    }
+
+    /* ═══════════════════════════════════════════════════
+       ALBUM COVER GENERATOR (FIXED — artist name + featured)
+       ═══════════════════════════════════════════════════ */
+    async function generateCover() {
+        const artist = document.getElementById('coverArtist').value.trim();
+        const title = document.getElementById('coverTitle').value.trim();
+        const featured = document.getElementById('coverFeatured').value.trim();
+        const textPos = document.getElementById('coverTextPos').value;
+        const prompt = document.getElementById('prompt').value.trim();
+
+        if (!artist) { alert('Enter an artist name.'); return; }
+        if (!prompt) { alert('Describe the visual style for the cover.'); return; }
+
+        const resultDiv = document.getElementById('result');
+        const coverDiv = document.getElementById('coverPreview');
+        const btn = document.getElementById('generateBtn');
+        const dlBtn = document.getElementById('downloadBtn');
+
+        btn.disabled = true; btn.textContent = 'Generating...';
+        resultDiv.style.display = 'block';
+        coverDiv.style.display = 'none';
+        dlBtn.style.display = 'none';
+
+        try {
+            /* Step 1: Enhance prompt with AI */
+            resultDiv.innerHTML = '<div class="spinner"></div> Step 1: Enhancing description with AI...';
+            let imagePrompt = prompt;
+            const fullTitle = title ? (featured ? `${title} (feat. ${featured})` : title) : '';
+
+            try {
+                const aiRes = await fetch('https://8bfr-api.vercel.app/api/openai', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        input: `Create a concise, vivid image generation prompt (only the visual description, no explanations) for this album cover concept: ${prompt}. CRITICAL: Do NOT include any text, words, letters, or typography in the image description. The image must be purely visual with NO text rendered. Text will be added as an overlay afterward. Just describe the visual scene, colors, mood, and composition.`,
+                        tool: 'cover'
+                    })
+                });
+                if (aiRes.ok) {
+                    const aiData = await aiRes.json();
+                    if (aiData.response) imagePrompt = aiData.response.replace(/\n/g, ' ').substring(0, 500);
+                }
+            } catch(e) { /* use original */ }
+
+            /* Step 2: Generate base image - explicitly no text */
+            resultDiv.innerHTML = '<div class="spinner"></div> Step 2: Generating image (10-30 seconds)...';
+            const encodedPrompt = encodeURIComponent(imagePrompt + ', album cover art, high quality, professional, square format, no text, no words, no letters, no writing, no typography');
+            const baseUrl = 'https://image.pollinations.ai/prompt/' + encodedPrompt + '?width=1024&height=1024&nologo=true&seed=' + Date.now();
+
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = function() {
+                /* Step 3: Burn text onto image */
+                if (textPos !== 'none') {
+                    resultDiv.innerHTML = '<div class="spinner"></div> Step 3: Burning text onto cover...';
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 1024; canvas.height = 1024;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, 1024, 1024);
+                    ctx.textAlign = 'center';
+
+                    /* SONG TITLE at TOP */
+                    if (title) {
+                        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                        ctx.fillRect(0, 0, 1024, 130);
+                        ctx.font = 'bold 80px "Bebas Neue", Impact, sans-serif';
+                        ctx.fillStyle = '#ffffff';
+                        ctx.strokeStyle = '#000000';
+                        ctx.lineWidth = 5;
+                        ctx.strokeText(title.toUpperCase(), 512, 90);
+                        ctx.fillText(title.toUpperCase(), 512, 90);
+                    }
+
+                    /* ARTIST NAME in MIDDLE - biggest text */
+                    if (artist) {
+                        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                        ctx.fillRect(0, 440, 1024, 140);
+                        ctx.font = 'bold 100px "Bebas Neue", Impact, sans-serif';
+                        ctx.fillStyle = '#ffffff';
+                        ctx.strokeStyle = '#000000';
+                        ctx.lineWidth = 6;
+                        ctx.strokeText(artist.toUpperCase(), 512, 540);
+                        ctx.fillText(artist.toUpperCase(), 512, 540);
+                    }
+
+                    /* FEATURED ARTIST at BOTTOM */
+                    if (featured) {
+                        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                        ctx.fillRect(0, 900, 1024, 124);
+                        ctx.font = 'bold 56px "Bebas Neue", Impact, sans-serif';
+                        ctx.fillStyle = '#c4b5fd';
+                        ctx.strokeStyle = '#000000';
+                        ctx.lineWidth = 3;
+                        ctx.strokeText(('feat. ' + featured).toUpperCase(), 512, 975);
+                        ctx.fillText(('feat. ' + featured).toUpperCase(), 512, 975);
+                    }
+
+                    currentCoverUrl = canvas.toDataURL('image/png');
+                    coverDiv.innerHTML = '<img src="' + currentCoverUrl + '" alt="Generated Album Cover"><p style="margin-top:0.75rem;font-size:0.85rem;color:var(--text-dim);">Artist name and title burned into the image</p>';
+                } else {
+                    currentCoverUrl = baseUrl;
+                    coverDiv.innerHTML = '<img src="' + currentCoverUrl + '" alt="Generated Album Cover"><p style="margin-top:0.75rem;font-size:0.85rem;color:var(--text-dim);">Text not overlaid — add in your editor</p>';
+                }
+
+                coverDiv.style.display = 'block';
+                dlBtn.style.display = 'inline-block';
+                resultDiv.innerHTML = '✅ <strong>Cover generated!</strong>\n\n<strong>Artist:</strong> ' + artist + (title ? '\n<strong>Title:</strong> ' + title : '') + (featured ? '\n<strong>Feat:</strong> ' + featured : '') + '\n\n<strong>Enhanced prompt:</strong>\n' + imagePrompt + '\n\n💡 Not happy? Edit and generate again.';
+                btn.disabled = false; btn.textContent = '🚀 Generate Cover';
+            };
+            img.onerror = function() {
+                resultDiv.innerHTML = '<p style="color:#ff4466;">Image generation failed. Try a simpler description or try again.</p>';
+                btn.disabled = false; btn.textContent = '🚀 Generate Cover';
+            };
+            img.src = baseUrl;
+        } catch(e) {
+            resultDiv.innerHTML = '<p style="color:#ff4466;">Error: ' + e.message + '</p>';
+            btn.disabled = false; btn.textContent = '🚀 Generate Cover';
+        }
+    }
+
+    function downloadCover() {
+        if (!currentCoverUrl) return;
+        const a = document.createElement('a');
+        a.href = currentCoverUrl;
+        a.download = 'album-cover-8bfr.png';
+        if (currentCoverUrl.startsWith('data:')) {
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        } else {
+            a.target = '_blank'; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        }
+    }
+
+    /* ═══════════════════════════════════════════════════
+       IMAGE CONVERTER
+       ═══════════════════════════════════════════════════ */
+    let convertFormat = 'png';
+    let convertImgData = null;
+
+    function selectFormat(el, fmt) {
+        convertFormat = fmt;
+        el.parentElement.querySelectorAll('.format-opt').forEach(e => e.classList.remove('selected'));
+        el.classList.add('selected');
+    }
+
+    function previewConvertImg(input) {
+        const file = input.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            convertImgData = e.target.result;
+            document.getElementById('imgPreview').src = convertImgData;
+            document.getElementById('imgPreviewBox').style.display = 'block';
+            const img = new Image();
+            img.onload = function() {
+                document.getElementById('imgInfo').textContent = `${file.name} — ${img.width}×${img.height} — ${(file.size / 1024).toFixed(1)} KB`;
+            };
+            img.src = convertImgData;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function convertImage() {
+        if (!convertImgData) { alert('Upload an image first.'); return; }
+        const quality = parseInt(document.getElementById('imgQuality').value) / 100;
+        const scale = parseInt(document.getElementById('imgScale').value) / 100;
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            const mime = convertFormat === 'jpeg' ? 'image/jpeg' : convertFormat === 'webp' ? 'image/webp' : 'image/png';
+            const ext = convertFormat === 'jpeg' ? 'jpg' : convertFormat;
+            canvas.toBlob(function(blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = 'converted.' + ext;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                const resultDiv = document.getElementById('result');
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = '✅ Converted to <strong>' + ext.toUpperCase() + '</strong> — ' + canvas.width + '×' + canvas.height + ' — ' + (blob.size / 1024).toFixed(1) + ' KB';
+            }, mime, quality);
+        };
+        img.src = convertImgData;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       AUDIO EXTRACTOR (client-side via Web Audio API)
+       ═══════════════════════════════════════════════════ */
+    let audioFmt = 'wav';
+    let extractedBlob = null;
+
+    function selectAudioFmt(el, fmt) {
+        audioFmt = fmt;
+        el.parentElement.querySelectorAll('.format-opt').forEach(e => e.classList.remove('selected'));
+        el.classList.add('selected');
+    }
+
+    function previewVideo(input) {
+        const file = input.files[0]; if (!file) return;
+        const url = URL.createObjectURL(file);
+        document.getElementById('vidPreview').src = url;
+        document.getElementById('vidPreviewBox').style.display = 'block';
+        document.getElementById('vidInfo').textContent = `${file.name} — ${(file.size / (1024 * 1024)).toFixed(1)} MB`;
+    }
+
+    async function extractAudio() {
+        const fileInput = document.getElementById('vidFile');
+        if (!fileInput.files[0]) { alert('Upload a video first.'); return; }
+        const file = fileInput.files[0];
+        const resultDiv = document.getElementById('result');
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = '<div class="spinner"></div> Extracting audio — this may take a moment...';
+
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+            let blob;
+            if (audioFmt === 'wav') {
+                blob = audioBufferToWav(audioBuffer);
+            } else {
+                /* WebM via MediaRecorder */
+                blob = await audioBufferToWebm(audioBuffer);
+            }
+
+            extractedBlob = blob;
+            const url = URL.createObjectURL(blob);
+            document.getElementById('audioPlayer').src = url;
+            document.getElementById('audioResult').style.display = 'block';
+            resultDiv.innerHTML = '✅ Audio extracted — ' + (blob.size / (1024 * 1024)).toFixed(2) + ' MB (' + audioFmt.toUpperCase() + ')';
+        } catch (err) {
+            resultDiv.innerHTML = '<p style="color:#ff4466;"><strong>Error:</strong> ' + err.message + '</p><p style="font-size:0.82rem;color:var(--text-dim);margin-top:0.5rem;">Try a different video format. MP4 and WebM work best in browsers.</p>';
+        }
+    }
+
+    function audioBufferToWav(buffer) {
+        const numChannels = buffer.numberOfChannels;
+        const sampleRate = buffer.sampleRate;
+        const format = 1; // PCM
+        const bitDepth = 16;
+        let length = buffer.length * numChannels * (bitDepth / 8);
+        let out = new ArrayBuffer(44 + length);
+        let view = new DataView(out);
+        function writeString(offset, str) { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); }
+        writeString(0, 'RIFF');
+        view.setUint32(4, 36 + length, true);
+        writeString(8, 'WAVE');
+        writeString(12, 'fmt ');
+        view.setUint32(16, 16, true);
+        view.setUint16(20, format, true);
+        view.setUint16(22, numChannels, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * numChannels * (bitDepth / 8), true);
+        view.setUint16(32, numChannels * (bitDepth / 8), true);
+        view.setUint16(34, bitDepth, true);
+        writeString(36, 'data');
+        view.setUint32(40, length, true);
+        let offset = 44;
+        const channels = [];
+        for (let i = 0; i < numChannels; i++) channels.push(buffer.getChannelData(i));
+        for (let i = 0; i < buffer.length; i++) {
+            for (let ch = 0; ch < numChannels; ch++) {
+                let sample = Math.max(-1, Math.min(1, channels[ch][i]));
+                view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+                offset += 2;
+            }
+        }
+        return new Blob([out], { type: 'audio/wav' });
+    }
+
+    function audioBufferToWebm(audioBuffer) {
+        return new Promise((resolve, reject) => {
+            const offlineCtx = new OfflineAudioContext(audioBuffer.numberOfChannels, audioBuffer.length, audioBuffer.sampleRate);
+            const source = offlineCtx.createBufferSource();
+            source.buffer = audioBuffer;
+            const dest = offlineCtx.createMediaStreamDestination ? null : null;
+
+            /* Fallback: just use WAV if MediaRecorder not available for audio */
+            resolve(audioBufferToWav(audioBuffer));
+        });
+    }
+
+    function downloadExtractedAudio() {
+        if (!extractedBlob) return;
+        const ext = audioFmt === 'wav' ? 'wav' : 'webm';
+        const url = URL.createObjectURL(extractedBlob);
+        const a = document.createElement('a'); a.href = url; a.download = 'extracted-audio.' + ext;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    /* ═══════════════════════════════════════════════════
+       MEME CREATOR
+       ═══════════════════════════════════════════════════ */
+    function loadMemeImage(input) {
+        const file = input.files[0]; if (!file) return;
+        memeImg = new Image();
+        memeImg.onload = function() {
+            memeCanvas = document.getElementById('memeCanvas');
+            memeCanvas.style.display = 'block';
+            memeCanvas.width = memeImg.width;
+            memeCanvas.height = memeImg.height;
+            memeCtx = memeCanvas.getContext('2d');
+            drawMeme();
+        };
+        memeImg.src = URL.createObjectURL(file);
+    }
+
+    function drawMeme() {
+        if (!memeCtx || !memeImg) return;
+        const c = memeCanvas;
+        memeCtx.clearRect(0, 0, c.width, c.height);
+        memeCtx.drawImage(memeImg, 0, 0);
+
+        const fontSize = parseInt(document.getElementById('memeFontSize').value) || 48;
+        const font = document.getElementById('memeFont').value;
+        const color = document.getElementById('memeColor').value;
+        const outline = document.getElementById('memeOutline').value;
+        const topText = (document.getElementById('memeTop').value || '').toUpperCase();
+        const bottomText = (document.getElementById('memeBottom').value || '').toUpperCase();
+
+        memeCtx.font = `bold ${fontSize}px ${font}`;
+        memeCtx.textAlign = 'center';
+        memeCtx.fillStyle = color;
+        memeCtx.strokeStyle = outline;
+        memeCtx.lineWidth = Math.max(2, fontSize / 12);
+        memeCtx.lineJoin = 'round';
+
+        if (topText) {
+            wrapMemeText(memeCtx, topText, c.width / 2, fontSize + 10, c.width - 40, fontSize);
+        }
+        if (bottomText) {
+            const lines = getWrappedLines(memeCtx, bottomText, c.width - 40);
+            let startY = c.height - (lines.length * (fontSize + 5)) - 10 + fontSize;
+            lines.forEach((line, i) => {
+                const y = startY + i * (fontSize + 5);
+                memeCtx.strokeText(line, c.width / 2, y);
+                memeCtx.fillText(line, c.width / 2, y);
+            });
+        }
+    }
+
+    function wrapMemeText(ctx, text, x, y, maxW, fontSize) {
+        const lines = getWrappedLines(ctx, text, maxW);
+        lines.forEach((line, i) => {
+            const ly = y + i * (fontSize + 5);
+            ctx.strokeText(line, x, ly);
+            ctx.fillText(line, x, ly);
+        });
+    }
+
+    function getWrappedLines(ctx, text, maxW) {
+        const words = text.split(' ');
+        const lines = [];
+        let current = '';
+        words.forEach(word => {
+            const test = current ? current + ' ' + word : word;
+            if (ctx.measureText(test).width > maxW && current) {
+                lines.push(current);
+                current = word;
+            } else { current = test; }
+        });
+        if (current) lines.push(current);
+        return lines;
+    }
+
+    function downloadMeme() {
+        if (!memeCanvas) { alert('Create a meme first.'); return; }
+        memeCanvas.toBlob(function(blob) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = 'meme-8bfr.png';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+    }
+
+    /* ═══════════════════════════════════════════════════
+       GIF CREATOR (using canvas frame capture)
+       ═══════════════════════════════════════════════════ */
+    function loadGifFrames(input) {
+        gifFrames = [];
+        const strip = document.getElementById('gifPreviewStrip');
+        strip.innerHTML = '';
+        const files = Array.from(input.files);
+        if (files.length < 2) {
+            document.getElementById('gifStatus').textContent = 'Need at least 2 images. You selected ' + files.length + '.';
+            return;
+        }
+        document.getElementById('gifStatus').textContent = 'Loading ' + files.length + ' frames...';
+        let loaded = 0;
+        files.forEach((file, i) => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                gifFrames[i] = e.target.result;
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.title = 'Frame ' + (i + 1);
+                strip.appendChild(img);
+                loaded++;
+                if (loaded === files.length) {
+                    document.getElementById('gifStatus').textContent = '✅ ' + files.length + ' frames loaded. Ready to create GIF!';
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async function createGif() {
+        if (gifFrames.length < 2) { alert('Upload at least 2 images.'); return; }
+        const delay = parseInt(document.getElementById('gifDelay').value) || 500;
+        const outWidth = parseInt(document.getElementById('gifWidth').value) || 480;
+        const statusEl = document.getElementById('gifStatus');
+        statusEl.textContent = 'Creating GIF...';
+        const resultDiv = document.getElementById('result');
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = '<div class="spinner"></div> Encoding GIF frames...';
+
+        try {
+            /* Load GIF.js from CDN */
+            if (!window.GIF) {
+                await loadScript('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js');
+            }
+
+            /* Calculate height from first image aspect ratio */
+            const firstImg = await loadImage(gifFrames[0]);
+            const ratio = firstImg.height / firstImg.width;
+            const outHeight = Math.round(outWidth * ratio);
+
+            const gif = new GIF({
+                workers: 2,
+                quality: 10,
+                width: outWidth,
+                height: outHeight,
+                workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js'
+            });
+
+            for (let i = 0; i < gifFrames.length; i++) {
+                statusEl.textContent = 'Processing frame ' + (i + 1) + '/' + gifFrames.length + '...';
+                const img = await loadImage(gifFrames[i]);
+                const canvas = document.createElement('canvas');
+                canvas.width = outWidth; canvas.height = outHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, outWidth, outHeight);
+                gif.addFrame(canvas, { delay: delay, copy: true });
+            }
+
+            gif.on('finished', function(blob) {
+                const url = URL.createObjectURL(blob);
+                document.getElementById('gifOutput').src = url;
+                document.getElementById('gifResult').style.display = 'block';
+                statusEl.textContent = '✅ GIF created! ' + (blob.size / 1024).toFixed(1) + ' KB';
+                resultDiv.innerHTML = '✅ GIF created — ' + outWidth + '×' + outHeight + ' — ' + gifFrames.length + ' frames @ ' + delay + 'ms';
+
+                /* Auto download */
+                const a = document.createElement('a'); a.href = url; a.download = 'animation-8bfr.gif';
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            });
+
+            gif.render();
+        } catch (err) {
+            resultDiv.innerHTML = '<p style="color:#ff4466;">GIF creation failed: ' + err.message + '</p>';
+            statusEl.textContent = 'Error creating GIF.';
+        }
+    }
+
+    function loadImage(src) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = src;
+        });
+    }
+
+    function loadScript(url) {
+        return new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = url; s.onload = resolve; s.onerror = reject;
+            document.head.appendChild(s);
+        });
+    }
+
+    /* ═══════════════════════════════════════════════════
+       QR CODE GENERATOR
+       ═══════════════════════════════════════════════════ */
+    async function generateQR() {
+        const text = document.getElementById('qrText').value.trim();
+        if (!text) { alert('Enter a URL or text.'); return; }
+        const size = parseInt(document.getElementById('qrSize').value) || 300;
+        const fg = document.getElementById('qrFg').value;
+        const bg = document.getElementById('qrBg').value;
+
+        /* Load QRCode library */
+        if (!window.QRCode) {
+            await loadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js');
+        }
+
+        const container = document.createElement('div');
+        container.style.display = 'none';
+        document.body.appendChild(container);
+
+        new QRCode(container, {
+            text: text,
+            width: size,
+            height: size,
+            colorDark: fg,
+            colorLight: bg,
+            correctLevel: QRCode.CorrectLevel.H
+        });
+
+        /* QRCode.js renders after a tiny delay */
+        setTimeout(() => {
+            const img = container.querySelector('img') || container.querySelector('canvas');
+            if (img) {
+                const canvas = document.getElementById('qrCanvas');
+                canvas.width = size; canvas.height = size;
+                const ctx = canvas.getContext('2d');
+                if (img.tagName === 'CANVAS') {
+                    ctx.drawImage(img, 0, 0, size, size);
+                } else {
+                    const tmpImg = new Image();
+                    tmpImg.onload = function() { ctx.drawImage(tmpImg, 0, 0, size, size); };
+                    tmpImg.src = img.src;
+                }
+                document.getElementById('qrResult').style.display = 'block';
+            }
+            document.body.removeChild(container);
+        }, 300);
+    }
+
+    function downloadQR() {
+        const canvas = document.getElementById('qrCanvas');
+        canvas.toBlob(function(blob) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = 'qr-code-8bfr.png';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+    }
+
+    /* ═══════════════════════════════════════════════════
+       IMAGE RESIZER
+       ═══════════════════════════════════════════════════ */
+    let resizeImgData = null;
+
+    function previewResizeImg(input) {
+        const file = input.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            resizeImgData = e.target.result;
+            document.getElementById('resizePreview').src = resizeImgData;
+            document.getElementById('resizePreviewBox').style.display = 'block';
+            const img = new Image();
+            img.onload = function() {
+                document.getElementById('resizeInfo').textContent = `Original: ${img.width}×${img.height}`;
+            };
+            img.src = resizeImgData;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function setResize(w, h, el) {
+        document.getElementById('resizeW').value = w;
+        document.getElementById('resizeH').value = h;
+        document.querySelectorAll('#toolBody .format-opt').forEach(e => e.classList.remove('selected'));
+        el.classList.add('selected');
+    }
+
+    function resizeImage() {
+        if (!resizeImgData) { alert('Upload an image first.'); return; }
+        const w = parseInt(document.getElementById('resizeW').value);
+        const h = parseInt(document.getElementById('resizeH').value);
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            /* Cover-fit: fill the entire canvas, crop overflow */
+            const srcRatio = img.width / img.height;
+            const dstRatio = w / h;
+            let sx = 0, sy = 0, sw = img.width, sh = img.height;
+            if (srcRatio > dstRatio) {
+                sw = img.height * dstRatio;
+                sx = (img.width - sw) / 2;
+            } else {
+                sh = img.width / dstRatio;
+                sy = (img.height - sh) / 2;
+            }
+            ctx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
+            canvas.toBlob(function(blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = 'resized-' + w + 'x' + h + '.png';
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                const resultDiv = document.getElementById('result');
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = '✅ Resized to <strong>' + w + '×' + h + '</strong> — ' + (blob.size / 1024).toFixed(1) + ' KB';
+            }, 'image/png');
+        };
+        img.src = resizeImgData;
+    }
+
+    /* ═══════════════ SONG GENERATOR (REAL AUDIO) ═══════════════ */
+
+    // ---- VIDEO STITCHER ----
+    var clipFiles = [];
+    var joinedBlob = null;
+
+
+
+
+
+
+
+
+
+
+
+    // Compress a video clip through canvas - reduces size for Supabase 50MB limit
+
+
+
+
+
+
+
+    // ---- END VIDEO STITCHER ----
+
+    window.restoreKlingResults = function() {
+        try{
+            var saved = localStorage.getItem('kling_scenes');
+            var meta = JSON.parse(localStorage.getItem('kling_meta')||'{}');
+            if(!saved) return;
+            var scenes = JSON.parse(saved);
+            if(!scenes||!scenes.length) return;
+            // Restore field values
+            if(meta.title && document.getElementById('klingSongTitle')) document.getElementById('klingSongTitle').value=meta.title;
+            if(meta.artists && document.getElementById('klingArtists')) document.getElementById('klingArtists').value=meta.artists;
+            if(meta.style && document.getElementById('klingStyle')) document.getElementById('klingStyle').value=meta.style;
+            // Re-render the prompts
+            var wrap = document.getElementById('klingPromptsWrap');
+            var result = document.getElementById('klingResult');
+            if(!wrap||!result) return;
+            wrap.innerHTML='';
+            scenes.forEach(function(sc){
+                var d=document.createElement('div');
+                d.style.cssText='background:#0a0a0f;border:1px solid rgba(0,217,255,.2);border-radius:10px;padding:.85rem;';
+                var header=document.createElement('div');
+                header.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;';
+                header.innerHTML='<span style="color:#00d9ff;font-weight:700;font-size:.85rem;">Scene '+sc.scene+(sc.timestamp?' — '+sc.timestamp:'')+'</span>'
+                    +'<button onclick="copyPrompt(this)" style="background:#00d9ff;border:none;color:#000;border-radius:5px;padding:.2rem .6rem;font-size:.72rem;font-weight:700;cursor:pointer;">Copy</button>';
+                var lyric=document.createElement('div');
+                lyric.style.cssText='font-size:.75rem;color:#6b7280;margin-bottom:.4rem;font-style:italic;';
+                lyric.textContent='"'+(sc.lyric||'')+'"';
+                var promptEl=document.createElement('div');
+                promptEl.style.cssText='font-size:.82rem;color:#d1d5db;line-height:1.6;';
+                promptEl.textContent=sc.prompt||'';
+                d.appendChild(header);d.appendChild(lyric);d.appendChild(promptEl);
+                wrap.appendChild(d);
+            });
+            result.style.display='block';
+            // Hide the save warning since results are restored
+            var warn=document.getElementById('saveWarnBox');
+            if(warn) warn.style.display='none';
+        }catch(e){}
+    };
+
+    window.runKling = async function() {
+        var lyrics = (document.getElementById('klingLyrics')||{}).value||'';
+        var title = (document.getElementById('klingSongTitle')||{}).value||'My Song';
+        var artists = (document.getElementById('klingArtists')||{}).value||'8BFR';
+        var style = (document.getElementById('klingStyle')||{}).value||'cinematic hip hop music video';
+        var numScenes = parseInt((document.getElementById('klingScenes')||{}).value||8);
+        var setting = (document.getElementById('klingSetting')||{}).value||'';
+        if(!lyrics.trim()){alert('Paste your lyrics first.');return;}
+        var btn = document.querySelector('#toolBody .btn-primary');
+        if(btn){btn.disabled=true;btn.textContent='Generating prompts...';}
+        var POLLEN_KEY='sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
+        var settingLine=setting?'Setting/location: '+setting+'.':'';
+        var shortLyrics=lyrics.substring(0,800);
+        var sysMsg='You are a music video director. Output ONLY a valid JSON array, no markdown, no explanation.';
+        var userMsg='Song: '+title+' by '+artists+'. Style: '+style+'.'+(setting?' Setting: '+setting+'.':'')+' Write '+numScenes+' Kling AI video prompts based on these lyrics. JSON array of objects with keys: scene (int), timestamp (string like Verse 1 or 0:00), prompt (50-80 words: shot type, subject, action, setting, lighting, mood, camera move, end with '+style+' cinematic 4K), lyric (lyric snippet). Lyrics: '+shortLyrics;
+        try{
+            var resp = await fetch('https://gen.pollinations.ai/v1/chat/completions',{
+                method:'POST',
+                headers:{'Content-Type':'application/json','Authorization':'Bearer '+POLLEN_KEY},
+                body:JSON.stringify({model:'mistral',messages:[{role:'system',content:sysMsg},{role:'user',content:userMsg}],temperature:0.7,max_tokens:2000})
+            });
+            if(!resp.ok){
+                var errText=await resp.text();
+                throw new Error('HTTP '+resp.status+': '+errText.substring(0,100));
+            }
+            var data = await resp.json();
+            var raw = data.choices&&data.choices[0]?data.choices[0].message.content:'';
+            raw = raw.replace(/```json|```/g,'').trim();
+            var scenes = JSON.parse(raw);
+            if(!Array.isArray(scenes)||!scenes.length)throw new Error('No scenes returned');
+            // Render
+            var wrap = document.getElementById('klingPromptsWrap');
+            var result = document.getElementById('klingResult');
+            wrap.innerHTML='';
+            scenes.forEach(function(sc){
+                var d=document.createElement('div');
+                d.style.cssText='background:#0a0a0f;border:1px solid rgba(0,217,255,.2);border-radius:10px;padding:.85rem;';
+                var header=document.createElement('div');
+                header.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;';
+                header.innerHTML='<span style="color:#00d9ff;font-weight:700;font-size:.85rem;">Scene '+sc.scene+(sc.timestamp?' — '+sc.timestamp:'')+'</span>'
+                    +'<button onclick="copyPrompt(this)" style="background:#00d9ff;border:none;color:#000;border-radius:5px;padding:.2rem .6rem;font-size:.72rem;font-weight:700;cursor:pointer;">Copy</button>';
+                var lyric=document.createElement('div');
+                lyric.style.cssText='font-size:.75rem;color:#6b7280;margin-bottom:.4rem;font-style:italic;';
+                lyric.textContent='"'+(sc.lyric||'')+'"';
+                var promptEl=document.createElement('div');
+                promptEl.style.cssText='font-size:.82rem;color:#d1d5db;line-height:1.6;';
+                promptEl.textContent=sc.prompt||'';
+                d.appendChild(header);d.appendChild(lyric);d.appendChild(promptEl);
+                wrap.appendChild(d);
+            });
+            result.style.display='block';
+            result.scrollIntoView({behavior:'smooth',block:'start'});
+            // Save to localStorage so results survive page switches
+            try{localStorage.setItem('kling_scenes',JSON.stringify(scenes));
+                localStorage.setItem('kling_meta',JSON.stringify({title:title,artists:artists,style:style}));}catch(e){}
+        }catch(e){
+            alert('Failed: '+e.message+'. Try again.');
+        }
+        if(btn){btn.disabled=false;btn.textContent='Generate Kling Prompts';}
+    };
+
+    window.copyPrompt = function(btn) {
+        // btn is inside header div, need to go up to card then find last child (prompt text)
+        var card = btn.parentElement.parentElement;
+        var text = card.querySelector('div:last-child').textContent;
+        if(navigator.clipboard && navigator.clipboard.writeText){
+            navigator.clipboard.writeText(text).then(function(){
+                btn.textContent='Copied!';
+                setTimeout(function(){btn.textContent='Copy';},2000);
+            }).catch(function(){
+                fallbackCopy(text,btn);
+            });
+        } else {
+            fallbackCopy(text,btn);
+        }
+    };
+    window.fallbackCopy = function(text,btn){
+        var ta=document.createElement('textarea');
+        ta.value=text;ta.style.position='fixed';ta.style.opacity='0';
+        document.body.appendChild(ta);ta.focus();ta.select();
+        try{document.execCommand('copy');btn.textContent='Copied!';setTimeout(function(){btn.textContent='Copy';},2000);}
+        catch(e){alert('Copy failed - long press the prompt text to copy manually.');}
+        document.body.removeChild(ta);
+    };
+
+    window.calcDuration = function() {
+        var bpm = parseInt(document.getElementById('calcBpm').value) || 0;
+        var lyrics = document.getElementById('calcLyrics').value.trim();
+        var resultEl = document.getElementById('calcResult');
+        var applyBtn = document.getElementById('btnApplyDur');
+        if (!bpm || !lyrics) { resultEl.textContent = ''; applyBtn.style.display='none'; return; }
+        var lines = lyrics.split('\n').filter(function(l){ var t=l.trim(); return t && !/^\(intro\)|^\(verse\s*\d*\)|^\(hook\)|^\(chorus\)|^\(bridge\)|^\(outro\)|^\(talking\)|^title$/i.test(t) && t.length>2; });
+        // Detect paragraph vs line format
+        var wordCount = lyrics.trim().split(/\s+/).length;
+        var bars;
+        if(lines.length < 5 && wordCount > 30){
+            // Paragraph format - estimate bars from word count (~8 words per rap bar)
+            bars = Math.ceil(wordCount / 8);
+        } else {
+            // Line format - each line is 1 bar
+            bars = lines.length;
+        }
+        var barsPerMin = bpm / 4;
+        var minutes = bars / barsPerMin;
+        var buffer = 0.4;
+        var totalMins = minutes + buffer;
+        var totalSecs = Math.ceil(totalMins * 60);
+        var opts = [30,60,120,180,210,240,300];
+        var best = opts.reduce(function(a,b){ return Math.abs(b-totalSecs)<Math.abs(a-totalSecs)?b:a; });
+        var mode = lines.length < 5 ? 'paragraph (~'+wordCount+' words)' : lines.length+' lines';
+        resultEl.textContent = mode+' = ~'+bars+' bars at '+bpm+' BPM = '+totalMins.toFixed(1)+' min. Use '+Math.round(best/60*10)/10+' min.';
+        applyBtn.style.display = '';
+        applyBtn.dataset.secs = best;
+    };
+
+    window.applyCalcDur = function() {
+        var btn = document.getElementById('btnApplyDur');
+        var secs = btn.dataset.secs;
+        var sel = document.getElementById('sgDur');
+        if(sel && secs) sel.value = secs;
+        // Also copy lyrics to the main lyrics field if it's empty
+        var calcLyr = document.getElementById('calcLyrics').value.trim();
+        var sgLyr = document.getElementById('sgLyrics');
+        if(sgLyr && !sgLyr.value.trim() && calcLyr) sgLyr.value = calcLyr;
+        btn.textContent = 'Applied!';
+        setTimeout(function(){ btn.textContent = 'Use This Duration'; }, 1500);
+    };
+
+    window.formatLyricsParagraph = function() {
+        var ta = document.getElementById('sgLyrics');
+        if(!ta) return;
+        var raw = ta.value;
+        // Store original for split functions
+        window._originalLyrics = raw;
+        // Remove all section labels like (Verse 1), (Hook), (Title), (Intro) etc
+        var lines = raw.split('\n');
+        var kept = [];
+        for(var i=0;i<lines.length;i++){
+            var l = lines[i].trim();
+            if(!l) continue;
+            // Skip pure label lines
+            if(/^\([^)]*\)\s*([^a-zA-Z0-9]*)$/.test(l)) continue;
+            // Strip inline labels at start of line like (Intro)(talking)
+            l = l.replace(/^(\([^)]*\)\s*)+/, '').trim();
+            if(!l) continue;
+            kept.push(l);
+        }
+        // Join as one continuous paragraph with spaces
+        ta.value = kept.join(' ');
+        window._paraLyrics = ta.value;
+    };
+
+    window.splitLyricsHalf = function(part) {
+        var ta = document.getElementById('sgLyrics');
+        if(!ta) return;
+        // Use paragraph version if available, otherwise convert now
+        if(!window._paraLyrics) {
+            formatLyricsParagraph();
+        }
+        var para = window._paraLyrics || ta.value;
+        var words = para.split(' ');
+        var mid = Math.floor(words.length / 2);
+        if(part === 1) {
+            ta.value = words.slice(0, mid).join(' ');
+        } else {
+            ta.value = words.slice(mid).join(' ');
+        }
+    };
+
+    window.toggleLyricsMode = function(mode) {
+        var dw = document.getElementById('sgDescWrap');
+        var lw = document.getElementById('sgLyricsWrap');
+        if(mode === 'auto') {
+            if(dw) dw.style.display = 'block';
+            if(lw) lw.style.display = 'none';
+        } else {
+            if(dw) dw.style.display = 'none';
+            if(lw) lw.style.display = 'block';
+        }
+    };
+
+    window.runSongGen = async function() {
+        var lyrics = document.getElementById('sgLyrics').value.trim();
+        var desc = document.getElementById('sgDesc').value.trim();
+        var voice = document.getElementById('sgVoice').value;
+        var dur = parseInt(document.getElementById('sgDur').value) || 180;
+        var title = document.getElementById('sgTitle') ? document.getElementById('sgTitle').value.trim() : '';
+        var artist = document.getElementById('sgArtist') ? document.getElementById('sgArtist').value.trim() : '';
+        var refSel = document.getElementById('sgRefSelect') ? document.getElementById('sgRefSelect').value : '';
+        var ref;
+        if (refSel === '__custom__') {
+            ref = document.getElementById('sgRefCustom') ? document.getElementById('sgRefCustom').value.trim() : '';
+        } else {
+            ref = refSel;
+        }
+        var refSong = document.getElementById('sgRefSong') ? document.getElementById('sgRefSong').value.trim() : '';
+        var explicitMode = document.getElementById('sgExplicit') ? document.getElementById('sgExplicit').value : 'standard';
+        var lyricsMode = document.getElementById('sgLyricsMode') ? document.getElementById('sgLyricsMode').value : 'auto';
+
+        // Voice A/B/C/D -> audio tags + lyric-writing instruction
+        var voiceTag, voiceLyricNote;
+        if (voice === 'B') {
+            voiceTag = 'male rap verses, female sung hook, male rapper and female singer';
+            voiceLyricNote = 'A MALE RAPPER performs all verses (rapped). The [Chorus]/hook is SUNG by a FEMALE singer — write the hook as melodic sung lines.';
+        } else if (voice === 'C') {
+            voiceTag = 'female rap vocals, female rapper only, no male voice';
+            voiceLyricNote = 'A FEMALE RAPPER performs the entire song. All verses and hooks are rapped by her.';
+        } else if (voice === 'D') {
+            voiceTag = 'female sung lead vocals, male rap hook, female singer and male rapper';
+            voiceLyricNote = 'A FEMALE SINGER sings the verses (melodic). The [Chorus]/hook is RAPPED by a MALE rapper.';
+        } else {
+            voice = 'A';
+            voiceTag = 'male rap vocals, male rapper only, no singing on verses';
+            voiceLyricNote = 'A MALE RAPPER performs the entire song. All verses and hooks are rapped.';
+        }
+
+        if (!lyrics && !desc && !ref) { alert('Enter lyrics, a description, or a reference artist.'); return; }
+
+        var resultDiv = document.getElementById('result');
+        resultDiv.style.display = 'block';
+        var statusEl = document.getElementById('sgStatus');
+
+        // Build explicit instruction
+        var expInst = '';
+        if (explicitMode === 'street') expInst = 'EXPLICIT MODE: Real street language, profanity, drug refs, hood storytelling. Parental Advisory level. Do NOT censor.';
+        else if (explicitMode === 'sexual') expInst = 'EXPLICIT SEXUAL MODE: Write like Too Short or 2 Live Crew at their most explicit. Graphic, raunchy, dirty.';
+        else if (explicitMode === 'aggressive') expInst = 'EXPLICIT AGGRESSIVE: Drill/battle rap. Hard disses, threats, violent imagery.';
+        else if (explicitMode === 'clean') expInst = 'CLEAN MODE: No profanity. Radio-safe only.';
+
+        // Step 1: Auto-generate lyrics if needed
+        if (!lyrics || lyricsMode === 'auto') {
+            resultDiv.innerHTML = '<p class="loading-text"><span class="spinner"></span> Step 1: AI writing lyrics' + (ref ? ' in the style of ' + ref : '') + '...</p>';
+            if (statusEl) statusEl.textContent = 'Generating lyrics...';
+            try {
+                var lyricsPrompt = 'Write a complete song with [Verse 1], [Chorus], [Verse 2], [Chorus], [Bridge], [Chorus]. ';
+                if (desc) lyricsPrompt += 'Topic: ' + desc + '. ';
+                if (ref) lyricsPrompt += 'Write in the EXACT style of ' + ref + ' — match their slang, cadence, flow, vocabulary, and energy. Write as if ' + ref + ' is performing this song. ';
+                if (refSong) lyricsPrompt += 'Reference song: "' + refSong + '". Match that song\'s energy and structure. ';
+                if (title) lyricsPrompt += 'Song title: "' + title + '". ';
+                lyricsPrompt += 'VOICE SETUP: ' + voiceLyricNote + ' ';
+                if (expInst) lyricsPrompt += expInst + ' ';
+                lyricsPrompt += 'Use vivid imagery, hard punchlines, clever wordplay, internal rhymes. Return ONLY the lyrics, nothing else.';
+
+                var lRes = await fetch('https://8bfr-api.vercel.app/api/openai', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({input: lyricsPrompt, system: 'You are the greatest ghostwriter alive. You write EXACTLY how the referenced artist writes — their slang, their flow, their vocabulary. You NEVER censor or water down. When explicit mode is on, go ALL IN.', tier: 'full', max_tokens: 1500})
+                });
+                var lData = await lRes.json();
+                if (lData.text) {
+                    lyrics = lData.text;
+                    // Show generated lyrics
+                    document.getElementById('sgLyrics').value = lyrics;
+                }
+                else if (lData.error) { resultDiv.innerHTML = '<p style="color:#ff4466;">Lyrics error: ' + lData.error + '</p>'; return; }
+            } catch(e) { resultDiv.innerHTML = '<p style="color:#ff4466;">API error: ' + e.message + '</p>'; return; }
+        }
+
+        var adjustedLyrics = lyrics;
+        var lyricsNote = '';
+
+        // Build Pollinations audio prompt - style first, then lyrics cleanly
+        resultDiv.innerHTML = '<p class="loading-text"><span class="spinner"></span> Step 2: Generating audio with vocals (' + dur + 's)... This may take 30-60 seconds.</p>';
+        if (statusEl) statusEl.textContent = 'Generating audio...';
+
+        // ACE-Step: everything goes in the URL prompt
+        // Format: style tags first, then lyrics - this is what actually works
+        // Style tags are short so the model focuses on lyrics as the main content
+        
+        // Format lyrics with proper ACE-Step square bracket section tags
+        var verseNum = 0;
+        var formattedLyrics = adjustedLyrics
+            .replace(/\(Title\)[^\n]*/gi, '')
+            .replace(/\(Intro\)[^\n]*/gi, '[intro]')
+            .replace(/\(talking\)[^\n]*/gi, '[intro]')
+            .replace(/\(Verse\s*(\d+)\)/gi, function(m,n){ return '[verse '+n+']'; })
+            .replace(/\(Verse\)/gi, function(){ verseNum++; return '[verse '+verseNum+']'; })
+            .replace(/\(Hook\)/gi, '[chorus]')
+            .replace(/\(Chorus\)/gi, '[chorus]')
+            .replace(/\(Bridge\)/gi, '[bridge]')
+            .replace(/\(Outro\)/gi, '[outro]')
+            .replace(/^\([^)]+\)\s*$/gim, '')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+        // Add [end] tag so ACE-Step knows song is complete
+        if(!formattedLyrics.endsWith('[end]')) formattedLyrics += '\n[end]';
+
+        // ─── Build varied style tags ───
+        // Real BPM from the slider (falls back to calculator or 90)
+        var bpmVal = (document.getElementById('sgBpm') ? parseInt(document.getElementById('sgBpm').value) : 0)
+            || (document.getElementById('calcBpm') ? parseInt(document.getElementById('calcBpm').value) : 0)
+            || 90;
+
+        // Artist style map: pushes flow + beat + instruments toward the reference.
+        // Key match is loose (lowercase contains). Unknown artists fall through to a generic line.
+        function artistStyle(name){
+            var n = (name||'').toLowerCase();
+            var map = [
+                // ── Wu-Tang Clan + members (specific names first) ──
+                ['ol dirty bastard','wild unpredictable raw flow, gritty Wu-Tang soul samples, dusty hard drums, off-kilter energy'],
+                ['old dirty bastard','wild unpredictable raw flow, gritty Wu-Tang soul samples, dusty hard drums, off-kilter energy'],
+                ['odb','wild unpredictable raw flow, gritty Wu-Tang soul samples, dusty hard drums, off-kilter energy'],
+                ['ghostface','RZA dusty soul loops, hard drums, energetic raw East Coast boom bap, chipmunk soul sample'],
+                ['method man','smoky Wu-Tang boom bap, hard snare, deep bass, East Coast grit'],
+                ['masta killah','RZA gritty soul boom bap, dusty drums, dark Wu-Tang sound'],
+                ['killah priest','dark spiritual boom bap, eerie soul samples, Wu-Tang dusty drums'],
+                ['capadonna','RZA gritty soul boom bap, dusty drums, raw Wu-Tang sound'],
+                ['raekwon','cinematic mafioso soul samples, hard drums, lush Wu-Tang boom bap'],
+                ['gza','chess-minded lyrical boom bap, dusty soul, sparse hard drums, Wu-Tang grit'],
+                ['rza','RZA production, gritty kung-fu soul samples, dusty hard drums, dark piano stabs, raw boom bap'],
+                ['riza','RZA production, gritty kung-fu soul samples, dusty hard drums, dark piano stabs, raw boom bap'],
+                ['wu-tang','RZA production, gritty kung-fu soul samples, dusty hard drums, dark piano stabs, raw boom bap, dirty 90s East Coast'],
+                ['wu tang','RZA production, gritty kung-fu soul samples, dusty hard drums, dark piano stabs, raw boom bap, dirty 90s East Coast'],
+                // ── Bone Thugs (specific members first) ──
+                ['krayzie bone','fast melodic harmonized rap-singing, smooth dark Midwest beat, rapid double-time flow'],
+                ['layzie bone','fast melodic harmonized rap, smooth dark Midwest beat, rapid flow'],
+                ['bizzy bone','fast melodic harmonized rapid-fire flow, dark emotional Midwest beat'],
+                ['bone thugs','fast melodic harmonized group rap-singing, smooth dark Cleveland Midwest beat, double-time flow'],
+                // ── West Coast ──
+                ['snoop','G-funk, funky bass, smooth synth, laid back West Coast bounce, talkbox'],
+                ['dr. dre','G-funk, smooth synth leads, deep funk bass, talkbox, laid back West Coast'],
+                ['dre','G-funk, smooth synth leads, deep funk bass, laid back West Coast'],
+                ['ice cube','hard West Coast, funky bass, aggressive street energy, funk samples'],
+                ['eazy','gangsta funk, hard 808 drums, funky bass, raw West Coast street'],
+                ['n.w.a','hardcore gangsta funk, hard drums, funky bass, aggressive West Coast'],
+                ['nwa','hardcore gangsta funk, hard drums, funky bass, aggressive West Coast'],
+                ['d.o.c','hard West Coast boom bap, funky bass, Dre-style production'],
+                ['the d.o.c','hard West Coast boom bap, funky bass, Dre-style production'],
+                ['2pac','West Coast, soulful samples, hard drums, emotional energy'],
+                ['tupac','West Coast, soulful samples, hard drums, emotional energy'],
+                ['too short','funk bass, Parliament-Funkadelic samples, talkbox, bouncy pimp groove'],
+                // ── Midwest / South ──
+                ['tech n9ne','rapid-fire chopper flow, dark theatrical beat, aggressive technical Midwest, double-time'],
+                ['tec9ne','rapid-fire chopper flow, dark theatrical beat, aggressive technical Midwest, double-time'],
+                ['tecnine','rapid-fire chopper flow, dark theatrical beat, aggressive technical Midwest, double-time'],
+                ['twista','hyper-fast chopper flow, smooth Midwest soul beat, rapid double-time'],
+                ['twisted','hyper-fast chopper flow, smooth Midwest soul beat, rapid double-time'],
+                ['icp','horrorcore carnival circus beat, dark theatrical, aggressive Midwest rap'],
+                ['insane clown','horrorcore carnival circus beat, dark theatrical, aggressive Midwest rap'],
+                ['geto boys','dark Southern gangsta boom bap, eerie soul samples, hard drums'],
+                // ── Eminem ──
+                ['eminem','hard horror-core boom bap, aggressive drums, dark piano, fast technical flow'],
+                ['slim shady','hard horror-core boom bap, aggressive drums, dark piano, fast technical satirical flow'],
+                // ── East Coast / golden era ──
+                ['nas','jazzy boom bap, smooth piano loops, crisp drums, NY street vibe'],
+                ['biggie','smooth 90s East Coast, soulful sample, mellow hard drums'],
+                ['notorious','smooth 90s East Coast, soulful sample, mellow hard drums'],
+                ['redman','funky raw East Coast boom bap, hard drums, gritty energetic flow'],
+                ['cypress hill','smoky stoner boom bap, eerie samples, heavy bass, West Coast Latin grit'],
+                ['slick rick','smooth storytelling old school, playful bounce, classic 80s drum machine'],
+                ['biz mark','playful goofy old school beatbox, simple drum machine, fun party vibe'],
+                ['bizmark','playful goofy old school beatbox, simple drum machine, fun party vibe'],
+                ['digital underground','funky P-Funk samples, bouncy humorous groove, funk bass'],
+                ['ll cool j','hard 80s boom bap, heavy drum machine, bold confident flow'],
+                ['onyx','aggressive rugged hardcore boom bap, shouted gang vocals, hard drums'],
+                ['das efx','rugged boom bap, chopped tongue-twister flow, dusty drums'],
+                ['das-efx','rugged boom bap, chopped tongue-twister flow, dusty drums'],
+                ['krs-one','conscious boom bap, reggae-tinged, hard drums, bold lecture flow'],
+                ['krs one','conscious boom bap, reggae-tinged, hard drums, bold lecture flow'],
+                ['public enemy','dense noisy politically charged production, hard funk drums, sirens, aggressive'],
+                ['3rd base','jazzy sample-heavy boom bap, witty flow, dusty drums'],
+                ['3rd bass','jazzy sample-heavy boom bap, witty flow, dusty drums'],
+                ['stetsasonic','live-band hip-hop, funky horns, drums, soulful old school'],
+                // ── Old school / 80s ──
+                ['run dmc','rock guitar riffs, vinyl record scratching, hard kick-snare boom bap, power chords'],
+                ['run-dmc','rock guitar riffs, vinyl record scratching, hard kick-snare boom bap, power chords'],
+                ['beastie boys','punk rap rock, sampled rock guitar, hard drums, shouted trade-off vocals'],
+                ['sugar hill','classic disco-funk old school, live funk bass, party groove'],
+                ['sugarhill','classic disco-funk old school, live funk bass, party groove'],
+                ['grandmaster flash','classic electro old school, turntable scratching, drum machine, funk breaks'],
+                ['rob base','upbeat 80s party rap, go-go horns, funky break, bouncy'],
+                ['mc hammer','upbeat pop-rap, funky bass sample, dance groove, party energy'],
+                ['hammer','upbeat pop-rap, funky bass sample, dance groove, party energy'],
+                ['vanilla ice','pop-rap, funky sampled bassline, drum machine, 90s party'],
+                ['fat boys','playful old school beatbox-driven, simple drum machine, fun'],
+                ['utfo','classic 80s electro boom bap, drum machine, playful'],
+                ['tone loc','funky bluesy rock sample, raspy laid back flow, party groove'],
+                ['young mc','upbeat funky party rap, slick bass, danceable groove'],
+                ['newcleus','electro-funk, vocoder, synth bass, classic 80s breakdance'],
+                ['wrecks-n-effect','new jack swing rap, funky bounce, swung drums'],
+                ['wreckx-n-effect','new jack swing rap, funky bounce, swung drums'],
+                ['wrecks n effect','new jack swing rap, funky bounce, swung drums'],
+                // ── Jazzy / alt ──
+                ['de la soul','jazzy playful boom bap, quirky samples, warm bass'],
+                ['digable planets','smooth jazz rap, upright bass, cool laid back boom bap'],
+                ['tribe called quest','jazz rap, upright bass, smooth jazzy loops, warm drums'],
+                // ── Producers / other ──
+                ['j dilla','dilla swing, off-kilter drums, warm soulful chops, dusty groove'],
+                ['dj premier','boom bap, chopped jazz samples, hard scratch hooks, crisp drums'],
+                ['pete rock','soulful horn loops, smooth boom bap, warm drums'],
+                ['mobb deep','dark menacing boom bap, eerie piano, cold drums, street'],
+                ['sir mix','electro-funk, funky synth bass, 808 drums, party horns, bouncy'],
+                ['2 live crew','Miami bass, heavy 808 sub bass, fast tempo, party chants'],
+                ['korn','nu-metal, distorted detuned guitars, heavy aggressive drums, rap-metal fusion'],
+                ['rage against','rap-metal, heavy electric guitar riffs, funk-metal bass, aggressive'],
+                ['outkast','Southern funk, live instrumentation, bouncy soulful Dirty South'],
+                ['kendrick','modern West Coast, jazzy live bass, funk, conscious energy'],
+                ['50 cent','hard club banger, heavy synth, deep bass, NY street']
+            ];
+            for(var i=0;i<map.length;i++){ if(n.indexOf(map[i][0])>-1) return map[i][1]; }
+            if(name) return name + ' production style, matching their signature beat, instrumentation and flow';
+            return '';
+        }
+
+        // Variation pools — pick randomly each run so no two beats are identical.
+        function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
+        var texturePool = ['dusty','gritty','warm','crisp','smoky','raw','soulful','hazy','vintage'];
+        var samplePool = ['soul sample','jazz sample','chipmunk soul vocal chop','horn stab loop','muted piano loop','obscure funk break','string section sample'];
+        var drumPool = ['hard 90s drums','knocking boom bap drums','swung dusty drums','punchy kick-snare','head-nod drums'];
+        var feelPool = ['head-nodding groove','laid back pocket','aggressive energy','smooth bounce','dark moody atmosphere'];
+
+        var styleTags = 'old school hip-hop, boom bap, 90s rap, '
+            + pick(texturePool) + ' ' + pick(samplePool) + ', '
+            + pick(drumPool) + ', ' + pick(feelPool) + ', ' + bpmVal + ' BPM';
+
+        // Reference artist → real style push (overrides generic when matched)
+        var aStyle = artistStyle(ref);
+        // Keep scratching/turntable out of the always-on style so it doesn't ride over vocals
+        if (aStyle) aStyle = aStyle.replace(/,?\s*(vinyl record scratching|turntable scratching|DJ turntable cuts|record scratching|scratch hooks)/gi, '');
+        // Lead with the artist style so ACE-Step weights it most heavily
+        if (aStyle) styleTags = aStyle + ', ' + styleTags;
+        if (refSong) styleTags += ', same vibe and flow as "' + refSong + '"';
+
+        // Must-include instruments (chips + custom box). Split into two groups:
+        //  - "breakItems": scratches/chops that ruin a vocal take if layered over lyrics -> breaks only
+        //  - "instrPicks": everything else -> layered into the beat normally
+        var instrPicks = [], breakItems = [];
+        var chipEls = document.querySelectorAll('#sgInstrChips .sg-chip.sel');
+        for (var ci=0; ci<chipEls.length; ci++) {
+            var v = chipEls[ci].getAttribute('data-v');
+            if (/scratch|turntable|sample chop|vocal sample|spoken word/i.test(v)) breakItems.push(v);
+            else instrPicks.push(v);
+        }
+        var customInstr = document.getElementById('sgInstrCustom') ? document.getElementById('sgInstrCustom').value.trim() : '';
+        if (customInstr) instrPicks.push(customInstr);
+        if (instrPicks.length) styleTags += ', must include ' + instrPicks.join(', ');
+        if (breakItems.length) styleTags += ', ' + breakItems.join(', ') + ' ONLY during instrumental breaks between verses, NOT over the rapping';
+
+        // Strong clarity so the vocal stays clear and on-beat (helps when recording over it)
+        styleTags += ', ' + voiceTag + ', clear intelligible vocals, vocals mixed up front, steady consistent tempo, clean instrumental breaks between sections, no effects over the rapping';
+
+        // Random seed forces ACE-Step to produce a different track each generation
+        var sgSeed = Math.floor(Math.random()*4000000000);
+
+        // Pollinations limit is 4096 chars - warn if close
+        if(formattedLyrics.length > 3800) {
+            var sgSt = document.getElementById('sgStatus');
+            if(sgSt) sgSt.textContent = 'Warning: lyrics are '+formattedLyrics.length+' chars. Near 4096 limit - use Part 1/Part 2 split for full song.';
+        }
+        var lyricsForAudio = formattedLyrics.substring(0, 4000);
+        var prompt = lyricsForAudio;
+
+        var POLLEN_KEY = 'sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
+        try {
+            var url = 'https://gen.pollinations.ai/audio/' + encodeURIComponent(prompt) + '?key=' + POLLEN_KEY + '&model=acestep&duration=' + Math.min(dur,300) + '&seed=' + sgSeed + '&style=' + encodeURIComponent(styleTags);
+            var resp = await fetch(url);
+            if (!resp.ok) {
+                var errText = '';
+                try { var errJson = JSON.parse(await resp.text()); errText = errJson.error && errJson.error.message ? errJson.error.message : 'HTTP ' + resp.status; } catch(e2) { errText = 'HTTP ' + resp.status; }
+                if (resp.status === 401) errText = 'API key invalid or expired. Go to enter.pollinations.ai, get a new key, and update POLLEN_KEY in owner-studio.html.';
+                if (resp.status === 402) errText = 'Pollinations balance is 0. Go to enter.pollinations.ai and add credits (~$0.03/song).';
+                throw new Error(errText);
+            }
+            var blob = await resp.blob();
+            var audioUrl = URL.createObjectURL(blob);
+
+            var changesHtml = '';
+            if (lyricsNote && lyricsNote !== 'No changes needed.') {
+                changesHtml = '<details style="margin-top:.5rem;border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:.6rem;"><summary style="font-size:.75rem;color:#f59e0b;cursor:pointer;font-weight:700;">&#9432; Lyrics adjusted to fit audio — tap to see changes and copy updated version</summary>' +
+                '<div style="margin-top:.5rem;">' +
+                '<div style="font-size:.72rem;color:#9ca3af;margin-bottom:.5rem;white-space:pre-wrap;">' + escapeHtml(lyricsNote) + '</div>' +
+                '<pre id="adjLyricsBox" style="font-size:.75rem;white-space:pre-wrap;color:#e8e0ff;background:#0a0a0f;padding:.75rem;border-radius:8px;margin:.4rem 0;border:1px solid rgba(168,85,247,.2);">' + escapeHtml(adjustedLyrics) + '</pre>' +
+                '<button onclick="var el=document.getElementById(&quot;adjLyricsBox&quot;);navigator.clipboard.writeText(el?el.textContent:\'\').then(function(){var b=document.activeElement;b.textContent=\'Copied!\';setTimeout(function(){b.textContent=\'Copy Updated Lyrics\';},2000);});" style="background:#a855f7;border:none;color:#fff;border-radius:6px;padding:.4rem .85rem;font-size:.78rem;font-weight:700;cursor:pointer;">Copy Updated Lyrics</button>' +
+                '</div></details>';
+            }
+            resultDiv.innerHTML = '<p style="color:#4ade80;font-weight:700;">Song generated!</p>' +
+                '<audio controls src="' + audioUrl + '" style="width:100%;margin:.5rem 0;"></audio>' +
+                '<div style="display:flex;gap:0.5rem;margin-top:.5rem;flex-wrap:wrap;">' +
+                '<a href="' + audioUrl + '" download="8bfr-song-' + Date.now() + '.mp3" class="btn btn-green">Download</a>' +
+                '<button class="btn btn-cyan" onclick="runSongGen()">Regenerate</button></div>' +
+                changesHtml +
+                '<details style="margin-top:.5rem;"><summary style="font-size:.72rem;color:#a855f7;cursor:pointer;">Style tags + seed sent to AI (tap to verify)</summary><pre style="font-size:.72rem;white-space:pre-wrap;color:#00d9ff;margin-top:.3rem;background:#0a0a0f;padding:.6rem;border-radius:6px;">seed: ' + sgSeed + '\n\n' + escapeHtml(styleTags) + '</pre></details>' +
+                '<details style="margin-top:.5rem;"><summary style="font-size:.72rem;color:rgba(255,255,255,.4);cursor:pointer;">Full lyrics used</summary><pre style="font-size:.72rem;white-space:pre-wrap;color:rgba(255,255,255,.5);margin-top:.3rem;">' + escapeHtml(adjustedLyrics||lyrics) + '</pre></details>';
+        } catch(e) {
+            resultDiv.innerHTML = '<p style="color:#ff4466;">Audio generation error: ' + e.message + '</p>' +
+                '<div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-top:.3rem;">If this keeps failing, your Pollinations credits may be expired. Try without the key parameter or purchase more credits.</div>' +
+                '<details style="margin-top:.5rem;"><summary style="font-size:.72rem;color:rgba(255,255,255,.4);cursor:pointer;">Lyrics generated</summary><pre style="font-size:.72rem;white-space:pre-wrap;color:rgba(255,255,255,.5);margin-top:.3rem;">' + escapeHtml(lyrics) + '</pre></details>';
+        }
+    };
+
+    /* ═══════════════ CO-PRODUCER SUITE ═══════════════ */
+
+    window.runCoproducer = async function() {
+        const artist = document.getElementById('cpArtist').value.trim();
+        const verse = document.getElementById('cpFeatureVerse').value.trim();
+        const topic = document.getElementById('cpTopic').value.trim();
+        const myName = document.getElementById('cpMyName').value.trim() || '8bfr';
+        const numVerses = document.getElementById('cpVerses').value;
+        const hookType = document.getElementById('cpHook').value;
+        const extra = document.getElementById('cpExtra').value.trim();
+
+        if (!verse) { alert('Paste the featured verse first.'); return; }
+
+        const resultDiv = document.getElementById('result');
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = '<p class="loading-text"><span class="spinner"></span> Analyzing flow and writing matching verses...</p>';
+
+        const hookInstructions = hookType === 'no' ? 'Do NOT include a hook/chorus.' :
+            hookType === 'male' ? 'Write a catchy hook/chorus labeled [Hook] that a male vocalist would sing.' :
+            'Write a catchy hook/chorus labeled [Hook] that a female vocalist would sing. Make it melodic and memorable.';
+
+        const prompt = `You are a professional songwriter and ghostwriter. A recording artist named "${myName}" has purchased a feature verse from "${artist || 'a featured artist'}".
+
+FEATURED ARTIST'S VERSE (this is already recorded - DO NOT modify it):
+---
+${verse}
+---
+
+YOUR TASK:
+1. Carefully analyze the featured verse above: count syllables per line, identify the rhyme scheme (AABB, ABAB, internal rhymes, etc.), note the cadence/rhythm pattern, and identify the flow speed.
+2. Write ${numVerses} NEW ORIGINAL verses for "${myName}" that MATCH THE EXACT SAME:
+   - Syllable count per line (within 1-2 syllables)
+   - Rhyme scheme pattern
+   - Cadence and rhythmic flow
+   - Energy level and delivery style
+3. ${hookInstructions}
+
+TOPIC/THEME: ${topic || 'Match the theme of the featured verse'}
+${extra ? 'ADDITIONAL INSTRUCTIONS: ' + extra : ''}
+
+FORMAT YOUR RESPONSE AS:
+- First: Brief flow analysis (syllable counts, rhyme scheme identified)
+- Then: The full song structure with [Intro] (if needed), [Featured Verse - ${artist || 'Featured Artist'}] (reprint the original), [Verse 1 - ${myName}], [Hook], [Verse 2 - ${myName}], etc.
+- Each of ${myName}'s lines should have a syllable count annotation like (12 syl) at the end
+
+Make the verses feel like they belong on the same track as the feature. Match the energy perfectly.`;
+
+        try {
+            const res = await fetch("https://8bfr-api.vercel.app/api/openai", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ input: prompt, tier: 'full', max_tokens: 3000 })
+            });
+            const data = await res.json();
+            if (data.error) throw new Error(data.error);
+            resultDiv.innerHTML = '<pre style="white-space:pre-wrap;font-size:0.88rem;line-height:1.6;">' + escapeHtml(data.text || 'No response') + '</pre>' +
+                '<div style="display:flex;gap:0.5rem;margin-top:1rem;flex-wrap:wrap;">' +
+                '<button class="btn btn-green" onclick="copyToClipboard()">Copy All</button>' +
+                '<button class="btn btn-cyan" onclick="runCoproducer()">Regenerate</button></div>';
+            window._lastResult = data.text;
+        } catch(e) {
+            resultDiv.innerHTML = '<p style="color:#ff4466;">Error: ' + e.message + '</p>';
+        }
+    };
+
+    window.runFlowriter = async function() {
+        const ref = document.getElementById('fwRef').value.trim();
+        const topic = document.getElementById('fwTopic').value.trim();
+        const artist = document.getElementById('fwArtist').value.trim();
+
+        if (!ref) { alert('Paste reference lyrics first.'); return; }
+
+        const resultDiv = document.getElementById('result');
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = '<p class="loading-text"><span class="spinner"></span> Analyzing flow pattern...</p>';
+
+        const prompt = `You are an expert at analyzing rap and song flow patterns. Analyze these lyrics and write NEW lyrics matching the EXACT same flow:
+
+REFERENCE LYRICS:
+---
+${ref}
+---
+
+ANALYSIS TASK:
+1. Count the exact syllables per line
+2. Identify the rhyme scheme (label each line: A, B, C, etc.)
+3. Note where internal rhymes fall
+4. Identify the cadence pattern (where emphasis falls)
+5. Note the speed (slow, medium, fast, double-time)
+
+THEN write a complete new verse (same number of lines) about "${topic || 'any topic'}" ${artist ? 'in the style of ' + artist : ''} that matches:
+- Same syllable count per line (within 1 syllable)
+- Same rhyme scheme
+- Same internal rhyme positions
+- Same cadence/emphasis pattern
+
+FORMAT:
+FLOW ANALYSIS:
+[show syllable counts and rhyme scheme]
+
+MATCHING VERSE:
+[new lyrics with (X syl) count after each line]`;
+
+        try {
+            const res = await fetch("https://8bfr-api.vercel.app/api/openai", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ input: prompt, tier: 'full', max_tokens: 2000 })
+            });
+            const data = await res.json();
+            if (data.error) throw new Error(data.error);
+            resultDiv.innerHTML = '<pre style="white-space:pre-wrap;font-size:0.88rem;line-height:1.6;">' + escapeHtml(data.text || 'No response') + '</pre>' +
+                '<div style="display:flex;gap:0.5rem;margin-top:1rem;">' +
+                '<button class="btn btn-green" onclick="copyToClipboard()">Copy</button>' +
+                '<button class="btn btn-cyan" onclick="runFlowriter()">Regenerate</button></div>';
+            window._lastResult = data.text;
+        } catch(e) {
+            resultDiv.innerHTML = '<p style="color:#ff4466;">Error: ' + e.message + '</p>';
+        }
+    };
+
+    window.runHookmaker = async function() {
+        const verse = document.getElementById('hmVerse').value.trim();
+        const style = document.getElementById('hmStyle').value;
+        const genre = document.getElementById('hmGenre').value;
+
+        if (!verse) { alert('Paste your verse first.'); return; }
+
+        const resultDiv = document.getElementById('result');
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = '<p class="loading-text"><span class="spinner"></span> Creating hook...</p>';
+
+        const prompt = `You are a hit songwriter known for writing unforgettable hooks and choruses. Given the following verse, create 3 different hook/chorus options.
+
+VERSE:
+---
+${verse}
+---
+
+REQUIREMENTS:
+- Genre: ${genre}
+- Hook style: ${style}
+- Each hook should be 4-8 lines
+- Must complement the verse thematically
+- Must be catchy and memorable
+- Include a note about suggested melody direction (rising, falling, chant-like, etc.)
+
+FORMAT:
+HOOK OPTION 1 (${style}):
+[lyrics]
+Melody note: [brief description]
+
+HOOK OPTION 2:
+[lyrics]
+Melody note: [brief description]
+
+HOOK OPTION 3:
+[lyrics]
+Melody note: [brief description]`;
+
+        try {
+            const res = await fetch("https://8bfr-api.vercel.app/api/openai", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ input: prompt, tier: 'mini', max_tokens: 1500 })
+            });
+            const data = await res.json();
+            if (data.error) throw new Error(data.error);
+            resultDiv.innerHTML = '<pre style="white-space:pre-wrap;font-size:0.88rem;line-height:1.6;">' + escapeHtml(data.text || 'No response') + '</pre>' +
+                '<div style="display:flex;gap:0.5rem;margin-top:1rem;">' +
+                '<button class="btn btn-green" onclick="copyToClipboard()">Copy</button>' +
+                '<button class="btn btn-cyan" onclick="runHookmaker()">Regenerate</button></div>';
+            window._lastResult = data.text;
+        } catch(e) {
+            resultDiv.innerHTML = '<p style="color:#ff4466;">Error: ' + e.message + '</p>';
+        }
+    };
+
+    function escapeHtml(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    window.copyToClipboard = function() {
+        if (window._lastResult) navigator.clipboard.writeText(window._lastResult).then(function(){alert('Copied!');});
+    };
+
+    /* ═══════════════ INIT ═══════════════ */
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
+    </script>
+
+    
+</body>
+</html>

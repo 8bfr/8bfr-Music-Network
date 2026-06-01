@@ -43,7 +43,8 @@ video{width:100%;border-radius:10px;background:#000;}
 </style>
 </head>
 <body>
-<div class="wrap">
+<div id="accessGate" style="position:fixed;inset:0;background:#0a0a0f;color:#9ca3af;display:flex;align-items:center;justify-content:center;font-family:Inter,sans-serif;font-size:.95rem;z-index:9999;">Checking access...</div>
+<div class="wrap" id="mainWrap" style="display:none;">
   <div style="padding:.5rem 0 .75rem;"><a href="ai-studio.html" style="color:#6b7280;text-decoration:none;font-size:.84rem;">&larr; AI Studio</a></div>
   <h1>Video Originality Tool</h1>
   <p class="sub">Upload a video and apply changes that make it unique enough to pass TikTok, Instagram and YouTube originality checks — without losing the content.</p>
@@ -349,6 +350,32 @@ function downloadOutput(){
   a.href=url;a.download='8bfr-original-'+Date.now()+'.webm';
   document.body.appendChild(a);a.click();document.body.removeChild(a);
 }
+// ─── Access gate: owner / co-owner only ───
+(function(){
+  function deny(){ window.location.replace('ai-studio.html'); }
+  function allow(){
+    var g=document.getElementById('accessGate'); if(g)g.style.display='none';
+    var w=document.getElementById('mainWrap'); if(w)w.style.display='';
+  }
+  async function verify(){
+    try{
+      var db=window._8bfrDb; if(!db){ deny(); return; }
+      var ures=await db.auth.getUser();
+      var user=ures&&ures.data&&ures.data.user;
+      if(!user){
+        var sres=await db.auth.getSession();
+        user=sres&&sres.data&&sres.data.session&&sres.data.session.user;
+      }
+      if(!user){ deny(); return; }
+      if(user.id==='cb556180-f032-4b21-9470-1d786f2664ab'){ allow(); return; }
+      var prof=await db.from('profiles').select('role').eq('user_id',user.id).maybeSingle();
+      var role=prof&&prof.data&&prof.data.role;
+      if(role==='owner'||role==='co-owner'){ allow(); } else { deny(); }
+    }catch(e){ console.error('access verify:',e); deny(); }
+  }
+  var n=0;
+  (function wait(){ n++; if(window._8bfrDb){ verify(); } else if(n<15){ setTimeout(wait,300); } else { deny(); } })();
+})();
 </script>
 </body>
 </html>
