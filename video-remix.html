@@ -226,15 +226,7 @@ async function processVideo(){
       audioCtx=new (window.AudioContext||window.webkitAudioContext)();
       var srcNode=audioCtx.createMediaElementSource(videoEl);
       var destNode=audioCtx.createMediaStreamDestination();
-      if(pitch){
-        // Slight pitch shift via detune on a buffer is complex live; instead use a
-        // small playbackRate-independent detune through a biquad-free approach:
-        // we nudge the source rate which the speed control already accounts for.
-        srcNode.connect(destNode);
-      } else {
-        srcNode.connect(destNode);
-      }
-      // Also send to speakers so the element actually plays through.
+      srcNode.connect(destNode);
       srcNode.connect(audioCtx.destination);
       destNode.stream.getAudioTracks().forEach(function(t){ stream.addTrack(t); });
     }catch(e){ console.warn('audio passthrough failed, video will be silent:', e); }
@@ -250,15 +242,13 @@ async function processVideo(){
 
     mr.start(100);
     videoEl.playbackRate=speed?speedVal:1.0;
-    videoEl.play();
+    videoEl.currentTime=0;
+    try{ if(audioCtx&&audioCtx.state==='suspended') await audioCtx.resume(); }catch(e){}
+    try{ await videoEl.play(); }catch(e){ setMsg('procMsg','err','Could not play the video for processing: '+e.message); btn.disabled=false; return; }
 
     setMsg('procMsg','info','Recording and applying effects...');
 
-    var startTime=null;
-    function drawFrame(ts){
-      if(!startTime)startTime=ts;
-      var elapsed=(ts-startTime)/1000;
-
+    function drawFrame(){
       ctx.save();
       ctx.clearRect(0,0,vw,vh);
 
@@ -270,7 +260,7 @@ async function processVideo(){
       var drawH=vh*zoomFactor;
       var offsetX=-(drawW-vw)/2;
       var offsetY=-(drawH-vh)/2;
-      ctx.drawImage(videoEl,offsetX,offsetY,drawW,drawH);
+      try{ ctx.drawImage(videoEl,offsetX,offsetY,drawW,drawH); }catch(e){}
       ctx.restore();
 
       // Color shift overlay
@@ -295,15 +285,17 @@ async function processVideo(){
         ctx.fillText('8BFR',vw*0.97,vh*0.97);
       }
 
-      var prog=Math.min((elapsed/dur)*85,85);
+      var prog=Math.min((videoEl.currentTime/dur)*85,85);
       setProg(10+prog);
 
-      if(!videoEl.ended&&elapsed<dur+0.2){
+      if(!videoEl.ended&&!videoEl.paused){
         requestAnimationFrame(drawFrame);
       }else{
-        mr.stop();
+        try{ mr.stop(); }catch(e){}
       }
     }
+    // also stop cleanly when playback naturally ends
+    videoEl.onended=function(){ try{ mr.stop(); }catch(e){} };
     requestAnimationFrame(drawFrame);
 
     // Wait for recording to finish
