@@ -244,14 +244,24 @@ async function processVideo(){
       destNode.stream.getAudioTracks().forEach(function(t){ stream.addTrack(t); });
     }catch(e){ console.warn('audio passthrough failed, video will be silent:', e); }
 
-    var mime='video/webm;codecs=vp9,opus';
-    if(!MediaRecorder.isTypeSupported(mime))mime='video/webm;codecs=vp8,opus';
-    if(!MediaRecorder.isTypeSupported(mime))mime='video/webm';
+    // Prefer MP4 if the device can record it (iPhones always can; many Androids too).
+    // This means most users get a TikTok-ready MP4 with no conversion step at all.
+    var mime='', outExt='webm', outType='video/webm';
+    var mp4Types=['video/mp4;codecs=avc1.64003E,mp4a.40.2','video/mp4;codecs=avc1,mp4a','video/mp4'];
+    for(var mi=0;mi<mp4Types.length;mi++){
+      if(MediaRecorder.isTypeSupported(mp4Types[mi])){ mime=mp4Types[mi];outExt='mp4';outType='video/mp4';break; }
+    }
+    if(!mime){
+      if(MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus'))mime='video/webm;codecs=vp9,opus';
+      else if(MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus'))mime='video/webm;codecs=vp8,opus';
+      else mime='video/webm';
+    }
+    window._vrOutExt=outExt;window._vrOutType=outType;
     var chunks=[];
     var mr=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:6000000});
     mr.ondataavailable=function(e){if(e.data&&e.data.size>0)chunks.push(e.data);};
 
-    var recordDone=new Promise(function(res){mr.onstop=function(){res(new Blob(chunks,{type:'video/webm'}));};});
+    var recordDone=new Promise(function(res){mr.onstop=function(){res(new Blob(chunks,{type:window._vrOutType||'video/webm'}));};});
 
     mr.start(100);
     videoEl.playbackRate=speed?speedVal:1.0;
@@ -324,10 +334,24 @@ async function processVideo(){
     document.getElementById('downloadArea').classList.remove('hidden');
 
     // Auto-save this result (named after the source) and advance the queue
+    var outExtFinal=window._vrOutExt||'webm';
     var baseName=(sourceFile.name||'video').replace(/\.[^.]+$/,'');
     var a=document.createElement('a');
-    a.href=outUrl;a.download='8bfr-'+baseName+'.webm';
+    a.href=outUrl;a.download='8bfr-'+baseName+'.'+outExtFinal;
     document.body.appendChild(a);a.click();document.body.removeChild(a);
+
+    // Update button labels to reflect what was actually produced
+    var dlMain=document.getElementById('btnDownload');
+    var dlMp4=document.getElementById('btnDownloadMp4');
+    var st=document.getElementById('mp4Status');
+    if(outExtFinal==='mp4'){
+      if(dlMain)dlMain.textContent='Download MP4 (ready for TikTok)';
+      if(dlMp4)dlMp4.style.display='none';
+      if(st)st.textContent='Your device recorded MP4 directly - ready to post, no conversion needed.';
+    }else{
+      if(dlMain)dlMain.textContent='Download (WebM)';
+      if(dlMp4)dlMp4.style.display='';
+    }
 
     // Remove the one we just finished
     videoQueue.shift();
@@ -351,9 +375,10 @@ async function processVideo(){
 
 function downloadOutput(){
   if(!outputBlob)return;
+  var ext=window._vrOutExt||'webm';
   var url=URL.createObjectURL(outputBlob);
   var a=document.createElement('a');
-  a.href=url;a.download='8bfr-original-'+Date.now()+'.webm';
+  a.href=url;a.download='8bfr-original-'+Date.now()+'.'+ext;
   document.body.appendChild(a);a.click();document.body.removeChild(a);
 }
 
