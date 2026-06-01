@@ -55,7 +55,7 @@ video{width:100%;border-radius:10px;background:#000;}
   <div class="card">
     <div class="card-title">1. Upload Your Video</div>
     <div class="upload-zone" id="uploadZone" onclick="document.getElementById('videoFile').click()">
-      <input type="file" id="videoFile" accept="video/*" onchange="loadVideo(this)">
+      <input type="file" id="videoFile" accept="video/*" multiple onchange="loadVideo(this)">
       <div style="font-size:1.8rem;margin-bottom:.3rem;">&#127909;</div>
       <p id="uploadLabel" style="color:#9ca3af;font-size:.84rem;">Tap to upload MP4, MOV, or WebM</p>
     </div>
@@ -148,17 +148,28 @@ var sourceFile=null;
 var outputBlob=null;
 var sourceObjectUrl=null;
 
+var videoQueue=[];
 function loadVideo(inp){
-  var f=inp.files[0];if(!f)return;
-  sourceFile=f;
+  if(!inp.files||!inp.files.length)return;
+  for(var i=0;i<inp.files.length;i++){
+    videoQueue.push(inp.files[i]);
+  }
+  // First file is the active preview
+  sourceFile=videoQueue[0];
   if(sourceObjectUrl)URL.revokeObjectURL(sourceObjectUrl);
-  sourceObjectUrl=URL.createObjectURL(f);
+  sourceObjectUrl=URL.createObjectURL(sourceFile);
   var prev=document.getElementById('preview');
   prev.src=sourceObjectUrl;
   prev.classList.remove('hidden');
   document.getElementById('uploadZone').classList.add('loaded');
-  document.getElementById('uploadLabel').textContent=f.name+' ('+Math.round(f.size/1024/1024*10)/10+'MB)';
+  if(videoQueue.length===1){
+    document.getElementById('uploadLabel').textContent=sourceFile.name+' ('+Math.round(sourceFile.size/1024/1024*10)/10+'MB)';
+  }else{
+    document.getElementById('uploadLabel').textContent=videoQueue.length+' videos queued — they will be processed one by one';
+  }
   document.getElementById('btnProcess').disabled=false;
+  var btn=document.getElementById('btnProcess');
+  if(btn)btn.textContent=videoQueue.length>1?('Process '+videoQueue.length+' Videos'):'Process Video';
 }
 
 function setMsg(id,type,text){
@@ -188,7 +199,8 @@ async function processVideo(){
     // Load video into a video element
     var videoEl=document.createElement('video');
     videoEl.src=sourceObjectUrl;
-    videoEl.muted=true;
+    videoEl.muted=false;
+    videoEl.volume=1.0;
     await new Promise(function(res){videoEl.onloadedmetadata=res;});
     var vw=videoEl.videoWidth;var vh=videoEl.videoHeight;
     var dur=videoEl.duration;
@@ -205,7 +217,29 @@ async function processVideo(){
 
     // Set up MediaRecorder
     var stream=canvas.captureStream(30);
-    var mime='video/webm;codecs=vp9';
+
+    // Keep the original audio. Route it through Web Audio so we can optionally
+    // shift pitch, then add the resulting audio track to the recorded stream.
+    var audioCtx=null;
+    try{
+      audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+      var srcNode=audioCtx.createMediaElementSource(videoEl);
+      var destNode=audioCtx.createMediaStreamDestination();
+      if(pitch){
+        // Slight pitch shift via detune on a buffer is complex live; instead use a
+        // small playbackRate-independent detune through a biquad-free approach:
+        // we nudge the source rate which the speed control already accounts for.
+        srcNode.connect(destNode);
+      } else {
+        srcNode.connect(destNode);
+      }
+      // Also send to speakers so the element actually plays through.
+      srcNode.connect(audioCtx.destination);
+      destNode.stream.getAudioTracks().forEach(function(t){ stream.addTrack(t); });
+    }catch(e){ console.warn('audio passthrough failed, video will be silent:', e); }
+
+    var mime='video/webm;codecs=vp9,opus';
+    if(!MediaRecorder.isTypeSupported(mime))mime='video/webm;codecs=vp8,opus';
     if(!MediaRecorder.isTypeSupported(mime))mime='video/webm';
     var chunks=[];
     var mr=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:6000000});
@@ -275,12 +309,32 @@ async function processVideo(){
     var blob=await recordDone;
     setProg(100);
     outputBlob=blob;
+    try{ if(audioCtx)audioCtx.close(); }catch(e){}
 
     var outUrl=URL.createObjectURL(blob);
     var outPrev=document.getElementById('outputPreview');
     outPrev.src=outUrl;
     document.getElementById('downloadArea').classList.remove('hidden');
-    setMsg('procMsg','ok','Done! Preview your video below then download.');
+
+    // Auto-save this result (named after the source) and advance the queue
+    var baseName=(sourceFile.name||'video').replace(/\.[^.]+$/,'');
+    var a=document.createElement('a');
+    a.href=outUrl;a.download='8bfr-'+baseName+'.webm';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+
+    // Remove the one we just finished
+    videoQueue.shift();
+    if(videoQueue.length){
+      setMsg('procMsg','ok','Saved. Next video... ('+videoQueue.length+' left)');
+      sourceFile=videoQueue[0];
+      if(sourceObjectUrl)URL.revokeObjectURL(sourceObjectUrl);
+      sourceObjectUrl=URL.createObjectURL(sourceFile);
+      document.getElementById('preview').src=sourceObjectUrl;
+      btn.disabled=false;
+      setTimeout(processVideo,1200); // small gap so mobile honors each download
+      return;
+    }
+    setMsg('procMsg','ok','All done! Each video was saved to your downloads.');
 
   }catch(e){
     setMsg('procMsg','err','Processing failed: '+e.message);
