@@ -197,14 +197,25 @@ async function processVideo(){
   var overlay=document.getElementById('optOverlay').checked;
 
   try{
-    // Load video into a video element
+    // Load video into a video element. It MUST be attached to the page and
+    // inline-playable or mobile browsers refuse to play it (canvas stays frozen).
     var videoEl=document.createElement('video');
     videoEl.src=sourceObjectUrl;
     videoEl.muted=false;
     videoEl.volume=1.0;
-    await new Promise(function(res){videoEl.onloadedmetadata=res;});
+    videoEl.playsInline=true;
+    videoEl.setAttribute('playsinline','');
+    videoEl.setAttribute('webkit-playsinline','');
+    videoEl.crossOrigin='anonymous';
+    videoEl.style.cssText='position:fixed;left:-9999px;top:0;width:2px;height:2px;opacity:0.01;';
+    document.body.appendChild(videoEl);
+    await new Promise(function(res,rej){
+      videoEl.onloadedmetadata=res;
+      videoEl.onerror=function(){ rej(new Error('This video format could not be loaded. Try an MP4.')); };
+    });
     var vw=videoEl.videoWidth;var vh=videoEl.videoHeight;
     var dur=videoEl.duration;
+    if(!vw||!vh){ throw new Error('Could not read video dimensions. Try an MP4 file.'); }
 
     // Set up canvas
     var canvas=document.createElement('canvas');
@@ -303,6 +314,7 @@ async function processVideo(){
     setProg(100);
     outputBlob=blob;
     try{ if(audioCtx)audioCtx.close(); }catch(e){}
+    try{ if(videoEl&&videoEl.parentNode)videoEl.parentNode.removeChild(videoEl); }catch(e){}
 
     var outUrl=URL.createObjectURL(blob);
     var outPrev=document.getElementById('outputPreview');
