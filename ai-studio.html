@@ -1091,11 +1091,19 @@ function loadScript(url){
 }
 function loadImage(src){
   return new Promise(function(resolve,reject){
-    var img=new Image();
-    img.onload=function(){resolve(img);};
-    img.onerror=function(){reject(new Error('Image failed to load. Pollinations may be busy — tap Generate again.'));};
-    img.crossOrigin='anonymous';
-    img.src=src;
+    fetch(src)
+      .then(function(r){
+        if(!r.ok)throw new Error('HTTP '+r.status);
+        return r.blob();
+      })
+      .then(function(blob){
+        var url=URL.createObjectURL(blob);
+        var img=new Image();
+        img.onload=function(){resolve(img);};
+        img.onerror=function(){reject(new Error('Image decode failed.'));};
+        img.src=url;
+      })
+      .catch(function(e){reject(new Error('Image fetch failed: '+e.message));});
   });
 }
 
