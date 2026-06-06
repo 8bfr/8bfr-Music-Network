@@ -188,11 +188,11 @@
   }
 
   function enforceAuthGate() {
-    var publicPages = ["index.html","login.html","signup.html","reset-password.html","reset_password.html","logout.html","profile.html"];
+    var publicPages = ["index.html","login.html","signup.html","reset-password.html","reset_password.html","logout.html","profile.html","ai-studio.html","creator-tools.html","ai-tools.html"];
     var path = window.location.pathname.split("/").pop();
     if (!path) path = "index.html";
     if (publicPages.indexOf(path) !== -1) return;
-    var authTimeout = setTimeout(function() { showAuthOverlay(); }, 8000);
+    var authTimeout = setTimeout(function() { showAuthOverlay(); }, 20000);
     loadSupabaseClient(function(client) {
       client.auth.getSession().then(function(res) {
         clearTimeout(authTimeout);
