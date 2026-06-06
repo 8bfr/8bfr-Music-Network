@@ -339,7 +339,16 @@ var TOOLS = [
       {name:'textPos',label:'Text layout',type:'select',options:['bottom','top','center','split (artist top / title center / feat bottom)','none'],id:'coverTextPos'},
       {name:'textStyle',label:'Text style',type:'select',options:['Classic White','3D Shadow','Neon Glow','Gold Metallic','Chrome','Graffiti Outline','Blood Drip','Fire','Ice Blue','Vintage Stamp'],id:'coverTextStyle'},
       {name:'bgFx',label:'Background effect',type:'select',options:['none','dark overlay','vignette','film grain','scanlines','color burn','glitch tint','holographic shimmer'],id:'coverBgFx'},
-      {name:'prompt',label:'Visual style description',type:'textarea',placeholder:'e.g. Dark neon city at night, rain reflections',required:true,id:'coverPrompt'}
+      {name:'prompt',label:'Visual style description',type:'textarea',placeholder:'e.g. Dark neon city at night, rain reflections',required:true,id:'coverPrompt'},
+      {name:'faceSwapToggle',label:'Swap my face into the generated cover (VIP+)',type:'select',options:['No','Yes - use saved face','Yes - upload face now'],id:'coverFaceSwap'},
+      {name:'coverFaceImg',label:'Face photo (if uploading now)',type:'file',accept:'image/*',id:'coverFaceImg'}
+    ]
+  },
+  { id:'face-swap', cat:'creative', type:'client', handler:'faceSwap', icon:'🎭', name:'Face Swap', desc:'Swap your face into any AI-generated image (VIP+)', badges:['tool','pro'], proOnly:true,
+    fields:[
+      {name:'targetImg',label:'Target image (the face to replace)',type:'file',accept:'image/*',required:true,id:'fsTarget'},
+      {name:'useSaved',label:'Use saved face photo',type:'select',options:['Yes - use my saved face','No - upload a new one'],id:'fsUseSaved'},
+      {name:'sourceImg',label:'Your face photo (clear selfie, face forward)',type:'file',accept:'image/*',id:'fsSource'}
     ]
   },
   { id:'qr-code', cat:'creative', type:'client', handler:'qrCode', icon:'📱', name:'QR Code Generator', desc:'Branded QR codes for promo', badges:['tool'],
@@ -708,6 +717,7 @@ function renderTools(){
     var catTools=TOOLS.filter(function(t){
       if(t.cat!==cat.id)return false;
       if(t.ownerOnly && !isOwnerOrCoOwner)return false;
+      if(t.proOnly && userTier==='free')return false;
       if(!q)return true;
       return (t.name+' '+t.desc).toLowerCase().indexOf(q)!==-1;
     });
@@ -1083,6 +1093,49 @@ window.shareAiResult=function(){
   }
 };
 
+  faceSwap: async function(v){
+    // Check tier access
+    if(userTier==='free'){showError('Face Swap requires VIP or higher. Upgrade at 8bfr.com!');return;}
+
+    // Determine source face
+    var sourceDataUrl=null;
+    var useSaved=(v.useSaved||'').indexOf('Yes')!==-1;
+    if(useSaved){
+      sourceDataUrl=window.loadFacePhoto();
+      if(!sourceDataUrl){showError('No saved face photo found. Upload one first.');return;}
+    } else {
+      var srcFile=document.getElementById('fsSource')&&document.getElementById('fsSource').files&&document.getElementById('fsSource').files[0];
+      if(!srcFile){showError('Please upload your face photo.');return;}
+      sourceDataUrl=await fileToDataUrl(srcFile);
+      // Auto-save for next time
+      window.saveFacePhoto(sourceDataUrl);
+    }
+
+    var tgtFile=document.getElementById('fsTarget')&&document.getElementById('fsTarget').files&&document.getElementById('fsTarget').files[0];
+    if(!tgtFile){showError('Please upload the target image.');return;}
+    var targetDataUrl=await fileToDataUrl(tgtFile);
+
+    showLoading('Starting face swap...');
+    var resultUrl=await runFaceSwap(targetDataUrl, sourceDataUrl);
+
+    // Load result through proxy
+    var img=await loadImage(resultUrl);
+    var canvas=document.createElement('canvas');
+    canvas.width=img.naturalWidth||512;canvas.height=img.naturalHeight||512;
+    var ctx=canvas.getContext('2d');
+    ctx.drawImage(img,0,0);
+    var dataUrl=canvas.toDataURL('image/png');
+    window._lastImageUrl=dataUrl;
+    showResult('<img src="'+dataUrl+'" alt="Face swap result" style="max-width:100%;border-radius:8px;">'+
+      '<div class="result-actions">'+
+      '<button class="btn btn-sm" onclick="downloadImage('face-swap-8bfr.png')">Download</button>'+
+      '<button class="btn btn-ghost btn-sm" onclick="runTool()">Try Again</button>'+
+      '</div>'+
+      '<div style="font-size:0.72rem;color:rgba(168,85,247,0.6);margin-top:0.5rem;">Face photo saved for next time. <a href="#" onclick="window.clearFacePhoto();return false;" style="color:#a855f7;">Clear saved photo</a></div>');
+  }
+
+}; // end CLIENT_HANDLERS
+
 // Load scripts dynamically
 function loadScript(url){
   return new Promise(function(resolve,reject){
@@ -1285,6 +1338,32 @@ var CLIENT_HANDLERS={
 
     var dataUrl=canvas.toDataURL('image/png');
     window._lastImageUrl=dataUrl;
+
+    // ── Face swap toggle ──
+    var faceOpt=v.faceSwapToggle||'No';
+    if(faceOpt!=='No' && userTier!=='free'){
+      showLoading('Step 3: Swapping your face in (30-60s)...');
+      var sourceDataUrl=null;
+      if(faceOpt.indexOf('saved')!==-1){
+        sourceDataUrl=window.loadFacePhoto();
+        if(!sourceDataUrl){showError('No saved face photo found. Choose "upload face now" instead.');return;}
+      } else {
+        var faceFile=document.getElementById('coverFaceImg')&&document.getElementById('coverFaceImg').files&&document.getElementById('coverFaceImg').files[0];
+        if(!faceFile){showError('Please upload your face photo.');return;}
+        sourceDataUrl=await fileToDataUrl(faceFile);
+        window.saveFacePhoto(sourceDataUrl);
+      }
+      try{
+        var swappedUrl=await runFaceSwap(dataUrl,sourceDataUrl);
+        var swappedImg=await loadImage(swappedUrl);
+        var c2=document.createElement('canvas');c2.width=1024;c2.height=1024;
+        var ctx2=c2.getContext('2d');ctx2.drawImage(swappedImg,0,0,1024,1024);
+        dataUrl=c2.toDataURL('image/png');window._lastImageUrl=dataUrl;
+      }catch(swapErr){console.warn('Face swap failed:',swapErr.message);}
+    } else if(faceOpt!=='No' && userTier==='free'){
+      showError('Face swap requires VIP or higher. Upgrade at 8bfr.com!');return;
+    }
+
     showResult('<img src="'+dataUrl+'" alt="Album cover">'+
       '<div class="result-actions">'+
       '<button class="btn btn-sm" onclick="downloadImage(\'album-cover-8bfr.png\')">⬇️ Download</button>'+
@@ -2277,6 +2356,61 @@ async function audioBufferToWebm(buffer){
   });
 }
 
+// ─── FACE PHOTO STORAGE ────────────────────────
+window.saveFacePhoto=function(dataUrl){
+  try{localStorage.setItem('8bfr_face_photo',dataUrl);facePhotoDataUrl=dataUrl;}catch(e){}
+};
+window.loadFacePhoto=function(){
+  if(facePhotoDataUrl)return facePhotoDataUrl;
+  try{var s=localStorage.getItem('8bfr_face_photo');if(s){facePhotoDataUrl=s;return s;}}catch(e){}
+  return null;
+};
+window.clearFacePhoto=function(){
+  try{localStorage.removeItem('8bfr_face_photo');}catch(e){}
+  facePhotoDataUrl=null;
+  alert('Saved face photo cleared.');
+};
+
+// Convert file to base64 dataURL
+function fileToDataUrl(file){
+  return new Promise(function(resolve,reject){
+    var r=new FileReader();
+    r.onload=function(){resolve(r.result);};
+    r.onerror=reject;
+    r.readAsDataURL(file);
+  });
+}
+
+// Call Replicate face swap via Vercel, poll until done
+async function runFaceSwap(targetDataUrl, sourceDataUrl){
+  // Start prediction
+  var startRes=await fetch('https://8bfr-api.vercel.app/api/faceswap',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({target_image:targetDataUrl, source_image:sourceDataUrl})
+  });
+  if(!startRes.ok){var e=await startRes.json();throw new Error(e.error||'Face swap start failed');}
+  var startData=await startRes.json();
+  var predId=startData.id;
+  if(!predId)throw new Error('No prediction ID returned');
+
+  // Poll every 3s up to 90s
+  for(var i=0;i<30;i++){
+    await new Promise(function(r){setTimeout(r,3000);});
+    showLoading('Face swap processing... ('+(i*3+3)+'s)');
+    var pollRes=await fetch('https://8bfr-api.vercel.app/api/faceswap?id='+predId);
+    if(!pollRes.ok)continue;
+    var pollData=await pollRes.json();
+    if(pollData.status==='succeeded'){
+      var outUrl=Array.isArray(pollData.output)?pollData.output[0]:pollData.output;
+      if(!outUrl)throw new Error('No output URL from face swap');
+      return outUrl;
+    }
+    if(pollData.status==='failed')throw new Error('Face swap failed: '+(pollData.error||'unknown'));
+  }
+  throw new Error('Face swap timed out. Try a clearer photo.');
+}
+
 // ─── DOWNLOAD HELPERS ────────────────────────────
 window.downloadImage=function(filename){
   if(!window._lastImageUrl)return;
@@ -2303,6 +2437,8 @@ renderNav();
 renderTools();
 
 var isOwnerOrCoOwner=false;
+var userTier='free'; // 'free','vip','creator','elite','owner'
+var facePhotoDataUrl=null; // stored face photo for face swap
 async function checkOwnerAccess(){
   try{
     var db=window._8bfrDb;
@@ -2314,10 +2450,16 @@ async function checkOwnerAccess(){
       user=sres&&sres.data&&sres.data.session&&sres.data.session.user;
     }
     if(!user)return;
-    if(user.id==='cb556180-f032-4b21-9470-1d786f2664ab'){isOwnerOrCoOwner=true;renderTools();return;}
-    var prof=await db.from('profiles').select('role').eq('user_id',user.id).maybeSingle();
+    if(user.id==='cb556180-f032-4b21-9470-1d786f2664ab'){isOwnerOrCoOwner=true;userTier='owner';renderTools();return;}
+    var prof=await db.from('profiles').select('role,subscription_tier').eq('user_id',user.id).maybeSingle();
     var role=prof&&prof.data&&prof.data.role;
-    if(role==='owner'||role==='co-owner'){isOwnerOrCoOwner=true;renderTools();}
+    var sub=prof&&prof.data&&prof.data.subscription_tier;
+    if(role==='owner'||role==='co-owner'){isOwnerOrCoOwner=true;userTier='owner';}
+    else if(sub==='elite')userTier='elite';
+    else if(sub==='creator_pro'||sub==='creator')userTier='creator';
+    else if(sub==='vip')userTier='vip';
+    else userTier='free';
+    renderTools();
   }catch(e){console.error('owner access check:',e);}
 }
 var _ownA=0;function _ownTry(){_ownA++;if(window._8bfrDb){checkOwnerAccess();}else if(_ownA<12){setTimeout(_ownTry,300);}}
