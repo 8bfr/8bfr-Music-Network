@@ -94,6 +94,7 @@ audio{width:100%;border-radius:8px;margin-top:.5rem;}
       <label>Option A - Paste your lyrics (AI writes scenes to match):</label>
       <textarea id="aiLyrics" placeholder="Paste your song lyrics here - AI will plan cinematic scenes for each section..."></textarea>
       <button type="button" onclick="cleanExplicit()" style="margin-top:.35rem;padding:.3rem .75rem;background:#7c3aed;color:#fff;border:none;border-radius:6px;font-size:.75rem;cursor:pointer;">TikTok-Safe Lyrics</button>
+      <button type="button" onclick="cleanExplicit()" style="margin-top:.35rem;padding:.3rem .75rem;background:#7c3aed;color:#fff;border:none;border-radius:6px;font-size:.75rem;cursor:pointer;">TikTok-Safe Lyrics</button>
       <div class="or-div">- OR -</div>
       <label>Option B - Describe the video you want:</label>
       <input type="text" id="aiConcept" placeholder="e.g. Dark street scenes, city lights at night, underground hip hop vibes...">
@@ -555,13 +556,10 @@ async function generateVideo(){
   try{
     var sysP='You are a music video director. Output ONLY a valid JSON array. Each item must have "lyrics" (lyric snippet or section) and "visual" (vivid scene description under 150 chars for an image AI). Exactly 8 items. No markdown, no backticks, just the JSON array.';
     var usrP=lyrics?('Create music video scenes for these lyrics, style: '+aiStyle+'.\n'+lyrics.substring(0,1500)):('Create music video scenes for this concept: '+concept+'. Style: '+aiStyle+'.');
-    var aiR=await fetch('https://gen.pollinations.ai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+POLLEN_KEY},body:JSON.stringify({model:'openai',messages:[{role:'system',content:sysP},{role:'user',content:usrP}],temperature:0.7})});
+    var aiR=await fetch('https://8bfr-api.vercel.app/api/openai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({input:sysP+'\n\n'+usrP,tier:'mini'})});
     if(!aiR.ok)throw new Error('Scene planning failed HTTP '+aiR.status);
     var aiD=await aiR.json();
-    var raw='';
-    if(aiD.choices&&aiD.choices[0])raw=aiD.choices[0].message.content||'';
-    else if(aiD.result)raw=aiD.result;
-    else if(typeof aiD==='string')raw=aiD;
+    var raw=aiD.text||aiD.result||'';
     raw=raw.replace(/```json|```/g,'').trim();
     // Robust JSON extraction - find the array even if truncated
     var parsed=null;
@@ -680,6 +678,37 @@ function buildSceneList(){
   }
 }
 function dotState(i,st){var d=document.getElementById('dot'+i);if(d)d.className='scene-dot '+st;}
+
+function cleanExplicit(){
+  var ta=document.getElementById('aiLyrics');
+  if(!ta||!ta.value.trim()){alert('Paste your lyrics first.');return;}
+  var map={
+    'fucking':'f**king','fuckin':'f*ckin','fuck':'f*ck',
+    'shit':'sh*t','bullshit':'bulls**t',
+    'bitch':'b*tch','bitches':'b*tches',
+    'ass':'a$$','badass':'bada$$',
+    'damn':'d*mn','hell':'h*ll',
+    'kill':'k*ll','murder':'m*rder',
+    'drug':'dr*g','drugs':'dr*gs','weed':'w**d',
+    'gun':'g*n','guns':'g*ns','shoot':'sh**t',
+    'hate':'h8','sex':'s*x','sexy':'s*xy',
+    'hoe':'h*e','hoes':'h*es','thot':'th*t',
+    'slut':'sl*t','whore':'wh*re','nigga':'n*gga','niggas':'n*ggas'
+  };
+  var txt=ta.value;
+  var replaced=0;
+  Object.keys(map).forEach(function(word){
+    var re=new RegExp('\\b'+word+'\\b','gi');
+    var prev=txt;
+    txt=txt.replace(re,function(m){
+      var out=map[word];
+      return m[0]===m[0].toUpperCase()?out.charAt(0).toUpperCase()+out.slice(1):out;
+    });
+    if(txt!==prev)replaced++;
+  });
+  ta.value=txt;
+  alert(replaced>0?'Done! '+replaced+' word(s) made TikTok-safe.':'No flagged words found - lyrics look clean!');
+}
 
 function cleanExplicit(){
   var ta=document.getElementById('aiLyrics');
@@ -1194,14 +1223,14 @@ async function aiDetectSections(){
   var prompt='Analyze these song lyrics and identify where the delivery speed changes significantly (e.g. from slow melodic to fast rap, or verse to hook changes in pace). Return ONLY a JSON array of section objects. Each object must have: "startLine" (line number where speed change starts, 1-indexed), "speed" (seconds per slide: use 0.3-0.8 for very fast rap, 1.0-1.5 for normal rap, 2.0-3.0 for slow melodic/hook), "label" (short description like "Fast verse", "Hook", "Slow bridge"). Identify 3-8 sections. The song is '+dur.toFixed(0)+'s long with '+totalLines+' lines ('+secsPerLine.toFixed(1)+'s per line average). No markdown, just the JSON array.\n\nLyrics:\n'+lyrText.substring(0,3000);
 
   try{
-    var resp=await fetch('https://gen.pollinations.ai/v1/chat/completions',{
+    var resp=await fetch('https://8bfr-api.vercel.app/api/openai',{
       method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+POLLEN_KEY},
-      body:JSON.stringify({model:'openai',messages:[{role:'user',content:prompt}],temperature:0.3})
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({input:prompt,tier:'mini'})
     });
     if(!resp.ok)throw new Error('HTTP '+resp.status);
     var data=await resp.json();
-    var raw=data.choices&&data.choices[0]?data.choices[0].message.content:'';
+    var raw=data.text||data.result||'';
     raw=raw.replace(/```json|```/g,'').trim();
     var sections=JSON.parse(raw);
     if(!Array.isArray(sections)||!sections.length)throw new Error('No sections returned');
