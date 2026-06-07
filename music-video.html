@@ -114,6 +114,19 @@ audio{width:100%;border-radius:8px;margin-top:.5rem;}
         <label for="tiktokSafeMode" style="font-size:.78rem;color:#a855f7;font-weight:600;cursor:pointer;">TikTok Safe Mode <span style="font-size:.7rem;color:#6b7280;font-weight:400;">(removes fire, weapons, dangerous content from visuals)</span></label>
       </div>
       <div style="margin-top:.75rem;">
+        <label style="font-size:.8rem;color:#a855f7;font-weight:600;">Rapper in Scenes</label>
+        <div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.4rem;">
+          <button type="button" id="charNone" onclick="setCharMode('none')" style="padding:.3rem .7rem;border-radius:6px;font-size:.78rem;font-weight:700;cursor:pointer;background:#7c3aed;color:#fff;border:1px solid #7c3aed;">Not in it</button>
+          <button type="button" id="charFree" onclick="setCharMode('free')" style="padding:.3rem .7rem;border-radius:6px;font-size:.78rem;font-weight:700;cursor:pointer;background:rgba(124,58,237,.15);color:#a855f7;border:1px solid rgba(124,58,237,.4);">Similar to me (Free)</button>
+          <button type="button" id="charPaid" onclick="setCharMode('paid')" style="padding:.3rem .7rem;border-radius:6px;font-size:.78rem;font-weight:700;cursor:pointer;background:rgba(124,58,237,.15);color:#a855f7;border:1px solid rgba(124,58,237,.4);">My exact face (Replicate)</button>
+        </div>
+        <div id="charFaceUpload" style="display:none;margin-top:.5rem;">
+          <label style="font-size:.75rem;color:#6b7280;">Upload your face photo for exact likeness:</label>
+          <input type="file" id="charFaceFile" accept="image/*" style="display:block;margin-top:.25rem;font-size:.75rem;color:#e5e7eb;">
+        </div>
+        <div id="charModeNote" style="font-size:.72rem;color:#6b7280;margin-top:.3rem;"></div>
+      </div>
+      <div style="margin-top:.75rem;">
         <label>Format</label>
         <div class="orient-row">
           <button class="orient-btn active" id="aiVert" onclick="setAiOrient('vertical')">Vertical 9:16 (TikTok)</button>
@@ -365,6 +378,29 @@ function getSceneLimit(){
 }
 
 var selectedSceneCount=6;
+var charMode='none'; // 'none','free','paid'
+var CHAR_DESC='white male rapper mid-50s, heavyset build, short salt-and-pepper hair, full grey-white beard and goatee, blue eyes, serious intense expression, brown canvas jacket, large gold Cuban link chain, hip-hop street style';
+var charFaceDataUrl=null;
+
+function setCharMode(mode){
+  charMode=mode;
+  ['none','free','paid'].forEach(function(m){
+    var btn=document.getElementById('char'+m.charAt(0).toUpperCase()+m.slice(1));
+    if(btn){
+      btn.style.background=m===mode?'#7c3aed':'rgba(124,58,237,.15)';
+      btn.style.color=m===mode?'#fff':'#a855f7';
+      btn.style.borderColor=m===mode?'#7c3aed':'rgba(124,58,237,.4)';
+    }
+  });
+  var uploadDiv=document.getElementById('charFaceUpload');
+  var note=document.getElementById('charModeNote');
+  if(uploadDiv)uploadDiv.style.display=mode==='paid'?'block':'none';
+  if(note){
+    if(mode==='none')note.textContent='No specific rapper in scenes.';
+    else if(mode==='free')note.textContent='AI will generate a consistent character matching your description in each scene. Free — no upload needed.';
+    else note.textContent='Upload your photo above. Your exact face will be swapped into each generated scene using Replicate (uses credits).';
+  }
+}
 
 function buildSceneCountGrid(){
   var limit=getSceneLimit();
@@ -680,7 +716,9 @@ async function generateVideo(){
         var sc=aiScenes[idx];
         // Build image prompt from visual description + lyric context for better matching
         var lyricHint=sc.lyrics?sc.lyrics.replace(/[^a-zA-Z0-9 ]/g,' ').substring(0,60):''
-        var iPrompt=(sc.visual||sc.lyrics||'music video').substring(0,120)+(lyricHint?', '+lyricHint:'')+', '+styleWords+', cinematic, high detail, dramatic lighting';
+        var charTag='';
+        if(charMode==='free')charTag=', featuring '+CHAR_DESC+', same character throughout, consistent appearance';
+        var iPrompt=(sc.visual||sc.lyrics||'music video').substring(0,120)+(lyricHint?', '+lyricHint:'')+charTag+', '+styleWords+', cinematic, high detail, dramatic lighting';
         // TikTok safe mode: strip dangerous content and append safe override
         var tiktokSafe=document.getElementById('tiktokSafeMode')&&document.getElementById('tiktokSafeMode').checked;
         if(tiktokSafe){
@@ -727,8 +765,57 @@ async function generateVideo(){
       await Promise.all(promises);
       prog('aiProgFill','aiProg',100);
       var got=aiImages.filter(function(x){return x!==null;}).length;
-      // Save scenes to localStorage so refresh doesn't lose them
       try{localStorage.setItem('mv_scenes',JSON.stringify(aiScenes));localStorage.setItem('mv_style',aiStyle);localStorage.setItem('mv_orient',aiOrient);}catch(e3){}
+
+      // Paid mode: run face swap on all scenes
+      if(charMode==='paid'){
+        var faceFile=document.getElementById('charFaceFile')&&document.getElementById('charFaceFile').files[0];
+        if(faceFile){
+          msg('aiMsg','info','Running face swap on all '+aiScenes.length+' scenes... may take a few minutes.');
+          try{
+            var reader=new FileReader();
+            var srcDataUrl=await new Promise(function(res){reader.onload=function(ev){res(ev.target.result);};reader.readAsDataURL(faceFile);});
+            for(var fsi=0;fsi<aiScenes.length;fsi++){
+              if(!aiImages[fsi])continue;
+              try{
+                dotState(fsi,'working');
+                msg('aiMsg','info','Face swapping scene '+(fsi+1)+' of '+aiScenes.length+'...');
+                var cvs=document.createElement('canvas');cvs.width=imgW;cvs.height=imgH;
+                cvs.getContext('2d').drawImage(aiImages[fsi],0,0,imgW,imgH);
+                var tgtUrl=cvs.toDataURL('image/jpeg',0.85);
+                var swRes=await fetch('https://8bfr-api.vercel.app/api/faceswap',{
+                  method:'POST',headers:{'Content-Type':'application/json'},
+                  body:JSON.stringify({target_image:tgtUrl,source_image:srcDataUrl})
+                });
+                if(!swRes.ok){dotState(fsi,'failed');continue;}
+                var swData=await swRes.json();
+                if(!swData.id){dotState(fsi,'failed');continue;}
+                for(var swPoll=0;swPoll<20;swPoll++){
+                  await new Promise(function(r){setTimeout(r,3000);});
+                  var pd=await (await fetch('https://8bfr-api.vercel.app/api/faceswap?id='+swData.id)).json();
+                  if(pd.status==='succeeded'){
+                    var outUrl=Array.isArray(pd.output)?pd.output[0]:pd.output;
+                    if(outUrl){
+                      var swImg=await new Promise(function(res,rej){
+                        fetch('https://8bfr-api.vercel.app/api/imgproxy?url='+encodeURIComponent(outUrl))
+                          .then(function(r){return r.blob();})
+                          .then(function(b){var img2=new Image();img2.onload=function(){res(img2);};img2.src=URL.createObjectURL(b);})
+                          .catch(rej);
+                      });
+                      aiImages[fsi]=swImg;dotState(fsi,'done');
+                    }
+                    break;
+                  }
+                  if(pd.status==='failed'){dotState(fsi,'failed');break;}
+                }
+              }catch(e){dotState(fsi,'failed');}
+            }
+          }catch(faceErr){msg('aiMsg','warn','Face swap error: '+faceErr.message);}
+        } else {
+          msg('aiMsg','warn','No face photo uploaded — showing scenes without face swap.');
+        }
+      }
+
       msg('aiMsg','ok',got+' of '+aiScenes.length+' scenes ready! Hit Quick Preview to verify.');
       document.getElementById('btnAiQuick').classList.remove('hidden');
       document.getElementById('btnAiPrev').classList.remove('hidden');
