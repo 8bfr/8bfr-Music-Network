@@ -109,6 +109,10 @@ audio{width:100%;border-radius:8px;margin-top:.5rem;}
         <div class="style-opt" data-style="dark" style="background:linear-gradient(135deg,#050505,#0f0505);color:#ef4444;" onclick="pickAiStyle(this)">Dark Noir</div>
         <div class="style-opt" data-style="gold" style="background:linear-gradient(135deg,#1a0a00,#2a1800);color:#f59e0b;" onclick="pickAiStyle(this)">Gold Luxury</div>
       </div>
+      <div style="margin-top:.75rem;display:flex;align-items:center;gap:.5rem;">
+        <input type="checkbox" id="tiktokSafeMode" style="width:16px;height:16px;accent-color:#a855f7;">
+        <label for="tiktokSafeMode" style="font-size:.78rem;color:#a855f7;font-weight:600;cursor:pointer;">TikTok Safe Mode <span style="font-size:.7rem;color:#6b7280;font-weight:400;">(removes fire, weapons, dangerous content from visuals)</span></label>
+      </div>
       <div style="margin-top:.75rem;">
         <label>Format</label>
         <div class="orient-row">
@@ -611,7 +615,9 @@ async function generateVideo(){
         if(chunk.trim())lyricChunks.push(chunk.trim());
       }
     }
-    var sysP='You are a music video director. Output ONLY a valid JSON array. No markdown, no backticks. Each item must have: "lyrics" (the lyric lines provided for that scene, copy them exactly) and "visual" (vivid specific scene description under 120 chars — describe LITERALLY what the lyrics talk about in that moment, match the meaning word for word, be specific not generic). Create exactly '+numScenes+' items.';
+    var tiktokSafeMode=document.getElementById('tiktokSafeMode')&&document.getElementById('tiktokSafeMode').checked;
+    var safeRule=tiktokSafeMode?' IMPORTANT: All visuals must be TikTok-safe — no fire, no weapons, no guns, no knives, no violence, no blood, no dangerous activities, no drugs, no alcohol. Replace any dangerous imagery with safe creative alternatives that still match the mood.':'';
+    var sysP='You are a music video director. Output ONLY a valid JSON array. No markdown, no backticks. Each item must have: "lyrics" (the lyric lines provided for that scene, copy them exactly) and "visual" (vivid specific scene description under 120 chars — describe LITERALLY what the lyrics talk about in that moment, match the meaning word for word, be specific not generic). Create exactly '+numScenes+' items.'+safeRule;
     var usrP=lyricChunks.length?
       ('For each chunk of lyrics below, create one scene. Match the visual to exactly what those lyrics describe. Style: '+aiStyle+'.\n\n'+lyricChunks.map(function(ch,i){return 'Scene '+(i+1)+': '+ch;}).join('\n')):
       ('Create music video scenes for this concept: '+concept+'. Style: '+aiStyle+'.');
@@ -640,8 +646,8 @@ async function generateVideo(){
       if(!fallbackLines.length)fallbackLines=[concept||'music video scene'];
       parsed=[];
       var styleDesc=AI_STYLE_MAP[aiStyle]||'cinematic';
-      var step=Math.max(1,Math.floor(fallbackLines.length/8));
-      for(var fi=0;fi<8;fi++){
+      var step=Math.max(1,Math.floor(fallbackLines.length/numScenes));
+      for(var fi=0;fi<numScenes;fi++){
         var ll=fallbackLines[Math.min(fi*step,fallbackLines.length-1)]||'';
         parsed.push({lyrics:ll,visual:ll+' '+styleDesc+' dramatic lighting'});
       }
@@ -656,7 +662,7 @@ async function generateVideo(){
     if(aiScenes.length>sceneLimit)aiScenes=aiScenes.slice(0,sceneLimit);
     buildSceneList();
     if(userTier==='free'){
-      msg('aiMsg','info','Free plan: '+sceneLimit+' scenes max. Upgrade to Creator Pro or Elite for up to 8 scenes + AI video generation.');
+      msg('aiMsg','info','Free plan: 3 scenes max. Upgrade for more scenes.');
     }
     aiImages=new Array(aiScenes.length).fill(null);
     var imgW=256;var imgH=aiOrient==='vertical'?384:256;
@@ -675,7 +681,13 @@ async function generateVideo(){
         // Build image prompt from visual description + lyric context for better matching
         var lyricHint=sc.lyrics?sc.lyrics.replace(/[^a-zA-Z0-9 ]/g,' ').substring(0,60):''
         var iPrompt=(sc.visual||sc.lyrics||'music video').substring(0,120)+(lyricHint?', '+lyricHint:'')+', '+styleWords+', cinematic, high detail, dramatic lighting';
-        iPrompt=iPrompt.substring(0,300);
+        // TikTok safe mode: strip dangerous content and append safe override
+        var tiktokSafe=document.getElementById('tiktokSafeMode')&&document.getElementById('tiktokSafeMode').checked;
+        if(tiktokSafe){
+          iPrompt=iPrompt.replace(/(gun|guns|knife|knives|sword|weapon|weapons|fire|flames|explosion|explosions|blood|violence|violent|dangerous|machete|bomb|shooting|stabbing|fight|fighting|burning|cigarette|smoke|drugs|alcohol|bottle|beer|wine)/gi,'');
+          iPrompt=iPrompt+', safe peaceful setting, no weapons no fire no violence, suitable for all audiences';
+        }
+        iPrompt=iPrompt.replace(/\s+/g,' ').trim().substring(0,350);
         var seed=Math.floor(Math.random()*99999)+idx*1000;
         var polImg='https://gen.pollinations.ai/image/'+encodeURIComponent(iPrompt)+'?width='+imgW+'&height='+imgH+'&nologo=true&seed='+seed+'&key=sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
         var proxyUrl='https://8bfr-api.vercel.app/api/imgproxy?url='+encodeURIComponent(polImg);
