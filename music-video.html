@@ -120,6 +120,12 @@ audio{width:100%;border-radius:8px;margin-top:.5rem;}
 
     <div class="card">
       <div class="card-title"><span class="step-num">4</span> Generate and Record</div>
+      <div style="margin-bottom:.75rem;">
+        <label style="font-size:.8rem;color:#a855f7;font-weight:600;">Number of Scenes</label>
+        <div id="sceneCountGrid" style="display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.4rem;">
+        </div>
+        <div id="sceneCountNote" style="font-size:.72rem;color:#6b7280;margin-top:.3rem;"></div>
+      </div>
       <div class="btn-row">
         <button class="btn btn-purple" id="btnGen" onclick="generateVideo()">Generate Photo Slideshow</button>
       </div>
@@ -340,19 +346,58 @@ async function checkUserTier(){
     var r=await db.auth.getUser();
     if(!r.data||!r.data.user)return;
     var uid=r.data.user.id;
-    if(uid===OWNER_ID){userTier='owner';return;}
+    if(uid===OWNER_ID){userTier='owner';buildSceneCountGrid();return;}
     var pr=await db.from('profiles').select('subscription_tier').eq('user_id',uid).single();
     if(pr.data&&pr.data.subscription_tier)userTier=pr.data.subscription_tier;
   }catch(e){}
 }
 
 function getSceneLimit(){
-  if(userTier==='owner')return 8;
-  if(userTier==='elite')return 8;
-  if(userTier==='creator')return 6;
-  if(userTier==='vip')return 5;
+  if(userTier==='owner')return 16;
+  if(userTier==='elite')return 16;
+  if(userTier==='creator')return 12;
+  if(userTier==='vip')return 8;
   return 3; // free
 }
+
+var selectedSceneCount=6;
+
+function buildSceneCountGrid(){
+  var limit=getSceneLimit();
+  var grid=document.getElementById('sceneCountGrid');
+  var note=document.getElementById('sceneCountNote');
+  if(!grid)return;
+  var options=[3,4,6,8,10,12,16];
+  var labels={3:'3',4:'4',6:'6',8:'8',10:'10',12:'12',16:'16'};
+  grid.innerHTML='';
+  options.forEach(function(n){
+    var btn=document.createElement('button');
+    btn.type='button';
+    btn.textContent=n;
+    var locked=n>limit;
+    if(locked){
+      btn.title='Upgrade to unlock';
+      btn.style.cssText='padding:.3rem .65rem;border-radius:6px;font-size:.8rem;font-weight:700;cursor:not-allowed;background:rgba(55,65,81,.3);color:#4b5563;border:1px solid #374151;position:relative;';
+      btn.innerHTML=n+'<span style="font-size:.6rem;display:block;color:#6b7280;">Upgrade</span>';
+      btn.onclick=function(){
+        if(note)note.textContent='Upgrade to VIP, Creator Pro or Elite for more scenes.';
+        note.style.color='#f59e0b';
+      };
+    } else {
+      btn.style.cssText='padding:.3rem .65rem;border-radius:6px;font-size:.8rem;font-weight:700;cursor:pointer;background:'+(n===selectedSceneCount?'#7c3aed':'rgba(124,58,237,.15)')+';color:'+(n===selectedSceneCount?'#fff':'#a855f7')+';border:1px solid '+(n===selectedSceneCount?'#7c3aed':'rgba(124,58,237,.4)')+';transition:all .2s;';
+      btn.onclick=(function(num){
+        return function(){
+          selectedSceneCount=num;
+          buildSceneCountGrid();
+          if(note){note.textContent='';note.style.color='';}
+        };
+      })(n);
+    }
+    grid.appendChild(btn);
+  });
+}
+
+function refreshSceneUI(){buildSceneCountGrid();}
 
 function canUseColab(){
   return userTier==='owner'||userTier==='elite'||userTier==='creator';
@@ -555,7 +600,7 @@ async function generateVideo(){
   try{
     // Split lyrics into sections for per-section scene matching
     var lyricLines=lyrics?lyrics.split('\n').filter(function(l){return l.trim();}).slice(0,80):[];
-    var numScenes=Math.min(Math.max(8,Math.ceil(lyricLines.length/4)),16);
+    var numScenes=Math.min(selectedSceneCount||6, getSceneLimit());
     var sysP='You are a music video director. Output ONLY a valid JSON array. No markdown, no backticks. Each item must have: "lyrics" (exact 1-3 lines from the song that play during this scene) and "visual" (vivid specific scene description under 120 chars — describe exactly what is SHOWN on screen matching the lyric meaning, be literal and specific, not generic). Create exactly '+numScenes+' items, covering the full song in order.';
     var usrP=lyrics?('Match each scene visual DIRECTLY to what the lyrics describe. Style: '+aiStyle+'.\nFull lyrics:\n'+lyrics.substring(0,2000)):('Create music video scenes for this concept: '+concept+'. Style: '+aiStyle+'.');
     var aiR=await fetch('https://8bfr-api.vercel.app/api/openai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({input:sysP+'\n\n'+usrP,tier:'mini'})});
