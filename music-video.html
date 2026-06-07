@@ -653,7 +653,8 @@ async function generateVideo(){
     }
     var tiktokSafeMode=document.getElementById('tiktokSafeMode')&&document.getElementById('tiktokSafeMode').checked;
     var safeRule=tiktokSafeMode?' IMPORTANT: All visuals must be TikTok-safe — no fire, no weapons, no guns, no knives, no violence, no blood, no dangerous activities, no drugs, no alcohol. Replace any dangerous imagery with safe creative alternatives that still match the mood.':'';
-    var sysP='You are a music video director. Output ONLY a valid JSON array. No markdown, no backticks. Each item must have: "lyrics" (the lyric lines provided for that scene, copy them exactly) and "visual" (vivid specific scene description under 120 chars — describe LITERALLY what the lyrics talk about in that moment, match the meaning word for word, be specific not generic). Create exactly '+numScenes+' items.'+safeRule;
+    var personRule=charMode!=='none'?' Also add a boolean field "hasPerson" (true if a rapper, person, or human character is visible in the scene, false if it is purely scenery, abstract, objects, or environment with no people).':'';
+    var sysP='You are a music video director. Output ONLY a valid JSON array. No markdown, no backticks. Each item must have: "lyrics" (the lyric lines provided for that scene, copy them exactly) and "visual" (vivid specific scene description under 120 chars — describe LITERALLY what the lyrics talk about in that moment, match the meaning word for word, be specific not generic). Create exactly '+numScenes+' items.'+safeRule+personRule;
     var usrP=lyricChunks.length?
       ('For each chunk of lyrics below, create one scene. Match the visual to exactly what those lyrics describe. Style: '+aiStyle+'.\n\n'+lyricChunks.map(function(ch,i){return 'Scene '+(i+1)+': '+ch;}).join('\n')):
       ('Create music video scenes for this concept: '+concept+'. Style: '+aiStyle+'.');
@@ -717,7 +718,8 @@ async function generateVideo(){
         // Build image prompt from visual description + lyric context for better matching
         var lyricHint=sc.lyrics?sc.lyrics.replace(/[^a-zA-Z0-9 ]/g,' ').substring(0,60):''
         var charTag='';
-        if(charMode==='free'||charMode==='paid')charTag=CHAR_DESC+', ';
+        if(charMode==='free')charTag=CHAR_DESC+', '; // free: use description only
+        // paid: NO description — let face swap do the work on a clean image
         var iPrompt=charTag+(sc.visual||sc.lyrics||'music video').substring(0,100)+(lyricHint?', '+lyricHint:'')+', '+styleWords+', cinematic, high detail, dramatic lighting';
         // TikTok safe mode: strip dangerous content and append safe override
         var tiktokSafe=document.getElementById('tiktokSafeMode')&&document.getElementById('tiktokSafeMode').checked;
@@ -775,8 +777,15 @@ async function generateVideo(){
           try{
             var reader=new FileReader();
             var srcDataUrl=await new Promise(function(res){reader.onload=function(ev){res(ev.target.result);};reader.readAsDataURL(faceFile);});
+            var personCount=aiScenes.filter(function(s){return s.hasPerson!==false;}).length;
+            msg('aiMsg','info','Swapping your face into '+personCount+' scenes with a person...');
             for(var fsi=0;fsi<aiScenes.length;fsi++){
               if(!aiImages[fsi])continue;
+              // Skip pure scenery/background scenes
+              if(aiScenes[fsi].hasPerson===false){
+                dotState(fsi,'done');
+                continue;
+              }
               try{
                 dotState(fsi,'working');
                 msg('aiMsg','info','Face swapping scene '+(fsi+1)+' of '+aiScenes.length+' — do not close page...');
@@ -1970,12 +1979,4 @@ try{
       buildSceneList();
       msg('aiMsg','info','Last session restored ('+aiScenes.length+' scenes). Hit Generate to rebuild images.');
     }
-  }
-}catch(e){}
-drawLyrStatic();
-buildSceneCountGrid();
-checkUserTier().then(function(){buildSceneCountGrid();});
-}); // end DOMContentLoaded
-</script>
-</body>
-</html>
+ 
