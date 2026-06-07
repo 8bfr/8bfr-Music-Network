@@ -756,7 +756,6 @@ function dotState(i,st){var d=document.getElementById('dot'+i);if(d)d.className=
 function cleanExplicit(){
   var ta=document.getElementById('aiLyrics');
   if(!ta||!ta.value.trim()){alert('Paste your lyrics first.');return;}
-  // Order matters - longer/specific first to avoid partial matches
   var pairs=[
     ['bullshit','bulls**t'],['fucking','f**king'],['fuckin','f*ckin'],['fuck','f*ck'],
     ['bitches','b*tches'],['bitch','b*tch'],
@@ -788,18 +787,36 @@ function cleanExplicit(){
   ];
   var txt=ta.value;
   var count=0;
+  // Split into tokens (words + spaces/punctuation) to avoid partial matches
+  // without using lookbehind (not supported on mobile Safari)
   pairs.forEach(function(p){
-    // Use lookahead/behind to avoid re-replacing already censored words
-    var escaped=p[0].replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-    var re=new RegExp('(?<![*%$#@!a-zA-Z])'+escaped+'(?![*%$#@!a-zA-Z])','gi');
-    txt=txt.replace(re,function(m){
-      count++;
-      var out=p[1];
-      return m[0]===m[0].toUpperCase()&&m[0].toLowerCase()!==m[0].toUpperCase()?out.charAt(0).toUpperCase()+out.slice(1):out;
-    });
+    var word=p[0];var sub=p[1];
+    var out='';var i=0;
+    while(i<txt.length){
+      // Check if current position matches the word (case-insensitive)
+      if(txt.substr(i,word.length).toLowerCase()===word.toLowerCase()){
+        // Check char before and after are not letters (word boundary)
+        var before=i>0?txt[i-1]:'';
+        var after=txt[i+word.length]||'';
+        var beforeOk=!before||/[^a-zA-Z0-9]/.test(before);
+        var afterOk=!after||/[^a-zA-Z0-9]/.test(after);
+        if(beforeOk&&afterOk){
+          // Preserve capitalization
+          var match=txt.substr(i,word.length);
+          var replacement=match[0]===match[0].toUpperCase()&&match[0].toLowerCase()!==match[0].toUpperCase()?
+            sub.charAt(0).toUpperCase()+sub.slice(1):sub;
+          out+=replacement;
+          count++;
+          i+=word.length;
+          continue;
+        }
+      }
+      out+=txt[i];i++;
+    }
+    txt=out;
   });
   ta.value=txt;
-  alert(count>0?'Done! '+count+' instance(s) cleaned for TikTok.':'No flagged words found - looks clean!');
+  alert(count>0?'Done! '+count+' word(s) cleaned for TikTok.':'No flagged words found - looks clean!');
 }
 
 function wrapTxt(ctx,text,maxW){
