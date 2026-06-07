@@ -298,8 +298,8 @@ audio{width:100%;border-radius:8px;margin-top:.5rem;}
         </div>
       </div>
       <div style="margin-top:.75rem;">
-        <label>Lines per Slide (Beat Mode): <span id="lpsLabel">2</span> <span style="font-size:.72rem;color:#6b7280;">(show more lines at once for fast rappers)</span></label>
-        <input type="range" id="linesPerSlide" min="1" max="20" step="1" value="2" oninput="var v=parseInt(this.value);document.getElementById('lpsLabel').textContent=v;try{localStorage.setItem('lyr_lps',v);}catch(e){}drawLyrStatic();">
+        <label>Lines per Slide (Beat Mode): <span id="lpsLabel">3</span> <span style="font-size:.72rem;color:#6b7280;">(show more lines at once for fast rappers)</span></label>
+        <input type="range" id="linesPerSlide" min="1" max="20" step="1" value="3" oninput="var v=parseInt(this.value);document.getElementById('lpsLabel').textContent=v;try{localStorage.setItem('lyr_lps',v);}catch(e){}drawLyrStatic();">
         <div style="display:flex;justify-content:space-between;font-size:.7rem;color:#4b5563;margin-top:.2rem;">
           <span>1</span><span>4</span><span>8</span><span>12</span><span>16</span><span>20</span>
         </div>
@@ -601,8 +601,20 @@ async function generateVideo(){
     // Split lyrics into sections for per-section scene matching
     var lyricLines=lyrics?lyrics.split('\n').filter(function(l){return l.trim();}).slice(0,80):[];
     var numScenes=Math.min(selectedSceneCount||6, getSceneLimit());
-    var sysP='You are a music video director. Output ONLY a valid JSON array. No markdown, no backticks. Each item must have: "lyrics" (exact 1-3 lines from the song that play during this scene) and "visual" (vivid specific scene description under 120 chars — describe exactly what is SHOWN on screen matching the lyric meaning, be literal and specific, not generic). Create exactly '+numScenes+' items, covering the full song in order.';
-    var usrP=lyrics?('Match each scene visual DIRECTLY to what the lyrics describe. Style: '+aiStyle+'.\nFull lyrics:\n'+lyrics.substring(0,2000)):('Create music video scenes for this concept: '+concept+'. Style: '+aiStyle+'.');
+    // Divide lyrics into equal chunks — one chunk per scene so photos match correctly
+    var lyricChunks=[];
+    if(lyrics){
+      var allLines=lyrics.split('\n').filter(function(l){return l.trim();});
+      var chunkSize=Math.max(1,Math.ceil(allLines.length/numScenes));
+      for(var ci=0;ci<numScenes;ci++){
+        var chunk=allLines.slice(ci*chunkSize,(ci+1)*chunkSize).join(' ');
+        if(chunk.trim())lyricChunks.push(chunk.trim());
+      }
+    }
+    var sysP='You are a music video director. Output ONLY a valid JSON array. No markdown, no backticks. Each item must have: "lyrics" (the lyric lines provided for that scene, copy them exactly) and "visual" (vivid specific scene description under 120 chars — describe LITERALLY what the lyrics talk about in that moment, match the meaning word for word, be specific not generic). Create exactly '+numScenes+' items.';
+    var usrP=lyricChunks.length?
+      ('For each chunk of lyrics below, create one scene. Match the visual to exactly what those lyrics describe. Style: '+aiStyle+'.\n\n'+lyricChunks.map(function(ch,i){return 'Scene '+(i+1)+': '+ch;}).join('\n')):
+      ('Create music video scenes for this concept: '+concept+'. Style: '+aiStyle+'.');
     var aiR=await fetch('https://8bfr-api.vercel.app/api/openai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({input:sysP+'\n\n'+usrP,tier:'mini'})});
     if(!aiR.ok)throw new Error('Scene planning failed HTTP '+aiR.status);
     var aiD=await aiR.json();
@@ -793,8 +805,10 @@ function drawAiFrame(elapsed){
   var w=c.width,h=c.height;
   ctx.fillStyle='#000';ctx.fillRect(0,0,w,h);
   if(!aiScenes.length||!aiDuration){return;}
+  // Tie scene index to lyric progress so photos match what's being said
+  var lyricProgress=Math.min(elapsed/aiDuration,1);
+  var idx=Math.min(Math.floor(lyricProgress*aiScenes.length),aiScenes.length-1);
   var sceneDur=aiDuration/aiScenes.length;
-  var idx=Math.min(Math.floor(elapsed/sceneDur),aiScenes.length-1);
   var sElapsed=elapsed-idx*sceneDur;
   var sProgress=sceneDur>0?Math.min(sElapsed/sceneDur,1):0;
   // Draw scene with Ken Burns + crossfade to next scene in last 20%
@@ -825,17 +839,24 @@ function drawAiFrame(elapsed){
     grd.addColorStop(1,'rgba(0,0,0,0.82)');
     ctx.fillStyle=grd;ctx.fillRect(0,0,w,h);
   }
-  // Lyric text
+  // Lyric text - use live synced lyric if available, else scene snippet
   var sc=aiScenes[idx];
-  if(sc&&sc.lyrics){
-    var fs=Math.round(w*0.038);
-    ctx.font='bold '+fs+'px Inter,sans-serif';
+  var liveLyric='';
+  try{
+    var lps3=parseInt(document.getElementById('linesPerSlide').value)||3;
+    liveLyric=getLyrLine(elapsed)||'';
+    // If no live lyric, fall back to scene lyrics
+    if(!liveLyric&&sc&&sc.lyrics)liveLyric=sc.lyrics;
+  }catch(e){if(sc&&sc.lyrics)liveLyric=sc.lyrics;}
+  if(liveLyric){
+    var fs=Math.round(w*0.04);
     ctx.textAlign='center';
     ctx.fillStyle='#ffffff';
-    ctx.shadowColor='rgba(0,0,0,0.95)';ctx.shadowBlur=14;
-    var lns=wrapTxt(ctx,sc.lyrics,w*0.85);
-    var lh=fs*1.45;
-    var sy=h*0.8;
+    ctx.shadowColor='rgba(0,0,0,0.95)';ctx.shadowBlur=16;
+    var lns=wrapTxt(ctx,liveLyric,w*0.85);
+    var lh=fs*1.5;
+    var sy=h*0.78-(lns.length-1)*lh*0.5;
+    ctx.font='bold '+fs+'px Inter,sans-serif';
     for(var li=0;li<lns.length;li++)ctx.fillText(lns[li],w/2,sy+li*lh);
     ctx.shadowBlur=0;
   }
@@ -1377,7 +1398,7 @@ function getLineByIndex(idx){
   var ahead=getLookAhead();
   if(lyrSyncMode==='beat'&&lyrBeatTimestamps.length){
     var startIdx=Math.min(Math.round(idx+ahead),lyrBeatTimestamps.length-1);
-    var lps=2;try{lps=parseInt(document.getElementById('linesPerSlide').value)||2;}catch(e){}
+    var lps=3;try{lps=parseInt(document.getElementById('linesPerSlide').value)||3;}catch(e){}
     var lines=[];
     for(var j=startIdx;j<Math.min(startIdx+lps,lyrBeatTimestamps.length);j++)lines.push(lyrBeatTimestamps[j].line);
     return lines.join('\n');
@@ -1417,7 +1438,7 @@ function getLyrLine(t){
       else break;
     }
     var startIdx=Math.min(Math.round(curIdx+ahead+speedBoost),lyrBeatTimestamps.length-1);
-    var lps=2;try{lps=parseInt(document.getElementById('linesPerSlide').value)||2;}catch(e){}
+    var lps=3;try{lps=parseInt(document.getElementById('linesPerSlide').value)||3;}catch(e){}
     var lines=[];
     for(var j=startIdx;j<Math.min(startIdx+lps,lyrBeatTimestamps.length);j++){
       lines.push(lyrBeatTimestamps[j].line);
@@ -1644,7 +1665,7 @@ function drawLyrFrame(t){
   if(lineText){
     var fs=parseInt(document.getElementById('lyrFs').value)||44;
     var isBeat=lyrSyncMode==='beat'&&lyrBeatTimestamps.length>0;
-    var lps2=2;try{lps2=parseInt(document.getElementById('linesPerSlide').value)||2;}catch(e){}
+    var lps2=3;try{lps2=parseInt(document.getElementById('linesPerSlide').value)||3;}catch(e){}
     var fontScale=isBeat?(lps2<=2?0.85:lps2<=4?0.72:lps2<=6?0.58:0.48):1.0;
     var sfs=Math.round(fs*fontScale*(w/420));
     ctx.textAlign='center';
