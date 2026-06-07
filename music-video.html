@@ -771,7 +771,7 @@ async function generateVideo(){
       if(charMode==='paid'){
         var faceFile=document.getElementById('charFaceFile')&&document.getElementById('charFaceFile').files[0];
         if(faceFile){
-          msg('aiMsg','info','Running face swap on all '+aiScenes.length+' scenes... may take a few minutes.');
+          msg('aiMsg','info','Running face swap on all '+aiScenes.length+' scenes... ~3-5 mins. Do not close this page.');
           try{
             var reader=new FileReader();
             var srcDataUrl=await new Promise(function(res){reader.onload=function(ev){res(ev.target.result);};reader.readAsDataURL(faceFile);});
@@ -779,7 +779,7 @@ async function generateVideo(){
               if(!aiImages[fsi])continue;
               try{
                 dotState(fsi,'working');
-                msg('aiMsg','info','Face swapping scene '+(fsi+1)+' of '+aiScenes.length+'...');
+                msg('aiMsg','info','Face swapping scene '+(fsi+1)+' of '+aiScenes.length+' — do not close page...');
                 var cvs=document.createElement('canvas');cvs.width=imgW;cvs.height=imgH;
                 cvs.getContext('2d').drawImage(aiImages[fsi],0,0,imgW,imgH);
                 var tgtUrl=cvs.toDataURL('image/jpeg',0.85);
@@ -797,12 +797,28 @@ async function generateVideo(){
                     var outUrl=Array.isArray(pd.output)?pd.output[0]:pd.output;
                     if(outUrl){
                       var swImg=await new Promise(function(res,rej){
-                        fetch('https://8bfr-api.vercel.app/api/imgproxy?url='+encodeURIComponent(outUrl))
-                          .then(function(r){return r.blob();})
-                          .then(function(b){var img2=new Image();img2.onload=function(){res(img2);};img2.src=URL.createObjectURL(b);})
-                          .catch(rej);
+                        // Replicate URLs don't need proxy — load directly
+                        fetch(outUrl)
+                          .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.blob();})
+                          .then(function(b){
+                            var burl=URL.createObjectURL(b);
+                            var img2=new Image();
+                            img2.onload=function(){res(img2);};
+                            img2.onerror=function(){rej(new Error('Image decode failed'));};
+                            img2.src=burl;
+                          })
+                          .catch(function(e){
+                            // Fallback: try loading directly without fetch
+                            var img2=new Image();
+                            img2.crossOrigin='anonymous';
+                            img2.onload=function(){res(img2);};
+                            img2.onerror=function(){rej(new Error('Direct load also failed'));};
+                            img2.src=outUrl;
+                          });
                       });
-                      aiImages[fsi]=swImg;dotState(fsi,'done');
+                      aiImages[fsi]=swImg;
+                      dotState(fsi,'done');
+                      drawAiFrame(0); // refresh canvas so you can see each face as it completes
                     }
                     break;
                   }
