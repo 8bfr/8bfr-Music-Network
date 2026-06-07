@@ -292,8 +292,8 @@ audio{width:100%;border-radius:8px;margin-top:.5rem;}
         </div>
       </div>
       <div style="margin-top:.75rem;">
-        <label>Lines per Slide (Beat Mode): <span id="lpsLabel">3</span> <span style="font-size:.72rem;color:#6b7280;">(show more lines at once for fast rappers)</span></label>
-        <input type="range" id="linesPerSlide" min="1" max="20" step="1" value="3" oninput="var v=parseInt(this.value);document.getElementById('lpsLabel').textContent=v;try{localStorage.setItem('lyr_lps',v);}catch(e){}drawLyrStatic();">
+        <label>Lines per Slide (Beat Mode): <span id="lpsLabel">2</span> <span style="font-size:.72rem;color:#6b7280;">(show more lines at once for fast rappers)</span></label>
+        <input type="range" id="linesPerSlide" min="1" max="20" step="1" value="2" oninput="var v=parseInt(this.value);document.getElementById('lpsLabel').textContent=v;try{localStorage.setItem('lyr_lps',v);}catch(e){}drawLyrStatic();">
         <div style="display:flex;justify-content:space-between;font-size:.7rem;color:#4b5563;margin-top:.2rem;">
           <span>1</span><span>4</span><span>8</span><span>12</span><span>16</span><span>20</span>
         </div>
@@ -553,8 +553,11 @@ async function generateVideo(){
   msg('aiMsg','info','Planning scenes with AI...');
   prog('aiProgFill','aiProg',5);
   try{
-    var sysP='You are a music video director. Output ONLY a valid JSON array. Each item must have "lyrics" (lyric snippet or section) and "visual" (vivid scene description under 150 chars for an image AI). Exactly 8 items. No markdown, no backticks, just the JSON array.';
-    var usrP=lyrics?('Create music video scenes for these lyrics, style: '+aiStyle+'.\n'+lyrics.substring(0,1500)):('Create music video scenes for this concept: '+concept+'. Style: '+aiStyle+'.');
+    // Split lyrics into sections for per-section scene matching
+    var lyricLines=lyrics?lyrics.split('\n').filter(function(l){return l.trim();}).slice(0,80):[];
+    var numScenes=Math.min(Math.max(8,Math.ceil(lyricLines.length/4)),16);
+    var sysP='You are a music video director. Output ONLY a valid JSON array. No markdown, no backticks. Each item must have: "lyrics" (exact 1-3 lines from the song that play during this scene) and "visual" (vivid specific scene description under 120 chars — describe exactly what is SHOWN on screen matching the lyric meaning, be literal and specific, not generic). Create exactly '+numScenes+' items, covering the full song in order.';
+    var usrP=lyrics?('Match each scene visual DIRECTLY to what the lyrics describe. Style: '+aiStyle+'.\nFull lyrics:\n'+lyrics.substring(0,2000)):('Create music video scenes for this concept: '+concept+'. Style: '+aiStyle+'.');
     var aiR=await fetch('https://8bfr-api.vercel.app/api/openai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({input:sysP+'\n\n'+usrP,tier:'mini'})});
     if(!aiR.ok)throw new Error('Scene planning failed HTTP '+aiR.status);
     var aiD=await aiR.json();
@@ -612,7 +615,10 @@ async function generateVideo(){
 
       function loadOne(idx){
         var sc=aiScenes[idx];
-        var iPrompt=((sc.visual||sc.lyrics||'music video')).substring(0,100)+', '+styleWords;
+        // Build image prompt from visual description + lyric context for better matching
+        var lyricHint=sc.lyrics?sc.lyrics.replace(/[^a-zA-Z0-9 ]/g,' ').substring(0,60):''
+        var iPrompt=(sc.visual||sc.lyrics||'music video').substring(0,120)+(lyricHint?', '+lyricHint:'')+', '+styleWords+', cinematic, high detail, dramatic lighting';
+        iPrompt=iPrompt.substring(0,300);
         var seed=Math.floor(Math.random()*99999)+idx*1000;
         var polImg='https://gen.pollinations.ai/image/'+encodeURIComponent(iPrompt)+'?width='+imgW+'&height='+imgH+'&nologo=true&seed='+seed+'&key=sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
         var proxyUrl='https://8bfr-api.vercel.app/api/imgproxy?url='+encodeURIComponent(polImg);
@@ -1326,7 +1332,7 @@ function getLineByIndex(idx){
   var ahead=getLookAhead();
   if(lyrSyncMode==='beat'&&lyrBeatTimestamps.length){
     var startIdx=Math.min(Math.round(idx+ahead),lyrBeatTimestamps.length-1);
-    var lps=3;try{lps=parseInt(document.getElementById('linesPerSlide').value)||3;}catch(e){}
+    var lps=2;try{lps=parseInt(document.getElementById('linesPerSlide').value)||2;}catch(e){}
     var lines=[];
     for(var j=startIdx;j<Math.min(startIdx+lps,lyrBeatTimestamps.length);j++)lines.push(lyrBeatTimestamps[j].line);
     return lines.join('\n');
@@ -1366,7 +1372,7 @@ function getLyrLine(t){
       else break;
     }
     var startIdx=Math.min(Math.round(curIdx+ahead+speedBoost),lyrBeatTimestamps.length-1);
-    var lps=3;try{lps=parseInt(document.getElementById('linesPerSlide').value)||3;}catch(e){}
+    var lps=2;try{lps=parseInt(document.getElementById('linesPerSlide').value)||2;}catch(e){}
     var lines=[];
     for(var j=startIdx;j<Math.min(startIdx+lps,lyrBeatTimestamps.length);j++){
       lines.push(lyrBeatTimestamps[j].line);
@@ -1593,7 +1599,7 @@ function drawLyrFrame(t){
   if(lineText){
     var fs=parseInt(document.getElementById('lyrFs').value)||44;
     var isBeat=lyrSyncMode==='beat'&&lyrBeatTimestamps.length>0;
-    var lps2=3;try{lps2=parseInt(document.getElementById('linesPerSlide').value)||3;}catch(e){}
+    var lps2=2;try{lps2=parseInt(document.getElementById('linesPerSlide').value)||2;}catch(e){}
     var fontScale=isBeat?(lps2<=2?0.85:lps2<=4?0.72:lps2<=6?0.58:0.48):1.0;
     var sfs=Math.round(fs*fontScale*(w/420));
     ctx.textAlign='center';
