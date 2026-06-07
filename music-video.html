@@ -321,7 +321,8 @@ var OWNER_ID='cb556180-f032-4b21-9470-1d786f2664ab';
 var userTier='free';
 var selectedSceneCount=6;
 var charMode='none';
-var CHAR_DESC='caucasian white male, mid-50s age, heavyset stocky build, very short grey-white hair, full thick grey-white beard and goatee, light blue eyes, pale white skin, wearing brown canvas zip jacket, large gold Cuban link chain necklace, graphic tee, hip-hop artist, NOT asian NOT black NOT hispanic, white man only';
+var CHAR_DESC='white caucasian male rapper, 50s, heavyset, short grey hair, grey beard, pale skin, gold chain, DO NOT generate asian or black people';
+var FAMILY_DESC='white caucasian family members, pale skin, DO NOT generate asian or black people';
 var charFaceDataUrl=null;
 async function checkUserTier(){
   try{
@@ -455,7 +456,7 @@ function aiCanvasSize(){var c=document.getElementById('aiCanvas');c.width=aiOrie
     if(lyrics){var allLines=lyrics.split('\n').filter(function(l){return l.trim();});var chunkSize=Math.max(1,Math.ceil(allLines.length/numScenes));for(var ci=0;ci<numScenes;ci++){var chunk=allLines.slice(ci*chunkSize,(ci+1)*chunkSize).join(' ');if(chunk.trim())lyricChunks.push(chunk.trim());}}
     var tiktokSafeMode=document.getElementById('tiktokSafeMode')&&document.getElementById('tiktokSafeMode').checked;
     var safeRule=tiktokSafeMode?' IMPORTANT: All visuals must be TikTok-safe - no fire, no weapons, no guns, no knives, no violence, no blood, no dangerous activities, no drugs, no alcohol.':'';
-    var personRule=charMode!=='none'?' Also add a boolean field "hasPerson" (true if a rapper or person is visible, false if purely scenery).':'';
+    var personRule=charMode!=='none'?' Also add a boolean field "hasPerson" (true if a rapper or person is visible, false if purely scenery). IMPORTANT: The rapper and all family members are WHITE CAUCASIAN. Never describe asian or black characters for the rapper or his family.':'';
     var sysP='You are a music video director. Output ONLY a valid JSON array. No markdown, no backticks. Each item must have: "lyrics" (the lyric lines for that scene) and "visual" (vivid scene description under 120 chars matching the lyrics literally). Create exactly '+numScenes+' items.'+safeRule+personRule;
     var usrP=lyricChunks.length?('For each chunk below create one scene matching the visuals to the lyrics. Style: '+aiStyle+'.\n\n'+lyricChunks.map(function(ch,i){return 'Scene '+(i+1)+': '+ch;}).join('\n')):('Create music video scenes for: '+concept+'. Style: '+aiStyle+'.');
     var aiR=await fetch('https://8bfr-api.vercel.app/api/openai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({input:sysP+'\n\n'+usrP,tier:'mini'})});
@@ -483,8 +484,14 @@ function aiCanvasSize(){var c=document.getElementById('aiCanvas');c.width=aiOrie
       function loadOne(idx){
         var sc=aiScenes[idx];
         var lyricHint=sc.lyrics?sc.lyrics.replace(/[^a-zA-Z0-9 ]/g,' ').substring(0,60):'';
-        var charTag='';if(charMode==='free')charTag=CHAR_DESC+', ';
-        var iPrompt=charTag+(sc.visual||sc.lyrics||'music video').substring(0,100)+(lyricHint?', '+lyricHint:'')+', '+styleWords+', cinematic, high detail, dramatic lighting';
+        var charTag='';
+        var sceneText=(sc.visual||sc.lyrics||'music video');
+        var hasFamily=/(family|wife|son|daughter|mom|dad|brother|sister|child|kid|baby|grandma|grandpa)/i.test(sceneText);
+        if(charMode==='free'||charMode==='paid'){
+          if(hasFamily) charTag=FAMILY_DESC+', ';
+          else charTag=CHAR_DESC+', ';
+        }
+        var iPrompt=charTag+sceneText.substring(0,100)+(lyricHint?', '+lyricHint:'')+', '+styleWords+', cinematic, high detail, dramatic lighting';
         var tiktokSafe=document.getElementById('tiktokSafeMode')&&document.getElementById('tiktokSafeMode').checked;
         if(tiktokSafe){iPrompt=iPrompt.replace(/\b(gun|guns|knife|knives|sword|weapon|weapons|fire|flames|explosion|explosions|blood|violence|violent|dangerous|machete|bomb|shooting|stabbing|fight|fighting|burning|cigarette|smoke|drugs|alcohol|bottle|beer|wine)\b/gi,'');iPrompt=iPrompt+', safe peaceful setting, no weapons no fire no violence';}
         iPrompt=iPrompt.replace(/\s+/g,' ').trim().substring(0,350);
@@ -519,13 +526,13 @@ function aiCanvasSize(){var c=document.getElementById('aiCanvas');c.width=aiOrie
               if(!aiImages[fsi])continue;
               if(!sceneHasPerson(aiScenes[fsi])){dotState(fsi,'done');continue;}
               try{
-                dotState(fsi,'working');msg('aiMsg','info','Face swapping scene '+(fsi+1)+' of '+aiScenes.length+'...');
+                dotState(fsi,'working');msg('aiMsg','info','Face swapping scene '+(fsi+1)+' of '+aiScenes.length+' (this may take 30s each)...');
                 var cvs=document.createElement('canvas');cvs.width=imgW;cvs.height=imgH;cvs.getContext('2d').drawImage(aiImages[fsi],0,0,imgW,imgH);
                 var tgtUrl=cvs.toDataURL('image/jpeg',0.85);
                 var swRes=await fetch('https://8bfr-api.vercel.app/api/faceswap',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target_image:tgtUrl,source_image:srcDataUrl})});
                 if(!swRes.ok){dotState(fsi,'failed');continue;}
                 var swData=await swRes.json();
-                if(!swData.id){dotState(fsi,'failed');continue;}
+                if(!swData.id){dotState(fsi,'failed');msg('aiMsg','warn','Swap failed scene '+(fsi+1)+': '+JSON.stringify(swData));continue;}
                 for(var swPoll=0;swPoll<20;swPoll++){
                   await new Promise(function(r){setTimeout(r,3000);});
                   var pd=await(await fetch('https://8bfr-api.vercel.app/api/faceswap?id='+swData.id)).json();
