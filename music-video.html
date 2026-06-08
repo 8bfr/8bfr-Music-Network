@@ -325,8 +325,8 @@ var OWNER_ID='cb556180-f032-4b21-9470-1d786f2664ab';
 var userTier='free';
 var selectedSceneCount=6;
 var charMode='none';
-var CHAR_DESC='white caucasian male rapper, 50s, heavyset, short grey hair, grey beard, pale skin, gold chain, DO NOT generate asian or black people';
-var FAMILY_DESC='white caucasian family members, pale skin, DO NOT generate asian or black people';
+var CHAR_DESC='white caucasian male rapper, 50s, heavyset build, short grey-white hair, thick grey beard, pale white skin, gold chain necklace, hip-hop style, white man only, NOT asian NOT black NOT hispanic';
+var FAMILY_DESC='white caucasian family, pale skin, white woman wife 50s, two adult sons white caucasian, white family only, NOT asian NOT black NOT hispanic';
 var charFaceDataUrl=null;
 async function checkUserTier(){
   try{
@@ -470,7 +470,7 @@ function aiCanvasSize(){var c=document.getElementById('aiCanvas');c.width=aiOrie
     if(lyrics){var allLines=lyrics.split('\n').filter(function(l){return l.trim();});var chunkSize=Math.max(1,Math.ceil(allLines.length/numScenes));for(var ci=0;ci<numScenes;ci++){var chunk=allLines.slice(ci*chunkSize,(ci+1)*chunkSize).join(' ');if(chunk.trim())lyricChunks.push(chunk.trim());}}
     var tiktokSafeMode=document.getElementById('tiktokSafeMode')&&document.getElementById('tiktokSafeMode').checked;
     var safeRule=tiktokSafeMode?' IMPORTANT: All visuals must be TikTok-safe - no fire, no weapons, no guns, no knives, no violence, no blood, no dangerous activities, no drugs, no alcohol, no pills, no prescription bottles, no needles, no syringes, no cigarettes, no smoking, no dangerous driving, no stunts.':'';
-    var personRule=charMode!=='none'?' Also add a boolean field "hasPerson" (true if a rapper or person is visible, false if purely scenery). IMPORTANT: The rapper and all family members are WHITE CAUCASIAN. Never describe asian or black characters for the rapper or his family.':'';
+    var personRule=charMode!=='none'?' Also add a boolean field "hasPerson" (true if a rapper or person is visible, false if purely scenery).'+(userTier==='owner'?' CRITICAL: The rapper is a WHITE CAUCASIAN male in his 50s with grey beard and gold chain. His wife is a WHITE CAUCASIAN woman 50s. His two sons are WHITE CAUCASIAN adult males. NEVER generate asian or black people for the rapper or family scenes.':''):'';
     var sysP='You are a music video director. Output ONLY a valid JSON array. No markdown, no backticks. Each item must have: "lyrics" (the lyric lines for that scene) and "visual" (vivid scene description under 120 chars matching the lyrics literally). Create exactly '+numScenes+' items.'+safeRule+personRule;
     var usrP=lyricChunks.length?('For each chunk below create one scene matching the visuals to the lyrics. Style: '+aiStyle+'.\n\n'+lyricChunks.map(function(ch,i){return 'Scene '+(i+1)+': '+ch;}).join('\n')):('Create music video scenes for: '+concept+'. Style: '+aiStyle+'.');
     var aiR=await fetch('https://8bfr-api.vercel.app/api/openai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({input:sysP+'\n\n'+usrP,tier:'mini'})});
@@ -507,10 +507,10 @@ function aiCanvasSize(){var c=document.getElementById('aiCanvas');c.width=aiOrie
         // free: only add short race hint on explicit person scenes
         if(charMode==='free'&&sceneHasPersonNow){
           var userDesc=(document.getElementById('charDescInput')&&document.getElementById('charDescInput').value.trim())||'';
-          var ownerDefault=userTier==='owner'?'white caucasian male rapper, pale skin':'';
+          var hasFamily=/(family|wife|mother|son|daughter|father|parents|children|kids|brother|sister)/i.test(sceneText);
+          var ownerDefault=userTier==='owner'?(hasFamily?FAMILY_DESC:CHAR_DESC):'';
           var descToUse=userDesc||ownerDefault;
-          var hasFamily=/(family|father|mother|son|daughter)/i.test(sceneText);
-          charTag=descToUse?(descToUse+', '):(hasFamily?'white caucasian family, ':'');
+          charTag=descToUse?(descToUse+', '):'';
         }
         // Always base prompt on scene visual first so lyrics drive the imagery
         var iPrompt=sceneText.substring(0,140)+', '+styleWords+(charTag?', '+charTag.trim():'');
