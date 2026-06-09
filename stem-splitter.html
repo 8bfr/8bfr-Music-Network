@@ -196,9 +196,7 @@ async function checkUsage() {
     pill.textContent = tier.toUpperCase() + ' — ' + count + '/' + limit + ' splits this month';
     if (count >= limit) disableAll('Monthly limit reached. Upgrade or wait.');
   }
-}
-
-function disableAll(msg) {
+}function disableAll(msg) {
   document.getElementById('splitBtn').disabled = true;
   if (msg) document.getElementById('errorBox').innerHTML = '<div class="upgrade-banner">' + msg + ' <a href="pricing.html">See plans</a></div>';
 }
@@ -360,8 +358,8 @@ function renderStems(stems, expiresAt, targetId) {
   var target = document.getElementById(targetId || 'stemsResult');
   target.innerHTML = html;
 
-  // Wire Download All button — mobile browsers block rapid multi-downloads,
-  // so trigger each file one at a time with a delay between them.
+  // Wire Download All button — fetch each stem as a blob so the download
+  // attribute works cross-origin and downloads are not blocked as popups.
   var dlBtn = target.querySelector('#dlAllBtn');
   if (dlBtn) {
     dlBtn.onclick = function() {
@@ -375,22 +373,29 @@ function renderStems(stems, expiresAt, targetId) {
         }
         var f = filesForDl[i];
         dlBtn.textContent = 'Downloading ' + (i+1) + ' of ' + filesForDl.length + '...';
-        var a = document.createElement('a');
-        a.href = f.url;
-        a.download = (f.name || ('stem'+i)) ;
-        a.target = '_blank';
-        a.rel = 'noopener';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        i++;
-        setTimeout(next, 1200); // delay so mobile honors each download
+        fetch(f.url)
+          .then(function(res){ return res.blob(); })
+          .then(function(blob){
+            var blobUrl = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = (f.name || ('stem'+i));
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(function(){ URL.revokeObjectURL(blobUrl); }, 5000);
+            i++;
+            setTimeout(next, 1200);
+          })
+          .catch(function(){
+            window.open(f.url, '_blank');
+            i++;
+            setTimeout(next, 1200);
+          });
       }
       next();
     };
-  }
-
-  if (!targetId) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (!targetId) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ── LocalStorage helpers ──
