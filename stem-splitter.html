@@ -135,10 +135,14 @@ async function init() {
       user = data && data.user;
     } catch (e) { console.error('getUser:', e); }
     if (!user) {
-      try {
-        const { data: s } = await supabase.auth.getSession();
-        user = s && s.session && s.session.user;
-      } catch (e) { console.error('getSession:', e); }
+      // Session may not be restored yet on page load - retry a few times
+      for (var tries = 0; tries < 8 && !user; tries++) {
+        try {
+          const { data: s } = await supabase.auth.getSession();
+          user = s && s.session && s.session.user;
+        } catch (e) { console.error('getSession:', e); }
+        if (!user) await new Promise(function(r){ setTimeout(r, 400); });
+      }
     }
     if (user) {
       currentUser = user;
@@ -153,6 +157,19 @@ async function init() {
       document.getElementById('signedOutMsg').classList.remove('hidden');
       disableAll();
     }
+    // If auth restores after init already ran, re-check
+    try {
+      supabase.auth.onAuthStateChange(function(event, session){
+        if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session && session.user && !currentUser) {
+          currentUser = session.user;
+          document.getElementById('signedOutMsg').classList.add('hidden');
+          document.getElementById('errorBox').innerHTML = '';
+          checkUsage();
+          loadPreviousStems();
+          resumePollIfNeeded();
+        }
+      });
+    } catch(e) {}
   } catch (e) {
     console.error('init:', e);
     document.getElementById('usagePill').textContent = 'Error loading — refresh the page';
@@ -194,9 +211,7 @@ async function checkUsage() {
     disableAll();
   } else {
     pill.textContent = tier.toUpperCase() + ' — ' + count + '/' + limit + ' splits this month';
-    if (count >= limit) disableAll('Monthly limit reached. Upgrade or wait.');
-  }
-}function disableAll(msg) {
+    if (count >= limit) disableAll('Monthly limit reached. Upgrade or wait.');function disableAll(msg) {
   document.getElementById('splitBtn').disabled = true;
   if (msg) document.getElementById('errorBox').innerHTML = '<div class="upgrade-banner">' + msg + ' <a href="pricing.html">See plans</a></div>';
 }
@@ -395,7 +410,7 @@ function renderStems(stems, expiresAt, targetId) {
       }
       next();
     };
-        if (!targetId) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                   }if (!targetId) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ── LocalStorage helpers ──
@@ -581,3 +596,5 @@ var _siA=0;function _tryI(){_siA++;if(window._8bfrDb){supabase=window._8bfrDb;in
 <script src="scripts.js" defer></script>
 </body>
 </html>
+  }
+}
