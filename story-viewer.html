@@ -166,7 +166,7 @@ var SV = {
       body.style.padding = '0';
       var svIsVid = s.media_type==='video' || /\.(mp4|webm|mov|m4v|ogv)(\?|$)/i.test(s.media_url||'');
       if (svIsVid) {
-        body.innerHTML = '<video src="'+s.media_url+'" class="story-image" autoplay loop playsinline controls style="max-width:100%;max-height:100%;"></video>';
+        body.innerHTML = '<video id="svVideo" src="'+s.media_url+'" class="story-image" autoplay playsinline controls style="max-width:100%;max-height:100%;"></video>';
       } else {
         body.innerHTML = '<img src="'+s.media_url+'" class="story-image" onerror="this.parentElement.innerHTML=\'<div style=padding:2rem;text-align:center;>Image failed to load</div>\'">';
       }
@@ -185,8 +185,18 @@ var SV = {
     // Record view
     this.recordView(s.id);
 
-    // Start progress timer
-    this.startProgress();
+    // Start progress: videos run their full length, images use the timer
+    var sv = document.getElementById('svVideo');
+    if (sv) this.startVideoProgress(sv); else this.startProgress();
+  },
+
+  startVideoProgress(video) {
+    this.stopProgress();
+    var bar = document.getElementById('currentProgress');
+    video.ontimeupdate = function() {
+      if (bar && video.duration) bar.style.width = Math.min((video.currentTime / video.duration) * 100, 100) + '%';
+    };
+    video.onended = function() { SV.next(); };
   },
 
   startProgress() {
