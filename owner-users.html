@@ -391,13 +391,41 @@ function viewUser(uid){
 
 // Master badge list. Merged with every badge already in the database so
 // existing spellings stay uniform and nothing custom is ever lost.
-var MASTER_BADGES=['owner','co-owner','admin','mod','g7','verified','artist','beatmaker','fan','founding_member','vip','creator-pro','elite','gamer','author','songwriter','influencer','dancer','label','manager','anr','parent','kid','teen'];
+var MASTER_BADGES=['owner','co-owner','admin','mod','g7','verified','artist','beatmaker','producer','songwriter','dj','singer','rapper','engineer','dancer','videographer','photographer','manager','label','promoter','journalist','educator','influencer','designer','author','blogger','community_leader','mentor','developer','streamer','gamer','filmmaker','podcaster','musician','student','brand_ambassador','founding_member','beta_tester','top_poster','top_supporter','fan','anr','vip','creator-pro','elite','parent','kid','teen'];
+var _customBadges=[];
+async function loadCustomBadges(){try{var r=await db.from('custom_badges').select('name');_customBadges=(r.data||[]).map(function(x){return x.name;});}catch(e){_customBadges=[];}}
 function allKnownBadges(){
     var set={};
     MASTER_BADGES.forEach(function(b){set[b]=true;});
+    (_customBadges||[]).forEach(function(b){if(b)set[b]=true;});
     (allUsers||[]).forEach(function(u){(u.badges||[]).forEach(function(b){if(b)set[b]=true;});});
     return Object.keys(set).sort();
 }
+window.addCustomBadge=async function(){
+    var name=prompt('New badge name (lowercase, use _ for spaces):');
+    if(!name)return;
+    name=name.trim().toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_-]/g,'');
+    if(!name)return;
+    try{
+        await db.from('custom_badges').upsert({name:name},{onConflict:'name'});
+        if(_customBadges.indexOf(name)===-1)_customBadges.push(name);
+        var cur=selectedBadges();if(cur.indexOf(name)===-1)cur.push(name);
+        renderBadgeGrid(cur);
+    }catch(e){alert('Error: '+(e.message||'unknown'));}
+};
+window.deleteCustomBadge=async function(){
+    if(!_customBadges.length){alert('No custom badges to delete. Built-in badges cannot be deleted.');return;}
+    var name=prompt('Delete which custom badge?\nCustom: '+_customBadges.join(', '));
+    if(!name)return;
+    name=name.trim().toLowerCase();
+    if(_customBadges.indexOf(name)===-1){alert('"'+name+'" is not a custom badge.');return;}
+    if(!confirm('Delete "'+name+'" from the master list? Users who already have it keep it until removed from them.'))return;
+    try{
+        await db.from('custom_badges').delete().eq('name',name);
+        _customBadges=_customBadges.filter(function(b){return b!==name;});
+        renderBadgeGrid(selectedBadges());
+    }catch(e){alert('Error: '+(e.message||'unknown'));}
+};
 function renderBadgeGrid(selected){
     var grid=document.getElementById('badgeGrid');
     var sel={};(selected||[]).forEach(function(b){sel[b]=true;});
@@ -406,6 +434,7 @@ function renderBadgeGrid(selected){
         var on=!!sel[b];
         var btn=document.createElement('button');
         btn.type='button';
+        btn.className='badge-pill';
         btn.textContent=b;
         btn.dataset.badge=b;
         btn.dataset.on=on?'1':'0';
@@ -420,12 +449,23 @@ function renderBadgeGrid(selected){
         };
         grid.appendChild(btn);
     });
+    var addB=document.createElement('button');
+    addB.type='button';addB.textContent='+ New badge';
+    addB.style.cssText='padding:.3rem .65rem;border-radius:999px;font-size:.72rem;font-weight:800;cursor:pointer;border:1px dashed rgba(0,217,255,.6);background:rgba(0,217,255,.08);color:#67e8f9;';
+    addB.onclick=function(){addCustomBadge();};
+    grid.appendChild(addB);
+    var delB=document.createElement('button');
+    delB.type='button';delB.textContent='- Delete badge';
+    delB.style.cssText='padding:.3rem .65rem;border-radius:999px;font-size:.72rem;font-weight:800;cursor:pointer;border:1px dashed rgba(239,68,68,.5);background:rgba(239,68,68,.06);color:#fca5a5;';
+    delB.onclick=function(){deleteCustomBadge();};
+    grid.appendChild(delB);
 }
 function selectedBadges(){
-    return Array.prototype.slice.call(document.querySelectorAll('#badgeGrid button')).filter(function(b){return b.dataset.on==='1';}).map(function(b){return b.dataset.badge;});
+    return Array.prototype.slice.call(document.querySelectorAll('#badgeGrid button.badge-pill')).filter(function(b){return b.dataset.on==='1';}).map(function(b){return b.dataset.badge;});
 }
 
 function openEdit(uid){
+    loadCustomBadges().then(function(){var u2=allUsers.find(function(x){return x.user_id===uid;});if(u2&&document.getElementById('editModal').classList.contains('show'))renderBadgeGrid(selectedBadges());});
     var u=allUsers.find(function(x){return x.user_id===uid;});
     if(!u)return;
     document.getElementById('editUserId').value=uid;

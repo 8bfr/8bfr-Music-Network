@@ -1744,7 +1744,91 @@ function shareSongFromProfile(title,artist){
 }
 
 /* ═══ OWNER EDIT OTHER USERS ═══ */
+
+// Tap-to-toggle badge grid for Owner Edit. Master list keeps spelling uniform;
+// any badge the user already has is merged in so nothing custom is lost.
+var OE_MASTER_BADGES=['owner','co-owner','admin','mod','g7','verified','founding_member','vip','creator-pro','elite','artist','beatmaker','producer','songwriter','dj','singer','rapper','engineer','dancer','videographer','photographer','manager','label','promoter','journalist','educator','influencer','designer','author','blogger','community_leader','mentor','developer','streamer','gamer','filmmaker','podcaster','musician','student','brand_ambassador','fan','parent','kid','teen'];
+function renderOeBadgeGrid(selected){
+    var grid=document.getElementById('oe-badge-grid');
+    if(!grid)return;
+    var set={};OE_MASTER_BADGES.forEach(function(b){set[b]=true;});
+    (_oeCustomBadges||[]).forEach(function(b){if(b)set[b]=true;});
+    (selected||[]).forEach(function(b){if(b)set[b]=true;});
+    var sel={};(selected||[]).forEach(function(b){sel[b]=true;});
+    grid.innerHTML='';
+    Object.keys(set).sort().forEach(function(b){
+        var on=!!sel[b];
+        var btn=document.createElement('button');
+        btn.type='button';
+        btn.className='oe-badge-pill';
+        btn.textContent=b;
+        btn.dataset.badge=b;
+        btn.dataset.on=on?'1':'0';
+        btn.style.cssText='padding:.3rem .65rem;border-radius:999px;font-size:.7rem;font-weight:700;cursor:pointer;border:1px solid '+(on?'#a855f7':'rgba(124,58,237,.35)')+';background:'+(on?'rgba(124,58,237,.45)':'rgba(0,0,0,.3)')+';color:'+(on?'#fff':'rgba(234,230,255,.65)')+';';
+        btn.onclick=function(){
+            var isOn=btn.dataset.on!=='1';
+            btn.dataset.on=isOn?'1':'0';
+            btn.style.border='1px solid '+(isOn?'#a855f7':'rgba(124,58,237,.35)');
+            btn.style.background=isOn?'rgba(124,58,237,.45)':'rgba(0,0,0,.3)';
+            btn.style.color=isOn?'#fff':'rgba(234,230,255,.65)';
+        };
+        grid.appendChild(btn);
+    });
+    var addB=document.createElement('button');
+    addB.type='button';addB.textContent='+ New badge';
+    addB.style.cssText='padding:.3rem .65rem;border-radius:999px;font-size:.7rem;font-weight:800;cursor:pointer;border:1px dashed rgba(0,217,255,.6);background:rgba(0,217,255,.08);color:#67e8f9;';
+    addB.onclick=function(){oeAddBadge();};
+    grid.appendChild(addB);
+    var delB=document.createElement('button');
+    delB.type='button';delB.textContent='- Delete badge';
+    delB.style.cssText='padding:.3rem .65rem;border-radius:999px;font-size:.7rem;font-weight:800;cursor:pointer;border:1px dashed rgba(239,68,68,.5);background:rgba(239,68,68,.06);color:#fca5a5;';
+    delB.onclick=function(){oeDeleteBadge();};
+    grid.appendChild(delB);
+}
+function oeSelectedBadges(){
+    return Array.prototype.slice.call(document.querySelectorAll('#oe-badge-grid button.oe-badge-pill')).filter(function(b){return b.dataset.on==='1';}).map(function(b){return b.dataset.badge;});
+}
+// Custom badges live in the custom_badges table so they appear in every editor.
+var _oeCustomBadges=[];
+async function oeLoadCustomBadges(){
+    try{
+        var db=window._profileGetDb?window._profileGetDb():null;
+        if(!db)return;
+        var r=await db.from('custom_badges').select('name');
+        _oeCustomBadges=(r.data||[]).map(function(x){return x.name;});
+    }catch(e){_oeCustomBadges=[];}
+}
+window.oeAddBadge=async function(){
+    var name=prompt('New badge name (lowercase, use _ for spaces):');
+    if(!name)return;
+    name=name.trim().toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_-]/g,'');
+    if(!name)return;
+    try{
+        var db=window._profileGetDb?window._profileGetDb():null;
+        await db.from('custom_badges').upsert({name:name},{onConflict:'name'});
+        if(_oeCustomBadges.indexOf(name)===-1)_oeCustomBadges.push(name);
+        var current=oeSelectedBadges();
+        if(current.indexOf(name)===-1)current.push(name);
+        renderOeBadgeGrid(current);
+    }catch(e){alert('Error: '+(e.message||'unknown'));}
+};
+window.oeDeleteBadge=async function(){
+    if(!_oeCustomBadges.length){alert('No custom badges to delete. Built-in badges cannot be deleted.');return;}
+    var name=prompt('Delete which custom badge?\nCustom badges: '+_oeCustomBadges.join(', '));
+    if(!name)return;
+    name=name.trim().toLowerCase();
+    if(_oeCustomBadges.indexOf(name)===-1){alert('"'+name+'" is not a custom badge. Only custom badges can be deleted.');return;}
+    if(!confirm('Delete badge "'+name+'" from the master list? Users who already have it keep it until you remove it from them.'))return;
+    try{
+        var db=window._profileGetDb?window._profileGetDb():null;
+        await db.from('custom_badges').delete().eq('name',name);
+        _oeCustomBadges=_oeCustomBadges.filter(function(b){return b!==name;});
+        renderOeBadgeGrid(oeSelectedBadges());
+    }catch(e){alert('Error: '+(e.message||'unknown'));}
+};
+
 function openOwnerEditModal(){
+    oeLoadCustomBadges().then(function(){var p=window._profileGetData?window._profileGetData():null;if(p&&document.getElementById('oe-badge-grid'))renderOeBadgeGrid(oeSelectedBadges().length?oeSelectedBadges():(p.badges||[]));});
     var profileData=window._profileGetData?window._profileGetData():null;
     if(!profileData){alert('Profile data not loaded.');return;}
     var p=profileData;
@@ -1760,11 +1844,11 @@ function openOwnerEditModal(){
             '<div class="form-group"><label style="display:block;font-size:.78rem;color:#a855f7;margin-bottom:.3rem;">Bio</label><textarea class="form-input" id="oe-bio" style="min-height:60px;resize:vertical;"></textarea></div>'+
             '<div class="form-group"><label style="display:block;font-size:.78rem;color:#a855f7;margin-bottom:.3rem;">Role</label><select class="form-input" id="oe-role"></select></div>'+
             '<div class="form-group"><label style="display:block;font-size:.78rem;color:#a855f7;margin-bottom:.3rem;">Coins</label><input class="form-input" type="number" id="oe-coins" min="0"></div>'+
-            '<div class="form-group"><label style="display:block;font-size:.78rem;color:#a855f7;margin-bottom:.3rem;">Badges (comma-separated)</label><input class="form-input" id="oe-badges"></div>'+
+            '<div class="form-group"><label style="display:block;font-size:.78rem;color:#a855f7;margin-bottom:.3rem;">Badges (tap to toggle)</label><div id="oe-badge-grid" style="display:flex;flex-wrap:wrap;gap:.35rem;"></div></div>'+
             '<div class="form-group"><label style="display:block;font-size:.78rem;color:#a855f7;margin-bottom:.3rem;">Verified Artist (Badge)</label><select class="form-input" id="oe-verified"><option value="false">No</option><option value="true">Yes</option></select></div>'+
             '<div class="form-group"><label style="display:block;font-size:.78rem;color:#a855f7;margin-bottom:.3rem;">Artist/Beatmaker Checkmark (Paid or Granted)</label><select class="form-input" id="oe-artist-check"><option value="false">No</option><option value="true">Yes</option></select></div>'+
             '<div class="form-group"><label style="display:block;font-size:.78rem;color:#a855f7;margin-bottom:.3rem;">Verified Checkmark (Paid or Granted)</label><select class="form-input" id="oe-paid-check"><option value="false">No</option><option value="true">Yes</option></select></div>'+
-            '<div class="form-group"><label style="display:block;font-size:.78rem;color:#a855f7;margin-bottom:.3rem;">Subscription Tier</label><select class="form-input" id="oe-tier"><option value="free">Free</option><option value="vip">VIP</option><option value="pro">Creator Pro</option><option value="elite">Elite</option></select></div>'+
+            '<div class="form-group"><label style="display:block;font-size:.78rem;color:#a855f7;margin-bottom:.3rem;">Subscription Tier</label><select class="form-input" id="oe-tier"><option value="free">Free</option><option value="vip">VIP</option><option value="creator-pro">Creator Pro</option><option value="elite">Elite</option></select></div>'+
             '<div class="form-group"><label style="display:block;font-size:.78rem;color:#a855f7;margin-bottom:.3rem;">PayPal Email</label><input class="form-input" type="email" id="oe-paypal"></div>'+
             '<div style="display:flex;gap:.5rem;margin-top:1rem;justify-content:flex-end;">'+
             '<button class="btn btn-ghost" onclick="document.getElementById(\'ownerEditModal\').remove()">Cancel</button>'+
@@ -1782,11 +1866,11 @@ function openOwnerEditModal(){
     document.getElementById('oe-username').value=p.username||'';
     document.getElementById('oe-bio').value=p.bio||'';
     document.getElementById('oe-coins').value=p.coins||0;
-    document.getElementById('oe-badges').value=(p.badges||[]).join(', ');
+    renderOeBadgeGrid(p.badges||[]);
     document.getElementById('oe-verified').value=p.verified_artist?'true':'false';
     document.getElementById('oe-artist-check').value=p.has_artist_checkmark?'true':'false';
     document.getElementById('oe-paid-check').value=p.has_paid_checkmark?'true':'false';
-    document.getElementById('oe-tier').value=p.subscription_tier||'free';
+    document.getElementById('oe-tier').value=(p.subscription_tier==='pro'?'creator-pro':p.subscription_tier)||'free';
     document.getElementById('oe-paypal').value=p.paypal_email||'';
 }
 
@@ -1794,8 +1878,7 @@ async function saveOwnerEdit(){
     var profileData=window._profileGetData?window._profileGetData():null;
     var db=window._profileGetDb?window._profileGetDb():null;
     if(!profileData||!db){alert('Not ready.');return;}
-    var badgeStr=document.getElementById('oe-badges').value;
-    var badges=badgeStr?badgeStr.split(',').map(function(b){return b.trim();}).filter(function(b){return b;}):[  ];
+    var badges=oeSelectedBadges();
     var update={
         display_name:document.getElementById('oe-name').value.trim(),
         username:document.getElementById('oe-username').value.trim().toLowerCase(),
