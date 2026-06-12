@@ -124,6 +124,15 @@ select.search-input{cursor:pointer;appearance:auto;}
     <div class="modal">
         <h3>Edit User</h3>
         <input type="hidden" id="editUserId">
+        <div id="editUserHeader" style="display:flex;gap:.75rem;align-items:center;margin-bottom:.75rem;padding:.6rem;background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.25);border-radius:10px;">
+            <img id="euAvatar" src="" style="width:54px;height:54px;border-radius:50%;object-fit:cover;background:#1a0b2e;" onerror="this.style.visibility='hidden'">
+            <div style="flex:1;min-width:0;">
+                <div id="euName" style="font-weight:800;color:#eae6ff;"></div>
+                <div id="euMeta" style="font-size:.72rem;color:rgba(168,85,247,.85);"></div>
+                <div id="euCounts" style="font-size:.72rem;color:rgba(234,230,255,.6);">loading counts...</div>
+            </div>
+        </div>
+        <div id="euArtistLink" style="display:none;font-size:.75rem;margin-bottom:.6rem;padding:.4rem .6rem;background:rgba(6,182,212,.08);border:1px solid rgba(6,182,212,.3);border-radius:8px;color:#67e8f9;word-break:break-all;"></div>
         <label>Display Name</label>
         <input type="text" id="editName">
         <label>Username</label>
@@ -132,15 +141,22 @@ select.search-input{cursor:pointer;appearance:auto;}
         <textarea id="editBio"></textarea>
         <label>Role</label>
         <select id="editRole"></select>
+        <label>Subscription Tier</label>
+        <select id="editTier">
+            <option value="free">Free</option>
+            <option value="vip">VIP ($4.99)</option>
+            <option value="creator-pro">Creator Pro ($9.99)</option>
+            <option value="elite">Elite ($19.99)</option>
+        </select>
         <label>Coins</label>
         <input type="number" id="editCoins" min="0">
-        <label>Badges (comma-separated)</label>
-        <input type="text" id="editBadges" placeholder="artist, verified, g7...">
-        <label>Verified Artist</label>
+        <label>Verified Artist (Music Note)</label>
         <select id="editVerifiedArtist">
             <option value="false">No</option>
             <option value="true">Yes</option>
         </select>
+        <label>Badges (tap to toggle)</label>
+        <div id="badgeGrid" style="display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.75rem;"></div>
         <div class="modal-btns">
             <button class="btn btn-sm btn-del" onclick="closeModal()">Cancel</button>
             <button class="btn btn-sm btn-primary" onclick="saveEdit()">Save Changes</button>
@@ -372,6 +388,43 @@ function viewUser(uid){
     window.open('profile.html?id='+uid,'_blank');
 }
 
+
+// Master badge list. Merged with every badge already in the database so
+// existing spellings stay uniform and nothing custom is ever lost.
+var MASTER_BADGES=['owner','co-owner','admin','mod','g7','verified','artist','beatmaker','fan','founding_member','vip','creator-pro','elite','gamer','author','songwriter','influencer','dancer','label','manager','anr','parent','kid','teen'];
+function allKnownBadges(){
+    var set={};
+    MASTER_BADGES.forEach(function(b){set[b]=true;});
+    (allUsers||[]).forEach(function(u){(u.badges||[]).forEach(function(b){if(b)set[b]=true;});});
+    return Object.keys(set).sort();
+}
+function renderBadgeGrid(selected){
+    var grid=document.getElementById('badgeGrid');
+    var sel={};(selected||[]).forEach(function(b){sel[b]=true;});
+    grid.innerHTML='';
+    allKnownBadges().forEach(function(b){
+        var on=!!sel[b];
+        var btn=document.createElement('button');
+        btn.type='button';
+        btn.textContent=b;
+        btn.dataset.badge=b;
+        btn.dataset.on=on?'1':'0';
+        btn.style.cssText='padding:.3rem .65rem;border-radius:999px;font-size:.72rem;font-weight:700;cursor:pointer;border:1px solid '+(on?'#a855f7':'rgba(124,58,237,.35)')+';background:'+(on?'rgba(124,58,237,.45)':'rgba(0,0,0,.3)')+';color:'+(on?'#fff':'rgba(234,230,255,.65)')+';';
+        btn.onclick=function(){
+            var now=btn.dataset.on==='1'?'0':'1';
+            btn.dataset.on=now;
+            var isOn=now==='1';
+            btn.style.border='1px solid '+(isOn?'#a855f7':'rgba(124,58,237,.35)');
+            btn.style.background=isOn?'rgba(124,58,237,.45)':'rgba(0,0,0,.3)';
+            btn.style.color=isOn?'#fff':'rgba(234,230,255,.65)';
+        };
+        grid.appendChild(btn);
+    });
+}
+function selectedBadges(){
+    return Array.prototype.slice.call(document.querySelectorAll('#badgeGrid button')).filter(function(b){return b.dataset.on==='1';}).map(function(b){return b.dataset.badge;});
+}
+
 function openEdit(uid){
     var u=allUsers.find(function(x){return x.user_id===uid;});
     if(!u)return;
@@ -382,8 +435,25 @@ function openEdit(uid){
     document.getElementById('editRole').value=u.role||'fan';
     document.getElementById('editRole').disabled=(uid===OWNER_ID);
     document.getElementById('editCoins').value=u.coins||0;
-    document.getElementById('editBadges').value=(u.badges||[]).join(', ');
+    document.getElementById('editTier').value=u.subscription_tier||'free';
     document.getElementById('editVerifiedArtist').value=u.verified_artist?'true':'false';
+    renderBadgeGrid(u.badges||[]);
+    // Info header
+    document.getElementById('euAvatar').src=u.avatar_url||u.profile_photo||'';
+    document.getElementById('euAvatar').style.visibility=(u.avatar_url||u.profile_photo)?'visible':'hidden';
+    document.getElementById('euName').textContent=(u.display_name||u.username||'')+' (@'+(u.username||'')+')';
+    document.getElementById('euMeta').textContent='Role: '+(u.role||'fan')+' | Tier: '+(u.subscription_tier||'free')+' | Joined: '+(u.created_at?new Date(u.created_at).toLocaleDateString():'?');
+    var linkEl=document.getElementById('euArtistLink');
+    if(u.spotify_url){linkEl.style.display='block';linkEl.innerHTML='Artist link: <a href="'+u.spotify_url+'" target="_blank" rel="noopener" style="color:#67e8f9;">'+u.spotify_url+'</a>';}
+    else linkEl.style.display='none';
+    // Songs / posts counts
+    document.getElementById('euCounts').textContent='loading counts...';
+    Promise.all([
+        db.from('songs').select('id',{count:'exact',head:true}).eq('user_id',uid),
+        db.from('posts').select('id',{count:'exact',head:true}).eq('user_id',uid)
+    ]).then(function(rs){
+        document.getElementById('euCounts').textContent='Songs: '+(rs[0].count||0)+' | Posts: '+(rs[1].count||0)+' | Coins: '+(u.coins||0);
+    }).catch(function(){document.getElementById('euCounts').textContent='';});
     document.getElementById('editModal').classList.add('show');
 }
 
@@ -392,8 +462,7 @@ function closeModal(){document.getElementById('editModal').classList.remove('sho
 async function saveEdit(){
     var uid=document.getElementById('editUserId').value;
     var isOwnerAccount=uid===OWNER_ID;
-    var badgeStr=document.getElementById('editBadges').value;
-    var badges=badgeStr?badgeStr.split(',').map(function(b){return b.trim();}).filter(function(b){return b;}):[  ];
+    var badges=selectedBadges();
     // Protect owner: cannot change role, must keep owner badge
     if(isOwnerAccount){
         badges=badges.filter(function(b){return b!=='owner';});
@@ -405,6 +474,7 @@ async function saveEdit(){
         bio:document.getElementById('editBio').value.trim(),
         role:isOwnerAccount?'owner':document.getElementById('editRole').value,
         coins:parseInt(document.getElementById('editCoins').value)||0,
+        subscription_tier:document.getElementById('editTier').value,
         badges:badges,
         verified_artist:document.getElementById('editVerifiedArtist').value==='true'
     };

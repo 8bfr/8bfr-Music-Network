@@ -212,6 +212,7 @@
       .card { padding: 1.5rem 1.25rem 1.25rem; border-radius: 16px; }
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 </head>
 <body>
 
@@ -331,6 +332,17 @@
       }
 
       // Redirect
+      // Enforce email verification before entering the site
+      try {
+        var vRes = await db.from('profiles').select('email_verified, display_name').eq('user_id', data.user.id).maybeSingle();
+        if (vRes.data && vRes.data.email_verified === false) {
+          window._pendingUid = data.user.id;
+          window._pendingName = vRes.data.display_name || '';
+          window._pendingEmail = email;
+          await startLoginVerify();
+          return;
+        }
+      } catch(e) { console.warn('verify check:', e); }
       const params = new URLSearchParams(window.location.search);
       window.location.href = params.get('return') || 'feed.html';
 
@@ -365,6 +377,63 @@
   document.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !document.getElementById('loginBtn').disabled) doLogin();
   });
+
+// ===== Inline email verification (for accounts that skipped the code) =====
+async function startLoginVerify(){
+  var box = document.getElementById('loginVerifyBox');
+  if(!box){
+    box = document.createElement('div');
+    box.id='loginVerifyBox';
+    box.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+    box.innerHTML='<div style="background:#14081f;border:1px solid rgba(124,58,237,.5);border-radius:14px;padding:1.25rem;max-width:380px;width:100%;">'+
+      '<h3 style="color:#eae6ff;margin-bottom:.4rem;">Verify your email</h3>'+
+      '<p style="color:rgba(234,230,255,.7);font-size:.85rem;margin-bottom:.75rem;">Your account was never verified. We just sent a 6-digit code to your email. Enter it below to continue.</p>'+
+      '<input type="text" id="lvCode" inputmode="numeric" maxlength="6" placeholder="6-digit code" style="width:100%;padding:.7rem;border-radius:10px;border:1px solid rgba(124,58,237,.4);background:rgba(0,0,0,.4);color:#fff;font-size:1.1rem;text-align:center;letter-spacing:.4em;">'+
+      '<div id="lvMsg" style="font-size:.8rem;margin-top:.5rem;color:#fca5a5;"></div>'+
+      '<button onclick="confirmLoginVerify()" style="width:100%;margin-top:.75rem;padding:.8rem;border:none;border-radius:10px;background:#7c3aed;color:#fff;font-weight:800;">Verify</button>'+
+      '<button onclick="sendLoginCode()" style="width:100%;margin-top:.4rem;padding:.6rem;border:1px solid rgba(124,58,237,.4);border-radius:10px;background:transparent;color:#c084fc;font-weight:700;">Resend code</button>'+
+      '</div>';
+    document.body.appendChild(box);
+  }
+  box.style.display='flex';
+  await sendLoginCode();
+}
+async function sendLoginCode(){
+  var code = String(Math.floor(100000 + Math.random()*900000));
+  try{
+    await db.from('email_verifications').upsert({
+      user_id: window._pendingUid,
+      code: code,
+      expires_at: new Date(Date.now()+15*60*1000).toISOString()
+    },{onConflict:'user_id'});
+  }catch(e){console.warn('code save:',e);}
+  try{
+    emailjs.init('xGcw1bDESG7obtHJh');
+    await emailjs.send('service_or00bc8','template_appp21r',{
+      to_name: window._pendingName || 'Member',
+      to_email: window._pendingEmail,
+      verification_code: code
+    });
+    var m=document.getElementById('lvMsg'); if(m){m.style.color='#34d399';m.textContent='Code sent! Check your inbox (and spam).';}
+  }catch(e){
+    var m2=document.getElementById('lvMsg'); if(m2){m2.style.color='#fbbf24';m2.textContent='Email may be delayed - check spam.';}
+  }
+}
+async function confirmLoginVerify(){
+  var entered=(document.getElementById('lvCode').value||'').trim();
+  var msg=document.getElementById('lvMsg');
+  if(entered.length<6){msg.style.color='#fca5a5';msg.textContent='Enter all 6 digits.';return;}
+  try{
+    var res=await db.from('email_verifications').select('code,expires_at').eq('user_id',window._pendingUid).single();
+    if(res.error)throw res.error;
+    if(res.data.code!==entered){msg.style.color='#fca5a5';msg.textContent='Wrong code. Try again.';return;}
+    if(new Date(res.data.expires_at)<new Date()){msg.style.color='#fca5a5';msg.textContent='Code expired. Tap resend.';return;}
+    await db.from('profiles').update({email_verified:true}).eq('user_id',window._pendingUid);
+    await db.from('email_verifications').delete().eq('user_id',window._pendingUid);
+    var params=new URLSearchParams(window.location.search);
+    window.location.href=params.get('return')||'feed.html';
+  }catch(e){msg.style.color='#fca5a5';msg.textContent='Error: '+(e.message||'unknown');}
+}
 </script>
 
 </body>

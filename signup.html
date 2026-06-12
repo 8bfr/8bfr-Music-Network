@@ -563,6 +563,24 @@ async function doSignup() {
         }
       } catch(e) { console.log('Profile create error:', e); }
 
+      // Notify owner when an artist/beatmaker signs up needing link verification
+      try {
+        const needsVerifyN = selectedRoles.includes('artist') || selectedRoles.includes('beatmaker');
+        if (needsVerifyN && spotifyUrl) {
+          await db.from('notifications').insert({
+            recipient_id: 'cb556180-f032-4b21-9470-1d786f2664ab',
+            notif_type: 'artist_verification',
+            metadata: {
+              from_id: data.user.id,
+              from_name: displayName || username,
+              message: (displayName || username) + ' signed up as ' + selectedRoles.join('/') + ' and needs artist link verification: ' + spotifyUrl,
+              link: 'owner-users.html'
+            },
+            created_at: new Date().toISOString()
+          });
+        }
+      } catch(e) { console.log('Owner notify error:', e); }
+
       // ★ If teen — create consent request
       if (calculatedTier === 'teen') {
         const parentEmail = document.getElementById('parentEmail').value.trim();
