@@ -60,10 +60,16 @@ body{background:#000;color:#fff;font-family:system-ui,sans-serif;overflow:hidden
 </div>
 
 <script>
+window._svMe = null;
 var db = window.supabase.createClient(
   'https://novbuvwpjnxwwvdekjhr.supabase.co',
   'sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f'
 );
+db.auth.getSession().then(function(r){
+  window._svMe = r.data && r.data.session && r.data.session.user ? r.data.session.user.id : null;
+  // re-render current story so delete/download buttons appear once auth resolves
+  if (window.SV && SV.stories && SV.stories.length) try { SV.show(); } catch(e){}
+});
 
 var SV = {
   userId: null, idx: 0, stories: [], profile: {}, interval: null, dur: 5000,
@@ -83,7 +89,7 @@ var SV = {
 
     // Load all stories for this user
     var { data } = await db.from('stories')
-      .select('id,user_id,text,background_color,media_url,media_type,created_at,expires_at,views')
+      .select('id,user_id,text,background_color,media_url,media_type,created_at,expires_at,views,song_id,allow_download')
       .eq('user_id', this.userId)
       .or('expires_at.is.null,expires_at.gt.' + new Date().toISOString())
       .order('created_at', { ascending: true });
@@ -179,6 +185,57 @@ var SV = {
       body.innerHTML = '<div class="story-text">'+(s.text||'')+'</div>';
     }
 
+    // Song attached: play it with the story (video gets muted so the song leads)
+    var oldAudio=document.getElementById('svSongAudio'); if(oldAudio)oldAudio.remove();
+    var oldTag=document.getElementById('svSongTag'); if(oldTag)oldTag.remove();
+    if (s.song_id) {
+      (async function(){
+        try{
+          var sr = await db.from('songs').select('title,artist,song_url').eq('id', s.song_id).maybeSingle();
+          if (sr.data && sr.data.song_url) {
+            var au=document.createElement('audio');
+            au.id='svSongAudio'; au.src=sr.data.song_url; au.autoplay=true; au.loop=true;
+            document.body.appendChild(au);
+            var vd=document.getElementById('svVideo'); if(vd) vd.muted=true;
+            var tag=document.createElement('div');
+            tag.id='svSongTag';
+            tag.style.cssText='position:fixed;bottom:64px;left:50%;transform:translateX(-50%);background:rgba(12,6,24,.85);border:1px solid rgba(124,58,237,.5);border-radius:999px;padding:.35rem .9rem;font-size:.75rem;color:#eae6ff;z-index:60;white-space:nowrap;max-width:85vw;overflow:hidden;text-overflow:ellipsis;';
+            tag.textContent='\uD83C\uDFB5 '+sr.data.title+' - '+sr.data.artist;
+            document.body.appendChild(tag);
+          }
+        }catch(e){}
+      })();
+    }
+
+    // Action buttons: download (when allowed) + delete (own story or site owner)
+    var oldActs=document.getElementById('svActions'); if(oldActs)oldActs.remove();
+    var me = window._svMe;
+    var isSiteOwner = me === 'cb556180-f032-4b21-9470-1d786f2664ab';
+    var canDelete = me && (me === s.user_id || isSiteOwner);
+    var canDownload = s.media_url && (isSiteOwner || (s.allow_download !== false && !s.song_id));
+    if (canDelete || canDownload) {
+      var acts=document.createElement('div');
+      acts.id='svActions';
+      acts.style.cssText='position:fixed;top:64px;right:12px;display:flex;flex-direction:column;gap:.5rem;z-index:70;';
+      if (canDownload) {
+        var dlB=document.createElement('button');
+        dlB.textContent='\u2B07\uFE0F';
+        dlB.title='Download';
+        dlB.style.cssText='width:40px;height:40px;border-radius:50%;border:1px solid rgba(124,58,237,.5);background:rgba(12,6,24,.85);color:#fff;font-size:1rem;cursor:pointer;';
+        dlB.onclick=function(ev){ev.stopPropagation();SV.downloadStory(s);};
+        acts.appendChild(dlB);
+      }
+      if (canDelete) {
+        var delB=document.createElement('button');
+        delB.textContent='\uD83D\uDDD1\uFE0F';
+        delB.title='Delete story';
+        delB.style.cssText='width:40px;height:40px;border-radius:50%;border:1px solid rgba(239,68,68,.5);background:rgba(12,6,24,.85);color:#fff;font-size:1rem;cursor:pointer;';
+        delB.onclick=function(ev){ev.stopPropagation();SV.deleteStory(s);};
+        acts.appendChild(delB);
+      }
+      document.body.appendChild(acts);
+    }
+
     // Views display
     document.getElementById('viewsDisplay').innerHTML = '👁️ '+(s.views||0)+' view'+(( (s.views||0) )===1?'':'s');
 
@@ -211,8 +268,55 @@ var SV = {
   },
 
   stopProgress() { if (this.interval) { clearInterval(this.interval); this.interval = null; } },
-  prev() { this.stopProgress(); if (this.idx > 0) { this.idx--; this.show(); } },
-  next() { this.stopProgress(); if (this.idx < this.stories.length - 1) { this.idx++; this.show(); } else this.close(); },
+
+  async downloadStory(s) {
+    try {
+      var res = await fetch(s.media_url);
+      var blob = await res.blob();
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      var ext = (s.media_url.split('.').pop().split('?')[0] || 'media');
+      a.href = url; a.download = '8bfr-story.' + ext;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
+    } catch(e) { alert('Download failed: ' + (e.message||'unknown')); }
+  },
+
+  async deleteStory(s) {
+    if (!confirm('Delete this story? This cannot be undone.')) return;
+    try {
+      var r = await db.from('stories').delete().eq('id', s.id);
+      if (r.error) throw r.error;
+      this.stories.splice(this.idx, 1);
+      var au=document.getElementById('svSongAudio'); if(au)au.remove();
+      if (!this.stories.length) { this.close(); return; }
+      if (this.idx >= this.stories.length) this.idx = this.stories.length - 1;
+      this.show();
+    } catch(e) { alert('Delete failed: ' + (e.message||'unknown')); }
+  },
+  prev() { this.stopProgress(); var au=document.getElementById('svSongAudio'); if(au)au.remove(); if (this.idx > 0) { this.idx--; this.show(); } },
+  next() { this.stopProgress(); var au=document.getElementById('svSongAudio'); if(au)au.remove(); if (this.idx < this.stories.length - 1) { this.idx++; this.show(); } else this.nextUser(); },
+
+  async nextUser() {
+    // Find the next member with active stories and keep the flow going
+    try {
+      var r = await db.from('stories')
+        .select('user_id,created_at,expires_at')
+        .order('created_at', { ascending: false })
+        .limit(200);
+      var now = new Date();
+      var seen = {}, order = [];
+      (r.data||[]).forEach(function(s){
+        if (s.expires_at && new Date(s.expires_at) <= now) return;
+        if (!seen[s.user_id]) { seen[s.user_id] = true; order.push(s.user_id); }
+      });
+      var cur = this.stories[0] ? this.stories[0].user_id : null;
+      var i = order.indexOf(cur);
+      var nxt = (i !== -1 && i < order.length - 1) ? order[i+1] : null;
+      if (nxt) { window.location.href = 'story-viewer.html?user=' + nxt + '&index=0'; }
+      else this.close();
+    } catch(e) { this.close(); }
+  },
   close() { this.stopProgress(); window.location.href = 'stories.html'; }
 };
 

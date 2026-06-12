@@ -179,6 +179,14 @@
         <img id="storyPreviewImg" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;border-radius:12px;">
         <video id="storyPreviewVid" muted autoplay loop playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;border-radius:12px;"></video>
       </div></div>
+      <div class="form-group"><label>Add a Song from 8BFR (optional)</label>
+        <input class="form-input" type="text" id="storySongSearch" placeholder="Search songs by title or artist..." oninput="searchStorySongs()">
+        <div id="storySongResults" style="max-height:140px;overflow-y:auto;"></div>
+        <div id="storySongChosen" style="display:none;margin-top:.4rem;padding:.45rem .6rem;background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.4);border-radius:8px;font-size:.8rem;color:#eae6ff;align-items:center;justify-content:space-between;"><span id="storySongLabel"></span><button onclick="clearStorySong()" style="background:none;border:none;color:#fca5a5;font-weight:800;cursor:pointer;">remove</button></div>
+      </div>
+      <div class="form-group"><label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;"><input type="checkbox" id="storyAllowDl" checked> Allow viewers to download this story</label>
+        <div id="storyDlNote" style="display:none;font-size:.72rem;color:#fbbf24;margin-top:.2rem;">Downloads are locked automatically when an 8BFR song is attached - this protects the artist's music.</div>
+      </div>
       <div class="form-group"><label>Expires After</label><select class="form-input" id="storyExpiry"><option value="24">24 hours</option><option value="12">12 hours</option><option value="48">48 hours</option><option value="0">Never</option></select></div>
       <div style="display:flex;gap:0.75rem;">
         <button class="btn" onclick="submitStory()" id="storySubmitBtn" style="flex:1;">📤 Post Story</button>
@@ -265,7 +273,7 @@
   /* ── STORY MODAL ── */
   window.pickStoryColor=function(c){storyColor=c;document.querySelectorAll('.sco').forEach(function(el){el.style.borderColor=el.style.background===c?'#a855f7':'transparent';});var prev=document.getElementById('storyPreview');if(prev)prev.style.background=c;};
   window.openStoryModal=function(){document.getElementById('storyUploadModal').classList.add('show');updateStoryPreview();};
-  window.closeStoryModal=function(){document.getElementById('storyUploadModal').classList.remove('show');document.getElementById('storyText').value='';document.getElementById('storyMediaUrl').value='';document.getElementById('storyNotice').textContent='';updateStoryPreview();};
+  window.closeStoryModal=function(){if(window.clearStorySong)clearStorySong();document.getElementById('storyUploadModal').classList.remove('show');document.getElementById('storyText').value='';document.getElementById('storyMediaUrl').value='';document.getElementById('storyNotice').textContent='';updateStoryPreview();};
   function updateStoryPreview(){
     var text=document.getElementById('storyText')?document.getElementById('storyText').value.trim():'';
     var media=document.getElementById('storyMediaUrl')?document.getElementById('storyMediaUrl').value.trim():'';
@@ -282,6 +290,34 @@
     var st=document.getElementById('storyText');if(st)st.addEventListener('input',updateStoryPreview);
     var sm=document.getElementById('storyMediaUrl');if(sm)sm.addEventListener('input',updateStoryPreview);
   });
+  var storySongId=null;
+  window.searchStorySongs=async function(){
+    var q=document.getElementById('storySongSearch').value.trim();
+    var box=document.getElementById('storySongResults');
+    if(q.length<2){box.innerHTML='';return;}
+    try{
+      var r=await db.from('songs').select('id,title,artist').or('title.ilike.%'+q+'%,artist.ilike.%'+q+'%').limit(8);
+      box.innerHTML=(r.data||[]).map(function(s){
+        return '<div onclick="pickStorySong(\''+s.id+'\',\''+String(s.title||'').replace(/'/g,'')+'\',\''+String(s.artist||'').replace(/'/g,'')+'\')" style="padding:.4rem .6rem;border-bottom:1px solid rgba(124,58,237,.15);cursor:pointer;font-size:.8rem;color:#eae6ff;">\uD83C\uDFB5 '+s.title+' - '+s.artist+'</div>';
+      }).join('')||'<div style="padding:.4rem .6rem;font-size:.75rem;color:rgba(234,230,255,.5);">No songs found</div>';
+    }catch(e){box.innerHTML='';}
+  };
+  window.pickStorySong=function(id,title,artist){
+    storySongId=id;
+    document.getElementById('storySongLabel').textContent='\uD83C\uDFB5 '+title+' - '+artist;
+    document.getElementById('storySongChosen').style.display='flex';
+    document.getElementById('storySongResults').innerHTML='';
+    document.getElementById('storySongSearch').value='';
+    // Site song attached: downloads forced off for everyone but the owner
+    var dl=document.getElementById('storyAllowDl');dl.checked=false;dl.disabled=true;
+    document.getElementById('storyDlNote').style.display='block';
+  };
+  window.clearStorySong=function(){
+    storySongId=null;
+    document.getElementById('storySongChosen').style.display='none';
+    var dl=document.getElementById('storyAllowDl');dl.disabled=false;dl.checked=true;
+    document.getElementById('storyDlNote').style.display='none';
+  };
   window.submitStory=async function(){
     if(!currentUser){document.getElementById('storyNotice').textContent='Sign in first';return;}
     var text=document.getElementById('storyText').value.trim();
@@ -290,7 +326,7 @@
     if(!text&&!media){document.getElementById('storyNotice').textContent='Add text, photo, or video';return;}
     var btn=document.getElementById('storySubmitBtn');btn.disabled=true;btn.textContent='Posting…';
     try{
-      var ins={user_id:currentUser.id,text:text||null,background_color:storyColor,views:0,expires_at:hrs>0?new Date(Date.now()+hrs*3600000).toISOString():null};
+      var ins={user_id:currentUser.id,text:text||null,background_color:storyColor,views:0,expires_at:hrs>0?new Date(Date.now()+hrs*3600000).toISOString():null,song_id:storySongId||null,allow_download:storySongId?false:document.getElementById('storyAllowDl').checked};
       if(media){ins.media_url=media;ins.media_type=/\.(mp4|webm|mov|m4v|ogv)(\?|$)/i.test(media)?'video':'image';}
       var r=await db.from('stories').insert(ins);if(r.error)throw r.error;
       document.getElementById('storyNotice').innerHTML='<span style="color:#4ade80;">Posted!</span>';
