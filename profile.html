@@ -163,7 +163,7 @@
         <button onclick="closeStoryModal()" style="background:none;border:none;color:#eae6ff;font-size:1.5rem;cursor:pointer;">✕</button>
       </div>
       <div class="form-group"><label>Story Text (optional)</label><textarea class="form-input" id="storyText" rows="2" placeholder="What's happening?"></textarea></div>
-      <div class="form-group"><label>Image URL (optional)</label><input class="form-input" type="url" id="storyMediaUrl" placeholder="https://i.ibb.co/your-image.jpg"><div id="storyUpload" style="margin-top:.2rem;"></div></div>
+      <div class="form-group"><label>Photo/Video URL (optional)</label><input class="form-input" type="url" id="storyMediaUrl" placeholder="https://i.ibb.co/your-image.jpg"><div id="storyUpload" style="margin-top:.2rem;"></div></div>
       <div class="form-group"><label>Background Color</label><div style="display:flex;gap:0.5rem;flex-wrap:wrap;" id="storyColorPicker">
         <div onclick="pickStoryColor('#7c3aed')" style="width:36px;height:36px;border-radius:8px;background:#7c3aed;cursor:pointer;border:2px solid #a855f7;" class="sco"></div>
         <div onclick="pickStoryColor('#dc2626')" style="width:36px;height:36px;border-radius:8px;background:#dc2626;cursor:pointer;border:2px solid transparent;" class="sco"></div>
@@ -177,6 +177,7 @@
       <div id="storyPreview" style="width:100%;height:120px;border-radius:12px;background:#7c3aed;display:flex;align-items:center;justify-content:center;text-align:center;padding:1rem;font-size:0.95rem;font-weight:600;color:white;overflow:hidden;position:relative;transition:background 0.3s;">
         <span id="storyPreviewText" style="text-shadow:0 1px 4px rgba(0,0,0,0.3);">Your story preview</span>
         <img id="storyPreviewImg" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;border-radius:12px;">
+        <video id="storyPreviewVid" muted autoplay loop playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;border-radius:12px;"></video>
       </div></div>
       <div class="form-group"><label>Expires After</label><select class="form-input" id="storyExpiry"><option value="24">24 hours</option><option value="12">12 hours</option><option value="48">48 hours</option><option value="0">Never</option></select></div>
       <div style="display:flex;gap:0.75rem;">
@@ -271,7 +272,10 @@
     var prevText=document.getElementById('storyPreviewText');
     var prevImg=document.getElementById('storyPreviewImg');
     if(prevText)prevText.textContent=text||'Your story preview';
-    if(prevImg){if(media){prevImg.src=media;prevImg.style.display='block';}else{prevImg.style.display='none';}}
+    var prevVid=document.getElementById('storyPreviewVid');
+    var isVid=/\.(mp4|webm|mov|m4v|ogv)(\?|$)/i.test(media);
+    if(prevImg){if(media&&!isVid){prevImg.src=media;prevImg.style.display='block';}else{prevImg.style.display='none';}}
+    if(prevVid){if(media&&isVid){prevVid.src=media;prevVid.style.display='block';}else{prevVid.pause&&prevVid.pause();prevVid.style.display='none';}}
   }
   // Live preview updates on typing
   document.addEventListener('DOMContentLoaded',function(){
@@ -283,11 +287,11 @@
     var text=document.getElementById('storyText').value.trim();
     var media=document.getElementById('storyMediaUrl').value.trim();
     var hrs=parseInt(document.getElementById('storyExpiry').value)||24;
-    if(!text&&!media){document.getElementById('storyNotice').textContent='Add text or image';return;}
+    if(!text&&!media){document.getElementById('storyNotice').textContent='Add text, photo, or video';return;}
     var btn=document.getElementById('storySubmitBtn');btn.disabled=true;btn.textContent='Posting…';
     try{
       var ins={user_id:currentUser.id,text:text||null,background_color:storyColor,views:0,expires_at:hrs>0?new Date(Date.now()+hrs*3600000).toISOString():null};
-      if(media){ins.media_url=media;ins.media_type='image';}
+      if(media){ins.media_url=media;ins.media_type=/\.(mp4|webm|mov|m4v|ogv)(\?|$)/i.test(media)?'video':'image';}
       var r=await db.from('stories').insert(ins);if(r.error)throw r.error;
       document.getElementById('storyNotice').innerHTML='<span style="color:#4ade80;">Posted!</span>';
       setTimeout(function(){closeStoryModal();location.reload();},800);
@@ -411,7 +415,7 @@
   window.sharePost=function(id){var url=location.origin+'/feed.html?post='+id;if(navigator.share)navigator.share({title:'8BFR Post',url:url}).catch(function(){});else navigator.clipboard.writeText(url).then(function(){alert('Link copied!');}).catch(function(){alert(url);});};
   window.addToStory=async function(id){
     if(!currentUser){alert('Sign in');return;}var p=allPosts.find(function(x){return x.id===id;});if(!p)return;
-    try{await db.from('stories').insert({user_id:currentUser.id,text:p.text||null,media_url:p.media||null,media_type:p.media?'image':null,background_color:'#7c3aed',views:0,expires_at:new Date(Date.now()+24*3600000).toISOString()});alert('Added to story!');}catch(e){alert(e.message);}
+    try{await db.from('stories').insert({user_id:currentUser.id,text:p.text||null,media_url:p.media||null,media_type:p.media?(/\.(mp4|webm|mov|m4v|ogv)(\?|$)/i.test(p.media)?'video':'image'):null,background_color:'#7c3aed',views:0,expires_at:new Date(Date.now()+24*3600000).toISOString()});alert('Added to story!');}catch(e){alert(e.message);}
   };
   window.toggleComments=async function(id){var el=document.getElementById('comments-'+id);if(!el)return;if(el.style.display==='none'){el.style.display='block';loadComments(id);}else el.style.display='none';};
 
@@ -834,8 +838,11 @@
     var bb='';
     if(isOwnProfile)bb+='<div class="story-bubble" onclick="openStoryModal()"><div class="story-ring add-new" style="width:68px;height:68px;"><span style="font-size:1.5rem;color:#a855f7;">+</span></div><div class="story-label" style="color:#a855f7;font-weight:600;">Add Story</div></div>';
     if(!stories.length&&!isOwnProfile){bar.style.display='none';return;}
-    stories.forEach(function(s){var bg=s.media_url?'background-image:url('+s.media_url+');background-size:cover;':'background:'+(s.background_color||'#7c3aed')+';';
-    bb+='<div class="story-bubble" onclick="location.href=\'stories.html?id='+s.id+'\'"><div class="story-ring"><div class="story-ring-inner" style="'+bg+'"></div></div><div class="story-label">'+(s.views||0)+' views</div></div>';});
+    stories.forEach(function(s){
+    var isVid=s.media_type==='video'||/\.(mp4|webm|mov|m4v|ogv)(\?|$)/i.test(s.media_url||'');
+    var bg=(s.media_url&&!isVid)?'background-image:url('+s.media_url+');background-size:cover;':'background:'+(s.background_color||'#7c3aed')+';';
+    var inner=isVid?'<span style="font-size:1.3rem;display:flex;align-items:center;justify-content:center;width:100%;height:100%;">\uD83C\uDFAC</span>':'';
+    bb+='<div class="story-bubble" onclick="location.href=\'stories.html?id='+s.id+'\'"><div class="story-ring"><div class="story-ring-inner" style="'+bg+'">'+inner+'</div></div><div class="story-label">'+(s.views||0)+' views</div></div>';});
     bar.innerHTML=bb;}catch(e){bar.style.display='none';}
   }
 
