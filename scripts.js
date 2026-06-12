@@ -28,7 +28,15 @@
         'sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f'
       );
       window._8bfrDb = db;
-      db.auth.getSession().then(function(res){
+      // Session may not be restored yet on page load - retry a few times
+      (async function(){
+        var session=null;
+        for(var t=0;t<8&&!session;t++){
+          try{var res=await db.auth.getSession();session=res.data&&res.data.session;}catch(e){}
+          if(!session)await new Promise(function(r){setTimeout(r,400);});
+        }
+        return {data:{session:session}};
+      })().then(function(res){
         var session = res.data && res.data.session;
         if(!session || !session.user){ resolve(); return; }
         window._8bfr.user = session.user;
@@ -962,7 +970,9 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
 
   function enableProtection() {
     // 1. Block right-click context menu on media
+    function isExempt(){return window._8bfr&&(window._8bfr.isOwner||window._8bfr.isCoOwner);}
     document.addEventListener('contextmenu', function(e) {
+      if (isExempt()) return;
       if (e.target.closest('audio,video,img,.song-card,.beat-card,.post-media')) {
         e.preventDefault();
       }
@@ -970,6 +980,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
 
     // 2. Block keyboard shortcuts for screenshots/save
     document.addEventListener('keydown', function(e) {
+      if (isExempt()) return;
       // Block PrintScreen
       if (e.key === 'PrintScreen') { e.preventDefault(); }
       // Block Ctrl+S (save page)
@@ -989,6 +1000,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
     // 4. Blur content when page loses focus (screen recording detection)
     var blurOverlay = null;
     document.addEventListener('visibilitychange', function() {
+      if (isExempt()) { var ov0=document.getElementById('_8bfr_protect_overlay'); if(ov0)ov0.remove(); return; }
       if (document.hidden) {
         // Page went to background - could be screen recording
         if (!blurOverlay) {
@@ -1007,6 +1019,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
 
     // 5. Disable image dragging
     document.addEventListener('dragstart', function(e) {
+      if (isExempt()) return;
       if (e.target.tagName === 'IMG' || e.target.tagName === 'VIDEO' || e.target.tagName === 'AUDIO') {
         e.preventDefault();
       }
