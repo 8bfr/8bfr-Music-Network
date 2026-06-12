@@ -115,6 +115,9 @@ select.search-input{cursor:pointer;appearance:auto;}
         </div>
     </div>
 
+    <div style="display:flex;justify-content:flex-end;margin-bottom:.6rem;">
+        <button class="btn btn-sm" onclick="openCreateAccount()" style="background:rgba(0,217,255,.15);border:1px solid rgba(0,217,255,.4);color:#00d9ff;font-weight:800;">+ Create Account</button>
+    </div>
     <!-- USER LIST -->
     <div id="userList"><div class="spinner"></div></div>
 </div>
@@ -464,6 +467,20 @@ function selectedBadges(){
     return Array.prototype.slice.call(document.querySelectorAll('#badgeGrid button.badge-pill')).filter(function(b){return b.dataset.on==='1';}).map(function(b){return b.dataset.badge;});
 }
 
+
+// One-tap approval from a verify_request notification (?approve=USER_ID)
+async function handleApproveParam(){
+    try{
+        var uid=new URLSearchParams(window.location.search).get('approve');
+        if(!uid)return;
+        var r=await db.from('profiles').update({email_verified:true}).eq('user_id',uid).select('display_name,username').maybeSingle();
+        if(r.error){alert('Approve failed: '+r.error.message);return;}
+        var who=r.data?(r.data.display_name||r.data.username||uid):uid;
+        alert('\u2705 Approved! '+who+' is email-verified and can log in now.');
+        history.replaceState(null,'',window.location.pathname);
+    }catch(e){alert('Approve error: '+(e.message||'unknown'));}
+}
+
 function openEdit(uid){
     loadCustomBadges().then(function(){var u2=allUsers.find(function(x){return x.user_id===uid;});if(u2&&document.getElementById('editModal').classList.contains('show'))renderBadgeGrid(selectedBadges());});
     var u=allUsers.find(function(x){return x.user_id===uid;});
@@ -518,6 +535,8 @@ async function saveEdit(){
         badges:badges,
         verified_artist:document.getElementById('editVerifiedArtist').value==='true'
     };
+    // Owner approval counts as email verification - never make them enter a code
+    if(update.verified_artist)update.email_verified=true;
     var {error}=await db.from('profiles').update(update).eq('user_id',uid);
     if(error){alert('Error: '+error.message);return;}
     alert('User updated.');
@@ -677,6 +696,67 @@ async function fullDeleteUser(uid,name){
 function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
 
 init();
+setTimeout(function(){if(typeof handleApproveParam==='function')handleApproveParam();},1500);
+
+/* === OWNER: CREATE ACCOUNT FOR SOMEONE === */
+window.openCreateAccount=function(){
+    var m=document.getElementById('createAcctModal');
+    if(!m){
+        m=document.createElement('div');
+        m.id='createAcctModal';
+        m.style.cssText='position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;padding:1rem;';
+        m.innerHTML='<div style="background:#0c0618;border:1px solid #7c3aed;border-radius:16px;padding:1.5rem;max-width:420px;width:100%;max-height:85vh;overflow-y:auto;">'+
+            '<h3 style="color:#fbbf24;margin-bottom:1rem;">Create Account For Someone</h3>'+
+            '<label style="display:block;font-size:.78rem;color:#a855f7;margin-bottom:.3rem;">Email *</label><input class="form-input" id="ca-email" type="email" style="width:100%;margin-bottom:.6rem;">'+
+            '<label style="display:block;font-size:.78rem;color:#a855f7;margin-bottom:.3rem;">Temporary Password * (they can change it later)</label><input class="form-input" id="ca-pass" type="text" style="width:100%;margin-bottom:.6rem;">'+
+            '<label style="display:block;font-size:.78rem;color:#a855f7;margin-bottom:.3rem;">Username *</label><input class="form-input" id="ca-username" style="width:100%;margin-bottom:.6rem;">'+
+            '<label style="display:block;font-size:.78rem;color:#a855f7;margin-bottom:.3rem;">Display Name</label><input class="form-input" id="ca-display" style="width:100%;margin-bottom:.6rem;">'+
+            '<label style="display:block;font-size:.78rem;color:#a855f7;margin-bottom:.3rem;">Role</label><select class="form-input" id="ca-role" style="width:100%;margin-bottom:.6rem;"><option value="fan">Fan</option><option value="artist">Artist</option><option value="beatmaker">Beatmaker</option><option value="producer">Producer</option><option value="songwriter">Songwriter</option><option value="gamer">Gamer</option></select>'+
+            '<label style="display:block;font-size:.78rem;color:#a855f7;margin-bottom:.3rem;">Artist Page Link (optional)</label><input class="form-input" id="ca-link" type="url" style="width:100%;margin-bottom:.6rem;">'+
+            '<label style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;color:#eae6ff;margin-bottom:.8rem;"><input type="checkbox" id="ca-verified" checked> Mark verified artist (can upload music right away)</label>'+
+            '<div id="ca-msg" style="font-size:.8rem;margin-bottom:.6rem;"></div>'+
+            '<div style="display:flex;gap:.5rem;justify-content:flex-end;">'+
+            '<button class="btn btn-ghost" onclick="document.getElementById(\'createAcctModal\').remove()">Cancel</button>'+
+            '<button class="btn" id="ca-go" onclick="submitCreateAccount()">Create Account</button>'+
+            '</div></div>';
+        m.addEventListener('click',function(e){if(e.target===m)m.remove();});
+        document.body.appendChild(m);
+    }
+};
+window.submitCreateAccount=async function(){
+    var email=document.getElementById('ca-email').value.trim();
+    var pass=document.getElementById('ca-pass').value.trim();
+    var username=document.getElementById('ca-username').value.trim().toLowerCase();
+    var msg=document.getElementById('ca-msg');
+    if(!email||!pass||!username){msg.style.color='#fca5a5';msg.textContent='Email, password and username are required.';return;}
+    if(pass.length<6){msg.style.color='#fca5a5';msg.textContent='Password must be at least 6 characters.';return;}
+    var btn=document.getElementById('ca-go');btn.disabled=true;btn.textContent='Creating...';
+    try{
+        var sess=await db.auth.getSession();
+        var token=sess&&sess.data&&sess.data.session?sess.data.session.access_token:null;
+        if(!token)throw new Error('Owner session not found - refresh and try again.');
+        var r=await fetch('https://8bfr-api.vercel.app/api/create-user',{
+            method:'POST',
+            headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+            body:JSON.stringify({
+                email:email,password:pass,username:username,
+                display_name:document.getElementById('ca-display').value.trim()||username,
+                role:document.getElementById('ca-role').value,
+                artist_link:document.getElementById('ca-link').value.trim()||null,
+                verified:document.getElementById('ca-verified').checked
+            })
+        });
+        var data=await r.json();
+        if(!r.ok||!data.ok)throw new Error(data.error||('HTTP '+r.status));
+        msg.style.color='#34d399';
+        msg.textContent='\u2705 Account created! Send them: email '+email+' / password '+pass+' - they log in at 8bfr.com/login.html (no code needed).';
+        btn.textContent='Done';
+        if(typeof loadUsers==='function')loadUsers();
+    }catch(e){
+        msg.style.color='#fca5a5';msg.textContent='Error: '+(e.message||'unknown');
+        btn.disabled=false;btn.textContent='Create Account';
+    }
+};
 </script>
 </body>
 </html>
