@@ -320,13 +320,40 @@ var SV = {
   close() { this.stopProgress(); window.location.href = 'stories.html'; }
 };
 
-function sendReply() {
+async function sendReply() {
   var inp = document.getElementById('replyInput');
   var text = inp ? inp.value.trim() : '';
   if (!text) return;
-  // In future: send DM or notification to story owner
-  alert('Reply sent! (DM integration coming soon)');
-  inp.value = '';
+  if (!window._svMe) { alert('Log in to reply to stories.'); return; }
+  var s = SV.stories && SV.stories[SV.idx];
+  if (!s) return;
+  if (s.user_id === window._svMe) { alert("That's your own story!"); return; }
+  var btn = document.querySelector('.reply-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+  try {
+    // Reply lands in the story owner's DMs, marked as a story reply
+    var r = await db.from('direct_messages').insert({
+      sender_id: window._svMe,
+      receiver_id: s.user_id,
+      message: '\uD83D\uDCF8 Replied to your story: ' + text
+    });
+    if (r.error) throw r.error;
+    // Plus a notification so they see it right away
+    try {
+      await db.from('notifications').insert({
+        recipient_id: s.user_id,
+        notif_type: 'story_reply',
+        metadata: { from_id: window._svMe, message: 'Someone replied to your story: "' + text.substring(0, 60) + '"', link: 'dm.html?user=' + window._svMe },
+        created_at: new Date().toISOString()
+      });
+    } catch(e) {}
+    inp.value = '';
+    inp.placeholder = '\u2705 Sent! Check DMs for their answer';
+    setTimeout(function(){ inp.placeholder = 'Reply to story...'; }, 2500);
+  } catch(e) {
+    alert('Reply failed: ' + (e.message || 'unknown'));
+  }
+  if (btn) { btn.disabled = false; btn.textContent = 'Send'; }
 }
 
 // Touch / swipe
