@@ -136,6 +136,7 @@ body{font-family:'Work Sans',sans-serif;background:#000;color:#fff;height:100vh;
 <div class="bottom-bar" id="bottomBar">
 <button class="side-btn" onclick="openGallery()"><span class="icon">&#x1F5BC;</span><span>Gallery</span></button>
 <button class="side-btn" onclick="openVideoPicker()"><span class="icon">&#x1F3AC;</span><span>Pick Video</span></button>
+<button class="side-btn" onclick="openPanel('song')"><span class="icon">&#x1F3B5;</span><span>Add Music</span></button>
 <button class="rec-btn" id="recBtn" onclick="onRecBtn()"><div class="inner"></div></button>
 <button class="side-btn" onclick="flipCamera()"><span class="icon">&#x1F504;</span><span>Flip</span></button>
 <button class="side-btn" onclick="startOver()" id="startOverBtn" style="display:none;"><span class="icon">&#x21A9;</span><span>Redo</span></button>
@@ -221,10 +222,63 @@ window.pickPostSong=function(id,title,artist){
   document.getElementById('songChosen').style.display='flex';
   document.getElementById('songResults').innerHTML='';
   document.getElementById('songSearch').value='';
+  // Persistent banner on the main capture screen
+  var b=document.getElementById('songBanner');
+  if(!b){
+    b=document.createElement('div');b.id='songBanner';
+    b.style.cssText='position:fixed;top:140px;left:10px;right:10px;z-index:95;background:rgba(124,58,237,.92);border-radius:10px;padding:.5rem .75rem;font-size:.78rem;color:#fff;font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:.5rem;box-shadow:0 4px 16px rgba(0,0,0,.4);';
+    document.body.appendChild(b);
+  }
+  b.style.flexDirection='column';b.style.alignItems='stretch';
+  b.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.4rem;">'+
+      '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">\uD83C\uDFB5 '+title+' - '+artist+'</span>'+
+      '<button onclick="clearPostSong()" style="background:rgba(255,255,255,.25);border:none;color:#fff;border-radius:6px;padding:.2rem .5rem;font-weight:800;cursor:pointer;flex-shrink:0;">remove</button></div>'+
+    '<div style="display:flex;align-items:center;gap:.5rem;">'+
+      '<button id="songPrevBtn" onclick="togglePreviewSong()" style="background:#fff;color:#7c3aed;border:none;width:32px;height:32px;border-radius:50%;font-size:.85rem;cursor:pointer;flex-shrink:0;font-weight:900;">\u25B6</button>'+
+      '<span style="font-size:.68rem;opacity:.85;">Preview &amp; set balance before posting</span></div>'+
+    '<div style="display:flex;align-items:center;gap:.4rem;font-size:.65rem;margin-top:.4rem;">\uD83C\uDFB5 Song<input type="range" min="0" max="100" value="100" id="songVolSlider" oninput="setPreviewSongVol(this.value)" style="flex:1;accent-color:#fff;"></div>'+
+    '<div id="vidVolRow" style="display:none;align-items:center;gap:.4rem;font-size:.65rem;margin-top:.25rem;">\uD83C\uDFA5 Video<input type="range" min="0" max="100" value="0" id="vidVolSlider" oninput="setPreviewVidVol(this.value)" style="flex:1;accent-color:#00d9ff;"></div>';
+  b.style.display='flex';
+  // Load the song audio for preview
+  loadPreviewSong(id);
+  // Show the video volume row only if there is a video to balance against
+  var hasVid=(capturedType==='video');
+  document.getElementById('vidVolRow').style.display=hasVid?'flex':'none';
+  closePanel();
 };
+
+var _previewAudio=null;
+window.loadPreviewSong=async function(songId){
+  try{
+    if(_previewAudio){_previewAudio.pause();_previewAudio=null;}
+    var r=await db.from('songs').select('song_url').eq('id',songId).maybeSingle();
+    if(r.data&&r.data.song_url){_previewAudio=new Audio(r.data.song_url);_previewAudio.loop=true;_previewAudio.volume=1.0;}
+  }catch(e){}
+};
+function getPreviewVideoEl(){
+  // whichever video is showing: uploaded or recorded preview
+  var up=document.getElementById('uploadPreviewVid');
+  if(up&&up.style.display!=='none'&&up.src)return up;
+  return null;
+}
+window.togglePreviewSong=function(){
+  var btn=document.getElementById('songPrevBtn');
+  var vid=getPreviewVideoEl();
+  if(_previewAudio&&!_previewAudio.paused){
+    _previewAudio.pause();if(vid)vid.pause();btn.textContent='\u25B6';return;
+  }
+  if(_previewAudio){
+    if(vid){vid.muted=false;vid.volume=(document.getElementById('vidVolSlider')?document.getElementById('vidVolSlider').value/100:0);vid.currentTime=0;vid.play().catch(function(){});}
+    _previewAudio.play();btn.textContent='\u23F8';
+  }
+};
+window.setPreviewSongVol=function(v){if(_previewAudio)_previewAudio.volume=v/100;};
+window.setPreviewVidVol=function(v){var vid=getPreviewVideoEl();if(vid){vid.muted=false;vid.volume=v/100;}};
 window.clearPostSong=function(){
   postSongId=null;
   document.getElementById('songChosen').style.display='none';
+  var b=document.getElementById('songBanner');if(b)b.style.display='none';
+  if(_previewAudio){_previewAudio.pause();_previewAudio=null;}
 };
 
 var FILTERS=[
@@ -556,6 +610,7 @@ async function bakeFilterIntoImage(blob){
   }catch(e){return blob;}
 }
 async function publishPost(){
+if(_previewAudio){_previewAudio.pause();}
 if(!capturedBlob&&mode==='text'){captureTextPost();await new Promise(function(r){setTimeout(r,500);});}
 if(!capturedBlob){alert('Capture or upload something first.');return;}
 capturedBlob=await bakeFilterIntoImage(capturedBlob);
