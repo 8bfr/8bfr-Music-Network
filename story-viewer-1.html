@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Story — 8BFR</title>
+<link rel="icon" href="assets/images/favicon.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#000;color:#fff;font-family:system-ui,sans-serif;overflow:hidden;position:fixed;width:100%;height:100%;}
+#storyContainer{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;}
+#storyContent{position:relative;width:100%;max-width:500px;height:100%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;flex-direction:column;}
+.story-header{position:absolute;top:0;left:0;right:0;padding:1rem;background:linear-gradient(to bottom,rgba(0,0,0,0.5),transparent);z-index:10;}
+.progress-bars{display:flex;gap:4px;margin-bottom:1rem;}
+.progress-bar{flex:1;height:2px;background:rgba(255,255,255,0.3);border-radius:2px;overflow:hidden;}
+.progress-fill{height:100%;background:#fff;width:0%;transition:width 0.1s linear;}
+.story-user-info{display:flex;align-items:center;gap:0.75rem;}
+.story-avatar{width:36px;height:36px;border-radius:50%;border:2px solid #fff;object-fit:cover;}
+.close-btn{position:absolute;top:1rem;right:1rem;width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,0.5);border:none;color:#fff;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:20;}
+.story-body{flex:1;display:flex;align-items:center;justify-content:center;padding:2rem;position:relative;overflow:hidden;}
+.story-text{font-size:1.5rem;font-weight:600;text-align:center;line-height:1.4;text-shadow:0 2px 8px rgba(0,0,0,0.3);max-width:90%;}
+.story-image{width:100%;height:100%;object-fit:contain;background:#000;}
+.story-footer{position:absolute;bottom:0;left:0;right:0;padding:1.25rem 1rem;background:linear-gradient(to top,rgba(0,0,0,0.6),transparent);z-index:10;}
+.reply-input{display:flex;gap:0.5rem;}
+.reply-input input{flex:1;padding:0.65rem 1rem;border-radius:50px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.1);color:#fff;font-size:0.9rem;}
+.reply-input input::placeholder{color:rgba(255,255,255,0.6);}
+.reply-btn{padding:0.65rem 1.25rem;border-radius:50px;border:none;background:#7c3aed;color:#fff;font-weight:600;cursor:pointer;}
+.nav-area{position:absolute;top:0;bottom:0;width:35%;z-index:5;cursor:pointer;user-select:none;}
+.nav-area.left{left:0;} .nav-area.right{right:0;}
+#viewsDisplay{font-size:0.8rem;color:rgba(255,255,255,0.8);margin-bottom:0.75rem;display:flex;align-items:center;gap:0.4rem;}
+</style>
+</head>
+<body>
+<div id="storyContainer">
+  <div id="storyContent">
+    <button class="close-btn" onclick="SV.close()">✕</button>
+    <div class="story-header">
+      <div class="progress-bars" id="progressBars"></div>
+      <div class="story-user-info">
+        <img id="userAvatar" class="story-avatar" src="assets/images/default_user_32_40.png" alt="">
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:0.9rem;" id="username"></div>
+          <div style="font-size:0.72rem;opacity:0.8;" id="storyTime"></div>
+        </div>
+        <a id="profileLink" href="profile.html" style="font-size:0.72rem;color:rgba(255,255,255,0.7);text-decoration:none;border:1px solid rgba(255,255,255,0.3);padding:2px 8px;border-radius:12px;">Profile</a>
+      </div>
+    </div>
+    <div class="story-body" id="storyBody"><div style="font-size:2rem;">⏳</div></div>
+    <div class="story-footer">
+      <div id="viewsDisplay"></div>
+      <div class="reply-input">
+        <input type="text" id="replyInput" placeholder="Reply to story...">
+        <button class="reply-btn" onclick="sendReply()">Send</button>
+      </div>
+    </div>
+    <div class="nav-area left" onclick="SV.prev()"></div>
+    <div class="nav-area right" onclick="SV.next()"></div>
+  </div>
+</div>
+
+<script>
+window._svMe = null;
+var db = window.supabase.createClient(
+  'https://novbuvwpjnxwwvdekjhr.supabase.co',
+  'sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f'
+);
+db.auth.getSession().then(function(r){
+  window._svMe = r.data && r.data.session && r.data.session.user ? r.data.session.user.id : null;
+  // re-render current story so delete/download buttons appear once auth resolves
+  if (window.SV && SV.stories && SV.stories.length) try { SV.show(); } catch(e){}
+});
+
+var SV = {
+  userId: null, idx: 0, stories: [], profile: {}, interval: null, dur: 5000,
+  currentUser: null,
+
+  async init() {
+    var p = new URLSearchParams(location.search);
+    this.userId = p.get('user');
+    this.idx = parseInt(p.get('index') || '0');
+    if (!this.userId) { this.close(); return; }
+
+    // Get current user for view tracking
+    try {
+      var sess = await db.auth.getSession();
+      this.currentUser = sess?.data?.session?.user || null;
+    } catch(e) {}
+
+    // Load all stories for this user
+    var { data } = await db.from('stories')
+      .select('id,user_id,text,background_color,media_url,media_type,created_at,expires_at,views,song_id,allow_download')
+      .eq('user_id', this.userId)
+      .or('expires_at.is.null,expires_at.gt.' + new Date().toISOString())
+      .order('created_at', { ascending: true });
+
+    this.stories = data || [];
+    if (!this.stories.length) { this.close(); return; }
+
+    // Clamp idx
+    this.idx = Math.min(this.idx, this.stories.length - 1);
+
+    // Load profile
+    var { data: pr } = await db.from('profiles')
+      .select('username,display_name,avatar_url')
+      .eq('user_id', this.userId).maybeSingle();
+    this.profile = pr || {};
+
+    document.getElementById('username').textContent = this.profile.display_name || this.profile.username || 'User';
+    document.getElementById('userAvatar').src = this.profile.avatar_url || 'assets/images/default_user_32_40.png';
+    document.getElementById('profileLink').href = 'profile.html?id=' + this.userId;
+
+    this.show();
+
+    // Keyboard nav
+    document.addEventListener('keydown', function(e) {
+      if (e.key==='ArrowLeft') SV.prev();
+      else if (e.key==='ArrowRight') SV.next();
+      else if (e.key==='Escape') SV.close();
+    });
+  },
+
+  async recordView(storyId) {
+    try {
+      // Get current view count
+      var { data: story } = await db.from('stories').select('views').eq('id', storyId).maybeSingle();
+      var currentViews = (story && story.views) || 0;
+
+      if (this.currentUser) {
+        // Logged in: upsert to story_views table AND increment views count
+        var { data: existing } = await db.from('story_views')
+          .select('id').eq('story_id', storyId).eq('viewer_id', this.currentUser.id).maybeSingle();
+        if (!existing) {
+          await db.from('story_views').insert({ story_id: storyId, viewer_id: this.currentUser.id });
+          // Increment views count
+          await db.from('stories').update({ views: currentViews + 1 }).eq('id', storyId);
+          // Update local story object
+          var s = this.stories.find(function(x){ return x.id === storyId; });
+          if (s) s.views = currentViews + 1;
+        }
+      } else {
+        // Guest: just increment (no dedup for guests)
+        await db.from('stories').update({ views: currentViews + 1 }).eq('id', storyId);
+        var s = this.stories.find(function(x){ return x.id === storyId; });
+        if (s) s.views = currentViews + 1;
+      }
+    } catch(e) { console.warn('View tracking error:', e); }
+  },
+
+  show() {
+    if (this.idx < 0 || this.idx >= this.stories.length) { this.close(); return; }
+    var s = this.stories[this.idx];
+
+    // Time
+    function ago(d){ var m=Math.floor((Date.now()-new Date(d).getTime())/60000); if(m<1)return 'Just now'; if(m<60)return m+'m ago'; var h=Math.floor(m/60); return h<24?h+'h ago':Math.floor(h/24)+'d ago'; }
+    document.getElementById('storyTime').textContent = ago(s.created_at);
+
+    // Progress bars
+    var pb = document.getElementById('progressBars'); pb.innerHTML = '';
+    this.stories.forEach(function(st, i) {
+      var bar = document.createElement('div'); bar.className = 'progress-bar';
+      var fill = document.createElement('div'); fill.className = 'progress-fill';
+      if (i < SV.idx) fill.style.width = '100%';
+      else if (i === SV.idx) { fill.id = 'currentProgress'; fill.style.width = '0%'; }
+      bar.appendChild(fill); pb.appendChild(bar);
+    });
+
+    // Content
+    var body = document.getElementById('storyBody');
+    if (s.media_url) {
+      body.style.background = '#000';
+      body.style.padding = '0';
+      var svIsVid = s.media_type==='video' || /\.(mp4|webm|mov|m4v|ogv)(\?|$)/i.test(s.media_url||'');
+      if (svIsVid) {
+        body.innerHTML = '<video id="svVideo" src="'+s.media_url+'" class="story-image" autoplay playsinline controls style="max-width:100%;max-height:100%;"></video>';
+      } else {
+        body.innerHTML = '<img src="'+s.media_url+'" class="story-image" onerror="this.parentElement.innerHTML=\'<div style=padding:2rem;text-align:center;>Image failed to load</div>\'">';
+      }
+    } else {
+      var bg = s.background_color
+        ? 'linear-gradient(135deg,'+s.background_color+',rgba(168,85,247,0.5))'
+        : 'linear-gradient(135deg,#7c3aed,#a855f7)';
+      body.style.background = bg;
+      body.style.padding = '2rem';
+      body.innerHTML = '<div class="story-text">'+(s.text||'')+'</div>';
+    }
+
+    // Song attached: play it with the story (video gets muted so the song leads)
+    var oldAudio=document.getElementById('svSongAudio'); if(oldAudio)oldAudio.remove();
+    var oldTag=document.getElementById('svSongTag'); if(oldTag)oldTag.remove();
+    if (s.song_id) {
+      (async function(){
+        try{
+          var sr = await db.from('songs').select('title,artist,song_url').eq('id', s.song_id).maybeSingle();
+          if (sr.data && sr.data.song_url) {
+            var au=document.createElement('audio');
+            au.id='svSongAudio'; au.src=sr.data.song_url; au.autoplay=true; au.loop=true; au.volume=1.0;
+            document.body.appendChild(au);
+            var vd=document.getElementById('svVideo'); if(vd){ vd.muted=false; vd.volume=0.0; }
+            var hasVid=!!vd;
+            var tag=document.createElement('div');
+            tag.id='svSongTag';
+            tag.style.cssText='position:fixed;bottom:64px;left:50%;transform:translateX(-50%);background:rgba(12,6,24,.9);border:1px solid rgba(124,58,237,.5);border-radius:14px;padding:.5rem .8rem;font-size:.75rem;color:#eae6ff;z-index:60;max-width:85vw;width:280px;';
+            tag.innerHTML='<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:.35rem;">\uD83C\uDFB5 '+sr.data.title+' - '+sr.data.artist+'</div>'+
+              '<div style="display:flex;align-items:center;gap:.4rem;font-size:.65rem;">Song<input type="range" min="0" max="100" value="100" oninput="document.getElementById(\'svSongAudio\').volume=this.value/100" style="flex:1;accent-color:#a855f7;"></div>'+
+              (hasVid?'<div style="display:flex;align-items:center;gap:.4rem;font-size:.65rem;margin-top:.25rem;">Video<input type="range" min="0" max="100" value="0" oninput="var v=document.getElementById(\'svVideo\');if(v){v.muted=false;v.volume=this.value/100;}" style="flex:1;accent-color:#00d9ff;"></div>':'');
+            document.body.appendChild(tag);
+          }
+        }catch(e){}
+      })();
+    }
+
+    // Action buttons: download (when allowed) + delete (own story or site owner)
+    var oldActs=document.getElementById('svActions'); if(oldActs)oldActs.remove();
+    var me = window._svMe;
+    var isSiteOwner = me === 'cb556180-f032-4b21-9470-1d786f2664ab';
+    var canDelete = me && (me === s.user_id || isSiteOwner);
+    var canDownload = s.media_url && (isSiteOwner || (s.allow_download !== false && !s.song_id));
+    if (canDelete || canDownload) {
+      var acts=document.createElement('div');
+      acts.id='svActions';
+      acts.style.cssText='position:fixed;top:64px;right:12px;display:flex;flex-direction:column;gap:.5rem;z-index:70;';
+      if (canDownload) {
+        var dlB=document.createElement('button');
+        dlB.textContent='\u2B07\uFE0F';
+        dlB.title='Download';
+        dlB.style.cssText='width:40px;height:40px;border-radius:50%;border:1px solid rgba(124,58,237,.5);background:rgba(12,6,24,.85);color:#fff;font-size:1rem;cursor:pointer;';
+        dlB.onclick=function(ev){ev.stopPropagation();SV.downloadStory(s);};
+        acts.appendChild(dlB);
+      }
+      if (canDelete) {
+        var delB=document.createElement('button');
+        delB.textContent='\uD83D\uDDD1\uFE0F';
+        delB.title='Delete story';
+        delB.style.cssText='width:40px;height:40px;border-radius:50%;border:1px solid rgba(239,68,68,.5);background:rgba(12,6,24,.85);color:#fff;font-size:1rem;cursor:pointer;';
+        delB.onclick=function(ev){ev.stopPropagation();SV.deleteStory(s);};
+        acts.appendChild(delB);
+      }
+      document.body.appendChild(acts);
+    }
+
+    // Views display
+    document.getElementById('viewsDisplay').innerHTML = '👁️ '+(s.views||0)+' view'+(( (s.views||0) )===1?'':'s');
+
+    // Record view
+    this.recordView(s.id);
+
+    // Start progress: videos run their full length, images use the timer
+    var sv = document.getElementById('svVideo');
+    if (sv) this.startVideoProgress(sv); else this.startProgress();
+  },
+
+  startVideoProgress(video) {
+    this.stopProgress();
+    var bar = document.getElementById('currentProgress');
+    video.ontimeupdate = function() {
+      if (bar && video.duration) bar.style.width = Math.min((video.currentTime / video.duration) * 100, 100) + '%';
+    };
+    video.onended = function() { SV.next(); };
+  },
+
+  startProgress() {
+    this.stopProgress();
+    var bar = document.getElementById('currentProgress'); if (!bar) return;
+    var progress = 0, inc = 100 / (this.dur / 100);
+    this.interval = setInterval(function() {
+      progress += inc;
+      bar.style.width = Math.min(progress, 100) + '%';
+      if (progress >= 100) { SV.stopProgress(); SV.next(); }
+    }, 100);
+  },
+
+  stopProgress() { if (this.interval) { clearInterval(this.interval); this.interval = null; } },
+
+  async downloadStory(s) {
+    try {
+      var res = await fetch(s.media_url);
+      var blob = await res.blob();
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      var ext = (s.media_url.split('.').pop().split('?')[0] || 'media');
+      a.href = url; a.download = '8bfr-story.' + ext;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
+    } catch(e) { alert('Download failed: ' + (e.message||'unknown')); }
+  },
+
+  async deleteStory(s) {
+    if (!confirm('Delete this story? This cannot be undone.')) return;
+    try {
+      var r = await db.from('stories').delete().eq('id', s.id);
+      if (r.error) throw r.error;
+      this.stories.splice(this.idx, 1);
+      var au=document.getElementById('svSongAudio'); if(au)au.remove();
+      if (!this.stories.length) { this.close(); return; }
+      if (this.idx >= this.stories.length) this.idx = this.stories.length - 1;
+      this.show();
+    } catch(e) { alert('Delete failed: ' + (e.message||'unknown')); }
+  },
+  prev() { this.stopProgress(); var au=document.getElementById('svSongAudio'); if(au)au.remove(); if (this.idx > 0) { this.idx--; this.show(); } },
+  next() { this.stopProgress(); var au=document.getElementById('svSongAudio'); if(au)au.remove(); if (this.idx < this.stories.length - 1) { this.idx++; this.show(); } else this.nextUser(); },
+
+  async nextUser() {
+    // Find the next member with active stories and keep the flow going
+    try {
+      var r = await db.from('stories')
+        .select('user_id,created_at,expires_at')
+        .order('created_at', { ascending: false })
+        .limit(200);
+      var now = new Date();
+      var seen = {}, order = [];
+      (r.data||[]).forEach(function(s){
+        if (s.expires_at && new Date(s.expires_at) <= now) return;
+        if (!seen[s.user_id]) { seen[s.user_id] = true; order.push(s.user_id); }
+      });
+      var cur = this.stories[0] ? this.stories[0].user_id : null;
+      var i = order.indexOf(cur);
+      var nxt = (i !== -1 && i < order.length - 1) ? order[i+1] : null;
+      if (nxt) { window.location.href = 'story-viewer.html?user=' + nxt + '&index=0'; }
+      else this.close();
+    } catch(e) { this.close(); }
+  },
+  close() { this.stopProgress(); window.location.href = 'stories.html'; }
+};
+
+async function sendReply() {
+  var inp = document.getElementById('replyInput');
+  var text = inp ? inp.value.trim() : '';
+  if (!text) return;
+  if (!window._svMe) { alert('Log in to reply to stories.'); return; }
+  var s = SV.stories && SV.stories[SV.idx];
+  if (!s) return;
+  if (s.user_id === window._svMe) { alert("That's your own story!"); return; }
+  var btn = document.querySelector('.reply-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+  try {
+    // Reply lands in the story owner's DMs, marked as a story reply
+    var r = await db.from('direct_messages').insert({
+      sender_id: window._svMe,
+      receiver_id: s.user_id,
+      message: '\uD83D\uDCF8 Replied to your story: ' + text
+    });
+    if (r.error) throw r.error;
+    // Plus a notification so they see it right away
+    try {
+      await db.from('notifications').insert({
+        recipient_id: s.user_id,
+        notif_type: 'story_reply',
+        metadata: { from_id: window._svMe, message: 'Someone replied to your story: "' + text.substring(0, 60) + '"', link: 'dm.html?user=' + window._svMe },
+        created_at: new Date().toISOString()
+      });
+    } catch(e) {}
+    inp.value = '';
+    inp.placeholder = '\u2705 Sent! Check DMs for their answer';
+    setTimeout(function(){ inp.placeholder = 'Reply to story...'; }, 2500);
+  } catch(e) {
+    alert('Reply failed: ' + (e.message || 'unknown'));
+  }
+  if (btn) { btn.disabled = false; btn.textContent = 'Send'; }
+}
+
+// Touch / swipe
+var tx = 0;
+document.addEventListener('touchstart', function(e) {
+  if (!e.target.closest('.reply-input, .close-btn')) tx = e.changedTouches[0].screenX;
+}, { passive: true });
+document.addEventListener('touchend', function(e) {
+  if (e.target.closest('.reply-input, .close-btn')) return;
+  var dx = e.changedTouches[0].screenX - tx;
+  if (dx > 50) SV.prev(); else if (dx < -50) SV.next();
+}, { passive: true });
+
+SV.init();
+</script>
+</body>
+</html>
