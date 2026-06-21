@@ -224,9 +224,11 @@
       <input type="hidden" id="postMediaType" value="text">
       <textarea id="postText" placeholder="What's on your mind?" style="width:100%;min-height:100px;padding:0.85rem;background:rgba(12,0,25,0.9);border:1px solid rgba(124,58,237,0.35);border-radius:10px;color:#eae6ff;font-size:0.93rem;resize:vertical;font-family:inherit;margin-bottom:1rem;box-sizing:border-box;"></textarea>
       <div id="postMediaUrlGroup" style="display:none;margin-bottom:1rem;">
-        <label style="display:block;margin-bottom:0.4rem;font-size:0.85rem;font-weight:600;color:rgba(234,230,255,0.75);">🔗 Media URL</label>
+        <label style="display:block;margin-bottom:0.4rem;font-size:0.85rem;font-weight:600;color:rgba(234,230,255,0.75);">Upload from your device</label>
+        <div id="postMediaUpload"></div>
+        <div id="postMediaPreview" style="margin-top:.5rem;"></div>
+        <label style="display:block;margin:0.6rem 0 0.4rem;font-size:0.75rem;color:rgba(234,230,255,0.5);">or paste a URL</label>
         <input type="url" id="postMediaUrl" placeholder="Paste image/video URL" class="form-input">
-        <div id="songCoverUpload" style="margin-top:.2rem;"></div>
       </div>
       <div style="display:flex;gap:0.5rem;margin-bottom:1rem;">
         <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;color:rgba(234,230,255,0.6);cursor:pointer;">
@@ -483,16 +485,36 @@
   window.deleteComment=async function(id,postId,table){if(!confirm('Delete?'))return;try{await db.from(table).delete().eq('id',id);loadComments(postId);}catch(e){alert(e.message);}};
 
   /* ── CREATE POST ── */
-  window.openCreatePost=function(){document.getElementById('createPostModal').classList.add('show');};
+  window.openCreatePost=function(){window.location.href='create-post.html';};
   window.closeCreatePost=function(){document.getElementById('createPostModal').classList.remove('show');};
-  window.selectPostType=function(t){document.getElementById('postMediaType').value=t;document.querySelectorAll('.ptb').forEach(function(b){b.style.background=b.getAttribute('data-type')===t?'#7c3aed':'rgba(124,58,237,0.2)';});document.getElementById('postMediaUrlGroup').style.display=t==='text'?'none':'block';};
+  window.selectPostType=function(t){
+    document.getElementById('postMediaType').value=t;
+    document.querySelectorAll('.ptb').forEach(function(b){b.style.background=b.getAttribute('data-type')===t?'#7c3aed':'rgba(124,58,237,0.2)';});
+    document.getElementById('postMediaUrlGroup').style.display=t==='text'?'none':'block';
+    if(t!=='text'){
+      var holder=document.getElementById('postMediaUpload');
+      holder.innerHTML='';holder.dataset.init='';
+      var accept=t==='video'?'video/*':'image/*';
+      if(window.createUploadBtn){
+        createUploadBtn(holder,'posts',accept,(t==='video'?'Choose Video':'Choose Photo'),function(url){
+          document.getElementById('postMediaUrl').value=url;
+          var isVid=/\.(mp4|webm|mov|m4v|ogv)(\?|$)/i.test(url);
+          document.getElementById('postMediaPreview').innerHTML=isVid
+            ?'<video src="'+url+'" controls playsinline style="width:100%;border-radius:10px;max-height:260px;"></video>'
+            :'<img src="'+url+'" style="width:100%;border-radius:10px;max-height:260px;object-fit:contain;">';
+        });
+      }
+    }
+  };
   window.submitPost=async function(){
     if(!currentUser)return;var text=document.getElementById('postText').value.trim();var mt=document.getElementById('postMediaType').value;var mu=document.getElementById('postMediaUrl')?document.getElementById('postMediaUrl').value.trim():'';var priv=document.getElementById('postPrivate').checked;
     if(!text&&!mu){document.getElementById('postNotice').textContent='Write something';return;}
     var btn=document.getElementById('submitPostBtn');btn.disabled=true;
-    try{var r=await db.from('posts').insert({user_id:currentUser.id,text:text||null,media:(mt!=='text'&&mu)?mu:null,media_type:mt,likes:0,shares:0,favorites:0,reshares:0,comment_count:0,is_private:priv,hidden:false,pinned:false});
+    var realType=mt;
+    if(mt!=='text'&&mu){realType=/\.(mp4|webm|mov|m4v|ogv)(\?|$)/i.test(mu)?'video':'image';}
+    try{var r=await db.from('posts').insert({user_id:currentUser.id,text:text||null,media:(mt!=='text'&&mu)?mu:null,media_type:realType,likes:0,shares:0,favorites:0,reshares:0,comment_count:0,is_private:priv,hidden:false,pinned:false});
     if(r.error)throw r.error;document.getElementById('postNotice').innerHTML='<span style="color:#4ade80;">Posted!</span>';
-    setTimeout(function(){closeCreatePost();document.getElementById('postText').value='';loadPosts(currentUser.id);},800);
+    setTimeout(function(){closeCreatePost();document.getElementById('postText').value='';document.getElementById('postMediaUrl').value='';document.getElementById('postMediaPreview').innerHTML='';loadPosts(currentUser.id);},800);
     }catch(e){document.getElementById('postNotice').innerHTML='<span style="color:#ef4444;">'+e.message+'</span>';}btn.disabled=false;
   };
 

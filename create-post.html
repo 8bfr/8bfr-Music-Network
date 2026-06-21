@@ -23,14 +23,14 @@ body{font-family:'Work Sans',sans-serif;background:#000;color:#fff;height:100vh;
 .side-btn{display:flex;flex-direction:column;align-items:center;gap:.15rem;color:#fff;font-size:.55rem;cursor:pointer;background:none;border:none;}
 .side-btn .icon{font-size:1.3rem;}
 .canvas-area{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#000;}
-#preview{width:100%;height:100%;object-fit:cover;}
+#preview{width:100%;height:100%;object-fit:contain;background:#000;}
 #mainCanvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
 .pip-view{position:fixed;top:60px;right:10px;width:100px;height:140px;border-radius:12px;overflow:hidden;border:2px solid rgba(255,255,255,.3);z-index:80;display:none;}
 .pip-view video{width:100%;height:100%;object-fit:cover;}
 .timer-display{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Bebas Neue',cursive;font-size:5rem;color:#fff;text-shadow:0 4px 20px rgba(0,0,0,.5);z-index:200;display:none;}
-.duration-bar{position:fixed;top:48px;left:0;right:0;height:4px;background:rgba(255,255,255,.2);z-index:100;}
+.duration-bar{position:fixed;top:100px;left:0;right:0;height:4px;background:rgba(255,255,255,.2);z-index:100;}
 .duration-fill{height:100%;background:#ef4444;width:0%;transition:width .1s linear;}
-.time-label{position:fixed;top:52px;right:10px;font-size:.65rem;color:#fff;z-index:100;font-weight:700;}
+.time-label{position:fixed;top:106px;right:10px;font-size:.8rem;color:#fff;z-index:100;font-weight:800;background:rgba(0,0,0,.5);padding:.15rem .5rem;border-radius:8px;}
 .side-tools{position:fixed;right:6px;top:50%;transform:translateY(-50%);z-index:90;display:flex;flex-direction:column;gap:.5rem;}
 .stool{width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,.4);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;border:none;color:#fff;}
 .stool.active{background:rgba(124,58,237,.6);}
@@ -120,6 +120,7 @@ body{font-family:'Work Sans',sans-serif;background:#000;color:#fff;height:100vh;
 <button class="stool" onclick="openPanel('duration')" title="Duration"><span class="icon">&#x23F0;</span></button>
 <button class="stool" onclick="togglePiP()" title="PiP"><span class="icon">&#x1F4F1;</span></button>
 <button class="stool" onclick="openPanel('ai')" title="AI Photo"><span class="icon">&#x1F916;</span></button>
+<button class="stool" onclick="openPanel('song')" title="Add Song"><span class="icon">&#x1F3B5;</span></button>
 <button class="stool" onclick="toggleCaption()" title="Caption"><span class="icon">&#x1F4AC;</span></button>
 </div>
 
@@ -182,6 +183,16 @@ body{font-family:'Work Sans',sans-serif;background:#000;color:#fff;height:100vh;
 </div>
 </div>
 
+<div class="panel" id="p-song">
+<h3>Add a Song <button class="pc" onclick="closePanel()">X</button></h3>
+<div style="padding:.25rem;">
+<input class="fi" id="songSearch" placeholder="Search 8BFR songs by title or artist..." oninput="searchPostSongs()" style="width:100%;padding:.6rem;border-radius:8px;border:1px solid rgba(124,58,237,.4);background:rgba(12,0,25,.9);color:#eae6ff;box-sizing:border-box;">
+<div id="songResults" style="max-height:30vh;overflow-y:auto;margin-top:.4rem;"></div>
+<div id="songChosen" style="display:none;margin-top:.5rem;padding:.5rem .7rem;background:rgba(124,58,237,.2);border:1px solid rgba(124,58,237,.4);border-radius:8px;font-size:.8rem;color:#eae6ff;align-items:center;justify-content:space-between;"><span id="songChosenLabel"></span><button onclick="clearPostSong()" style="background:none;border:none;color:#fca5a5;font-weight:800;cursor:pointer;">remove</button></div>
+<div style="font-size:.7rem;color:#fbbf24;margin-top:.4rem;">When you add an 8BFR song, downloads of this post are locked to protect the artist's music.</div>
+</div>
+</div>
+
 <input type="file" id="fileInput" accept="image/*,video/*" style="display:none;" onchange="handleUpload(this)">
 <input type="file" id="videoInput" accept="video/*" style="display:none;" onchange="handleUpload(this)">
 
@@ -192,6 +203,29 @@ var stream=null,pipStream=null,facingMode='environment',flashOn=false,timerSecs=
 var maxDuration=60,recordStart=0,durInterval=null;
 var currentFilter='none',currentEffect='none',currentBg='linear-gradient(135deg,#7c3aed,#ec4899)';
 var capturedBlob=null,capturedType='video';
+var postSongId=null;
+window.searchPostSongs=async function(){
+  var q=document.getElementById('songSearch').value.trim();
+  var box=document.getElementById('songResults');
+  if(q.length<2){box.innerHTML='';return;}
+  try{
+    var r=await db.from('songs').select('id,title,artist').or('title.ilike.%'+q+'%,artist.ilike.%'+q+'%').limit(10);
+    box.innerHTML=(r.data||[]).map(function(s){
+      return '<div onclick="pickPostSong(\''+s.id+'\',\''+String(s.title||'').replace(/\x27/g,'')+'\',\''+String(s.artist||'').replace(/\x27/g,'')+'\')" style="padding:.5rem .6rem;border-bottom:1px solid rgba(124,58,237,.15);cursor:pointer;font-size:.8rem;color:#eae6ff;">\uD83C\uDFB5 '+s.title+' - '+s.artist+'</div>';
+    }).join('')||'<div style="padding:.5rem;font-size:.75rem;color:rgba(255,255,255,.4);">No songs found</div>';
+  }catch(e){box.innerHTML='';}
+};
+window.pickPostSong=function(id,title,artist){
+  postSongId=id;
+  document.getElementById('songChosenLabel').textContent='\uD83C\uDFB5 '+title+' - '+artist;
+  document.getElementById('songChosen').style.display='flex';
+  document.getElementById('songResults').innerHTML='';
+  document.getElementById('songSearch').value='';
+};
+window.clearPostSong=function(){
+  postSongId=null;
+  document.getElementById('songChosen').style.display='none';
+};
 
 var FILTERS=[
 {name:'None',css:'none'},
@@ -303,7 +337,10 @@ initCamera();
 
 function setFilter(css,el){
 currentFilter=css;
-document.getElementById('preview').style.filter=css==='none'?'':css;
+var fv=css==='none'?'':css;
+document.getElementById('preview').style.filter=fv;
+var pImg=document.getElementById('uploadPreviewImg');if(pImg)pImg.style.filter=fv;
+var pVid=document.getElementById('uploadPreviewVid');if(pVid)pVid.style.filter=fv;
 document.querySelectorAll('.filter-item').forEach(function(f){f.classList.remove('active');});
 if(el)el.classList.add('active');
 closePanel();
@@ -507,9 +544,21 @@ img.src=url;
 }catch(e){document.getElementById('aiPhotoStatus').textContent='Error: '+e.message;}
 }
 
+async function bakeFilterIntoImage(blob){
+  if(currentFilter==='none'||capturedType!=='image')return blob;
+  try{
+    var url=URL.createObjectURL(blob);
+    var img=await new Promise(function(res,rej){var i=new Image();i.onload=function(){res(i);};i.onerror=rej;i.src=url;});
+    var cv=document.createElement('canvas');cv.width=img.naturalWidth;cv.height=img.naturalHeight;
+    var cx=cv.getContext('2d');cx.filter=currentFilter;cx.drawImage(img,0,0);
+    URL.revokeObjectURL(url);
+    return await new Promise(function(res){cv.toBlob(function(b){res(b||blob);},'image/jpeg',0.92);});
+  }catch(e){return blob;}
+}
 async function publishPost(){
 if(!capturedBlob&&mode==='text'){captureTextPost();await new Promise(function(r){setTimeout(r,500);});}
 if(!capturedBlob){alert('Capture or upload something first.');return;}
+capturedBlob=await bakeFilterIntoImage(capturedBlob);
 var caption=document.getElementById('captionInput')?document.getElementById('captionInput').value.trim():'';
 var btn=document.querySelector('.post-btn');
 btn.textContent='Posting...';btn.disabled=true;
@@ -520,7 +569,7 @@ var r=await db.storage.from('media').upload(path,capturedBlob,{contentType:captu
 if(r.error)throw r.error;
 var pub=db.storage.from('media').getPublicUrl(path);
 var mediaUrl=pub.data.publicUrl;
-var post={user_id:currentUser.id,text:caption||'',media:mediaUrl,media_type:capturedType,is_private:false};
+var post={user_id:currentUser.id,text:caption||'',media:mediaUrl,media_type:capturedType,is_private:false,song_id:postSongId||null,allow_download:postSongId?false:true};
 var ins=await db.from('posts').insert(post);
 if(ins.error)throw ins.error;
 window.location.href='feed.html';
