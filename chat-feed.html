@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>8BFR Chat - Feed</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Work Sans',system-ui,sans-serif;background:linear-gradient(#0b0014,#000);color:#eae6ff;min-height:100vh;padding-bottom:80px;}
+.hdr{background:rgba(15,0,30,.95);border-bottom:1px solid rgba(124,58,237,.5);padding:.75rem 1rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
+.hdr h1{font-family:'Bebas Neue',cursive;font-size:1.4rem;letter-spacing:1px;}
+.hdr a{color:#a855f7;text-decoration:none;font-size:.85rem;font-weight:600;}
+.tabs{display:flex;background:rgba(12,6,24,.9);border-bottom:1px solid rgba(124,58,237,.3);position:sticky;top:48px;z-index:50;}
+.tabs a{flex:1;text-align:center;padding:.7rem;color:rgba(234,230,255,.6);text-decoration:none;font-weight:700;font-size:.85rem;}
+.tabs a.active{color:#fff;border-bottom:2px solid #a855f7;}
+.main{max-width:600px;margin:0 auto;padding:1rem;}
+.composer{background:rgba(12,6,24,.85);border:1px solid rgba(124,58,237,.35);border-radius:14px;padding:1rem;margin-bottom:1.25rem;}
+.composer textarea{width:100%;background:rgba(0,0,0,.4);border:1px solid rgba(124,58,237,.3);border-radius:10px;color:#fff;padding:.7rem;font-size:.95rem;resize:vertical;min-height:60px;font-family:inherit;}
+.composer .row{display:flex;gap:.5rem;margin-top:.6rem;align-items:center;}
+.up-btn{padding:.5rem .9rem;background:rgba(124,58,237,.2);border:1px solid rgba(124,58,237,.4);color:#c084fc;border-radius:8px;font-weight:700;font-size:.82rem;cursor:pointer;}
+.post-btn{margin-left:auto;padding:.55rem 1.2rem;background:#7c3aed;border:none;color:#fff;border-radius:8px;font-weight:800;cursor:pointer;}
+.post-btn:disabled{opacity:.5;}
+.preview{margin-top:.6rem;border-radius:10px;overflow:hidden;display:none;}
+.preview img,.preview video{width:100%;display:block;max-height:300px;object-fit:contain;background:#000;}
+.post{background:rgba(12,6,24,.85);border:1px solid rgba(124,58,237,.3);border-radius:14px;margin-bottom:1rem;overflow:hidden;}
+.post-head{display:flex;align-items:center;gap:.6rem;padding:.75rem 1rem;}
+.post-head .av{width:38px;height:38px;border-radius:50%;background:#1a0b2e;object-fit:cover;}
+.post-head .nm{font-weight:700;font-size:.9rem;}
+.post-head .donate{font-size:.72rem;color:#34d399;text-decoration:none;font-weight:600;}
+.post-text{padding:0 1rem .6rem;font-size:.92rem;}
+.post-media img,.post-media video{width:100%;display:block;max-height:480px;object-fit:contain;background:#000;}
+.post-actions{display:flex;gap:1rem;padding:.6rem 1rem;font-size:.85rem;}
+.post-actions button{background:none;border:none;color:rgba(234,230,255,.7);cursor:pointer;font-size:.85rem;}
+.review-flag{background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.4);color:#fcd34d;padding:.3rem .6rem;font-size:.72rem;border-radius:6px;margin:0 1rem .5rem;display:inline-block;}
+.owner-bar{display:flex;gap:.5rem;padding:.5rem 1rem;border-top:1px solid rgba(239,68,68,.2);}
+.owner-bar button{flex:1;padding:.45rem;border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer;border:1px solid;}
+.hide-b{background:rgba(251,191,36,.1);border-color:rgba(251,191,36,.4);color:#fcd34d;}
+.del-b{background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.4);color:#fca5a5;}
+.empty{text-align:center;color:rgba(234,230,255,.4);padding:2rem;}
+.notice{font-size:.72rem;color:rgba(234,230,255,.45);text-align:center;padding:.5rem;}
+.tabbar{position:fixed;bottom:0;left:0;right:0;display:flex;background:rgba(12,6,24,.97);border-top:1px solid rgba(124,58,237,.4);}
+.tabbar a{flex:1;text-align:center;padding:.7rem;color:rgba(234,230,255,.6);text-decoration:none;font-size:.75rem;}
+.tabbar a.active{color:#a855f7;}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <h1>8BFR Chat</h1>
+  <a href="index.html">8BFR</a>
+</div>
+<div class="tabs">
+  <a href="chat-rooms.html">Rooms</a>
+  <a href="chat-feed.html" class="active">Feed</a>
+  <a href="profile.html">Profile</a>
+</div>
+
+<main class="main">
+  <div class="composer">
+    <textarea id="postText" placeholder="Share a photo or video..."></textarea>
+    <div class="preview" id="preview"></div>
+    <div class="row">
+      <button class="up-btn" onclick="document.getElementById('photoInput').click()">\uD83D\uDCF7 Photo</button>
+      <button class="up-btn" onclick="document.getElementById('videoInput').click()">\uD83C\uDFAC Video</button>
+      <button class="post-btn" id="postBtn" onclick="publish()">Post</button>
+    </div>
+    <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handleFile(this)">
+    <input type="file" id="videoInput" accept="video/*" style="display:none" onchange="handleFile(this)">
+  </div>
+  <div class="notice">Be respectful. All posts are reviewed. 18+ only. No explicit content.</div>
+  <div id="feed"><div class="empty">Loading feed...</div></div>
+</main>
+
+<div class="tabbar">
+  <a href="chat-rooms.html">\uD83D\uDCAC Rooms</a>
+  <a href="chat-feed.html" class="active">\uD83D\uDDBC\uFE0F Feed</a>
+  <a href="profile.html">\uD83D\uDC64 Profile</a>
+</div>
+
+<script>
+var SUPABASE_URL='https://novbuvwpjnxwwvdekjhr.supabase.co';
+var ANON='sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f';
+var OWNER='cb556180-f032-4b21-9470-1d786f2664ab';
+var db=window.supabase.createClient(SUPABASE_URL,ANON);
+var currentUser=null,isOwner=false,uploadedUrl=null,uploadedType=null,profileCache={};
+
+async function init(){
+  var s=await db.auth.getSession();
+  for(var t=0;t<8&&!(s.data&&s.data.session);t++){await new Promise(function(r){setTimeout(r,400);});s=await db.auth.getSession();}
+  if(!s.data||!s.data.session){window.location.href='login.html?return=chat-feed.html';return;}
+  currentUser=s.data.session.user;
+  isOwner=currentUser.id===OWNER;
+  var p=await db.from('profiles').select('is_18_plus,chat_mod').eq('user_id',currentUser.id).maybeSingle();
+  window._canMod=isOwner||(p.data&&p.data.chat_mod);
+  if(!p.data||!p.data.is_18_plus){
+    if(confirm('8BFR Chat is for adults 18 and over only. Are you 18 or older?')){
+      await db.from('profiles').update({is_18_plus:true}).eq('user_id',currentUser.id);
+    } else { window.location.href='index.html'; return; }
+  }
+  loadFeed();
+}
+
+async function handleFile(input){
+  if(!input.files||!input.files[0])return;
+  var file=input.files[0];
+  if(file.size>50*1024*1024){alert('File too large (max 50MB).');return;}
+  var btn=document.getElementById('postBtn');btn.disabled=true;btn.textContent='Uploading...';
+  try{
+    var ext=file.name.split('.').pop().toLowerCase();
+    var path=currentUser.id+'/chatapp/'+Date.now()+'.'+ext;
+    var r=await db.storage.from('media').upload(path,file,{contentType:file.type,upsert:true});
+    if(r.error)throw r.error;
+    uploadedUrl=db.storage.from('media').getPublicUrl(path).data.publicUrl;
+    uploadedType=file.type.startsWith('video')?'video':'image';
+    var pv=document.getElementById('preview');
+    pv.style.display='block';
+    pv.innerHTML=uploadedType==='video'?'<video src="'+uploadedUrl+'" controls playsinline></video>':'<img src="'+uploadedUrl+'">';
+  }catch(e){alert('Upload failed: '+(e.message||'unknown'));}
+  btn.disabled=false;btn.textContent='Post';
+}
+
+async function publish(){
+  var text=document.getElementById('postText').value.trim();
+  if(!text&&!uploadedUrl){alert('Write something or add a photo/video.');return;}
+  var btn=document.getElementById('postBtn');btn.disabled=true;btn.textContent='Posting...';
+  try{
+    var r=await db.from('chatapp_posts').insert({user_id:currentUser.id,text:text||null,media:uploadedUrl,media_type:uploadedType});
+    if(r.error)throw r.error;
+    document.getElementById('postText').value='';
+    document.getElementById('preview').style.display='none';
+    document.getElementById('preview').innerHTML='';
+    uploadedUrl=null;uploadedType=null;
+    loadFeed();
+  }catch(e){alert('Post failed: '+(e.message||'unknown'));}
+  btn.disabled=false;btn.textContent='Post';
+}
+
+async function loadFeed(){
+  var q=db.from('chatapp_posts').select('*').order('created_at',{ascending:false}).limit(50);
+  var r=await q;
+  var feed=document.getElementById('feed');
+  if(!r.data||!r.data.length){feed.innerHTML='<div class="empty">No posts yet. Be the first!</div>';return;}
+  var ids=[...new Set(r.data.map(function(p){return p.user_id;}))];
+  await cacheProfiles(ids);
+  feed.innerHTML=r.data.map(renderPost).join('');
+}
+
+async function cacheProfiles(ids){
+  var need=ids.filter(function(i){return !profileCache[i];});
+  if(need.length){
+    var r=await db.from('profiles').select('user_id,display_name,username,avatar_url,donation_link').in('user_id',need);
+    (r.data||[]).forEach(function(p){profileCache[p.user_id]=p;});
+  }
+}
+
+function renderPost(post){
+  var p=profileCache[post.user_id]||{};
+  var name=p.display_name||p.username||'Member';
+  var av=p.avatar_url||'';
+  var donate=p.donation_link?'<a class="donate" href="'+esc(p.donation_link)+'" target="_blank" rel="noopener">\uD83D\uDCB5 Support '+esc(name)+'</a>':'';
+  var media='';
+  if(post.media){
+    media=post.media_type==='video'
+      ?'<div class="post-media"><video src="'+esc(post.media)+'" controls playsinline></video></div>'
+      :'<div class="post-media"><img src="'+esc(post.media)+'"></div>';
+  }
+  var pending=post.approved===false;
+  var flag=(window._canMod&&pending)?'<div class="review-flag">\u23F3 PENDING APPROVAL - not visible to public yet</div>':((window._canMod&&post.hidden)?'<div class="review-flag">Hidden from public</div>':'');
+  var ownerBar=window._canMod?'<div class="owner-bar">'+(pending?'<button class="hide-b" style="background:rgba(52,211,153,.15);border-color:rgba(52,211,153,.5);color:#34d399;" onclick="approvePost(\''+post.id+'\')">\u2705 Approve</button>':'<button class="hide-b" onclick="toggleHide(\''+post.id+'\','+(post.hidden?'false':'true')+')">'+(post.hidden?'Unhide':'Hide')+'</button>')+'<button class="del-b" onclick="delPost(\''+post.id+'\')">Delete</button></div>':'';
+  return '<div class="post">'+
+    '<div class="post-head">'+(av?'<img class="av" src="'+esc(av)+'">':'<div class="av"></div>')+
+      '<div><div class="nm">'+esc(name)+'</div>'+donate+'</div></div>'+
+    (post.text?'<div class="post-text">'+esc(post.text)+'</div>':'')+
+    flag+media+ownerBar+
+    '</div>';
+}
+
+async function approvePost(id){
+  await db.from('chatapp_posts').update({approved:true,hidden:false}).eq('id',id);
+  loadFeed();
+}
+async function toggleHide(id,hide){
+  await db.from('chatapp_posts').update({hidden:hide==='true'||hide===true}).eq('id',id);
+  loadFeed();
+}
+async function delPost(id){
+  if(!confirm('Delete this post permanently?'))return;
+  await db.from('chatapp_posts').delete().eq('id',id);
+  loadFeed();
+}
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+init();
+</script>
+</body>
+</html>

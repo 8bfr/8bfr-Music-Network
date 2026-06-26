@@ -158,6 +158,11 @@ select.search-input{cursor:pointer;appearance:auto;}
             <option value="false">No</option>
             <option value="true">Yes</option>
         </select>
+        <label>Chat App Moderator (separate from 8BFR mods)</label>
+        <select id="editChatMod">
+            <option value="false">No</option>
+            <option value="true">Yes</option>
+        </select>
         <label>Badges (tap to toggle)</label>
         <div id="badgeGrid" style="display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.75rem;"></div>
         <div class="modal-btns">
@@ -203,7 +208,7 @@ async function init(){
     if(!s.data.session){location.href='login.html';return;}
     myUserId=s.data.session.user.id;
     if(myUserId!==OWNER_ID){
-        var pr=await db.from('profiles').select('role,badges').eq('user_id',myUserId).single();
+        var pr=await db.from('profiles').select('role,badges,chat_mod').eq('user_id',myUserId).single();
         var isOwnerRole=pr.data&&(pr.data.role==='owner'||(pr.data.badges||[]).indexOf('owner')!==-1);
         if(!isOwnerRole){
             document.getElementById('userList').innerHTML='<div class="empty">Owner access only.</div>';
@@ -248,7 +253,7 @@ async function loadRoleCounts(){
 
 async function loadAllMembers(){
     try{
-    var queryP=db.from('profiles').select('user_id,display_name,username,avatar_url,role,verified_artist,badges,coins,bio,created_at').order('created_at',{ascending:false});
+    var queryP=db.from('profiles').select('user_id,display_name,username,avatar_url,role,verified_artist,badges,coins,bio,created_at,chat_mod,subscription_tier,spotify_url').order('created_at',{ascending:false});
     var timeoutP=new Promise(function(_,rej){setTimeout(function(){rej(new Error('Timed out loading users. Check profiles RLS.'));},10000);});
     var result=await Promise.race([queryP,timeoutP]);
     if(result.error){document.getElementById('userList').innerHTML='<div class="empty">Error: '+result.error.message+'</div>';return;}
@@ -494,6 +499,7 @@ function openEdit(uid){
     document.getElementById('editCoins').value=u.coins||0;
     document.getElementById('editTier').value=u.subscription_tier||'free';
     document.getElementById('editVerifiedArtist').value=u.verified_artist?'true':'false';
+    document.getElementById('editChatMod').value=u.chat_mod?'true':'false';
     renderBadgeGrid(u.badges||[]);
     // Info header
     document.getElementById('euAvatar').src=u.avatar_url||u.profile_photo||'';
@@ -533,7 +539,8 @@ async function saveEdit(){
         coins:parseInt(document.getElementById('editCoins').value)||0,
         subscription_tier:document.getElementById('editTier').value,
         badges:badges,
-        verified_artist:document.getElementById('editVerifiedArtist').value==='true'
+        verified_artist:document.getElementById('editVerifiedArtist').value==='true',
+        chat_mod:document.getElementById('editChatMod').value==='true'
     };
     // Owner approval counts as email verification - never make them enter a code
     if(update.verified_artist)update.email_verified=true;
