@@ -71,8 +71,10 @@ body{font-family:'Work Sans',system-ui,sans-serif;background:linear-gradient(#0b
   <div class="chat-view" id="chatView">
     <div class="chat-top">
       <button onclick="leaveRoom()">&larr;</button>
-      <h2 id="roomName"></h2>
+      <h2 id="roomName" style="flex:1;"></h2>
+      <button id="cleanBtn" onclick="toggleCleanup()" style="display:none;background:none;border:1px solid rgba(239,68,68,.4);color:#fca5a5;border-radius:8px;padding:.3rem .6rem;font-size:.75rem;cursor:pointer;">Clean up</button>
     </div>
+    <div id="cleanupBar" style="display:none;gap:.5rem;padding:.5rem 1rem;background:rgba(239,68,68,.08);border-bottom:1px solid rgba(239,68,68,.2);align-items:center;font-size:.78rem;"><span id="cleanCount">0 selected</span><button onclick="deleteSelected()" style="background:rgba(239,68,68,.2);border:1px solid rgba(239,68,68,.5);color:#fca5a5;border-radius:6px;padding:.25rem .6rem;cursor:pointer;font-weight:700;">Delete selected</button><button onclick="clearAllMessages()" style="background:rgba(239,68,68,.2);border:1px solid rgba(239,68,68,.5);color:#fca5a5;border-radius:6px;padding:.25rem .6rem;cursor:pointer;font-weight:700;">Clear ALL</button><button onclick="toggleCleanup()" style="margin-left:auto;background:none;border:none;color:#a855f7;cursor:pointer;">Done</button></div>
     <div class="messages" id="messages"></div>
     <div class="emoji-bar" id="emojiBar"></div>
     <div class="compose">
@@ -134,6 +136,7 @@ async function enterRoom(id,name){
   document.getElementById('roomName').textContent=name;
   document.getElementById('roomList').style.display='none';
   document.getElementById('chatView').classList.add('show');
+  document.getElementById('cleanBtn').style.display=canMod?'block':'none';
   await loadMessages();
   // realtime
   if(msgChannel)db.removeChannel(msgChannel);
@@ -141,9 +144,21 @@ async function enterRoom(id,name){
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'chatapp_messages',filter:'room_id=eq.'+id},function(payload){
       appendMessage(payload.new);
     }).subscribe();
+  // Fallback poll (covers the case where realtime isn't enabled on the table)
+  if(window._pollIv)clearInterval(window._pollIv);
+  window._pollIv=setInterval(pollNew,3000);
+}
+async function pollNew(){
+  if(!activeRoom)return;
+  var r=await db.from('chatapp_messages').select('*').eq('room_id',activeRoom).order('created_at',{ascending:true}).limit(60);
+  if(!r.data)return;
+  var ids=[...new Set(r.data.map(function(m){return m.user_id;}))];
+  await cacheProfiles(ids);
+  r.data.forEach(appendMessage); // appendMessage dedupes
 }
 
 function leaveRoom(){
+  if(window._pollIv){clearInterval(window._pollIv);window._pollIv=null;}
   if(msgChannel){db.removeChannel(msgChannel);msgChannel=null;}
   activeRoom=null;
   document.getElementById('chatView').classList.remove('show');
@@ -168,6 +183,7 @@ async function cacheProfiles(ids){
 }
 
 async function appendMessage(m){
+  if(document.getElementById('msg-'+m.id))return; // already shown
   if(m.hidden && !canMod) return; // hidden messages only visible to staff
   if(!profileCache[m.user_id])await cacheProfiles([m.user_id]);
   var p=profileCache[m.user_id]||{};
@@ -196,6 +212,11 @@ async function appendMessage(m){
     div.ontouchstart=function(e){lpT=setTimeout(function(){openCtx(e.touches[0],m.id,m.user_id,name,!!m.hidden);},500);};
     div.ontouchend=function(){clearTimeout(lpT);};
     div.ontouchmove=function(){clearTimeout(lpT);};
+  }
+  if(cleanupMode && canMod){
+    div.style.cursor='pointer';
+    if(selectedMsgs[m.id])div.style.background='rgba(239,68,68,.25)';
+    div.onclick=function(){toggleSelectMsg(m.id,div);};
   }
   box.appendChild(div);
   box.scrollTop=box.scrollHeight;
@@ -294,12 +315,13 @@ async function sendMsg(){
   var inp=document.getElementById('msgInput');
   var text=inp.value.trim();
   if(!text||!activeRoom)return;
-  // blocked if muted
   var mp=await db.from('chat_mutes').select('expires_at').eq('user_id',currentUser.id).maybeSingle();
   if(mp.data&&(!mp.data.expires_at||new Date(mp.data.expires_at)>new Date())){alert('You have been muted from chat by a moderator.');inp.value='';return;}
   inp.value='';
-  var r=await db.from('chatapp_messages').insert({room_id:activeRoom,user_id:currentUser.id,message:text});
-  if(r.error){alert('Failed to send: '+r.error.message);}
+  var r=await db.from('chatapp_messages').insert({room_id:activeRoom,user_id:currentUser.id,message:text}).select().single();
+  if(r.error){alert('Failed to send: '+r.error.message);return;}
+  // Show instantly (don't wait for realtime, which may be off)
+  if(r.data && !document.getElementById('msg-'+r.data.id)) appendMessage(r.data);
 }
 
 function addEmoji(e){
@@ -309,6 +331,33 @@ function addEmoji(e){
 
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
+var cleanupMode=false, selectedMsgs={};
+window.toggleCleanup=function(){
+  cleanupMode=!cleanupMode;selectedMsgs={};
+  document.getElementById('cleanupBar').style.display=cleanupMode?'flex':'none';
+  updateCleanCount();
+  // re-render to add/remove checkboxes
+  loadMessages();
+};
+function updateCleanCount(){var n=Object.keys(selectedMsgs).length;var el=document.getElementById('cleanCount');if(el)el.textContent=n+' selected';}
+window.toggleSelectMsg=function(id,el){
+  if(selectedMsgs[id]){delete selectedMsgs[id];el.style.background='';}
+  else{selectedMsgs[id]=true;el.style.background='rgba(239,68,68,.25)';}
+  updateCleanCount();
+};
+window.deleteSelected=async function(){
+  var ids=Object.keys(selectedMsgs);
+  if(!ids.length){alert('Tap messages to select them first.');return;}
+  if(!confirm('Delete '+ids.length+' selected message(s)?'))return;
+  await db.from('chatapp_messages').delete().in('id',ids);
+  selectedMsgs={};updateCleanCount();loadMessages();
+};
+window.clearAllMessages=async function(){
+  if(!confirm('Delete ALL messages in this room? This cannot be undone.'))return;
+  if(!confirm('Are you absolutely sure? Every message here will be permanently deleted.'))return;
+  await db.from('chatapp_messages').delete().eq('room_id',activeRoom);
+  loadMessages();
+};
 window.goProfile=function(e){if(e)e.preventDefault();if(currentUser)window.location.href='profile.html?id='+currentUser.id;else window.location.href='login.html?return=chat-rooms.html';};
 init();
 </script>
