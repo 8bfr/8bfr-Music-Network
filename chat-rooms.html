@@ -26,8 +26,9 @@ body{font-family:'Work Sans',system-ui,sans-serif;background:linear-gradient(#0b
 .new-room{width:100%;padding:.85rem;background:#7c3aed;color:#fff;border:none;border-radius:12px;font-weight:800;font-size:.95rem;cursor:pointer;margin-bottom:1rem;}
 
 /* chat view */
-.chat-view{display:none;flex-direction:column;height:100%;}
+.chat-view{display:none;flex-direction:column;position:fixed;inset:0;z-index:200;background:linear-gradient(#0b0014,#000);}
 .chat-view.show{display:flex;}
+.messages{flex:1 1 auto;min-height:0;}
 .chat-top{display:flex;align-items:center;gap:.6rem;padding:.6rem 1rem;background:rgba(12,6,24,.9);border-bottom:1px solid rgba(124,58,237,.3);flex-shrink:0;}
 .chat-top button{background:none;border:none;color:#a855f7;font-size:1.3rem;cursor:pointer;}
 .chat-top h2{font-size:1rem;}
@@ -95,11 +96,11 @@ async function init(){
   for(var t=0;t<8&&!(s.data&&s.data.session);t++){await new Promise(function(r){setTimeout(r,400);});s=await db.auth.getSession();}
   if(!s.data||!s.data.session){window.location.href='login.html?return=chat-rooms.html';return;}
   currentUser=s.data.session.user;
-  // 18+ gate + mod check
-  var p=await db.from('profiles').select('is_18_plus,chat_mod').eq('user_id',currentUser.id).maybeSingle();
-  canMod=(currentUser.id===OWNERID)||(p.data&&p.data.chat_mod);
+  // 18+ gate + mod check (single lookup)
+  var p=await db.from('profiles').select('is_18_plus,chat_mod,role').eq('user_id',currentUser.id).maybeSingle();
+  myRole=(p.data&&p.data.role)||'';
   window._isChatMod=(p.data&&p.data.chat_mod)||false;
-  try{var rr=await db.from('profiles').select('role').eq('user_id',currentUser.id).maybeSingle();myRole=(rr.data&&rr.data.role)||'';}catch(e){}
+  canMod=(currentUser.id===OWNERID)||window._isChatMod||myRole==='owner'||myRole==='co-owner'||myRole==='admin'||myRole==='mod';
   if(!p.data||!p.data.is_18_plus){
     if(confirm('8BFR Chat is for adults 18 and over only. Are you 18 or older?')){
       await db.from('profiles').update({is_18_plus:true}).eq('user_id',currentUser.id);
@@ -181,14 +182,20 @@ async function appendMessage(m){
   var body=renderMsgText(m.message,m.user_id===OWNERID);
   if(m.hidden)body='<span style="opacity:.5;font-style:italic;">[hidden] </span>'+body;
   div.innerHTML='<div class="who">'+esc(name)+donate+'</div><div class="bubble">'+body+'</div>';
-  // Staff: long-press / right-click opens the moderation menu (same as 8BFR chat)
+  // Staff: visible mod button + long-press / right-click (same actions as 8BFR chat)
   if(canMod && m.user_id!==currentUser.id){
+    var whoDiv=div.querySelector('.who');
+    var modBtn=document.createElement('button');
+    modBtn.textContent='⋯';
+    modBtn.title='Moderate';
+    modBtn.style.cssText='background:none;border:none;color:#a855f7;font-size:1rem;cursor:pointer;margin-left:.4rem;font-weight:900;';
+    modBtn.onclick=function(e){e.stopPropagation();openCtx(e,m.id,m.user_id,name,!!m.hidden);};
+    whoDiv.appendChild(modBtn);
     div.oncontextmenu=function(e){e.preventDefault();openCtx(e,m.id,m.user_id,name,!!m.hidden);};
     var lpT;
     div.ontouchstart=function(e){lpT=setTimeout(function(){openCtx(e.touches[0],m.id,m.user_id,name,!!m.hidden);},500);};
     div.ontouchend=function(){clearTimeout(lpT);};
     div.ontouchmove=function(){clearTimeout(lpT);};
-    div.style.cursor='context-menu';
   }
   box.appendChild(div);
   box.scrollTop=box.scrollHeight;
