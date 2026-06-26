@@ -75,7 +75,7 @@ body{font-family:'Work Sans',system-ui,sans-serif;background:linear-gradient(#0b
     <div class="messages" id="messages"></div>
     <div class="emoji-bar" id="emojiBar"></div>
     <div class="compose">
-      <input type="text" id="msgInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendMsg()" maxlength="500">
+      <input type="text" id="msgInput" placeholder="Type a message...  link: [text](https://...)" onkeydown="if(event.key==='Enter')sendMsg()" maxlength="500">
       <button onclick="sendMsg()">Send</button>
     </div>
   </div>
@@ -87,6 +87,7 @@ var ANON='sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f';
 var db=window.supabase.createClient(SUPABASE_URL,ANON);
 var currentUser=null, activeRoom=null, msgChannel=null, profileCache={};
 var OWNERID='cb556180-f032-4b21-9470-1d786f2664ab';
+var canMod=false;
 var EMOJIS=['\u2764\uFE0F','\uD83D\uDE02','\uD83D\uDD25','\uD83D\uDC4D','\uD83D\uDE0D','\uD83D\uDE4C','\uD83C\uDF89','\uD83D\uDE2E','\uD83D\uDE22','\uD83D\uDE0E','\uD83D\uDC4F','\uD83D\uDCAF','\uD83C\uDFB5','\u2728','\uD83D\uDE4F','\uD83D\uDE18'];
 
 async function init(){
@@ -94,8 +95,11 @@ async function init(){
   for(var t=0;t<8&&!(s.data&&s.data.session);t++){await new Promise(function(r){setTimeout(r,400);});s=await db.auth.getSession();}
   if(!s.data||!s.data.session){window.location.href='login.html?return=chat-rooms.html';return;}
   currentUser=s.data.session.user;
-  // 18+ gate
-  var p=await db.from('profiles').select('is_18_plus').eq('user_id',currentUser.id).maybeSingle();
+  // 18+ gate + mod check
+  var p=await db.from('profiles').select('is_18_plus,chat_mod').eq('user_id',currentUser.id).maybeSingle();
+  canMod=(currentUser.id===OWNERID)||(p.data&&p.data.chat_mod);
+  window._isChatMod=(p.data&&p.data.chat_mod)||false;
+  try{var rr=await db.from('profiles').select('role').eq('user_id',currentUser.id).maybeSingle();myRole=(rr.data&&rr.data.role)||'';}catch(e){}
   if(!p.data||!p.data.is_18_plus){
     if(confirm('8BFR Chat is for adults 18 and over only. Are you 18 or older?')){
       await db.from('profiles').update({is_18_plus:true}).eq('user_id',currentUser.id);
@@ -158,29 +162,134 @@ async function loadMessages(){
 async function cacheProfiles(ids){
   var need=ids.filter(function(i){return !profileCache[i];});
   if(!need.length)return;
-  var r=await db.from('profiles').select('user_id,display_name,username,donation_link').in('user_id',need);
+  var r=await db.from('profiles').select('user_id,display_name,username,donate_link').in('user_id',need);
   (r.data||[]).forEach(function(p){profileCache[p.user_id]=p;});
 }
 
 async function appendMessage(m){
+  if(m.hidden && !canMod) return; // hidden messages only visible to staff
   if(!profileCache[m.user_id])await cacheProfiles([m.user_id]);
   var p=profileCache[m.user_id]||{};
   var name=p.display_name||p.username||'Member';
-  var donate=p.donation_link?'<a href="'+esc(p.donation_link)+'" target="_blank" rel="noopener">\uD83D\uDCB5 Support</a>':'';
+  var donate=p.donate_link?'<a href="'+esc(p.donate_link)+'" target="_blank" rel="noopener">💵 Support</a>':'';
   var mine=m.user_id===currentUser.id?' mine':'';
   var box=document.getElementById('messages');
   var div=document.createElement('div');
   div.className='msg'+mine;
-  var allowL=(m.user_id===OWNERID);var body=allowL?esc(m.message).replace(/(https?:\/\/[^\s<]+)/g,function(u){return '<a href="'+u+'" target="_blank" rel="noopener" style="color:#67e8f9;text-decoration:underline;">'+u+'</a>';}):esc(m.message);
+  div.id='msg-'+m.id;
+  div.setAttribute('data-id',m.id);
+  var body=renderMsgText(m.message,m.user_id===OWNERID);
+  if(m.hidden)body='<span style="opacity:.5;font-style:italic;">[hidden] </span>'+body;
   div.innerHTML='<div class="who">'+esc(name)+donate+'</div><div class="bubble">'+body+'</div>';
+  // Staff: long-press / right-click opens the moderation menu (same as 8BFR chat)
+  if(canMod && m.user_id!==currentUser.id){
+    div.oncontextmenu=function(e){e.preventDefault();openCtx(e,m.id,m.user_id,name,!!m.hidden);};
+    var lpT;
+    div.ontouchstart=function(e){lpT=setTimeout(function(){openCtx(e.touches[0],m.id,m.user_id,name,!!m.hidden);},500);};
+    div.ontouchend=function(){clearTimeout(lpT);};
+    div.ontouchmove=function(){clearTimeout(lpT);};
+    div.style.cursor='context-menu';
+  }
   box.appendChild(div);
   box.scrollTop=box.scrollHeight;
 }
+// Renders [display](https://url) markdown-style links + bare URLs (owner only for clickable)
+function renderMsgText(text,allowLinks){
+  var safe=esc(text);
+  if(!allowLinks)return safe;
+  // [display](url)
+  safe=safe.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,function(_,disp,url){return '<a href="'+url+'" target="_blank" rel="noopener" style="color:#67e8f9;text-decoration:underline;">'+disp+'</a>';});
+  // bare urls not already linked
+  safe=safe.replace(/(^|[^"\>])(https?:\/\/[^\s<]+)/g,function(m0,pre,url){return pre+'<a href="'+url+'" target="_blank" rel="noopener" style="color:#67e8f9;text-decoration:underline;word-break:break-all;">'+url+'</a>';});
+  return safe;
+}
+// ===== Full moderation system (ported from 8BFR chat.html) =====
+var ctxTarget=null, myRole='';
+function openCtx(e,msgId,userId,name,isHidden){
+  ctxTarget={msgId:msgId,userId:userId,name:name,isHidden:isHidden};
+  var menu=document.getElementById('ctxMenu');
+  var isOwner=(currentUser.id===OWNERID)||(myRole==='owner'||myRole==='co-owner');
+  var isAdmin=(myRole==='admin');
+  var isModRole=(myRole==='mod')||window._isChatMod;
+  var items='';
+  if(isModRole||isAdmin||isOwner) items+='<div class="ctx-item danger" onclick="ctxAction(\'mute\')">🔇 Mute User</div>';
+  if(isAdmin||isOwner||window._isChatMod){
+    if(isHidden) items+='<div class="ctx-item" onclick="ctxAction(\'unhide\')">👁️ Unhide Message</div>';
+    else items+='<div class="ctx-item danger" onclick="ctxAction(\'hide\')">🙈 Hide Message</div>';
+    items+='<div class="ctx-item danger" onclick="ctxAction(\'kick\')">👢 Kick from Chat</div>';
+  }
+  if(isOwner){
+    items+='<div class="ctx-item danger" onclick="ctxAction(\'ban_chat\')">🚫 Ban from Chat</div>';
+    items+='<div class="ctx-item danger" onclick="ctxAction(\'delete\')">🗑️ Delete Message</div>';
+  }
+  items+='<div class="ctx-item" onclick="closeCtx()">Cancel</div>';
+  menu.innerHTML=items;menu.style.display='block';
+  menu.style.left=Math.min(e.clientX||e.pageX||100,window.innerWidth-180)+'px';
+  menu.style.top=Math.min(e.clientY||e.pageY||100,window.innerHeight-220)+'px';
+  setTimeout(function(){document.addEventListener('click',closeCtx,{once:true});},50);
+}
+function closeCtx(){document.getElementById('ctxMenu').style.display='none';ctxTarget=null;}
+window.ctxAction=async function(action){
+  if(!ctxTarget)return;
+  var t=ctxTarget;closeCtx();
+  if(action==='mute'){
+    var reason=prompt('Reason for muting "'+t.name+'":');if(!reason)return;
+    var h=parseInt(prompt('Mute duration in hours (0 = permanent):')||'0')||0;
+    var expires=h>0?new Date(Date.now()+h*3600000).toISOString():null;
+    await db.from('chat_mutes').upsert({user_id:t.userId,muted_by:currentUser.id,reason:reason,expires_at:expires},{onConflict:'user_id'});
+    await logAct('mute',t.userId,null,reason);notifyStaff('mute',t.name,reason);
+    alert('\u2713 '+t.name+' muted'+(h?' for '+h+'h':' permanently')+'.');
+  } else if(action==='hide'){
+    var reason=prompt('Reason for hiding this message:');if(!reason)return;
+    await db.from('chatapp_messages').update({hidden:true}).eq('id',t.msgId);
+    var el=document.querySelector('.msg[data-id="'+t.msgId+'"]');if(el){var bb=el.querySelector('.bubble');if(bb&&bb.innerHTML.indexOf('[hidden]')<0)bb.innerHTML='<span style="opacity:.5;font-style:italic;">[hidden] </span>'+bb.innerHTML;}
+    await logAct('hide_msg',t.userId,t.msgId,reason);notifyStaff('hide',t.name,reason);
+  } else if(action==='unhide'){
+    await db.from('chatapp_messages').update({hidden:false}).eq('id',t.msgId);
+    await logAct('unhide_msg',t.userId,t.msgId,'Unhidden');
+  } else if(action==='kick'){
+    var reason=prompt('Reason for kicking "'+t.name+'":');if(!reason)return;
+    await db.from('chat_mutes').upsert({user_id:t.userId,muted_by:currentUser.id,reason:reason,expires_at:new Date(Date.now()+3600000).toISOString()},{onConflict:'user_id'});
+    await logAct('kick',t.userId,null,reason);notifyStaff('kick',t.name,reason);
+    alert('\u2713 '+t.name+' kicked (1h chat mute).');
+  } else if(action==='ban_chat'){
+    var reason=prompt('Reason for banning "'+t.name+'" from chat:');if(!reason)return;
+    await db.from('chat_mutes').upsert({user_id:t.userId,muted_by:currentUser.id,reason:reason,expires_at:null},{onConflict:'user_id'});
+    await logAct('ban_chat',t.userId,null,reason);
+    alert('\u2713 '+t.name+' banned from chat.');
+  } else if(action==='delete'){
+    if(!confirm('Delete this message permanently?'))return;
+    await db.from('chatapp_messages').delete().eq('id',t.msgId);
+    var el2=document.querySelector('.msg[data-id="'+t.msgId+'"]');if(el2)el2.remove();
+    await logAct('delete_msg',t.userId,t.msgId,'Deleted by owner');
+  }
+};
+async function notifyStaff(action,targetName,reason){
+  var labels={mute:'🔇 Muted',hide:'🙈 Hid message from',kick:'👢 Kicked'};
+  var myName=(profileCache[currentUser.id]&&(profileCache[currentUser.id].display_name||profileCache[currentUser.id].username))||'Staff';
+  try{
+    var staff=await db.from('profiles').select('user_id').or('role.in.(owner,co-owner,admin),chat_mod.eq.true');
+    if(!staff.data)return;
+    for(var i=0;i<staff.data.length;i++){
+      if(staff.data[i].user_id===currentUser.id)continue;
+      await db.from('notifications').insert({recipient_id:staff.data[i].user_id,notif_type:'chat_moderation',
+        metadata:{message:myName+' '+(labels[action]||action)+' '+targetName+': '+reason,link:'chat-rooms.html'},created_at:new Date().toISOString()});
+    }
+  }catch(e){}
+}
+async function logAct(action,targetUserId,messageId,reason){
+  try{await db.from('chat_moderation_log').insert({performed_by:currentUser.id,performed_role:(myRole||'chat_mod'),action:action,target_user_id:targetUserId||null,message_id:messageId||null,room:activeRoom,reason:reason});}catch(e){}
+}
+// realtime kick listener
+db.channel('chatapp-mod').on('broadcast',{event:'kick'},function(p){if(currentUser&&p.payload&&p.payload.user_id===currentUser.id){alert('You have been removed from chat.');location.href='index.html';}}).subscribe();
 
 async function sendMsg(){
   var inp=document.getElementById('msgInput');
   var text=inp.value.trim();
   if(!text||!activeRoom)return;
+  // blocked if muted
+  var mp=await db.from('chat_mutes').select('expires_at').eq('user_id',currentUser.id).maybeSingle();
+  if(mp.data&&(!mp.data.expires_at||new Date(mp.data.expires_at)>new Date())){alert('You have been muted from chat by a moderator.');inp.value='';return;}
   inp.value='';
   var r=await db.from('chatapp_messages').insert({room_id:activeRoom,user_id:currentUser.id,message:text});
   if(r.error){alert('Failed to send: '+r.error.message);}
@@ -196,5 +305,7 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 window.goProfile=function(e){if(e)e.preventDefault();if(currentUser)window.location.href='profile.html?id='+currentUser.id;else window.location.href='login.html?return=chat-rooms.html';};
 init();
 </script>
+<div id="ctxMenu" style="display:none;position:fixed;z-index:9999;background:rgba(12,6,24,.98);border:1px solid rgba(124,58,237,.5);border-radius:10px;min-width:170px;padding:.3rem 0;box-shadow:0 8px 30px rgba(0,0,0,.6);"></div>
+<style>.ctx-item{padding:.6rem .9rem;font-size:.85rem;color:#eae6ff;cursor:pointer;}.ctx-item:hover{background:rgba(124,58,237,.2);}.ctx-item.danger{color:#fca5a5;}</style>
 </body>
 </html>
