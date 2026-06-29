@@ -218,18 +218,10 @@
       </div>
       <div class="age-tier-box" id="ageTierBox"></div>
 
-      <!-- ★ PARENT EMAIL (shown for teens 13-15) -->
-      <div id="parentEmailWrap" style="display:none;">
-        <div class="field">
-          <label for="parentEmail" style="color:#3b82f6;">👨‍👩‍👧 Parent/Guardian Email *</label>
-          <input type="email" id="parentEmail" placeholder="parent@email.com">
-          <div style="font-size:.72rem;color:rgba(96,165,250,.6);margin-top:.2rem;">Your parent will receive a consent email. Features limited until approved.</div>
-        </div>
-      </div>
 
       <!-- Age Policy Link -->
       <div style="text-align:center;margin-bottom:.5rem;">
-        <a href="age-policy.html" target="_blank" style="color:var(--primary);font-size:.78rem;">🛡️ View our Age Policy & Safety Rules</a>
+        <a href="age-policy.html" target="_blank" style="color:var(--primary);font-size:.78rem;">🔞 View our 18+ Age Policy</a>
       </div>
 
       <button class="submit-btn" onclick="goStep(3)">Continue →</button>
@@ -340,33 +332,20 @@ function onDobChange(){
   calcAge(dob);
   var info = document.getElementById('ageInfo');
   var box = document.getElementById('ageTierBox');
-  var pw = document.getElementById('parentEmailWrap');
+  var pw = document.getElementById('parentEmailWrap'); // removed; null-safe below
   box.style.display = 'block';
 
-  if (calculatedAge < 5) {
-    info.textContent = 'Age: ' + calculatedAge + ' — Too young';
+  if (pw) pw.style.display = 'none';
+  if (calculatedAge < 18) {
+    info.textContent = 'Age: ' + calculatedAge + ' — Must be 18+';
     info.style.color = '#ef4444';
     box.style.background = 'rgba(239,68,68,.08)'; box.style.border = '1px solid rgba(239,68,68,.25)'; box.style.color = '#fca5a5';
-    box.innerHTML = '❌ Children under 5 cannot use 8BFR.';
-    pw.style.display = 'none';
-  } else if (calculatedAge <= 12) {
-    info.textContent = 'Age: ' + calculatedAge + ' — KidZone account';
-    info.style.color = '#ec4899';
-    box.style.background = 'rgba(236,72,153,.08)'; box.style.border = '1px solid rgba(236,72,153,.25)'; box.style.color = '#f9a8d4';
-    box.innerHTML = '🧸 <strong>KidZone (12 & Under)</strong><br>A parent must verify via Didit. Access to KidZone only — a safe, moderated space for young creators. No DMs, no purchases, no main site. <a href="age-policy.html" target="_blank" style="color:#ec4899;">Learn more</a>';
-    pw.style.display = 'none';
-  } else if (calculatedAge <= 15) {
-    info.textContent = 'Age: ' + calculatedAge + ' — Teen (parental consent needed)';
-    info.style.color = '#3b82f6';
-    box.style.background = 'rgba(59,130,246,.08)'; box.style.border = '1px solid rgba(59,130,246,.25)'; box.style.color = '#93c5fd';
-    box.innerHTML = '🔵 <strong>Teen (13-15)</strong><br>Main site with restrictions. Parent email required. No tipping, purchases, live, or unrestricted DMs. 2hr daily default. <a href="age-policy.html" target="_blank" style="color:#60a5fa;">Learn more</a>';
-    pw.style.display = 'block';
+    box.innerHTML = '❌ <strong>You must be 18 or older to join 8BFR.</strong> 8BFR is an adults-only social network. <a href="age-policy.html" target="_blank" style="color:#fca5a5;">Learn more</a>';
   } else {
-    info.textContent = 'Age: ' + calculatedAge + ' — Full access';
+    info.textContent = 'Age: ' + calculatedAge + ' — Welcome!';
     info.style.color = '#22c55e';
     box.style.background = 'rgba(34,197,94,.08)'; box.style.border = '1px solid rgba(34,197,94,.25)'; box.style.color = '#86efac';
-    box.innerHTML = '🟣 <strong>Full Access (16+)</strong><br>All features unlocked.';
-    pw.style.display = 'none';
+    box.innerHTML = '🔞 <strong>Adults Only (18+)</strong><br>You confirm you are at least 18 years old. All features unlocked.';
   }
 }
 
@@ -389,6 +368,10 @@ function toggleRole(btn) {
 function goStep(n) {
   clearMsg();
 
+  if (n === 3 && currentStep === 2) {
+    if (calculatedAge === null) return showMsg('⚠️ Please enter your date of birth.', 'error');
+    if (calculatedAge < 18) return showMsg('❌ You must be 18 or older to join 8BFR.', 'error');
+  }
   if (n === 2 && currentStep === 1) {
     const needsVerify = selectedRoles.includes('artist') || selectedRoles.includes('beatmaker');
     const spotifyUrl = document.getElementById('spotifyUrl').value.trim();
@@ -412,26 +395,16 @@ function goStep(n) {
 
     // Age check
     calcAge(dob);
-    if (calculatedAge < 5) return showMsg('❌ You must be at least 5 years old to use 8BFR.', 'error');
-
-    // Teen needs parent email
-    if (calculatedTier === 'teen') {
-      const pe = document.getElementById('parentEmail').value.trim();
-      if (!pe || !pe.includes('@')) return showMsg('⚠️ A parent/guardian email is required for users age 13-15.', 'error');
-    }
+    if (calculatedAge < 18) return showMsg('❌ You must be 18 or older to join 8BFR.', 'error');
 
     // Build review summary
     const dn = document.getElementById('displayName').value.trim() || username;
-    let tierLabel = calculatedTier === 'kid' ? '🧸 KidZone (12 & Under)' :
-                    calculatedTier === 'teen' ? '🔵 Teen (13-15) — restricted features' :
-                    '🟣 Full Access (16+)';
     document.getElementById('reviewSummary').innerHTML =
       '<strong>Name:</strong> ' + dn + '<br>' +
       '<strong>Username:</strong> @' + username + '<br>' +
       '<strong>Email:</strong> ' + email + '<br>' +
       '<strong>Roles:</strong> ' + selectedRoles.join(', ') + '<br>' +
-      '<strong>Age:</strong> ' + calculatedAge + '<br>' +
-      '<strong>Tier:</strong> ' + tierLabel;
+      '<strong>Age:</strong> ' + calculatedAge + ' (18+ confirmed)';
   }
 
   // Switch panels
@@ -453,7 +426,7 @@ function calcAge(dobStr) {
   const m = today.getMonth() - dob.getMonth();
   if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
   calculatedAge = age;
-  calculatedTier = age <= 12 ? 'kid' : age <= 15 ? 'teen' : 'adult';
+  calculatedTier = 'adult';
 }
 
 /* ── PASSWORD ── */
@@ -551,7 +524,7 @@ async function doSignup() {
             role: selectedRoles[0] || 'fan',
             badges: finalBadges,
             date_of_birth: dob,
-            age_tier: calculatedTier,
+            age_tier: 'adult',
             coins: 50,
             spotify_url: spotifyUrl || null
         };
@@ -581,20 +554,6 @@ async function doSignup() {
         }
       } catch(e) { console.log('Owner notify error:', e); }
 
-      // ★ If teen — create consent request
-      if (calculatedTier === 'teen') {
-        const parentEmail = document.getElementById('parentEmail').value.trim();
-        if (parentEmail) {
-          try {
-            await db.from('teen_consent_requests').insert({
-              teen_user_id: data.user.id,
-              parent_email: parentEmail,
-              status: 'pending',
-              consent_code: Math.random().toString(36).substring(2, 8).toUpperCase()
-            });
-          } catch(e) {}
-        }
-      }
     }
 
     // Show verification code screen
@@ -608,14 +567,7 @@ async function doSignup() {
     signupDisplayName = displayName;
     await sendVerificationCode();
 
-    // Tier-specific message
-    var extra = '';
-    if (calculatedTier === 'kid') {
-      extra = '<div style="margin-top:.75rem;padding:.75rem;background:rgba(236,72,153,.08);border:1px solid rgba(236,72,153,.25);border-radius:10px;font-size:.85rem;color:#f9a8d4;">🧸 <strong>KidZone Account</strong> — After verifying, a parent must verify identity at the <a href="kidzone-parent.html" style="color:#ec4899;">Parent Hub</a>.</div>';
-    } else if (calculatedTier === 'teen') {
-      extra = '<div style="margin-top:.75rem;padding:.75rem;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);border-radius:10px;font-size:.85rem;color:#93c5fd;">🔵 <strong>Teen Account</strong> — Your parent/guardian will receive a consent email. Some features restricted until approved.</div>';
-    }
-    document.getElementById('verifyExtra').innerHTML = extra;
+    document.getElementById('verifyExtra').innerHTML = '';
 
   } catch(e) {
     showMsg('⚠️ Something went wrong. Please try again.', 'error');
