@@ -343,11 +343,10 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
       <a href="page.html" class="menu-chip">&#x1F4C4; Pages</a>\
       <a href="group.html" class="menu-chip">&#x1F465; Groups</a>\
       <a href="profile.html" class="menu-chip">&#x1F464; My Profile</a>\
-      <a href="chat.html" class="menu-chip">&#x1F4AC; Chat</a>\
+      <a href="chat.html" class="menu-chip">&#x1F3B5; Music Chats</a> <a href="chat-rooms.html" class="menu-chip">&#x1F465; Community Chat</a>\
       <a href="dm.html" class="menu-chip">&#x2709;&#xFE0F; DM</a>\
       <a href="integration.html" class="menu-chip">&#x1F517; Integrations</a>\
       <a href="referrals.html" class="menu-chip">&#x1F381; Invite Friends</a>\
-      <a href="kids.html" class="menu-chip">&#x1F9F8; KidZone</a>\
     </div>\
   </div>\
   <div class="menu-group collapsed">\
@@ -394,7 +393,6 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
       <a href="owner-users.html" class="menu-chip">&#x1F465; Manage Users</a>\
       <a href="owner-verifications.html" class="menu-chip">&#x2705; Verifications</a>\
       <a href="owner-dm-monitor.html" class="menu-chip">&#x1F441; DM Monitor</a>\
-      <a href="owner-kidzone.html" class="menu-chip">&#x1F9F8; KidZone Admin</a>\
       <a href="owner-monitor.html" class="menu-chip">&#x1F441; Site Monitor</a>\
       <a href="mod-panel.html" class="menu-chip">&#x1F6E1;&#xFE0F; Mod Panel</a>\
     </div>\

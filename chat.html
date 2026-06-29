@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Community Chat — 8BFR Music Network</title>
+  <title>Music Chats — 8BFR Music Network</title>
   <link rel="icon" href="assets/images/favicon.png">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
@@ -63,12 +63,13 @@
 <body>
 
 <div class="header">
-  <h1>💬 Community Chat</h1>
+  <h1>🎵 Music Chats</h1>
   <span class="online-count" id="onlineCount">🟢 Loading...</span>
+  <a href="chat-rooms.html" style="background:#7c3aed;color:#fff;padding:.4rem .8rem;border-radius:8px;text-decoration:none;font-size:.78rem;font-weight:700;">👥 Community Chat</a>
 </div>
 
 <div class="room-tabs">
-  <button class="room-tab active" onclick="switchRoom('general',this)">🌐 General</button>
+  <button class="room-tab active" onclick="switchRoom('general',this)">🌐 General Music</button>
   <button class="room-tab" onclick="switchRoom('music',this)">🎵 Music Talk</button>
   <button class="room-tab" onclick="switchRoom('beats',this)">🎚️ Beat Lab</button>
   <button class="room-tab" id="collabTab" onclick="switchRoom('collab',this)" title="Music industry members only">🤝 Collab <span id="collabLock" style="font-size:.7rem;opacity:.7;">🔒</span></button>
@@ -206,7 +207,7 @@ async function loadMessages() {
     const profileMap = {};
     if (uids.length) {
       const { data: profiles } = await SB.from('profiles')
-        .select('user_id,username,display_name,avatar_url,role')
+        .select('user_id,username,display_name,avatar_url,role,donate_link')
         .in('user_id', uids);
       if (profiles) profiles.forEach(p => { profileMap[p.user_id] = p; });
     }
@@ -246,7 +247,7 @@ function buildMsg(m) {
     modBtn +
     '<div class="msg-avatar">' + avatarHtml + '</div>' +
     '<div class="msg-body">' +
-    (!isOwn ? '<div class="msg-name"><a href="profile.html?id='+m.user_id+'" style="color:inherit;text-decoration:none;">'+name+'</a>'+roleBadge+'</div>' : '') +
+    (!isOwn ? '<div class="msg-name"><a href="profile.html?id='+m.user_id+'" style="color:inherit;text-decoration:none;">'+name+'</a>'+roleBadge+(p.donate_link?' <a href="'+esc(p.donate_link)+'" target="_blank" rel="noopener" style="color:#34d399;font-size:.62rem;text-decoration:none;">💵 Support</a>':'')+'</div>' : '') +
     '<div class="msg-bubble">' + esc(m.message) + '</div>' +
     '<div class="msg-time">' + ago(m.created_at) + '</div>' +
     '</div>';
@@ -259,7 +260,7 @@ function subscribeToRoom() {
     .on('broadcast', { event: 'INSERT' }, async (payload) => {
       const m = payload.payload; if (!m) return;
       if (m.hidden && !isStaff) return;
-      const { data: p } = await SB.from('profiles').select('username,display_name,avatar_url,role').eq('user_id', m.user_id).single();
+      const { data: p } = await SB.from('profiles').select('username,display_name,avatar_url,role,donate_link').eq('user_id', m.user_id).single();
       m.profiles = p || {};
       appendMessage(m);
     })
@@ -275,7 +276,7 @@ function subscribeToRoom() {
       if (m.hidden && !isStaff) return;
       // Avoid duplicates from broadcast
       if (document.querySelector('.msg[data-id="'+m.id+'"]')) return;
-      const { data: p } = await SB.from('profiles').select('username,display_name,avatar_url,role').eq('user_id', m.user_id).single();
+      const { data: p } = await SB.from('profiles').select('username,display_name,avatar_url,role,donate_link').eq('user_id', m.user_id).single();
       m.profiles = p || {};
       appendMessage(m);
     })
