@@ -390,7 +390,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
       <a href="page-editor.html" class="menu-chip">&#x1F4DD; Page Editor</a>\
       <a href="owner-studio.html" class="menu-chip">&#x1F3A8; Owner Studio</a>\
       <a href="songwriting.html" class="menu-chip">&#x1F4DD; Songwriting</a>\
-      <a href="owner-users.html" class="menu-chip">&#x1F465; Manage Users</a>\
+      <a href="approval-queue.html" class="menu-chip">&#x2705; Approval Queue</a> <a href="owner-users.html" class="menu-chip">&#x1F465; Manage Users</a>\
       <a href="owner-verifications.html" class="menu-chip">&#x2705; Verifications</a>\
       <a href="owner-dm-monitor.html" class="menu-chip">&#x1F441; DM Monitor</a>\
       <a href="owner-monitor.html" class="menu-chip">&#x1F441; Site Monitor</a>\

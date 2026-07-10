@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Approval Queue - 8BFR</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Work Sans',system-ui,sans-serif;background:linear-gradient(#0b0014,#000);color:#eae6ff;min-height:100vh;padding-bottom:60px;}
+.hdr{background:rgba(15,0,30,.95);border-bottom:1px solid rgba(124,58,237,.5);padding:.9rem 1rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
+.hdr h1{font-family:'Bebas Neue',cursive;font-size:1.4rem;letter-spacing:1px;}
+.hdr a{color:#a855f7;text-decoration:none;font-size:.85rem;font-weight:600;}
+.main{max-width:600px;margin:1rem auto;padding:0 1rem;}
+.count-pill{display:inline-block;background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.4);color:#fcd34d;padding:.3rem .8rem;border-radius:999px;font-size:.82rem;font-weight:700;margin-bottom:1rem;}
+.post{background:rgba(12,6,24,.85);border:1px solid rgba(251,191,36,.3);border-radius:14px;margin-bottom:1rem;overflow:hidden;}
+.src-tag{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;padding:.35rem .8rem;color:#fcd34d;background:rgba(251,191,36,.1);}
+.phead{display:flex;align-items:center;gap:.6rem;padding:.7rem 1rem;}
+.phead .av{width:36px;height:36px;border-radius:50%;background:#1a0b2e;object-fit:cover;}
+.phead .nm{font-weight:700;font-size:.9rem;}
+.ptext{padding:0 1rem .6rem;font-size:.92rem;}
+.pmedia img,.pmedia video{width:100%;display:block;max-height:420px;object-fit:contain;background:#000;}
+.acts{display:flex;gap:.6rem;padding:.75rem 1rem;}
+.acts button{flex:1;padding:.7rem;border-radius:10px;font-weight:800;font-size:.9rem;cursor:pointer;border:1px solid;}
+.approve{background:rgba(52,211,153,.15);border-color:rgba(52,211,153,.5);color:#34d399;}
+.reject{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.45);color:#fca5a5;}
+.empty{text-align:center;color:rgba(234,230,255,.5);padding:3rem 1rem;}
+.empty .big{font-size:2.5rem;margin-bottom:.5rem;}
+.loading{text-align:center;padding:2rem;color:rgba(234,230,255,.5);}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <a href="index.html">&larr; Home</a>
+  <h1>Approval Queue</h1>
+  <a href="feed.html">Feed</a>
+</div>
+<main class="main">
+  <div id="pill" class="count-pill" style="display:none;"></div>
+  <div id="queue"><div class="loading">Loading pending posts...</div></div>
+</main>
+<script>
+var SB=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f');
+var OWNER='cb556180-f032-4b21-9470-1d786f2664ab';
+var me=null, canMod=false, profiles={};
+
+async function init(){
+  var s=await SB.auth.getSession();
+  for(var t=0;t<8&&!(s.data&&s.data.session);t++){await new Promise(function(r){setTimeout(r,400);});s=await SB.auth.getSession();}
+  if(!s.data||!s.data.session){location.href='login.html?return=approval-queue.html';return;}
+  me=s.data.session.user;
+  var p=await SB.from('profiles').select('role,chat_mod').eq('user_id',me.id).maybeSingle();
+  var role=(p.data&&p.data.role)||'';
+  canMod=(me.id===OWNER)||role==='owner'||role==='co-owner'||role==='admin'||role==='mod'||(p.data&&p.data.chat_mod);
+  if(!canMod){document.getElementById('queue').innerHTML='<div class="empty">Staff only.</div>';return;}
+  loadQueue();
+}
+
+async function loadQueue(){
+  var q=document.getElementById('queue');
+  // Pending from BOTH feeds
+  var [main,chat]=await Promise.all([
+    SB.from('posts').select('*').eq('approved',false).not('media','is',null).order('created_at',{ascending:false}).limit(50),
+    SB.from('chatapp_posts').select('*').eq('approved',false).not('media','is',null).order('created_at',{ascending:false}).limit(50)
+  ]);
+  var items=[];
+  (main.data||[]).forEach(function(p){p._src='8BFR Feed';p._table='posts';items.push(p);});
+  (chat.data||[]).forEach(function(p){p._src='Community Feed';p._table='chatapp_posts';items.push(p);});
+  items.sort(function(a,b){return new Date(b.created_at)-new Date(a.created_at);});
+
+  if(!items.length){
+    document.getElementById('pill').style.display='none';
+    q.innerHTML='<div class="empty"><div class="big">\u2705</div>All caught up! No posts waiting for approval.</div>';
+    return;
+  }
+  document.getElementById('pill').style.display='inline-block';
+  document.getElementById('pill').textContent='\u23F3 '+items.length+' post'+(items.length>1?'s':'')+' waiting';
+
+  // fetch profiles
+  var ids=[...new Set(items.map(function(i){return i.user_id;}))];
+  var pr=await SB.from('profiles').select('user_id,display_name,username,avatar_url').in('user_id',ids);
+  (pr.data||[]).forEach(function(p){profiles[p.user_id]=p;});
+
+  q.innerHTML=items.map(renderItem).join('');
+}
+
+function renderItem(post){
+  var p=profiles[post.user_id]||{};
+  var name=p.display_name||p.username||'Member';
+  var media=post.media_type==='video'
+    ?'<div class="pmedia"><video src="'+esc(post.media)+'" controls playsinline></video></div>'
+    :'<div class="pmedia"><img src="'+esc(post.media)+'"></div>';
+  return '<div class="post" id="q-'+post._table+'-'+post.id+'">'+
+    '<div class="src-tag">'+post._src+'</div>'+
+    '<div class="phead">'+(p.avatar_url?'<img class="av" src="'+esc(p.avatar_url)+'">':'<div class="av"></div>')+'<div class="nm">'+esc(name)+'</div></div>'+
+    (post.text?'<div class="ptext">'+esc(post.text)+'</div>':'')+
+    media+
+    '<div class="acts"><button class="approve" onclick="approve(\''+post._table+'\',\''+post.id+'\',\''+post.user_id+'\')">\u2705 Approve</button>'+
+    '<button class="reject" onclick="reject(\''+post._table+'\',\''+post.id+'\')">\uD83D\uDDD1\uFE0F Delete</button></div>'+
+    '</div>';
+}
+
+window.approve=async function(table,id,uid){
+  var card=document.getElementById('q-'+table+'-'+id);
+  try{
+    await SB.from(table).update({approved:true,hidden:false}).eq('id',id);
+    if(card)card.remove();
+    refreshCount();
+  }catch(e){alert('Error: '+e.message);}
+};
+window.reject=async function(table,id){
+  if(!confirm('Delete this post permanently?'))return;
+  var card=document.getElementById('q-'+table+'-'+id);
+  try{
+    await SB.from(table).delete().eq('id',id);
+    if(card)card.remove();
+    refreshCount();
+  }catch(e){alert('Error: '+e.message);}
+};
+function refreshCount(){
+  var left=document.querySelectorAll('.post').length;
+  if(!left){document.getElementById('queue').innerHTML='<div class="empty"><div class="big">\u2705</div>All caught up! No posts waiting for approval.</div>';document.getElementById('pill').style.display='none';}
+  else document.getElementById('pill').textContent='\u23F3 '+left+' post'+(left>1?'s':'')+' waiting';
+}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+init();
+</script>
+</body>
+</html>
