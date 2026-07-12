@@ -47,7 +47,16 @@
     .mod-menu{position:relative;display:inline-block;}
     .mod-menu-btn{background:none;border:none;color:rgba(168,85,247,.5);cursor:pointer;font-size:1rem;padding:.35rem .4rem;border-radius:8px;}
     .mod-menu-btn:hover{background:rgba(124,58,237,.15);}
-    .mod-dropdown{display:none;position:absolute;right:0;bottom:100%;background:rgba(12,6,24,.98);border:1px solid rgba(124,58,237,.4);border-radius:10px;min-width:140px;z-index:500;padding:.3rem 0;box-shadow:0 -4px 20px rgba(0,0,0,.5);}
+    .mod-dropdown{display:none;}
+    /* Fixed bottom-sheet mod menu - always fully on screen, never clipped */
+    #modSheet{display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.6);align-items:flex-end;justify-content:center;}
+    #modSheet.open{display:flex;}
+    #modSheetInner{width:100%;max-width:420px;background:rgba(12,6,24,.99);border:1px solid rgba(124,58,237,.5);border-radius:16px 16px 0 0;padding:.75rem .75rem 1.25rem;box-shadow:0 -8px 30px rgba(0,0,0,.7);}
+    #modSheetInner .grab{width:40px;height:4px;background:rgba(168,85,247,.5);border-radius:2px;margin:0 auto .75rem;}
+    #modSheetInner .ms-title{text-align:center;font-size:.8rem;color:#a855f7;font-weight:800;margin-bottom:.6rem;}
+    #modSheetInner button{display:block;width:100%;text-align:left;background:rgba(124,58,237,.12);border:1px solid rgba(124,58,237,.3);color:#eae6ff;padding:.85rem 1rem;font-size:.95rem;font-weight:600;cursor:pointer;border-radius:10px;margin-bottom:.5rem;}
+    #modSheetInner button.danger{color:#fca5a5;background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.35);}
+    #modSheetInner button.cancel{background:none;border:none;color:#a855f7;text-align:center;font-weight:700;}
     .mod-dropdown.open{display:block;}
     .mod-dropdown button{display:block;width:100%;text-align:left;background:none;border:none;color:#eae6ff;padding:.45rem .75rem;font-size:.75rem;cursor:pointer;}
     .mod-dropdown button:hover{background:rgba(124,58,237,.15);}
@@ -405,7 +414,23 @@
   var OWNER_ID="cb556180-f032-4b21-9470-1d786f2664ab";
   var db=window._db||window.supabase.createClient("https://novbuvwpjnxwwvdekjhr.supabase.co","sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f");
   var OWNER_ID="cb556180-f032-4b21-9470-1d786f2664ab";
-  window.toggleModMenu=function(e,postId){e.stopPropagation();document.querySelectorAll(".mod-dropdown.open").forEach(function(d){d.classList.remove("open");});var dd=document.getElementById("mod-dd-"+postId);if(dd)dd.classList.toggle("open");setTimeout(function(){document.addEventListener("click",function cl(){document.querySelectorAll(".mod-dropdown.open").forEach(function(d){d.classList.remove("open");});document.removeEventListener("click",cl);});},50);};
+  window.toggleModMenu=function(e,postId){
+    e.stopPropagation();
+    var src=document.getElementById("mod-dd-"+postId);
+    if(!src)return;
+    // Copy the post's mod buttons into the fixed bottom sheet so nothing is clipped
+    var btns=document.getElementById("modSheetBtns");
+    btns.innerHTML="";
+    src.querySelectorAll("button").forEach(function(b){
+      var nb=document.createElement("button");
+      nb.textContent=b.textContent;
+      if(b.classList.contains("danger"))nb.classList.add("danger");
+      nb.onclick=function(){closeModSheet();b.click();};
+      btns.appendChild(nb);
+    });
+    document.getElementById("modSheet").classList.add("open");
+  };
+  window.closeModSheet=function(){document.getElementById("modSheet").classList.remove("open");};
   window.approveFeedPost=async function(postId){
     try{
       await db.from('posts').update({approved:true,hidden:false}).eq('id',postId);
@@ -420,5 +445,13 @@
 
     // Hydrate any song mixers shortly after feed renders
     (function(){var n=0;var iv=setInterval(function(){if(window._hydrateMixers)window._hydrateMixers();if(++n>8)clearInterval(iv);},900);})();</script>
+<div id="modSheet" onclick="if(event.target===this)closeModSheet()">
+  <div id="modSheetInner">
+    <div class="grab"></div>
+    <div class="ms-title">Moderate Post</div>
+    <div id="modSheetBtns"></div>
+    <button class="cancel" onclick="closeModSheet()">Cancel</button>
+  </div>
+</div>
 </body>
 </html>
