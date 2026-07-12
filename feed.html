@@ -239,7 +239,7 @@
       if(!currentUser){alert('Log in to like posts');return;}
       try{const alreadyLiked=btn.classList.contains('liked');
       if(alreadyLiked){await db.from('post_likes').delete().eq('post_id',id).eq('user_id',currentUser.id);const{data}=await db.from('posts').select('likes,user_id').eq('id',id).single();const n=Math.max(0,(data&&data.likes)||0);document.getElementById('like-count-'+id).textContent=n;btn.classList.remove('liked');}
-      else{await db.from('post_likes').upsert({post_id:id,user_id:currentUser.id});const{data}=await db.from('posts').select('likes,user_id').eq('id',id).single();const n=(data&&data.likes)||1;document.getElementById('like-count-'+id).textContent=n;btn.classList.add('liked');try{await db.rpc('add_algorithm_points',{p_user_id:data.user_id,p_action:'receive_like',p_points:2});}catch(e){}try{await db.rpc('recalc_post_score',{p_post_id:id});}catch(e){}}
+      else{const{error:likeErr}=await db.from('post_likes').insert({post_id:id,user_id:currentUser.id});if(likeErr&&likeErr.code!=='23505'){alert('Like failed: '+likeErr.message);return;}await new Promise(function(r){setTimeout(r,150);});const{data}=await db.from('posts').select('likes,user_id').eq('id',id).single();const n=(data&&data.likes)||1;document.getElementById('like-count-'+id).textContent=n;btn.classList.add('liked');try{await db.rpc('add_algorithm_points',{p_user_id:data.user_id,p_action:'receive_like',p_points:2});}catch(e){}try{await db.rpc('recalc_post_score',{p_post_id:id});}catch(e){}}
       }catch(e){console.error(e);}
     };
 
