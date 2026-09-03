@@ -1824,6 +1824,23 @@
 
         // Artist style map: pushes flow + beat + instruments toward the reference.
         // Key match is loose (lowercase contains). Unknown artists fall through to a generic line.
+        // Pollinations rejects prompts naming real artists, groups or songs
+        // (copyrighted_material_detected). Style tags describe sound, not names.
+        function scrubCopyright(t){
+            var reps = [
+                [/,?\s*same vibe and flow as "[^"]*"/gi, ''],
+                [/"[^"]*"/g, ''],
+                [/parliament-funkadelic/gi, '70s funk'],
+                [/\bp-funk\b/gi, 'funk'],
+                [/wu-tang|wu tang/gi, 'gritty 90s East Coast'],
+                [/\brza\b/gi, 'dusty 90s'],
+                [/dre-style/gi, 'West Coast'],
+                [/kung-fu soul/gi, 'dark cinematic soul']
+            ];
+            for (var i=0; i<reps.length; i++) t = t.replace(reps[i][0], reps[i][1]);
+            return t.replace(/\s*,\s*,+/g, ', ').replace(/\s{2,}/g, ' ').trim();
+        }
+
         function artistStyle(name){
             var n = (name||'').toLowerCase();
             var map = [
@@ -1983,9 +2000,11 @@
         // elevenmusic has no separate &style= param (that was acestep-only), so style tags are folded
         // into the main prompt text instead of being sent as a query param.
         var maxPromptLen = 4000;
-        var availForLyrics = Math.max(500, maxPromptLen - styleTags.length - 2);
+        // Strip real artist/group/song names before sending - Pollinations blocks them
+        var styleTagsSent = scrubCopyright(styleTags);
+        var availForLyrics = Math.max(500, maxPromptLen - styleTagsSent.length - 2);
         var lyricsForAudio = formattedLyrics.substring(0, availForLyrics);
-        var prompt = styleTags + '. ' + lyricsForAudio;
+        var prompt = styleTagsSent + '. ' + lyricsForAudio;
 
         var POLLEN_KEY = 'sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
         try {
@@ -2024,7 +2043,7 @@
                 '<button class="btn btn-cyan" onclick="runSongGen()">Regenerate</button></div>' +
                 lyricsHtml +
                 changesHtml +
-                '<details style="margin-top:.5rem;"><summary style="font-size:.72rem;color:#a855f7;cursor:pointer;">Style tags sent to AI (tap to verify)</summary><pre style="font-size:.72rem;white-space:pre-wrap;color:#00d9ff;margin-top:.3rem;background:#0a0a0f;padding:.6rem;border-radius:6px;">gen id: ' + sgSeed + '\n\n' + escapeHtml(styleTags) + '</pre></details>';
+                '<details style="margin-top:.5rem;"><summary style="font-size:.72rem;color:#a855f7;cursor:pointer;">Style tags sent to AI (tap to verify)</summary><pre style="font-size:.72rem;white-space:pre-wrap;color:#00d9ff;margin-top:.3rem;background:#0a0a0f;padding:.6rem;border-radius:6px;">gen id: ' + sgSeed + '\n\n' + escapeHtml(styleTagsSent) + '</pre></details>';
         } catch(e) {
             resultDiv.innerHTML = '<p style="color:#ff4466;">Audio generation error: ' + e.message + '</p>' +
                 '<div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-top:.3rem;">If this keeps failing, your Pollinations credits may be expired. Try without the key parameter or purchase more credits.</div>' +
