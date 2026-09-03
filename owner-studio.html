@@ -383,7 +383,7 @@
                     <div id="sgInstrChips" style="display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.3rem;">
                         <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="prominent human beatbox mouth percussion, beatboxing rhythm">Human Beatbox</div>
                         <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="vinyl record scratching, DJ turntable cuts">Record Scratch</div>
-                        <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="RZA-style piano stabs played on the beat, gritty kung-fu soul piano">RZA Piano (Wu style)</div>
+                        <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="dark cinematic soul piano stabs played on the beat, gritty dusty 90s piano">RZA Piano (Wu style)</div>
                         <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="jazzy piano loop">Jazz Piano</div>
                         <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="deep sub bass">Deep Bass</div>
                         <div class="sg-chip" onclick="this.classList.toggle('sel')" data-v="hard kick 808 bass, heavy kick drum">Hard Kick / 808</div>
@@ -1835,7 +1835,23 @@
                 [/wu-tang|wu tang/gi, 'gritty 90s East Coast'],
                 [/\brza\b/gi, 'dusty 90s'],
                 [/dre-style/gi, 'West Coast'],
-                [/kung-fu soul/gi, 'dark cinematic soul']
+                [/kung[\s-]?fu soul/gi, 'dark cinematic soul'],
+                [/kung[\s-]?fu/gi, 'dark cinematic'],
+                [/\bnas\b/gi, 'lyrical New York'],
+                [/\bbiggie\b|notorious b\.?i\.?g\.?/gi, 'smooth 90s New York'],
+                [/\b2pac\b|\btupac\b/gi, 'soulful West Coast'],
+                [/\bjay-?z\b/gi, 'polished New York'],
+                [/\beminem\b/gi, 'aggressive Midwest'],
+                [/\bdmx\b/gi, 'raw aggressive New York'],
+                [/\bmobb deep\b/gi, 'dark minimal New York'],
+                [/\bbone thugs\b/gi, 'harmonized Midwest'],
+                [/\bsnoop\b|\bdr\.? ?dre\b/gi, 'laid back West Coast'],
+                [/\bn\.?w\.?a\.?\b/gi, 'hardcore West Coast'],
+                [/\btech n9ne\b/gi, 'rapid chopper Midwest'],
+                [/\btwista\b/gi, 'hyper-fast chopper'],
+                [/\bice cube\b/gi, 'hard West Coast'],
+                [/\beazy-?e?\b/gi, 'gangsta funk'],
+                [/\bstyle of\b|\bsounds like\b|\binspired by\b|\breminiscent of\b/gi, 'in the vein of classic']
             ];
             for (var i=0; i<reps.length; i++) t = t.replace(reps[i][0], reps[i][1]);
             return t.replace(/\s*,\s*,+/g, ', ').replace(/\s{2,}/g, ' ').trim();
@@ -2007,17 +2023,49 @@
         var prompt = styleTagsSent + '. ' + lyricsForAudio;
 
         var POLLEN_KEY = 'sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
+
+        // Single audio request. Returns {ok:true,blob} or {ok:false,status,msg,suggestion}
+        async function sgRequestAudio(pText){
+            var u = 'https://gen.pollinations.ai/audio/' + encodeURIComponent(pText) + '?key=' + POLLEN_KEY + '&model=elevenmusic&duration=' + Math.min(dur,300);
+            var r = await fetch(u);
+            if (r.ok) return { ok:true, blob: await r.blob() };
+            var msg = 'HTTP ' + r.status, sug = '';
+            try {
+                var j = JSON.parse(await r.text());
+                var d = j.detail || j.error || j;
+                if (Array.isArray(d)) d = d[0] || {};
+                if (d.message) msg = d.message;
+                if (d.msg) msg = d.msg;
+                if (d.data && d.data.prompt_suggestion) sug = d.data.prompt_suggestion;
+            } catch(e2) {}
+            if (r.status === 401) msg = 'API key invalid or expired. Go to enter.pollinations.ai, get a new key, and update POLLEN_KEY in owner-studio.html.';
+            if (r.status === 402) msg = 'Pollinations balance is 0. Go to enter.pollinations.ai and add credits (~$0.03/song).';
+            return { ok:false, status:r.status, msg:msg, suggestion:sug };
+        }
+
         try {
-            var url = 'https://gen.pollinations.ai/audio/' + encodeURIComponent(prompt) + '?key=' + POLLEN_KEY + '&model=elevenmusic&duration=' + Math.min(dur,300);
-            var resp = await fetch(url);
-            if (!resp.ok) {
-                var errText = '';
-                try { var errJson = JSON.parse(await resp.text()); errText = errJson.error && errJson.error.message ? errJson.error.message : 'HTTP ' + resp.status; } catch(e2) { errText = 'HTTP ' + resp.status; }
-                if (resp.status === 401) errText = 'API key invalid or expired. Go to enter.pollinations.ai, get a new key, and update POLLEN_KEY in owner-studio.html.';
-                if (resp.status === 402) errText = 'Pollinations balance is 0. Go to enter.pollinations.ai and add credits (~$0.03/song).';
-                throw new Error(errText);
+            var sgStatEl = document.getElementById('sgStatus');
+            var res = await sgRequestAudio(prompt);
+
+            // Pollinations blocks prompts it reads as copyrighted, but hands back a
+            // cleaned rewrite. Retry with its own wording before giving up.
+            if (!res.ok && res.suggestion) {
+                if (sgStatEl) sgStatEl.textContent = 'Style wording was flagged - retrying with a cleaned description...';
+                styleTagsSent = scrubCopyright(res.suggestion);
+                var reAvail = Math.max(500, maxPromptLen - styleTagsSent.length - 2);
+                res = await sgRequestAudio(styleTagsSent + '. ' + formattedLyrics.substring(0, reAvail));
             }
-            var blob = await resp.blob();
+            // Last resort: drop the artist-derived styling entirely, keep the lyrics.
+            if (!res.ok && res.status === 400) {
+                if (sgStatEl) sgStatEl.textContent = 'Retrying with generic style tags...';
+                styleTagsSent = 'old school hip-hop, boom bap, 90s rap, ' + bpmVal + ' BPM, ' + voiceTag +
+                    ', clear intelligible vocals, vocals mixed up front, steady consistent tempo, clean instrumental breaks between sections';
+                var gAvail = Math.max(500, maxPromptLen - styleTagsSent.length - 2);
+                res = await sgRequestAudio(styleTagsSent + '. ' + formattedLyrics.substring(0, gAvail));
+            }
+            if (!res.ok) throw new Error(res.msg);
+
+            var blob = res.blob;
             var audioUrl = URL.createObjectURL(blob);
 
             var changesHtml = '';
