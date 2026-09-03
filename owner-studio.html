@@ -365,6 +365,7 @@
                       <button onclick="splitLyricsHalf(2)" style="background:#374151;border:none;color:#e8e0ff;border-radius:6px;padding:.3rem .7rem;font-size:.74rem;font-weight:700;cursor:pointer;">Use Part 2</button>
                     </div>
                     <textarea id="sgLyrics" rows="5" placeholder="Paste your lyrics here, or leave blank and AI will write them matching your settings above."></textarea>
+                    <div style="font-size:.72rem;color:#a855f7;margin-top:.3rem;">For Battle Rap voice options: label each verse <strong>(Verse - Male)</strong> or <strong>(Verse - Female)</strong> above the bars so the generator knows who's rapping which part.</div>
                 </div>
                 <div class="form-group" id="sgDescWrap" style="display:none;">
                     <label>What should the song be about?</label>
@@ -420,7 +421,7 @@
                 <div style="display:flex;gap:0.5rem;">
                     <div class="form-group" style="flex:1;">
                         <label>Voice Type</label>
-                        <select id="sgVoice"><option value="A">A. Male Rap Only</option><option value="B">B. Male Rap + Female Sung Hook</option><option value="C">C. Female Rap Only</option><option value="D">D. Female Singing + Male Rap Hook</option></select>
+                        <select id="sgVoice"><option value="A">A. Male Rap Only</option><option value="C">C. Female Rap Only</option><option value="E">E. Battle Rap - Male &amp; Female (both rap)</option><option value="I">I. Battle Rap - Male &amp; Female + Sung Hook</option><option value="B">B. Male Rap + Female Sung Hook</option><option value="F">F. Female Rap + Male Sung Hook</option><option value="D">D. Female Singing + Male Rap Hook</option><option value="G">G. Male Rap + Female Singing Background</option><option value="H">H. Female Rap + Male Singing Background</option></select>
                     </div>
                     <div class="form-group" style="flex:1;">
                         <label>Duration</label>
@@ -1728,7 +1729,7 @@
         var explicitMode = document.getElementById('sgExplicit') ? document.getElementById('sgExplicit').value : 'standard';
         var lyricsMode = document.getElementById('sgLyricsMode') ? document.getElementById('sgLyricsMode').value : 'auto';
 
-        // Voice A/B/C/D -> audio tags + lyric-writing instruction
+        // Voice A/B/C/D/E/F/G/H/I -> audio tags + lyric-writing instruction
         var voiceTag, voiceLyricNote;
         if (voice === 'B') {
             voiceTag = 'male rap verses, female sung hook, male rapper and female singer';
@@ -1739,6 +1740,21 @@
         } else if (voice === 'D') {
             voiceTag = 'female sung lead vocals, male rap hook, female singer and male rapper';
             voiceLyricNote = 'A FEMALE SINGER sings the verses (melodic). The [Chorus]/hook is RAPPED by a MALE rapper.';
+        } else if (voice === 'E') {
+            voiceTag = 'male rap vocals and female rap vocals, two rappers trading bars back and forth, battle rap call and response, both a male voice and a female voice clearly present, duet rap vocals, no singing anywhere, all sections rapped not sung';
+            voiceLyricNote = 'This is a RAP BATTLE performed by a MALE RAPPER and a FEMALE RAPPER trading verses. Label every verse clearly as either (Verse - Male) or (Verse - Female) so it is obvious who raps which part. Every section, including any hook, is RAPPED by one or both — no singing, no melodic lines.';
+        } else if (voice === 'F') {
+            voiceTag = 'female rap verses, male sung hook, female rapper and male singer';
+            voiceLyricNote = 'A FEMALE RAPPER performs all verses (rapped). The [Chorus]/hook is SUNG by a MALE singer — write the hook as melodic sung lines.';
+        } else if (voice === 'G') {
+            voiceTag = 'male rap lead vocals throughout every verse and the hook, female background vocals, female ad-libs and vocal harmonies layered underneath the male rap, no female lead singing section, female voice stays in the background';
+            voiceLyricNote = 'A MALE RAPPER performs ALL lead vocals — every verse and the hook are RAPPED by him. A FEMALE VOICE only adds background ad-libs, harmonies and vocal accents underneath — she does not take lead or sing a separate hook.';
+        } else if (voice === 'H') {
+            voiceTag = 'female rap lead vocals throughout every verse and the hook, male background vocals, male ad-libs and vocal harmonies layered underneath the female rap, no male lead singing section, male voice stays in the background';
+            voiceLyricNote = 'A FEMALE RAPPER performs ALL lead vocals — every verse and the hook are RAPPED by her. A MALE VOICE only adds background ad-libs, harmonies and vocal accents underneath — he does not take lead or sing a separate hook.';
+        } else if (voice === 'I') {
+            voiceTag = 'male rap verse and female rap verse trading bars, battle rap verses performed by two rappers one male one female, sung chorus hook performed by a female singer, verses rapped not sung, only the chorus is sung';
+            voiceLyricNote = 'A MALE RAPPER and a FEMALE RAPPER trade verses — label each clearly as (Verse - Male) or (Verse - Female), both fully RAPPED. The [Chorus]/hook is SUNG (melodic) by a FEMALE singer.';
         } else {
             voice = 'A';
             voiceTag = 'male rap vocals only, male rapper throughout entire song, no singing anywhere, no sung hook, no melodic chorus, all sections are rapped not sung, no auto-tune, spoken word rap delivery only';
@@ -1763,13 +1779,20 @@
             resultDiv.innerHTML = '<p class="loading-text"><span class="spinner"></span> Step 1: AI writing lyrics' + (ref ? ' in the style of ' + ref : '') + '...</p>';
             if (statusEl) statusEl.textContent = 'Generating lyrics...';
             try {
-                var lyricsPrompt = 'Write a complete song with [verse], [verse], [verse], [verse], [outro]. Use ONLY [verse] and [outro] tags — NO [Chorus] NO [Hook] NO [Bridge] tags. Every section is rapped not sung. ';
+                var rapOnlyModes = ['A','C','E','G','H'];
+                var lyricsPrompt;
+                if (rapOnlyModes.indexOf(voice) > -1) {
+                    lyricsPrompt = 'Write a complete song with [verse], [verse], [verse], [verse], [outro]. Use ONLY [verse] and [outro] tags — NO [Chorus] NO [Hook] NO [Bridge] tags. Every section is rapped not sung. ';
+                } else {
+                    lyricsPrompt = 'Write a complete song with [verse], [verse], [chorus], [verse], [chorus], [outro]. Use [verse], [chorus], and [outro] tags. ';
+                }
+                if (voice==='E' || voice==='I') lyricsPrompt += 'Write this as a RAP BATTLE between two rappers — mark each verse (Verse - Male) or (Verse - Female) so it is clear whose bars they are, and make the verses respond to / diss each other like a real battle. ';
                 if (desc) lyricsPrompt += 'Topic: ' + desc + '. ';
                 if (ref) lyricsPrompt += 'Write in the EXACT style of ' + ref + ' — match their slang, cadence, flow, vocabulary, and energy. Write as if ' + ref + ' is performing this song. ';
                 if (refSong) lyricsPrompt += 'Reference song: "' + refSong + '". Match that song\'s energy and structure. ';
                 if (title) lyricsPrompt += 'Song title: "' + title + '". ';
                 lyricsPrompt += 'VOICE SETUP: ' + voiceLyricNote + ' ';
-                if(voice==='A') lyricsPrompt += 'IMPORTANT: NO SINGING ANYWHERE. Every single line including the chorus and hook must be written as RAP bars to be spoken/rapped. Do not write melodic or sung lines. ';
+                if(rapOnlyModes.indexOf(voice) > -1) lyricsPrompt += 'IMPORTANT: NO SINGING ANYWHERE. Every single line including the chorus and hook must be written as RAP bars to be spoken/rapped. Do not write melodic or sung lines. ';
                 if (expInst) lyricsPrompt += expInst + ' ';
                 lyricsPrompt += 'Use vivid imagery, hard punchlines, clever wordplay, internal rhymes. Return ONLY the lyrics, nothing else.';
 
@@ -1804,6 +1827,11 @@
             .replace(/\(Title\)[^\n]*/gi, '')
             .replace(/\(Intro\)[^\n]*/gi, '[intro]')
             .replace(/\(talking\)[^\n]*/gi, '[intro]')
+            // Speaker-labeled verses (e.g. "(Verse - Male)", "(Male Verse)", "(Verse 1 - Female)")
+            // must be caught BEFORE the generic verse/parenthetical rules below, or the
+            // Male/Female label gets silently deleted and the model loses who's rapping.
+            .replace(/\(\s*Verse\s*(\d+)?\s*[-:]?\s*(Male|Female)\s*\)/gi, function(m,n,g){ return '[verse'+(n?' '+n:'')+' - '+g.toLowerCase()+']'; })
+            .replace(/\(\s*(Male|Female)\s*[-:]?\s*Verse\s*(\d+)?\s*\)/gi, function(m,g,n){ return '[verse'+(n?' '+n:'')+' - '+g.toLowerCase()+']'; })
             .replace(/\(Verse\s*(\d+)\)/gi, function(m,n){ return '[verse '+n+']'; })
             .replace(/\(Verse\)/gi, function(){ verseNum++; return '[verse '+verseNum+']'; })
             .replace(/\(Hook\)/gi, '[chorus]')
