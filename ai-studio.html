@@ -2329,19 +2329,50 @@ async function loadFFmpeg(){
   await cf.load();
   _ffmpeg=cf;_ffmpegLoaded=true;return _ffmpeg;
 }
-// Shrinks an audio file to mono/64kbps mp3 so it clears Vercel's 4.5MB request
-// body limit on the Hobby plan. Speech-to-text accuracy doesn't need high
-// quality audio, so this trade-off is essentially free for transcription.
+// Shrinks an audio file to a mono/low-bitrate mp3 so it clears Vercel's 4.5MB
+// request body limit on the Hobby plan. Uses lamejs (pure JS, no WASM threads)
+// instead of ffmpeg.wasm, since GitHub Pages can't serve the COOP/COEP headers
+// ffmpeg.wasm needs for SharedArrayBuffer.
+var _lamejsLoaded=false;
+async function loadLameJs(){
+  if(_lamejsLoaded)return;
+  var script=document.createElement('script');
+  script.src='https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.0/lame.min.js';
+  document.head.appendChild(script);
+  await new Promise(function(r,rej){script.onload=r;script.onerror=rej;});
+  _lamejsLoaded=true;
+}
 async function compressAudioForTranscription(file){
-  var ff=await loadFFmpeg();
-  var inName='trin'+(file.name.match(/\.[a-zA-Z0-9]+$/)?file.name.match(/\.[a-zA-Z0-9]+$/)[0]:'.mp3');
-  var inData=await FFmpeg.fetchFile(file);
-  ff.FS('writeFile',inName,inData);
-  await ff.run('-i',inName,'-ac','1','-ar','16000','-b:a','64k','trout.mp3');
-  var data=ff.FS('readFile','trout.mp3');
-  var blob=new Blob([data.buffer],{type:'audio/mpeg'});
-  try{ff.FS('unlink',inName);ff.FS('unlink','trout.mp3');}catch(e){}
-  return blob;
+  await loadLameJs();
+  var arrayBuf=await file.arrayBuffer();
+  var AudioCtx=window.AudioContext||window.webkitAudioContext;
+  var ctx=new AudioCtx();
+  var decoded=await ctx.decodeAudioData(arrayBuf.slice(0));
+  var targetRate=16000;
+  var offline=new OfflineAudioContext(1,Math.ceil(decoded.duration*targetRate),targetRate);
+  var src=offline.createBufferSource();
+  src.buffer=decoded;
+  src.connect(offline.destination);
+  src.start();
+  var rendered=await offline.startRendering();
+  var samples=rendered.getChannelData(0);
+  var pcm=new Int16Array(samples.length);
+  for(var i=0;i<samples.length;i++){
+    var s=Math.max(-1,Math.min(1,samples[i]));
+    pcm[i]=s<0?s*0x8000:s*0x7FFF;
+  }
+  var encoder=new lamejs.Mp3Encoder(1,targetRate,64);
+  var blockSize=1152;
+  var chunks=[];
+  for(var j=0;j<pcm.length;j+=blockSize){
+    var chunk=pcm.subarray(j,j+blockSize);
+    var enc=encoder.encodeBuffer(chunk);
+    if(enc.length>0)chunks.push(enc);
+  }
+  var end=encoder.flush();
+  if(end.length>0)chunks.push(end);
+  try{ctx.close();}catch(e){}
+  return new Blob(chunks,{type:'audio/mpeg'});
 }
 async function convertToMp4(webmBlob,filename){
   try{
