@@ -2269,10 +2269,20 @@ var CLIENT_HANDLERS={
     var langSel=document.getElementById('trLang');
     var lang=langSel?langMap[langSel.value]||'auto':'auto';
     if(file.size>24*1024*1024){showError('File too large ('+Math.round(file.size/1024/1024)+'MB). Max 24MB.');return;}
-    showLoading('Transcribing and formatting lyrics... This may take up to a minute.');
+    showLoading('Preparing audio...');
     try{
+      var uploadBlob=file;
+      var uploadName=file.name;
+      // Vercel Hobby plan rejects request bodies over ~4.5MB - most full songs
+      // exceed that, so shrink anything close to the limit before sending.
+      if(file.size>3.5*1024*1024){
+        showLoading('Compressing audio for upload...');
+        uploadBlob=await compressAudioForTranscription(file);
+        uploadName='audio.mp3';
+      }
+      showLoading('Transcribing and formatting lyrics... This may take up to a minute.');
       var fd=new FormData();
-      fd.append('audio',file,file.name);
+      fd.append('audio',uploadBlob,uploadName);
       if(lang&&lang!=='auto')fd.append('language',lang);
       var res=await fetch('https://8bfr-api.vercel.app/api/transcribe',{
         method:'POST',
@@ -2318,6 +2328,20 @@ async function loadFFmpeg(){
   var cf=FFmpeg.createFFmpeg({log:false,corePath:'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'});
   await cf.load();
   _ffmpeg=cf;_ffmpegLoaded=true;return _ffmpeg;
+}
+// Shrinks an audio file to mono/64kbps mp3 so it clears Vercel's 4.5MB request
+// body limit on the Hobby plan. Speech-to-text accuracy doesn't need high
+// quality audio, so this trade-off is essentially free for transcription.
+async function compressAudioForTranscription(file){
+  var ff=await loadFFmpeg();
+  var inName='trin'+(file.name.match(/\.[a-zA-Z0-9]+$/)?file.name.match(/\.[a-zA-Z0-9]+$/)[0]:'.mp3');
+  var inData=await FFmpeg.fetchFile(file);
+  ff.FS('writeFile',inName,inData);
+  await ff.run('-i',inName,'-ac','1','-ar','16000','-b:a','64k','trout.mp3');
+  var data=ff.FS('readFile','trout.mp3');
+  var blob=new Blob([data.buffer],{type:'audio/mpeg'});
+  try{ff.FS('unlink',inName);ff.FS('unlink','trout.mp3');}catch(e){}
+  return blob;
 }
 async function convertToMp4(webmBlob,filename){
   try{
