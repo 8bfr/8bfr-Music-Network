@@ -40,9 +40,28 @@
     .entry-actions{ position:absolute; top:.5rem; right:.55rem; display:flex; gap:.4rem; }
     .entry-actions button{ background:none; border:none; color:#a855f7; opacity:.7; font-size:.85rem; cursor:pointer; }
     .entry-actions button:hover{ opacity:1; color:#00d9ff; }
-    .entry-photo{ width:100%; max-height:180px; object-fit:cover; border-radius:.6rem; margin-bottom:.6rem; display:block; }
-    .preview-embed{ margin-bottom:.6rem; border-radius:.6rem; overflow:hidden; }
+    .entry-media{ width:100%; max-height:220px; object-fit:cover; border-radius:.6rem; margin-top:.6rem; display:block; background:#000; }
+    .preview-embed{ margin-top:.6rem; border-radius:.6rem; overflow:hidden; }
     .preview-embed iframe{ display:block; border-radius:.6rem; }
+
+    /* file upload control */
+    .file-drop{ display:flex; align-items:center; gap:.6rem; background:#120327; border:1px dashed rgba(124,58,237,.6); border-radius:.6rem; padding:.55rem .65rem; cursor:pointer; }
+    .file-drop:hover{ border-color:#00d9ff; }
+    .file-drop input[type=file]{ display:none; }
+    .file-drop span{ font-size:.82rem; color:#cbbffb; }
+    .media-preview{ margin-top:.5rem; position:relative; display:inline-block; }
+    .media-preview img, .media-preview video{ max-height:120px; max-width:100%; border-radius:.5rem; display:block; }
+    .media-remove{ margin-top:.35rem; background:none; border:none; color:#a855f7; font-size:.75rem; text-decoration:underline; cursor:pointer; padding:0; }
+    .media-remove:hover{ color:#00d9ff; }
+
+    /* products grid */
+    .products-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:.75rem; }
+    @media(min-width:480px){ .products-grid{ grid-template-columns:repeat(3,1fr); } }
+    .product-square{ position:relative; aspect-ratio:1/1; border-radius:.85rem; overflow:hidden; border:1px solid rgba(124,58,237,.4); background:#0c0618; cursor:pointer; }
+    .product-square img, .product-square video{ width:100%; height:100%; object-fit:cover; display:block; }
+    .product-square .product-title{ position:absolute; left:0; right:0; bottom:0; background:linear-gradient(transparent,rgba(0,0,0,.88)); color:#fff; font-size:.76rem; font-weight:700; padding:1.1rem .55rem .45rem; }
+    .product-square .entry-actions{ top:.4rem; right:.4rem; background:rgba(0,0,0,.45); border-radius:999px; padding:.15rem .4rem; }
+    .product-square-empty{ aspect-ratio:1/1; border-radius:.85rem; border:1px dashed rgba(124,58,237,.5); display:flex; align-items:center; justify-content:center; color:#a855f7; font-size:.78rem; text-align:center; opacity:.7; }
 
     .modal-backdrop{ display:none; position:fixed; inset:0; background:rgba(0,0,0,.65); align-items:center; justify-content:center; padding:1.25rem; z-index:9995; }
     .modal-backdrop.open{ display:flex; }
@@ -118,20 +137,36 @@
       <div class="entries"></div>
     </div>
 
+    <!-- PRODUCTS -->
+    <div class="group" data-section="products">
+      <div class="group-head">
+        <p class="group-title">🛍️ My Products</p>
+        <button class="add-btn add-product-btn" data-section="products">+ add</button>
+      </div>
+      <div class="entries products-grid"></div>
+    </div>
+
   </main>
 
   <!-- ADD/EDIT MODAL -->
   <div class="modal-backdrop" id="modalBackdrop">
     <div class="modal">
       <h3 id="modalTitle">Add a link</h3>
-      <label for="fName">Title (this is what shows as the clickable link)</label>
+      <label for="fName" id="fNameLabel">Title (this is what shows as the clickable link)</label>
       <input id="fName" type="text" placeholder="e.g. 8BFR on TikTok">
-      <label for="fUrl">Link (paste a Spotify or YouTube/TikTok link to auto-preview it)</label>
+      <label for="fUrl" id="fUrlLabel">Link (paste a Spotify or YouTube/TikTok link to auto-preview it)</label>
       <input id="fUrl" type="text" placeholder="https://...">
-      <label for="fPhoto">Photo URL (optional — shown if there's no auto-preview)</label>
-      <input id="fPhoto" type="text" placeholder="https://... (image link)">
-      <label for="fDesc">Description</label>
-      <textarea id="fDesc" placeholder="What is this?"></textarea>
+      <label id="fMediaLabel">Photo or video (uploaded from your device)</label>
+      <label class="file-drop" id="fileDropLabel">
+        <input id="fMedia" type="file" accept="image/*,video/*">
+        <span id="fileDropText">Tap to choose a photo or video</span>
+      </label>
+      <div class="media-preview" id="mediaPreviewWrap" style="display:none;"></div>
+      <button type="button" class="media-remove" id="mediaRemoveBtn" style="display:none;">Remove this media</button>
+      <div id="descField">
+        <label for="fDesc">Description</label>
+        <textarea id="fDesc" placeholder="What is this?"></textarea>
+      </div>
       <div class="modal-actions">
         <button class="btn" id="cancelBtn">Cancel</button>
         <button class="btn btn-primary" id="saveBtn">Save</button>
@@ -262,28 +297,39 @@
       ],
       stores: [],
       affiliate: [],
-      social: []
+      social: [],
+      products: []
     };
 
     function loadData(){
       const raw = localStorage.getItem(STORAGE_KEY);
+      let data;
       if(!raw){
-        return JSON.parse(JSON.stringify(seedData));
+        data = JSON.parse(JSON.stringify(seedData));
+      } else {
+        try{ data = JSON.parse(raw); }
+        catch(e){ data = JSON.parse(JSON.stringify(seedData)); }
       }
-      try{
-        return JSON.parse(raw);
-      }catch(e){
-        return JSON.parse(JSON.stringify(seedData));
-      }
+      if(!data.products) data.products = []; // upgrade older saved data
+      return data;
     }
 
     function saveData(data){
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      try{
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        return true;
+      }catch(e){
+        alert("Couldn't save — your browser's local storage is full. Photos/videos take up a lot of space; try removing an older one or using a smaller file.");
+        return false;
+      }
     }
 
     let linkData = loadData();
     let activeSection = null;
-    let editIndex = null; // null = adding new; number = editing that index
+    let editIndex = null;       // null = adding new; number = editing that index
+    let pendingMediaData = null; // base64 data URL of a newly-picked file this modal session
+    let pendingMediaType = null; // 'image' | 'video'
+    let mediaCleared = false;    // true if user hit "remove this media"
 
     function escapeHtml(str){
       const d = document.createElement('div');
@@ -333,9 +379,19 @@
       document.body.appendChild(s);
     }
 
+    function mediaTag(item, cssClass){
+      if(!item.mediaData) return '';
+      if(item.mediaType === 'video'){
+        return `<video class="${cssClass}" src="${item.mediaData}" controls playsinline></video>`;
+      }
+      return `<img class="${cssClass}" src="${item.mediaData}" alt="${escapeHtml(item.name || '')}">`;
+    }
+
     function render(){
       let hasTiktok = false;
-      document.querySelectorAll('.group').forEach(group => {
+
+      // Standard list-style sections
+      document.querySelectorAll('.group[data-section]:not([data-section="products"])').forEach(group => {
         const section = group.dataset.section;
         const entriesEl = group.querySelector('.entries');
         const items = linkData[section] || [];
@@ -349,38 +405,119 @@
           div.className = 'section-card entry';
           const preview = getPreviewHtml(item.url);
           if(preview && preview.indexOf('tiktok-embed') !== -1) hasTiktok = true;
-          const media = preview
-            ? preview
-            : (item.photo ? `<img class="entry-photo" src="${escapeHtml(item.photo)}" alt="${escapeHtml(item.name)}" onerror="this.remove()">` : '');
+          const media = mediaTag(item, 'entry-media');
           div.innerHTML = `
             <div class="entry-actions">
               <button class="edit-btn" data-section="${section}" data-idx="${idx}" title="Edit">&#9998;</button>
               <button class="remove-x" data-section="${section}" data-idx="${idx}" title="Remove">✕</button>
             </div>
-            ${media}
             <a class="entry-link" href="${escapeHtml(normalizeUrl(item.url))}" target="_blank" rel="noopener">${escapeHtml(item.name)}</a>
             ${item.desc ? `<p class="desc">${escapeHtml(item.desc)}</p>` : ''}
+            ${preview || media}
           `;
           entriesEl.appendChild(div);
         });
       });
+
+      // Products grid
+      const prodEntriesEl = document.querySelector('.group[data-section="products"] .entries');
+      const products = linkData.products || [];
+      prodEntriesEl.innerHTML = '';
+      if(products.length === 0){
+        prodEntriesEl.innerHTML = '<div class="product-square-empty">Tap + add to put your first product here</div>';
+      } else {
+        products.forEach((item, idx) => {
+          const div = document.createElement('div');
+          div.className = 'product-square';
+          div.dataset.url = normalizeUrl(item.url || '');
+          const media = mediaTag(item, '');
+          div.innerHTML = `
+            <div class="entry-actions">
+              <button class="edit-btn" data-section="products" data-idx="${idx}" title="Edit">&#9998;</button>
+              <button class="remove-x" data-section="products" data-idx="${idx}" title="Remove">✕</button>
+            </div>
+            ${media}
+            <div class="product-title">${escapeHtml(item.name || '')}</div>
+          `;
+          prodEntriesEl.appendChild(div);
+        });
+      }
+
       if(hasTiktok) reloadTiktokEmbeds();
     }
+
+    function resetMediaPicker(){
+      pendingMediaData = null;
+      pendingMediaType = null;
+      mediaCleared = false;
+      document.getElementById('fMedia').value = '';
+      document.getElementById('mediaPreviewWrap').style.display = 'none';
+      document.getElementById('mediaPreviewWrap').innerHTML = '';
+      document.getElementById('mediaRemoveBtn').style.display = 'none';
+      document.getElementById('fileDropText').textContent = 'Tap to choose a photo or video';
+    }
+
+    function showMediaPreview(dataUrl, type){
+      const wrap = document.getElementById('mediaPreviewWrap');
+      wrap.style.display = 'inline-block';
+      wrap.innerHTML = type === 'video'
+        ? `<video src="${dataUrl}" controls playsinline></video>`
+        : `<img src="${dataUrl}" alt="preview">`;
+      document.getElementById('mediaRemoveBtn').style.display = 'inline-block';
+    }
+
+    document.getElementById('fMedia').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if(!file) return;
+      const isVideo = file.type.startsWith('video/');
+      const reader = new FileReader();
+      reader.onload = () => {
+        pendingMediaData = reader.result;
+        pendingMediaType = isVideo ? 'video' : 'image';
+        mediaCleared = false;
+        document.getElementById('fileDropText').textContent = file.name;
+        showMediaPreview(pendingMediaData, pendingMediaType);
+      };
+      reader.readAsDataURL(file);
+    });
+
+    document.getElementById('mediaRemoveBtn').addEventListener('click', () => {
+      pendingMediaData = null;
+      pendingMediaType = null;
+      mediaCleared = true;
+      document.getElementById('fMedia').value = '';
+      document.getElementById('fileDropText').textContent = 'Tap to choose a photo or video';
+      document.getElementById('mediaPreviewWrap').style.display = 'none';
+      document.getElementById('mediaPreviewWrap').innerHTML = '';
+      document.getElementById('mediaRemoveBtn').style.display = 'none';
+    });
 
     function openModal(mode, section, idx){
       activeSection = section;
       editIndex = (mode === 'edit') ? idx : null;
-      document.getElementById('modalTitle').textContent = mode === 'edit' ? 'Edit link' : 'Add a link';
+      resetMediaPicker();
+
+      const isProduct = section === 'products';
+      document.getElementById('descField').style.display = isProduct ? 'none' : 'block';
+      document.getElementById('fUrlLabel').textContent = isProduct
+        ? 'Affiliate / product link'
+        : 'Link (paste a Spotify or YouTube/TikTok link to auto-preview it)';
+      document.getElementById('fNameLabel').textContent = isProduct
+        ? 'Product name (shown on the square)'
+        : 'Title (this is what shows as the clickable link)';
+
+      document.getElementById('modalTitle').textContent =
+        (mode === 'edit' ? 'Edit ' : 'Add ') + (isProduct ? 'product' : 'link');
+
       if(mode === 'edit'){
         const item = linkData[section][idx];
         document.getElementById('fName').value = item.name || '';
         document.getElementById('fUrl').value = item.url || '';
-        document.getElementById('fPhoto').value = item.photo || '';
         document.getElementById('fDesc').value = item.desc || '';
+        if(item.mediaData) showMediaPreview(item.mediaData, item.mediaType);
       } else {
         document.getElementById('fName').value = '';
         document.getElementById('fUrl').value = '';
-        document.getElementById('fPhoto').value = '';
         document.getElementById('fDesc').value = '';
       }
       document.getElementById('modalBackdrop').classList.add('open');
@@ -406,21 +543,44 @@
     document.getElementById('saveBtn').addEventListener('click', () => {
       const name = document.getElementById('fName').value.trim();
       const url = document.getElementById('fUrl').value.trim();
-      const photo = document.getElementById('fPhoto').value.trim();
       const desc = document.getElementById('fDesc').value.trim();
+      const isProduct = activeSection === 'products';
+
       if(!name || !url){
-        alert('Please add at least a title and a link.');
+        alert(isProduct ? 'Please add at least a product name and a link.' : 'Please add at least a title and a link.');
         return;
       }
-      if(!linkData[activeSection]) linkData[activeSection] = [];
-      if(editIndex !== null){
-        linkData[activeSection][editIndex] = {name, url, photo, desc};
-      } else {
-        linkData[activeSection].push({name, url, photo, desc});
+
+      // Figure out what the saved media should be:
+      // - a newly picked file wins
+      // - "remove this media" clears it
+      // - otherwise keep whatever was already there (when editing)
+      let mediaData = null, mediaType = null;
+      if(pendingMediaData){
+        mediaData = pendingMediaData;
+        mediaType = pendingMediaType;
+      } else if(!mediaCleared && editIndex !== null){
+        const existing = linkData[activeSection][editIndex];
+        mediaData = existing.mediaData || null;
+        mediaType = existing.mediaType || null;
       }
-      saveData(linkData);
-      render();
-      document.getElementById('modalBackdrop').classList.remove('open');
+
+      if(isProduct && !mediaData){
+        alert('Please add a photo or video for the product square.');
+        return;
+      }
+
+      if(!linkData[activeSection]) linkData[activeSection] = [];
+      const entry = { name, url, desc, mediaData, mediaType };
+      if(editIndex !== null){
+        linkData[activeSection][editIndex] = entry;
+      } else {
+        linkData[activeSection].push(entry);
+      }
+      if(saveData(linkData)){
+        render();
+        document.getElementById('modalBackdrop').classList.remove('open');
+      }
     });
 
     document.addEventListener('click', (e) => {
@@ -430,9 +590,15 @@
         linkData[section].splice(idx, 1);
         saveData(linkData);
         render();
+        return;
       }
       if(e.target.classList.contains('edit-btn')){
         openModal('edit', e.target.dataset.section, parseInt(e.target.dataset.idx, 10));
+        return;
+      }
+      const square = e.target.closest('.product-square');
+      if(square && square.dataset.url){
+        window.open(square.dataset.url, '_blank', 'noopener');
       }
     });
 
