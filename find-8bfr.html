@@ -37,8 +37,12 @@
     .entry a.entry-link{ color:#eae6ff; text-decoration:none; font-size:1rem; font-weight:700; }
     .entry a.entry-link:hover{ color:#00d9ff; }
     .entry .desc{ font-size:.85rem; color:#cbbffb; opacity:.85; margin-top:.5rem; }
-    .remove-x{ position:absolute; top:.55rem; right:.65rem; background:none; border:none; color:#a855f7; opacity:.7; font-size:.85rem; cursor:pointer; }
-    .remove-x:hover{ opacity:1; color:#00d9ff; }
+    .entry-actions{ position:absolute; top:.5rem; right:.55rem; display:flex; gap:.4rem; }
+    .entry-actions button{ background:none; border:none; color:#a855f7; opacity:.7; font-size:.85rem; cursor:pointer; }
+    .entry-actions button:hover{ opacity:1; color:#00d9ff; }
+    .entry-photo{ width:100%; max-height:180px; object-fit:cover; border-radius:.6rem; margin-bottom:.6rem; display:block; }
+    .preview-embed{ margin-bottom:.6rem; border-radius:.6rem; overflow:hidden; }
+    .preview-embed iframe{ display:block; border-radius:.6rem; }
 
     .modal-backdrop{ display:none; position:fixed; inset:0; background:rgba(0,0,0,.65); align-items:center; justify-content:center; padding:1.25rem; z-index:9995; }
     .modal-backdrop.open{ display:flex; }
@@ -119,11 +123,13 @@
   <!-- ADD/EDIT MODAL -->
   <div class="modal-backdrop" id="modalBackdrop">
     <div class="modal">
-      <h3>Add a link</h3>
+      <h3 id="modalTitle">Add a link</h3>
       <label for="fName">Title (this is what shows as the clickable link)</label>
       <input id="fName" type="text" placeholder="e.g. 8BFR on TikTok">
-      <label for="fUrl">Link</label>
+      <label for="fUrl">Link (paste a Spotify or YouTube/TikTok link to auto-preview it)</label>
       <input id="fUrl" type="text" placeholder="https://...">
+      <label for="fPhoto">Photo URL (optional — shown if there's no auto-preview)</label>
+      <input id="fPhoto" type="text" placeholder="https://... (image link)">
       <label for="fDesc">Description</label>
       <textarea id="fDesc" placeholder="What is this?"></textarea>
       <div class="modal-actions">
@@ -277,6 +283,7 @@
 
     let linkData = loadData();
     let activeSection = null;
+    let editIndex = null; // null = adding new; number = editing that index
 
     function escapeHtml(str){
       const d = document.createElement('div');
@@ -291,7 +298,43 @@
       return u;
     }
 
+    // Detects Spotify / YouTube / TikTok links and returns embeddable preview HTML, or null.
+    function getPreviewHtml(rawUrl){
+      const url = normalizeUrl(rawUrl);
+
+      const sp = url.match(/open\.spotify\.com\/(track|album|playlist|artist|episode|show)\/([a-zA-Z0-9]+)/);
+      if(sp){
+        const h = sp[1] === 'playlist' || sp[1] === 'album' ? 352 : 152;
+        return `<div class="preview-embed"><iframe src="https://open.spotify.com/embed/${sp[1]}/${sp[2]}" width="100%" height="${h}" frameborder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe></div>`;
+      }
+
+      const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([\w-]{11})/);
+      if(yt){
+        return `<div class="preview-embed"><iframe width="100%" height="200" src="https://www.youtube.com/embed/${yt[1]}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>`;
+      }
+
+      const tt = url.match(/tiktok\.com\/@([\w.-]+)\/video\/(\d+)/);
+      if(tt){
+        return `<div class="preview-embed"><blockquote class="tiktok-embed" cite="${escapeHtml(url)}" data-video-id="${tt[2]}" style="max-width:100%;min-width:100%;margin:0;"><section></section></blockquote></div>`;
+      }
+
+      return null;
+    }
+
+    // TikTok's embed script only scans the page once on load. Re-inserting it
+    // forces it to re-scan and render any newly-added .tiktok-embed blockquotes.
+    function reloadTiktokEmbeds(){
+      if(!document.querySelector('.tiktok-embed')) return;
+      document.querySelectorAll('script[data-tt-embed]').forEach(s => s.remove());
+      const s = document.createElement('script');
+      s.src = 'https://www.tiktok.com/embed.js';
+      s.async = true;
+      s.dataset.ttEmbed = '1';
+      document.body.appendChild(s);
+    }
+
     function render(){
+      let hasTiktok = false;
       document.querySelectorAll('.group').forEach(group => {
         const section = group.dataset.section;
         const entriesEl = group.querySelector('.entries');
@@ -304,24 +347,49 @@
         items.forEach((item, idx) => {
           const div = document.createElement('div');
           div.className = 'section-card entry';
+          const preview = getPreviewHtml(item.url);
+          if(preview && preview.indexOf('tiktok-embed') !== -1) hasTiktok = true;
+          const media = preview
+            ? preview
+            : (item.photo ? `<img class="entry-photo" src="${escapeHtml(item.photo)}" alt="${escapeHtml(item.name)}" onerror="this.remove()">` : '');
           div.innerHTML = `
-            <button class="remove-x" data-section="${section}" data-idx="${idx}" title="Remove">✕</button>
+            <div class="entry-actions">
+              <button class="edit-btn" data-section="${section}" data-idx="${idx}" title="Edit">&#9998;</button>
+              <button class="remove-x" data-section="${section}" data-idx="${idx}" title="Remove">✕</button>
+            </div>
+            ${media}
             <a class="entry-link" href="${escapeHtml(normalizeUrl(item.url))}" target="_blank" rel="noopener">${escapeHtml(item.name)}</a>
             ${item.desc ? `<p class="desc">${escapeHtml(item.desc)}</p>` : ''}
           `;
           entriesEl.appendChild(div);
         });
       });
+      if(hasTiktok) reloadTiktokEmbeds();
+    }
+
+    function openModal(mode, section, idx){
+      activeSection = section;
+      editIndex = (mode === 'edit') ? idx : null;
+      document.getElementById('modalTitle').textContent = mode === 'edit' ? 'Edit link' : 'Add a link';
+      if(mode === 'edit'){
+        const item = linkData[section][idx];
+        document.getElementById('fName').value = item.name || '';
+        document.getElementById('fUrl').value = item.url || '';
+        document.getElementById('fPhoto').value = item.photo || '';
+        document.getElementById('fDesc').value = item.desc || '';
+      } else {
+        document.getElementById('fName').value = '';
+        document.getElementById('fUrl').value = '';
+        document.getElementById('fPhoto').value = '';
+        document.getElementById('fDesc').value = '';
+      }
+      document.getElementById('modalBackdrop').classList.add('open');
+      document.getElementById('fName').focus();
     }
 
     document.querySelectorAll('.add-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        activeSection = btn.dataset.section;
-        document.getElementById('fName').value = '';
-        document.getElementById('fUrl').value = '';
-        document.getElementById('fDesc').value = '';
-        document.getElementById('modalBackdrop').classList.add('open');
-        document.getElementById('fName').focus();
+        openModal('add', btn.dataset.section, null);
       });
     });
 
@@ -338,13 +406,18 @@
     document.getElementById('saveBtn').addEventListener('click', () => {
       const name = document.getElementById('fName').value.trim();
       const url = document.getElementById('fUrl').value.trim();
+      const photo = document.getElementById('fPhoto').value.trim();
       const desc = document.getElementById('fDesc').value.trim();
       if(!name || !url){
-        alert('Please add at least a name and a link.');
+        alert('Please add at least a title and a link.');
         return;
       }
       if(!linkData[activeSection]) linkData[activeSection] = [];
-      linkData[activeSection].push({name, url, desc});
+      if(editIndex !== null){
+        linkData[activeSection][editIndex] = {name, url, photo, desc};
+      } else {
+        linkData[activeSection].push({name, url, photo, desc});
+      }
       saveData(linkData);
       render();
       document.getElementById('modalBackdrop').classList.remove('open');
@@ -357,6 +430,9 @@
         linkData[section].splice(idx, 1);
         saveData(linkData);
         render();
+      }
+      if(e.target.classList.contains('edit-btn')){
+        openModal('edit', e.target.dataset.section, parseInt(e.target.dataset.idx, 10));
       }
     });
 
