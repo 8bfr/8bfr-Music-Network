@@ -287,6 +287,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
 <div id="menu-backdrop"></div>\
 <nav id="menu" aria-hidden="true">\
   <h2>8BFR Navigation</h2>\
+  <a href="find-8bfr.html" class="menu-chip" style="display:block;text-align:center;margin:2px 4px 8px;background:linear-gradient(135deg,rgba(124,58,237,.5),rgba(0,217,255,.25));border-color:rgba(0,217,255,.6);color:#fff;font-weight:700;">&#x1F50D; Find 8BFR</a>\
   <div class="menu-group collapsed">\
     <div class="menu-group-title">Home &amp; Core</div>\
     <div class="menu-links">\
@@ -306,6 +307,7 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
       <a href="algorithm-points.html" class="menu-chip">&#x1F4CA; Algorithm Points</a>\
       <a href="about.html" class="menu-chip">&#x2139;&#xFE0F; About</a>\
       <a href="contact.html" class="menu-chip">&#x1F4EC; Contact</a>\
+      <a href="find-8bfr.html" class="menu-chip">&#x1F50D; Find 8BFR</a>\
     </div>\
   </div>\
   <div class="menu-group collapsed">\
