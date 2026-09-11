@@ -369,13 +369,27 @@
       linkData = grouped;
     }
 
+    function guessExt(file){
+      const type = (file && file.type) || '';
+      const name = (file && file.name) || '';
+      if(typeof name === 'string' && name.includes('.')){
+        const fromName = name.split('.').pop();
+        if(fromName) return fromName.toLowerCase();
+      }
+      if(typeof type === 'string' && type.includes('/')){
+        const fromType = type.split('/').pop();
+        if(fromType) return fromType.toLowerCase();
+      }
+      return type.startsWith('video/') ? 'mp4' : 'jpg';
+    }
+
     async function uploadMedia(file, section){
-      const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
+      const ext = guessExt(file);
       const path = `find-8bfr/${section}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
       const { error } = await sb.storage.from(MEDIA_BUCKET).upload(path, file);
       if(error) throw error;
       const { data: pub } = sb.storage.from(MEDIA_BUCKET).getPublicUrl(path);
-      return { url: pub.publicUrl, path, type: file.type.startsWith('video/') ? 'video' : 'image' };
+      return { url: pub.publicUrl, path, type: (file.type || '').startsWith('video/') ? 'video' : 'image' };
     }
 
     async function deleteMediaFile(path){
