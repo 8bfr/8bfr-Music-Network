@@ -266,7 +266,7 @@
     const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f';
     const MEDIA_BUCKET = 'media';
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     const SECTIONS = ['platform','music','stores','affiliate','social','products'];
 
@@ -342,7 +342,7 @@
     // ---------- Supabase data layer ----------
 
     async function fetchAllRows(){
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .from('find_8bfr_links')
         .select('*')
         .order('sort_order', { ascending: true })
@@ -352,12 +352,12 @@
     }
 
     async function seedIfEmpty(){
-      const { count, error } = await supabase
+      const { count, error } = await sb
         .from('find_8bfr_links')
         .select('*', { count: 'exact', head: true });
       if(error){ console.error(error); return; }
       if(count === 0){
-        await supabase.from('find_8bfr_links').insert(seedRows);
+        await sb.from('find_8bfr_links').insert(seedRows);
       }
     }
 
@@ -372,15 +372,15 @@
     async function uploadMedia(file, section){
       const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
       const path = `find-8bfr/${section}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
-      const { error } = await supabase.storage.from(MEDIA_BUCKET).upload(path, file);
+      const { error } = await sb.storage.from(MEDIA_BUCKET).upload(path, file);
       if(error) throw error;
-      const { data: pub } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(path);
+      const { data: pub } = sb.storage.from(MEDIA_BUCKET).getPublicUrl(path);
       return { url: pub.publicUrl, path, type: file.type.startsWith('video/') ? 'video' : 'image' };
     }
 
     async function deleteMediaFile(path){
       if(!path) return;
-      try{ await supabase.storage.from(MEDIA_BUCKET).remove([path]); }
+      try{ await sb.storage.from(MEDIA_BUCKET).remove([path]); }
       catch(e){ console.warn('Could not delete old media file', e); }
     }
 
@@ -572,10 +572,10 @@
         const row = { section: activeSection, name, url, description, media_url, media_path, media_type };
 
         if(editId !== null){
-          const { error } = await supabase.from('find_8bfr_links').update(row).eq('id', editId);
+          const { error } = await sb.from('find_8bfr_links').update(row).eq('id', editId);
           if(error) throw error;
         } else {
-          const { error } = await supabase.from('find_8bfr_links').insert(row);
+          const { error } = await sb.from('find_8bfr_links').insert(row);
           if(error) throw error;
         }
 
@@ -598,7 +598,7 @@
         if(!confirm('Remove this?')) return;
         const item = findItem(section, id);
         try{
-          const { error } = await supabase.from('find_8bfr_links').delete().eq('id', id);
+          const { error } = await sb.from('find_8bfr_links').delete().eq('id', id);
           if(error) throw error;
           if(item && item.media_path) await deleteMediaFile(item.media_path);
           await loadData();
