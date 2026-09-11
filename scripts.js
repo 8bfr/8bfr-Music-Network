@@ -196,7 +196,7 @@
   }
 
   function enforceAuthGate() {
-    var publicPages = ["index.html","login.html","signup.html","reset-password.html","reset_password.html","logout.html","profile.html","ai-studio.html","creator-tools.html","ai-tools.html"];
+    var publicPages = ["index.html","login.html","signup.html","reset-password.html","reset_password.html","logout.html","profile.html","ai-studio.html","creator-tools.html","ai-tools.html","find-8bfr.html"];
     var path = window.location.pathname.split("/").pop();
     if (!path) path = "index.html";
     if (publicPages.indexOf(path) !== -1) return;
