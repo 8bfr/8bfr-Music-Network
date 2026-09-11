@@ -263,88 +263,45 @@
   <script src="scripts.js?v=6" defer></script>
 
   <script>
-    const STORAGE_KEY = 'find8bfr_links_v1';
+    const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f';
+    const MEDIA_BUCKET = 'media';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const seedData = {
-      platform: [
-        {
-          name: '8BFR Music Network — official site',
-          url: 'https://8bfr.com/index.html',
-          desc: 'The home page: "Create • Connect • Collab." A music-first social network combining streaming, a beat store, social feed/chat/groups, AI creator tools, and games.'
-        },
-        {
-          name: '8BFR FAQ page',
-          url: 'https://8bfr.com/faq.html',
-          desc: 'Explains what 8BFR is, confirms it was built by James Siburt from a phone using Termux, and lays out how beat sales, PayPal payouts, and the VIP/Creator Pro/Elite subscription tiers work.'
-        }
-      ],
-      music: [
-        {
-          name: '8bfr on Apple Music',
-          url: 'https://music.apple.com/us/artist/8bfr/1684363864',
-          desc: 'Artist page with the catalog under the 8bfr name, including tracks featuring James J Siburt like "Dirty Nursery Rhymes" and "Monk Style."'
-        },
-        {
-          name: '8bfr on Spotify',
-          url: 'https://open.spotify.com/artist/127tw52iDXr7BvgB0IGG2x',
-          desc: 'Spotify artist profile, currently showing 618 monthly listeners.'
-        },
-        {
-          name: '"Plato Games Rap" on Deezer',
-          url: 'https://www.deezer.com/us/album/615539342',
-          desc: 'A 2023 single release, written and composed by James J Siburt, 1 minute 37 seconds long.'
-        }
-      ],
-      stores: [],
-      affiliate: [],
-      social: [],
-      products: []
-    };
+    const SECTIONS = ['platform','music','stores','affiliate','social','products'];
 
-    function loadData(){
-      const raw = localStorage.getItem(STORAGE_KEY);
-      let data;
-      if(!raw){
-        data = JSON.parse(JSON.stringify(seedData));
-      } else {
-        try{ data = JSON.parse(raw); }
-        catch(e){ data = JSON.parse(JSON.stringify(seedData)); }
-      }
-      if(!data.products) data.products = []; // upgrade older saved data
-      return data;
-    }
+    // One-time defaults, used only to seed the database the very first time it's empty.
+    const seedRows = [
+      { section:'platform', name:'8BFR Music Network — official site', url:'https://8bfr.com/index.html',
+        description:'The home page: "Create • Connect • Collab." A music-first social network combining streaming, a beat store, social feed/chat/groups, AI creator tools, and games.' },
+      { section:'platform', name:'8BFR FAQ page', url:'https://8bfr.com/faq.html',
+        description:'Explains what 8BFR is, confirms it was built by James Siburt from a phone using Termux, and lays out how beat sales, PayPal payouts, and the VIP/Creator Pro/Elite subscription tiers work.' },
+      { section:'music', name:'8bfr on Apple Music', url:'https://music.apple.com/us/artist/8bfr/1684363864',
+        description:'Artist page with the catalog under the 8bfr name, including tracks featuring James J Siburt like "Dirty Nursery Rhymes" and "Monk Style."' },
+      { section:'music', name:'8bfr on Spotify', url:'https://open.spotify.com/artist/127tw52iDXr7BvgB0IGG2x',
+        description:'Spotify artist profile, currently showing 618 monthly listeners.' },
+      { section:'music', name:'"Plato Games Rap" on Deezer', url:'https://www.deezer.com/us/album/615539342',
+        description:'A 2023 single release, written and composed by James J Siburt, 1 minute 37 seconds long.' }
+    ];
 
-    function saveData(data){
-      try{
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-        return true;
-      }catch(e){
-        alert("Couldn't save — your browser's local storage is full. Photos/videos take up a lot of space; try removing an older one or using a smaller file.");
-        return false;
-      }
-    }
-
-    let linkData = loadData();
+    let linkData = { platform:[], music:[], stores:[], affiliate:[], social:[], products:[] };
     let activeSection = null;
-    let editIndex = null;       // null = adding new; number = editing that index
-    let pendingMediaData = null; // base64 data URL of a newly-picked file this modal session
-    let pendingMediaType = null; // 'image' | 'video'
+    let editId = null;           // null = adding new; a row id = editing that row
+    let pendingFile = null;      // File object chosen this modal session, not yet uploaded
+    let pendingPreviewUrl = null;
     let mediaCleared = false;    // true if user hit "remove this media"
 
     function escapeHtml(str){
       const d = document.createElement('div');
-      d.textContent = str;
+      d.textContent = str || '';
       return d.innerHTML;
     }
 
     function normalizeUrl(u){
-      if(!/^https?:\/\//i.test(u)){
-        return 'https://' + u;
-      }
+      if(!/^https?:\/\//i.test(u)) return 'https://' + u;
       return u;
     }
 
-    // Detects Spotify / YouTube / TikTok links and returns embeddable preview HTML, or null.
     function getPreviewHtml(rawUrl){
       const url = normalizeUrl(rawUrl);
 
@@ -353,22 +310,17 @@
         const h = sp[1] === 'playlist' || sp[1] === 'album' ? 352 : 152;
         return `<div class="preview-embed"><iframe src="https://open.spotify.com/embed/${sp[1]}/${sp[2]}" width="100%" height="${h}" frameborder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe></div>`;
       }
-
       const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([\w-]{11})/);
       if(yt){
         return `<div class="preview-embed"><iframe width="100%" height="200" src="https://www.youtube.com/embed/${yt[1]}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>`;
       }
-
       const tt = url.match(/tiktok\.com\/@([\w.-]+)\/video\/(\d+)/);
       if(tt){
         return `<div class="preview-embed"><blockquote class="tiktok-embed" cite="${escapeHtml(url)}" data-video-id="${tt[2]}" style="max-width:100%;min-width:100%;margin:0;"><section></section></blockquote></div>`;
       }
-
       return null;
     }
 
-    // TikTok's embed script only scans the page once on load. Re-inserting it
-    // forces it to re-scan and render any newly-added .tiktok-embed blockquotes.
     function reloadTiktokEmbeds(){
       if(!document.querySelector('.tiktok-embed')) return;
       document.querySelectorAll('script[data-tt-embed]').forEach(s => s.remove());
@@ -379,20 +331,66 @@
       document.body.appendChild(s);
     }
 
-    function mediaTag(item, cssClass){
-      if(!item.mediaData) return '';
-      if(item.mediaType === 'video'){
-        return `<video class="${cssClass}" src="${item.mediaData}" controls playsinline></video>`;
+    function mediaTag(url, type, cssClass){
+      if(!url) return '';
+      if(type === 'video'){
+        return `<video class="${cssClass}" src="${url}" controls playsinline></video>`;
       }
-      return `<img class="${cssClass}" src="${item.mediaData}" alt="${escapeHtml(item.name || '')}">`;
+      return `<img class="${cssClass}" src="${url}" alt="">`;
     }
+
+    // ---------- Supabase data layer ----------
+
+    async function fetchAllRows(){
+      const { data, error } = await supabase
+        .from('find_8bfr_links')
+        .select('*')
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true });
+      if(error){ console.error(error); alert('Could not load your links from the database: ' + error.message); return []; }
+      return data;
+    }
+
+    async function seedIfEmpty(){
+      const { count, error } = await supabase
+        .from('find_8bfr_links')
+        .select('*', { count: 'exact', head: true });
+      if(error){ console.error(error); return; }
+      if(count === 0){
+        await supabase.from('find_8bfr_links').insert(seedRows);
+      }
+    }
+
+    async function loadData(){
+      await seedIfEmpty();
+      const rows = await fetchAllRows();
+      const grouped = { platform:[], music:[], stores:[], affiliate:[], social:[], products:[] };
+      rows.forEach(r => { if(grouped[r.section]) grouped[r.section].push(r); });
+      linkData = grouped;
+    }
+
+    async function uploadMedia(file, section){
+      const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
+      const path = `find-8bfr/${section}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+      const { error } = await supabase.storage.from(MEDIA_BUCKET).upload(path, file);
+      if(error) throw error;
+      const { data: pub } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(path);
+      return { url: pub.publicUrl, path, type: file.type.startsWith('video/') ? 'video' : 'image' };
+    }
+
+    async function deleteMediaFile(path){
+      if(!path) return;
+      try{ await supabase.storage.from(MEDIA_BUCKET).remove([path]); }
+      catch(e){ console.warn('Could not delete old media file', e); }
+    }
+
+    // ---------- Rendering ----------
 
     function render(){
       let hasTiktok = false;
 
-      // Standard list-style sections
-      document.querySelectorAll('.group[data-section]:not([data-section="products"])').forEach(group => {
-        const section = group.dataset.section;
+      SECTIONS.filter(s => s !== 'products').forEach(section => {
+        const group = document.querySelector(`.group[data-section="${section}"]`);
         const entriesEl = group.querySelector('.entries');
         const items = linkData[section] || [];
         entriesEl.innerHTML = '';
@@ -400,41 +398,40 @@
           entriesEl.innerHTML = '<p class="empty-note">Nothing added yet — tap + add to put one here.</p>';
           return;
         }
-        items.forEach((item, idx) => {
+        items.forEach(item => {
           const div = document.createElement('div');
           div.className = 'section-card entry';
           const preview = getPreviewHtml(item.url);
           if(preview && preview.indexOf('tiktok-embed') !== -1) hasTiktok = true;
-          const media = mediaTag(item, 'entry-media');
+          const media = mediaTag(item.media_url, item.media_type, 'entry-media');
           div.innerHTML = `
             <div class="entry-actions">
-              <button class="edit-btn" data-section="${section}" data-idx="${idx}" title="Edit">&#9998;</button>
-              <button class="remove-x" data-section="${section}" data-idx="${idx}" title="Remove">✕</button>
+              <button class="edit-btn" data-section="${section}" data-id="${item.id}" title="Edit">&#9998;</button>
+              <button class="remove-x" data-section="${section}" data-id="${item.id}" title="Remove">✕</button>
             </div>
             <a class="entry-link" href="${escapeHtml(normalizeUrl(item.url))}" target="_blank" rel="noopener">${escapeHtml(item.name)}</a>
-            ${item.desc ? `<p class="desc">${escapeHtml(item.desc)}</p>` : ''}
+            ${item.description ? `<p class="desc">${escapeHtml(item.description)}</p>` : ''}
             ${preview || media}
           `;
           entriesEl.appendChild(div);
         });
       });
 
-      // Products grid
       const prodEntriesEl = document.querySelector('.group[data-section="products"] .entries');
       const products = linkData.products || [];
       prodEntriesEl.innerHTML = '';
       if(products.length === 0){
         prodEntriesEl.innerHTML = '<div class="product-square-empty">Tap + add to put your first product here</div>';
       } else {
-        products.forEach((item, idx) => {
+        products.forEach(item => {
           const div = document.createElement('div');
           div.className = 'product-square';
           div.dataset.url = normalizeUrl(item.url || '');
-          const media = mediaTag(item, '');
+          const media = mediaTag(item.media_url, item.media_type, '');
           div.innerHTML = `
             <div class="entry-actions">
-              <button class="edit-btn" data-section="products" data-idx="${idx}" title="Edit">&#9998;</button>
-              <button class="remove-x" data-section="products" data-idx="${idx}" title="Remove">✕</button>
+              <button class="edit-btn" data-section="products" data-id="${item.id}" title="Edit">&#9998;</button>
+              <button class="remove-x" data-section="products" data-id="${item.id}" title="Remove">✕</button>
             </div>
             ${media}
             <div class="product-title">${escapeHtml(item.name || '')}</div>
@@ -446,9 +443,11 @@
       if(hasTiktok) reloadTiktokEmbeds();
     }
 
+    // ---------- Modal ----------
+
     function resetMediaPicker(){
-      pendingMediaData = null;
-      pendingMediaType = null;
+      pendingFile = null;
+      pendingPreviewUrl = null;
       mediaCleared = false;
       document.getElementById('fMedia').value = '';
       document.getElementById('mediaPreviewWrap').style.display = 'none';
@@ -457,33 +456,28 @@
       document.getElementById('fileDropText').textContent = 'Tap to choose a photo or video';
     }
 
-    function showMediaPreview(dataUrl, type){
+    function showMediaPreview(url, type){
       const wrap = document.getElementById('mediaPreviewWrap');
       wrap.style.display = 'inline-block';
       wrap.innerHTML = type === 'video'
-        ? `<video src="${dataUrl}" controls playsinline></video>`
-        : `<img src="${dataUrl}" alt="preview">`;
+        ? `<video src="${url}" controls playsinline></video>`
+        : `<img src="${url}" alt="preview">`;
       document.getElementById('mediaRemoveBtn').style.display = 'inline-block';
     }
 
     document.getElementById('fMedia').addEventListener('change', (e) => {
       const file = e.target.files[0];
       if(!file) return;
-      const isVideo = file.type.startsWith('video/');
-      const reader = new FileReader();
-      reader.onload = () => {
-        pendingMediaData = reader.result;
-        pendingMediaType = isVideo ? 'video' : 'image';
-        mediaCleared = false;
-        document.getElementById('fileDropText').textContent = file.name;
-        showMediaPreview(pendingMediaData, pendingMediaType);
-      };
-      reader.readAsDataURL(file);
+      pendingFile = file;
+      mediaCleared = false;
+      pendingPreviewUrl = URL.createObjectURL(file);
+      document.getElementById('fileDropText').textContent = file.name;
+      showMediaPreview(pendingPreviewUrl, file.type.startsWith('video/') ? 'video' : 'image');
     });
 
     document.getElementById('mediaRemoveBtn').addEventListener('click', () => {
-      pendingMediaData = null;
-      pendingMediaType = null;
+      pendingFile = null;
+      pendingPreviewUrl = null;
       mediaCleared = true;
       document.getElementById('fMedia').value = '';
       document.getElementById('fileDropText').textContent = 'Tap to choose a photo or video';
@@ -492,9 +486,13 @@
       document.getElementById('mediaRemoveBtn').style.display = 'none';
     });
 
-    function openModal(mode, section, idx){
+    function findItem(section, id){
+      return (linkData[section] || []).find(x => x.id === id);
+    }
+
+    function openModal(mode, section, id){
       activeSection = section;
-      editIndex = (mode === 'edit') ? idx : null;
+      editId = (mode === 'edit') ? id : null;
       resetMediaPicker();
 
       const isProduct = section === 'products';
@@ -505,16 +503,15 @@
       document.getElementById('fNameLabel').textContent = isProduct
         ? 'Product name (shown on the square)'
         : 'Title (this is what shows as the clickable link)';
-
       document.getElementById('modalTitle').textContent =
         (mode === 'edit' ? 'Edit ' : 'Add ') + (isProduct ? 'product' : 'link');
 
       if(mode === 'edit'){
-        const item = linkData[section][idx];
+        const item = findItem(section, id);
         document.getElementById('fName').value = item.name || '';
         document.getElementById('fUrl').value = item.url || '';
-        document.getElementById('fDesc').value = item.desc || '';
-        if(item.mediaData) showMediaPreview(item.mediaData, item.mediaType);
+        document.getElementById('fDesc').value = item.description || '';
+        if(item.media_url) showMediaPreview(item.media_url, item.media_type);
       } else {
         document.getElementById('fName').value = '';
         document.getElementById('fUrl').value = '';
@@ -525,9 +522,7 @@
     }
 
     document.querySelectorAll('.add-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        openModal('add', btn.dataset.section, null);
-      });
+      btn.addEventListener('click', () => openModal('add', btn.dataset.section, null));
     });
 
     document.getElementById('cancelBtn').addEventListener('click', () => {
@@ -535,15 +530,13 @@
     });
 
     document.getElementById('modalBackdrop').addEventListener('click', (e) => {
-      if(e.target.id === 'modalBackdrop'){
-        document.getElementById('modalBackdrop').classList.remove('open');
-      }
+      if(e.target.id === 'modalBackdrop') document.getElementById('modalBackdrop').classList.remove('open');
     });
 
-    document.getElementById('saveBtn').addEventListener('click', () => {
+    document.getElementById('saveBtn').addEventListener('click', async () => {
       const name = document.getElementById('fName').value.trim();
       const url = document.getElementById('fUrl').value.trim();
-      const desc = document.getElementById('fDesc').value.trim();
+      const description = document.getElementById('fDesc').value.trim();
       const isProduct = activeSection === 'products';
 
       if(!name || !url){
@@ -551,49 +544,72 @@
         return;
       }
 
-      // Figure out what the saved media should be:
-      // - a newly picked file wins
-      // - "remove this media" clears it
-      // - otherwise keep whatever was already there (when editing)
-      let mediaData = null, mediaType = null;
-      if(pendingMediaData){
-        mediaData = pendingMediaData;
-        mediaType = pendingMediaType;
-      } else if(!mediaCleared && editIndex !== null){
-        const existing = linkData[activeSection][editIndex];
-        mediaData = existing.mediaData || null;
-        mediaType = existing.mediaType || null;
-      }
+      const existing = editId !== null ? findItem(activeSection, editId) : null;
 
-      if(isProduct && !mediaData){
+      if(isProduct && !pendingFile && !(existing && existing.media_url && !mediaCleared)){
         alert('Please add a photo or video for the product square.');
         return;
       }
 
-      if(!linkData[activeSection]) linkData[activeSection] = [];
-      const entry = { name, url, desc, mediaData, mediaType };
-      if(editIndex !== null){
-        linkData[activeSection][editIndex] = entry;
-      } else {
-        linkData[activeSection].push(entry);
-      }
-      if(saveData(linkData)){
+      const saveBtn = document.getElementById('saveBtn');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving…';
+
+      try{
+        let media_url = existing ? existing.media_url : null;
+        let media_path = existing ? existing.media_path : null;
+        let media_type = existing ? existing.media_type : null;
+
+        if(pendingFile){
+          if(existing && existing.media_path) await deleteMediaFile(existing.media_path);
+          const uploaded = await uploadMedia(pendingFile, activeSection);
+          media_url = uploaded.url; media_path = uploaded.path; media_type = uploaded.type;
+        } else if(mediaCleared){
+          if(existing && existing.media_path) await deleteMediaFile(existing.media_path);
+          media_url = null; media_path = null; media_type = null;
+        }
+
+        const row = { section: activeSection, name, url, description, media_url, media_path, media_type };
+
+        if(editId !== null){
+          const { error } = await supabase.from('find_8bfr_links').update(row).eq('id', editId);
+          if(error) throw error;
+        } else {
+          const { error } = await supabase.from('find_8bfr_links').insert(row);
+          if(error) throw error;
+        }
+
+        await loadData();
         render();
         document.getElementById('modalBackdrop').classList.remove('open');
+      }catch(err){
+        console.error(err);
+        alert('Save failed: ' + err.message);
+      }finally{
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save';
       }
     });
 
-    document.addEventListener('click', (e) => {
+    document.addEventListener('click', async (e) => {
       if(e.target.classList.contains('remove-x')){
         const section = e.target.dataset.section;
-        const idx = parseInt(e.target.dataset.idx, 10);
-        linkData[section].splice(idx, 1);
-        saveData(linkData);
-        render();
+        const id = e.target.dataset.id;
+        if(!confirm('Remove this?')) return;
+        const item = findItem(section, id);
+        try{
+          const { error } = await supabase.from('find_8bfr_links').delete().eq('id', id);
+          if(error) throw error;
+          if(item && item.media_path) await deleteMediaFile(item.media_path);
+          await loadData();
+          render();
+        }catch(err){
+          alert('Could not remove: ' + err.message);
+        }
         return;
       }
       if(e.target.classList.contains('edit-btn')){
-        openModal('edit', e.target.dataset.section, parseInt(e.target.dataset.idx, 10));
+        openModal('edit', e.target.dataset.section, e.target.dataset.id);
         return;
       }
       const square = e.target.closest('.product-square');
@@ -602,7 +618,11 @@
       }
     });
 
-    render();
+    (async function init(){
+      document.querySelectorAll('.entries').forEach(el => el.innerHTML = '<p class="empty-note">Loading…</p>');
+      await loadData();
+      render();
+    })();
   </script>
 
 </body>
