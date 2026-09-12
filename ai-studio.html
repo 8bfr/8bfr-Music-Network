@@ -374,12 +374,18 @@ var TOOLS = [
       {name:'bg',label:'Background color',type:'color',id:'qrBg',value:'#ffffff'}
     ]
   },
-  { id:'meme-creator', cat:'creative', type:'client', handler:'meme', icon:'😂', name:'Meme Creator', desc:'Top/bottom text on image or AI generated', badges:['tool','fun'],
+  { id:'meme-creator', cat:'creative', type:'client', handler:'meme', icon:'😂', name:'Meme Creator', desc:'Upload, AI image, AI idea-to-meme, or fully random', badges:['tool','fun'],
     fields:[
-      {name:'image',label:'Upload image (or use AI below)',type:'file',accept:'image/*',id:'memeImg'},
-      {name:'aiPrompt',label:'OR describe meme image for AI',type:'text',id:'memeAiPrompt',placeholder:'e.g. confused cat looking at math equations'},
-      {name:'top',label:'Top text',type:'text',id:'memeTop'},
-      {name:'bottom',label:'Bottom text',type:'text',id:'memeBottom'},
+      {name:'mode',label:'Mode',type:'select',id:'memeMode',options:[
+        'Upload my own image',
+        'AI generates the image (I write the text)',
+        'Give AI an idea — it writes image + viral caption',
+        'Surprise me — totally random AI meme'
+      ]},
+      {name:'image',label:'Upload image (Mode 1 only)',type:'file',accept:'image/*',id:'memeImg'},
+      {name:'aiPrompt',label:'Describe the image, or your meme idea (Modes 2 & 3)',type:'text',id:'memeAiPrompt',placeholder:'e.g. confused cat looking at math equations'},
+      {name:'top',label:'Top text (leave blank to let AI write it)',type:'text',id:'memeTop'},
+      {name:'bottom',label:'Bottom text (leave blank to let AI write it)',type:'text',id:'memeBottom'},
       {name:'fontSize',label:'Font size',type:'number',value:'80',id:'memeFontSize'},
       {name:'color',label:'Text color',type:'color',value:'#ffffff',id:'memeColor'},
       {name:'outline',label:'Outline color',type:'color',value:'#000000',id:'memeOutline'}
@@ -1158,6 +1164,29 @@ function loadImage(src){
   });
 }
 
+// Asks the AI for a top/bottom caption + an image prompt, in a simple
+// line-based format (more reliable from a small model than asking for JSON).
+async function memeAskAI(instruction){
+  var res = await fetch(API, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      input: instruction + '\n\nRespond in EXACTLY this format, nothing else:\nTOP: <short punchy top caption, all caps not needed>\nBOTTOM: <short punchy bottom caption>\nIMAGE: <vivid visual description for an image generator, no text/words in the image>',
+      tier: 'nano'
+    })
+  });
+  var data = await res.json();
+  var text = (data && data.text) || '';
+  var top = (text.match(/TOP:\s*(.+)/i)||[])[1] || '';
+  var bottom = (text.match(/BOTTOM:\s*(.+)/i)||[])[1] || '';
+  var imagePrompt = (text.match(/IMAGE:\s*(.+)/i)||[])[1] || '';
+  return {
+    top: top.trim(),
+    bottom: bottom.trim(),
+    imagePrompt: imagePrompt.trim()
+  };
+}
+
 // QR fallback: Google Charts API (works without any JS library)
 async function qrCodeFallback(text, size, fg, bg) {
   try {
@@ -1477,13 +1506,44 @@ var CLIENT_HANDLERS={
   // ── MEME ──
   meme: async function(v){
     var img;
-    var files=v.image;
-    var aiPrompt=(v.aiPrompt||'').trim();
+    var mode = v.mode || 'AI generates the image (I write the text)';
+    var files = v.image;
+    var aiPrompt = (v.aiPrompt||'').trim();
+    var topText = v.top||'';
+    var bottomText = v.bottom||'';
+    var MEME_KEY = '&key=sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8'; // required by Pollinations proxy — missing this caused "Proxy HTTP 400"
 
-    if(aiPrompt){
-      // AI generate the base image
+    if(mode === 'Upload my own image'){
+      if(!(files&&files[0])){ showError('Upload an image for this mode.'); return; }
+      var objUrl=URL.createObjectURL(files[0]);
+      img=new Image();
+      await new Promise(function(r,rej){img.onload=r;img.onerror=function(){rej(new Error("Image load failed — try again."));};img.src=objUrl;});
+
+    } else if(mode === 'Give AI an idea — it writes image + viral caption'){
+      if(!aiPrompt){ showError('Type your meme idea first.'); return; }
+      showLoading('AI is writing your viral caption...');
+      var concept = await memeAskAI('Turn this idea into a viral meme concept: "'+aiPrompt+'". Make the caption genuinely funny, punchy, and shareable — the kind of meme that gets reposted.');
+      if(!topText) topText = concept.top;
+      if(!bottomText) bottomText = concept.bottom;
+      var imgPrompt = concept.imagePrompt || (aiPrompt+', meme format, funny');
       showLoading('AI generating meme image...');
-      var url=IMG_GEN+encodeURIComponent(aiPrompt+', meme format, funny, no text, no words')+'?width=800&height=800&nologo=true&seed='+Date.now();
+      var url=IMG_GEN+encodeURIComponent(imgPrompt+', meme format, funny, no text, no words')+'?width=800&height=800&nologo=true&seed='+Date.now()+MEME_KEY;
+      img=await loadImage(url);
+
+    } else if(mode === 'Surprise me — totally random AI meme'){
+      showLoading('AI is inventing a random meme...');
+      var concept=await memeAskAI('Invent a completely random, absurdly funny meme concept from scratch — pick any relatable everyday situation, animal, or pop-culture-style scenario (no real people or logos). Make it something that could genuinely go viral.');
+      if(!topText) topText = concept.top;
+      if(!bottomText) bottomText = concept.bottom;
+      var imgPrompt = concept.imagePrompt || 'random funny relatable meme scene';
+      showLoading('AI generating meme image...');
+      var url=IMG_GEN+encodeURIComponent(imgPrompt+', meme format, funny, no text, no words')+'?width=800&height=800&nologo=true&seed='+Date.now()+MEME_KEY;
+      img=await loadImage(url);
+
+    } else if(aiPrompt){
+      // Mode 2: AI generates image from description, user supplies text
+      showLoading('AI generating meme image...');
+      var url=IMG_GEN+encodeURIComponent(aiPrompt+', meme format, funny, no text, no words')+'?width=800&height=800&nologo=true&seed='+Date.now()+MEME_KEY;
       img=await loadImage(url);
     } else if(files&&files[0]){
       var url=URL.createObjectURL(files[0]);
@@ -1514,16 +1574,16 @@ var CLIENT_HANDLERS={
       if(current)lines.push(current);
       return lines;
     }
-    if(v.top){
-      var lines=wrapLines(ctx,v.top.toUpperCase(),canvas.width-40);
+    if(topText){
+      var lines=wrapLines(ctx,topText.toUpperCase(),canvas.width-40);
       lines.forEach(function(line,i){
         var y=fontSize+10+i*(fontSize+8);
         ctx.strokeText(line,canvas.width/2,y);
         ctx.fillText(line,canvas.width/2,y);
       });
     }
-    if(v.bottom){
-      var lines=wrapLines(ctx,v.bottom.toUpperCase(),canvas.width-40);
+    if(bottomText){
+      var lines=wrapLines(ctx,bottomText.toUpperCase(),canvas.width-40);
       var startY=canvas.height-(lines.length*(fontSize+8))-10+fontSize;
       lines.forEach(function(line,i){
         var y=startY+i*(fontSize+8);
