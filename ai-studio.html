@@ -505,14 +505,7 @@ var TOOLS = [
     ],
     buildPrompt:function(v){return 'Rewrite this to be '+(v.tone||'better')+':\n\n'+v.text;}
   },
-  { id:'translator', cat:'writing', type:'ai', icon:'🌐', name:'Translator', desc:'Any language pair', tier:'nano',
-    system:'You are a professional translator preserving tone and cultural context.',
-    fields:[
-      {name:'text',label:'Text to translate',type:'textarea',required:true},
-      {name:'lang',label:'Target language',type:'select',options:['English','Spanish','French','German','Italian','Portuguese','Japanese','Korean','Chinese (Simplified)','Arabic','Russian','Hindi','Turkish']}
-    ],
-    buildPrompt:function(v){return 'Translate into '+(v.lang||'English')+':\n\n'+v.text;}
-  },
+  { id:'translator', cat:'writing', type:'client', handler:'translate', icon:'🌐', name:'Translator', desc:'Instant translation, 100+ languages incl. Bisaya', fields:[] },
   { id:'expand', cat:'writing', type:'ai', icon:'📚', name:'Expand/Continue', desc:'Continue a scene or paragraph', tier:'mini',
     system:'You continue text matching existing voice, style, pacing.',
     fields:[
@@ -772,6 +765,18 @@ function openTool(id){
   conversationHistory = [];  // Reset conversation when opening a new tool
   document.getElementById('mIcon').textContent=tool.icon;
   document.getElementById('mName').textContent=tool.name;
+  document.getElementById('mResult').innerHTML='';
+  document.getElementById('mResult').classList.remove('show');
+  document.getElementById('modalOverlay').classList.add('show');
+
+  if(tool.id==='translator'){
+    document.getElementById('mRun').style.display='none';
+    document.getElementById('mFields').innerHTML=buildTranslatorUI();
+    initTranslatorUI();
+    return;
+  }
+  document.getElementById('mRun').style.display='';
+
   var fieldsHtml='';
   tool.fields.forEach(function(f){
     var req=f.required?'<span class="req">*</span>':'';
@@ -808,11 +813,8 @@ function openTool(id){
     fieldsHtml+='</div>';
   });
   document.getElementById('mFields').innerHTML=fieldsHtml;
-  document.getElementById('mResult').innerHTML='';
-  document.getElementById('mResult').classList.remove('show');
   document.getElementById('mRun').disabled=false;
   document.getElementById('mRun').textContent=tool.type==='client'?'🚀 Create':'✨ Generate';
-  document.getElementById('modalOverlay').classList.add('show');
   // Restore saved field values and attach autosave
   restoreToolFields(tool);
   attachFieldSavers(tool);
@@ -1216,8 +1218,237 @@ async function qrCodeFallback(text, size, fg, bg) {
   }
 }
 
+// ═══ TRANSLATOR (custom Google Translate-style UI) ═══
+var TR_LANGS=['Afrikaans','Albanian','Amharic','Arabic','Armenian','Azerbaijani','Basque','Belarusian','Bengali','Bosnian','Bulgarian','Catalan','Cebuano (Bisaya)','Chichewa','Chinese (Simplified)','Chinese (Traditional)','Corsican','Croatian','Czech','Danish','Dutch','English','Esperanto','Estonian','Filipino (Tagalog)','Finnish','French','Frisian','Galician','Georgian','German','Greek','Gujarati','Haitian Creole','Hausa','Hawaiian','Hebrew','Hindi','Hmong','Hungarian','Icelandic','Igbo','Ilocano','Indonesian','Irish','Italian','Japanese','Javanese','Kannada','Kazakh','Khmer','Kinyarwanda','Korean','Kurdish','Kyrgyz','Lao','Latin','Latvian','Lithuanian','Luxembourgish','Macedonian','Malagasy','Malay','Malayalam','Maltese','Maori','Marathi','Mongolian','Myanmar (Burmese)','Nepali','Norwegian','Odia','Pashto','Persian','Polish','Portuguese','Punjabi','Romanian','Russian','Samoan','Scots Gaelic','Serbian','Sesotho','Shona','Sindhi','Sinhala','Slovak','Slovenian','Somali','Spanish','Sundanese','Swahili','Swedish','Tajik','Tamil','Tatar','Telugu','Thai','Turkish','Turkmen','Ukrainian','Urdu','Uyghur','Uzbek','Vietnamese','Waray','Welsh','Xhosa','Yiddish','Yoruba','Zulu'];
+
+// Best-effort speech codes for common languages (browser TTS voice availability varies by device)
+var TR_SPEECH_CODES={'English':'en-US','Spanish':'es-ES','French':'fr-FR','German':'de-DE','Italian':'it-IT','Portuguese':'pt-PT','Japanese':'ja-JP','Korean':'ko-KR','Chinese (Simplified)':'zh-CN','Chinese (Traditional)':'zh-TW','Arabic':'ar-SA','Russian':'ru-RU','Hindi':'hi-IN','Turkish':'tr-TR','Dutch':'nl-NL','Polish':'pl-PL','Vietnamese':'vi-VN','Thai':'th-TH','Indonesian':'id-ID','Filipino (Tagalog)':'fil-PH','Greek':'el-GR','Swedish':'sv-SE','Danish':'da-DK','Norwegian':'no-NO','Finnish':'fi-FI','Hebrew':'he-IL','Ukrainian':'uk-UA','Czech':'cs-CZ','Romanian':'ro-RO','Hungarian':'hu-HU'};
+
+var trState={detected:'',reqId:0,timer:null};
+
+// Matches a loosely-worded AI-detected language name ("Cebuano", "Tagalog")
+// to our exact dropdown entry ("Cebuano (Bisaya)", "Filipino (Tagalog)").
+function trMatchLang(name){
+  if(!name)return '';
+  var n=name.trim().toLowerCase();
+  var exact=TR_LANGS.filter(function(l){return l.toLowerCase()===n;});
+  if(exact.length)return exact[0];
+  var partial=TR_LANGS.filter(function(l){return l.toLowerCase().indexOf(n)!==-1||n.indexOf(l.toLowerCase().split(' (')[0])!==-1;});
+  return partial.length?partial[0]:'';
+}
+
+function trInjectStyles(){
+  if(document.getElementById('trStyles'))return;
+  var css='.tr-wrap{display:flex;flex-direction:column;gap:0.6rem;}'+
+    '.tr-bar{display:flex;align-items:center;gap:0.5rem;}'+
+    '.tr-bar select{flex:1;min-width:0;padding:0.55rem 0.6rem;background:rgba(0,0,0,0.4);border:1px solid rgba(124,58,237,0.35);border-radius:8px;color:#eae6ff;font-size:0.85rem;outline:none;font-family:inherit;}'+
+    '.tr-bar select:focus{border-color:#a855f7;}'+
+    '.tr-swap{flex-shrink:0;width:38px;height:38px;border-radius:50%;background:rgba(124,58,237,0.25);border:1px solid rgba(124,58,237,0.5);color:#eae6ff;font-size:1.05rem;cursor:pointer;display:flex;align-items:center;justify-content:center;}'+
+    '.tr-swap:hover{background:#7c3aed;}'+
+    '.tr-detected{font-size:0.7rem;color:#00d9ff;padding:0 0.2rem;min-height:1rem;}'+
+    '.tr-panes{display:flex;flex-direction:column;gap:0.6rem;}'+
+    '@media(min-width:560px){.tr-panes{flex-direction:row;}}'+
+    '.tr-pane{flex:1;background:rgba(0,0,0,0.4);border:1px solid rgba(124,58,237,0.35);border-radius:10px;display:flex;flex-direction:column;min-height:140px;}'+
+    '.tr-pane textarea{flex:1;background:transparent;border:none;color:#eae6ff;font-size:0.95rem;padding:0.75rem;resize:vertical;min-height:120px;outline:none;font-family:inherit;}'+
+    '.tr-result{flex:1;padding:0.75rem;color:#eae6ff;font-size:0.95rem;white-space:pre-wrap;min-height:120px;overflow-y:auto;}'+
+    '.tr-result.tr-placeholder{color:rgba(234,230,255,0.4);}'+
+    '.tr-pane-footer{display:flex;align-items:center;justify-content:space-between;padding:0.4rem 0.6rem;border-top:1px solid rgba(124,58,237,0.25);}'+
+    '.tr-pane-footer .tr-count{font-size:0.68rem;color:rgba(234,230,255,0.5);}'+
+    '.tr-icon-btn{background:none;border:none;color:rgba(234,230,255,0.7);font-size:0.95rem;cursor:pointer;padding:0.2rem 0.35rem;border-radius:6px;}'+
+    '.tr-icon-btn:hover{background:rgba(124,58,237,0.25);color:#eae6ff;}'+
+    '.tr-status{font-size:0.75rem;color:#a855f7;min-height:1rem;}';
+  var style=document.createElement('style');
+  style.id='trStyles';
+  style.textContent=css;
+  document.head.appendChild(style);
+}
+
+function trOptionsHtml(includeDetect,selected){
+  var html='';
+  if(includeDetect){
+    html+='<option value="Detect language"'+(selected==='Detect language'?' selected':'')+'>🔍 Detect language</option>';
+  }
+  TR_LANGS.forEach(function(l){
+    html+='<option value="'+l+'"'+(l===selected?' selected':'')+'>'+l+'</option>';
+  });
+  return html;
+}
+
+function buildTranslatorUI(){
+  trInjectStyles();
+  return ''+
+    '<div class="tr-wrap">'+
+      '<div class="tr-bar">'+
+        '<select id="trSrcLang">'+trOptionsHtml(true,'Detect language')+'</select>'+
+        '<button type="button" class="tr-swap" id="trSwap" title="Swap languages">⇄</button>'+
+        '<select id="trTgtLang">'+trOptionsHtml(false,'English')+'</select>'+
+      '</div>'+
+      '<div class="tr-detected" id="trDetected"></div>'+
+      '<div class="tr-panes">'+
+        '<div class="tr-pane">'+
+          '<textarea id="trSrcText" maxlength="5000" placeholder="Type text to translate..."></textarea>'+
+          '<div class="tr-pane-footer">'+
+            '<span class="tr-count" id="trSrcCount">0 / 5000</span>'+
+            '<div>'+
+              '<button type="button" class="tr-icon-btn" id="trSrcListen" title="Listen">🔊</button>'+
+              '<button type="button" class="tr-icon-btn" id="trSrcCopy" title="Copy">📋</button>'+
+              '<button type="button" class="tr-icon-btn" id="trSrcClear" title="Clear">✕</button>'+
+            '</div>'+
+          '</div>'+
+        '</div>'+
+        '<div class="tr-pane">'+
+          '<div class="tr-result tr-placeholder" id="trTgtText">Translation</div>'+
+          '<div class="tr-pane-footer">'+
+            '<span class="tr-count">&nbsp;</span>'+
+            '<div>'+
+              '<button type="button" class="tr-icon-btn" id="trTgtListen" title="Listen">🔊</button>'+
+              '<button type="button" class="tr-icon-btn" id="trTgtCopy" title="Copy">📋</button>'+
+            '</div>'+
+          '</div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="tr-status" id="trStatus"></div>'+
+    '</div>';
+}
+
+async function trCallApi(text,sourceLang,targetLang){
+  var instruction;
+  if(sourceLang==='Detect language'){
+    instruction='Detect the language of the following text, then translate it into '+targetLang+'. Respond in EXACTLY this format and nothing else:\nDETECTED: <detected language name>\nTRANSLATION: <translation only>\n\nText:\n'+text;
+  } else {
+    instruction='Translate the following text from '+sourceLang+' into '+targetLang+'. Preserve tone, meaning, and cultural nuance. Respond with ONLY the translation — no quotes, no labels, no extra commentary.\n\nText:\n'+text;
+  }
+  var res=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({input:instruction,tier:'nano'})});
+  var data=await res.json();
+  var raw=(data&&data.text)||'';
+  if(sourceLang==='Detect language'){
+    var det=(raw.match(/DETECTED:\s*(.+)/i)||[])[1]||'';
+    var trans=(raw.match(/TRANSLATION:\s*([\s\S]*)/i)||[])[1]||raw;
+    return {detected:det.trim(),translation:trans.trim()};
+  }
+  return {detected:'',translation:raw.trim()};
+}
+
+function trSpeak(text,langName){
+  if(!text)return;
+  speechSynthesis.cancel();
+  var utter=new SpeechSynthesisUtterance(text.substring(0,3000));
+  var code=TR_SPEECH_CODES[langName];
+  if(code)utter.lang=code;
+  speechSynthesis.speak(utter);
+}
+
+function initTranslatorUI(){
+  var srcLangEl=document.getElementById('trSrcLang');
+  var tgtLangEl=document.getElementById('trTgtLang');
+  var srcTextEl=document.getElementById('trSrcText');
+  var tgtTextEl=document.getElementById('trTgtText');
+  var countEl=document.getElementById('trSrcCount');
+  var detectedEl=document.getElementById('trDetected');
+  var statusEl=document.getElementById('trStatus');
+
+  trState.detected='';
+
+  function runTranslate(){
+    var text=srcTextEl.value.trim();
+    if(!text){
+      tgtTextEl.textContent='Translation';
+      tgtTextEl.classList.add('tr-placeholder');
+      detectedEl.textContent='';
+      statusEl.textContent='';
+      return;
+    }
+    var myReq=++trState.reqId;
+    statusEl.textContent='Translating...';
+    trCallApi(text,srcLangEl.value,tgtLangEl.value).then(function(res){
+      if(myReq!==trState.reqId)return; // a newer request superseded this one
+      tgtTextEl.textContent=res.translation||'(no translation returned)';
+      tgtTextEl.classList.remove('tr-placeholder');
+      if(res.detected){
+        trState.detected=res.detected;
+        detectedEl.textContent='Detected: '+res.detected;
+      } else {
+        detectedEl.textContent='';
+      }
+      statusEl.textContent='';
+    }).catch(function(e){
+      if(myReq!==trState.reqId)return;
+      statusEl.textContent='';
+      tgtTextEl.classList.remove('tr-placeholder');
+      tgtTextEl.textContent='⚠️ Translation failed: '+(e.message||e);
+    });
+  }
+
+  srcTextEl.addEventListener('input',function(){
+    countEl.textContent=srcTextEl.value.length+' / 5000';
+    clearTimeout(trState.timer);
+    trState.timer=setTimeout(runTranslate,600);
+  });
+
+  srcLangEl.addEventListener('change',function(){
+    detectedEl.textContent='';
+    runTranslate();
+  });
+  tgtLangEl.addEventListener('change',runTranslate);
+
+  document.getElementById('trSwap').addEventListener('click',function(){
+    var curSrc=srcLangEl.value;
+    var curTgt=tgtLangEl.value;
+    var newSrc=curTgt;
+    var newTgt=(curSrc==='Detect language')?(trMatchLang(trState.detected)||curTgt):curSrc;
+    if(TR_LANGS.indexOf(newTgt)===-1) newTgt='English'; // final safety fallback
+    srcLangEl.value=newSrc;
+    tgtLangEl.value=newTgt;
+    var oldTgtText=tgtTextEl.classList.contains('tr-placeholder')?'':tgtTextEl.textContent;
+    srcTextEl.value=oldTgtText;
+    countEl.textContent=srcTextEl.value.length+' / 5000';
+    detectedEl.textContent='';
+    runTranslate();
+  });
+
+  document.getElementById('trSrcClear').addEventListener('click',function(){
+    srcTextEl.value='';
+    countEl.textContent='0 / 5000';
+    tgtTextEl.textContent='Translation';
+    tgtTextEl.classList.add('tr-placeholder');
+    detectedEl.textContent='';
+    statusEl.textContent='';
+    srcTextEl.focus();
+  });
+
+  document.getElementById('trSrcCopy').addEventListener('click',function(){
+    if(!srcTextEl.value)return;
+    navigator.clipboard.writeText(srcTextEl.value);
+    statusEl.textContent='Source copied';
+    setTimeout(function(){statusEl.textContent='';},1200);
+  });
+  document.getElementById('trTgtCopy').addEventListener('click',function(){
+    var t=tgtTextEl.classList.contains('tr-placeholder')?'':tgtTextEl.textContent;
+    if(!t)return;
+    navigator.clipboard.writeText(t);
+    statusEl.textContent='Translation copied';
+    setTimeout(function(){statusEl.textContent='';},1200);
+  });
+
+  document.getElementById('trSrcListen').addEventListener('click',function(){
+    trSpeak(srcTextEl.value,srcLangEl.value==='Detect language'?trState.detected:srcLangEl.value);
+  });
+  document.getElementById('trTgtListen').addEventListener('click',function(){
+    var t=tgtTextEl.classList.contains('tr-placeholder')?'':tgtTextEl.textContent;
+    trSpeak(t,tgtLangEl.value);
+  });
+
+  countEl.textContent='0 / 5000';
+}
+
 // ═══ CLIENT-SIDE TOOL HANDLERS ═══
 var CLIENT_HANDLERS={
+
+  translate: async function(v){
+    // The translator has its own fully custom live UI (see buildTranslatorUI/initTranslatorUI)
+    // and doesn't use the standard Generate button — this exists only as a safe fallback.
+    showResult('<div class="tr-status">Use the boxes above — translation happens automatically as you type.</div>');
+  },
 
   // ── ALBUM COVER ──
   photoGen: async function(v){
