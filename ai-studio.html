@@ -1190,24 +1190,52 @@ var MEME_CRAFT_RULES = 'You are a viral meme writer. Follow these rules strictly
   '6. The image prompt must contain the exact subject/action the caption depends on — if the caption references a specific object, expression, or action, that MUST be in the image prompt in concrete visual terms.\n'+
   '7. Funny > cute. Prioritize an actual joke with a punchline or twist over something merely "aww" or pleasant.\n';
 
+// Extracts a labeled field (TOP/BOTTOM/IMAGE) up to the next label or end of
+// string — works whether or not the model actually put each on its own line.
+function memeExtractField(text, label){
+  var re = new RegExp(label+':\\s*([\\s\\S]*?)(?=\\s*(?:TOP|BOTTOM|IMAGE)\\s*:|$)', 'i');
+  var m = text.match(re);
+  return m ? m[1].trim() : '';
+}
+
+// Cleans a caption: drops a duplicate/alternate the model tacked on, strips
+// stray quotes and any leaked label text, and hard-caps length.
+function memeCleanCaption(s){
+  if(!s) return '';
+  s = s.trim();
+  // If there are two quoted phrases (model second-guessing itself), keep only the first
+  var quotes = s.match(/["""]([^"""]{2,120})["""]/g);
+  if(quotes && quotes.length > 1){
+    s = quotes[0];
+  }
+  s = s.replace(/^["'"""]+|["'"""]+$/g, '').trim();
+  s = s.replace(/^(TOP|BOTTOM|IMAGE)\s*:\s*/i, '').trim();
+  if(s.length > 90){
+    var cut = s.slice(0, 90);
+    var lastSpace = cut.lastIndexOf(' ');
+    s = lastSpace > 40 ? cut.slice(0, lastSpace) : cut;
+  }
+  return s;
+}
+
 async function memeAskAI(instruction, tier){
   var res = await fetch(API, {
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
-      input: MEME_CRAFT_RULES + '\nTask: ' + instruction + '\n\nRespond in EXACTLY this format, nothing else:\nTOP: <top caption, or blank if the joke only needs bottom text>\nBOTTOM: <bottom caption, or blank if the joke only needs top text>\nIMAGE: <concrete, specific visual description for an image generator — must contain the exact subject/action the caption depends on, no text/words in the image>',
+      input: MEME_CRAFT_RULES + '\nTask: ' + instruction + '\n\nRespond in EXACTLY this format, nothing else — one line each, no alternates, no repeated attempts, no self-corrections shown:\nTOP: <top caption, or blank if the joke only needs bottom text>\nBOTTOM: <bottom caption, or blank if the joke only needs top text>\nIMAGE: <concrete, specific visual description for an image generator — must contain the exact subject/action the caption depends on, no text/words in the image>',
       tier: tier || 'mini'
     })
   });
   var data = await res.json();
   var text = (data && data.text) || '';
-  var top = (text.match(/TOP:\s*(.+)/i)||[])[1] || '';
-  var bottom = (text.match(/BOTTOM:\s*(.+)/i)||[])[1] || '';
-  var imagePrompt = (text.match(/IMAGE:\s*(.+)/i)||[])[1] || '';
+  var top = memeCleanCaption(memeExtractField(text, 'TOP'));
+  var bottom = memeCleanCaption(memeExtractField(text, 'BOTTOM'));
+  var imagePrompt = memeExtractField(text, 'IMAGE').replace(/^["'"""]+|["'"""]+$/g, '').trim();
   return {
-    top: top.trim(),
-    bottom: bottom.trim(),
-    imagePrompt: imagePrompt.trim()
+    top: top,
+    bottom: bottom,
+    imagePrompt: imagePrompt
   };
 }
 
@@ -1812,12 +1840,10 @@ var CLIENT_HANDLERS={
     canvas.width=img.width;canvas.height=img.height;
     var ctx=canvas.getContext('2d');
     ctx.drawImage(img,0,0);
-    var fontSize=parseInt(v.fontSize)||80;
-    ctx.font='bold '+fontSize+'px Impact, sans-serif';
+    var baseFontSize=parseInt(v.fontSize)||80;
     ctx.textAlign='center';
     ctx.fillStyle=v.color||'#ffffff';
     ctx.strokeStyle=v.outline||'#000000';
-    ctx.lineWidth=Math.max(3,fontSize/8);
     ctx.lineJoin='round';
     function wrapLines(ctx,text,maxW){
       var words=text.split(' '),lines=[],current='';
@@ -1829,19 +1855,43 @@ var CLIENT_HANDLERS={
       if(current)lines.push(current);
       return lines;
     }
+    // Shrinks font size until the wrapped caption fits within a height budget,
+    // so a long AI caption can never balloon into covering the whole photo.
+    function fitCaption(text,maxWidth,maxHeight,startSize,minSize){
+      var size=startSize,lines=[];
+      while(size>=minSize){
+        ctx.font='bold '+size+'px Impact, sans-serif';
+        lines=wrapLines(ctx,text,maxWidth);
+        if(lines.length*(size+8)<=maxHeight)break;
+        size-=4;
+      }
+      if(size<minSize)size=minSize;
+      ctx.font='bold '+size+'px Impact, sans-serif';
+      lines=wrapLines(ctx,text,maxWidth);
+      var maxLines=Math.max(1,Math.floor(maxHeight/(size+8)));
+      if(lines.length>maxLines)lines=lines.slice(0,maxLines);
+      return {size:size,lines:lines};
+    }
+    var maxWidth=canvas.width-40;
+    var bandHeight=canvas.height*0.26; // each caption is capped to ~26% of the image height
+    var minSize=Math.max(18,Math.round(canvas.width*0.03));
     if(topText){
-      var lines=wrapLines(ctx,topText.toUpperCase(),canvas.width-40);
-      lines.forEach(function(line,i){
-        var y=fontSize+10+i*(fontSize+8);
+      var fit=fitCaption(topText.toUpperCase(),maxWidth,bandHeight,baseFontSize,minSize);
+      ctx.font='bold '+fit.size+'px Impact, sans-serif';
+      ctx.lineWidth=Math.max(3,fit.size/8);
+      fit.lines.forEach(function(line,i){
+        var y=fit.size+10+i*(fit.size+8);
         ctx.strokeText(line,canvas.width/2,y);
         ctx.fillText(line,canvas.width/2,y);
       });
     }
     if(bottomText){
-      var lines=wrapLines(ctx,bottomText.toUpperCase(),canvas.width-40);
-      var startY=canvas.height-(lines.length*(fontSize+8))-10+fontSize;
-      lines.forEach(function(line,i){
-        var y=startY+i*(fontSize+8);
+      var fit=fitCaption(bottomText.toUpperCase(),maxWidth,bandHeight,baseFontSize,minSize);
+      ctx.font='bold '+fit.size+'px Impact, sans-serif';
+      ctx.lineWidth=Math.max(3,fit.size/8);
+      var startY=canvas.height-(fit.lines.length*(fit.size+8))-10+fit.size;
+      fit.lines.forEach(function(line,i){
+        var y=startY+i*(fit.size+8);
         ctx.strokeText(line,canvas.width/2,y);
         ctx.fillText(line,canvas.width/2,y);
       });
