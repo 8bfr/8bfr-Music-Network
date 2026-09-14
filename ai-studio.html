@@ -388,7 +388,8 @@ var TOOLS = [
       {name:'bottom',label:'Bottom text (leave blank to let AI write it)',type:'text',id:'memeBottom'},
       {name:'fontSize',label:'Font size',type:'number',value:'80',id:'memeFontSize'},
       {name:'color',label:'Text color',type:'color',value:'#ffffff',id:'memeColor'},
-      {name:'outline',label:'Outline color',type:'color',value:'#000000',id:'memeOutline'}
+      {name:'outline',label:'Outline color',type:'color',value:'#000000',id:'memeOutline'},
+      {name:'watermark',label:'Copyright / credit name (optional)',type:'text',id:'memeWatermark',placeholder:'e.g. YourName or 8BFR — appears small in the corner'}
     ]
   },
   { id:'gif-creator', cat:'creative', type:'client', handler:'gif', icon:'🎞️', name:'GIF Creator', desc:'Animated GIF from images or AI', badges:['tool'],
@@ -813,6 +814,14 @@ function openTool(id){
     fieldsHtml+='</div>';
   });
   document.getElementById('mFields').innerHTML=fieldsHtml;
+  if(tool.id==='meme-creator'){
+    var wmInput=document.getElementById('memeWatermark');
+    var wmField=wmInput&&wmInput.closest('.field');
+    if(wmField){
+      var ownerNow=(typeof isOwnerOrCoOwner!=='undefined')&&!!isOwnerOrCoOwner;
+      wmField.style.display=ownerNow?'':'none';
+    }
+  }
   document.getElementById('mRun').disabled=false;
   document.getElementById('mRun').textContent=tool.type==='client'?'🚀 Create':'✨ Generate';
   // Restore saved field values and attach autosave
@@ -1167,14 +1176,27 @@ function loadImage(src){
 }
 
 // Asks the AI for a top/bottom caption + an image prompt, in a simple
-// line-based format (more reliable from a small model than asking for JSON).
-async function memeAskAI(instruction){
+// line-based format (more reliable to parse than asking for JSON).
+var MEME_CRAFT_RULES = 'You are a viral meme writer. Follow these rules strictly, because most AI-written memes fail at them:\n'+
+  '1. The image and the caption must be ONE joke, not two ideas stapled together. Every visual detail you invent should be there because the caption needs it — never describe a generic scene and then bolt on an unrelated caption.\n'+
+  '2. Be SPECIFIC, not vague. "When you realize it\'s Monday" is dead. "When the group chat goes quiet after you send the venmo request" is alive. Specific, concrete, everyday details are what make a caption land — invent a real, particular situation, not a generic feeling.\n'+
+  '3. Keep it SHORT. Viral captions are almost never more than ~8-10 words per line. If it needs a paragraph to explain, it is not a meme.\n'+
+  '4. Pick ONE of these proven structures, whichever fits the idea best:\n'+
+  '   - Expectation vs. reality: top text sets up a confident assumption, bottom text (or the image) undercuts it.\n'+
+  '   - Deadpan mismatch: a completely over-the-top or absurd image, described in a flat, understated caption.\n'+
+  '   - Escalating relatability: one very specific everyday annoyance or habit, stated matter-of-factly, that everyone secretly recognizes.\n'+
+  '   - Confidently wrong: a caption stating something with total confidence that the image visually contradicts.\n'+
+  '5. Avoid tired, overused meme phrasing (e.g. generic "when you" setups with no real twist, "nobody: / me:" unless genuinely earned, vague "that feeling when"). If you use a familiar meme skeleton, fill it with a sharp, specific, unexpected detail — never a filler one.\n'+
+  '6. The image prompt must contain the exact subject/action the caption depends on — if the caption references a specific object, expression, or action, that MUST be in the image prompt in concrete visual terms.\n'+
+  '7. Funny > cute. Prioritize an actual joke with a punchline or twist over something merely "aww" or pleasant.\n';
+
+async function memeAskAI(instruction, tier){
   var res = await fetch(API, {
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
-      input: instruction + '\n\nRespond in EXACTLY this format, nothing else:\nTOP: <short punchy top caption, all caps not needed>\nBOTTOM: <short punchy bottom caption>\nIMAGE: <vivid visual description for an image generator, no text/words in the image>',
-      tier: 'nano'
+      input: MEME_CRAFT_RULES + '\nTask: ' + instruction + '\n\nRespond in EXACTLY this format, nothing else:\nTOP: <top caption, or blank if the joke only needs bottom text>\nBOTTOM: <bottom caption, or blank if the joke only needs top text>\nIMAGE: <concrete, specific visual description for an image generator — must contain the exact subject/action the caption depends on, no text/words in the image>',
+      tier: tier || 'mini'
     })
   });
   var data = await res.json();
@@ -1743,6 +1765,8 @@ var CLIENT_HANDLERS={
     var topText = v.top||'';
     var bottomText = v.bottom||'';
     var MEME_KEY = '&key=sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8'; // required by Pollinations proxy — missing this caused "Proxy HTTP 400"
+    var isOwner = (typeof isOwnerOrCoOwner!=='undefined') && !!isOwnerOrCoOwner;
+    var memeTier = isOwner ? 'mini' : 'nano'; // owner gets the smarter (pricier) writer; everyone else uses the cheaper one
 
     if(mode === 'Upload my own image'){
       if(!(files&&files[0])){ showError('Upload an image for this mode.'); return; }
@@ -1753,7 +1777,7 @@ var CLIENT_HANDLERS={
     } else if(mode === 'Give AI an idea — it writes image + viral caption'){
       if(!aiPrompt){ showError('Type your meme idea first.'); return; }
       showLoading('AI is writing your viral caption...');
-      var concept = await memeAskAI('Turn this idea into a viral meme concept: "'+aiPrompt+'". Make the caption genuinely funny, punchy, and shareable — the kind of meme that gets reposted.');
+      var concept = await memeAskAI('Turn this idea into a viral meme concept: "'+aiPrompt+'". Make the caption genuinely funny, punchy, and shareable — the kind of meme that gets reposted.', memeTier);
       if(!topText) topText = concept.top;
       if(!bottomText) bottomText = concept.bottom;
       var imgPrompt = concept.imagePrompt || (aiPrompt+', meme format, funny');
@@ -1763,7 +1787,7 @@ var CLIENT_HANDLERS={
 
     } else if(mode === 'Surprise me — totally random AI meme'){
       showLoading('AI is inventing a random meme...');
-      var concept=await memeAskAI('Invent a completely random, absurdly funny meme concept from scratch — pick any relatable everyday situation, animal, or pop-culture-style scenario (no real people or logos). Make it something that could genuinely go viral.');
+      var concept=await memeAskAI('Invent a completely random, absurdly funny meme concept from scratch — pick any relatable everyday situation, animal, or pop-culture-style scenario (no real people or logos). Make it something that could genuinely go viral.', memeTier);
       if(!topText) topText = concept.top;
       if(!bottomText) bottomText = concept.bottom;
       var imgPrompt = concept.imagePrompt || 'random funny relatable meme scene';
@@ -1821,6 +1845,20 @@ var CLIENT_HANDLERS={
         ctx.strokeText(line,canvas.width/2,y);
         ctx.fillText(line,canvas.width/2,y);
       });
+    }
+    var watermark=isOwner?(v.watermark||'').trim():'8bfr.com';
+    if(watermark){
+      var wmSize=Math.max(14,Math.round(canvas.width*0.028));
+      ctx.font=wmSize+'px sans-serif';
+      ctx.textAlign='right';
+      ctx.lineWidth=Math.max(2,wmSize/8);
+      ctx.strokeStyle='rgba(0,0,0,0.65)';
+      ctx.fillStyle='rgba(255,255,255,0.85)';
+      var wmText='© '+watermark;
+      var wmX=canvas.width-14;
+      var wmY=canvas.height-14;
+      ctx.strokeText(wmText,wmX,wmY);
+      ctx.fillText(wmText,wmX,wmY);
     }
     var dataUrl=canvas.toDataURL('image/png');
     window._lastImageUrl=dataUrl;
