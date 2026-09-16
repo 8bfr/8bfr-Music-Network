@@ -764,6 +764,7 @@ function openTool(id){
 
   currentTool=tool;
   conversationHistory = [];  // Reset conversation when opening a new tool
+  toolPlatform = ''; // Reset platform-limit tracking for the new tool session
   document.getElementById('mIcon').textContent=tool.icon;
   document.getElementById('mName').textContent=tool.name;
   document.getElementById('mResult').innerHTML='';
@@ -777,6 +778,19 @@ function openTool(id){
     return;
   }
   document.getElementById('mRun').style.display='';
+
+  // Give every AI text tool a Platform selector (reusing post-generator's own
+  // field/options if a tool already defines one, injecting one if it doesn't)
+  // so choosing TikTok anywhere in the suite enforces its 250-character limit.
+  if(tool.type==='ai'){
+    var hasPlatformField=tool.fields.some(function(f){return f.name==='platform';});
+    if(!hasPlatformField){
+      tool.fields=[{
+        name:'platform',label:'Platform (optional — TikTok caps replies at 250 characters)',type:'select',
+        options:['Instagram','TikTok','Twitter/X','Facebook','LinkedIn','Threads','8BFR','Reddit','YouTube']
+      }].concat(tool.fields);
+    }
+  }
 
   var fieldsHtml='';
   tool.fields.forEach(function(f){
@@ -977,8 +991,21 @@ window.downloadAllPg=function(){
 // Conversation history for current tool session
 var conversationHistory = [];
 
+// Tracks the chosen platform across a tool session (initial run + follow-ups),
+// since follow-up calls only pass {followUpText} and not the full form values.
+var toolPlatform = '';
+var PLATFORM_CHAR_LIMITS = {'TikTok': 250};
+
 async function runAiTool(values, isFollowUp){
   var prompt = isFollowUp ? values.followUpText : currentTool.buildPrompt(values);
+
+  if(!isFollowUp){
+    toolPlatform = values.platform || '';
+  }
+  var charLimit = PLATFORM_CHAR_LIMITS[toolPlatform];
+  if(charLimit){
+    prompt += '\n\nIMPORTANT: This is for a '+toolPlatform+' text post, which has a hard limit of '+charLimit+' characters. Your ENTIRE response must be '+charLimit+' characters or fewer, including spaces and punctuation. Give only the final text — no extra commentary.';
+  }
 
   // Pre-processing: Artist Info tool needs Spotify oEmbed hydration
   if (currentTool.handler === 'artistLookup' && !isFollowUp) {
@@ -1028,6 +1055,11 @@ async function runAiTool(values, isFollowUp){
     return;
   }
   var text = data.text || '(No response)';
+  if(charLimit && text.length > charLimit){
+    var cut = text.slice(0, charLimit);
+    var lastSpace = cut.lastIndexOf(' ');
+    text = lastSpace > charLimit*0.6 ? cut.slice(0, lastSpace) : cut;
+  }
   window._lastResult = text;
 
   // Update conversation history
