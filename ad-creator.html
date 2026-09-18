@@ -431,10 +431,28 @@ async function generateSceneImage(i) {
     const url = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(prompt) + '?width=' + w + '&height=' + h + '&nologo=true&seed=' + seed;
 
     try {
-        const img = await loadImage(url, true);
+        // Fetch (not <img src>) so we can inspect the response headers and
+        // detect when Pollinations silently falls back to its free/unauthenticated
+        // model instead of the real one (which ignores nologo and often ignores the prompt).
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const modelUsed = resp.headers.get('x-model-used') || '';
+        const authStatus = resp.headers.get('x-auth-status') || '';
+        const blob = await resp.blob();
+        const objUrl = URL.createObjectURL(blob);
+        const img = await loadImage(objUrl, false);
         scenes[i].imgObj = img;
-        scenes[i].imgSrc = url;
-        if (thumb) thumb.innerHTML = '<img src="' + url + '">';
+        scenes[i].imgSrc = objUrl;
+
+        const isFallback = authStatus === 'unauthenticated' || modelUsed.toLowerCase() === 'sana';
+        if (thumb) {
+            thumb.innerHTML = '<img src="' + objUrl + '">' +
+                (isFallback ? '<span title="Free fallback model used — may not match your prompt, and will carry a watermark. Check your Pollinations account/API key, or upload your own photo instead." style="position:absolute;top:2px;right:2px;background:rgba(245,158,11,.9);color:#000;font-size:.6rem;font-weight:800;padding:1px 4px;border-radius:4px;">⚠️ FALLBACK</span>' : '');
+        }
+        if (isFallback) {
+            const errBox = document.getElementById('renderError');
+            if (errBox) errBox.innerHTML = '<div class="error-box">⚠️ Scene ' + (i + 1) + ': Pollinations served its free fallback image model (unauthenticated) — it ignores most of the prompt and always shows a watermark. Your API key isn\'t being accepted for image generation. Check your Pollinations dashboard for the image-gen key/balance, or just upload your own photo for this scene.</div>';
+        }
     } catch (e) {
         if (thumb) thumb.innerHTML = '<span class="ph">⚠️</span>';
         alert('Image generation failed — try again in a moment, or upload your own photo instead.');
