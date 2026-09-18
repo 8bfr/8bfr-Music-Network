@@ -182,6 +182,7 @@ audio{width:100%;border-radius:8px;margin-top:.5rem;}
       <textarea id="lyrInput" placeholder="Paste lyrics here - can include [Verse 1], timestamps, speaker labels etc..."></textarea>
       <div class="btn-row">
         <button class="btn btn-cyan" id="btnFmt" onclick="aiFormat()">Smart Clean Lyrics</button>
+        <button class="btn btn-purple" id="btnTiktokSafe" onclick="cleanLyrInputExplicit()" style="margin-left:.5rem;">TikTok-Safe Lyrics</button>
       </div>
       <p id="lyrCount" style="font-size:.78rem;color:#6b7280;margin-top:.4rem;">0 lines</p>
       <div id="fmtMsg" class="hidden s-msg"></div>
@@ -580,9 +581,7 @@ function aiCanvasSize(){var c=document.getElementById('aiCanvas');c.width=aiOrie
 }
 function buildSceneList(){var list=document.getElementById('sceneList');list.innerHTML='';list.classList.remove('hidden');for(var i=0;i<aiScenes.length;i++){var d=document.createElement('div');d.className='scene-item';var dot=document.createElement('div');dot.className='scene-dot';dot.id='dot'+i;var txt=document.createElement('div');txt.style.flex='1';txt.style.fontSize='.8rem';txt.innerHTML='<strong>Scene '+(i+1)+'</strong><div style="color:#9ca3af;font-size:.75rem;">'+(aiScenes[i].lyrics||'')+'</div>';d.appendChild(dot);d.appendChild(txt);list.appendChild(d);}}
 function dotState(i,st){var d=document.getElementById('dot'+i);if(d)d.className='scene-dot '+st;}
-function cleanExplicit(){
-  var ta=document.getElementById('aiLyrics');
-  if(!ta||!ta.value.trim()){alert('Paste your lyrics first.');return;}
+function runProfanityFilter(text){
   function autoMask(word){
     if(word.length<=2)return '*'.repeat(word.length);
     if(word.length===3)return word[0]+'**';
@@ -627,7 +626,7 @@ function cleanExplicit(){
     'bastards?','douche(?:bag|bags)?','crappy',
     'niggers?','niggaz'
   ];
-  var txt=ta.value,count=0;
+  var txt=text,count=0;
   pairs.forEach(function(p){
     var word=p[0],sub=p[1],out='',i=0;
     while(i<txt.length){
@@ -645,7 +644,26 @@ function cleanExplicit(){
     var re=new RegExp('\\b('+rootPattern+')\\b','gi');
     txt=txt.replace(re,function(match){count++;return applyCase(match,autoMask(match));});
   });
-  ta.value=txt;alert(count>0?'Done! '+count+' word(s) cleaned for TikTok.':'No flagged words found - looks clean!');
+  return {text:txt,count:count};
+}
+function cleanExplicit(){
+  var ta=document.getElementById('aiLyrics');
+  if(!ta||!ta.value.trim()){alert('Paste your lyrics first.');return;}
+  var r=runProfanityFilter(ta.value);
+  ta.value=r.text;
+  alert(r.count>0?'Done! '+r.count+' word(s) cleaned for TikTok.':'No flagged words found - looks clean!');
+}
+function cleanLyrInputExplicit(){
+  var ta=document.getElementById('lyrInput');
+  if(!ta||!ta.value.trim()){msg('fmtMsg','err','Paste lyrics first.');document.getElementById('fmtMsg').classList.remove('hidden');return;}
+  var r=runProfanityFilter(ta.value);
+  ta.value=r.text;
+  lyrLines=r.text.split('\n').filter(function(l){return l.trim().length>0;});
+  document.getElementById('lyrCount').textContent=lyrLines.length+' lines';
+  try{localStorage.setItem('lyr_text',r.text);}catch(e){}
+  drawLyrStatic();
+  msg('fmtMsg','ok',r.count>0?'Done! '+r.count+' word(s) cleaned for TikTok.':'No flagged words found - looks clean!');
+  document.getElementById('fmtMsg').classList.remove('hidden');
 }
 function wrapTxt(ctx,text,maxW){var words=text.split(' '),lines=[],cur='';for(var i=0;i<words.length;i++){var t=cur?cur+' '+words[i]:words[i];if(ctx.measureText(t).width>maxW&&cur){lines.push(cur);cur=words[i];}else cur=t;}if(cur)lines.push(cur);return lines;}
 function drawAiFrame(elapsed){
