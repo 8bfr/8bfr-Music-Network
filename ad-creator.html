@@ -297,7 +297,7 @@ async function runAdScript() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + POLLEN_KEY },
             body: JSON.stringify({
-                model: 'mistral',
+                model: 'openai',
                 messages: [{ role: 'system', content: sysMsg }, { role: 'user', content: userMsg }],
                 temperature: 0.8,
                 max_tokens: 1200
@@ -312,8 +312,13 @@ async function runAdScript() {
         raw = raw.replace(/```json|```/g, '').trim();
         const firstBrace = raw.indexOf('{');
         const lastBrace = raw.lastIndexOf('}');
-        if (firstBrace >= 0 && lastBrace > firstBrace) raw = raw.substring(firstBrace, lastBrace + 1);
-        const parsed = JSON.parse(raw);
+        if (firstBrace < 0 || lastBrace <= firstBrace) {
+            throw new Error('AI returned a non-JSON reply (' + raw.substring(0, 80) + '...) — this usually means the AI service is temporarily unavailable. Try again in a moment.');
+        }
+        raw = raw.substring(firstBrace, lastBrace + 1);
+        let parsed;
+        try { parsed = JSON.parse(raw); }
+        catch (parseErr) { throw new Error('AI reply wasn\'t valid JSON — this usually means the AI service hiccupped. Try again.'); }
 
         adHook = parsed.hook || (brand + ' — check this out');
         adCTA = parsed.cta || cta;
