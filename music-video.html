@@ -583,6 +583,18 @@ function dotState(i,st){var d=document.getElementById('dot'+i);if(d)d.className=
 function cleanExplicit(){
   var ta=document.getElementById('aiLyrics');
   if(!ta||!ta.value.trim()){alert('Paste your lyrics first.');return;}
+  function autoMask(word){
+    if(word.length<=2)return '*'.repeat(word.length);
+    if(word.length===3)return word[0]+'**';
+    return word[0]+'*'.repeat(word.length-2)+word[word.length-1];
+  }
+  function applyCase(original,masked){
+    if(!original)return masked;
+    if(original[0]===original[0].toUpperCase()&&original[0].toLowerCase()!==original[0].toUpperCase()){
+      return masked.charAt(0).toUpperCase()+masked.slice(1);
+    }
+    return masked;
+  }
   var pairs=[
     ['bullshit','bulls**t'],['fucking','f**king'],['fuckin','f*ckin'],['fuck','f*ck'],
     ['bitches','b*tches'],['bitch','b*tch'],['badass','bada$$'],['balls','b*lls'],
@@ -601,6 +613,20 @@ function cleanExplicit(){
     ['sexy','s*xy'],['sex','s*x'],['hate','h8'],['cap','c*p'],['heat','h*at'],
     ['cum','c*m'],['lick','l*ck'],['eat','e*t']
   ];
+  // Word-family patterns - catches inflections/compounds the literal list above
+  // can't (fucker, fucked, motherfucker, asshole, dumbass, shithead, etc).
+  // Anything these match gets auto-masked (first+last letter kept, middle -> *).
+  var ROOTS=[
+    'motherfucking','motherfuckers?','fuckers?','fucked','fuckboy','fuckboys',
+    'shitty','shithead','shitheads','shitting','shitted',
+    'assholes?','asswipes?','dumbass(?:es)?','jackass(?:es)?','badasses',
+    'bitchy','bitching','bitchass',
+    'dicks?head','dickheads','dickish',
+    'pissed','pissing','pissy',
+    'sluts','slutty','whores','thots',
+    'bastards?','douche(?:bag|bags)?','crappy',
+    'niggers?','niggaz'
+  ];
   var txt=ta.value,count=0;
   pairs.forEach(function(p){
     var word=p[0],sub=p[1],out='',i=0;
@@ -614,6 +640,10 @@ function cleanExplicit(){
       out+=txt[i];i++;
     }
     txt=out;
+  });
+  ROOTS.forEach(function(rootPattern){
+    var re=new RegExp('\\b('+rootPattern+')\\b','gi');
+    txt=txt.replace(re,function(match){count++;return applyCase(match,autoMask(match));});
   });
   ta.value=txt;alert(count>0?'Done! '+count+' word(s) cleaned for TikTok.':'No flagged words found - looks clean!');
 }
