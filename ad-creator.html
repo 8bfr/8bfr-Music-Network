@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Ad Video Creator - 8BFR</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+    :root { --primary: #7c3aed; --dark: #0b0014; --dark-card: #0c0618; --text: #eae6ff; --text-dim: #a855f7; --border: rgba(124,58,237,.35); --green: #00ff88; --cyan: #00d9ff; --warn: #f59e0b; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Work Sans', sans-serif; background: linear-gradient(#0b0014,#000); color: var(--text); min-height: 100vh; padding-bottom: 80px; }
+    .header { background: rgba(15,0,30,.9); border-bottom: 2px solid var(--primary); padding: 1.5rem 2rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; flex-wrap: wrap; gap: 0.5rem; backdrop-filter: blur(12px); }
+    .header h1 { font-family: 'Bebas Neue', cursive; font-size: 2rem; color: var(--primary); }
+    .header a { color: var(--text); text-decoration: none; font-weight: 600; font-size: .9rem; }
+    .container { max-width: 900px; margin: 0 auto; padding: 2rem 1.25rem; }
+    .card { background: var(--dark-card); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
+    .card.locked { opacity: .45; pointer-events: none; }
+    .section-title { color: var(--primary); margin-bottom: .25rem; font-family: 'Bebas Neue', cursive; font-size: 1.6rem; letter-spacing: .5px; }
+    .section-hint { font-size: .82rem; color: var(--text-dim); margin-bottom: 1rem; }
+    .form-group { margin-bottom: .9rem; }
+    .form-group label { display: block; font-size: .8rem; color: var(--text-dim); margin-bottom: .35rem; font-weight: 600; }
+    textarea, input[type="text"], input[type="number"], input[type="url"], select {
+        width: 100%; padding: .7rem .8rem; background: var(--dark); border: 1px solid var(--border);
+        border-radius: 8px; color: var(--text); font-family: inherit; font-size: .92rem;
+    }
+    textarea { min-height: 80px; resize: vertical; }
+    textarea:focus, input:focus, select:focus { outline: none; border-color: var(--primary); }
+    .chip-row { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .3rem; }
+    .chip { padding: .5rem .9rem; border-radius: 999px; border: 1px solid var(--border); background: var(--dark); color: var(--text-dim); cursor: pointer; font-size: .8rem; font-weight: 600; transition: all .15s; user-select: none; }
+    .chip:hover { border-color: var(--primary); color: var(--text); }
+    .chip.sel { background: linear-gradient(135deg,#7c3aed,#a855f7); color: #fff; border-color: #a855f7; }
+    .btn { background: var(--primary); color: white; border: none; padding: .8rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: .95rem; transition: all .2s; width: 100%; }
+    .btn:hover { background: #6d28d9; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-outline { background: rgba(124,58,237,.15); border: 1px solid var(--border); color: var(--text); }
+    .btn-sm { width: auto; padding: .45rem .9rem; font-size: .78rem; }
+    .btn-green { background: rgba(0,255,136,.15); border: 1px solid rgba(0,255,136,.4); color: var(--green); }
+    .spinner { width: 18px; height: 18px; border: 3px solid rgba(255,255,255,.25); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; display: inline-block; vertical-align: middle; margin-right: .5rem; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .warn-box { margin-top: .75rem; padding: .6rem 1rem; background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.3); border-radius: 8px; font-size: .8rem; color: var(--warn); }
+    .error-box { margin-top: .75rem; padding: .6rem 1rem; background: rgba(255,68,102,.1); border: 1px solid rgba(255,68,102,.3); border-radius: 8px; font-size: .82rem; color: #ff7a8f; }
+    .upload-zone { border: 2px dashed var(--border); border-radius: 10px; padding: 1.1rem; text-align: center; cursor: pointer; transition: all .3s; background: rgba(124,58,237,.05); }
+    .upload-zone:hover { border-color: var(--primary); background: rgba(124,58,237,.1); }
+    .upload-zone input[type="file"] { display: none; }
+    .upload-zone .drop-icon { font-size: 1.6rem; margin-bottom: .3rem; }
+    .upload-zone .drop-text { color: var(--text-dim); font-size: .85rem; }
+    .scene-list { display: flex; flex-direction: column; gap: .9rem; }
+    .scene-card { background: var(--dark); border: 1px solid var(--border); border-radius: 10px; padding: .9rem; display: grid; grid-template-columns: 84px 1fr; gap: .8rem; }
+    .scene-thumb { width: 84px; height: 84px; border-radius: 8px; background: rgba(124,58,237,.1); border: 1px dashed var(--border); display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; flex-shrink: 0; }
+    .scene-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .scene-thumb .ph { font-size: 1.4rem; color: var(--text-dim); }
+    .scene-thumb-actions { display: flex; gap: .3rem; margin-top: .4rem; }
+    .scene-body label { font-size: .68rem; }
+    .scene-body textarea { min-height: 46px; font-size: .85rem; }
+    .scene-meta-row { display: flex; gap: .5rem; align-items: center; margin-top: .4rem; }
+    .scene-meta-row input[type="number"] { width: 70px; padding: .35rem .5rem; font-size: .8rem; }
+    .scene-meta-row span { font-size: .72rem; color: var(--text-dim); }
+    .icon-btn { background: rgba(0,217,255,.12); border: 1px solid rgba(0,217,255,.3); color: var(--cyan); border-radius: 6px; padding: .3rem .5rem; font-size: .68rem; cursor: pointer; font-weight: 700; white-space: nowrap; }
+    .icon-btn:hover { background: rgba(0,217,255,.22); }
+    .icon-btn.danger { background: rgba(255,68,102,.1); border-color: rgba(255,68,102,.3); color: #ff7a8f; }
+    .format-row { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+    canvas#previewCanvas { width: 100%; max-width: 380px; display: block; margin: 0 auto; border-radius: 10px; border: 1px solid var(--border); background: #000; }
+    .render-progress { height: 8px; border-radius: 4px; background: rgba(255,255,255,.08); overflow: hidden; margin-top: .8rem; }
+    .render-progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg,#7c3aed,#00d9ff); transition: width .1s linear; }
+    .step-badge { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: var(--primary); color: #fff; font-size: .8rem; font-weight: 800; margin-right: .5rem; flex-shrink: 0; }
+    .title-row { display: flex; align-items: center; }
+    .download-box { text-align: center; margin-top: 1rem; }
+    .download-box video { width: 100%; max-width: 380px; border-radius: 10px; border: 1px solid var(--border); display: block; margin: 0 auto 1rem; background: #000; }
+    a.dl-link { display: inline-block; background: var(--green); color: #001; text-decoration: none; padding: .75rem 1.5rem; border-radius: 8px; font-weight: 800; font-size: .9rem; }
+    .small-note { font-size: .76rem; color: rgba(234,230,255,.4); margin-top: .5rem; }
+</style>
+</head>
+<body>
+<div class="header">
+    <h1>🎬 AI Ad Video Creator</h1>
+    <a href="owner-studio.html">← Back to Studio</a>
+</div>
+
+<div class="container">
+
+    <div class="card" style="border-color:rgba(0,217,255,.3);background:rgba(0,217,255,.05);">
+        <p style="font-size:.85rem;line-height:1.6;color:var(--text-dim);">
+            Give it a link and a goal — <strong style="color:var(--text);">your showcase, 8bfr.com, a Facebook page, or a song</strong> —
+            and AI writes the hook, captions and call-to-action, then builds a real, downloadable video ad
+            with Ken Burns motion, transitions, and on-screen text. Add your own photos/screenshots or let AI generate visuals.
+        </p>
+    </div>
+
+    <!-- STEP 1: BRIEF -->
+    <div class="card" id="stepBrief">
+        <h2 class="section-title title-row"><span class="step-badge">1</span>The Brief</h2>
+        <p class="section-hint">Tell it what you're promoting. Be specific — better input, better ad.</p>
+
+        <div class="form-group">
+            <label>What are you promoting?</label>
+            <select id="promoType">
+                <option value="showcase">My TikTok Shop Showcase</option>
+                <option value="music">A Song / My Music</option>
+                <option value="website">8bfr.com / My Website</option>
+                <option value="facebook">My Facebook Page</option>
+                <option value="other">Something Else</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Link (site, showcase, page, or song link)</label>
+            <input type="url" id="promoLink" placeholder="e.g. https://8bfr.com or your TikTok Shop showcase link">
+        </div>
+
+        <div class="form-group">
+            <label>Brand / Artist name</label>
+            <input type="text" id="promoBrand" value="8BFR">
+        </div>
+
+        <div class="form-group">
+            <label>Format</label>
+            <div class="chip-row" id="formatChips">
+                <div class="chip sel" data-format="vertical">📱 TikTok / Reels / Shorts (9:16)</div>
+                <div class="chip" data-format="square">⬛ Square Post (1:1)</div>
+                <div class="chip" data-format="wide">🖥️ Facebook / YouTube (16:9)</div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Vibe / Pacing</label>
+            <div class="chip-row" id="toneChips">
+                <div class="chip sel" data-tone="hype">⚡ Fast &amp; Hype</div>
+                <div class="chip" data-tone="chill">🌊 Chill &amp; Clean</div>
+                <div class="chip" data-tone="luxury">💎 Luxury</div>
+                <div class="chip" data-tone="funny">😂 Funny / Meme</div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Key selling points (optional — one per line: prices, follower counts, deals, features)</label>
+            <textarea id="promoPoints" placeholder="e.g.&#10;462 products&#10;10.5K followers&#10;Free shipping on most items"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label>Call to action text</label>
+            <input type="text" id="promoCTA" value="Tap the link in bio">
+        </div>
+
+        <button class="btn" id="scriptBtn" onclick="runAdScript()">✨ Write My Ad Script</button>
+        <div id="scriptError"></div>
+    </div>
+
+    <!-- STEP 2: SCRIPT + VISUALS -->
+    <div class="card locked" id="stepScenes">
+        <h2 class="section-title title-row"><span class="step-badge">2</span>Script &amp; Visuals</h2>
+        <p class="section-hint">Edit any caption. Add your own photo per scene, or let AI generate one.</p>
+        <div id="hookDisplay" style="margin-bottom:1rem;"></div>
+        <div class="scene-list" id="sceneList"></div>
+        <div style="margin-top:1rem;display:flex;gap:.5rem;">
+            <button class="btn btn-outline btn-sm" onclick="addScene()">+ Add Scene</button>
+            <button class="btn btn-outline btn-sm" onclick="regenerateScript()">🔁 Regenerate Script</button>
+        </div>
+    </div>
+
+    <!-- STEP 3: RENDER -->
+    <div class="card locked" id="stepRender">
+        <h2 class="section-title title-row"><span class="step-badge">3</span>Render</h2>
+        <p class="section-hint">Optionally add music, then render your ad. Rendering happens on your device — nothing uploads anywhere.</p>
+
+        <div class="form-group">
+            <label><input type="checkbox" id="useMusic" onchange="document.getElementById('musicZone').style.display=this.checked?'block':'none'"> Add background music</label>
+        </div>
+        <div id="musicZone" style="display:none;margin-bottom:1rem;">
+            <div class="upload-zone" onclick="document.getElementById('musicFile').click()">
+                <div class="drop-icon">🎵</div>
+                <div class="drop-text">Click to upload an MP3/WAV you have the rights to use</div>
+                <input type="file" id="musicFile" accept="audio/*" onchange="handleMusicUpload(event)">
+            </div>
+            <div id="musicFileName" style="font-size:.78rem;color:var(--text-dim);margin-top:.4rem;"></div>
+        </div>
+
+        <canvas id="previewCanvas" width="1080" height="1920"></canvas>
+        <div class="render-progress" id="renderProgressWrap" style="display:none;">
+            <div class="render-progress-fill" id="renderProgressFill"></div>
+        </div>
+
+        <button class="btn" id="renderBtn" onclick="renderAdVideo()" style="margin-top:1rem;">🎬 Render Ad Video</button>
+        <div id="renderError"></div>
+
+        <div class="download-box" id="downloadBox" style="display:none;">
+            <video id="resultVideo" controls playsinline></video>
+            <a class="dl-link" id="downloadLink" download="ad-video.mp4">⬇️ Download Video</a>
+            <p class="small-note" id="formatNote"></p>
+        </div>
+    </div>
+
+    <div class="warn-box">
+        ⚠️ <strong>Save your work.</strong> Nothing here is stored — download your video before leaving this page. Only use music you have the rights to use in ads on that platform.
+    </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════
+   AUTH CHECK (owner/co-owner only, same as rest of studio)
+   ═══════════════════════════════════════════════════ */
+const SUPABASE_URL = 'https://novbuvwpjnxwwvdekjhr.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f';
+const sbc = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+(async function initAuth() {
+    try {
+        const { data: { session } } = await sbc.auth.getSession();
+        if (!session) { location.href = 'login.html?return=ad-creator.html'; return; }
+        const { data: profile } = await sbc.from('profiles').select('role').eq('user_id', session.user.id).single();
+        if (!profile || (profile.role !== 'owner' && profile.role !== 'co-owner')) {
+            alert('Owner/Co-Owner access only.'); location.href = 'feed.html'; return;
+        }
+    } catch (e) { console.error('Auth check error:', e); }
+})();
+
+/* ═══════════════════════════════════════════════════
+   STATE
+   ═══════════════════════════════════════════════════ */
+const POLLEN_KEY = 'sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
+let selectedFormat = 'vertical';
+let selectedTone = 'hype';
+let adHook = '';
+let adCTA = '';
+let adHashtags = [];
+let scenes = []; // { caption, visualPrompt, imgSrc, duration, imgObj }
+let musicFile = null;
+
+const FORMATS = {
+    vertical: { w: 1080, h: 1920, label: '9:16' },
+    square:   { w: 1080, h: 1080, label: '1:1' },
+    wide:     { w: 1920, h: 1080, label: '16:9' }
+};
+const TONES = {
+    hype:   { sceneDur: 1.4, endDur: 2.2, crossfade: 0.35, zoom: 1.22, capBg: 'rgba(0,0,0,.6)', capFg: '#ffffff', accent: '#39FF14' },
+    chill:  { sceneDur: 2.4, endDur: 2.8, crossfade: 0.6,  zoom: 1.08, capBg: 'rgba(0,0,0,.45)', capFg: '#ffffff', accent: '#00d9ff' },
+    luxury: { sceneDur: 2.6, endDur: 3.0, crossfade: 0.7,  zoom: 1.06, capBg: 'rgba(0,0,0,.35)', capFg: '#f5e6c8', accent: '#f5e6c8' },
+    funny:  { sceneDur: 1.6, endDur: 1.8, crossfade: 0.25, zoom: 1.2,  capBg: 'rgba(0,0,0,.6)', capFg: '#ffffff', accent: '#ffe14d' }
+};
+
+/* ═══════════════════════════════════════════════════
+   CHIP SELECTION
+   ═══════════════════════════════════════════════════ */
+document.getElementById('formatChips').addEventListener('click', function(e) {
+    const chip = e.target.closest('.chip'); if (!chip) return;
+    this.querySelectorAll('.chip').forEach(c => c.classList.remove('sel'));
+    chip.classList.add('sel');
+    selectedFormat = chip.dataset.format;
+    const f = FORMATS[selectedFormat];
+    const canvas = document.getElementById('previewCanvas');
+    canvas.width = f.w; canvas.height = f.h;
+});
+document.getElementById('toneChips').addEventListener('click', function(e) {
+    const chip = e.target.closest('.chip'); if (!chip) return;
+    this.querySelectorAll('.chip').forEach(c => c.classList.remove('sel'));
+    chip.classList.add('sel');
+    selectedTone = chip.dataset.tone;
+    scenes.forEach(sc => sc.duration = TONES[selectedTone].sceneDur);
+    if (scenes.length) renderSceneList();
+});
+
+/* ═══════════════════════════════════════════════════
+   STEP 1: AI SCRIPT GENERATION
+   ═══════════════════════════════════════════════════ */
+async function runAdScript() {
+    const btn = document.getElementById('scriptBtn');
+    const errBox = document.getElementById('scriptError');
+    errBox.innerHTML = '';
+
+    const promoType = document.getElementById('promoType').value;
+    const link = document.getElementById('promoLink').value.trim();
+    const brand = document.getElementById('promoBrand').value.trim() || 'the brand';
+    const points = document.getElementById('promoPoints').value.trim();
+    const cta = document.getElementById('promoCTA').value.trim() || 'Tap the link in bio';
+    adCTA = cta;
+
+    const typeLabel = {
+        showcase: 'a TikTok Shop showcase full of products',
+        music: 'a song / music release',
+        website: 'a website / social platform',
+        facebook: 'a Facebook page',
+        other: 'a link'
+    }[promoType] || 'a link';
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Writing script...';
+
+    const sysMsg = 'You are a professional short-form video ad copywriter and director for TikTok, Instagram Reels, and Facebook. Output ONLY valid JSON, no markdown, no explanation, no code fences.';
+    const userMsg = 'Write a ' + selectedTone + '-tone video ad script promoting ' + typeLabel + ' called "' + brand + '"' +
+        (link ? (' at ' + link) : '') + '.' +
+        (points ? (' Key selling points to weave in: ' + points.replace(/\n/g, '; ') + '.') : '') +
+        ' Call to action: "' + cta + '".' +
+        ' Return JSON with this exact shape: {"hook":"punchy opening line under 7 words","scenes":[{"caption":"punchy on-screen caption under 6 words","visual_prompt":"a purely visual description (no text/words/logos) for an AI image generator, 15-25 words"}],"cta":"short closing call-to-action under 8 words","hashtags":["tag1","tag2","tag3","tag4","tag5"]}.' +
+        ' Include exactly 4 scenes in the scenes array.';
+
+    try {
+        const resp = await fetch('https://gen.pollinations.ai/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + POLLEN_KEY },
+            body: JSON.stringify({
+                model: 'mistral',
+                messages: [{ role: 'system', content: sysMsg }, { role: 'user', content: userMsg }],
+                temperature: 0.8,
+                max_tokens: 1200
+            })
+        });
+        if (!resp.ok) {
+            const t = await resp.text();
+            throw new Error('HTTP ' + resp.status + ': ' + t.substring(0, 150));
+        }
+        const data = await resp.json();
+        let raw = (data.choices && data.choices[0]) ? data.choices[0].message.content : '';
+        raw = raw.replace(/```json|```/g, '').trim();
+        const firstBrace = raw.indexOf('{');
+        const lastBrace = raw.lastIndexOf('}');
+        if (firstBrace >= 0 && lastBrace > firstBrace) raw = raw.substring(firstBrace, lastBrace + 1);
+        const parsed = JSON.parse(raw);
+
+        adHook = parsed.hook || (brand + ' — check this out');
+        adCTA = parsed.cta || cta;
+        adHashtags = Array.isArray(parsed.hashtags) ? parsed.hashtags : [];
+        const aiScenes = Array.isArray(parsed.scenes) ? parsed.scenes : [];
+        if (!aiScenes.length) throw new Error('No scenes returned — try again.');
+
+        scenes = aiScenes.map(function(s) {
+            return {
+                caption: s.caption || '',
+                visualPrompt: s.visual_prompt || (brand + ' promotional scene'),
+                imgSrc: '',
+                imgObj: null,
+                duration: TONES[selectedTone].sceneDur
+            };
+        });
+
+        renderSceneList();
+        document.getElementById('stepScenes').classList.remove('locked');
+        document.getElementById('stepRender').classList.remove('locked');
+        document.getElementById('stepScenes').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (e) {
+        errBox.innerHTML = '<div class="error-box">Failed: ' + e.message.replace(/</g, '&lt;') + '. Try again — AI text generation occasionally hiccups.</div>';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '✨ Write My Ad Script';
+    }
+}
+
+function regenerateScript() { runAdScript(); }
+
+function addScene() {
+    scenes.push({ caption: 'New scene', visualPrompt: (document.getElementById('promoBrand').value || 'brand') + ' promotional scene', imgSrc: '', imgObj: null, duration: TONES[selectedTone].sceneDur });
+    renderSceneList();
+}
+
+function removeScene(i) {
+    scenes.splice(i, 1);
+    renderSceneList();
+}
+
+/* ═══════════════════════════════════════════════════
+   SCENE LIST UI
+   ═══════════════════════════════════════════════════ */
+function renderSceneList() {
+    const hookBox = document.getElementById('hookDisplay');
+    hookBox.innerHTML =
+        '<div class="form-group"><label>Hook (first line on screen)</label>' +
+        '<input type="text" id="hookInput" value="' + escAttr(adHook) + '" oninput="adHook=this.value"></div>' +
+        '<div class="form-group"><label>Closing CTA</label>' +
+        '<input type="text" id="ctaInput" value="' + escAttr(adCTA) + '" oninput="adCTA=this.value"></div>' +
+        (adHashtags.length ? '<div style="font-size:.78rem;color:var(--text-dim);">' + adHashtags.map(h => '#' + h.replace(/^#/, '')).join(' ') + '</div>' : '');
+
+    const list = document.getElementById('sceneList');
+    list.innerHTML = '';
+    scenes.forEach(function(sc, i) {
+        const card = document.createElement('div');
+        card.className = 'scene-card';
+        card.innerHTML =
+            '<div>' +
+                '<div class="scene-thumb" id="thumb-' + i + '">' +
+                    (sc.imgSrc ? '<img src="' + sc.imgSrc + '">' : '<span class="ph">🖼️</span>') +
+                '</div>' +
+                '<div class="scene-thumb-actions">' +
+                    '<label class="icon-btn" style="cursor:pointer;">Upload<input type="file" accept="image/*" style="display:none;" onchange="handleSceneUpload(event,' + i + ')"></label>' +
+                '</div>' +
+                '<div class="scene-thumb-actions">' +
+                    '<button class="icon-btn" onclick="generateSceneImage(' + i + ')">🪄 AI Image</button>' +
+                '</div>' +
+            '</div>' +
+            '<div class="scene-body">' +
+                '<label>Scene ' + (i + 1) + ' caption</label>' +
+                '<textarea oninput="scenes[' + i + '].caption=this.value">' + escHtml(sc.caption) + '</textarea>' +
+                '<div class="scene-meta-row">' +
+                    '<input type="number" step="0.1" min="0.4" value="' + sc.duration.toFixed(1) + '" onchange="scenes[' + i + '].duration=parseFloat(this.value)||1">' +
+                    '<span>seconds</span>' +
+                    '<button class="icon-btn danger" style="margin-left:auto;" onclick="removeScene(' + i + ')">Remove</button>' +
+                '</div>' +
+            '</div>';
+        list.appendChild(card);
+    });
+}
+
+function escHtml(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function escAttr(s) { return (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+
+function handleSceneUpload(evt, i) {
+    const file = evt.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        scenes[i].imgSrc = e.target.result;
+        scenes[i].imgObj = null; // force reload at render time
+        const thumb = document.getElementById('thumb-' + i);
+        if (thumb) thumb.innerHTML = '<img src="' + e.target.result + '">';
+    };
+    reader.readAsDataURL(file);
+}
+
+async function generateSceneImage(i) {
+    const thumb = document.getElementById('thumb-' + i);
+    if (thumb) thumb.innerHTML = '<span class="ph">⏳</span>';
+    const brand = document.getElementById('promoBrand').value.trim() || 'brand';
+    const styleWord = { hype: 'vibrant energetic', chill: 'clean soft lighting', luxury: 'elegant premium', funny: 'bright playful cartoonish' }[selectedTone] || 'vibrant';
+    const prompt = scenes[i].visualPrompt + ', ' + styleWord + ', for ' + brand + ', no text, no words, no watermark, high quality, professional photo';
+    const f = FORMATS[selectedFormat];
+    const w = f.w > f.h ? 512 : 384;
+    const h = f.w > f.h ? 288 : (f.w === f.h ? 384 : 683);
+    const seed = Math.floor(Math.random() * 999999);
+    const url = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(prompt) + '?width=' + w + '&height=' + h + '&nologo=true&seed=' + seed;
+
+    try {
+        const img = await loadImage(url, true);
+        scenes[i].imgObj = img;
+        scenes[i].imgSrc = url;
+        if (thumb) thumb.innerHTML = '<img src="' + url + '">';
+    } catch (e) {
+        if (thumb) thumb.innerHTML = '<span class="ph">⚠️</span>';
+        alert('Image generation failed — try again in a moment, or upload your own photo instead.');
+    }
+}
+
+function loadImage(src, crossOrigin) {
+    return new Promise(function(resolve, reject) {
+        const img = new Image();
+        if (crossOrigin) img.crossOrigin = 'anonymous';
+        img.onload = function() { resolve(img); };
+        img.onerror = function() { reject(new Error('Image failed to load')); };
+        img.src = src;
+    });
+}
+
+/* ═══════════════════════════════════════════════════
+   MUSIC UPLOAD
+   ═══════════════════════════════════════════════════ */
+function handleMusicUpload(evt) {
+    musicFile = evt.target.files[0] || null;
+    document.getElementById('musicFileName').textContent = musicFile ? ('Selected: ' + musicFile.name) : '';
+}
+
+/* ═══════════════════════════════════════════════════
+   STEP 3: RENDER (Canvas + MediaRecorder)
+   ═══════════════════════════════════════════════════ */
+async function renderAdVideo() {
+    if (!scenes.length) { alert('Write your script first (Step 1).'); return; }
+    const missingImgs = scenes.filter(s => !s.imgSrc).length;
+    if (missingImgs) {
+        const proceed = confirm(missingImgs + ' scene(s) have no image yet. Continue anyway with a plain background for those?');
+        if (!proceed) return;
+    }
+
+    const btn = document.getElementById('renderBtn');
+    const errBox = document.getElementById('renderError');
+    const progWrap = document.getElementById('renderProgressWrap');
+    const progFill = document.getElementById('renderProgressFill');
+    const downloadBox = document.getElementById('downloadBox');
+    errBox.innerHTML = '';
+    downloadBox.style.display = 'none';
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Loading images...';
+    progWrap.style.display = 'block';
+    progFill.style.width = '0%';
+
+    try {
+        await document.fonts.ready;
+
+        // Load all scene images (skip ones without a src)
+        for (const sc of scenes) {
+            if (sc.imgSrc && !sc.imgObj) {
+                try { sc.imgObj = await loadImage(sc.imgSrc, sc.imgSrc.indexOf('data:') !== 0); }
+                catch (e) { sc.imgObj = null; }
+            }
+        }
+
+        const tone = TONES[selectedTone];
+        const fmt = FORMATS[selectedFormat];
+        const canvas = document.getElementById('previewCanvas');
+        canvas.width = fmt.w; canvas.height = fmt.h;
+        const ctx = canvas.getContext('2d');
+
+        // Build timeline: scenes + synthetic end card
+        const brand = document.getElementById('promoBrand').value.trim() || '8BFR';
+        const timeline = scenes.map(function(sc, i) {
+            return { type: 'scene', caption: sc.caption, img: sc.imgObj, duration: sc.duration || tone.sceneDur, index: i };
+        });
+        timeline.push({ type: 'endcard', caption: adCTA || 'Tap the link in bio', duration: tone.endDur, brand: brand });
+
+        const t = tone.crossfade;
+        const segStart = [0];
+        for (let i = 1; i < timeline.length; i++) {
+            segStart.push(segStart[i - 1] + timeline[i - 1].duration - t);
+        }
+        const totalDuration = segStart[timeline.length - 1] + timeline[timeline.length - 1].duration;
+
+        // Set up recording stream
+        btn.innerHTML = '<span class="spinner"></span>Rendering...';
+        const fps = 30;
+        const canvasStream = canvas.captureStream(fps);
+        let combinedStream = canvasStream;
+        let audioCtx = null, audioSource = null;
+
+        if (document.getElementById('useMusic').checked && musicFile) {
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const arrayBuf = await musicFile.arrayBuffer();
+                const audioBuf = await audioCtx.decodeAudioData(arrayBuf);
+                audioSource = audioCtx.createBufferSource();
+                audioSource.buffer = audioBuf;
+                const dest = audioCtx.createMediaStreamDestination();
+                audioSource.connect(dest);
+                audioSource.connect(audioCtx.destination); // let it also play locally so you can hear it render (muted via canvas video preview only)
+                combinedStream = new MediaStream([...canvasStream.getVideoTracks(), ...dest.stream.getAudioTracks()]);
+            } catch (e) {
+                console.warn('Music setup failed, rendering silent:', e);
+                combinedStream = canvasStream;
+            }
+        }
+
+        let mimeType = 'video/webm;codecs=vp9,opus';
+        let ext = 'webm';
+        if (MediaRecorder.isTypeSupported('video/mp4;codecs=avc1')) { mimeType = 'video/mp4;codecs=avc1'; ext = 'mp4'; }
+        else if (MediaRecorder.isTypeSupported('video/mp4')) { mimeType = 'video/mp4'; ext = 'mp4'; }
+        else if (!MediaRecorder.isTypeSupported(mimeType)) { mimeType = 'video/webm'; ext = 'webm'; }
+
+        const recorder = new MediaRecorder(combinedStream, { mimeType: mimeType, videoBitsPerSecond: 6000000 });
+        const chunks = [];
+        recorder.ondataavailable = function(e) { if (e.data && e.data.size) chunks.push(e.data); };
+
+        const recordingDone = new Promise(function(resolve) {
+            recorder.onstop = function() { resolve(); };
+        });
+
+        recorder.start(200);
+        if (audioSource) audioSource.start(0);
+        const startTime = performance.now();
+
+        function drawFrame(elapsed) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#0b0014';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // find current + next (for crossfade) entries
+            let curIdx = 0;
+            for (let i = 0; i < timeline.length; i++) {
+                if (elapsed >= segStart[i]) curIdx = i;
+            }
+            const cur = timeline[curIdx];
+            const curLocal = elapsed - segStart[curIdx];
+            const next = timeline[curIdx + 1];
+            const overlapStart = next ? segStart[curIdx + 1] : Infinity;
+            const inOverlap = next && elapsed >= overlapStart;
+            const overlapProgress = inOverlap ? Math.min(1, (elapsed - overlapStart) / t) : 0;
+
+            drawEntry(cur, curLocal, inOverlap ? (1 - overlapProgress) : 1);
+            if (inOverlap) {
+                const nextLocal = elapsed - segStart[curIdx + 1];
+                drawEntry(next, nextLocal, overlapProgress);
+            }
+        }
+
+        function drawEntry(entry, localT, alpha) {
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            if (entry.type === 'scene' && entry.img) {
+                drawKenBurns(entry.img, localT, entry.duration, entry.index);
+            } else if (entry.type === 'scene') {
+                const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+                grad.addColorStop(0, '#1a0b2e'); grad.addColorStop(1, '#3b0764');
+                ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            } else if (entry.type === 'endcard') {
+                const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                grad.addColorStop(0, '#0b0014'); grad.addColorStop(1, '#2e0a5c');
+                ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+                drawCenteredText(entry.brand, canvas.width / 2, canvas.height * 0.42, canvas.width * 0.09, '#a855f7', true);
+            }
+            ctx.globalAlpha = 1;
+            ctx.restore();
+
+            // caption text (fade in/out within this entry's own local window)
+            const fadeT = 0.18;
+            const capAlpha = Math.min(1, localT / fadeT, (entry.duration - localT) / fadeT) * alpha;
+            if (capAlpha > 0.01 && entry.caption) {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, capAlpha);
+                const y = entry.type === 'endcard' ? canvas.height * 0.58 : canvas.height * 0.12;
+                const fs = entry.type === 'endcard' ? canvas.width * 0.055 : canvas.width * 0.062;
+                drawCenteredText(entry.caption.toUpperCase(), canvas.width / 2, y, fs, entry.type === 'endcard' ? TONES[selectedTone].accent : '#ffffff', entry.type !== 'endcard');
+                ctx.restore();
+            }
+
+            // hook line only on the very first scene, near top
+            if (entry.type === 'scene' && entry.index === 0 && adHook) {
+                const fadeT2 = 0.2;
+                const hAlpha = Math.min(1, localT / fadeT2, (entry.duration - localT) / fadeT2) * alpha;
+                if (hAlpha > 0.01) {
+                    ctx.save();
+                    ctx.globalAlpha = Math.max(0, hAlpha);
+                    drawCenteredText(adHook.toUpperCase(), canvas.width / 2, canvas.height * 0.06, canvas.width * 0.05, '#ffffff', true);
+                    ctx.restore();
+                }
+            }
+        }
+
+        function drawKenBurns(img, localT, duration, idx) {
+            const progress = Math.max(0, Math.min(1, localT / duration));
+            const zoomTarget = TONES[selectedTone].zoom;
+            const zoom = idx % 2 === 0 ? (1 + (zoomTarget - 1) * progress) : (zoomTarget - (zoomTarget - 1) * progress);
+            const cw = canvas.width, ch = canvas.height;
+            const iw = img.width, ih = img.height;
+            const scale = Math.max(cw / iw, ch / ih) * zoom;
+            const dw = iw * scale, dh = ih * scale;
+            const dx = (cw - dw) / 2, dy = (ch - dh) / 2;
+            ctx.drawImage(img, dx, dy, dw, dh);
+            const shade = ctx.createLinearGradient(0, ch * 0.7, 0, ch);
+            shade.addColorStop(0, 'rgba(0,0,0,0)'); shade.addColorStop(1, 'rgba(0,0,0,.45)');
+            ctx.fillStyle = shade;
+            ctx.fillRect(0, ch * 0.7, cw, ch * 0.3);
+        }
+
+        function drawCenteredText(text, cx, cy, fontSize, color, withBox) {
+            ctx.font = '800 ' + Math.round(fontSize) + 'px "Work Sans", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const metrics = ctx.measureText(text);
+            const padX = fontSize * 0.5, padY = fontSize * 0.35;
+            if (withBox) {
+                ctx.fillStyle = 'rgba(0,0,0,.55)';
+                const bw = metrics.width + padX * 2, bh = fontSize + padY * 2;
+                roundRect(ctx, cx - bw / 2, cy - bh / 2, bw, bh, 10);
+                ctx.fill();
+            }
+            ctx.fillStyle = color;
+            ctx.fillText(text, cx, cy);
+        }
+
+        function roundRect(c, x, y, w, h, r) {
+            c.beginPath();
+            c.moveTo(x + r, y);
+            c.arcTo(x + w, y, x + w, y + h, r);
+            c.arcTo(x + w, y + h, x, y + h, r);
+            c.arcTo(x, y + h, x, y, r);
+            c.arcTo(x, y, x + w, y, r);
+            c.closePath();
+        }
+
+        await new Promise(function(resolve) {
+            function loop() {
+                const elapsed = (performance.now() - startTime) / 1000;
+                if (elapsed >= totalDuration) {
+                    drawFrame(totalDuration - 0.001);
+                    progFill.style.width = '100%';
+                    setTimeout(function() { recorder.stop(); if (audioSource) { try { audioSource.stop(); } catch(e){} } resolve(); }, 150);
+                    return;
+                }
+                drawFrame(elapsed);
+                progFill.style.width = Math.round((elapsed / totalDuration) * 100) + '%';
+                requestAnimationFrame(loop);
+            }
+            requestAnimationFrame(loop);
+        });
+
+        await recordingDone;
+
+        const blob = new Blob(chunks, { type: mimeType.split(';')[0] });
+        const url = URL.createObjectURL(blob);
+        const video = document.getElementById('resultVideo');
+        video.src = url;
+        const dl = document.getElementById('downloadLink');
+        dl.href = url;
+        dl.download = 'ad-video.' + ext;
+        document.getElementById('formatNote').textContent = ext === 'mp4'
+            ? 'Exported as MP4 — ready to upload anywhere.'
+            : 'Exported as WebM (your browser doesn\'t support direct MP4 recording). TikTok/Instagram accept WebM on most devices; if not, import into CapCut once and re-export as MP4.';
+        downloadBox.style.display = 'block';
+        downloadBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    } catch (e) {
+        console.error(e);
+        errBox.innerHTML = '<div class="error-box">Render failed: ' + (e.message || e).toString().replace(/</g, '&lt;') + '</div>';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '🎬 Render Ad Video';
+    }
+}
+</script>
+</body>
+</html>
