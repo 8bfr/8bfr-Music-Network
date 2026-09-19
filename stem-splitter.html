@@ -6,14 +6,25 @@
 <title>🎚️ Stem Splitter - 8BFR Music Network</title>
 <link rel="icon" href="assets/images/favicon.png">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
-// localStorage persistence
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// localStorage persistence + extra-clean-pass toggle visibility
 document.addEventListener('DOMContentLoaded',function(){
   try{
     var sm=document.getElementById('splitMode');
     var saved=localStorage.getItem('stem_splitMode');
     if(sm&&saved)sm.value=saved;
-    if(sm)sm.addEventListener('change',function(){try{localStorage.setItem('stem_splitMode',this.value);}catch(e){}});
+    function syncExtraCleanVisibility(){
+      var ec=document.getElementById('extraCleanField');
+      if(ec&&sm)ec.style.display=(sm.value==='vocals')?'':'none';
+    }
+    if(sm){
+      sm.addEventListener('change',function(){
+        try{localStorage.setItem('stem_splitMode',this.value);}catch(e){}
+        syncExtraCleanVisibility();
+      });
+    }
+    syncExtraCleanVisibility();
   }catch(e){}
 });
 </script>
@@ -100,6 +111,12 @@ body{font-family:'Work Sans',system-ui,sans-serif;background:linear-gradient(#0b
         <option value="none">All 4 stems (vocals + drums + bass + other)</option>
         <option value="vocals">Just vocals + instrumental (faster)</option>
       </select>
+    </div>
+    <div class="field" id="extraCleanField" style="display:none;">
+      <label style="display:flex;align-items:flex-start;gap:.5rem;font-weight:400;cursor:pointer;">
+        <input type="checkbox" id="extraCleanPass" style="width:auto;margin-top:.2rem;">
+        <span>🎯 Extra-clean instrumental — runs a 2nd pass on the instrumental to strip leftover vocal bleed. Uses 2 splits from your monthly quota and takes about twice as long.</span>
+      </label>
     </div>
     <button class="btn" id="splitBtn" onclick="splitStems()">
       <span id="splitBtnText">🎚️ Split Stems</span>
@@ -327,6 +344,59 @@ async function splitStems() {
 
     if (!stems) { lsClearPred(); showError('Timed out waiting for stems. Try again.'); return; }
     lsClearPred();
+
+    var extraClean = document.getElementById('extraCleanPass') && document.getElementById('extraCleanPass').checked;
+    if (extraClean && splitMode === 'vocals' && stems.no_vocals) {
+      try {
+        showProgress('Running a 2nd pass to remove leftover vocal bleed from the instrumental...');
+        const instRes = await fetch(stems.no_vocals);
+        const instBlob = await instRes.blob();
+        const instFile = new File([instBlob], 'pass1-instrumental.' + (instBlob.type.split('/')[1] || 'mp3'), { type: instBlob.type || 'audio/mpeg' });
+        const instUrl = await uploadToStorage(instFile);
+
+        const res2 = await fetch(API + '/api/replicate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'stem-split',
+            user_id: currentUser.id,
+            audio_url: instUrl,
+            two_stems: 'vocals'
+          })
+        });
+        const data2 = await res2.json();
+
+        if (res2.ok && data2.ok && data2.prediction_id) {
+          const predId2 = data2.prediction_id;
+          lsSavePred(predId2, 'pass2-' + (audioFile ? audioFile.name : ''));
+          let attempts2 = 0;
+          while (attempts2 < maxAttempts) {
+            await new Promise(function(r){ setTimeout(r, 5000); });
+            attempts2++;
+            const pollRes2 = await fetch(API + '/api/replicate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'stem-poll', prediction_id: predId2 })
+            });
+            const pollData2 = await pollRes2.json();
+            if (pollData2.status === 'succeeded' && pollData2.stems && pollData2.stems.no_vocals) {
+              stems.no_vocals = pollData2.stems.no_vocals; // swap in the doubly-cleaned instrumental
+              break;
+            } else if (pollData2.status === 'failed') {
+              console.warn('2nd pass failed, keeping 1st-pass instrumental:', pollData2.error);
+              break;
+            }
+            showProgress('2nd pass cleaning instrumental... ' + (attempts2*5) + 's elapsed.');
+          }
+          lsClearPred();
+        } else {
+          console.warn('2nd pass could not start, keeping 1st-pass instrumental:', data2 && data2.error);
+        }
+      } catch (e2) {
+        console.warn('Extra-clean pass failed, keeping original instrumental:', e2.message);
+      }
+    }
+
     renderStems(stems);
     saveStems(stems);
     checkUsage();
