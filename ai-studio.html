@@ -339,7 +339,9 @@ var TOOLS = [
       {name:'textPos',label:'Text layout',type:'select',options:['bottom','top','center','split (artist top / title center / feat bottom)','none'],id:'coverTextPos'},
       {name:'textStyle',label:'Text style',type:'select',options:['Classic White','3D Shadow','Neon Glow','Gold Metallic','Chrome','Graffiti Outline','Blood Drip','Fire','Ice Blue','Vintage Stamp'],id:'coverTextStyle'},
       {name:'bgFx',label:'Background effect',type:'select',options:['none','dark overlay','vignette','film grain','scanlines','color burn','glitch tint','holographic shimmer'],id:'coverBgFx'},
-      {name:'prompt',label:'Visual style description',type:'textarea',placeholder:'e.g. Dark neon city at night, rain reflections',required:true,id:'coverPrompt'}
+      {name:'prompt',label:'Visual style description',type:'textarea',placeholder:'e.g. Dark neon city at night, rain reflections',required:true,id:'coverPrompt'},
+      {name:'refPhoto',label:'Your photo (optional) — keeps YOUR real face/likeness consistent, placed into the scene above',type:'file',accept:'image/*',id:'coverRefPhoto'},
+      {name:'bgPhoto',label:'Your own background photo (optional, used if no photo above) — AI enhances it instead of generating one from scratch',type:'file',accept:'image/*',id:'coverBgPhoto'}
     ]
   },
 
@@ -1250,6 +1252,38 @@ function memeCleanCaption(s){
   return s;
 }
 
+function guessImageExt(file){
+  var type=(file&&file.type)||'';
+  var name=(file&&file.name)||'';
+  if(typeof name==='string'&&name.indexOf('.')!==-1){
+    var fromName=name.split('.').pop();
+    if(fromName)return fromName.toLowerCase();
+  }
+  if(typeof type==='string'&&type.indexOf('/')!==-1){
+    var fromType=type.split('/').pop();
+    if(fromType)return fromType.toLowerCase();
+  }
+  return 'jpg';
+}
+
+// Uploads a photo to the site's public media bucket so it can be passed as a
+// reference image to Pollinations' Kontext (image-to-image) model, which
+// needs a public URL rather than raw file bytes. Reuses the site-wide
+// Supabase client scripts.js already sets up, if one exists.
+async function uploadImageForKontext(file){
+  var client=window._8bfrSupabaseClient;
+  if(!client){
+    client=window.supabase.createClient('https://novbuvwpjnxwwvdekjhr.supabase.co','sb_publishable_xUzu8q8DhqqS9c8SQUDPlA_N8dUVz5f');
+    window._8bfrSupabaseClient=client;
+  }
+  var ext=guessImageExt(file);
+  var path='ai-studio/covers/'+Date.now()+'-'+Math.random().toString(36).slice(2,8)+'.'+ext;
+  var uploadRes=await client.storage.from('media').upload(path,file);
+  if(uploadRes.error)throw new Error('Photo upload failed: '+uploadRes.error.message);
+  var pub=client.storage.from('media').getPublicUrl(path);
+  return pub.data.publicUrl;
+}
+
 async function memeAskAI(instruction, tier){
   var res = await fetch(API, {
     method:'POST',
@@ -1612,21 +1646,53 @@ var CLIENT_HANDLERS={
 
   albumCover: async function(v){
     var artist=v.artist||'',title=v.title||'',featured=v.featured||'',pos=v.textPos||'bottom',prompt=v.prompt||'';
+    var refFile=v.refPhoto&&v.refPhoto[0];
+    var bgFile=v.bgPhoto&&v.bgPhoto[0];
+
     showLoading('Step 1: Enhancing prompt with AI...');
 
     // Step 1: ask AI to enhance prompt
     var imgPrompt=prompt;
     try {
+      var enhanceInstruction='Create a concise vivid image generation prompt (visual only, no explanation) for an album cover: '+prompt+'. Artist: '+artist+(title?' Title: '+title:'')+'. Make it cinematic.';
+      if(refFile) enhanceInstruction+=' This will be applied on top of a real reference photo of a person — describe only the SCENE, SETTING, and STYLE around them. Do not describe a face, body, or any person\'s appearance, since the actual photo determines that.';
       var aiRes=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({input:'Create a concise vivid image generation prompt (visual only, no explanation) for an album cover: '+prompt+'. Artist: '+artist+(title?' Title: '+title:'')+'. Make it cinematic.',tier:'nano'})});
+        body:JSON.stringify({input:enhanceInstruction,tier:'nano'})});
       var aiData=await aiRes.json();
       if(aiData.text)imgPrompt=aiData.text.replace(/\n/g,' ').substring(0,400);
     } catch(e){/* use original prompt */}
 
-    showLoading('Step 2: Generating image (15-30s)...');
-    var polUrl='https://gen.pollinations.ai/image/'+(imgPrompt+', album cover art, high quality, professional, square').replace(/[^a-zA-Z0-9 ,.-]/g,'')+'?width=1024&height=1024&nologo=true&key=sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
+    var img;
+    if(refFile||bgFile){
+      // A photo was uploaded — use Pollinations' Kontext model (image-to-image),
+      // which transforms a real reference photo into a new scene instead of
+      // generating one from scratch, so the actual person/background carries over.
+      var sourceFile=refFile||bgFile;
+      showLoading('Step 2: Uploading your photo...');
+      var sourceUrl;
+      try{
+        sourceUrl=await uploadImageForKontext(sourceFile);
+      }catch(upErr){
+        showError(upErr.message+' — falling back to a fully AI-generated image instead.');
+        sourceUrl=null;
+      }
 
-    var img=await loadImage(polUrl);
+      if(sourceUrl){
+        var kontextPrompt=refFile
+          ? 'Keep this exact person\'s face and likeness completely unchanged. Place them into this scene: '+imgPrompt+'. Album cover art, high quality, professional, square format.'
+          : imgPrompt+'. Enhance and stylize this background for a professional album cover, high quality, square format, keep the overall composition.';
+        showLoading('Step 3: Generating your cover (15-40s)...');
+        var kontextUrl=IMG_GEN+encodeURIComponent(kontextPrompt)+'?model=kontext&image='+encodeURIComponent(sourceUrl)+'&width=1024&height=1024&nologo=true&key=sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
+        img=await loadImage(kontextUrl);
+      }
+    }
+
+    if(!img){
+      showLoading('Step 2: Generating image (15-30s)...');
+      var polUrl='https://gen.pollinations.ai/image/'+(imgPrompt+', album cover art, high quality, professional, square').replace(/[^a-zA-Z0-9 ,.-]/g,'')+'?width=1024&height=1024&nologo=true&key=sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
+      img=await loadImage(polUrl);
+    }
+
     var canvas=document.createElement('canvas');
     canvas.width=1024;canvas.height=1024;
     var ctx=canvas.getContext('2d');
