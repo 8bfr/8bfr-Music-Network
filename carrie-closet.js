@@ -231,8 +231,15 @@
 
   function renderOverlays() {
     clearOverlays();
+    // Belly ring only shows when the midriff is exposed:
+    // hide if wearing a full top (tank/tee) or high-waisted skirt
+    const topId = equipped.top;
+    const bottomId = equipped.bottom;
+    const midriffCovered = (topId === 'u_top_tank' || topId === 'u_top_tee') || (bottomId === 'f_bottom_skirt');
     Object.keys(equipped).forEach(slot => {
-      if (equipped[slot]) addOverlayImg(equipped[slot]);
+      if (!equipped[slot]) return;
+      if (slot === 'belly' && midriffCovered) return; // navel not visible
+      addOverlayImg(equipped[slot]);
     });
   }
 
