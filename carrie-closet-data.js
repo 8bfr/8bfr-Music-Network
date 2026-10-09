@@ -32,7 +32,7 @@
       name: "Straight Blonde",
       label: "straight • blonde",
       coins: 20,
-      img: base + "/hair/straight/female_straight_blonde.webp"
+      img: base + "/hair/straight/female_straight_blonde.png"
     }),
     item({
       id: "f_hair_straight_brown",
@@ -43,7 +43,7 @@
       name: "Straight Brown",
       label: "straight • brown",
       coins: 15,
-      img: base + "/hair/straight/female_straight_brown.webp"
+      img: base + "/hair/straight/female_straight_brown.png"
     }),
     item({
       id: "f_hair_straight_copper",
@@ -54,7 +54,7 @@
       name: "Straight Copper",
       label: "straight • copper",
       coins: 22,
-      img: base + "/hair/straight/female_straight_copper.webp"
+      img: base + "/hair/straight/female_straight_copper.png"
     }),
     item({
       id: "f_hair_straight_ginger",
@@ -65,7 +65,7 @@
       name: "Straight Ginger",
       label: "straight • ginger",
       coins: 22,
-      img: base + "/hair/straight/female_straight_ginger.webp"
+      img: base + "/hair/straight/female_straight_ginger.png"
     }),
     item({
       id: "f_hair_straight_pastel_blue",
@@ -76,7 +76,7 @@
       name: "Straight Pastel Blue",
       label: "straight • pastel blue",
       coins: 25,
-      img: base + "/hair/straight/female_straight_pastel_blue.webp"
+      img: base + "/hair/straight/female_straight_pastel_blue.png"
     }),
     item({
       id: "f_hair_straight_pastel_pink",
@@ -87,7 +87,7 @@
       name: "Straight Pastel Pink",
       label: "straight • pastel pink",
       coins: 25,
-      img: base + "/hair/straight/female_straight_pastel_pink.webp"
+      img: base + "/hair/straight/female_straight_pastel_pink.png"
     }),
     item({
       id: "f_hair_straight_pastel_purple",
@@ -98,7 +98,7 @@
       name: "Straight Pastel Purple",
       label: "straight • pastel purple",
       coins: 25,
-      img: base + "/hair/straight/female_straight_pastel_purple.webp"
+      img: base + "/hair/straight/female_straight_pastel_purple.png"
     }),
     item({
       id: "f_hair_straight_black",
@@ -109,7 +109,7 @@
       name: "Straight Black",
       label: "straight • black",
       coins: 15,
-      img: base + "/hair/straight/female_straight_black.webp"
+      img: base + "/hair/straight/female_straight_black.png"
     }),
 
     // ========== HAIR - WAVY ==========
@@ -122,7 +122,7 @@
       name: "Wavy Blonde",
       label: "wavy • blonde",
       coins: 20,
-      img: base + "/hair/wavy/female_wavy_blonde.webp"
+      img: base + "/hair/wavy/female_wavy_blonde.png"
     }),
     item({
       id: "f_hair_wavy_brown",
@@ -133,7 +133,7 @@
       name: "Wavy Brown",
       label: "wavy • brown",
       coins: 15,
-      img: base + "/hair/wavy/female_wavy_brown.webp"
+      img: base + "/hair/wavy/female_wavy_brown.png"
     }),
     item({
       id: "f_hair_wavy_copper",
@@ -144,7 +144,7 @@
       name: "Wavy Copper",
       label: "wavy • copper",
       coins: 22,
-      img: base + "/hair/wavy/female_wavy_copper.webp"
+      img: base + "/hair/wavy/female_wavy_copper.png"
     }),
     item({
       id: "f_hair_wavy_ginger",
@@ -155,7 +155,7 @@
       name: "Wavy Ginger",
       label: "wavy • ginger",
       coins: 22,
-      img: base + "/hair/wavy/female_wavy_ginger.webp"
+      img: base + "/hair/wavy/female_wavy_ginger.png"
     }),
     item({
       id: "f_hair_wavy_pastel_blue",
@@ -166,7 +166,7 @@
       name: "Wavy Pastel Blue",
       label: "wavy • pastel blue",
       coins: 25,
-      img: base + "/hair/wavy/female_wavy_pastel_blue.webp"
+      img: base + "/hair/wavy/female_wavy_pastel_blue.png"
     }),
     item({
       id: "f_hair_wavy_pastel_pink",
@@ -177,7 +177,7 @@
       name: "Wavy Pastel Pink",
       label: "wavy • pastel pink",
       coins: 25,
-      img: base + "/hair/wavy/female_wavy_pastel_pink.webp"
+      img: base + "/hair/wavy/female_wavy_pastel_pink.png"
     }),
     item({
       id: "f_hair_wavy_pastel_purple",
@@ -188,7 +188,7 @@
       name: "Wavy Pastel Purple",
       label: "wavy • pastel purple",
       coins: 25,
-      img: base + "/hair/wavy/female_wavy_pastel_purple.webp"
+      img: base + "/hair/wavy/female_wavy_pastel_purple.png"
     }),
 
     // ========== TOPS ==========
@@ -201,7 +201,7 @@
       name: "8BFR Tank Top",
       label: "unisex tank",
       coins: 15,
-      img: base + "/unisex/cloths/unisex_tank-top_v1.webp"
+      img: base + "/unisex/cloths/unisex_tank-top_v1.png"
     }),
     item({
       id: "u_top_tee",
@@ -212,7 +212,7 @@
       name: "8BFR Tee",
       label: "unisex tee",
       coins: 15,
-      img: base + "/unisex/cloths/unisex_tee-shirt.webp"
+      img: base + "/unisex/cloths/unisex_tee-shirt.png"
     }),
     item({
       id: "f_top_bikini_red",
@@ -223,7 +223,7 @@
       name: "Red Bikini Top",
       label: "bikini top • red",
       coins: 12,
-      img: base + "/female_cloths/female_bikini-top_red.webp"
+      img: base + "/female_cloths/female_bikini-top_red.png"
     }),
 
     // ========== BOTTOMS ==========
@@ -236,7 +236,7 @@
       name: "Denim Shorts",
       label: "female shorts",
       coins: 15,
-      img: base + "/female_cloths/female_shorts.webp"
+      img: base + "/female_cloths/female_shorts.png"
     }),
     item({
       id: "f_bottom_skirt",
@@ -247,7 +247,7 @@
       name: "Mini Skirt",
       label: "female skirt",
       coins: 18,
-      img: base + "/female_cloths/female_skirt.webp"
+      img: base + "/female_cloths/female_skirt.png"
     }),
     item({
       id: "f_bottom_bikini_red",
@@ -258,7 +258,7 @@
       name: "Red Bikini Bottom",
       label: "bikini bottom • red",
       coins: 12,
-      img: base + "/female_cloths/female_bikini-bottom_redv2.webp",
+      img: base + "/female_cloths/female_bikini-bottom_redv2.png",
       imgDark: base + "/female_cloths/female_bikini-bottom_red_dark.png"
     }),
 
@@ -272,8 +272,8 @@
       name: "Gold Necklace",
       label: "necklace",
       coins: 20,
-      img: base + "/female_jewlery/female_gold_necklace.webp",
-      imgDark: base + "/female_jewlery/female_gold_necklace.webp"
+      img: base + "/female_jewlery/female_gold_necklace.png",
+      imgDark: base + "/female_jewlery/female_gold_necklace.png"
     }),
     item({
       id: "f_jewel_belly",
@@ -284,7 +284,7 @@
       name: "Belly Ring",
       label: "belly ring",
       coins: 15,
-      img: base + "/female_jewlery/female_belly-ring.webp"
+      img: base + "/female_jewlery/female_belly-ring.png"
     }),
     item({
       id: "f_jewel_ears",
@@ -295,8 +295,8 @@
       name: "Gold Earrings",
       label: "ear rings",
       coins: 18,
-      img: base + "/female_jewlery/female_gold_ear-ring_left.webp",
-      imgLeft: base + "/female_jewlery/female_gold_ear-ring_left.webp",
+      img: base + "/female_jewlery/female_gold_ear-ring_left.png",
+      imgLeft: base + "/female_jewlery/female_gold_ear-ring_left.png",
       imgRight: base + "/female_jewlery/female_gold_ear-ring_right.png"
     }),
 
@@ -310,8 +310,8 @@
       name: "Blue Eyes",
       label: "blue",
       coins: 10,
-      img: base + "/unisex/eyes/unisex_eyes_blue_left.webp",
-      imgLeft: base + "/unisex/eyes/unisex_eyes_blue_left.webp",
+      img: base + "/unisex/eyes/unisex_eyes_blue_left.png",
+      imgLeft: base + "/unisex/eyes/unisex_eyes_blue_left.png",
       imgRight: base + "/unisex/eyes/unisex_eyes_blue_right.png"
     }),
     item({
@@ -323,8 +323,8 @@
       name: "Green Eyes",
       label: "green",
       coins: 10,
-      img: base + "/unisex/eyes/unisex_eyes_green_left.webp",
-      imgLeft: base + "/unisex/eyes/unisex_eyes_green_left.webp",
+      img: base + "/unisex/eyes/unisex_eyes_green_left.png",
+      imgLeft: base + "/unisex/eyes/unisex_eyes_green_left.png",
       imgRight: base + "/unisex/eyes/unisex_eyes_green_right.png"
     }),
     item({
@@ -336,8 +336,8 @@
       name: "Brown Eyes",
       label: "brown",
       coins: 10,
-      img: base + "/unisex/eyes/unisex_eyes_brown_left.webp",
-      imgLeft: base + "/unisex/eyes/unisex_eyes_brown_left.webp",
+      img: base + "/unisex/eyes/unisex_eyes_brown_left.png",
+      imgLeft: base + "/unisex/eyes/unisex_eyes_brown_left.png",
       imgRight: base + "/unisex/eyes/unisex_eyes_brown_right.png"
     }),
 
@@ -351,9 +351,9 @@
       name: "Sneakers",
       label: "unisex shoes",
       coins: 14,
-      img: base + "/unisex/shoes/unisex_shoes_left.webp",
-      imgLeft: base + "/unisex/shoes/unisex_shoes_left.webp",
-      imgRight: base + "/unisex/shoes/unisex_shoes_right.webp"
+      img: base + "/unisex/shoes/unisex_shoes_left.png",
+      imgLeft: base + "/unisex/shoes/unisex_shoes_left.png",
+      imgRight: base + "/unisex/shoes/unisex_shoes_right.png"
     })
   ];
 
