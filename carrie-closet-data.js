@@ -355,6 +355,61 @@
       imgLeft: base + "/unisex/shoes/unisex_shoes_left.png",
       imgRight: base + "/unisex/shoes/unisex_shoes_right.png"
     })
+    , item({
+      id: "m_hair_fade", gender: "male", category: "hair", cat: "hair", slot: "hair",
+      name: "Fade Cut", label: "male fade", coins: 12,
+      img: base + "/hair/male/male_hair_fade.png"
+    })
+    , item({
+      id: "m_hair_curly", gender: "male", category: "hair", cat: "hair", slot: "hair",
+      name: "Curly Top", label: "male curly", coins: 12,
+      img: base + "/hair/male/male_hair_curly.png"
+    })
+    , item({
+      id: "m_hair_dreads", gender: "male", category: "hair", cat: "hair", slot: "hair",
+      name: "Dreads", label: "male dreads", coins: 14,
+      img: base + "/hair/male/male_hair_dreads.png"
+    })
+    , item({
+      id: "m_hair_waves", gender: "male", category: "hair", cat: "hair", slot: "hair",
+      name: "360 Waves", label: "male waves", coins: 12,
+      img: base + "/hair/male/male_hair_waves.png"
+    })
+    , item({
+      id: "m_top_tank", gender: "male", category: "top", cat: "top", slot: "top",
+      name: "8BFR Tank (Male)", label: "male tank", coins: 15,
+      img: base + "/male_cloths/male_tank_v2.png"
+    })
+    , item({
+      id: "m_top_tee", gender: "male", category: "top", cat: "top", slot: "top",
+      name: "8BFR Tee (Male)", label: "male tee", coins: 15,
+      img: base + "/male_cloths/male_tee_v2.png"
+    })
+    , item({
+      id: "m_bottom_jeans", gender: "male", category: "bottom", cat: "bottom", slot: "bottom",
+      name: "Denim Jeans", label: "male jeans", coins: 18,
+      img: base + "/male_cloths/male_jeans.png"
+    })
+    , item({
+      id: "m_bottom_cargo", gender: "male", category: "bottom", cat: "bottom", slot: "bottom",
+      name: "Cargo Shorts", label: "male cargo", coins: 16,
+      img: base + "/male_cloths/male_cargo_shorts.png"
+    })
+    , item({
+      id: "m_jewel_chain", gender: "male", category: "jewelry", cat: "jewelry", slot: "necklace",
+      name: "Gold Chain", label: "male chain", coins: 20,
+      img: base + "/male_jewelry/male_gold_chain.png"
+    })
+    , item({
+      id: "m_jewel_bracelet", gender: "male", category: "jewelry", cat: "jewelry", slot: "bracelet",
+      name: "Gold Bracelet", label: "male bracelet", coins: 15,
+      img: base + "/male_jewelry/male_bracelet.png"
+    })
+    , item({
+      id: "m_jewel_earring", gender: "male", category: "jewelry", cat: "jewelry", slot: "ears",
+      name: "Gold Hoop", label: "male earring", coins: 12,
+      img: base + "/male_jewelry/male_earring.png"
+    })
   ];
 
   // Export to global scope
