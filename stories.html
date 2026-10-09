@@ -36,6 +36,8 @@ header div { max-width: 1000px; margin: 0 auto; display: flex; align-items: cent
   </div>
 
   <div id="storiesLoading"><div class="spinner"></div></div>
+
+  <div id="storyTray" aria-label="Story tray"></div>
   <div id="storiesGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;margin-bottom:2rem;"></div>
   <div id="emptyState" style="display:none;text-align:center;padding:4rem 2rem;">
     <div style="font-size:4rem;margin-bottom:1rem;opacity:0.5;">📭</div>
@@ -136,6 +138,30 @@ header div { max-width: 1000px; margin: 0 auto; display: flex; align-items: cent
     userOrder = userOrder.filter(function(v,i,a){ return a.indexOf(v)===i; });
 
     if (!userOrder.length) { empty.style.display = 'block'; return; }
+
+    // Build Instagram-style story tray
+    var tray = document.getElementById('storyTray');
+    if (tray && userOrder.length) {
+      tray.classList.add('has-stories');
+      var trayHtml = '';
+      userOrder.forEach(function(uid) {
+        var uu = grouped[uid];
+        var pp = pMap[uid] || {};
+        var nm = (pp.display_name || pp.username || 'User');
+        var av = pp.avatar_url ? '<img src="'+pp.avatar_url+'" alt="'+nm.replace(/"/g,'')+'" onerror="this.style.display=\'none\'">' : '<img src="" alt="" style="display:none">';
+        // seen = all stories viewed (simple heuristic: views>0)
+        var seen = uu.stories.every(function(s){ return (s.views||0)>0; });
+        trayHtml += '<button class="tray-item" data-user="'+uid+'" title="'+nm.replace(/"/g,'')+'">'
+          + '<span class="tray-ring'+(seen?' seen':'')+'">'+av+'</span>'
+          + '<span class="tray-name">'+nm.replace(/</g,'&lt;').substring(0,12)+'</span></button>';
+      });
+      tray.innerHTML = trayHtml;
+      tray.querySelectorAll('.tray-item').forEach(function(btn){
+        btn.addEventListener('click', function(){
+          window.location.href = 'story-viewer.html?user=' + btn.dataset.user + '&index=0';
+        });
+      });
+    }
 
     userOrder.forEach(function(uid) {
       var u = grouped[uid];
