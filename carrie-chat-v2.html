@@ -3,90 +3,119 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Carrie Chat v2 - 8BFR</title>
+<title>8BFR Avatar Chat v2</title>
 <style>
-  body { font-family: system-ui; background: #0a0618; color: #fff; margin: 0; }
-  #avatar-container { position: relative; width: 400px; height: 600px; margin: 20px auto; }
+  body { font-family: system-ui; background: #0a0618; color: #fff; margin: 0; padding: 10px; }
+  #avatar-select { text-align: center; margin: 10px; }
+  #avatar-select button { background: #2a1a4a; color: white; border: 1px solid #a855f7; padding: 8px 16px; margin: 4px; border-radius: 8px; cursor: pointer; }
+  #avatar-select button.active { background: #a855f7; }
+  #avatar-container { position: relative; width: 400px; height: 600px; margin: 10px auto; background: #1a1030; border-radius: 12px; }
   #avatar-base { position: absolute; width: 100%; height: 100%; object-fit: contain; }
   .avatar-item { position: absolute; pointer-events: none; }
-  #closet { max-width: 800px; margin: 0 auto; padding: 20px; }
-  .item-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-  .item-card { background: #1a1030; border-radius: 8px; padding: 10px; text-align: center; cursor: pointer; }
-  .item-card img { width: 100%; height: 80px; object-fit: contain; }
-  .item-card.equipped { border: 2px solid #a855f7; }
-  .coin-cost { color: #fbbf24; font-size: 12px; }
+  #closet { max-width: 900px; margin: 0 auto; padding: 10px; }
+  #coins-bar { text-align: center; font-size: 18px; margin: 10px; color: #fbbf24; }
+  .category { margin: 15px 0; }
+  .category h3 { color: #a855f7; margin: 8px 0; }
+  .item-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .item-card { background: #1a1030; border-radius: 8px; padding: 8px; text-align: center; cursor: pointer; border: 2px solid transparent; }
+  .item-card img { width: 100%; height: 70px; object-fit: contain; }
+  .item-card.equipped { border-color: #a855f7; }
+  .item-card .name { font-size: 12px; margin: 4px 0; }
+  .coin-cost { color: #fbbf24; font-size: 11px; }
 </style>
 </head>
 <body>
-<div style="text-align:center; margin:10px;">
-  <button onclick="setAvatar('male','light')">Male Light</button>
-  <button onclick="setAvatar('male','dark')">Male Dark</button>
-  <button onclick="setAvatar('female','light')">Female Light</button>
-  <button onclick="setAvatar('female','dark')">Female Dark</button>
+<div id="avatar-select">
+  <button onclick="setAvatar('male','light')" id="btn-male-light">Male Light</button>
+  <button onclick="setAvatar('male','dark')" id="btn-male-dark">Male Dark</button>
+  <button onclick="setAvatar('female','light')" id="btn-female-light">Female Light</button>
+  <button onclick="setAvatar('female','dark')" id="btn-female-dark">Female Dark</button>
 </div>
 <div id="avatar-container">
   <img id="avatar-base" src="assets/images/v2/bases/male_light.png" alt="avatar">
-  <!-- Items injected here -->
 </div>
 <div id="closet">
-  <h2>Closet v2</h2>
-  <div>Coins: <span id="coins">1000</span></div>
-  <div class="item-grid" id="item-grid"></div>
+  <div id="coins-bar">Coins: <span id="coins">1000</span></div>
+  <div id="categories"></div>
 </div>
 <script>
-// v2 Avatar System - exact pixel positioning on 800x1200 base, displayed at 400x600
-const SCALE = 0.5; // display scale
+const SCALE = 0.5;
 let currentGender = 'male';
 let currentSkin = 'light';
+let equipped = {};
+let coins = parseInt(localStorage.getItem('v2_coins') || '1000');
+let owned = JSON.parse(localStorage.getItem('v2_owned') || '[]');
+const ITEMS = [
+  {id:'v2_m_fade', name:'Fade', slot:'hair', gender:'male', coins:12, img:'assets/images/v2/hair/m_fade_v2.png', x:400, y:100, w:300, crop:0.6},
+  {id:'v2_m_dreads', name:'Dreads', slot:'hair', gender:'male', coins:14, img:'assets/images/v2/hair/m_dreads_v2.png', x:400, y:100, w:300, crop:0.6},
+  {id:'v2_m_buzz', name:'Buzz Cut', slot:'hair', gender:'male', coins:12, img:'assets/images/v2/hair/m_buzz_v2.png', x:400, y:100, w:300, crop:0.6},
+  {id:'v2_m_curly', name:'Curly', slot:'hair', gender:'male', coins:12, img:'assets/images/v2/hair/m_curly_v2.png', x:400, y:100, w:300, crop:0.6},
+  {id:'v2_m_sidepart', name:'Side Part', slot:'hair', gender:'male', coins:12, img:'assets/images/v2/hair/m_sidepart_v2.png', x:400, y:100, w:300, crop:0.6},
+  {id:'v2_m_waves', name:'Waves', slot:'hair', gender:'male', coins:12, img:'assets/images/v2/hair/m_waves_v2.png', x:400, y:100, w:300, crop:0.6},
+  {id:'v2_f_long', name:'Long Hair', slot:'hair', gender:'female', coins:12, img:'assets/images/v2/hair/f_long_v2.png', x:400, y:200, w:320},
+  {id:'v2_f_curly', name:'Curly Hair', slot:'hair', gender:'female', coins:12, img:'assets/images/v2/hair/f_curly_v2.png', x:400, y:150, w:320},
+  {id:'v2_f_bob', name:'Bob', slot:'hair', gender:'female', coins:12, img:'assets/images/v2/hair/f_bob_v2.png', x:400, y:150, w:300},
+  {id:'v2_m_tee', name:'Tee', slot:'top', gender:'male', coins:15, img:'assets/images/v2/tops/m_tee.png', x:400, y:440, w:380},
+  {id:'v2_m_tank', name:'Tank', slot:'top', gender:'male', coins:15, img:'assets/images/v2/tops/m_tank.png', x:400, y:440, w:360},
+  {id:'v2_f_croptop', name:'Crop Top', slot:'top', gender:'female', coins:15, img:'assets/images/v2/tops/f_croptop.png', x:400, y:420, w:340},
+  {id:'v2_f_blouse', name:'Blouse', slot:'top', gender:'female', coins:18, img:'assets/images/v2/tops/f_blouse.png', x:400, y:440, w:380},
+  {id:'v2_f_dress', name:'Dress', slot:'top', gender:'female', coins:25, img:'assets/images/v2/tops/f_dress.png', x:400, y:550, w:400},
+  {id:'v2_m_jeans', name:'Jeans', slot:'bottom', gender:'male', coins:18, img:'assets/images/v2/bottoms/m_jeans.png', x:400, y:680, w:340},
+  {id:'v2_f_skirt', name:'Skirt', slot:'bottom', gender:'female', coins:18, img:'assets/images/v2/bottoms/f_skirt.png', x:400, y:650, w:320},
+  {id:'v2_chain', name:'Gold Chain', slot:'necklace', gender:'male', coins:20, img:'assets/images/v2/jewelry/chain.png', x:400, y:280, w:200},
+  {id:'v2_f_earrings', name:'Hoop Earrings', slot:'earrings', gender:'female', coins:15, img:'assets/images/v2/jewelry/f_earrings.png', x:400, y:140, w:200},
+  {id:'v2_f_bracelet', name:'Bracelet', slot:'bracelet', gender:'female', coins:12, img:'assets/images/v2/jewelry/f_bracelet.png', x:180, y:650, w:80},
+];
 function setAvatar(gender, skin) {
   currentGender = gender; currentSkin = skin;
-  document.getElementById('avatar-base').src = `assets/images/v2/bases/${gender}_${skin}.png`;
-  equipped = {}; renderAvatar(); renderItems();
+  document.getElementById('avatar-base').src = 'assets/images/v2/bases/' + gender + '_' + skin + '.png';
+  document.querySelectorAll('#avatar-select button').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-' + gender + '-' + skin).classList.add('active');
+  equipped = {};
+  renderAvatar(); renderItems();
 }
-const ITEMS = [
-  // Hair - head at (400, 150) on base
-  {id:'v2_m_fade', name:'Fade', slot:'hair', gender:'male', coins:12, img:'assets/images/v2/hair/m_fade.png', x:400, y:180, w:260},
-  {id:'v2_m_dreads', name:'Dreads', slot:'hair', gender:'male', coins:14, img:'assets/images/v2/hair/m_dreads.png', x:400, y:180, w:280},
-  {id:'v2_m_buzz', name:'Buzz Cut', slot:'hair', gender:'male', coins:12, img:'assets/images/v2/hair/m_buzz.png', x:400, y:180, w:250},
-  {id:'v2_m_sidepart', name:'Side Part', slot:'hair', gender:'male', coins:12, img:'assets/images/v2/hair/m_sidepart.png', x:400, y:180, w:260},
-  {id:'v2_f_long', name:'Long Hair', slot:'hair', gender:'female', coins:12, img:'assets/images/v2/hair/f_long.png', x:400, y:180, w:300},
-  {id:'v2_f_curly', name:'Curly Hair', slot:'hair', gender:'female', coins:12, img:'assets/images/v2/hair/f_curly.png', x:400, y:180, w:300},
-  // Tops - chest at (400, 450)
-  {id:'v2_m_tee', name:'Tee', slot:'top', gender:'male', coins:15, img:'assets/images/v2/tops/m_tee.png', x:400, y:480, w:380},
-  {id:'v2_m_tank', name:'Tank', slot:'top', gender:'male', coins:15, img:'assets/images/v2/tops/m_tank.png', x:400, y:480, w:360},
-  // Bottoms - hips at (400, 720)
-  {id:'v2_m_jeans', name:'Jeans', slot:'bottom', gender:'male', coins:18, img:'assets/images/v2/bottoms/m_jeans.png', x:400, y:720, w:340},
-  // Jewelry - neck at (400, 270)
-  {id:'v2_chain', name:'Gold Chain', slot:'necklace', gender:'male', coins:20, img:'assets/images/v2/jewelry/chain.png', x:400, y:300, w:200},
-];
-let equipped = {};
-let coins = 1000;
-let owned = [];
 function renderItems() {
-  const grid = document.getElementById('item-grid');
-  grid.innerHTML = '';
-  ITEMS.filter(i => i.gender === currentGender || i.gender === 'unisex').forEach(item => {
-    const card = document.createElement('div');
-    card.className = 'item-card' + (equipped[item.slot]?.id === item.id ? ' equipped' : '');
-    card.innerHTML = `<img src="${item.img}"><div>${item.name}</div><div class="coin-cost">${owned.includes(item.id) ? 'Owned' : item.coins + ' coins'}</div>`;
-    card.onclick = () => toggleItem(item);
-    grid.appendChild(card);
+  const container = document.getElementById('categories');
+  container.innerHTML = '';
+  const cats = {};
+  ITEMS.filter(i => i.gender === currentGender).forEach(item => {
+    if (!cats[item.slot]) cats[item.slot] = [];
+    cats[item.slot].push(item);
   });
+  const slotNames = {hair:'Hair', top:'Tops', bottom:'Bottoms', necklace:'Necklace', earrings:'Earrings', bracelet:'Bracelet'};
+  for (const slot of Object.keys(cats)) {
+    const div = document.createElement('div');
+    div.className = 'category';
+    div.innerHTML = '<h3>' + (slotNames[slot] || slot) + '</h3>';
+    const grid = document.createElement('div');
+    grid.className = 'item-grid';
+    cats[slot].forEach(item => {
+      const card = document.createElement('div');
+      card.className = 'item-card' + (equipped[item.slot] && equipped[item.slot].id === item.id ? ' equipped' : '');
+      const isOwned = owned.includes(item.id);
+      card.innerHTML = '<img src="' + item.img + '" alt="' + item.name + '"><div class="name">' + item.name + '</div><div class="coin-cost">' + (isOwned ? 'Owned' : item.coins + ' coins') + '</div>';
+      card.onclick = (function(it) { return function() { toggleItem(it); }; })(item);
+      grid.appendChild(card);
+    });
+    div.appendChild(grid);
+    container.appendChild(div);
+  }
+  document.getElementById('coins').textContent = coins;
 }
 function toggleItem(item) {
-  if (equipped[item.slot]?.id === item.id) {
+  if (equipped[item.slot] && equipped[item.slot].id === item.id) {
     delete equipped[item.slot];
   } else {
     if (!owned.includes(item.id)) {
       if (coins < item.coins) { alert('Not enough coins!'); return; }
       coins -= item.coins;
       owned.push(item.id);
-      document.getElementById('coins').textContent = coins;
+      localStorage.setItem('v2_coins', coins);
+      localStorage.setItem('v2_owned', JSON.stringify(owned));
     }
     equipped[item.slot] = item;
   }
-  renderAvatar();
-  renderItems();
+  renderAvatar(); renderItems();
 }
 function renderAvatar() {
   const container = document.getElementById('avatar-container');
@@ -95,25 +124,21 @@ function renderAvatar() {
     const img = document.createElement('img');
     img.className = 'avatar-item';
     img.src = item.img;
-    // Position: (x, y) is center point on 800x1200 base, w is width
-    // Display at 400x600 (SCALE=0.5)
     const dw = item.w * SCALE;
     img.style.width = dw + 'px';
     img.style.left = (item.x * SCALE - dw/2) + 'px';
-    // Height auto, top calculated from center y
-    img.onload = () => {
-      const dh = img.height;
-      img.style.top = (item.y * SCALE - dh/2) + 'px';
-    };
-    // Fallback if already loaded
-    if (img.complete) {
-      const dh = img.naturalHeight * (dw / img.naturalWidth);
+    const place = function() {
+      let dh = img.naturalHeight * (dw / img.naturalWidth);
+      if (item.crop) dh = dh * item.crop;
       img.style.height = dh + 'px';
       img.style.top = (item.y * SCALE - dh/2) + 'px';
-    }
+    };
+    if (img.complete && img.naturalWidth) place();
+    else img.onload = place;
     container.appendChild(img);
   });
 }
+document.getElementById('btn-male-light').classList.add('active');
 renderItems();
 </script>
 </body>
