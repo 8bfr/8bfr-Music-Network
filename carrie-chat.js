@@ -565,10 +565,15 @@
   function renderOverlays() {
     clearOverlays();
     if (!closetState.equipped) return;
-    
+    // Belly ring only shows when midriff is exposed (not with full top or skirt)
+    const topId = closetState.equipped.top?.id;
+    const bottomId = closetState.equipped.bottom?.id;
+    const midriffCovered = (topId === 'u_top_tank' || topId === 'u_top_tee') || (bottomId === 'f_bottom_skirt');
     Object.keys(closetState.equipped).forEach(slot => {
       const itemObj = closetState.equipped[slot];
-      if (itemObj) addOverlay(itemObj);
+      if (!itemObj) return;
+      if (slot === 'belly' && midriffCovered) return;
+      addOverlay(itemObj);
     });
   }
 
