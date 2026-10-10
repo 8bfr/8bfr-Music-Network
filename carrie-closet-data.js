@@ -32,7 +32,7 @@
       name: "Straight Blonde",
       label: "straight • blonde",
       coins: 20,
-      img: base + "/hair/straight/female_straight_blonde.webp"
+      img: base + "/hair/straight/female_straight_blonde.png"
     }),
     item({
       id: "f_hair_straight_brown",
@@ -43,7 +43,7 @@
       name: "Straight Brown",
       label: "straight • brown",
       coins: 15,
-      img: base + "/hair/straight/female_straight_brown.webp"
+      img: base + "/hair/straight/female_straight_brown.png"
     }),
     item({
       id: "f_hair_straight_copper",
@@ -54,7 +54,7 @@
       name: "Straight Copper",
       label: "straight • copper",
       coins: 22,
-      img: base + "/hair/straight/female_straight_copper.webp"
+      img: base + "/hair/straight/female_straight_copper.png"
     }),
     item({
       id: "f_hair_straight_ginger",
@@ -65,7 +65,7 @@
       name: "Straight Ginger",
       label: "straight • ginger",
       coins: 22,
-      img: base + "/hair/straight/female_straight_ginger.webp"
+      img: base + "/hair/straight/female_straight_ginger.png"
     }),
     item({
       id: "f_hair_straight_pastel_blue",
@@ -76,7 +76,7 @@
       name: "Straight Pastel Blue",
       label: "straight • pastel blue",
       coins: 25,
-      img: base + "/hair/straight/female_straight_pastel_blue.webp"
+      img: base + "/hair/straight/female_straight_pastel_blue.png"
     }),
     item({
       id: "f_hair_straight_pastel_pink",
@@ -87,7 +87,7 @@
       name: "Straight Pastel Pink",
       label: "straight • pastel pink",
       coins: 25,
-      img: base + "/hair/straight/female_straight_pastel_pink.webp"
+      img: base + "/hair/straight/female_straight_pastel_pink.png"
     }),
     item({
       id: "f_hair_straight_pastel_purple",
@@ -98,7 +98,7 @@
       name: "Straight Pastel Purple",
       label: "straight • pastel purple",
       coins: 25,
-      img: base + "/hair/straight/female_straight_pastel_purple.webp"
+      img: base + "/hair/straight/female_straight_pastel_purple.png"
     }),
     item({
       id: "f_hair_straight_black",
@@ -109,7 +109,7 @@
       name: "Straight Black",
       label: "straight • black",
       coins: 15,
-      img: base + "/hair/straight/female_straight_black.webp"
+      img: base + "/hair/straight/female_straight_black.png"
     }),
 
     // ========== HAIR - WAVY ==========
@@ -351,9 +351,9 @@
       name: "Sneakers",
       label: "unisex shoes",
       coins: 14,
-      img: base + "/unisex/shoes/unisex_shoes_left.webp",
-      imgLeft: base + "/unisex/shoes/unisex_shoes_left.webp",
-      imgRight: base + "/unisex/shoes/unisex_shoes_right.webp"
+      img: base + "/unisex/shoes/unisex_shoes_left.png",
+      imgLeft: base + "/unisex/shoes/unisex_shoes_left.png",
+      imgRight: base + "/unisex/shoes/unisex_shoes_right.png"
     })
     , item({
       id: "m_hair_fade", gender: "male", category: "hair", cat: "hair", slot: "hair",
