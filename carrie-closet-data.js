@@ -374,6 +374,20 @@
       id: "m_hair_waves", gender: "male", category: "hair", cat: "hair", slot: "hair",
       name: "360 Waves", label: "male waves", coins: 12,
       img: base + "/hair/male/male_hair_waves.png"
+    })    , item({
+      id: "m_hair_buzz", gender: "male", category: "hair", cat: "hair", slot: "hair",
+      name: "Buzz Cut", label: "buzz cut", coins: 12,
+      img: base + "/hair/male/male_hair_buzz.png"
+    })
+    , item({
+      id: "m_hair_sidepart", gender: "male", category: "hair", cat: "hair", slot: "hair",
+      name: "Side Part", label: "side part", coins: 12,
+      img: base + "/hair/male/male_hair_sidepart.png"
+    })
+    , item({
+      id: "m_hair_textured", gender: "male", category: "hair", cat: "hair", slot: "hair",
+      name: "Textured Crop", label: "textured crop", coins: 12,
+      img: base + "/hair/male/male_hair_textured.png"
     })
     , item({
       id: "m_top_tank", gender: "male", category: "top", cat: "top", slot: "top",
