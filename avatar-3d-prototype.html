@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>8BFR Avatar Creator (3D Prototype)</title>
+<style>
+  body { font-family: system-ui; background: #0a0618; color: #fff; margin: 0; }
+  #creator-frame { width: 100%; height: 70vh; border: none; }
+  #avatar-display { width: 100%; height: 50vh; display: none; }
+  .btn { background: #a855f7; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; cursor: pointer; margin: 10px; }
+  #info { text-align: center; padding: 20px; }
+</style>
+</head>
+<body>
+<div id="info">
+  <h1>8BFR 3D Avatar Creator</h1>
+  <p>Create your avatar below. It will be saved to your 8BFR account.</p>
+</div>
+<iframe id="creator-frame" src="https://readyplayer.me/avatar?frameApi" allow="camera *; microphone *"></iframe>
+<div id="avatar-display"></div>
+<div style="text-align:center;">
+  <button class="btn" id="save-btn" style="display:none;" onclick="saveAvatar()">Save Avatar</button>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script>
+let avatarURL = null;
+window.addEventListener('message', (e) => {
+  if (e.data && e.data.source === 'readyplayerme') {
+    if (e.data.eventName === 'v1.avatar.exported') {
+      avatarURL = e.data.data.url;
+      document.getElementById('save-btn').style.display = 'inline-block';
+      document.getElementById('info').innerHTML = '<h2>Avatar created!</h2><p>Click Save to use it on 8BFR.</p>';
+      document.getElementById('creator-frame').style.display = 'none';
+      showAvatar3D(avatarURL);
+    }
+  }
+});
+function showAvatar3D(url) {
+  const container = document.getElementById('avatar-display');
+  container.style.display = 'block';
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(75, container.clientWidth/container.clientHeight, 0.1, 1000);
+  const renderer = new THREE.WebGLRenderer({antialias: true, alpha: true});
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  container.appendChild(renderer.domElement);
+  const loader = new THREE.GLTFLoader();
+  loader.load(url, (gltf) => {
+    scene.add(gltf.scene);
+    camera.position.z = 3;
+    camera.position.y = 1;
+    function animate() {
+      requestAnimationFrame(animate);
+      gltf.scene.rotation.y += 0.01;
+      renderer.render(scene, camera);
+    }
+    animate();
+  });
+  const light = new THREE.AmbientLight(0xffffff, 1);
+  scene.add(light);
+}
+function saveAvatar() {
+  if (avatarURL) {
+    localStorage.setItem('8bfr_avatar_url', avatarURL);
+    alert('Avatar saved!');
+  }
+}
+window.onload = () => {
+  const saved = localStorage.getItem('8bfr_avatar_url');
+  if (saved) {
+    document.getElementById('info').innerHTML = '<h2>Welcome back!</h2><p>Your saved avatar:</p>';
+    document.getElementById('creator-frame').style.display = 'none';
+    showAvatar3D(saved);
+  }
+};
+</script>
+</body>
+</html>
