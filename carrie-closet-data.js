@@ -423,7 +423,7 @@
       id: "m_jewel_earring", gender: "male", category: "jewelry", cat: "jewelry", slot: "ears",
       name: "Gold Hoop", label: "male earring", coins: 12,
       img: base + "/male_jewelry/male_earring.png"
-    })
+    }),
 
     // ========== 3D-STYLE MALE ITEMS ==========
     item({ id: "m_hair_fade_3d", gender: "male", category: "hair", cat: "hair", slot: "hair", name: "3D Fade", label: "3d fade", coins: 25, img: base + "/hair/male/male_hair_fade_3d.png" }),
