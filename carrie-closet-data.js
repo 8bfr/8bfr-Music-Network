@@ -426,8 +426,7 @@
     }),
 
     // ========== 3D-STYLE MALE ITEMS ==========
-    item({ id: "m_hair_fade_3d", gender: "male", category: "hair", cat: "hair", slot: "hair", name: "3D Fade", label: "3d fade", coins: 25, img: base + "/hair/male/male_hair_fade_3d.png" }),
-    item({ id: "m_top_tee_3d", gender: "male", category: "top", cat: "top", slot: "top", name: "3D 8BFR Tee", label: "3d tee", coins: 30, img: base + "/male_cloths/male_tee_3d.png" }),
+        item({ id: "m_top_tee_3d", gender: "male", category: "top", cat: "top", slot: "top", name: "3D 8BFR Tee", label: "3d tee", coins: 30, img: base + "/male_cloths/male_tee_3d.png" }),
     item({ id: "m_bottom_jeans_3d", gender: "male", category: "bottom", cat: "bottom", slot: "bottom", name: "3D Jeans", label: "3d jeans", coins: 28, img: base + "/male_cloths/male_jeans_3d.png" }),
     item({ id: "m_jewel_chain_3d", gender: "male", category: "jewelry", cat: "jewelry", slot: "necklace", name: "3D 8B Chain", label: "3d chain", coins: 35, img: base + "/male_jewelry/male_chain_3d.png" }),
   ];
