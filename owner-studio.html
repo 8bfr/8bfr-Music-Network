@@ -439,6 +439,10 @@
                             <option value="elevenmusic">Music v2 (standard)</option>
                         </select>
                     </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>Voice Reference (optional, beta)</label>
+                        <input type="text" id="sgRefAudio" placeholder="Public link to YOUR song or acapella - the AI steers the voice and style toward it">
+                    </div>
                           <div style="display:flex;gap:.4rem;align-items:flex-start;flex-wrap:wrap;">
                             <input type="number" id="calcBpm" placeholder="BPM" min="40" max="300" style="width:65px;background:#13111c;border:1px solid rgba(168,85,247,.3);border-radius:6px;color:#e8e0ff;padding:.3rem .45rem;font-size:.82rem;" oninput="calcDuration()">
                             <textarea id="calcLyrics" placeholder="Paste lyrics to calculate" rows="2" style="flex:1;min-width:100px;background:#13111c;border:1px solid rgba(168,85,247,.3);border-radius:6px;color:#e8e0ff;padding:.3rem .45rem;font-size:.76rem;resize:none;" oninput="calcDuration()"></textarea>
@@ -2414,7 +2418,22 @@
 
         try {
             var sgStatEl = document.getElementById('sgStatus');
-            var res = await sgRequestAudio(prompt);
+            var res = null;
+            var sgUsedRef = false, sgRefFailed = false;
+            var sgRefUrl = (document.getElementById('sgRefAudio') || {}).value || '';
+            if (sgRefUrl.trim()) {
+                if (sgStatEl) sgStatEl.textContent = 'Generating with your voice reference...';
+                try {
+                    var pr = await fetch('https://gen.pollinations.ai/v1/audio/speech', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + POLLEN_KEY },
+                        body: JSON.stringify({ model: sgModel, input: prompt, duration: Math.min(dur, 300), instrumental: false, reference_audio: sgRefUrl.trim() })
+                    });
+                    if (pr.ok) { res = { ok: true, blob: await pr.blob() }; sgUsedRef = true; }
+                    else { sgRefFailed = true; }
+                } catch (refErr) { sgRefFailed = true; }
+            }
+            if (!res) res = await sgRequestAudio(prompt);
             // Tokens out (402) on the newest model: fall back to the standard
             // music model so James still gets his song, and say so.
             if (!res.ok && res.status === 402 && sgModel !== 'elevenmusic') {
@@ -2469,6 +2488,8 @@
                 changesHtml +
                 '<details style="margin-top:.5rem;"><summary style="font-size:.72rem;color:#a855f7;cursor:pointer;">Style tags sent to AI (tap to verify)</summary><pre style="font-size:.72rem;white-space:pre-wrap;color:#00d9ff;margin-top:.3rem;background:#0a0a0f;padding:.6rem;border-radius:6px;">gen id: ' + sgSeed + '\n\n' + escapeHtml(styleTagsSent) + '</pre></details>';
             if (sgUsedFree) resultDiv.innerHTML = freeVersionNotice('song') + resultDiv.innerHTML;
+            if (sgUsedRef) resultDiv.innerHTML = '<div style="background:rgba(0,217,255,.08);border:1px solid rgba(0,217,255,.35);border-radius:8px;padding:.6rem .75rem;font-size:.8rem;margin:.5rem 0;">Voice reference used: the AI steered the voice and style toward your reference track. That is the closest match the music model can do - it is not an exact clone of your voice.</div>' + resultDiv.innerHTML;
+            if (sgRefFailed) resultDiv.innerHTML = '<div style="background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.4);border-radius:8px;padding:.6rem .75rem;font-size:.8rem;margin:.5rem 0;">Your voice reference link could not be used this time (it must be a public audio link) - the song was generated without it.</div>' + resultDiv.innerHTML;
         } catch(e) {
             resultDiv.innerHTML = '<p style="color:#ff4466;">Audio generation error: ' + e.message + '</p>' +
                 '<div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-top:.3rem;">If this keeps failing, your Pollinations credits may be expired. Try without the key parameter or purchase more credits.</div>' +
