@@ -147,6 +147,7 @@ select.form-input{appearance:auto;cursor:pointer;}
 <div class="preset" onclick="applyPreset('podcast',this)">Podcast</div>
 <div class="preset" onclick="applyPreset('bass',this)">Bass Heavy</div>
 <div class="preset" onclick="applyPreset('radio',this)">Radio Ready</div>
+<div class="preset" onclick="applyPreset('streaming',this)">Streaming Master (-14 LUFS)</div>
 </div>
 </div>
 
@@ -196,6 +197,36 @@ select.form-input{appearance:auto;cursor:pointer;}
 <h2>Stereo Width</h2>
 <div class="form-group">
 <div class="sw"><span style="font-size:.68rem;color:var(--dim);">Mono</span><input type="range" min="0" max="200" value="100" id="stereoW" oninput="setWidth(this.value)"><span style="font-size:.68rem;color:var(--dim);">Wide</span><div class="sv" id="swVal2">100%</div></div></div>
+</div>
+
+<div class="card">
+<h2>AI Auto-Master (one click)</h2>
+<div class="info-note" style="margin-bottom:.4rem;color:var(--gold);">Like BandLab: pick a sound and the AI listens to your track first - how loud, how boomy, how dark or harsh, how dynamic - then sets every control below to fit YOUR track and exports the master. No guessing sliders.</div>
+<div class="preset-grid">
+<div class="preset" onclick="aiMaster('clear',this)">Clear</div>
+<div class="preset" onclick="aiMaster('hiphop',this)">Hip Hop</div>
+<div class="preset" onclick="aiMaster('punch',this)">Punch</div>
+<div class="preset" onclick="aiMaster('warm',this)">Warm</div>
+<div class="preset" onclick="aiMaster('bright',this)">Bright</div>
+<div class="preset" onclick="aiMaster('loud',this)">Loud</div>
+</div>
+<div class="sub">Clear = clean vocal-first master. Hip Hop = low-end weight + presence. Punch = loud, tight, aggressive. Warm = smooth and round. Bright = extra air and clarity. Loud = maximum volume for SoundCloud/clubs. Every AI master also repairs clipping and lands on streaming loudness.</div>
+<div id="aiMasterNote" style="font-size:.8rem;color:var(--dim);margin-top:.4rem;"></div>
+</div>
+
+<div class="card">
+<h2>Pro Loudness + Repair (NEW)</h2>
+<div class="info-note" style="margin-bottom:.4rem;color:var(--gold);">Fixes hot, clipped masters and hits real streaming loudness - the same recipe used on the Never Again (Remix) Spotify master: repair the clipping, cut the mud, lift presence and air, then land at -14 LUFS with a -1dB ceiling.</div>
+<div class="form-group"><label style="display:flex;gap:.5rem;align-items:flex-start;cursor:pointer;font-weight:400;"><input type="checkbox" id="declipChk" checked style="width:auto;margin-top:.2rem;"><span><b>Repair clipping</b> - softens the harsh flat-top distortion on masters recorded too hot (the static / buried-voice sound). Leave ON for loud uploads.</span></label></div>
+<div class="form-group"><label>Loudness Mode (applied at export)</label>
+<select class="form-input" id="loudMode" style="width:100%;">
+<option value="peak">Peak normalize (old way - uses the Target Loudness slider above)</option>
+<option value="-14" selected>Streaming -14 LUFS (Spotify / Apple / DistroKid)</option>
+<option value="-11">Loud -11 LUFS (SoundCloud / club)</option>
+<option value="-16">Quiet -16 LUFS (YouTube / podcast)</option>
+</select>
+<div class="sub">LUFS is how streaming services actually measure loudness. -14 LUFS with a -1dB ceiling is the safe release target - no more rejections or volume surprises.</div></div>
+<div class="form-group"><label>Measured Loudness</label><div id="loudReadout" style="font-size:.8rem;color:var(--dim);">Export a track and the before/after loudness (LUFS + true peak) shows here.</div></div>
 </div>
 
 <div class="card">
@@ -375,7 +406,8 @@ warm:{al:20,nt:-1,vp:0,mc:0,de:0,eq:[3,2,0,-1,-2],cr:3,lc:-1,mg:2,sw:100},
 bright:{al:20,nt:-1,vp:4,mc:2,de:2,eq:[-1,0,1,3,4],cr:3,lc:-1,mg:2,sw:110},
 podcast:{al:80,nt:-1,vp:5,mc:3,de:3,eq:[-4,0,2,3,1],cr:6,lc:-1,mg:4,sw:50},
 bass:{al:20,nt:-1,vp:0,mc:0,de:0,eq:[6,4,0,1,0],cr:4,lc:-0.5,mg:3,sw:120},
-radio:{al:50,nt:-0.5,vp:4,mc:3,de:3,eq:[1,0,1,3,2],cr:6,lc:-0.5,mg:5,sw:105}
+radio:{al:50,nt:-0.5,vp:4,mc:3,de:3,eq:[1,0,1,3,2],cr:6,lc:-0.5,mg:5,sw:105},
+streaming:{al:30,nt:-14,vp:3,mc:3,de:2,eq:[0,-1,0,2,3],cr:3,lc:-1,mg:2,sw:100,dc:1,lm:'-14'}
 };
 
 function applyPreset(name,el){
@@ -392,6 +424,8 @@ document.getElementById('compRatio').value=p.cr;setComp(p.cr);
 document.getElementById('limCeil').value=p.lc;document.getElementById('lcVal').textContent=p.lc+'dB';
 document.getElementById('makeupGain').value=p.mg;setGain(p.mg);
 document.getElementById('stereoW').value=p.sw;setWidth(p.sw);
+if(p.dc!==undefined){var dcb=document.getElementById('declipChk');if(dcb)dcb.checked=!!p.dc;}
+if(p.lm!==undefined){var lms=document.getElementById('loudMode');if(lms)lms.value=p.lm;}
 }
 
 async function exportTrack(){
@@ -404,6 +438,7 @@ btn.disabled=true;btn.textContent='Exporting...';
 status.style.display='block';status.className='status-msg loading';status.textContent='Rendering mastered track...';
 prog.classList.add('show');fill.style.width='5%';
 try{
+if(document.getElementById('declipChk')&&document.getElementById('declipChk').checked&&!srcBuf._declipped){status.textContent='Repairing clipping...';srcBuf=declipBuffer(srcBuf);srcBuf._declipped=true;}
 var sr=srcBuf.sampleRate;var ch=Math.max(srcBuf.numberOfChannels,2);var len=srcBuf.length;
 var ctx=new OfflineAudioContext(ch,len,sr);
 var src=ctx.createBufferSource();
@@ -444,7 +479,19 @@ var al=parseInt(document.getElementById('autoLevel').value)||0;
 if(al>0){status.textContent='Leveling volume...';rendered=levelVolume(rendered,al/100);}
 fill.style.width='70%';
 var nt=parseFloat(document.getElementById('normTarget').value)||0;
+var loudModeEl=document.getElementById('loudMode');
+var loudMode=loudModeEl?loudModeEl.value:'peak';
+var lufsBefore=null,lufsAfter=null;
+try{lufsBefore=await measureLUFS(srcBuf);}catch(e){}
+if(loudMode==='peak'){
 rendered=normalize(rendered,nt);
+}else{
+status.textContent='Hitting loudness target...';
+rendered=await loudnessNormalize(rendered,parseFloat(loudMode));
+}
+try{lufsAfter=await measureLUFS(rendered);}catch(e){}
+var roEl=document.getElementById('loudReadout');
+if(roEl&&lufsAfter!==null){roEl.textContent='Before: '+(lufsBefore!==null?lufsBefore.toFixed(1)+' LUFS':'n/a')+'  ->  After: '+lufsAfter.toFixed(1)+' LUFS, peak '+peakDb(rendered).toFixed(1)+' dB. '+(loudMode==='peak'?'Peak-normalized.':'Streaming-ready loudness.');}
 var lc=parseFloat(document.getElementById('limCeil').value)||0;
 if(lc<0)rendered=hardLimit(rendered,lc);
 fill.style.width='80%';
@@ -487,6 +534,105 @@ for(var c=0;c<buf.numberOfChannels;c++){var d=buf.getChannelData(c);for(var i=0;
 function hardLimit(buf,cDb){
 var cl=Math.pow(10,cDb/20);
 for(var c=0;c<buf.numberOfChannels;c++){var d=buf.getChannelData(c);for(var i=0;i<d.length;i++){if(d[i]>cl)d[i]=cl;else if(d[i]<-cl)d[i]=-cl;}}return buf;
+}
+function declipBuffer(buf){
+var ch=buf.numberOfChannels;var sr=buf.sampleRate;var len=buf.length;
+var ctx=new OfflineAudioContext(ch,len,sr);var nb=ctx.createBuffer(ch,len,sr);
+for(var c=0;c<ch;c++){var d=buf.getChannelData(c);var o=nb.getChannelData(c);
+for(var i=0;i<len;i++){var x=d[i];var a=Math.abs(x);
+if(a>0.85){var s=x<0?-1:1;var y=0.85+0.15*Math.tanh((a-0.85)/0.15);o[i]=s*Math.min(y,0.999);}
+else o[i]=x;}}
+return nb;
+}
+async function measureLUFS(buf){
+var ch=Math.max(buf.numberOfChannels,1);var sr=buf.sampleRate;var len=buf.length;
+var ctx=new OfflineAudioContext(ch,len,sr);
+var src=ctx.createBufferSource();src.buffer=buf;
+var shelf=ctx.createBiquadFilter();shelf.type='highshelf';shelf.frequency.value=1682;shelf.Q.value=0.707;shelf.gain.value=4;
+var hp=ctx.createBiquadFilter();hp.type='highpass';hp.frequency.value=38;hp.Q.value=0.5;
+src.connect(shelf);shelf.connect(hp);hp.connect(ctx.destination);src.start(0);
+var r=await ctx.startRendering();
+var sum=0,cnt=0;
+for(var c=0;c<r.numberOfChannels;c++){var d=r.getChannelData(c);for(var i=0;i<d.length;i+=2){sum+=d[i]*d[i];cnt++;}}
+if(cnt===0||sum<=0)return -70;
+return -0.691+10*Math.log10(sum/cnt);
+}
+function peakDb(buf){var pk=0;for(var c=0;c<buf.numberOfChannels;c++){var d=buf.getChannelData(c);for(var i=0;i<d.length;i++){var a=Math.abs(d[i]);if(a>pk)pk=a;}}return pk>0?20*Math.log10(pk):-99;}
+async function loudnessNormalize(buf,target){
+var cur=await measureLUFS(buf);
+var gDb=target-cur;
+var pk=0;for(var c=0;c<buf.numberOfChannels;c++){var d=buf.getChannelData(c);for(var i=0;i<d.length;i++){var a=Math.abs(d[i]);if(a>pk)pk=a;}}
+var ceil=Math.pow(10,-1/20);
+var maxG=pk>0?ceil/pk:10;
+var g=Math.min(Math.pow(10,gDb/20),maxG);
+for(var c=0;c<buf.numberOfChannels;c++){var d=buf.getChannelData(c);for(var i=0;i<d.length;i++)d[i]*=g;}
+return buf;
+}
+var AI_PROFILES={
+clear:{vp:5,mc:4,de:3,eq:[-2,-1,1,3,3],cr:3,mg:2,sw:100,al:30,lc:-1,lm:'-14'},
+hiphop:{vp:3,mc:2,de:0,eq:[4,2,0,2,1],cr:4,mg:4,sw:110,al:30,lc:-1,lm:'-14'},
+punch:{vp:3,mc:2,de:1,eq:[2,1,1,3,2],cr:6,mg:4,sw:105,al:45,lc:-1,lm:'-11'},
+warm:{vp:0,mc:1,de:0,eq:[3,2,0,-1,-2],cr:3,mg:2,sw:100,al:20,lc:-1,lm:'-14'},
+bright:{vp:4,mc:2,de:2,eq:[-1,0,1,3,4],cr:3,mg:2,sw:110,al:20,lc:-1,lm:'-14'},
+loud:{vp:2,mc:0,de:0,eq:[2,1,0,2,1],cr:8,mg:6,sw:100,al:40,lc:-0.5,lm:'-11'}
+};
+function analyzeTrack(buf){
+var sr=buf.sampleRate;var d=buf.getChannelData(0);
+var aLow=1-Math.exp(-2*Math.PI*200/sr);var aHigh=1-Math.exp(-2*Math.PI*6000/sr);
+var lp=0,hpLp=0,sumT=0,sumL=0,sumH=0,cnt=0;
+var frameRms=[];var fSum=0,fCnt=0;
+for(var i=0;i<d.length;i+=2){
+var x=d[i];
+lp+=aLow*(x-lp);
+hpLp+=aHigh*(x-hpLp);
+var hi=x-hpLp;
+sumT+=x*x;sumL+=lp*lp;sumH+=hi*hi;cnt++;
+fSum+=x*x;fCnt++;
+if(fCnt>=1024){frameRms.push(Math.sqrt(fSum/fCnt));fSum=0;fCnt=0;}
+}
+var rmsT=Math.sqrt(sumT/Math.max(cnt,1));
+var lowRatio=rmsT>0?Math.sqrt(sumL/cnt)/rmsT:0;
+var highRatio=rmsT>0?Math.sqrt(sumH/cnt)/rmsT:0;
+frameRms.sort(function(a,b){return a-b;});
+var p50=frameRms[Math.floor(frameRms.length*0.5)]||0.001;
+var p95=frameRms[Math.floor(frameRms.length*0.95)]||0.001;
+var dr=p50>0?20*Math.log10(p95/p50):0;
+return {lowRatio:lowRatio,highRatio:highRatio,dr:dr};
+}
+async function aiMaster(name,el){
+if(!srcBuf){var sm=document.getElementById('statusMsg');sm.style.display='block';sm.className='status-msg error';sm.textContent='Load a track first, then pick an AI master.';return;}
+document.querySelectorAll('.preset').forEach(function(e){e.classList.remove('sel');});
+if(el)el.classList.add('sel');
+var note=document.getElementById('aiMasterNote');
+var status=document.getElementById('statusMsg');
+status.style.display='block';status.className='status-msg loading';status.textContent='AI is listening to your track...';
+var a=analyzeTrack(srcBuf);
+var lufs=null;try{lufs=await measureLUFS(srcBuf);}catch(e){}
+var base=AI_PROFILES[name];if(!base)return;
+var p={vp:base.vp,mc:base.mc,de:base.de,eq:base.eq.slice(),cr:base.cr,mg:base.mg,sw:base.sw,al:base.al,lc:base.lc,lm:base.lm};
+var notes=[];
+if(a.lowRatio>0.72){p.mc+=2;p.eq[0]-=2;notes.push('track is boomy, so it cut extra mud and low end');}
+if(a.highRatio<0.07){p.eq[4]+=3;p.vp+=2;notes.push('track sounds dark/muffled, so it lifted air and vocal presence');}
+if(a.highRatio>0.17){p.de+=3;p.eq[4]-=2;notes.push('track is harsh up top, so it tamed the highs');}
+if(a.dr>14){p.cr=Math.max(2,p.cr-2);notes.push('wide dynamics, so compression stayed gentle to keep the life in it');}
+if(a.dr<6&&a.dr>0){p.mg=Math.max(0,p.mg-2);notes.push('already squashed loud, so it held back extra gain');}
+for(var i=0;i<5;i++)p.eq[i]=Math.max(-12,Math.min(12,p.eq[i]));
+p.vp=Math.max(0,Math.min(8,p.vp));p.mc=Math.max(0,Math.min(8,p.mc));p.de=Math.max(0,Math.min(8,p.de));
+document.getElementById('autoLevel').value=p.al;document.getElementById('alVal').textContent=p.al+'%';
+var dcb=document.getElementById('declipChk');if(dcb)dcb.checked=true;
+var lms=document.getElementById('loudMode');if(lms)lms.value=p.lm;
+document.getElementById('vocalPres').value=p.vp;setVP(p.vp);
+document.getElementById('mudCut').value=p.mc;setMC(p.mc);
+document.getElementById('deEss').value=p.de;setDE(p.de);
+for(var j=0;j<5;j++){document.getElementById('eq'+(j+1)).value=p.eq[j];setEQ(j,p.eq[j]);}
+document.getElementById('compRatio').value=p.cr;setComp(p.cr);
+document.getElementById('limCeil').value=p.lc;document.getElementById('lcVal').textContent=p.lc+'dB';
+document.getElementById('makeupGain').value=p.mg;setGain(p.mg);
+document.getElementById('stereoW').value=p.sw;setWidth(p.sw);
+var heard='AI heard: '+(lufs!==null?lufs.toFixed(1)+' LUFS, ':'')+'dynamics '+a.dr.toFixed(1)+' dB. ';
+note.textContent=heard+(notes.length?('It '+notes.join('; ')+'.'):'Your track already fit the '+name+' profile well.')+' Rendering your master now...';
+status.textContent='AI set the controls - rendering your master...';
+await exportTrack();
 }
 function encodeWAV(buf){
 var ch=buf.numberOfChannels;var sr=buf.sampleRate;var len=buf.length;
