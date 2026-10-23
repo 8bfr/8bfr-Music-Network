@@ -1248,6 +1248,23 @@ function loadImage(src){
       .catch(function(e){reject(new Error('Image load failed: '+e.message));});
   });
 }
+// Like loadImage, but if Pollinations answers 402 (paid model out of Pollen),
+// it retries once with a free model and flags window._imgUsedFree. If the free
+// model also gets a 402, it fails with a plain-English message.
+function loadImageSmart(url,fallbackModel){
+  var fb=fallbackModel||'tongyi-mai/z-image-turbo';
+  return loadImage(url).catch(function(e){
+    if(String(e.message).indexOf('402')===-1) throw e;
+    var fu;
+    if(/model=/.test(url)) fu=url.replace(/model=[^&]+/,'model='+encodeURIComponent(fb));
+    else fu=url+'&model='+encodeURIComponent(fb);
+    window._imgUsedFree=true;
+    return loadImage(fu).catch(function(e2){
+      if(String(e2.message).indexOf('402')>-1) throw new Error('The image AI is out of Pollen tokens right now. Refill at enter.pollinations.ai - or use an upload-your-own-image option, those still work.');
+      throw e2;
+    });
+  });
+}
 
 // Asks the AI for a top/bottom caption + an image prompt, in a simple
 // line-based format (more reliable to parse than asking for JSON).
@@ -1650,7 +1667,7 @@ var CLIENT_HANDLERS={
       var seed=Math.floor(Math.random()*1000000);
       var url='https://gen.pollinations.ai/image/'+encodeURIComponent(imgPrompt)+'?width='+s.w+'&height='+s.h+'&seed='+seed+'&nologo=true&model='+encodeURIComponent(pgModel)+'&key=sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
       try{
-        var img=await loadImage(url);
+        var img=await loadImageSmart(url);
         var canvas=document.createElement('canvas');
         canvas.width=s.w;canvas.height=s.h;
         var ctx=canvas.getContext('2d');
@@ -1743,14 +1760,14 @@ var CLIENT_HANDLERS={
           : imgPrompt+'. Enhance and stylize this background for a professional album cover, high quality, square format, keep the overall composition.';
         showLoading('Step 3: Generating your cover (15-40s)...');
         var kontextUrl=IMG_GEN+encodeURIComponent(kontextPrompt)+'?model='+encodeURIComponent(editModel)+'&image='+encodeURIComponent(sourceUrl)+'&width=1024&height=1024&nologo=true&key=sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
-        img=await loadImage(kontextUrl);
+        img=await loadImageSmart(kontextUrl,'microsoft/mai-image-2.6-flash');
       }
     }
 
     if(!img){
       showLoading('Step 2: Generating image (15-30s)...');
       var polUrl='https://gen.pollinations.ai/image/'+(imgPrompt+', album cover art, high quality, professional, square').replace(/[^a-zA-Z0-9 ,.-]/g,'')+'?width=1024&height=1024&nologo=true&model='+encodeURIComponent(coverModel)+'&key=sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
-      img=await loadImage(polUrl);
+      img=await loadImageSmart(polUrl);
     }
 
     var canvas=document.createElement('canvas');
@@ -1952,6 +1969,7 @@ var CLIENT_HANDLERS={
     var topText = v.top||'';
     var bottomText = v.bottom||'';
     var MEME_MODEL = '&model='+(((typeof isOwnerOrCoOwner!=='undefined')&&isOwnerOrCoOwner)||(window._userTier&&window._userTier!=='free')?'black-forest-labs/flux-3-image':'microsoft/mai-image-2.6-flash');
+    window._imgUsedFree=false;
     var MEME_KEY = '&key=sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8'; // required by Pollinations proxy — missing this caused "Proxy HTTP 400"
     var isOwner = (typeof isOwnerOrCoOwner!=='undefined') && !!isOwnerOrCoOwner;
     var memeTier = (isOwner || (window._userTier && window._userTier!=='free')) ? 'mini' : 'nano'; // owner + upgraded members get the smarter writer
@@ -1971,7 +1989,7 @@ var CLIENT_HANDLERS={
       var imgPrompt = concept.imagePrompt || (aiPrompt+', meme format, funny');
       showLoading('AI generating meme image...');
       var url=IMG_GEN+encodeURIComponent(imgPrompt+', meme format, funny, no text, no words')+'?width=800&height=800&nologo=true&seed='+Math.floor(Math.random()*1000000)+MEME_MODEL+MEME_KEY;
-      img=await loadImage(url);
+      img=await loadImageSmart(url);
 
     } else if(mode === 'Surprise me — totally random AI meme'){
       showLoading('AI is inventing a random meme...');
@@ -1981,13 +1999,13 @@ var CLIENT_HANDLERS={
       var imgPrompt = concept.imagePrompt || 'random funny relatable meme scene';
       showLoading('AI generating meme image...');
       var url=IMG_GEN+encodeURIComponent(imgPrompt+', meme format, funny, no text, no words')+'?width=800&height=800&nologo=true&seed='+Math.floor(Math.random()*1000000)+MEME_MODEL+MEME_KEY;
-      img=await loadImage(url);
+      img=await loadImageSmart(url);
 
     } else if(aiPrompt){
       // Mode 2: AI generates image from description, user supplies text
       showLoading('AI generating meme image...');
       var url=IMG_GEN+encodeURIComponent(aiPrompt+', meme format, funny, no text, no words')+'?width=800&height=800&nologo=true&seed='+Math.floor(Math.random()*1000000)+MEME_MODEL+MEME_KEY;
-      img=await loadImage(url);
+      img=await loadImageSmart(url);
     } else if(files&&files[0]){
       var url=URL.createObjectURL(files[0]);
       img=new Image();
@@ -2072,7 +2090,7 @@ var CLIENT_HANDLERS={
     }
     var dataUrl=canvas.toDataURL('image/png');
     window._lastImageUrl=dataUrl;
-    showResult('<img src="'+dataUrl+'" alt="Meme">'+
+    showResult((window._imgUsedFree?'<div style="background:rgba(0,217,255,.08);border:1px solid rgba(0,217,255,.35);border-radius:8px;padding:.55rem .7rem;font-size:.78rem;margin-bottom:.5rem;">Heads up: the premium image model is out of Pollen, so this meme was made with the free image model instead.</div>':'')+'<img src="'+dataUrl+'" alt="Meme">'+
       '<div class="result-actions">'+
       '<button class="btn btn-sm" onclick="downloadImage(\'meme-8bfr.png\')">Download</button>'+
       '<button class="btn btn-ghost btn-sm" onclick="runTool()">Try Again</button>'+
@@ -2095,7 +2113,7 @@ var CLIENT_HANDLERS={
         showLoading('Generating frame '+(f+1)+'/'+numFrames+'...');
         var framePrompt=aiPrompt+', frame '+(f+1)+' of '+numFrames+' animation sequence, step '+(f+1)+', no text';
         var url=IMG_GEN+encodeURIComponent(framePrompt)+'?width='+width+'&height='+width+'&nologo=true&seed='+(Date.now()+f*100);
-        try{var img=await loadImage(url);imgs.push(img);}catch(e){showError('Frame '+(f+1)+' failed.');return;}
+        try{var img=await loadImageSmart(url);imgs.push(img);}catch(e){showError('Frame '+(f+1)+' failed.');return;}
       }
     } else if(files&&files.length>=2){
       showLoading('Loading '+files.length+' frames...');
