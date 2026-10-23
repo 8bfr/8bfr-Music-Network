@@ -104,6 +104,7 @@
             <div class="tools-grid">
                 <div class="tool-card" id="tool-songgen" onclick="selectTool('songgen')" style="border-color:rgba(74,222,128,.3);"><h3>🎵 Song Generator</h3><p>Generate actual song with vocals + music</p><span class="badge-real" style="background:rgba(74,222,128,.15);color:#4ade80;">🎵 REAL AUDIO</span></div>
                 <div class="tool-card" id="tool-stemspro" onclick="selectTool('stemspro')" style="border-color:rgba(74,222,128,.3);"><h3>Stem Splitter Pro</h3><p>ElevenLabs AI separation - 2 or 6 stems, cleaner instrumental</p><span class="badge-real" style="background:rgba(74,222,128,.15);color:#4ade80;">NEW AI</span></div>
+                <div class="tool-card" id="tool-myvoice" onclick="selectTool('myvoice')" style="border-color:rgba(0,217,255,.35);"><h3>My Voice (RVC)</h3><p>Clone your real voice - train once, then sing any AI song as you</p><span class="badge-real" style="background:rgba(0,217,255,.15);color:#00d9ff;">NEW</span></div>
                 <div class="tool-card" id="tool-beats" onclick="selectTool('beats')"><h3>🎵 Beat Ideas</h3><p>AI production concepts and arrangement blueprints</p><span class="badge-real">✅ REAL OUTPUT</span></div>
             </div>
         </div>
@@ -210,6 +211,7 @@
         video: { title: '🎬 Video Concept', hint: 'Describe the song and vision — get a storyboard plan.' },
         post: { title: '📝 Post Generator', hint: 'What platform and topic? Gets ready-to-paste posts.' },
         stemspro: { title: 'Stem Splitter Pro', hint: 'ElevenLabs AI stem separation - cleaner instrumental. Owner only.' },
+        myvoice: { title: 'My Voice (RVC Clone)', hint: 'Train your real voice once, then put it on any AI song. Owner only.' },
         songgen: { title: '🎵 Song Generator', hint: 'Generate an actual song with AI vocals and music. Owner only.' },
         imgconvert: { title: '🖼️ Image Converter', hint: 'Upload an image and convert between PNG, JPG, and WebP formats.' },
         audioextract: { title: '🎧 Audio Extractor', hint: 'Upload a video file to extract the audio track.' },
@@ -476,6 +478,42 @@
                 <button class="btn btn-primary" onclick="runStemPro()">Split Stems (ElevenLabs AI)</button>
                 <div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-top:.3rem;">New ElevenLabs separation engine - cleaner instrumental with less vocal bleed than the Demucs splitter. Runs on your Pollen tokens. Members keep using the regular Stem Splitter page.</div>
                 <div id="spResult" style="margin-top:1rem;"></div>`;
+            case 'myvoice': {
+                const savedModel = localStorage.getItem('rvcVoiceModelUrl') || '';
+                return `
+                <div class="form-group">
+                    <label>STEP 1 - Train Your Voice (one time)</label>
+                    <div style="font-size:.78rem;color:var(--text-dim);margin-bottom:.45rem;">Upload recordings of ONLY your voice - acapellas, verses, hooks, even talking. No beat, no music behind it. 10+ minutes total is best; clean and dry beats long and noisy. Your files are sliced and zipped right here in your browser, then trained on Replicate through your own API account (one-time cost, roughly $0.26-$3). Training takes about 5-20 minutes - leave this page open while it runs.</div>
+                    <input type="file" id="rvcTrainFiles" accept="audio/*" multiple style="margin-bottom:.4rem;">
+                    <input type="text" id="rvcVoiceName" placeholder="Voice name" value="james">
+                </div>
+                <button class="btn" onclick="rvcTrain()">Train My Voice</button>
+                <div id="rvcTrainStatus" style="font-size:.8rem;margin-top:.5rem;"></div>
+                <div class="form-group" style="margin-top:1rem;">
+                    <label>Your Trained Voice Model</label>
+                    <div id="rvcModelStatus" style="font-size:.8rem;margin-bottom:.35rem;">${savedModel ? 'Voice model saved in this browser - ready to convert.' : 'No voice model yet - train above first.'}</div>
+                    <input type="text" id="rvcModelUrl" placeholder="Trained model URL (fills in automatically after training)" value="${savedModel}">
+                    <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+                        <button class="btn btn-sm" onclick="rvcSaveModelUrl()">Save Model URL</button>
+                        <button class="btn btn-sm" onclick="rvcClearModel()">Forget Model</button>
+                    </div>
+                    <div style="font-size:.72rem;color:var(--warn);margin-top:.35rem;">This URL IS your voice clone - anyone who has it can use your voice model. Keep it private. It is saved only in this browser; paste it back here if you switch browsers.</div>
+                </div>
+                <div class="form-group" style="margin-top:1rem;">
+                    <label>STEP 2 - Put Your Voice On A Song</label>
+                    <div style="font-size:.78rem;color:var(--text-dim);margin-bottom:.45rem;">Upload the full AI song. The model separates the vocal, swaps in YOUR voice, and mixes it back over the beat automatically. Roughly $0.04-$1 per song on Replicate. Best results when the AI singer is in a similar range to you.</div>
+                    <input type="file" id="rvcSongFile" accept="audio/*" style="margin-bottom:.4rem;">
+                    <label>Pitch Change</label>
+                    <select id="rvcPitch">
+                        <option value="no-change">No change (singer is in my range)</option>
+                        <option value="male-to-female">Male singer to female range</option>
+                        <option value="female-to-male">Female singer to male range</option>
+                    </select>
+                </div>
+                <button class="btn" onclick="rvcConvert()">Convert Song To My Voice</button>
+                <div id="rvcConvertStatus" style="font-size:.8rem;margin-top:.5rem;"></div>
+                <div id="rvcConvertResult"></div>`;
+            }
             case 'beats': return aiTextUI('e.g. 82 BPM boom-bap beat with piano chops, heavy bass, martial arts movie sample...');
 
             case 'kling': return `
@@ -1045,6 +1083,179 @@
     /* ═══════════════════════════════════════════════════
        ALBUM COVER GENERATOR (FIXED — artist name + featured)
        ═══════════════════════════════════════════════════ */
+    /* ═══════ MY VOICE (RVC) ═══════ */
+    var RVC_API = 'https://8bfr-api.vercel.app/api/replicate';
+    async function rvcUserId() {
+        var sess = await s.auth.getSession();
+        return (sess && sess.data && sess.data.session) ? sess.data.session.user.id : null;
+    }
+    async function rvcUpload(blob, name) {
+        var uid = await rvcUserId();
+        if (!uid) throw new Error('Not signed in');
+        var path = uid + '/' + name;
+        var ct = blob.type || 'application/octet-stream';
+        var up = await s.storage.from('temp-uploads').upload(path, blob, { cacheControl: '300', upsert: true, contentType: ct });
+        if (up.error) {
+            var up2 = await s.storage.from('uploads').upload(path, blob, { cacheControl: '300', upsert: true, contentType: ct });
+            if (up2.error) throw new Error('Upload failed: ' + up.error.message);
+            return s.storage.from('uploads').getPublicUrl(path).data.publicUrl;
+        }
+        return s.storage.from('temp-uploads').getPublicUrl(path).data.publicUrl;
+    }
+    async function rvcApi(payload) {
+        var r = await fetch(RVC_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        var j = {};
+        try { j = await r.json(); } catch (e) {}
+        if (!r.ok || j.ok === false) throw new Error(j.error || ('API error ' + r.status));
+        return j;
+    }
+    async function rvcPoll(predictionId, el, maxMinutes) {
+        var deadline = Date.now() + maxMinutes * 60 * 1000;
+        var n = 0;
+        while (Date.now() < deadline) {
+            await new Promise(function(res) { setTimeout(res, 8000); });
+            n++;
+            var j = await rvcApi({ action: 'rvc-poll', prediction_id: predictionId });
+            if (el) el.textContent = 'Working... status: ' + j.status + ' (' + (n * 8) + 's)';
+            if (j.status === 'succeeded') return j.output;
+            if (j.status === 'failed') throw new Error(j.error || 'Job failed');
+        }
+        throw new Error('Timed out waiting - the job may still finish on Replicate. Wait a bit and try the step again.');
+    }
+    function rvcOutUrl(out) {
+        if (!out) return null;
+        if (typeof out === 'string') return out;
+        if (Array.isArray(out)) return out[0];
+        if (out.url) return out.url;
+        return null;
+    }
+    function rvcWavBlob(samples, sr) {
+        var buf = new ArrayBuffer(44 + samples.length * 2);
+        var v = new DataView(buf);
+        function ws(off, str) { for (var i = 0; i < str.length; i++) v.setUint8(off + i, str.charCodeAt(i)); }
+        ws(0, 'RIFF'); v.setUint32(4, 36 + samples.length * 2, true); ws(8, 'WAVE'); ws(12, 'fmt ');
+        v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+        v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+        ws(36, 'data'); v.setUint32(40, samples.length * 2, true);
+        for (var i = 0; i < samples.length; i++) {
+            var x = Math.max(-1, Math.min(1, samples[i]));
+            v.setInt16(44 + i * 2, x < 0 ? x * 0x8000 : x * 0x7FFF, true);
+        }
+        return new Blob([buf], { type: 'audio/wav' });
+    }
+    var RVC_CRC_TABLE = null;
+    function rvcCrc32(bytes) {
+        if (!RVC_CRC_TABLE) {
+            RVC_CRC_TABLE = [];
+            for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); RVC_CRC_TABLE[n] = c >>> 0; }
+        }
+        var crc = 0xFFFFFFFF;
+        for (var i = 0; i < bytes.length; i++) crc = RVC_CRC_TABLE[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+        return (crc ^ 0xFFFFFFFF) >>> 0;
+    }
+    async function rvcZip(files) {
+        var chunks = [], central = [], offset = 0;
+        function u16(n) { return [n & 255, (n >>> 8) & 255]; }
+        function u32(n) { return [n & 255, (n >>> 8) & 255, (n >>> 16) & 255, (n >>> 24) & 255]; }
+        for (var f = 0; f < files.length; f++) {
+            var data = new Uint8Array(await files[f].blob.arrayBuffer());
+            var nameBytes = new TextEncoder().encode(files[f].name);
+            var crc = rvcCrc32(data);
+            var local = new Uint8Array([].concat(u32(0x04034b50), u16(20), u16(0x0800), u16(0), u16(0), u16(0), u32(crc), u32(data.length), u32(data.length), u16(nameBytes.length), u16(0)));
+            chunks.push(local); chunks.push(nameBytes); chunks.push(data);
+            var cen = new Uint8Array([].concat(u32(0x02014b50), u16(20), u16(20), u16(0x0800), u16(0), u16(0), u16(0), u32(crc), u32(data.length), u32(data.length), u16(nameBytes.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(offset)));
+            central.push(cen); central.push(nameBytes);
+            offset += local.length + nameBytes.length + data.length;
+        }
+        var cenStart = offset, cenSize = 0;
+        central.forEach(function(c) { cenSize += c.length; });
+        var end = new Uint8Array([].concat(u32(0x06054b50), u16(0), u16(0), u16(files.length), u16(files.length), u32(cenSize), u32(cenStart), u16(0)));
+        return new Blob(chunks.concat(central, [end]), { type: 'application/zip' });
+    }
+    async function rvcBuildDataset(fileList, statusEl) {
+        var actx = new (window.AudioContext || window.webkitAudioContext)();
+        var all = [];
+        var totalSec = 0;
+        for (var i = 0; i < fileList.length; i++) {
+            statusEl.textContent = 'Reading your recordings (' + (i + 1) + '/' + fileList.length + ')...';
+            var ab = await fileList[i].arrayBuffer();
+            var buf = await actx.decodeAudioData(ab);
+            var off = new OfflineAudioContext(1, Math.ceil(buf.duration * 22050), 22050);
+            var src = off.createBufferSource(); src.buffer = buf; src.connect(off.destination); src.start(0);
+            var rb = await off.startRendering();
+            var d = rb.getChannelData(0);
+            for (var j = 0; j < d.length; j++) all.push(d[j]);
+            totalSec += buf.duration;
+            if (totalSec > 1500) { statusEl.textContent = 'Got 25 minutes of voice - that is plenty. Packing...'; break; }
+        }
+        var samples = new Float32Array(all); all = null;
+        var chunk = 22050 * 10;
+        var entries = [];
+        var voiceName = ((document.getElementById('rvcVoiceName') || {}).value || 'james').replace(/[^a-z0-9_]/gi, '_').toLowerCase() || 'james';
+        for (var s0 = 0, idx = 0; s0 < samples.length; s0 += chunk, idx++) {
+            var part = samples.subarray(s0, Math.min(samples.length, s0 + chunk));
+            if (part.length < 22050 * 2) break;
+            entries.push({ name: 'dataset/' + voiceName + '/split_' + idx + '.wav', blob: rvcWavBlob(part, 22050) });
+        }
+        if (!entries.length) throw new Error('Not enough audio - add at least a few seconds of voice.');
+        statusEl.textContent = 'Packing ' + entries.length + ' clips (' + Math.round(totalSec) + 's of voice) into the training zip...';
+        return { zip: await rvcZip(entries), seconds: totalSec, clips: entries.length };
+    }
+    window.rvcTrain = async function() {
+        var statusEl = document.getElementById('rvcTrainStatus');
+        var files = document.getElementById('rvcTrainFiles').files;
+        if (!files || !files.length) { statusEl.textContent = 'Pick your voice recordings first.'; return; }
+        try {
+            var uid = await rvcUserId();
+            if (!uid) { statusEl.textContent = 'Not signed in.'; return; }
+            var built = await rvcBuildDataset(files, statusEl);
+            statusEl.textContent = built.seconds < 60
+                ? 'Only ' + Math.round(built.seconds) + 's of voice - training anyway, but 10+ minutes makes a much better clone. Uploading dataset...'
+                : 'Uploading your voice dataset...';
+            var zipUrl = await rvcUpload(built.zip, 'rvc-dataset-' + Date.now() + '.zip');
+            statusEl.textContent = 'Training started - about 5-20 minutes. Leave this page open...';
+            var start = await rvcApi({ action: 'rvc-train', user_id: uid, dataset_zip: zipUrl, epoch: 80 });
+            localStorage.setItem('rvcTrainPrediction', start.prediction_id);
+            var out = await rvcPoll(start.prediction_id, statusEl, 45);
+            var url = rvcOutUrl(out);
+            if (!url) throw new Error('Training finished but no model URL came back.');
+            localStorage.setItem('rvcVoiceModelUrl', url);
+            var mu = document.getElementById('rvcModelUrl'); if (mu) mu.value = url;
+            var ms = document.getElementById('rvcModelStatus'); if (ms) ms.textContent = 'Voice model ready and saved in this browser.';
+            statusEl.textContent = 'Training done! Your voice model is saved. Now put it on a song in Step 2.';
+        } catch (e) { statusEl.textContent = 'Training problem: ' + e.message; }
+    };
+    window.rvcSaveModelUrl = function() {
+        var u = ((document.getElementById('rvcModelUrl') || {}).value || '').trim();
+        if (u) { localStorage.setItem('rvcVoiceModelUrl', u); document.getElementById('rvcModelStatus').textContent = 'Saved in this browser - ready to convert.'; }
+    };
+    window.rvcClearModel = function() {
+        localStorage.removeItem('rvcVoiceModelUrl');
+        var mu = document.getElementById('rvcModelUrl'); if (mu) mu.value = '';
+        document.getElementById('rvcModelStatus').textContent = 'No voice model saved.';
+    };
+    window.rvcConvert = async function() {
+        var statusEl = document.getElementById('rvcConvertStatus');
+        var resEl = document.getElementById('rvcConvertResult');
+        var modelUrl = ((document.getElementById('rvcModelUrl') || {}).value || '').trim() || localStorage.getItem('rvcVoiceModelUrl') || '';
+        if (!modelUrl) { statusEl.textContent = 'Train your voice first (Step 1), or paste a trained model URL.'; return; }
+        var f = document.getElementById('rvcSongFile').files[0];
+        if (!f) { statusEl.textContent = 'Pick a song file first.'; return; }
+        try {
+            var uid = await rvcUserId();
+            if (!uid) { statusEl.textContent = 'Not signed in.'; return; }
+            statusEl.textContent = 'Uploading your song...';
+            var songUrl = await rvcUpload(f, 'rvc-song-' + Date.now() + '-' + f.name.replace(/[^a-z0-9.]/gi, '_'));
+            statusEl.textContent = 'Converting - separating the vocal, swapping in your voice, remixing (about 1-4 minutes)...';
+            var start = await rvcApi({ action: 'rvc-convert', user_id: uid, song_input: songUrl, rvc_model_url: modelUrl, pitch_change: (document.getElementById('rvcPitch') || {}).value || 'no-change' });
+            var out = await rvcPoll(start.prediction_id, statusEl, 15);
+            var url = rvcOutUrl(out);
+            if (!url) throw new Error('Conversion finished but no audio URL came back.');
+            statusEl.textContent = 'Done - that is your voice on the song:';
+            resEl.innerHTML = '<audio controls src="' + url + '" style="width:100%;margin-top:.4rem;"></audio><a class="btn" href="' + url + '" download="my-voice-song.mp3" style="margin-top:.4rem;display:inline-block;">Download Song (MP3)</a>';
+        } catch (e) { statusEl.textContent = 'Convert problem: ' + e.message; }
+    };
+
     window.runStemPro = async function() {
         var f = (document.getElementById('spFile') || {}).files;
         var file = f && f[0];
