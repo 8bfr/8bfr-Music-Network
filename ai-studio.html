@@ -131,6 +131,21 @@ var API = 'https://8bfr-api.vercel.app/api/openai';
 var IMG_GEN = 'https://gen.pollinations.ai/image/'; // updated unified endpoint
 var IMG_GEN_LEGACY = 'https://image.pollinations.ai/prompt/'; // fallback
 
+// ─── STUDIO UPGRADE HELPERS (Oct 2026) ───
+var STUDIO_KEY = 'sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
+function isPremiumMember(){
+  if(typeof isOwnerOrCoOwner!=='undefined'&&isOwnerOrCoOwner)return true;
+  return !!(window._userTier&&window._userTier!=='free');
+}
+function coverFitDraw(ctx,img,W,H){
+  var iw=img.naturalWidth||img.width, ih=img.naturalHeight||img.height;
+  if(!iw||!ih){ctx.drawImage(img,0,0,W,H);return;}
+  var sc=Math.max(W/iw,H/ih), w=iw*sc, h=ih*sc;
+  ctx.drawImage(img,(W-w)/2,(H-h)/2,w,h);
+}
+var PREMIUM_IMG_MODELS = ['black-forest-labs/flux-3-image','openai/gpt-image-2.5-sunburst','bytedance/seedream-5.0-flash'];
+
+
 // ═══════════════════════════════════════════════════════════════════
 // GLOBAL 8BFR CONTEXT — injected into every AI tool's system prompt
 // This ensures AI always knows about 8BFR, James J Siburt, and the platform
@@ -339,6 +354,7 @@ var TOOLS = [
       {name:'textPos',label:'Text layout',type:'select',options:['bottom','top','center','split (artist top / title center / feat bottom)','none'],id:'coverTextPos'},
       {name:'textStyle',label:'Text style',type:'select',options:['Classic White','3D Shadow','Neon Glow','Gold Metallic','Chrome','Graffiti Outline','Blood Drip','Fire','Ice Blue','Vintage Stamp'],id:'coverTextStyle'},
       {name:'bgFx',label:'Background effect',type:'select',options:['none','dark overlay','vignette','film grain','scanlines','color burn','glitch tint','holographic shimmer'],id:'coverBgFx'},
+      {name:'model',label:'Image model',type:'select',options:['Auto (best for your plan)','MAI Image 2.6 Flash (free)','FLUX.3 Image (premium)','GPT Image 2.5 Sunburst (premium)','Seedream 5.0 Flash (premium)'],id:'coverModel'},
       {name:'prompt',label:'Visual style description',type:'textarea',placeholder:'e.g. Dark neon city at night, rain reflections',required:true,id:'coverPrompt'},
       {name:'refPhoto',label:'Your photo (optional) — keeps YOUR real face/likeness consistent, placed into the scene above',type:'file',accept:'image/*',id:'coverRefPhoto'},
       {name:'bgPhoto',label:'Your own background photo (optional, used if no photo above) — AI enhances it instead of generating one from scratch',type:'file',accept:'image/*',id:'coverBgPhoto'}
@@ -364,6 +380,7 @@ var TOOLS = [
         {label:'Square (1:1)',w:1024,h:1024},
         {label:'Profile Pic',w:512,h:512}
       ]},
+      {name:'model',label:'Image model',type:'select',options:['Auto (best for your plan)','Z-Image Turbo (free, fast)','MAI Image 2.6 Flash (free, best for photo edits)','FLUX.3 Image (premium)','GPT Image 2.5 Sunburst (premium)','Seedream 5.0 Flash (premium)'],id:'pgModel'},
       {name:'customSize',label:'OR custom size (e.g. 1080x1350) - leave blank to use platforms above',type:'text',placeholder:'WIDTHxHEIGHT',id:'pgCustom'}
     ]
   },
@@ -435,7 +452,7 @@ var TOOLS = [
   { id:'audio-extractor', cat:'media', type:'client', handler:'audioExtract', icon:'🎧', name:'Audio Extractor', desc:'Pull audio from video files', badges:['tool'],
     fields:[
       {name:'video',label:'Upload video',type:'file',accept:'video/*',required:true,id:'vidFile'},
-      {name:'format',label:'Output format',type:'select',options:['wav','webm'],id:'audioFmt'}
+      {name:'format',label:'Output format',type:'select',options:['mp3','wav','webm'],id:'audioFmt'}
     ]
   },
   { id:'video-cutter', cat:'media', type:'client', handler:'videoCut', icon:'✂️', name:'Video Trimmer', desc:'Trim video with visual timeline', badges:['tool'],
@@ -468,7 +485,8 @@ var TOOLS = [
   { id:'transcribe', cat:'music', type:'client', handler:'transcribeAudio', icon:'📝', name:'Lyrics Transcriber', desc:'Upload a song and get the lyrics transcribed', badges:['music','ai'],
     fields:[
       {name:'audio',label:'Upload song (MP3, WAV, M4A, OGG - max 25MB)',type:'file',accept:'audio/*,.mp3,.wav,.m4a,.ogg,.flac',required:true,id:'trFile'},
-      {name:'language',label:'Language',type:'select',options:['Auto Detect','English','Spanish','French','German','Portuguese','Japanese','Korean','Chinese'],id:'trLang'}
+      {name:'language',label:'Language',type:'select',options:['Auto Detect','English','Spanish','French','German','Portuguese','Japanese','Korean','Chinese'],id:'trLang'},
+      {name:'engine',label:'Transcription engine',type:'select',options:['Standard (fast)','Whisper Large v3 (free, more accurate)','Scribe v2 (premium, most accurate)'],id:'trEngine'}
     ]
   },
   { id:'green-screen', cat:'media', type:'client', handler:'greenScreen', icon:'🖼️', name:'Background Remover', desc:'Replace background in photos and videos automatically', badges:['tool'],
@@ -631,6 +649,14 @@ var TOOLS = [
   },
 
   // ═══ FUN & GAMES ═══
+  { id:'ai-video-maker', cat:'video', type:'client', handler:'videoGen', icon:'\uD83C\uDFAC', name:'AI Video Maker', desc:'Real AI video clips - TikTok shorts, scenes, stories (upgraded members)', badges:['tool','video'],
+    fields:[
+      {name:'prompt',label:'Describe the video',type:'textarea',required:true,id:'vgPrompt',placeholder:'e.g. A rapper performing on a rooftop at sunset, city skyline behind him, cinematic camera move'},
+      {name:'vmodel',label:'Video model',type:'select',id:'vgModel',options:['Kling 3.0 (best motion)','Seedance 2.5','MiniMax H3 Max','Wan 3.0','Grok Imagine Video 1.5','Wan 2.2 Fast (cheapest)']},
+      {name:'aspect',label:'Shape',type:'select',id:'vgAspect',options:['9:16 (TikTok / Shorts)','16:9 (YouTube)']},
+      {name:'dur',label:'Length (seconds)',type:'select',id:'vgDur',options:['5','10','15']}
+    ]
+  },
   { id:'roast', cat:'fun', type:'ai', icon:'🔥', name:'Roast Generator', desc:'Light-hearted roasts', badges:['fun'], tier:'nano',
     system:'You write light, playful roasts that tease without being mean-spirited. Keep them clever and PG-13.',
     fields:[{name:'target',label:'Who/what to roast',type:'textarea',required:true}],
@@ -1583,6 +1609,14 @@ var CLIENT_HANDLERS={
 
     // Owner + paid tiers: no watermark, HD. Free: watermark.
     var noWatermark = isOwnerOrCoOwner || (window._userTier && window._userTier!=='free');
+    // Model choice: premium models only unlock for owner / upgraded tiers.
+    var pgModelMap={'Z-Image Turbo (free, fast)':'tongyi-mai/z-image-turbo','MAI Image 2.6 Flash (free, best for photo edits)':'microsoft/mai-image-2.6-flash','FLUX.3 Image (premium)':'black-forest-labs/flux-3-image','GPT Image 2.5 Sunburst (premium)':'openai/gpt-image-2.5-sunburst','Seedream 5.0 Flash (premium)':'bytedance/seedream-5.0-flash'};
+    var pgModel=pgModelMap[v.model]||(noWatermark?'black-forest-labs/flux-3-image':'tongyi-mai/z-image-turbo');
+    var pgNote='';
+    if(PREMIUM_IMG_MODELS.indexOf(pgModel)>-1&&!noWatermark){
+      pgModel='tongyi-mai/z-image-turbo';
+      pgNote='Premium models are for upgraded members - this one used the free Z-Image Turbo model.';
+    }
 
     // Step 1: enhance the prompt once (reused for every size)
     showLoading('Enhancing your prompt with AI...');
@@ -1600,13 +1634,13 @@ var CLIENT_HANDLERS={
       var s=sizes[i];
       showLoading('Generating '+s.label+' ('+(i+1)+' of '+sizes.length+')... '+s.w+'x'+s.h);
       var seed=Math.floor(Math.random()*1000000);
-      var url='https://gen.pollinations.ai/image/'+encodeURIComponent(imgPrompt)+'?width='+s.w+'&height='+s.h+'&seed='+seed+'&nologo=true&key=sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
+      var url='https://gen.pollinations.ai/image/'+encodeURIComponent(imgPrompt)+'?width='+s.w+'&height='+s.h+'&seed='+seed+'&nologo=true&model='+encodeURIComponent(pgModel)+'&key=sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
       try{
         var img=await loadImage(url);
         var canvas=document.createElement('canvas');
         canvas.width=s.w;canvas.height=s.h;
         var ctx=canvas.getContext('2d');
-        ctx.drawImage(img,0,0,s.w,s.h);
+        coverFitDraw(ctx,img,s.w,s.h);
         if(!noWatermark){
           var fs=Math.max(14,Math.round(s.w*0.028));
           ctx.font='bold '+fs+'px "Work Sans", sans-serif';
@@ -1641,6 +1675,9 @@ var CLIENT_HANDLERS={
     if(!noWatermark){
       html+='<div style="font-size:.72rem;color:#fbbf24;margin-top:.5rem;text-align:center;">Free tier images include an 8BFR watermark. Upgrade to VIP+ for clean HD downloads.</div>';
     }
+    if(pgNote){
+      html+='<div style="font-size:.72rem;color:#fbbf24;margin-top:.5rem;text-align:center;">'+pgNote+'</div>';
+    }
     showResult(html);
   },
 
@@ -1648,6 +1685,15 @@ var CLIENT_HANDLERS={
     var artist=v.artist||'',title=v.title||'',featured=v.featured||'',pos=v.textPos||'bottom',prompt=v.prompt||'';
     var refFile=v.refPhoto&&v.refPhoto[0];
     var bgFile=v.bgPhoto&&v.bgPhoto[0];
+    // Newest models, tier-gated: free members get the free edit/generate
+    // models, upgraded members and the owner get the premium flagships.
+    var premiumMember=isPremiumMember();
+    var coverModelMap={'MAI Image 2.6 Flash (free)':'microsoft/mai-image-2.6-flash','FLUX.3 Image (premium)':'black-forest-labs/flux-3-image','GPT Image 2.5 Sunburst (premium)':'openai/gpt-image-2.5-sunburst','Seedream 5.0 Flash (premium)':'bytedance/seedream-5.0-flash'};
+    var coverModel=coverModelMap[v.model]||(premiumMember?'black-forest-labs/flux-3-image':'microsoft/mai-image-2.6-flash');
+    if(!premiumMember&&PREMIUM_IMG_MODELS.indexOf(coverModel)>-1)coverModel='microsoft/mai-image-2.6-flash';
+    var editModel;
+    if(v.model&&coverModelMap[v.model]&&(premiumMember||coverModel==='microsoft/mai-image-2.6-flash'))editModel=coverModel;
+    else editModel=premiumMember?'black-forest-labs/flux-3-image':'kontext';
 
     showLoading('Step 1: Enhancing prompt with AI...');
 
@@ -1682,21 +1728,21 @@ var CLIENT_HANDLERS={
           ? 'Keep this exact person\'s face and likeness completely unchanged. Place them into this scene: '+imgPrompt+'. Album cover art, high quality, professional, square format.'
           : imgPrompt+'. Enhance and stylize this background for a professional album cover, high quality, square format, keep the overall composition.';
         showLoading('Step 3: Generating your cover (15-40s)...');
-        var kontextUrl=IMG_GEN+encodeURIComponent(kontextPrompt)+'?model=kontext&image='+encodeURIComponent(sourceUrl)+'&width=1024&height=1024&nologo=true&key=sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
+        var kontextUrl=IMG_GEN+encodeURIComponent(kontextPrompt)+'?model='+encodeURIComponent(editModel)+'&image='+encodeURIComponent(sourceUrl)+'&width=1024&height=1024&nologo=true&key=sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
         img=await loadImage(kontextUrl);
       }
     }
 
     if(!img){
       showLoading('Step 2: Generating image (15-30s)...');
-      var polUrl='https://gen.pollinations.ai/image/'+(imgPrompt+', album cover art, high quality, professional, square').replace(/[^a-zA-Z0-9 ,.-]/g,'')+'?width=1024&height=1024&nologo=true&key=sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
+      var polUrl='https://gen.pollinations.ai/image/'+(imgPrompt+', album cover art, high quality, professional, square').replace(/[^a-zA-Z0-9 ,.-]/g,'')+'?width=1024&height=1024&nologo=true&model='+encodeURIComponent(coverModel)+'&key=sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
       img=await loadImage(polUrl);
     }
 
     var canvas=document.createElement('canvas');
     canvas.width=1024;canvas.height=1024;
     var ctx=canvas.getContext('2d');
-    ctx.drawImage(img,0,0,1024,1024);
+    coverFitDraw(ctx,img,1024,1024);
 
     // ── BACKGROUND EFFECTS ──
     var bgFx=v.bgFx||'none';
@@ -1824,6 +1870,7 @@ var CLIENT_HANDLERS={
     showResult('<img src="'+dataUrl+'" alt="Album cover">'+
       '<div class="result-actions">'+
       '<button class="btn btn-sm" onclick="downloadImage(\'album-cover-8bfr.png\')">⬇️ Download</button>'+
+      '<button class="btn btn-sm" onclick="downloadCover3000()">⬇️ 3000x3000 (DistroKid)</button>'+
       '<button class="btn btn-ghost btn-sm" onclick="runTool()">🔄 Try Again</button>'+
       '</div>'+
       '<div style="font-size:0.75rem;color:rgba(168,85,247,0.7);margin-top:0.5rem;">Enhanced prompt: '+esc(imgPrompt)+'</div>');
@@ -1890,9 +1937,10 @@ var CLIENT_HANDLERS={
     var aiPrompt = (v.aiPrompt||'').trim();
     var topText = v.top||'';
     var bottomText = v.bottom||'';
+    var MEME_MODEL = '&model='+(((typeof isOwnerOrCoOwner!=='undefined')&&isOwnerOrCoOwner)||(window._userTier&&window._userTier!=='free')?'black-forest-labs/flux-3-image':'microsoft/mai-image-2.6-flash');
     var MEME_KEY = '&key=sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8'; // required by Pollinations proxy — missing this caused "Proxy HTTP 400"
     var isOwner = (typeof isOwnerOrCoOwner!=='undefined') && !!isOwnerOrCoOwner;
-    var memeTier = isOwner ? 'mini' : 'nano'; // owner gets the smarter (pricier) writer; everyone else uses the cheaper one
+    var memeTier = (isOwner || (window._userTier && window._userTier!=='free')) ? 'mini' : 'nano'; // owner + upgraded members get the smarter writer
 
     if(mode === 'Upload my own image'){
       if(!(files&&files[0])){ showError('Upload an image for this mode.'); return; }
@@ -1908,7 +1956,7 @@ var CLIENT_HANDLERS={
       if(!bottomText) bottomText = concept.bottom;
       var imgPrompt = concept.imagePrompt || (aiPrompt+', meme format, funny');
       showLoading('AI generating meme image...');
-      var url=IMG_GEN+encodeURIComponent(imgPrompt+', meme format, funny, no text, no words')+'?width=800&height=800&nologo=true&seed='+Math.floor(Math.random()*1000000)+MEME_KEY;
+      var url=IMG_GEN+encodeURIComponent(imgPrompt+', meme format, funny, no text, no words')+'?width=800&height=800&nologo=true&seed='+Math.floor(Math.random()*1000000)+MEME_MODEL+MEME_KEY;
       img=await loadImage(url);
 
     } else if(mode === 'Surprise me — totally random AI meme'){
@@ -1918,13 +1966,13 @@ var CLIENT_HANDLERS={
       if(!bottomText) bottomText = concept.bottom;
       var imgPrompt = concept.imagePrompt || 'random funny relatable meme scene';
       showLoading('AI generating meme image...');
-      var url=IMG_GEN+encodeURIComponent(imgPrompt+', meme format, funny, no text, no words')+'?width=800&height=800&nologo=true&seed='+Math.floor(Math.random()*1000000)+MEME_KEY;
+      var url=IMG_GEN+encodeURIComponent(imgPrompt+', meme format, funny, no text, no words')+'?width=800&height=800&nologo=true&seed='+Math.floor(Math.random()*1000000)+MEME_MODEL+MEME_KEY;
       img=await loadImage(url);
 
     } else if(aiPrompt){
       // Mode 2: AI generates image from description, user supplies text
       showLoading('AI generating meme image...');
-      var url=IMG_GEN+encodeURIComponent(aiPrompt+', meme format, funny, no text, no words')+'?width=800&height=800&nologo=true&seed='+Math.floor(Math.random()*1000000)+MEME_KEY;
+      var url=IMG_GEN+encodeURIComponent(aiPrompt+', meme format, funny, no text, no words')+'?width=800&height=800&nologo=true&seed='+Math.floor(Math.random()*1000000)+MEME_MODEL+MEME_KEY;
       img=await loadImage(url);
     } else if(files&&files[0]){
       var url=URL.createObjectURL(files[0]);
@@ -2193,7 +2241,7 @@ var CLIENT_HANDLERS={
   audioExtract: async function(v){
     var files=v.video;
     if(!files||!files[0]){showError('Upload a video first.');return;}
-    var fmt=v.format||'wav';
+    var fmt=v.format||'mp3';
 
     showLoading('Extracting audio (may take a moment)...');
     var arrayBuffer=await files[0].arrayBuffer();
@@ -2207,7 +2255,14 @@ var CLIENT_HANDLERS={
     }
 
     var blob;
-    if(fmt==='wav'){
+    if(fmt==='mp3'){
+      try {
+        blob=await audioBufferToMp3(audioBuffer);
+      } catch(e){
+        blob=audioBufferToWav(audioBuffer);
+        fmt='wav';
+      }
+    } else if(fmt==='wav'){
       blob=audioBufferToWav(audioBuffer);
     } else {
       // WebM - use a fresh approach: render to offline context and MediaRecorder
@@ -2748,6 +2803,32 @@ var CLIENT_HANDLERS={
     if(file.size>24*1024*1024){showError('File too large ('+Math.round(file.size/1024/1024)+'MB). Max 24MB.');return;}
     showLoading('Preparing audio...');
     try{
+      // New engines (Oct 2026): Whisper Large v3 (free) or Scribe v2
+      // (premium) direct from Pollinations - much better word accuracy
+      // than the old standard path, which stays as the fallback.
+      var engSel=document.getElementById('trEngine');
+      var engine=engSel?engSel.value:'Standard (fast)';
+      if(engine.indexOf('Standard')!==0){
+        var useScribe=engine.indexOf('Scribe')!==-1;
+        if(useScribe&&!isPremiumMember()){showError('Scribe v2 is a premium engine for upgraded members. Use Standard or Whisper Large v3 (free), or upgrade your plan.');return;}
+        showLoading('Transcribing with '+(useScribe?'Scribe v2 (most accurate)':'Whisper Large v3')+'... This may take up to a minute.');
+        var pfd=new FormData();
+        pfd.append('file',file,file.name);
+        pfd.append('model',useScribe?'elevenlabs/scribe-v2':'openai/whisper-large-v3');
+        pfd.append('response_format','json');
+        if(lang&&lang!=='auto')pfd.append('language',lang);
+        var pres=await fetch('https://gen.pollinations.ai/v1/audio/transcriptions',{method:'POST',headers:{'Authorization':'Bearer '+STUDIO_KEY},body:pfd});
+        if(!pres.ok){var pet=await pres.text();showError('Transcription error '+pres.status+': '+pet.substring(0,150));return;}
+        var pdata=await pres.json();
+        var ptext=pdata.text||'';
+        if(!ptext){showError('No lyrics detected in audio.');return;}
+        var phtml='<div style="font-weight:700;color:#4ade80;margin-bottom:.5rem;">Lyrics Transcribed!</div>';
+        phtml+='<div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-bottom:.5rem;">Engine: '+(useScribe?'Scribe v2':'Whisper Large v3')+(pdata.language?' | Language: '+pdata.language:'')+'</div>';
+        phtml+='<pre style="white-space:pre-wrap;background:rgba(0,0,0,.3);padding:.75rem;border-radius:8px;font-size:.85rem;line-height:1.6;max-height:400px;overflow-y:auto;">'+esc(ptext)+'</pre>';
+        phtml+='<div class="result-actions" style="margin-top:.5rem;"><button class="btn btn-sm" onclick="navigator.clipboard.writeText(document.querySelector(\'#mResult pre\').textContent);this.textContent=\'Copied!\';">Copy Lyrics</button></div>';
+        showResult(phtml);
+        return;
+      }
       var uploadBlob=file;
       var uploadName=file.name;
       // Vercel Hobby plan rejects request bodies over ~4.5MB - most full songs
@@ -2782,6 +2863,46 @@ var CLIENT_HANDLERS={
       } else {
         showError('Error: '+e.message);
       }
+    }
+  },
+
+  // ── AI VIDEO MAKER ──
+  videoGen: async function(v){
+    if(!isPremiumMember()){
+      showError('AI video is a premium feature - every video model runs on paid tokens, there is no free video model. Upgrade to VIP or higher to make video clips here. Full-length music videos are built in the Owner Studio.');
+      return;
+    }
+    var prompt=(v.prompt||'').trim();
+    if(!prompt){showError('Describe the video first.');return;}
+    var modelMap={'Kling 3.0 (best motion)':'kwaivgi/kling-v3.0-std','Seedance 2.5':'bytedance/seedance-2.5','MiniMax H3 Max':'minimax/minimax-h3-max','Wan 3.0':'alibaba/wan-3.0','Grok Imagine Video 1.5':'x-ai/grok-imagine-video-1.5','Wan 2.2 Fast (cheapest)':'alibaba/wan-2.2-fast'};
+    var model=modelMap[v.vmodel]||'kwaivgi/kling-v3.0-std';
+    var aspect=(v.aspect&&v.aspect.indexOf('16:9')===0)?'16:9':'9:16';
+    var dur=v.dur||'5';
+    var CHEAP='alibaba/wan-2.2-fast';
+    showLoading('Making your video clip - this takes 30-90 seconds...');
+    async function attempt(m){
+      var u='https://gen.pollinations.ai/video/'+encodeURIComponent(prompt)+'?model='+encodeURIComponent(m)+'&duration='+dur+'&aspectRatio='+encodeURIComponent(aspect)+'&key='+STUDIO_KEY;
+      var r=await fetch(u);
+      if(!r.ok)return {ok:false,status:r.status};
+      return {ok:true,blob:await r.blob()};
+    }
+    try{
+      var res=await attempt(model);
+      var usedCheap=false;
+      if(!res.ok&&res.status===402&&model!==CHEAP){
+        res=await attempt(CHEAP);
+        if(res.ok)usedCheap=true;
+      }
+      if(!res.ok){showError('Video generation failed (HTTP '+res.status+'). Try again in a moment.');return;}
+      var url=URL.createObjectURL(res.blob);
+      window._lastBlobUrl=url;window._lastBlob=res.blob;
+      showResult('<video src="'+url+'" controls playsinline style="width:100%;border-radius:8px;"></video>'+
+        '<div class="result-actions"><button class="btn btn-sm" onclick="downloadBlob(\'8bfr-video.mp4\')">Download MP4</button>'+
+        '<button class="btn btn-ghost btn-sm" onclick="runTool()">Make Another</button></div>'+
+        (usedCheap?'<div style="font-size:.72rem;color:#fbbf24;margin-top:.5rem;">Tokens ran low - this clip used the cheapest video model so you still got it.</div>':'')+
+        '<div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-top:.5rem;">Want a full-length music video? The Owner Studio builds one real clip per lyric section, no scene limit.</div>');
+    }catch(e){
+      showError('Video error: '+e.message);
     }
   }
 };
@@ -2883,6 +3004,43 @@ function addMp4ConvertBtn(containerId,blobRef,filename){
   };
   el.appendChild(btn);
 }
+window.downloadCover3000=function(){
+  if(!window._lastImageUrl){showError('Generate a cover first.');return;}
+  var img=new Image();
+  img.onload=function(){
+    var c=document.createElement('canvas');c.width=3000;c.height=3000;
+    var x=c.getContext('2d');
+    x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';
+    x.drawImage(img,0,0,3000,3000);
+    var a=document.createElement('a');a.href=c.toDataURL('image/png');a.download='album-cover-3000.png';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+  };
+  img.src=window._lastImageUrl;
+};
+
+async function audioBufferToMp3(buffer){
+  await loadLameJs();
+  var channels=Math.min(2,buffer.numberOfChannels);
+  var enc=new lamejs.Mp3Encoder(channels,buffer.sampleRate,192);
+  var left=buffer.getChannelData(0);
+  var right=channels>1?buffer.getChannelData(1):left;
+  function to16(d){
+    var out=new Int16Array(d.length);
+    for(var i=0;i<d.length;i++){var v=Math.max(-1,Math.min(1,d[i]));out[i]=v<0?v*32768:v*32767;}
+    return out;
+  }
+  var l16=to16(left), r16=to16(right);
+  var parts=[], block=1152;
+  for(var i=0;i<l16.length;i+=block){
+    var lc=l16.subarray(i,i+block), rc=r16.subarray(i,i+block);
+    var d=channels>1?enc.encodeBuffer(lc,rc):enc.encodeBuffer(lc);
+    if(d.length)parts.push(d);
+  }
+  var end=enc.flush();
+  if(end.length)parts.push(end);
+  return new Blob(parts,{type:'audio/mpeg'});
+}
+
 function audioBufferToWav(buffer){
   var numChannels=buffer.numberOfChannels,sampleRate=buffer.sampleRate,format=1,bitDepth=16;
   var length=buffer.length*numChannels*(bitDepth/8);

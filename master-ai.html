@@ -147,6 +147,7 @@ select.form-input{appearance:auto;cursor:pointer;}
 <div class="preset" onclick="applyPreset('podcast',this)">Podcast</div>
 <div class="preset" onclick="applyPreset('bass',this)">Bass Heavy</div>
 <div class="preset" onclick="applyPreset('radio',this)">Radio Ready</div>
+<div class="preset" onclick="applyPreset('streaming',this)">Streaming Master (-14 LUFS)</div>
 </div>
 </div>
 
@@ -196,6 +197,21 @@ select.form-input{appearance:auto;cursor:pointer;}
 <h2>Stereo Width</h2>
 <div class="form-group">
 <div class="sw"><span style="font-size:.68rem;color:var(--dim);">Mono</span><input type="range" min="0" max="200" value="100" id="stereoW" oninput="setWidth(this.value)"><span style="font-size:.68rem;color:var(--dim);">Wide</span><div class="sv" id="swVal2">100%</div></div></div>
+</div>
+
+<div class="card">
+<h2>Pro Loudness + Repair (NEW)</h2>
+<div class="info-note" style="margin-bottom:.4rem;color:var(--gold);">Fixes hot, clipped masters and hits real streaming loudness - the same recipe used on the Never Again (Remix) Spotify master: repair the clipping, cut the mud, lift presence and air, then land at -14 LUFS with a -1dB ceiling.</div>
+<div class="form-group"><label style="display:flex;gap:.5rem;align-items:flex-start;cursor:pointer;font-weight:400;"><input type="checkbox" id="declipChk" checked style="width:auto;margin-top:.2rem;"><span><b>Repair clipping</b> - softens the harsh flat-top distortion on masters recorded too hot (the static / buried-voice sound). Leave ON for loud uploads.</span></label></div>
+<div class="form-group"><label>Loudness Mode (applied at export)</label>
+<select class="form-input" id="loudMode" style="width:100%;">
+<option value="peak">Peak normalize (old way - uses the Target Loudness slider above)</option>
+<option value="-14" selected>Streaming -14 LUFS (Spotify / Apple / DistroKid)</option>
+<option value="-11">Loud -11 LUFS (SoundCloud / club)</option>
+<option value="-16">Quiet -16 LUFS (YouTube / podcast)</option>
+</select>
+<div class="sub">LUFS is how streaming services actually measure loudness. -14 LUFS with a -1dB ceiling is the safe release target - no more rejections or volume surprises.</div></div>
+<div class="form-group"><label>Measured Loudness</label><div id="loudReadout" style="font-size:.8rem;color:var(--dim);">Export a track and the before/after loudness (LUFS + true peak) shows here.</div></div>
 </div>
 
 <div class="card">
@@ -375,7 +391,8 @@ warm:{al:20,nt:-1,vp:0,mc:0,de:0,eq:[3,2,0,-1,-2],cr:3,lc:-1,mg:2,sw:100},
 bright:{al:20,nt:-1,vp:4,mc:2,de:2,eq:[-1,0,1,3,4],cr:3,lc:-1,mg:2,sw:110},
 podcast:{al:80,nt:-1,vp:5,mc:3,de:3,eq:[-4,0,2,3,1],cr:6,lc:-1,mg:4,sw:50},
 bass:{al:20,nt:-1,vp:0,mc:0,de:0,eq:[6,4,0,1,0],cr:4,lc:-0.5,mg:3,sw:120},
-radio:{al:50,nt:-0.5,vp:4,mc:3,de:3,eq:[1,0,1,3,2],cr:6,lc:-0.5,mg:5,sw:105}
+radio:{al:50,nt:-0.5,vp:4,mc:3,de:3,eq:[1,0,1,3,2],cr:6,lc:-0.5,mg:5,sw:105},
+streaming:{al:30,nt:-14,vp:3,mc:3,de:2,eq:[0,-1,0,2,3],cr:3,lc:-1,mg:2,sw:100,dc:1,lm:'-14'}
 };
 
 function applyPreset(name,el){
@@ -392,6 +409,8 @@ document.getElementById('compRatio').value=p.cr;setComp(p.cr);
 document.getElementById('limCeil').value=p.lc;document.getElementById('lcVal').textContent=p.lc+'dB';
 document.getElementById('makeupGain').value=p.mg;setGain(p.mg);
 document.getElementById('stereoW').value=p.sw;setWidth(p.sw);
+if(p.dc!==undefined){var dcb=document.getElementById('declipChk');if(dcb)dcb.checked=!!p.dc;}
+if(p.lm!==undefined){var lms=document.getElementById('loudMode');if(lms)lms.value=p.lm;}
 }
 
 async function exportTrack(){
@@ -404,6 +423,7 @@ btn.disabled=true;btn.textContent='Exporting...';
 status.style.display='block';status.className='status-msg loading';status.textContent='Rendering mastered track...';
 prog.classList.add('show');fill.style.width='5%';
 try{
+if(document.getElementById('declipChk')&&document.getElementById('declipChk').checked&&!srcBuf._declipped){status.textContent='Repairing clipping...';srcBuf=declipBuffer(srcBuf);srcBuf._declipped=true;}
 var sr=srcBuf.sampleRate;var ch=Math.max(srcBuf.numberOfChannels,2);var len=srcBuf.length;
 var ctx=new OfflineAudioContext(ch,len,sr);
 var src=ctx.createBufferSource();
@@ -444,7 +464,19 @@ var al=parseInt(document.getElementById('autoLevel').value)||0;
 if(al>0){status.textContent='Leveling volume...';rendered=levelVolume(rendered,al/100);}
 fill.style.width='70%';
 var nt=parseFloat(document.getElementById('normTarget').value)||0;
+var loudModeEl=document.getElementById('loudMode');
+var loudMode=loudModeEl?loudModeEl.value:'peak';
+var lufsBefore=null,lufsAfter=null;
+try{lufsBefore=await measureLUFS(srcBuf);}catch(e){}
+if(loudMode==='peak'){
 rendered=normalize(rendered,nt);
+}else{
+status.textContent='Hitting loudness target...';
+rendered=await loudnessNormalize(rendered,parseFloat(loudMode));
+}
+try{lufsAfter=await measureLUFS(rendered);}catch(e){}
+var roEl=document.getElementById('loudReadout');
+if(roEl&&lufsAfter!==null){roEl.textContent='Before: '+(lufsBefore!==null?lufsBefore.toFixed(1)+' LUFS':'n/a')+'  ->  After: '+lufsAfter.toFixed(1)+' LUFS, peak '+peakDb(rendered).toFixed(1)+' dB. '+(loudMode==='peak'?'Peak-normalized.':'Streaming-ready loudness.');}
 var lc=parseFloat(document.getElementById('limCeil').value)||0;
 if(lc<0)rendered=hardLimit(rendered,lc);
 fill.style.width='80%';
@@ -487,6 +519,39 @@ for(var c=0;c<buf.numberOfChannels;c++){var d=buf.getChannelData(c);for(var i=0;
 function hardLimit(buf,cDb){
 var cl=Math.pow(10,cDb/20);
 for(var c=0;c<buf.numberOfChannels;c++){var d=buf.getChannelData(c);for(var i=0;i<d.length;i++){if(d[i]>cl)d[i]=cl;else if(d[i]<-cl)d[i]=-cl;}}return buf;
+}
+function declipBuffer(buf){
+var ch=buf.numberOfChannels;var sr=buf.sampleRate;var len=buf.length;
+var ctx=new OfflineAudioContext(ch,len,sr);var nb=ctx.createBuffer(ch,len,sr);
+for(var c=0;c<ch;c++){var d=buf.getChannelData(c);var o=nb.getChannelData(c);
+for(var i=0;i<len;i++){var x=d[i];var a=Math.abs(x);
+if(a>0.85){var s=x<0?-1:1;var y=0.85+0.15*Math.tanh((a-0.85)/0.15);o[i]=s*Math.min(y,0.999);}
+else o[i]=x;}}
+return nb;
+}
+async function measureLUFS(buf){
+var ch=Math.max(buf.numberOfChannels,1);var sr=buf.sampleRate;var len=buf.length;
+var ctx=new OfflineAudioContext(ch,len,sr);
+var src=ctx.createBufferSource();src.buffer=buf;
+var shelf=ctx.createBiquadFilter();shelf.type='highshelf';shelf.frequency.value=1682;shelf.Q.value=0.707;shelf.gain.value=4;
+var hp=ctx.createBiquadFilter();hp.type='highpass';hp.frequency.value=38;hp.Q.value=0.5;
+src.connect(shelf);shelf.connect(hp);hp.connect(ctx.destination);src.start(0);
+var r=await ctx.startRendering();
+var sum=0,cnt=0;
+for(var c=0;c<r.numberOfChannels;c++){var d=r.getChannelData(c);for(var i=0;i<d.length;i+=2){sum+=d[i]*d[i];cnt++;}}
+if(cnt===0||sum<=0)return -70;
+return -0.691+10*Math.log10(sum/cnt);
+}
+function peakDb(buf){var pk=0;for(var c=0;c<buf.numberOfChannels;c++){var d=buf.getChannelData(c);for(var i=0;i<d.length;i++){var a=Math.abs(d[i]);if(a>pk)pk=a;}}return pk>0?20*Math.log10(pk):-99;}
+async function loudnessNormalize(buf,target){
+var cur=await measureLUFS(buf);
+var gDb=target-cur;
+var pk=0;for(var c=0;c<buf.numberOfChannels;c++){var d=buf.getChannelData(c);for(var i=0;i<d.length;i++){var a=Math.abs(d[i]);if(a>pk)pk=a;}}
+var ceil=Math.pow(10,-1/20);
+var maxG=pk>0?ceil/pk:10;
+var g=Math.min(Math.pow(10,gDb/20),maxG);
+for(var c=0;c<buf.numberOfChannels;c++){var d=buf.getChannelData(c);for(var i=0;i<d.length;i++)d[i]*=g;}
+return buf;
 }
 function encodeWAV(buf){
 var ch=buf.numberOfChannels;var sr=buf.sampleRate;var len=buf.length;

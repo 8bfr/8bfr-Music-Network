@@ -103,6 +103,7 @@
             <h2 class="section-title">Owner-Only Tools</h2>
             <div class="tools-grid">
                 <div class="tool-card" id="tool-songgen" onclick="selectTool('songgen')" style="border-color:rgba(74,222,128,.3);"><h3>🎵 Song Generator</h3><p>Generate actual song with vocals + music</p><span class="badge-real" style="background:rgba(74,222,128,.15);color:#4ade80;">🎵 REAL AUDIO</span></div>
+                <div class="tool-card" id="tool-stemspro" onclick="selectTool('stemspro')" style="border-color:rgba(74,222,128,.3);"><h3>Stem Splitter Pro</h3><p>ElevenLabs AI separation - 2 or 6 stems, cleaner instrumental</p><span class="badge-real" style="background:rgba(74,222,128,.15);color:#4ade80;">NEW AI</span></div>
                 <div class="tool-card" id="tool-beats" onclick="selectTool('beats')"><h3>🎵 Beat Ideas</h3><p>AI production concepts and arrangement blueprints</p><span class="badge-real">✅ REAL OUTPUT</span></div>
             </div>
         </div>
@@ -208,6 +209,7 @@
         cover: { title: '🎨 Album Cover Generator', hint: 'Describe the image, add artist name and featured artists to burn into the cover.' },
         video: { title: '🎬 Video Concept', hint: 'Describe the song and vision — get a storyboard plan.' },
         post: { title: '📝 Post Generator', hint: 'What platform and topic? Gets ready-to-paste posts.' },
+        stemspro: { title: 'Stem Splitter Pro', hint: 'ElevenLabs AI stem separation - cleaner instrumental. Owner only.' },
         songgen: { title: '🎵 Song Generator', hint: 'Generate an actual song with AI vocals and music. Owner only.' },
         imgconvert: { title: '🖼️ Image Converter', hint: 'Upload an image and convert between PNG, JPG, and WebP formats.' },
         audioextract: { title: '🎧 Audio Extractor', hint: 'Upload a video file to extract the audio track.' },
@@ -430,6 +432,13 @@
                         <select id="sgDur"><option value="30">30 sec</option><option value="60">1 min</option><option value="120">2 min</option><option value="180" selected>3 min</option><option value="210">3.5 min</option><option value="240">4 min</option><option value="270">4.5 min</option><option value="300">5 min (max)</option></select>
                         <div style="margin-top:.5rem;background:#0a0a0f;border:1px solid rgba(168,85,247,.2);border-radius:8px;padding:.65rem;">
                           <div style="font-size:.74rem;color:#a855f7;font-weight:700;margin-bottom:.35rem;">Duration Calculator</div>
+                    <div class="form-group" style="flex:1;">
+                        <label>Music Model</label>
+                        <select id="sgModel">
+                            <option value="elevenlabs/music-v2.5" selected>Music v2.5 (newest - paid)</option>
+                            <option value="elevenmusic">Music v2 (standard)</option>
+                        </select>
+                    </div>
                           <div style="display:flex;gap:.4rem;align-items:flex-start;flex-wrap:wrap;">
                             <input type="number" id="calcBpm" placeholder="BPM" min="40" max="300" style="width:65px;background:#13111c;border:1px solid rgba(168,85,247,.3);border-radius:6px;color:#e8e0ff;padding:.3rem .45rem;font-size:.82rem;" oninput="calcDuration()">
                             <textarea id="calcLyrics" placeholder="Paste lyrics to calculate" rows="2" style="flex:1;min-width:100px;background:#13111c;border:1px solid rgba(168,85,247,.3);border-radius:6px;color:#e8e0ff;padding:.3rem .45rem;font-size:.76rem;resize:none;" oninput="calcDuration()"></textarea>
@@ -448,6 +457,21 @@
                 <div style="font-size:.72rem;color:#6b7280;margin-top:.4rem;">Suno/Udio/Mureka follow lyrics more accurately. Copy your lyrics above then paste into any of these — all have free tiers.</div>
                 <div id="sgStatus" style="font-size:0.72rem;color:rgba(255,255,255,0.4);margin-top:0.3rem;">Pollinations: best for beat style testing. Suno/Udio: best for accurate lyric flow.</div>`;
 
+            case 'stemspro': return `
+                <div class="form-group">
+                    <label>Song File (mp3, wav, m4a - max 50 MB)</label>
+                    <input type="file" id="spFile" accept="audio/*">
+                </div>
+                <div class="form-group">
+                    <label>Stems</label>
+                    <select id="spStems">
+                        <option value="six_stems_v1" selected>6 stems - vocals, drums, bass, guitar, piano, other</option>
+                        <option value="two_stems_v1">2 stems - vocals + instrumental</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="runStemPro()">Split Stems (ElevenLabs AI)</button>
+                <div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-top:.3rem;">New ElevenLabs separation engine - cleaner instrumental with less vocal bleed than the Demucs splitter. Runs on your Pollen tokens. Members keep using the regular Stem Splitter page.</div>
+                <div id="spResult" style="margin-top:1rem;"></div>`;
             case 'beats': return aiTextUI('e.g. 82 BPM boom-bap beat with piano chops, heavy bass, martial arts movie sample...');
 
             case 'kling': return `
@@ -483,6 +507,8 @@
                             <option value="8" selected>8 scenes</option>
                             <option value="10">10 scenes</option>
                             <option value="12">12 scenes</option>
+                            <option value="1">1 scene (single clip)</option>
+                            <option value="full">Full song - every section, NO limit</option>
                         </select>
                     </div>
                 </div>
@@ -490,7 +516,46 @@
                     <label>Setting / Location Vibe (optional)</label>
                     <input type="text" id="klingSetting" placeholder="e.g. city rooftops at night, underground studio, streets of LA...">
                 </div>
-                <button class="btn btn-primary" onclick="runKling()">Generate Kling Prompts</button>
+                                <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+                    <div class="form-group" style="flex:1;min-width:150px;">
+                        <label>Video Type</label>
+                        <select id="klingPreset">
+                            <option value="music-video" selected>Full Music Video</option>
+                            <option value="short">Viral Short / TikTok Post</option>
+                            <option value="kids">Kids Video Story</option>
+                            <option value="movie">Movie Scene</option>
+                            <option value="ad">Ad / Promo</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1;min-width:150px;">
+                        <label>Video Model</label>
+                        <select id="klingVideoModel">
+                            <option value="kwaivgi/kling-v3.0-std" selected>Kling 3.0 (best motion)</option>
+                            <option value="bytedance/seedance-2.5">Seedance 2.5 (4s clips)</option>
+                            <option value="minimax/minimax-h3-max">MiniMax H3 Max (5/10/15s)</option>
+                            <option value="alibaba/wan-3.0">Wan 3.0 (5s clips)</option>
+                            <option value="x-ai/grok-imagine-video-1.5">Grok Imagine Video 1.5</option>
+                            <option value="alibaba/wan-2.2-fast">Wan 2.2 Fast (cheapest)</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1;min-width:110px;">
+                        <label>Shape</label>
+                        <select id="klingAspect">
+                            <option value="16:9" selected>Widescreen 16:9</option>
+                            <option value="9:16">Vertical 9:16 (TikTok)</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1;min-width:110px;">
+                        <label>Seconds per Clip</label>
+                        <select id="klingDur">
+                            <option value="5" selected>5s</option>
+                            <option value="10">10s</option>
+                            <option value="15">15s</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-bottom:.5rem;">Every video model runs on Pollen tokens - there is no free video model. If tokens run out mid-video, clips switch to the cheapest model automatically and tell you. Full Song mode has NO scene limit: one real moving clip per lyric section, like a full music video build.</div>
+<button class="btn btn-primary" onclick="runKling()">Generate Kling Prompts</button>
                 <div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-top:.3rem;">AI writes a scene-by-scene prompt and timeline for each section. Generate your clips in any AI video app, then upload them below to stitch into one video.</div>
 
                 <div id="klingResult" style="display:none;margin-top:1rem;">
@@ -499,6 +564,8 @@
                         <div style="font-size:.75rem;color:#6b7280;">Copy each prompt into any AI video generator. When done, upload your clips below to join them into one video.</div>
                     </div>
                     <div id="klingPromptsWrap" style="display:flex;flex-direction:column;gap:.75rem;"></div>
+                    <button class="btn btn-primary" id="klingGenAllBtn" onclick="genAllSceneVideos()" style="margin-top:.75rem;">Generate ALL Video Clips</button>
+                    <div id="klingVideoNotice" style="margin-top:.5rem;"></div>
 
                     </div>
                 </div>`;
@@ -528,6 +595,22 @@
                         <option value="center">Center</option>
                         <option value="none">No text overlay (bake into AI prompt only)</option>
                     </select>
+                </div>
+                <div class="form-group">
+                    <label>Image Model</label>
+                    <select id="coverModel">
+                        <option value="auto" selected>Auto - best paid model, free fallback if tokens run out</option>
+                        <option value="black-forest-labs/flux-3-image">FLUX.3 Image (paid - flagship)</option>
+                        <option value="openai/gpt-image-2.5-sunburst">GPT Image 2.5 Sunburst (paid - best detail)</option>
+                        <option value="bytedance/seedream-5.0-flash">Seedream 5.0 Flash (paid)</option>
+                        <option value="microsoft/mai-image-2.6-flash">MAI Image 2.6 Flash (free)</option>
+                        <option value="tongyi-mai/z-image-turbo">Z-Image Turbo (free - no photo mode)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Use My Photo (optional)</label>
+                    <input type="file" id="coverPhoto" accept="image/*">
+                    <div style="font-size:.72rem;color:rgba(255,255,255,.45);margin-top:.3rem;">Upload your photo and the AI builds the cover around YOU - real face, real arms. Downloads export at 3000x3000 (DistroKid size). Note: no AI model will draw a person holding a gun - that is where finger guns come from. For a gun cover, generate the portrait here, then overlay a real gun photo in an editor (the method used on the Never Again (Remix) cover).</div>
                 </div>
                 <div class="form-group">
                     <label>Describe the visual style</label>
@@ -677,6 +760,24 @@
                     <input type="file" id="memeFile" accept="image/*" onchange="loadMemeImage(this)">
                     <div class="drop-icon">😂</div>
                     <div class="drop-text">Click to upload base image</div>
+                </div>
+                <div class="form-group">
+                    <label>Or Generate a Base Image with AI</label>
+                    <div style="display:flex;gap:.5rem;">
+                        <input type="text" id="memeAiPrompt" placeholder="e.g. shocked rapper spitting out his drink in a recording studio" style="flex:1;">
+                        <button class="btn" type="button" onclick="genMemeBase()">AI Base Image</button>
+                    </div>
+                    <div id="memeNotice" style="font-size:.72rem;color:rgba(255,255,255,.45);margin-top:.3rem;">Paid image model first, free model if tokens run out. Your text is drawn on top, so it always stays sharp and readable - that is what makes memes shareable.</div>
+                </div>
+                <div class="form-group">
+                    <label>Viral Formats (tap one, then edit the words)</label>
+                    <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+                        <button class="btn btn-sm" type="button" onclick="memePreset('WHEN THE BEAT DROPS','BUT THE BASS NEVER COMES')">Beat Drop</button>
+                        <button class="btn btn-sm" type="button" onclick="memePreset('POV: THE PRODUCER SAYS ONE MORE TAKE','FOR THE 47TH TIME')">POV Studio</button>
+                        <button class="btn btn-sm" type="button" onclick="memePreset('NOBODY:','ABSOLUTELY NOBODY:')">Nobody:</button>
+                        <button class="btn btn-sm" type="button" onclick="memePreset('LABEL MEETINGS ALL DAY','STILL INDEPENDENT - 8BFR')">Independent</button>
+                        <button class="btn btn-sm" type="button" onclick="memePreset('WHEN THE HATERS SAID IT WOULD NEVER WORK','CHARTS SAY OTHERWISE')">Haters</button>
+                    </div>
                 </div>
                 <div class="meme-controls">
                     <div class="form-group">
@@ -863,8 +964,108 @@
     }
 
     /* ═══════════════════════════════════════════════════
+       STUDIO UPGRADE HELPERS (Oct 2026)
+       Paid models first. If Pollen tokens run out (HTTP 402),
+       fall back to the free model automatically and SAY SO.
+       ═══════════════════════════════════════════════════ */
+    var STUDIO_KEY = 'sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
+    var FREE_IMG_MODEL = 'microsoft/mai-image-2.6-flash';
+
+    function freeVersionNotice(what) {
+        return '<div style="background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.45);color:#fde68a;border-radius:8px;padding:.6rem .75rem;font-size:.8rem;margin:.5rem 0;">'
+            + 'This is the free version of your ' + what + ' - your Pollen tokens need refilling, so it switched to the free model automatically. You still got your output. Refill at enter.pollinations.ai to get the paid model back.'
+            + '</div>';
+    }
+
+    function drawCoverFit(ctx, img, S) {
+        var iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+        if (!iw || !ih) { ctx.drawImage(img, 0, 0, S, S); return; }
+        var scale = Math.max(S / iw, S / ih);
+        var w = iw * scale, h = ih * scale;
+        ctx.drawImage(img, (S - w) / 2, (S - h) / 2, w, h);
+    }
+
+    function paintCoverText(ctx, S, st) {
+        var k = S / 1024;
+        ctx.textAlign = 'center';
+        if (st.title) {
+            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            ctx.fillRect(0, 0, S, 130 * k);
+            ctx.font = 'bold ' + Math.round(80 * k) + 'px "Bebas Neue", Impact, sans-serif';
+            ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#000000'; ctx.lineWidth = 5 * k;
+            ctx.strokeText(st.title.toUpperCase(), S / 2, 90 * k);
+            ctx.fillText(st.title.toUpperCase(), S / 2, 90 * k);
+        }
+        if (st.artist) {
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(0, 440 * k, S, 140 * k);
+            ctx.font = 'bold ' + Math.round(100 * k) + 'px "Bebas Neue", Impact, sans-serif';
+            ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#000000'; ctx.lineWidth = 6 * k;
+            ctx.strokeText(st.artist.toUpperCase(), S / 2, 540 * k);
+            ctx.fillText(st.artist.toUpperCase(), S / 2, 540 * k);
+        }
+        if (st.featured) {
+            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            ctx.fillRect(0, 900 * k, S, 124 * k);
+            ctx.font = 'bold ' + Math.round(56 * k) + 'px "Bebas Neue", Impact, sans-serif';
+            ctx.fillStyle = '#c4b5fd'; ctx.strokeStyle = '#000000'; ctx.lineWidth = 3 * k;
+            ctx.strokeText(('feat. ' + st.featured).toUpperCase(), S / 2, 975 * k);
+            ctx.fillText(('feat. ' + st.featured).toUpperCase(), S / 2, 975 * k);
+        }
+    }
+
+    // Generate an image, paid model first, free model on 402.
+    // Returns {ok, blob, status, usedFree, model}
+    async function genImageBlob(prompt, opts) {
+        opts = opts || {};
+        var model = opts.model || 'black-forest-labs/flux-3-image';
+        var freeModel = opts.freeModel || FREE_IMG_MODEL;
+        async function attempt(m) {
+            var u = 'https://gen.pollinations.ai/image/' + encodeURIComponent(prompt)
+                + '?width=' + (opts.width || 1024) + '&height=' + (opts.height || 1024)
+                + '&nologo=true&seed=' + Math.floor(Math.random() * 2147483647)
+                + '&model=' + encodeURIComponent(m) + '&key=' + STUDIO_KEY;
+            if (opts.imageUrl) u += '&image=' + encodeURIComponent(opts.imageUrl);
+            var r = await fetch(u);
+            if (!r.ok) return { ok: false, status: r.status };
+            return { ok: true, blob: await r.blob(), model: m };
+        }
+        var res = await attempt(model);
+        if (!res.ok && res.status === 402 && model !== freeModel) {
+            res = await attempt(freeModel);
+            if (res.ok) res.usedFree = true;
+        }
+        return res;
+    }
+
+    /* ═══════════════════════════════════════════════════
        ALBUM COVER GENERATOR (FIXED — artist name + featured)
        ═══════════════════════════════════════════════════ */
+    window.runStemPro = async function() {
+        var f = (document.getElementById('spFile') || {}).files;
+        var file = f && f[0];
+        var out = document.getElementById('spResult');
+        if (!out) return;
+        if (!file) { alert('Pick an audio file first.'); return; }
+        if (file.size > 50 * 1024 * 1024) { alert('File is over the 50 MB limit.'); return; }
+        var mode = (document.getElementById('spStems') || {}).value || 'six_stems_v1';
+        out.innerHTML = '<div class="spinner"></div> Separating stems with ElevenLabs AI - this can take a minute...';
+        try {
+            var fd = new FormData();
+            fd.append('file', file);
+            fd.append('model', 'elevenlabs/stem-separation');
+            fd.append('stem_variation_id', mode);
+            var r = await fetch('https://gen.pollinations.ai/alpha/audio/stem-separation', { method: 'POST', headers: { 'Authorization': 'Bearer ' + STUDIO_KEY }, body: fd });
+            if (r.status === 402) { out.innerHTML = '<p style="color:#fbbf24;">Pollen tokens are out. Refill at enter.pollinations.ai, or use the regular Stem Splitter page (Demucs) instead.</p>'; return; }
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            var blob = await r.blob();
+            var url = URL.createObjectURL(blob);
+            out.innerHTML = '<p style="color:#4ade80;font-weight:700;">Stems ready!</p><a class="btn btn-green" href="' + url + '" download="stems.zip">Download Stems (.zip)</a><p style="font-size:.75rem;color:rgba(255,255,255,.45);margin-top:.4rem;">Stereo MP3 stems inside the zip. The 6-stem split separates vocals, drums, bass, guitar, piano and other.</p>';
+        } catch (e) {
+            out.innerHTML = '<p style="color:#ff4466;">Stem separation failed: ' + e.message + '</p>';
+        }
+    };
+
     async function generateCover() {
         const artist = document.getElementById('coverArtist').value.trim();
         const title = document.getElementById('coverTitle').value.trim();
@@ -906,76 +1107,71 @@
                 }
             } catch(e) { /* use original */ }
 
-            /* Step 2: Generate base image - explicitly no text */
-            resultDiv.innerHTML = '<div class="spinner"></div> Step 2: Generating image (10-30 seconds)...';
-            const encodedPrompt = encodeURIComponent(imagePrompt + ', album cover art, high quality, professional, square format, no text, no words, no letters, no writing, no typography');
-            const baseUrl = 'https://image.pollinations.ai/prompt/' + encodedPrompt + '?width=1024&height=1024&nologo=true&seed=' + Math.floor(Math.random()*2147483647);
+            /* Step 2: Generate base image with the chosen model.
+               Paid model first; if Pollen tokens are out (HTTP 402), fall back
+               to the free model automatically and say so. */
+            resultDiv.innerHTML = '<div class="spinner"></div> Step 2: Generating image (10-40 seconds)...';
+            var coverModelSel = (document.getElementById('coverModel') || {}).value || 'auto';
+            var photoInput = document.getElementById('coverPhoto');
+            var photoFile = photoInput && photoInput.files && photoInput.files[0];
+            var paidModel = coverModelSel === 'auto' ? 'black-forest-labs/flux-3-image' : coverModelSel;
+            var usedFree = false;
+            var imgBlob = null;
+            var fullPrompt = imagePrompt + ', album cover art, high quality, professional, square format, no text, no words, no letters, no writing, no typography';
+            try {
+                if (photoFile) {
+                    var editModel = (paidModel === 'tongyi-mai/z-image-turbo') ? FREE_IMG_MODEL : paidModel;
+                    var doEdit = async function(m) {
+                        var fd = new FormData();
+                        fd.append('image', photoFile);
+                        fd.append('prompt', 'Keep this exact person and their face completely unchanged. Build a professional album cover around them: ' + fullPrompt);
+                        fd.append('model', m);
+                        fd.append('size', '1024x1024');
+                        return fetch('https://gen.pollinations.ai/v1/images/edits', { method: 'POST', headers: { 'Authorization': 'Bearer ' + STUDIO_KEY }, body: fd });
+                    };
+                    var er = await doEdit(editModel);
+                    if (er.status === 402 && editModel !== FREE_IMG_MODEL) { er = await doEdit(FREE_IMG_MODEL); if (er.ok) usedFree = true; }
+                    if (!er.ok) throw new Error('Image generation failed (HTTP ' + er.status + '). Try again or pick a different model.');
+                    imgBlob = await er.blob();
+                } else {
+                    var g = await genImageBlob(fullPrompt, { model: paidModel, freeModel: FREE_IMG_MODEL, width: 1024, height: 1024 });
+                    if (!g.ok) throw new Error('Image generation failed (HTTP ' + g.status + '). Try again or pick a different model.');
+                    imgBlob = g.blob; usedFree = !!g.usedFree;
+                }
+            } catch (genErr) {
+                resultDiv.innerHTML = '<p style="color:#ff4466;">' + genErr.message + '</p>';
+                btn.disabled = false; btn.textContent = 'Generate Cover';
+                return;
+            }
 
             const img = new Image();
-            img.crossOrigin = 'anonymous';
             img.onload = function() {
-                /* Step 3: Burn text onto image */
+                /* Step 3: Burn text onto image (cover-fit, never squashed) */
+                window._coverState = { img: img, title: title, artist: artist, featured: featured, textPos: textPos };
                 if (textPos !== 'none') {
                     resultDiv.innerHTML = '<div class="spinner"></div> Step 3: Burning text onto cover...';
                     const canvas = document.createElement('canvas');
                     canvas.width = 1024; canvas.height = 1024;
                     const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, 1024, 1024);
-                    ctx.textAlign = 'center';
-
-                    /* SONG TITLE at TOP */
-                    if (title) {
-                        ctx.fillStyle = 'rgba(0,0,0,0.6)';
-                        ctx.fillRect(0, 0, 1024, 130);
-                        ctx.font = 'bold 80px "Bebas Neue", Impact, sans-serif';
-                        ctx.fillStyle = '#ffffff';
-                        ctx.strokeStyle = '#000000';
-                        ctx.lineWidth = 5;
-                        ctx.strokeText(title.toUpperCase(), 512, 90);
-                        ctx.fillText(title.toUpperCase(), 512, 90);
-                    }
-
-                    /* ARTIST NAME in MIDDLE - biggest text */
-                    if (artist) {
-                        ctx.fillStyle = 'rgba(0,0,0,0.5)';
-                        ctx.fillRect(0, 440, 1024, 140);
-                        ctx.font = 'bold 100px "Bebas Neue", Impact, sans-serif';
-                        ctx.fillStyle = '#ffffff';
-                        ctx.strokeStyle = '#000000';
-                        ctx.lineWidth = 6;
-                        ctx.strokeText(artist.toUpperCase(), 512, 540);
-                        ctx.fillText(artist.toUpperCase(), 512, 540);
-                    }
-
-                    /* FEATURED ARTIST at BOTTOM */
-                    if (featured) {
-                        ctx.fillStyle = 'rgba(0,0,0,0.6)';
-                        ctx.fillRect(0, 900, 1024, 124);
-                        ctx.font = 'bold 56px "Bebas Neue", Impact, sans-serif';
-                        ctx.fillStyle = '#c4b5fd';
-                        ctx.strokeStyle = '#000000';
-                        ctx.lineWidth = 3;
-                        ctx.strokeText(('feat. ' + featured).toUpperCase(), 512, 975);
-                        ctx.fillText(('feat. ' + featured).toUpperCase(), 512, 975);
-                    }
-
+                    drawCoverFit(ctx, img, 1024);
+                    paintCoverText(ctx, 1024, window._coverState);
                     currentCoverUrl = canvas.toDataURL('image/png');
-                    coverDiv.innerHTML = '<img src="' + currentCoverUrl + '" alt="Generated Album Cover"><p style="margin-top:0.75rem;font-size:0.85rem;color:var(--text-dim);">Artist name and title burned into the image</p>';
+                    coverDiv.innerHTML = '<img src="' + currentCoverUrl + '" alt="Generated Album Cover"><p style="margin-top:0.75rem;font-size:0.85rem;color:var(--text-dim);">Artist name and title burned into the image. Download exports at 3000x3000.</p>';
                 } else {
-                    currentCoverUrl = baseUrl;
-                    coverDiv.innerHTML = '<img src="' + currentCoverUrl + '" alt="Generated Album Cover"><p style="margin-top:0.75rem;font-size:0.85rem;color:var(--text-dim);">Text not overlaid — add in your editor</p>';
+                    currentCoverUrl = URL.createObjectURL(imgBlob);
+                    coverDiv.innerHTML = '<img src="' + currentCoverUrl + '" alt="Generated Album Cover"><p style="margin-top:0.75rem;font-size:0.85rem;color:var(--text-dim);">Text not overlaid - add in your editor. Download exports at 3000x3000.</p>';
                 }
 
                 coverDiv.style.display = 'block';
                 dlBtn.style.display = 'inline-block';
-                resultDiv.innerHTML = '✅ <strong>Cover generated!</strong>\n\n<strong>Artist:</strong> ' + artist + (title ? '\n<strong>Title:</strong> ' + title : '') + (featured ? '\n<strong>Feat:</strong> ' + featured : '') + '\n\n<strong>Enhanced prompt:</strong>\n' + imagePrompt + '\n\n💡 Not happy? Edit and generate again.';
-                btn.disabled = false; btn.textContent = '🚀 Generate Cover';
+                resultDiv.innerHTML = (usedFree ? freeVersionNotice('cover') : '') + 'Cover generated!<br><br><strong>Artist:</strong> ' + artist + (title ? '<br><strong>Title:</strong> ' + title : '') + (featured ? '<br><strong>Feat:</strong> ' + featured : '') + '<br><br><strong>Enhanced prompt:</strong><br>' + imagePrompt + '<br><br>Not happy? Edit and generate again.';
+                btn.disabled = false; btn.textContent = 'Generate Cover';
             };
             img.onerror = function() {
-                resultDiv.innerHTML = '<p style="color:#ff4466;">Image generation failed. Try a simpler description or try again.</p>';
-                btn.disabled = false; btn.textContent = '🚀 Generate Cover';
+                resultDiv.innerHTML = '<p style="color:#ff4466;">Image failed to load. Try again.</p>';
+                btn.disabled = false; btn.textContent = 'Generate Cover';
             };
-            img.src = baseUrl;
+            img.src = URL.createObjectURL(imgBlob);
         } catch(e) {
             resultDiv.innerHTML = '<p style="color:#ff4466;">Error: ' + e.message + '</p>';
             btn.disabled = false; btn.textContent = '🚀 Generate Cover';
@@ -983,6 +1179,20 @@
     }
 
     function downloadCover() {
+        var st = window._coverState;
+        if (st && st.img) {
+            var S = 3000;
+            var c3000 = document.createElement('canvas');
+            c3000.width = S; c3000.height = S;
+            var x3000 = c3000.getContext('2d');
+            drawCoverFit(x3000, st.img, S);
+            if (st.textPos !== 'none') paintCoverText(x3000, S, st);
+            var a3000 = document.createElement('a');
+            a3000.href = c3000.toDataURL('image/png');
+            a3000.download = 'album-cover-3000.png';
+            document.body.appendChild(a3000); a3000.click(); document.body.removeChild(a3000);
+            return;
+        }
         if (!currentCoverUrl) return;
         const a = document.createElement('a');
         a.href = currentCoverUrl;
@@ -1159,6 +1369,38 @@
     /* ═══════════════════════════════════════════════════
        MEME CREATOR
        ═══════════════════════════════════════════════════ */
+    window.memePreset = function(top, bottom) {
+        var t = document.getElementById('memeTop'), b = document.getElementById('memeBottom');
+        if (t) t.value = top;
+        if (b) b.value = bottom;
+        drawMeme();
+    };
+
+    window.genMemeBase = async function() {
+        var p = (document.getElementById('memeAiPrompt') || {}).value || '';
+        if (!p.trim()) { alert('Describe the meme image first.'); return; }
+        var note = document.getElementById('memeNotice');
+        if (note) note.textContent = 'Generating base image...';
+        try {
+            var g = await genImageBlob(p + ', funny expressive meme photo, dramatic reaction, bold colors, no text, no words', { model: 'black-forest-labs/flux-3-image', freeModel: FREE_IMG_MODEL, width: 1024, height: 1024 });
+            if (!g.ok) throw new Error('HTTP ' + g.status);
+            var url = URL.createObjectURL(g.blob);
+            memeImg = new Image();
+            memeImg.onload = function() {
+                memeCanvas = document.getElementById('memeCanvas');
+                memeCanvas.style.display = 'block';
+                memeCanvas.width = memeImg.width;
+                memeCanvas.height = memeImg.height;
+                memeCtx = memeCanvas.getContext('2d');
+                drawMeme();
+            };
+            memeImg.src = url;
+            if (note) note.textContent = g.usedFree ? 'Free model used - your Pollen tokens need refilling. Add your text now.' : 'Base image ready - add your top and bottom text.';
+        } catch (e) {
+            if (note) note.textContent = 'Image failed: ' + e.message;
+        }
+    };
+
     function loadMemeImage(input) {
         const file = input.files[0]; if (!file) return;
         memeImg = new Image();
@@ -1526,6 +1768,7 @@
                 wrap.appendChild(d);
             });
             result.style.display='block';
+            enhanceKlingCards(wrap);
             // Hide the save warning since results are restored
             var warn=document.getElementById('saveWarnBox');
             if(warn) warn.style.display='none';
@@ -1537,21 +1780,29 @@
         var title = (document.getElementById('klingSongTitle')||{}).value||'My Song';
         var artists = (document.getElementById('klingArtists')||{}).value||'8BFR';
         var style = (document.getElementById('klingStyle')||{}).value||'cinematic hip hop music video';
-        var numScenes = parseInt((document.getElementById('klingScenes')||{}).value||8);
+        var scenesRaw = (document.getElementById('klingScenes')||{}).value || '8';
+        var numScenes;
+        if (scenesRaw === 'full') {
+            var lyricLines = lyrics.split('\n').filter(function(l){ return l.trim().length > 2; });
+            numScenes = Math.max(4, Math.min(40, lyricLines.length));
+        } else {
+            numScenes = parseInt(scenesRaw) || 8;
+        }
         var setting = (document.getElementById('klingSetting')||{}).value||'';
         if(!lyrics.trim()){alert('Paste your lyrics first.');return;}
         var btn = document.querySelector('#toolBody .btn-primary');
         if(btn){btn.disabled=true;btn.textContent='Generating prompts...';}
         var POLLEN_KEY='sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
         var settingLine=setting?'Setting/location: '+setting+'.':'';
-        var shortLyrics=lyrics.substring(0,800);
+        var shortLyrics=lyrics.substring(0, numScenes > 12 ? 4000 : 800);
         var sysMsg='You are a music video director. Output ONLY a valid JSON array, no markdown, no explanation.';
-        var userMsg='Song: '+title+' by '+artists+'. Style: '+style+'.'+(setting?' Setting: '+setting+'.':'')+' Write '+numScenes+' Kling AI video prompts based on these lyrics. JSON array of objects with keys: scene (int), timestamp (string like Verse 1 or 0:00), prompt (50-80 words: shot type, subject, action, setting, lighting, mood, camera move, end with '+style+' cinematic 4K), lyric (lyric snippet). Lyrics: '+shortLyrics;
+        var presetPhrases = { 'music-video': '', 'short': 'This is a vertical viral TikTok short - hook in the first second, fast cuts, bold energy. ', 'kids': 'This is a childrens story video - bright colors, friendly characters, gentle and safe for kids. ', 'movie': 'This is a feature film movie scene - dramatic, cinematic, big-screen feel. ', 'ad': 'This is a polished promo ad - product hero shots, clean branding moments. ' };
+        var userMsg=(presetPhrases[(document.getElementById('klingPreset')||{}).value] || '')+'Song: '+title+' by '+artists+'. Style: '+style+'.'+(setting?' Setting: '+setting+'.':'')+' Write '+numScenes+' Kling AI video prompts based on these lyrics. JSON array of objects with keys: scene (int), timestamp (string like Verse 1 or 0:00), prompt (50-80 words: shot type, subject, action, setting, lighting, mood, camera move, end with '+style+' cinematic 4K), lyric (lyric snippet). Lyrics: '+shortLyrics;
         try{
             var resp = await fetch('https://gen.pollinations.ai/v1/chat/completions',{
                 method:'POST',
                 headers:{'Content-Type':'application/json','Authorization':'Bearer '+POLLEN_KEY},
-                body:JSON.stringify({model:'openai',messages:[{role:'system',content:sysMsg},{role:'user',content:userMsg}],temperature:0.7,max_tokens:2000})
+                body:JSON.stringify({model:'openai',messages:[{role:'system',content:sysMsg},{role:'user',content:userMsg}],temperature:0.7,max_tokens:Math.min(8000, 400 + numScenes*220)})
             });
             if(!resp.ok){
                 var errText=await resp.text();
@@ -1583,6 +1834,7 @@
                 wrap.appendChild(d);
             });
             result.style.display='block';
+            enhanceKlingCards(wrap);
             result.scrollIntoView({behavior:'smooth',block:'start'});
             // Save to localStorage so results survive page switches
             try{localStorage.setItem('kling_scenes',JSON.stringify(scenes));
@@ -1596,7 +1848,8 @@
     window.copyPrompt = function(btn) {
         // btn is inside header div, need to go up to card then find last child (prompt text)
         var card = btn.parentElement.parentElement;
-        var text = card.querySelector('div:last-child').textContent;
+        var pel = card.querySelector('.kling-prompt-text') || card.querySelector('div:last-child');
+        var text = pel.textContent;
         if(navigator.clipboard && navigator.clipboard.writeText){
             navigator.clipboard.writeText(text).then(function(){
                 btn.textContent='Copied!';
@@ -1608,6 +1861,90 @@
             fallbackCopy(text,btn);
         }
     };
+    // Add a Generate Video button + result slot to every scene card in wrap.
+    window.enhanceKlingCards = function(wrap) {
+        if (!wrap) return;
+        var cards = wrap.children;
+        for (var i = 0; i < cards.length; i++) {
+            (function(card) {
+                if (card.querySelector('.kling-gen-btn')) return;
+                card.classList.add('kling-card');
+                var divs = card.querySelectorAll('div');
+                var promptEl = divs[divs.length - 1];
+                if (promptEl) promptEl.classList.add('kling-prompt-text');
+                var promptText = promptEl ? promptEl.textContent : '';
+                var row = document.createElement('div');
+                row.style.cssText = 'margin-top:.6rem;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;';
+                var btn = document.createElement('button');
+                btn.className = 'kling-gen-btn';
+                btn.textContent = 'Generate Video Clip';
+                btn.style.cssText = 'background:#a855f7;border:none;color:#fff;border-radius:5px;padding:.35rem .8rem;font-size:.75rem;font-weight:700;cursor:pointer;';
+                btn.setAttribute('data-prompt', promptText);
+                btn.onclick = function() { genSceneVideo(btn); };
+                var slot = document.createElement('div');
+                slot.className = 'kling-video-slot';
+                slot.style.cssText = 'margin-top:.5rem;';
+                row.appendChild(btn);
+                card.appendChild(row);
+                card.appendChild(slot);
+            })(cards[i]);
+        }
+    };
+
+    // Generate ONE real video clip for a scene card. Paid model first;
+    // on 402 (tokens out) retry once with the cheapest video model.
+    window.genSceneVideo = async function(btn) {
+        var card = btn.closest('.kling-card') || btn.parentElement.parentElement;
+        var slot = card.querySelector('.kling-video-slot');
+        var promptText = btn.getAttribute('data-prompt') || '';
+        var model = (document.getElementById('klingVideoModel') || {}).value || 'kwaivgi/kling-v3.0-std';
+        var aspect = (document.getElementById('klingAspect') || {}).value || '16:9';
+        var dur = (document.getElementById('klingDur') || {}).value || '5';
+        var CHEAP = 'alibaba/wan-2.2-fast';
+        btn.disabled = true; btn.textContent = 'Generating clip...';
+        if (slot) slot.innerHTML = '<span style="font-size:.75rem;color:#9ca3af;">Making your clip - video takes 30-90 seconds...</span>';
+        async function attempt(m) {
+            var u = 'https://gen.pollinations.ai/video/' + encodeURIComponent(promptText)
+                + '?model=' + encodeURIComponent(m) + '&duration=' + dur
+                + '&aspectRatio=' + encodeURIComponent(aspect) + '&key=' + STUDIO_KEY;
+            var r = await fetch(u);
+            if (!r.ok) return { ok: false, status: r.status };
+            return { ok: true, blob: await r.blob() };
+        }
+        try {
+            var res = await attempt(model);
+            var usedCheap = false;
+            if (!res.ok && res.status === 402 && model !== CHEAP) {
+                res = await attempt(CHEAP);
+                if (res.ok) usedCheap = true;
+            }
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            var url = URL.createObjectURL(res.blob);
+            if (slot) slot.innerHTML = '<video controls playsinline style="width:100%;border-radius:8px;" src="' + url + '"></video>'
+                + '<div style="margin-top:.35rem;"><a href="' + url + '" download="8bfr-scene-clip.mp4" style="color:#4ade80;font-size:.78rem;font-weight:700;">Download clip (MP4)</a></div>'
+                + (usedCheap ? '<div style="font-size:.72rem;color:#fbbf24;margin-top:.3rem;">Tokens ran out - this clip used the cheapest video model so you still got it. Refill Pollen tokens for the top model.</div>' : '');
+            btn.textContent = 'Regenerate Clip';
+        } catch (e) {
+            if (slot) slot.innerHTML = '<span style="font-size:.75rem;color:#ff4466;">Clip failed: ' + e.message + '. Try again, or check your Pollen balance at enter.pollinations.ai.</span>';
+            btn.textContent = 'Generate Video Clip';
+        }
+        btn.disabled = false;
+    };
+
+    // Generate every scene clip in order - the full music video build.
+    window.genAllSceneVideos = async function() {
+        var btns = document.querySelectorAll('#klingPromptsWrap .kling-gen-btn');
+        if (!btns.length) { alert('Generate the scene prompts first.'); return; }
+        var allBtn = document.getElementById('klingGenAllBtn');
+        if (allBtn) { allBtn.disabled = true; allBtn.textContent = 'Generating all clips...'; }
+        for (var i = 0; i < btns.length; i++) {
+            await genSceneVideo(btns[i]);
+        }
+        if (allBtn) { allBtn.disabled = false; allBtn.textContent = 'Generate ALL Video Clips'; }
+        var note = document.getElementById('klingVideoNotice');
+        if (note) note.innerHTML = '<span style="font-size:.8rem;color:#4ade80;">All clips generated. Download each one, then join them with the Video Joiner in AI Studio (or any editor) and lay your song under it.</span>';
+    };
+
     window.fallbackCopy = function(text,btn){
         var ta=document.createElement('textarea');
         ta.value=text;ta.style.position='fixed';ta.style.opacity='0';
@@ -2053,10 +2390,12 @@
         var prompt = styleTagsSent + '. ' + lyricsForAudio;
 
         var POLLEN_KEY = 'sk_b1NWFqFFhwRpoa6IaDhn9qilGMcRl6r8';
+        var sgModel = (document.getElementById('sgModel') || {}).value || 'elevenlabs/music-v2.5';
+        var sgUsedFree = false;
 
         // Single audio request. Returns {ok:true,blob} or {ok:false,status,msg,suggestion}
-        async function sgRequestAudio(pText){
-            var u = 'https://gen.pollinations.ai/audio/' + encodeURIComponent(pText) + '?key=' + POLLEN_KEY + '&model=elevenmusic&duration=' + Math.min(dur,300);
+        async function sgRequestAudio(pText, mOverride){
+            var u = 'https://gen.pollinations.ai/audio/' + encodeURIComponent(pText) + '?key=' + POLLEN_KEY + '&model=' + encodeURIComponent(mOverride || sgModel) + '&duration=' + Math.min(dur,300);
             var r = await fetch(u);
             if (r.ok) return { ok:true, blob: await r.blob() };
             var msg = 'HTTP ' + r.status, sug = '';
@@ -2076,6 +2415,13 @@
         try {
             var sgStatEl = document.getElementById('sgStatus');
             var res = await sgRequestAudio(prompt);
+            // Tokens out (402) on the newest model: fall back to the standard
+            // music model so James still gets his song, and say so.
+            if (!res.ok && res.status === 402 && sgModel !== 'elevenmusic') {
+                if (sgStatEl) sgStatEl.textContent = 'Pollen tokens are out - switching to the standard music model so you still get your song...';
+                res = await sgRequestAudio(prompt, 'elevenmusic');
+                if (res.ok) sgUsedFree = true;
+            }
 
             // Pollinations blocks prompts it reads as copyrighted, but hands back a
             // cleaned rewrite. Retry with its own wording before giving up.
@@ -2122,6 +2468,7 @@
                 lyricsHtml +
                 changesHtml +
                 '<details style="margin-top:.5rem;"><summary style="font-size:.72rem;color:#a855f7;cursor:pointer;">Style tags sent to AI (tap to verify)</summary><pre style="font-size:.72rem;white-space:pre-wrap;color:#00d9ff;margin-top:.3rem;background:#0a0a0f;padding:.6rem;border-radius:6px;">gen id: ' + sgSeed + '\n\n' + escapeHtml(styleTagsSent) + '</pre></details>';
+            if (sgUsedFree) resultDiv.innerHTML = freeVersionNotice('song') + resultDiv.innerHTML;
         } catch(e) {
             resultDiv.innerHTML = '<p style="color:#ff4466;">Audio generation error: ' + e.message + '</p>' +
                 '<div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-top:.3rem;">If this keeps failing, your Pollinations credits may be expired. Try without the key parameter or purchase more credits.</div>' +
