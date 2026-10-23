@@ -482,6 +482,20 @@ var TOOLS = [
   { id:'voice-recorder', cat:'media', type:'client', handler:'voiceRec', icon:'🎤', name:'Voice Recorder', desc:'Record voice/audio', badges:['tool'],
     fields:[]
   },
+  { id:'beat-align', cat:'music', type:'client', handler:'flowCheck', icon:'\uD83C\uDFB5', name:'Beat Alignment Check', desc:'Does your rhyme land on the beat? Word-by-word timing report + nudge fix', badges:['music','ai'],
+    fields:[
+      {name:'audio',label:'Upload song or vocal (max 25MB)',type:'file',accept:'audio/*,.mp3,.wav,.m4a,.ogg',required:true,id:'faFile'},
+      {name:'bpm',label:'Song BPM',type:'number',required:true,id:'faBpm',placeholder:'e.g. 98'}
+    ]
+  },
+  { id:'auto-tune', cat:'music', type:'client', handler:'autotune', icon:'\uD83C\uDFA4', name:'Auto-Tune', desc:'Pitch-correct a vocal to the song key - best on a vocals-only stem', badges:['music','tool'],
+    fields:[
+      {name:'audio',label:'Upload vocal (vocals-only stem works best)',type:'file',accept:'audio/*,.mp3,.wav,.m4a,.ogg',required:true,id:'atFile'},
+      {name:'key',label:'Song key',type:'select',options:['Auto-detect','C','C#','D','D#','E','F','F#','G','G#','A','A#','B'],id:'atKey'},
+      {name:'scale',label:'Scale (ignored if key is auto-detected)',type:'select',options:['Minor','Major'],id:'atScale'},
+      {name:'strength',label:'Correction strength',type:'select',options:['Natural','Medium','Hard (T-Pain)'],id:'atStrength'}
+    ]
+  },
   { id:'transcribe', cat:'music', type:'client', handler:'transcribeAudio', icon:'📝', name:'Lyrics Transcriber', desc:'Upload a song and get the lyrics transcribed', badges:['music','ai'],
     fields:[
       {name:'audio',label:'Upload song (MP3, WAV, M4A, OGG - max 25MB)',type:'file',accept:'audio/*,.mp3,.wav,.m4a,.ogg,.flac',required:true,id:'trFile'},
@@ -2904,6 +2918,237 @@ var CLIENT_HANDLERS={
     }catch(e){
       showError('Video error: '+e.message);
     }
+  },
+
+  // ── BEAT ALIGNMENT CHECK ──
+  flowCheck: async function(v){
+    var files=v.audio;
+    if(!files||!files[0]){showError('Upload a song or vocal first.');return;}
+    var file=files[0];
+    if(file.size>25*1024*1024){showError('File too large - max 25MB.');return;}
+    var bpm=parseFloat(v.bpm)||0;
+    if(!bpm){showError('Enter the song BPM so the beat grid can be built.');return;}
+    showLoading('Listening to your song and timing every word...');
+    try{
+      var fd=new FormData();
+      fd.append('file',file,file.name);
+      fd.append('model','openai/whisper-large-v3');
+      fd.append('response_format','verbose_json');
+      var res=await fetch('https://gen.pollinations.ai/v1/audio/transcriptions',{method:'POST',headers:{'Authorization':'Bearer '+STUDIO_KEY},body:fd});
+      if(!res.ok){var et=await res.text();showError('Timing analysis failed ('+res.status+'): '+et.substring(0,120));return;}
+      var data=await res.json();
+      var words=[];
+      if(data.segments){data.segments.forEach(function(sg){if(sg.words)sg.words.forEach(function(w){words.push(w);});});}
+      if(!words.length&&data.words)words=data.words;
+      if(!words.length){showError('No word timings came back. Try a clearer vocal recording.');return;}
+      var lines=[],cur=[words[0]];
+      for(var wi=1;wi<words.length;wi++){
+        if(words[wi].start-words[wi-1].end>0.7){lines.push(cur);cur=[];}
+        cur.push(words[wi]);
+      }
+      lines.push(cur);
+      var beat=60/bpm;
+      var anchor=words[0].start;
+      function nearestBeat(t){return anchor+Math.round((t-anchor)/beat)*beat;}
+      var rows='',onCount=0,offSum=0,offN=0;
+      lines.forEach(function(line,idx){
+        var rw=line[line.length-1];
+        var delta=Math.round((rw.start-nearestBeat(rw.start))*1000);
+        var ok=Math.abs(delta)<=50;
+        if(ok)onCount++;else{offSum+=delta;offN++;}
+        var txt=line.map(function(w){return w.word;}).join(' ').trim();
+        if(txt.length>42)txt=txt.substring(0,42)+'...';
+        rows+='<tr style="border-bottom:1px solid rgba(255,255,255,.06);"><td style="padding:.3rem;">'+(idx+1)+'</td><td style="padding:.3rem;">'+esc(txt)+'</td><td style="padding:.3rem;"><b>'+esc((rw.word||'').trim())+'</b></td><td style="padding:.3rem;">'+(ok?'<span style="color:#4ade80;">on the beat</span>':(delta<0?'<span style="color:#fbbf24;">'+Math.abs(delta)+'ms EARLY</span>':'<span style="color:#fbbf24;">'+delta+'ms LATE</span>'))+'</td></tr>';
+      });
+      var pct=Math.round(onCount/lines.length*100);
+      var avgOff=offN?Math.round(offSum/offN):0;
+      window._flowFile=file;window._flowAvgOff=avgOff;
+      var html='<div style="font-weight:700;color:#4ade80;margin-bottom:.4rem;">Beat Alignment Report</div>';
+      html+='<div style="font-size:.82rem;margin-bottom:.5rem;">'+pct+'% of your rhyme words land on the beat ('+onCount+' of '+lines.length+' lines). Grid: '+bpm+' BPM, your first word treated as beat 1. The rhyme word is the last word of each line, timed at its start.</div>';
+      if(offN&&Math.abs(avgOff)>=40){
+        html+='<div style="background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.4);border-radius:8px;padding:.6rem;font-size:.8rem;margin-bottom:.5rem;">Your lines lean '+(avgOff<0?'EARLY':'LATE')+' by about '+Math.abs(avgOff)+'ms on average. If the whole vocal sits off the beat the same way, one nudge fixes it: <button class="btn btn-sm" onclick="exportFlowNudge()">Export Nudged WAV</button></div>';
+      }
+      html+='<div style="max-height:380px;overflow-y:auto;"><table style="width:100%;font-size:.78rem;border-collapse:collapse;">'+rows+'</table></div>';
+      html+='<div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-top:.5rem;">A nudge moves the WHOLE vocal - it fixes a steady early/late lean, it cannot move single words. For single-word fixes, re-record that line or shift it in an editor. Works best on a vocal stem with a steady BPM.</div>';
+      showResult(html);
+    }catch(e){showError('Error: '+e.message);}
+  },
+
+  // ── AUTO-TUNE ──
+  autotune: async function(v){
+    var files=v.audio;
+    if(!files||!files[0]){showError('Upload a vocal recording first.');return;}
+    var file=files[0];
+    showLoading('Analyzing your vocal pitch...');
+    try{
+      var ab=await file.arrayBuffer();
+      var actx=new (window.AudioContext||window.webkitAudioContext)();
+      var buf=await actx.decodeAudioData(ab.slice(0));
+      var detRate=11025;
+      var octx=new OfflineAudioContext(1,Math.ceil(buf.duration*detRate),detRate);
+      var dsrc=octx.createBufferSource();dsrc.buffer=buf;
+      dsrc.connect(octx.destination);dsrc.start(0);
+      var detBuf=await octx.startRendering();
+      var det=detBuf.getChannelData(0);
+      var frame=512;
+      var rms=[];
+      for(var i=0;i+frame<det.length;i+=frame){
+        var sum=0;for(var j=0;j<frame;j++){var x=det[i+j];sum+=x*x;}
+        rms.push(Math.sqrt(sum/frame));
+      }
+      var peak=0;for(var i2=0;i2<rms.length;i2++)if(rms[i2]>peak)peak=rms[i2];
+      var thr=Math.max(0.02,peak*0.15);
+      var phrases=[],pstart=-1;
+      for(var i3=0;i3<=rms.length;i3++){
+        var on=i3<rms.length&&rms[i3]>thr;
+        if(on&&pstart<0)pstart=i3;
+        if(!on&&pstart>=0){
+          if(i3-pstart>=3)phrases.push({s:pstart*frame,e:i3*frame});
+          pstart=-1;
+        }
+      }
+      if(!phrases.length){showError('No clear vocal phrases found. Try a louder, vocals-only file.');return;}
+      function pitchAt(pos){
+        var win=1024;
+        if(pos<0)pos=0;
+        if(pos+win>det.length)pos=det.length-win;
+        if(pos<0)return 0;
+        var minLag=Math.floor(detRate/450),maxLag=Math.floor(detRate/60);
+        var seg=det.subarray(pos,pos+win);
+        var e0=0;for(var k=0;k<win;k+=2)e0+=seg[k]*seg[k];
+        if(e0<=0)return 0;
+        var bestLag=0,bestCorr=0;
+        for(var lag=minLag;lag<=maxLag;lag++){
+          var corr=0,n=0;
+          for(var k2=0;k2+lag<win;k2+=2){corr+=seg[k2]*seg[k2+lag];n++;}
+          corr/=Math.max(n,1);
+          if(corr>bestCorr){bestCorr=corr;bestLag=lag;}
+        }
+        if(!bestLag||bestCorr/(e0/(win/2))<0.4)return 0;
+        return detRate/bestLag;
+      }
+      var scaleSets={'Major':[0,2,4,5,7,9,11],'Minor':[0,2,3,5,7,8,10]};
+      var scale=scaleSets[v.scale]||scaleSets['Minor'];
+      var rootMap={'C':0,'C#':1,'D':2,'D#':3,'E':4,'F':5,'F#':6,'G':7,'G#':8,'A':9,'A#':10,'B':11};
+      phrases.forEach(function(ph){
+        var freqs=[];
+        [0.3,0.5,0.7].forEach(function(fr){
+          var f=pitchAt(Math.floor(ph.s+(ph.e-ph.s)*fr)-512);
+          if(f>0)freqs.push(f);
+        });
+        freqs.sort(function(a,b){return a-b;});
+        ph.freq=freqs.length?freqs[Math.floor(freqs.length/2)]:0;
+        ph.note=ph.freq?69+12*Math.log2(ph.freq/440):0;
+      });
+      var voiced=phrases.filter(function(ph){return ph.freq>0;});
+      if(!voiced.length){showError('Could not detect a clear pitch. Auto-Tune needs a mostly single vocal line - run it on the vocals stem, not the full mix.');return;}
+      var root,keyLabel;
+      if(v.key&&v.key!=='Auto-detect'&&rootMap[v.key]!==undefined){
+        root=rootMap[v.key];
+        keyLabel=v.key+' '+(v.scale||'Minor');
+      }else{
+        var bestScore=-1;root=0;var bestScale=scale;
+        for(var r=0;r<12;r++){
+          ['Major','Minor'].forEach(function(sn){
+            var sc=scaleSets[sn],score=0;
+            voiced.forEach(function(ph){
+              var pc=((Math.round(ph.note)-r)%12+12)%12;
+              if(sc.indexOf(pc)>-1)score++;
+            });
+            if(score>bestScore){bestScore=score;root=r;bestScale=sc;}
+          });
+        }
+        scale=bestScale;
+        keyLabel=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'][root]+' '+(scale===scaleSets['Major']?'Major':'Minor');
+      }
+      var strength={'Natural':0.5,'Medium':0.75,'Hard (T-Pain)':1}[v.strength||'Natural']||0.5;
+      function snapNote(n){
+        var rn=Math.round(n);
+        var pc=((rn-root)%12+12)%12;
+        if(scale.indexOf(pc)>-1)return rn;
+        for(var up=1;up<7;up++){
+          if(scale.indexOf((pc+up)%12)>-1)return rn+up;
+          if(scale.indexOf(((pc-up)%12+12)%12)>-1)return rn-up;
+        }
+        return rn;
+      }
+      var sr=buf.sampleRate;
+      var detToOrig=sr/detRate;
+      var tunedCount=0;
+      voiced.forEach(function(ph){
+        var target=snapNote(ph.note);
+        var semi=(target-ph.note)*strength;
+        semi=Math.max(-3,Math.min(3,semi));
+        ph.ratio=Math.pow(2,semi/12);
+        if(Math.abs(semi)>=0.08)tunedCount++;
+      });
+      if(!tunedCount){
+        showResult('<div style="font-weight:700;color:#4ade80;">Already in tune</div><div style="font-size:.82rem;">Every phrase already sits on a note in '+keyLabel+'. Nothing to correct.</div>');
+        return;
+      }
+      showLoading('Retuning '+tunedCount+' phrases to '+keyLabel+'...');
+      await new Promise(function(r){setTimeout(r,30);});
+      var outChans=[];
+      for(var c=0;c<buf.numberOfChannels;c++){
+        var data=buf.getChannelData(c);
+        var out=new Float32Array(data);
+        voiced.forEach(function(ph){
+          if(!ph.ratio||Math.abs(ph.ratio-1)<0.005)return;
+          var s0=Math.floor(ph.s*detToOrig),e0=Math.min(data.length,Math.floor(ph.e*detToOrig));
+          var len=e0-s0;
+          if(len<2048)return;
+          var temp=new Float32Array(len);
+          // TD-PSOLA: pitch-synchronous grains - the method that actually
+          // retunes a sustained vocal note (verified on test tones).
+          var pIn=sr/ph.freq, pOut=pIn/ph.ratio;
+          var grainLen=Math.floor(2*pIn);
+          var marks=[];
+          var mPos=s0+pIn*0.5;
+          while(mPos<e0){
+            var best=Math.floor(mPos),bv=-2,rr=Math.floor(pIn/2);
+            for(var q=Math.max(s0,Math.floor(mPos-rr));q<Math.min(e0,Math.floor(mPos+rr));q++){if(data[q]>bv){bv=data[q];best=q;}}
+            marks.push(best);mPos+=pIn;
+          }
+          if(marks.length>=2){
+            var mi=0;
+            for(var t=s0+pOut*0.5;t<e0;t+=pOut){
+              while(mi<marks.length-1&&Math.abs(marks[mi+1]-t)<Math.abs(marks[mi]-t))mi++;
+              while(mi>0&&Math.abs(marks[mi-1]-t)<Math.abs(marks[mi]-t))mi--;
+              var mark=marks[mi];
+              var g0=mark-Math.floor(grainLen/2);
+              var o0=Math.floor(t)-Math.floor(grainLen/2)-s0;
+              for(var k=0;k<grainLen;k++){
+                var oi=o0+k;
+                if(oi<0||oi>=len)continue;
+                var sp=g0+k;
+                if(sp<0||sp>=data.length)continue;
+                temp[oi]+=data[sp]*(0.5-0.5*Math.cos(2*Math.PI*k/(grainLen-1)));
+              }
+            }
+          }
+          var fade=Math.min(512,Math.floor(len/4));
+          for(var i4=0;i4<len;i4++){
+            var w=1;
+            if(i4<fade)w=i4/fade;
+            else if(i4>len-fade)w=(len-i4)/fade;
+            out[s0+i4]=out[s0+i4]*(1-w)+temp[i4]*w;
+          }
+        });
+        outChans.push(out);
+      }
+      var octx2=new OfflineAudioContext(buf.numberOfChannels,buf.length,sr);
+      var obuf=octx2.createBuffer(buf.numberOfChannels,buf.length,sr);
+      for(var c2=0;c2<buf.numberOfChannels;c2++)obuf.getChannelData(c2).set(outChans[c2]);
+      var wav=audioBufferToWav(obuf);
+      var url=URL.createObjectURL(wav);
+      window._lastBlobUrl=url;window._lastBlob=wav;
+      showResult('<div style="font-weight:700;color:#4ade80;margin-bottom:.4rem;">Auto-Tuned!</div>'+
+        '<div style="font-size:.8rem;margin-bottom:.5rem;">Key: '+keyLabel+' | '+tunedCount+' phrases corrected | Strength: '+(v.strength||'Natural')+'</div>'+
+        '<audio src="'+url+'" controls style="width:100%;"></audio>'+
+        '<div class="result-actions"><button class="btn btn-sm" onclick="downloadBlob(\'autotuned-8bfr.wav\')">Download WAV</button>'+
+        '<button class="btn btn-ghost btn-sm" onclick="runTool()">Tune Another</button></div>'+
+        '<div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-top:.5rem;">Tip: for the cleanest result, split the song with the Stem Splitter, tune the VOCALS stem, then layer it back over the instrumental.</div>');
+    }catch(e){showError('Auto-Tune error: '+e.message);}
   }
 };
 
@@ -3004,6 +3249,36 @@ function addMp4ConvertBtn(containerId,blobRef,filename){
   };
   el.appendChild(btn);
 }
+window.exportFlowNudge=async function(){
+  var file=window._flowFile,off=window._flowAvgOff||0;
+  if(!file){showError('Run the Beat Alignment Check first.');return;}
+  showLoading('Exporting nudged song...');
+  try{
+    var ab=await file.arrayBuffer();
+    var actx=new (window.AudioContext||window.webkitAudioContext)();
+    var buf=await actx.decodeAudioData(ab.slice(0));
+    var sr=buf.sampleRate,ch=buf.numberOfChannels;
+    var shift=Math.round((-(off)/1000)*sr);
+    var outLen=buf.length+Math.max(0,shift);
+    var octx=new OfflineAudioContext(ch,outLen,sr);
+    var ob=octx.createBuffer(ch,outLen,sr);
+    for(var c=0;c<ch;c++){
+      var d=buf.getChannelData(c),o=ob.getChannelData(c);
+      for(var i=0;i<outLen;i++){
+        var si=i-shift;
+        o[i]=(si>=0&&si<d.length)?d[si]:0;
+      }
+    }
+    var wav=audioBufferToWav(ob);
+    var url=URL.createObjectURL(wav);
+    window._lastBlobUrl=url;window._lastBlob=wav;
+    showResult('<div style="font-weight:700;color:#4ade80;margin-bottom:.4rem;">Nudged export ready</div>'+
+      '<div style="font-size:.8rem;margin-bottom:.5rem;">Shifted by '+(-off)+'ms so the average rhyme lands on the beat.</div>'+
+      '<audio src="'+url+'" controls style="width:100%;"></audio>'+
+      '<div class="result-actions"><button class="btn btn-sm" onclick="downloadBlob(\'beat-aligned-8bfr.wav\')">Download WAV</button></div>');
+  }catch(e){showError('Export failed: '+e.message);}
+};
+
 window.downloadCover3000=function(){
   if(!window._lastImageUrl){showError('Generate a cover first.');return;}
   var img=new Image();
