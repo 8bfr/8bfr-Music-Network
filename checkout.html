@@ -101,7 +101,7 @@
       // Get artist profile
       let artistProfile = {};
       if (song.uploaded_by) {
-        const { data: ap } = await db.from('profiles').select('username, display_name, paypal_email, verified_artist').eq('user_id', song.uploaded_by).single();
+        const { data: ap } = await db.from('profiles').select('username, display_name, paypal_email, verified_artist, music_section_hidden').eq('user_id', song.uploaded_by).single();
         if (ap) artistProfile = ap;
       }
 
@@ -110,6 +110,17 @@
       if (currentUser) {
         const { data: existing } = await db.from('song_purchases').select('id').eq('buyer_id', currentUser.id).eq('song_id', songId).limit(1);
         if (existing && existing.length > 0) alreadyPurchased = true;
+      }
+
+      // Owner shut-off: when the owner has hidden this artist's music
+      // (music_section_hidden on their profile, set in Owner Payouts),
+      // no new sales and no free downloads. People who already bought
+      // the song keep their download.
+      if (artistProfile.music_section_hidden && !alreadyPurchased) {
+        loading.style.display = 'none';
+        content.style.display = 'block';
+        content.innerHTML = '<div class="card" style="text-align:center;"><h2 style="font-size:1.2rem;font-weight:700;margin-bottom:0.75rem;">Downloads Paused</h2><p style="color:rgba(234,230,255,0.85);">Downloads for this artist are paused right now. You can still listen on their profile and on the radio.</p></div>';
+        return;
       }
 
       loading.style.display = 'none';
