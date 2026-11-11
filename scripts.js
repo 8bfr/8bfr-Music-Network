@@ -1033,6 +1033,36 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
   }
 })();
 
+// === AUDIO DOWNLOAD PROTECTION (site-wide) ===
+// Song and beat audio is play-only until purchased. Strips the browser's
+// built-in Download item from every audio element's menu, including
+// players added after page load (profile lists, global radio player).
+(function(){
+  function protectAudio(el){
+    if (!el || el.tagName !== 'AUDIO') return;
+    try { el.controlsList.add('nodownload'); } catch(e) {}
+    el.setAttribute('controlsList','nodownload');
+    if (!el._dlGuarded) { el._dlGuarded = true; el.addEventListener('contextmenu', function(ev){ ev.preventDefault(); }); }
+  }
+  function scanAll(root){
+    (root || document).querySelectorAll('audio').forEach(protectAudio);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ scanAll(); });
+  else scanAll();
+  var mo = new MutationObserver(function(muts){
+    muts.forEach(function(m){
+      m.addedNodes.forEach(function(n){
+        if (n.nodeType !== 1) return;
+        if (n.tagName === 'AUDIO') protectAudio(n);
+        if (n.querySelectorAll) scanAll(n);
+      });
+    });
+  });
+  function startObs(){ if (document.body) mo.observe(document.body, {childList:true, subtree:true}); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startObs);
+  else startObs();
+})();
+
 // ═══ UNIVERSAL OWNER MOD ACTIONS ═══
 // Available on every page via scripts.js
 (function(){
