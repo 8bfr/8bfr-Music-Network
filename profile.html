@@ -1305,19 +1305,23 @@
       }).select('id').single();
       if(ir.error)throw new Error(ir.error.message);
 
-      // Auto-watermark beats
+      // Auto-watermark beats: mix the cached 8BFR voice tag into the beat
+      // in the browser (watermarker.js), upload the mixed copy, and store
+      // it as the beat's watermarked_url for store previews.
       if(isBeat&&ir.data&&ir.data.id){
         n.innerHTML='<span style="color:#a855f7;">Watermarking beat...</span>';
         try{
-          var wmRes=await fetch('https://8bfr-api.vercel.app/api/watermark',{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({audio_url:su,song_id:ir.data.id,user_id:currentUser.id})
-          });
-          var wmData=await wmRes.json();
-          if(wmData.success){n.innerHTML='<span style="color:#4ade80;">Beat watermarked! ('+wmData.tags_applied+' tags)</span>';}
-          else{n.innerHTML='<span style="color:#fbbf24;">Uploaded but watermark failed: '+(wmData.error||'unknown')+'</span>';}
-        }catch(wmErr){n.innerHTML='<span style="color:#fbbf24;">Uploaded but watermark unavailable</span>';console.log('Watermark:',wmErr);}
+          if(typeof WM==='undefined'||!WM.watermarkBeat)throw new Error('watermarker not loaded');
+          var wmBlob=await WM.watermarkBeat(af,{onProgress:function(p){n.innerHTML='<span style="color:#a855f7;">Watermarking beat... '+p+'%</span>';}});
+          var wmName=af.name.replace(/[^a-zA-Z0-9.-]/g,'-').replace(/\.mp3$/i,'')+'-watermarked.mp3';
+          var wmPath=currentUser.id+'/songs/'+Date.now()+'-'+wmName;
+          var wmUp=await db.storage.from('songs').upload(wmPath,wmBlob,{contentType:'audio/mpeg'});
+          if(wmUp.error)throw new Error(wmUp.error.message);
+          var wmUrl=db.storage.from('songs').getPublicUrl(wmPath).data.publicUrl;
+          var wmUpd=await db.from('songs').update({watermarked_url:wmUrl}).eq('id',ir.data.id);
+          if(wmUpd.error)throw new Error(wmUpd.error.message);
+          n.innerHTML='<span style="color:#4ade80;">Beat watermarked!</span>';
+        }catch(wmErr){n.innerHTML='<span style="color:#fbbf24;">Uploaded but watermark failed: '+(wmErr.message||'unknown')+'</span>';console.log('Watermark:',wmErr);}
       }
 
       // If album mode, upload additional tracks
@@ -1752,6 +1756,8 @@ document.getElementById('tipModal').addEventListener('click',function(e){if(e.ta
 })();
 </script>
   <div style="text-align:center;padding:1rem 0;font-size:.72rem;color:rgba(168,85,247,.3);">Copyright 2025-2026 8BFR Music Network</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
+<script src="watermarker.js" defer></script>
 <script src="scripts.js" defer></script>
 
 
