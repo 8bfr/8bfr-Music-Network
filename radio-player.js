@@ -183,7 +183,34 @@
     document.getElementById('rmPlay').textContent = state.playing ? '❚❚' : '▶';
   }
 
+  // Explicit lyrics gate (explicit-gate.js): if the song is explicit
+  // and the member has not confirmed 18+ this session, show the warning
+  // first; onAgree runs only after they confirm (or right away when the
+  // song is not explicit / already confirmed / gate script missing).
+  function gateSong(song, onAgree, onCancel) {
+    if (song && song.explicit && window.ExplicitGate) {
+      window.ExplicitGate.guard(song, onAgree, onCancel);
+    } else if (onAgree) {
+      onAgree();
+    }
+  }
+
   function loadCurrent(autoplay) {
+    var song = state.queue[state.index];
+    if (!song || !audio) return;
+    if ((autoplay || state.playing) && song.explicit) {
+      gateSong(song, function(){ loadCurrentNow(autoplay); }, function(){
+        // Declined: load the track paused, do not play it.
+        state.playing = false;
+        loadCurrentNow(false);
+        saveState();
+      });
+      return;
+    }
+    loadCurrentNow(autoplay);
+  }
+
+  function loadCurrentNow(autoplay) {
     var song = state.queue[state.index];
     if (!song || !audio) return;
     var url = song.song_url || song.audio_url || song.url;
@@ -211,8 +238,10 @@
   function togglePlay() {
     if (!audio) return;
     if (audio.paused) {
-      if (!audio.src) loadCurrent(true);
-      else { var p = audio.play(); if (p && p.catch) p.catch(function(){}); }
+      gateSong(state.queue[state.index], function(){
+        if (!audio.src) loadCurrent(true);
+        else { var p = audio.play(); if (p && p.catch) p.catch(function(){}); }
+      }, null);
     } else {
       audio.pause();
     }
@@ -275,7 +304,7 @@
       saveState();
     },
     pause: function(){ if (audio) audio.pause(); },
-    resume: function(){ if (audio) { var p = audio.play(); if (p && p.catch) p.catch(function(){});} },
+    resume: function(){ gateSong(state.queue[state.index], function(){ if (audio) { var p = audio.play(); if (p && p.catch) p.catch(function(){});} }, null); },
     toggle: togglePlay,
     next: next,
     prev: prev,
