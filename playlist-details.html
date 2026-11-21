@@ -264,6 +264,12 @@ function renderSongBrowser(query){
 // ── PLAYBACK ──
 function playTrack(idx){
   if(idx<0||idx>=tracks.length)return;
+  // Explicit lyrics gate: confirm 18+ before an explicit song plays
+  var gs=tracks[idx].song;
+  if(gs&&gs.explicit&&window.ExplicitGate&&!window.ExplicitGate.isAgreed()){
+    window.ExplicitGate.requireAgreement(function(){playTrack(idx);},null);
+    return;
+  }
   currentTrackIdx=idx;
   var s=tracks[idx].song;
   if(!s.song_url){alert('No audio file for this track.');return;}
@@ -279,7 +285,15 @@ function playTrack(idx){
 
 function togglePlay(){
   if(isPlaying){audio.pause();isPlaying=false;document.getElementById('npPlayBtn').textContent='▶️';}
-  else{audio.play().then(function(){isPlaying=true;document.getElementById('npPlayBtn').textContent='⏸️';}).catch(function(){});}
+  else{
+    // Explicit lyrics gate: confirm 18+ before resuming an explicit song
+    var gs=(currentTrackIdx>=0&&tracks[currentTrackIdx])?tracks[currentTrackIdx].song:null;
+    if(gs&&gs.explicit&&window.ExplicitGate&&!window.ExplicitGate.isAgreed()){
+      window.ExplicitGate.requireAgreement(function(){togglePlay();},null);
+      return;
+    }
+    audio.play().then(function(){isPlaying=true;document.getElementById('npPlayBtn').textContent='⏸️';}).catch(function(){});
+  }
 }
 function nextTrack(){if(currentTrackIdx<tracks.length-1)playTrack(currentTrackIdx+1);else{isPlaying=false;document.getElementById('npPlayBtn').textContent='▶️';}}
 function prevTrack(){if(audio.currentTime>3){audio.currentTime=0;return;}if(currentTrackIdx>0)playTrack(currentTrackIdx-1);}

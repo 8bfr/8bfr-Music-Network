@@ -834,6 +834,15 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
   document.head.appendChild(s);
 })();
 
+// === AUTO-INJECT EXPLICIT LYRICS WARNING ===
+(function(){
+  if(window.ExplicitGate)return;
+  var s=document.createElement('script');
+  s.src='explicit-gate.js';
+  s.defer=true;
+  document.head.appendChild(s);
+})();
+
 // ═══ AUTO-INJECT GAME SESSION MANAGER ═══
 (function(){
   if(window.GameSession)return;
