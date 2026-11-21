@@ -80,7 +80,7 @@
       '#rmCover{width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,#7c3aed,#a855f7);flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:1.2rem;cursor:pointer;}' +
       '#rmCover img{width:100%;height:100%;object-fit:cover;}' +
       '#rmInfo{flex:1;min-width:0;cursor:pointer;}' +
-      '#rmTitle{font-size:0.85rem;font-weight:700;color:#eae6ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
+      '#rmTitle{font-size:0.85rem;font-weight:700;color:#eae6ff;overflow-wrap:break-word;}' +
       '#rmArtist{font-size:0.72rem;color:#a855f7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
       '.rm-btn{background:none;border:none;color:#eae6ff;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:background 0.15s;flex-shrink:0;}' +
       '.rm-btn:hover{background:rgba(124,58,237,0.2);}' +
