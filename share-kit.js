@@ -86,7 +86,7 @@
       '.share-preview-img{width:60px;height:60px;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#a855f7);flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:1.5rem;}' +
       '.share-preview-img img{width:100%;height:100%;object-fit:cover;}' +
       '.share-preview-info{flex:1;min-width:0;}' +
-      '.share-preview-title{font-weight:800;font-size:0.95rem;color:#eae6ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
+      '.share-preview-title{font-weight:800;font-size:0.95rem;color:#eae6ff;overflow-wrap:break-word;}' +
       '.share-preview-desc{font-size:0.78rem;color:rgba(168,85,247,0.75);margin-top:0.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
       '.share-close{background:none;border:none;color:rgba(234,230,255,0.6);font-size:1.5rem;cursor:pointer;width:32px;height:32px;border-radius:50%;flex-shrink:0;transition:background 0.15s;}' +
       '.share-close:hover{background:rgba(124,58,237,0.2);color:#eae6ff;}' +
