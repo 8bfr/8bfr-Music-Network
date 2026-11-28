@@ -97,7 +97,7 @@
     ["Login","login.html","Auth"],["Register","register.html","Auth"],["Verify Email","verify.html","Auth"],["Reset Password","reset-password.html","Auth"],
     ["Profile","profile.html","Profile"],["Settings","settings.html","Profile"],["Billing","billing.html","Profile"],
     ["Feed","feed.html","Social"],["Messages","messages.html","Social"],["Notifications","notifications.html","Social"],["Friends","friends.html","Social"],["Following","following.html","Social"],["Followers","followers.html","Social"],
-    ["Artists","artists.html","Music"],["Albums","albums.html","Music"],["Singles","singles.html","Music"],["Playlists","playlists.html","Music"],["Playlist Details","playlist-details.html","Music"],["Genres","genres.html","Music"],["Tags","tags.html","Music"],["Beats","beats.html","Music"],["Beat Store","beat-store.html","Music"],
+    ["Artists","artists.html","Music"],["Albums","albums.html","Music"],["Singles","singles.html","Music"],["Playlists","playlists.html","Music"],["Playlist Details","playlist-details.html","Music"],["Genres","genres.html","Music"],["Tags","tags.html","Music"],["Beats","beats.html","Music"],["Beat Store","beats-store.html","Music"],
     ["Studio","studio.html","Create"],["Collabs","collabs.html","Create"],["Upload","upload.html","Create"],
     ["Tournaments","tournaments.html","Events"],["Tournament Details","tournament-details.html","Events"],["Leaderboard","leaderboard.html","Events"],["Events","events.html","Events"],["Event Details","event-details.html","Events"],
     ["Marketplace","marketplace.html","Commerce"],["Shop","shop.html","Commerce"],["Cart","cart.html","Commerce"],["Checkout","checkout.html","Commerce"],["Subscriptions","subscriptions.html","Commerce"],["Plans","plans.html","Commerce"],
