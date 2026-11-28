@@ -295,6 +295,7 @@
                 
                 }
 
+                var autoApprove = (paymentMethod === 'paypal');
                 var durationDays = parseInt(document.getElementById('adDuration').value);
                 var expiresAt = new Date(Date.now() + durationDays * 86400000).toISOString();
                 var adData = {
@@ -307,8 +308,9 @@
                     duration_days: durationDays,
                     expires_at: expiresAt,
                     description: document.getElementById('adType').value + ' | ' + durationDays + ' days | $' + finalPrice.toFixed(2) + ' | ' + paymentMethod + ' | ' + paymentId,
-                    status: 'pending',
-                    approved: false
+                    status: autoApprove ? 'approved' : 'pending',
+                    approved: autoApprove,
+                    approved_at: autoApprove ? new Date().toISOString() : null
                 };
                 var insertRes = await sb.from('ads').insert(adData);
                 if (insertRes.error) {
@@ -318,7 +320,7 @@
                     if (discountData) {
                         await sb.from('discount_codes').update({ uses: (discountData.uses || 0) + 1 }).eq('code', discountData.code);
                     }
-                    alert('Ad submitted! Your ad is pending approval.');
+                    alert(autoApprove ? 'Payment confirmed! Your ad is now LIVE on 8BFR.' : 'Ad submitted! Your ad is pending approval.');
                     window.location.href = 'index.html';
                 }
             } catch (err) {
