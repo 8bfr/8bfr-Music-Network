@@ -296,6 +296,8 @@ body.menu-open #bubble-top-single,body.menu-open #carrieWrap{ right:340px; }\
       <a href="feed.html" class="menu-chip">&#x1F4F0; Community Feed</a>\
       <a href="create-post.html" class="menu-chip">&#x1F4F7; Create Post</a>\
       <a href="radio.html" class="menu-chip">&#x1F4FB; Radio</a>\
+      <a href="https://8bfr.github.io/8bfr-radio/" target="_blank" rel="noopener" class="menu-chip">&#x1F4FB; Song Radio 24/7</a>\
+      <a href="https://8bfr.github.io/8bfr-radio/beats.html" target="_blank" rel="noopener" class="menu-chip">&#x1F941; Beat Radio 24/7</a>\
       <a href="live.html" class="menu-chip">&#x1F4E1; Live</a>\
       <a href="stats.html" class="menu-chip">&#x1F4CA; Stats</a>\
       <a href="featured.html" class="menu-chip">&#x2B50; Featured Artist</a>\
