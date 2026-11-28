@@ -218,6 +218,23 @@
       </div>
       <div class="age-tier-box" id="ageTierBox"></div>
 
+      <!-- Where did you hear about us -->
+      <div class="field">
+        <label for="hearAbout">Where did you hear about us?</label>
+        <select id="hearAbout" class="input" style="padding:.55rem .5rem;font-size:.88rem;">
+          <option value="">Select one (optional)</option>
+          <option value="TikTok">TikTok</option>
+          <option value="Facebook">Facebook</option>
+          <option value="Instagram">Instagram</option>
+          <option value="YouTube">YouTube</option>
+          <option value="Spotify">Spotify</option>
+          <option value="Google search">Google search</option>
+          <option value="A friend">A friend</option>
+          <option value="Radio">Radio</option>
+          <option value="Another artist">Another artist</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
 
       <!-- Age Policy Link -->
       <div style="text-align:center;margin-bottom:.5rem;">
@@ -486,11 +503,13 @@ async function doSignup() {
     const { data: existing } = await db.from('profiles').select('id').ilike('username', username).maybeSingle();
     if (existing) { showMsg('⚠️ Username taken.', 'error'); btn.disabled = false; btn.innerHTML = '🎵 Create My Account'; return; }
 
+    var hearAbout = (document.getElementById('hearAbout') || {}).value || '';
+
     // Sign up
     const { data, error } = await db.auth.signUp({
       email, password,
       options: {
-        data: { username, role: selectedRoles[0], display_name: displayName },
+        data: { username, role: selectedRoles[0], display_name: displayName, hear_about: hearAbout },
         emailRedirectTo: window.location.origin + '/login.html'
       }
     });
@@ -535,6 +554,11 @@ async function doSignup() {
           await db.rpc('upsert_profile', { p_data: profileData });
         }
       } catch(e) { console.log('Profile create error:', e); }
+
+      // Save where they heard about us (best effort - never blocks signup)
+      try {
+        if (hearAbout) { await db.from('profiles').update({ hear_about: hearAbout }).eq('user_id', data.user.id); }
+      } catch(e) { console.log('hear_about save skipped:', e); }
 
       // Notify owner when an artist/beatmaker signs up needing link verification
       try {
